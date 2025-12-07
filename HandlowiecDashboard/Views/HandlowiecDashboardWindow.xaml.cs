@@ -1,150 +1,63 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using Microsoft.Data.SqlClient;
 using LiveCharts;
 using LiveCharts.Wpf;
-using Kalendarz1.HandlowiecDashboard.Models;
-using Kalendarz1.HandlowiecDashboard.Services;
 
 namespace Kalendarz1.HandlowiecDashboard.Views
 {
-    /// <summary>
-    /// Dashboard Handlowca - nowoczesny ciemny motyw z analiza sprzedazy i CRM
-    /// </summary>
     public partial class HandlowiecDashboardWindow : Window
     {
-        private readonly HandlowiecDashboardService _service;
-        private string _wybranyHandlowiec;
-        private bool _isInitializing = true;
+        private readonly string _connectionStringHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+        private readonly CultureInfo _kulturaPL = new CultureInfo("pl-PL");
+        private bool _isInitialized = false;
+        private string _wybranyHandlowiec = "— Wszyscy —";
 
-        // Uprawnienia uzytkownika
-        private bool _isAdmin;
-        private List<string> _przypisaniHandlowcy;
+        private static readonly string[] _nazwyMiesiecy = {
+            "", "Styczen", "Luty", "Marzec", "Kwiecien", "Maj", "Czerwiec",
+            "Lipiec", "Sierpien", "Wrzesien", "Pazdziernik", "Listopad", "Grudzien"
+        };
 
-        // Kolory dla wykresow
-        private static readonly SolidColorBrush OrangeBrush = new SolidColorBrush(Color.FromRgb(244, 162, 97));
-        private static readonly SolidColorBrush BlueBrush = new SolidColorBrush(Color.FromRgb(78, 168, 222));
-        private static readonly SolidColorBrush GreenBrush = new SolidColorBrush(Color.FromRgb(39, 174, 96));
-        private static readonly SolidColorBrush RedBrush = new SolidColorBrush(Color.FromRgb(231, 76, 60));
-        private static readonly SolidColorBrush PurpleBrush = new SolidColorBrush(Color.FromRgb(155, 89, 182));
-        private static readonly SolidColorBrush GrayBrush = new SolidColorBrush(Color.FromRgb(139, 148, 158));
-
-        // Zakres dat
-        private DateTime _dataOd = DateTime.Today.AddDays(-30);
-        private DateTime _dataDo = DateTime.Today.AddDays(1);
-        private Button _activeFilterButton;
+        private readonly Color[] _kolory = {
+            (Color)ColorConverter.ConvertFromString("#3498db"),
+            (Color)ColorConverter.ConvertFromString("#2ecc71"),
+            (Color)ColorConverter.ConvertFromString("#e74c3c"),
+            (Color)ColorConverter.ConvertFromString("#f39c12"),
+            (Color)ColorConverter.ConvertFromString("#9b59b6"),
+            (Color)ColorConverter.ConvertFromString("#1abc9c"),
+            (Color)ColorConverter.ConvertFromString("#e67e22"),
+            (Color)ColorConverter.ConvertFromString("#95a5a6"),
+            (Color)ColorConverter.ConvertFromString("#34495e"),
+            (Color)ColorConverter.ConvertFromString("#16a085")
+        };
 
         public HandlowiecDashboardWindow()
         {
             InitializeComponent();
-            _service = new HandlowiecDashboardService();
-
-            Loaded += async (s, e) => await InitializeAsync();
+            Loaded += Window_Loaded;
         }
 
-        /// <summary>
-        /// Inicjalizacja dashboardu
-        /// </summary>
-        private async Task InitializeAsync()
+        private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            ShowLoading(true);
-
             try
             {
-                // Sprawdz uprawnienia uzytkownika
-                _isAdmin = App.UserID == "11111";
-                _przypisaniHandlowcy = UserHandlowcyManager.GetUserHandlowcy(App.UserID);
+                loadingOverlay.Visibility = Visibility.Visible;
 
-                // Ustaw tytul okna
-                if (_isAdmin)
-                {
-                    this.Title = "Dashboard Handlowca [ADMINISTRATOR]";
-                }
-                else
-                {
-                    string userName = App.UserFullName ?? $"Uzytkownik {App.UserID}";
-                    this.Title = $"Dashboard Handlowca [{userName}]";
-                }
+                // Wypelnij combobox handlowcow
+                await WypelnijHandlowcowAsync();
 
-                // Pobierz liste handlowcow
-                var handlowcy = await _service.PobierzHandlowcowAsync();
+                // Wypelnij combobox lat i miesiecy
+                WypelnijLataIMiesiace();
 
-                // Dla nie-admina filtruj liste do przypisanych handlowcow
-                if (!_isAdmin)
-                {
-                    // Filtruj liste do przypisanych handlowcow
-                    var dostepniHandlowcy = new List<string>();
+                _isInitialized = true;
 
-                    if (_przypisaniHandlowcy.Count > 0)
-                    {
-                        // Dodaj tylko przypisanych handlowcow (zachowaj kolejnosc z oryginalnej listy)
-                        dostepniHandlowcy.AddRange(handlowcy.Where(h => _przypisaniHandlowcy.Contains(h)));
-                    }
-
-                    if (dostepniHandlowcy.Count == 1)
-                    {
-                        // Jesli handlowiec ma tylko jednego przypisanego - pokaz tylko jego, zablokuj ComboBox
-                        handlowcy = dostepniHandlowcy;
-                        cmbHandlowiec.IsEnabled = false;
-                    }
-                    else if (dostepniHandlowcy.Count > 1)
-                    {
-                        // Jesli ma wielu - moze przelaczac miedzy SWOIMI (bez "Wszyscy")
-                        handlowcy = dostepniHandlowcy;
-                        cmbHandlowiec.IsEnabled = true;
-                    }
-                    else
-                    {
-                        // Brak przypisanych handlowcow
-                        handlowcy = new List<string> { "— Brak przypisanych handlowców —" };
-                        cmbHandlowiec.IsEnabled = false;
-                    }
-                }
-                else
-                {
-                    // Admin moze wybierac wszystkich
-                    cmbHandlowiec.IsEnabled = true;
-                }
-
-                cmbHandlowiec.ItemsSource = handlowcy;
-
-                // Ustaw domyslnie aktualnego uzytkownika
-                if (!_isAdmin && _przypisaniHandlowcy.Count > 0)
-                {
-                    // Dla handlowca - wybierz pierwszego przypisanego
-                    cmbHandlowiec.SelectedIndex = 0;
-                    _wybranyHandlowiec = handlowcy[0];
-                }
-                else if (_isAdmin)
-                {
-                    // Admin - ustaw "Wszyscy" lub aktualnego uzytkownika
-                    var currentUser = App.UserFullName;
-                    if (!string.IsNullOrEmpty(currentUser) && handlowcy.Contains(currentUser))
-                    {
-                        cmbHandlowiec.SelectedItem = currentUser;
-                        _wybranyHandlowiec = currentUser;
-                    }
-                    else
-                    {
-                        cmbHandlowiec.SelectedIndex = 0;
-                        _wybranyHandlowiec = "— Wszyscy —";
-                    }
-                }
-                else
-                {
-                    // Brak przypisanych handlowcow
-                    cmbHandlowiec.SelectedIndex = 0;
-                    _wybranyHandlowiec = null;
-                }
-
-                _isInitializing = false;
-
-                // Zaladuj dane
-                await LoadDashboardDataAsync();
+                // Zaladuj dane pierwszej zakladki
+                await OdswiezSprzedazMiesiecznaAsync();
             }
             catch (Exception ex)
             {
@@ -152,398 +65,551 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             }
             finally
             {
-                ShowLoading(false);
+                loadingOverlay.Visibility = Visibility.Collapsed;
             }
         }
 
-        /// <summary>
-        /// Laduje wszystkie dane dashboardu
-        /// </summary>
-        private async Task LoadDashboardDataAsync()
+        private async System.Threading.Tasks.Task WypelnijHandlowcowAsync()
         {
-            ShowLoading(true);
+            var handlowcy = new List<string> { "— Wszyscy —" };
 
             try
             {
-                // Rownolegle pobieranie danych
-                var taskDzienne = _service.PobierzDaneDzienneAsync(_wybranyHandlowiec, 14);
-                var taskRegiony = _service.PobierzSprzedazRegionalnąAsync(_wybranyHandlowiec, 3);
-                var task30Dni = _service.PobierzPodsumowanie30DniAsync(_wybranyHandlowiec);
-                var taskMiesieczne = _service.PobierzDaneMiesieczneAsync(_wybranyHandlowiec, 12);
-                var taskDostawa = _service.PobierzStatystykiDostawyAsync(_wybranyHandlowiec, 1);
-                var taskTopOdbiorcy = _service.PobierzTopOdbiorcowAsync(_wybranyHandlowiec, 10, 3);
-                var taskCRM = _service.PobierzCRMStatystykiAsync(App.UserID);
-                var taskPorownanie = _service.PobierzPorownanieOkresowAsync(_wybranyHandlowiec);
-                var taskSrednia = _service.PobierzSredniaZamowieniaDziennieAsync(_wybranyHandlowiec);
-                // Nowe dane z Faktur i Zamowien
-                var taskZamDzien = _service.PobierzZamowieniaNaDzienAsync(_wybranyHandlowiec);
-                var taskTopProdukty = _service.PobierzTopProduktyAsync(_wybranyHandlowiec, 5, 30);
+                await using var cn = new SqlConnection(_connectionStringHandel);
+                await cn.OpenAsync();
 
-                await Task.WhenAll(taskDzienne, taskRegiony, task30Dni, taskMiesieczne,
-                    taskDostawa, taskTopOdbiorcy, taskCRM, taskPorownanie, taskSrednia,
-                    taskZamDzien, taskTopProdukty);
+                var sql = @"
+                    SELECT DISTINCT WYM.CDim_Handlowiec_Val
+                    FROM [HANDEL].[SSCommon].[ContractorClassification] WYM
+                    WHERE WYM.CDim_Handlowiec_Val IS NOT NULL
+                      AND WYM.CDim_Handlowiec_Val != ''
+                      AND WYM.CDim_Handlowiec_Val != 'Ogolne'
+                    ORDER BY WYM.CDim_Handlowiec_Val";
 
-                // Aktualizuj sprzedaz dzienna
-                UpdateDzienneChart(taskDzienne.Result);
-
-                // Aktualizuj regiony
-                dgRegiony.ItemsSource = taskRegiony.Result;
-
-                // Aktualizuj 30-dniowe podsumowanie
-                Update30DniSummary(task30Dni.Result);
-
-                // Aktualizuj trend miesieczny
-                UpdateTrendChart(taskMiesieczne.Result);
-
-                // Aktualizuj typ dostawy
-                UpdateDostawaChart(taskDostawa.Result);
-
-                // Aktualizuj top odbiorcow
-                dgTopOdbiorcy.ItemsSource = taskTopOdbiorcy.Result;
-
-                // Aktualizuj CRM
-                UpdateCRM(taskCRM.Result);
-
-                // Aktualizuj porownanie miesiecy
-                dgPorownanie.ItemsSource = taskPorownanie.Result;
-
-                // Aktualizuj srednia dzienna
-                UpdateSredniaDziennaChart(taskSrednia.Result);
-
-                // Aktualizuj zamowienia dzis/jutro
-                UpdateZamowieniaNaDzien(taskZamDzien.Result);
-
-                // Aktualizuj top produkty
-                dgTopProdukty.ItemsSource = taskTopProdukty.Result;
+                await using var cmd = new SqlCommand(sql, cn);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    if (!reader.IsDBNull(0))
+                        handlowcy.Add(reader.GetString(0));
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Blad ladowania danych: {ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Diagnostics.Debug.WriteLine($"Blad pobierania handlowcow: {ex.Message}");
+            }
+
+            cmbHandlowiec.ItemsSource = handlowcy;
+            cmbHandlowiec.SelectedIndex = 0;
+        }
+
+        private void WypelnijLataIMiesiace()
+        {
+            var lata = Enumerable.Range(2020, DateTime.Now.Year - 2020 + 1).Reverse().ToList();
+            var miesiace = Enumerable.Range(1, 12).Select(m => new { Value = m, Text = _nazwyMiesiecy[m] }).ToList();
+
+            // Sprzedaz miesieczna
+            cmbRokSprzedaz.ItemsSource = lata;
+            cmbRokSprzedaz.SelectedItem = DateTime.Now.Year;
+            cmbMiesiacSprzedaz.ItemsSource = miesiace;
+            cmbMiesiacSprzedaz.DisplayMemberPath = "Text";
+            cmbMiesiacSprzedaz.SelectedValuePath = "Value";
+            cmbMiesiacSprzedaz.SelectedValue = DateTime.Now.Month;
+
+            // Top 10
+            cmbRokTop10.ItemsSource = lata;
+            cmbRokTop10.SelectedItem = DateTime.Now.Year;
+            cmbMiesiacTop10.ItemsSource = miesiace;
+            cmbMiesiacTop10.DisplayMemberPath = "Text";
+            cmbMiesiacTop10.SelectedValuePath = "Value";
+            cmbMiesiacTop10.SelectedValue = DateTime.Now.Month;
+            WypelnijTowary();
+
+            // Udzial handlowcow
+            cmbRokUdzial.ItemsSource = lata;
+            cmbRokUdzial.SelectedItem = DateTime.Now.Year;
+            cmbMiesiacUdzial.ItemsSource = miesiace;
+            cmbMiesiacUdzial.DisplayMemberPath = "Text";
+            cmbMiesiacUdzial.SelectedValuePath = "Value";
+            cmbMiesiacUdzial.SelectedValue = DateTime.Now.Month;
+
+            // Analiza cen
+            cmbRokCeny.ItemsSource = lata;
+            cmbRokCeny.SelectedItem = DateTime.Now.Year;
+            cmbMiesiacCeny.ItemsSource = miesiace;
+            cmbMiesiacCeny.DisplayMemberPath = "Text";
+            cmbMiesiacCeny.SelectedValuePath = "Value";
+            cmbMiesiacCeny.SelectedValue = DateTime.Now.Month;
+
+            // Swieze vs Mrozone
+            cmbRokSM.ItemsSource = lata;
+            cmbRokSM.SelectedItem = DateTime.Now.Year;
+            cmbMiesiacSM.ItemsSource = miesiace;
+            cmbMiesiacSM.DisplayMemberPath = "Text";
+            cmbMiesiacSM.SelectedValuePath = "Value";
+            cmbMiesiacSM.SelectedValue = DateTime.Now.Month;
+        }
+
+        private void WypelnijTowary()
+        {
+            var towary = new List<dynamic>
+            {
+                new { Value = 0, Text = "Wszystkie towary" }
+            };
+
+            try
+            {
+                using var cn = new SqlConnection(_connectionStringHandel);
+                cn.Open();
+
+                var sql = @"
+                    SELECT DISTINCT TW.ID, TW.kod
+                    FROM [HANDEL].[HM].[TW] TW
+                    WHERE TW.katalog IN ('67095', '67153')
+                    ORDER BY TW.kod";
+
+                using var cmd = new SqlCommand(sql, cn);
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    towary.Add(new { Value = reader.GetInt32(0), Text = reader.GetString(1) });
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Blad pobierania towarow: {ex.Message}");
+            }
+
+            cmbTowarTop10.ItemsSource = towary;
+            cmbTowarTop10.DisplayMemberPath = "Text";
+            cmbTowarTop10.SelectedValuePath = "Value";
+            cmbTowarTop10.SelectedIndex = 0;
+        }
+
+        #region Event Handlers
+
+        private void CmbHandlowiec_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!_isInitialized) return;
+            _wybranyHandlowiec = cmbHandlowiec.SelectedItem?.ToString() ?? "— Wszyscy —";
+            OdswiezAktualnaZakladke();
+        }
+
+        private async void BtnOdswiez_Click(object sender, RoutedEventArgs e)
+        {
+            OdswiezAktualnaZakladke();
+        }
+
+        private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!_isInitialized) return;
+            if (e.Source != tabControl) return;
+            OdswiezAktualnaZakladke();
+        }
+
+        private void CmbRokSprzedaz_SelectionChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
+        private void CmbMiesiacSprzedaz_SelectionChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
+        private void CmbTop10_SelectionChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
+        private void CmbUdzial_SelectionChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
+        private void CmbCeny_SelectionChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
+        private void CmbSM_SelectionChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
+
+        private void OdswiezJesliGotowe()
+        {
+            if (!_isInitialized) return;
+            OdswiezAktualnaZakladke();
+        }
+
+        private async void OdswiezAktualnaZakladke()
+        {
+            if (!_isInitialized) return;
+
+            try
+            {
+                loadingOverlay.Visibility = Visibility.Visible;
+
+                switch (tabControl.SelectedIndex)
+                {
+                    case 0: await OdswiezSprzedazMiesiecznaAsync(); break;
+                    case 1: await OdswiezTop10Async(); break;
+                    case 2: await OdswiezUdzialHandlowcowAsync(); break;
+                    case 3: await OdswiezAnalizeCenAsync(); break;
+                    case 4: await OdswiezSwiezeMrozoneAsync(); break;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad: {ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
-                ShowLoading(false);
+                loadingOverlay.Visibility = Visibility.Collapsed;
             }
         }
 
-        /// <summary>
-        /// Aktualizuje wykres sprzedazy dziennej
-        /// </summary>
-        private void UpdateDzienneChart(List<DaneDzienne> dane)
+        #endregion
+
+        #region Sprzedaz Miesieczna
+
+        private async System.Threading.Tasks.Task OdswiezSprzedazMiesiecznaAsync()
         {
-            if (dane == null || dane.Count == 0)
-            {
-                chartDzienne.Series?.Clear();
-                return;
-            }
+            if (cmbRokSprzedaz.SelectedItem == null || cmbMiesiacSprzedaz.SelectedValue == null) return;
 
-            // Oblicz sume i zmiane
-            var suma = dane.Sum(d => d.SumaWartosc);
-            var ostatniTydzien = dane.Skip(Math.Max(0, dane.Count - 7)).Sum(d => d.SumaWartosc);
-            var poprzedniTydzien = dane.Take(Math.Min(7, dane.Count)).Sum(d => d.SumaWartosc);
-            var zmianaProcent = poprzedniTydzien > 0
-                ? ((ostatniTydzien - poprzedniTydzien) / poprzedniTydzien) * 100
-                : 0;
-
-            txtSprzedazDziennaWartosc.Text = $"{suma / 1000:N1}k zl";
-            txtSprzedazDziennaZmiana.Text = $"{(zmianaProcent >= 0 ? "+" : "")}{zmianaProcent:N1}% vs poprz.";
-            txtSprzedazDziennaZmiana.Foreground = zmianaProcent >= 0 ? GreenBrush : RedBrush;
-
-            // Etykiety osi X
-            var etykiety = dane.Select(d => d.DataTekst).ToArray();
-            axisXDzienne.Labels = etykiety;
-
-            // Wartosci
-            var wartosci = new ChartValues<double>(dane.Select(d => (double)(d.SumaWartosc / 1000)));
-
-            chartDzienne.Series = new SeriesCollection
-            {
-                new ColumnSeries
-                {
-                    Title = "Wartosc (tys. zl)",
-                    Values = wartosci,
-                    Fill = OrangeBrush,
-                    MaxColumnWidth = 25
-                }
-            };
-        }
-
-        /// <summary>
-        /// Aktualizuje podsumowanie 30-dniowe
-        /// </summary>
-        private void Update30DniSummary(Podsumowanie30Dni p)
-        {
-            txt30Sprzedaz.Text = p.SumaSprzedazyTekst;
-            txt30Zamowienia.Text = p.ZamowieniaTekst;
-            txt30Anulowane.Text = p.ZwrotyTekst;
-            txt30Srednia.Text = p.SredniaTekst;
-            txt30CenaKg.Text = p.SredniaCenaTekst;
-        }
-
-        /// <summary>
-        /// Aktualizuje wykres trendu miesiecznego
-        /// </summary>
-        private void UpdateTrendChart(List<DaneMiesieczne> dane)
-        {
-            if (dane == null || dane.Count == 0)
-            {
-                chartTrend.Series?.Clear();
-                return;
-            }
-
-            // Oblicz trend
-            if (dane.Count >= 2)
-            {
-                var ostatni = dane.LastOrDefault();
-                var przedostatni = dane.Count > 1 ? dane[dane.Count - 2] : null;
-
-                if (ostatni != null)
-                {
-                    txtTrendWartosc.Text = $"{ostatni.SumaWartosc / 1000:N1}k";
-
-                    if (przedostatni != null && przedostatni.SumaWartosc > 0)
-                    {
-                        var zmiana = ((ostatni.SumaWartosc - przedostatni.SumaWartosc) / przedostatni.SumaWartosc) * 100;
-                        txtTrendZmiana.Text = $"{(zmiana >= 0 ? "+" : "")}{zmiana:N1}%";
-                        txtTrendZmiana.Foreground = zmiana >= 0 ? GreenBrush : RedBrush;
-                    }
-                }
-            }
-
-            // Etykiety osi X
-            var etykiety = dane.Select(d => d.MiesiacKrotki).ToArray();
-            axisXTrend.Labels = etykiety;
-
-            // Wartosci dla serii
-            var wartosci = new ChartValues<double>(dane.Select(d => (double)(d.SumaWartosc / 1000)));
-            var kg = new ChartValues<double>(dane.Select(d => (double)(d.SumaKg / 1000)));
-
-            chartTrend.Series = new SeriesCollection
-            {
-                new ColumnSeries
-                {
-                    Title = "Kg (tys.)",
-                    Values = kg,
-                    Fill = BlueBrush,
-                    MaxColumnWidth = 20
-                },
-                new LineSeries
-                {
-                    Title = "Wartosc (tys. zl)",
-                    Values = wartosci,
-                    Stroke = OrangeBrush,
-                    StrokeThickness = 2,
-                    Fill = Brushes.Transparent,
-                    PointGeometrySize = 6,
-                    LineSmoothness = 0.3
-                }
-            };
-        }
-
-        /// <summary>
-        /// Aktualizuje wykres typow dostawy
-        /// </summary>
-        private void UpdateDostawaChart(List<StatystykiDostawy> statystyki)
-        {
-            if (statystyki == null || statystyki.Count == 0)
-            {
-                chartDostawa.Series?.Clear();
-                return;
-            }
+            int rok = (int)cmbRokSprzedaz.SelectedItem;
+            int miesiac = (int)cmbMiesiacSprzedaz.SelectedValue;
 
             var series = new SeriesCollection();
-            var kolory = new[] { OrangeBrush, BlueBrush, GreenBrush, PurpleBrush, GrayBrush };
+            decimal suma = 0;
 
-            int i = 0;
-            foreach (var stat in statystyki)
+            try
             {
-                series.Add(new PieSeries
+                await using var cn = new SqlConnection(_connectionStringHandel);
+                await cn.OpenAsync();
+
+                var sql = @"
+                    SELECT
+                        C.shortcut AS Kontrahent,
+                        SUM(DP.wartNetto) AS WartoscSprzedazy
+                    FROM [HANDEL].[HM].[DK] DK
+                    INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+                    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
+                    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+                    WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac";
+
+                if (_wybranyHandlowiec != "— Wszyscy —")
+                    sql += " AND WYM.CDim_Handlowiec_Val = @Handlowiec";
+
+                sql += @"
+                    GROUP BY C.shortcut
+                    ORDER BY WartoscSprzedazy DESC";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@Rok", rok);
+                cmd.Parameters.AddWithValue("@Miesiac", miesiac);
+                if (_wybranyHandlowiec != "— Wszyscy —")
+                    cmd.Parameters.AddWithValue("@Handlowiec", _wybranyHandlowiec);
+
+                var dane = new List<(string Kontrahent, decimal Wartosc)>();
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
                 {
-                    Title = stat.TypDostawy,
-                    Values = new ChartValues<int> { stat.Liczba },
-                    Fill = kolory[i % kolory.Length],
-                    DataLabels = true,
-                    LabelPoint = point => $"{stat.ProcentTekst}"
-                });
-                i++;
-            }
-
-            chartDostawa.Series = series;
-        }
-
-        /// <summary>
-        /// Aktualizuje dane CRM
-        /// </summary>
-        private void UpdateCRM(CRMStatystyki crm)
-        {
-            txtCRMDzisiaj.Text = crm.KontaktyDzisiaj.ToString();
-            txtCRMZalegle.Text = crm.KontaktyZalegle.ToString();
-            txtCRMProby.Text = crm.ProbyKontaktu.ToString();
-            txtCRMNawiazane.Text = crm.NawiazaneKontakty.ToString();
-            txtCRMOferty.Text = crm.DoWyslaniOferty.ToString();
-
-            // Podswietl zalegle na czerwono jesli sa
-            if (crm.KontaktyZalegle > 0)
-            {
-                txtCRMZalegle.Foreground = RedBrush;
-            }
-        }
-
-        /// <summary>
-        /// Aktualizuje wykres sredniej wartosci zamowienia dziennie
-        /// </summary>
-        private void UpdateSredniaDziennaChart(List<SredniaZamowieniaDziennie> dane)
-        {
-            if (dane == null || dane.Count == 0)
-            {
-                chartSredniaDzienna.Series?.Clear();
-                return;
-            }
-
-            // Etykiety osi X
-            var etykiety = dane.Select(d => d.DzienTekst).ToArray();
-            axisXSrednia.Labels = etykiety;
-
-            // Wartosci
-            var tenTydzien = new ChartValues<double>(dane.Select(d => (double)d.SredniaTenTydzien));
-            var poprzedniTydzien = new ChartValues<double>(dane.Select(d => (double)d.SredniaPoprzedniTydzien));
-
-            chartSredniaDzienna.Series = new SeriesCollection
-            {
-                new ColumnSeries
-                {
-                    Title = "Poprzedni tydz.",
-                    Values = poprzedniTydzien,
-                    Fill = GrayBrush,
-                    MaxColumnWidth = 15
-                },
-                new ColumnSeries
-                {
-                    Title = "Ten tydzien",
-                    Values = tenTydzien,
-                    Fill = OrangeBrush,
-                    MaxColumnWidth = 15
+                    var wartosc = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1);
+                    suma += wartosc;
+                    dane.Add((reader.GetString(0), wartosc));
                 }
-            };
-        }
 
-        /// <summary>
-        /// Aktualizuje zamowienia na dzis/jutro
-        /// </summary>
-        private void UpdateZamowieniaNaDzien(ZamowieniaNaDzien zam)
-        {
-            txtZamDzisLiczba.Text = $"{zam.LiczbaZamowienDzis} zam.";
-            txtZamDzisKg.Text = $"{zam.SumaKgDzis:N0} kg";
-            txtZamJutroLiczba.Text = $"{zam.LiczbaZamowienJutro} zam.";
-            txtZamJutroKg.Text = $"{zam.SumaKgJutro:N0} kg";
-        }
-
-        /// <summary>
-        /// Zmiana wybranego handlowca
-        /// </summary>
-        private async void CmbHandlowiec_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (_isInitializing) return;
-
-            _wybranyHandlowiec = cmbHandlowiec.SelectedItem?.ToString() ?? "— Wszyscy —";
-            await LoadDashboardDataAsync();
-        }
-
-        /// <summary>
-        /// Klikniecie przycisku odswiezania
-        /// </summary>
-        private async void BtnOdswiez_Click(object sender, RoutedEventArgs e)
-        {
-            await LoadDashboardDataAsync();
-        }
-
-        /// <summary>
-        /// Pokazuje/ukrywa overlay ladowania
-        /// </summary>
-        private void ShowLoading(bool show)
-        {
-            loadingOverlay.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        }
-
-        /// <summary>
-        /// Obsluga klikniecia przycisku filtra okresu
-        /// </summary>
-        private async void FilterButton_Click(object sender, RoutedEventArgs e)
-        {
-            var button = sender as Button;
-            if (button == null) return;
-
-            string period = button.Tag?.ToString() ?? "";
-            if (string.IsNullOrEmpty(period)) return;
-
-            // Resetuj wygląd poprzedniego aktywnego przycisku
-            if (_activeFilterButton != null)
+                int idx = 0;
+                foreach (var (kontrahent, wartosc) in dane)
+                {
+                    decimal procent = suma > 0 ? (wartosc / suma) * 100 : 0;
+                    series.Add(new PieSeries
+                    {
+                        Title = $"{kontrahent}: {wartosc:N0} zl ({procent:F1}%)",
+                        Values = new ChartValues<decimal> { wartosc },
+                        DataLabels = true,
+                        LabelPoint = p => $"{procent:F1}%",
+                        Fill = new SolidColorBrush(_kolory[idx % _kolory.Length])
+                    });
+                    idx++;
+                }
+            }
+            catch (Exception ex)
             {
-                _activeFilterButton.Background = new SolidColorBrush(Color.FromRgb(45, 51, 59)); // #2D333B
-                _activeFilterButton.Foreground = new SolidColorBrush(Colors.White);
+                System.Diagnostics.Debug.WriteLine($"Blad sprzedazy miesiecznej: {ex.Message}");
             }
 
-            // Ustaw wygląd aktywnego przycisku
-            button.Background = OrangeBrush;
-            button.Foreground = new SolidColorBrush(Color.FromRgb(26, 29, 33)); // #1A1D21
-            _activeFilterButton = button;
-
-            // Parsuj okres
-            var (dataOd, dataDo) = ParsePeriod(period);
-            _dataOd = dataOd;
-            _dataDo = dataDo;
-
-            // Odswież dane
-            await LoadDashboardDataAsync();
+            chartSprzedaz.Series = series;
+            txtSumaSprzedaz.Text = $"CALKOWITA WARTOSC SPRZEDAZY: {suma:N2} zl";
         }
 
-        /// <summary>
-        /// Parsuje okres z tagu przycisku i zwraca zakres dat
-        /// </summary>
-        private (DateTime dataOd, DateTime dataDo) ParsePeriod(string tag)
+        #endregion
+
+        #region Top 10 Odbiorcy
+
+        private async System.Threading.Tasks.Task OdswiezTop10Async()
         {
-            var today = DateTime.Today;
+            if (cmbRokTop10.SelectedItem == null || cmbMiesiacTop10.SelectedValue == null) return;
 
-            switch (tag)
+            int rok = (int)cmbRokTop10.SelectedItem;
+            int miesiac = (int)cmbMiesiacTop10.SelectedValue;
+            int? towarId = cmbTowarTop10.SelectedValue as int?;
+            if (towarId == 0) towarId = null;
+
+            var series = new SeriesCollection();
+
+            try
             {
-                case "Today":
-                    return (today, today.AddDays(1));
+                await using var cn = new SqlConnection(_connectionStringHandel);
+                await cn.OpenAsync();
 
-                case "Yesterday":
-                    return (today.AddDays(-1), today);
+                var sql = @"
+                    SELECT TOP 10
+                        C.shortcut AS Kontrahent,
+                        ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
+                        SUM(DP.ilosc) AS SumaIlosci
+                    FROM [HANDEL].[HM].[DK] DK
+                    INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+                    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
+                    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+                    WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
+                      AND (@TowarID IS NULL OR DP.idtw = @TowarID)
+                    GROUP BY C.shortcut, ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany')
+                    ORDER BY SumaIlosci DESC";
 
-                case "Week":
-                    DateTime startOfWeek = today.AddDays(-(int)today.DayOfWeek + (int)DayOfWeek.Monday);
-                    if (today.DayOfWeek == DayOfWeek.Sunday)
-                        startOfWeek = startOfWeek.AddDays(-7);
-                    return (startOfWeek, today.AddDays(1));
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@Rok", rok);
+                cmd.Parameters.AddWithValue("@Miesiac", miesiac);
+                cmd.Parameters.AddWithValue("@TowarID", (object)towarId ?? DBNull.Value);
 
-                case "LastWeek":
-                    DateTime thisWeekStart = today.AddDays(-(int)today.DayOfWeek + (int)DayOfWeek.Monday);
-                    if (today.DayOfWeek == DayOfWeek.Sunday)
-                        thisWeekStart = thisWeekStart.AddDays(-7);
-                    DateTime lastWeekStart = thisWeekStart.AddDays(-7);
-                    return (lastWeekStart, thisWeekStart);
+                var dane = new List<(string Kontrahent, string Handlowiec, decimal Ilosc)>();
+                decimal suma = 0;
 
-                case "Month":
-                    DateTime startOfMonth = new DateTime(today.Year, today.Month, 1);
-                    return (startOfMonth, today.AddDays(1));
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    var ilosc = reader.IsDBNull(2) ? 0 : reader.GetDecimal(2);
+                    suma += ilosc;
+                    dane.Add((reader.GetString(0), reader.GetString(1), ilosc));
+                }
 
-                case "LastMonth":
-                    DateTime lastMonthStart = new DateTime(today.Year, today.Month, 1).AddMonths(-1);
-                    DateTime lastMonthEnd = new DateTime(today.Year, today.Month, 1);
-                    return (lastMonthStart, lastMonthEnd);
-
-                case "Year":
-                    return (new DateTime(2025, 1, 1), new DateTime(2026, 1, 1));
-
-                case "LastYear":
-                    return (new DateTime(2024, 1, 1), new DateTime(2025, 1, 1));
-
-                default:
-                    // Domyślnie ostatnie 30 dni
-                    return (today.AddDays(-30), today.AddDays(1));
+                int idx = 0;
+                foreach (var (kontrahent, handlowiec, ilosc) in dane)
+                {
+                    decimal procent = suma > 0 ? (ilosc / suma) * 100 : 0;
+                    series.Add(new PieSeries
+                    {
+                        Title = $"{kontrahent} ({handlowiec}): {ilosc:N0} kg ({procent:F1}%)",
+                        Values = new ChartValues<decimal> { ilosc },
+                        DataLabels = true,
+                        LabelPoint = p => $"{procent:F1}%",
+                        Fill = new SolidColorBrush(_kolory[idx % _kolory.Length])
+                    });
+                    idx++;
+                }
             }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Blad Top 10: {ex.Message}");
+            }
+
+            chartTop10.Series = series;
         }
+
+        #endregion
+
+        #region Udzial Handlowcow
+
+        private async System.Threading.Tasks.Task OdswiezUdzialHandlowcowAsync()
+        {
+            if (cmbRokUdzial.SelectedItem == null || cmbMiesiacUdzial.SelectedValue == null) return;
+
+            int rok = (int)cmbRokUdzial.SelectedItem;
+            int miesiac = (int)cmbMiesiacUdzial.SelectedValue;
+
+            var series = new SeriesCollection();
+
+            try
+            {
+                await using var cn = new SqlConnection(_connectionStringHandel);
+                await cn.OpenAsync();
+
+                var sql = @"
+                    SELECT
+                        WYM.CDim_Handlowiec_Val AS Handlowiec,
+                        SUM(DP.wartNetto) AS WartoscSprzedazy
+                    FROM [HANDEL].[HM].[DK] DK
+                    INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+                    INNER JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+                    WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
+                      AND WYM.CDim_Handlowiec_Val IS NOT NULL
+                      AND WYM.CDim_Handlowiec_Val != 'Ogolne'
+                    GROUP BY WYM.CDim_Handlowiec_Val
+                    ORDER BY WartoscSprzedazy DESC";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@Rok", rok);
+                cmd.Parameters.AddWithValue("@Miesiac", miesiac);
+
+                var dane = new List<(string Handlowiec, decimal Wartosc)>();
+                decimal suma = 0;
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    var wartosc = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1);
+                    suma += wartosc;
+                    dane.Add((reader.GetString(0), wartosc));
+                }
+
+                int idx = 0;
+                foreach (var (handlowiec, wartosc) in dane)
+                {
+                    decimal procent = suma > 0 ? (wartosc / suma) * 100 : 0;
+                    series.Add(new PieSeries
+                    {
+                        Title = $"{handlowiec}: {wartosc:N0} zl ({procent:F1}%)",
+                        Values = new ChartValues<decimal> { wartosc },
+                        DataLabels = true,
+                        LabelPoint = p => $"{procent:F1}%",
+                        Fill = new SolidColorBrush(_kolory[idx % _kolory.Length])
+                    });
+                    idx++;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Blad udzialu handlowcow: {ex.Message}");
+            }
+
+            chartUdzial.Series = series;
+        }
+
+        #endregion
+
+        #region Analiza Cen
+
+        private async System.Threading.Tasks.Task OdswiezAnalizeCenAsync()
+        {
+            if (cmbRokCeny.SelectedItem == null || cmbMiesiacCeny.SelectedValue == null) return;
+
+            int rok = (int)cmbRokCeny.SelectedItem;
+            int miesiac = (int)cmbMiesiacCeny.SelectedValue;
+
+            var series = new SeriesCollection();
+            var labels = new List<string>();
+
+            try
+            {
+                await using var cn = new SqlConnection(_connectionStringHandel);
+                await cn.OpenAsync();
+
+                var sql = @"
+                    SELECT
+                        WYM.CDim_Handlowiec_Val AS Handlowiec,
+                        AVG(DP.cena) AS SredniaCena
+                    FROM [HANDEL].[HM].[DK] DK
+                    INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+                    INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
+                    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+                    WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
+                      AND TW.katalog IN ('67095', '67153')
+                      AND WYM.CDim_Handlowiec_Val IS NOT NULL
+                      AND WYM.CDim_Handlowiec_Val != 'Ogolne'
+                    GROUP BY WYM.CDim_Handlowiec_Val
+                    ORDER BY SredniaCena DESC";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@Rok", rok);
+                cmd.Parameters.AddWithValue("@Miesiac", miesiac);
+
+                var wartosci = new ChartValues<decimal>();
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    labels.Add(reader.GetString(0));
+                    wartosci.Add(reader.IsDBNull(1) ? 0 : reader.GetDecimal(1));
+                }
+
+                series.Add(new ColumnSeries
+                {
+                    Title = "Srednia cena",
+                    Values = wartosci,
+                    Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F4A261")),
+                    DataLabels = true,
+                    LabelPoint = p => $"{p.Y:F2}"
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Blad analizy cen: {ex.Message}");
+            }
+
+            chartCeny.Series = series;
+            axisXCeny.Labels = labels;
+        }
+
+        #endregion
+
+        #region Swieze vs Mrozone
+
+        private async System.Threading.Tasks.Task OdswiezSwiezeMrozoneAsync()
+        {
+            if (cmbRokSM.SelectedItem == null || cmbMiesiacSM.SelectedValue == null) return;
+
+            int rok = (int)cmbRokSM.SelectedItem;
+            int miesiac = (int)cmbMiesiacSM.SelectedValue;
+
+            var series = new SeriesCollection();
+
+            try
+            {
+                await using var cn = new SqlConnection(_connectionStringHandel);
+                await cn.OpenAsync();
+
+                var sql = @"
+                    SELECT
+                        CASE WHEN TW.katalog = '67153' THEN 'Mrozone' ELSE 'Swieze' END AS Typ,
+                        SUM(DP.ilosc) AS SumaKg,
+                        SUM(DP.wartNetto) AS WartoscNetto
+                    FROM [HANDEL].[HM].[DK] DK
+                    INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+                    INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
+                    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+                    WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
+                      AND TW.katalog IN ('67095', '67153')";
+
+                if (_wybranyHandlowiec != "— Wszyscy —")
+                    sql += " AND WYM.CDim_Handlowiec_Val = @Handlowiec";
+
+                sql += @"
+                    GROUP BY CASE WHEN TW.katalog = '67153' THEN 'Mrozone' ELSE 'Swieze' END";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@Rok", rok);
+                cmd.Parameters.AddWithValue("@Miesiac", miesiac);
+                if (_wybranyHandlowiec != "— Wszyscy —")
+                    cmd.Parameters.AddWithValue("@Handlowiec", _wybranyHandlowiec);
+
+                var dane = new List<(string Typ, decimal Kg, decimal Wartosc)>();
+                decimal sumaKg = 0;
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    var kg = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1);
+                    var wartosc = reader.IsDBNull(2) ? 0 : reader.GetDecimal(2);
+                    sumaKg += kg;
+                    dane.Add((reader.GetString(0), kg, wartosc));
+                }
+
+                var koloryTypow = new Dictionary<string, Color>
+                {
+                    { "Swieze", (Color)ColorConverter.ConvertFromString("#2ecc71") },
+                    { "Mrozone", (Color)ColorConverter.ConvertFromString("#3498db") }
+                };
+
+                foreach (var (typ, kg, wartosc) in dane)
+                {
+                    decimal procent = sumaKg > 0 ? (kg / sumaKg) * 100 : 0;
+                    series.Add(new PieSeries
+                    {
+                        Title = $"{typ}: {kg:N0} kg ({procent:F1}%)",
+                        Values = new ChartValues<decimal> { kg },
+                        DataLabels = true,
+                        LabelPoint = p => $"{procent:F1}%",
+                        Fill = new SolidColorBrush(koloryTypow.ContainsKey(typ) ? koloryTypow[typ] : _kolory[0])
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Blad swieze vs mrozone: {ex.Message}");
+            }
+
+            chartSwiezeMrozone.Series = series;
+        }
+
+        #endregion
     }
 }
