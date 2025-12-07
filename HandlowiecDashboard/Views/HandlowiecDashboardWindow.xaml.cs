@@ -96,7 +96,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Blad pobierania handlowcow: {ex.Message}");
+                MessageBox.Show($"Blad pobierania handlowcow:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
 
             cmbHandlowiec.ItemsSource = handlowcy;
@@ -177,7 +177,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Blad pobierania towarow: {ex.Message}");
+                MessageBox.Show($"Blad pobierania towarow:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
 
             cmbTowarTop10.ItemsSource = towary;
@@ -315,7 +315,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Blad sprzedazy miesiecznej: {ex.Message}");
+                MessageBox.Show($"Blad sprzedazy miesiecznej:\n{ex.Message}\n\n{ex.StackTrace}", "Blad SQL", MessageBoxButton.OK, MessageBoxImage.Error);
             }
 
             chartSprzedaz.Series = series;
@@ -389,7 +389,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Blad Top 10: {ex.Message}");
+                MessageBox.Show($"Blad Top 10:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
 
             chartTop10.Series = series;
@@ -458,7 +458,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Blad udzialu handlowcow: {ex.Message}");
+                MessageBox.Show($"Blad udzialu handlowcow:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
 
             chartUdzial.Series = series;
@@ -522,7 +522,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Blad analizy cen: {ex.Message}");
+                MessageBox.Show($"Blad analizy cen:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
 
             chartCeny.Series = series;
@@ -604,7 +604,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Blad swieze vs mrozone: {ex.Message}");
+                MessageBox.Show($"Blad swieze vs mrozone:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
 
             chartSwiezeMrozone.Series = series;
