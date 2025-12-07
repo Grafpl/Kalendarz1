@@ -3536,98 +3536,238 @@ namespace Kalendarz1
     }
 
     /// <summary>
-    /// Dialog wydania/przyjęcia - WIELOPRODUKTOWY Z KOSZYKIEM
+    /// Dialog wydania/przyjęcia - WIELOPRODUKTOWY Z TRASĄ (OD KOGO -> DO KOGO)
     /// </summary>
     public class WydanieZewnetrzneDialog : Form
     {
-        // Wyniki - lista pozycji do zapisania
+        // Wyniki
         public List<PozycjaDokumentu> Pozycje { get; private set; } = new List<PozycjaDokumentu>();
         public DateTime Data { get; private set; }
         public string Typ { get; private set; } = "";
         public string Uwagi { get; private set; } = "";
 
-        // Dla kompatybilności wstecznej (pierwszy produkt)
+        // Źródło i cel
+        public string ZrodloTyp { get; private set; } = "";
+        public string ZrodloNazwa { get; private set; } = "";
+        public string CelTyp { get; private set; } = "";
+        public string CelNazwa { get; private set; } = "";
+        public string KlientId { get; private set; } = "";
+
+        // Dla kompatybilności wstecznej
         public string KodProduktu => Pozycje.Count > 0 ? Pozycje[0].KodProduktu : "";
         public string Produkt => Pozycje.Count > 0 ? Pozycje[0].Nazwa : "";
         public decimal Ilosc => Pozycje.Count > 0 ? Pozycje[0].Ilosc : 0;
 
         // Kontrolki
         private Panel headerPanel;
-        private Label lblHeader;
-        private RadioButton rbPrzyjecie, rbWydanie;
+        private Label lblHeader, lblTrasa;
         private DateTimePicker dtpData;
-        private TextBox txtSearch;
+        private TextBox txtSearch, txtUwagi;
         private FlowLayoutPanel flowProdukty;
         private Label lblProduktyInfo;
         private NumericUpDown nudIlosc;
-        private TextBox txtUwagi;
         private Button btnZapisz, btnDodajDoKoszyka;
         private DataGridView dgvKoszyk;
         private Label lblKoszykSuma, lblKoszykPozycje;
 
-        // Animacje
-        private System.Windows.Forms.Timer animTimer;
-        private Color currentHeaderColor, targetHeaderColor;
-        private int animStep = 0;
+        // Źródło/Cel
+        private ComboBox cmbZrodloTyp, cmbZrodloNazwa, cmbCelTyp, cmbCelNazwa;
+        private Label lblZrodloInfo, lblCelInfo;
 
         // Dane
         private List<ProduktMrozony> produkty = new List<ProduktMrozony>();
+        private List<KlientSymfonia> klienci = new List<KlientSymfonia>();
+        private List<MrozniaZewnetrzna> mroznieZewnetrzne = new List<MrozniaZewnetrzna>();
         private ProduktMrozony? selectedProdukt = null;
         private Panel? selectedCard = null;
+        private string connectionString;
+        private string nazwaMrozniAktualnej;
 
         private readonly Color colorPrzyjecie = Color.FromArgb(40, 167, 69);
         private readonly Color colorWydanie = Color.FromArgb(220, 53, 69);
+        private readonly Color colorKlient = Color.FromArgb(155, 89, 182);
         private readonly Color[] cardColors = new[] {
-            Color.FromArgb(52, 152, 219),
-            Color.FromArgb(155, 89, 182),
-            Color.FromArgb(230, 126, 34),
-            Color.FromArgb(26, 188, 156),
-            Color.FromArgb(241, 196, 15),
-            Color.FromArgb(231, 76, 60)
+            Color.FromArgb(52, 152, 219), Color.FromArgb(155, 89, 182),
+            Color.FromArgb(230, 126, 34), Color.FromArgb(26, 188, 156),
+            Color.FromArgb(241, 196, 15), Color.FromArgb(231, 76, 60)
         };
 
-        public WydanieZewnetrzneDialog(string nazwaMrozni, string connectionString)
+        public WydanieZewnetrzneDialog(string nazwaMrozni, string connString)
         {
-            this.Text = $"Dokument - {nazwaMrozni}";
-            this.Size = new Size(1150, 750);
+            this.connectionString = connString;
+            this.nazwaMrozniAktualnej = nazwaMrozni;
+            this.Text = $"📋 Nowy dokument - {nazwaMrozni}";
+            this.Size = new Size(1400, 900);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
-            this.BackColor = Color.FromArgb(245, 247, 250);
+            this.BackColor = Color.FromArgb(240, 244, 248);
             this.Font = new Font("Segoe UI", 10F);
 
-            LoadProdukty(connectionString);
-            currentHeaderColor = colorPrzyjecie;
-            targetHeaderColor = colorPrzyjecie;
+            LoadProdukty(connString);
+            LoadKlienci(connString);
+            LoadMroznieZewnetrzne();
 
-            animTimer = new System.Windows.Forms.Timer { Interval = 30 };
-            animTimer.Tick += AnimTimer_Tick;
+            BuildUI();
+        }
 
+        private void BuildUI()
+        {
             // === HEADER ===
             headerPanel = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 60,
-                BackColor = colorPrzyjecie
+                Height = 80,
+                BackColor = Color.FromArgb(44, 62, 80)
             };
+
             lblHeader = new Label
             {
-                Text = "📥  PRZYJĘCIE DO MROŹNI - NOWY DOKUMENT",
-                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                Text = "📋  NOWY DOKUMENT MAGAZYNOWY",
+                Font = new Font("Segoe UI", 16F, FontStyle.Bold),
                 ForeColor = Color.White,
-                AutoSize = false,
-                TextAlign = ContentAlignment.MiddleCenter,
-                Dock = DockStyle.Fill
+                Location = new Point(20, 15),
+                AutoSize = true
             };
-            headerPanel.Controls.Add(lblHeader);
+
+            lblTrasa = new Label
+            {
+                Text = "Wybierz skąd → dokąd przenosisz towar",
+                Font = new Font("Segoe UI", 10F, FontStyle.Italic),
+                ForeColor = Color.FromArgb(189, 195, 199),
+                Location = new Point(20, 48),
+                AutoSize = true
+            };
+
+            // Data w headerze
+            Label lblDataH = new Label { Text = "Data:", Location = new Point(1150, 25), AutoSize = true, ForeColor = Color.White };
+            dtpData = new DateTimePicker
+            {
+                Location = new Point(1195, 22),
+                Size = new Size(130, 28),
+                Format = DateTimePickerFormat.Short,
+                Font = new Font("Segoe UI", 10F)
+            };
+
+            headerPanel.Controls.AddRange(new Control[] { lblHeader, lblTrasa, lblDataH, dtpData });
             this.Controls.Add(headerPanel);
 
-            // === PANEL LEWY - WYBÓR PRODUKTÓW ===
+            // === PANEL TRASY (OD -> DO) ===
+            Panel trasaPanel = new Panel
+            {
+                Location = new Point(15, 95),
+                Size = new Size(1355, 130),
+                BackColor = Color.White
+            };
+            trasaPanel.Paint += (s, e) => {
+                using (var pen = new Pen(Color.FromArgb(52, 152, 219), 2))
+                    e.Graphics.DrawRectangle(pen, 0, 0, trasaPanel.Width - 1, trasaPanel.Height - 1);
+            };
+            this.Controls.Add(trasaPanel);
+
+            // ŹRÓDŁO (OD)
+            Label lblZrodlo = new Label
+            {
+                Text = "📤 SKĄD (źródło)",
+                Location = new Point(20, 15),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(231, 76, 60)
+            };
+
+            Label lblZrodloTypLabel = new Label { Text = "Typ:", Location = new Point(20, 50), AutoSize = true };
+            cmbZrodloTyp = new ComboBox
+            {
+                Location = new Point(60, 47),
+                Size = new Size(200, 28),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 10F)
+            };
+            cmbZrodloTyp.Items.AddRange(new[] { "🏭 Ubojnia", "❄️ Mroźnia zewnętrzna", "👤 Klient" });
+            cmbZrodloTyp.SelectedIndex = 0;
+            cmbZrodloTyp.SelectedIndexChanged += CmbZrodloTyp_Changed;
+
+            Label lblZrodloNazwaLabel = new Label { Text = "Nazwa:", Location = new Point(280, 50), AutoSize = true };
+            cmbZrodloNazwa = new ComboBox
+            {
+                Location = new Point(340, 47),
+                Size = new Size(300, 28),
+                Font = new Font("Segoe UI", 10F),
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+
+            lblZrodloInfo = new Label
+            {
+                Location = new Point(20, 85),
+                Size = new Size(620, 30),
+                Font = new Font("Segoe UI", 9F, FontStyle.Italic),
+                ForeColor = Color.FromArgb(127, 140, 141)
+            };
+
+            // STRZAŁKA
+            Label lblArrow = new Label
+            {
+                Text = "➡️",
+                Location = new Point(665, 50),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 24F)
+            };
+
+            // CEL (DO)
+            Label lblCel = new Label
+            {
+                Text = "📥 DOKĄD (cel)",
+                Location = new Point(720, 15),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(39, 174, 96)
+            };
+
+            Label lblCelTypLabel = new Label { Text = "Typ:", Location = new Point(720, 50), AutoSize = true };
+            cmbCelTyp = new ComboBox
+            {
+                Location = new Point(760, 47),
+                Size = new Size(200, 28),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 10F)
+            };
+            cmbCelTyp.Items.AddRange(new[] { "🏭 Ubojnia", "❄️ Mroźnia zewnętrzna", "👤 Klient (przechowanie)" });
+            cmbCelTyp.SelectedIndex = 1;
+            cmbCelTyp.SelectedIndexChanged += CmbCelTyp_Changed;
+
+            Label lblCelNazwaLabel = new Label { Text = "Nazwa:", Location = new Point(980, 50), AutoSize = true };
+            cmbCelNazwa = new ComboBox
+            {
+                Location = new Point(1040, 47),
+                Size = new Size(300, 28),
+                Font = new Font("Segoe UI", 10F),
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+
+            lblCelInfo = new Label
+            {
+                Location = new Point(720, 85),
+                Size = new Size(620, 30),
+                Font = new Font("Segoe UI", 9F, FontStyle.Italic),
+                ForeColor = Color.FromArgb(127, 140, 141)
+            };
+
+            trasaPanel.Controls.AddRange(new Control[] {
+                lblZrodlo, lblZrodloTypLabel, cmbZrodloTyp, lblZrodloNazwaLabel, cmbZrodloNazwa, lblZrodloInfo,
+                lblArrow,
+                lblCel, lblCelTypLabel, cmbCelTyp, lblCelNazwaLabel, cmbCelNazwa, lblCelInfo
+            });
+
+            // Załaduj domyślne wartości
+            RefreshZrodloNazwa();
+            RefreshCelNazwa();
+
+            // === PANEL LEWY - PRODUKTY ===
             Panel leftPanel = new Panel
             {
-                Location = new Point(15, 75),
-                Size = new Size(520, 580),
+                Location = new Point(15, 240),
+                Size = new Size(650, 550),
                 BackColor = Color.White
             };
             leftPanel.Paint += (s, e) => {
@@ -3637,8 +3777,6 @@ namespace Kalendarz1
             this.Controls.Add(leftPanel);
 
             int y = 15;
-
-            // Nagłówek sekcji
             Label lblTytulProdukty = new Label
             {
                 Text = "📦 WYBIERZ PRODUKTY",
@@ -3650,66 +3788,31 @@ namespace Kalendarz1
             leftPanel.Controls.Add(lblTytulProdukty);
             y += 35;
 
-            // Typ operacji i data w jednym wierszu
-            rbPrzyjecie = new RadioButton
-            {
-                Text = "📥 Przyjęcie",
-                Location = new Point(15, y),
-                AutoSize = true,
-                Font = new Font("Segoe UI", 10F),
-                Checked = true
-            };
-            rbPrzyjecie.CheckedChanged += TypOperacji_Changed;
-
-            rbWydanie = new RadioButton
-            {
-                Text = "📤 Wydanie",
-                Location = new Point(130, y),
-                AutoSize = true,
-                Font = new Font("Segoe UI", 10F)
-            };
-            rbWydanie.CheckedChanged += TypOperacji_Changed;
-
-            Label lblData = new Label { Text = "Data:", Location = new Point(260, y + 2), AutoSize = true };
-            dtpData = new DateTimePicker
-            {
-                Location = new Point(300, y - 2),
-                Size = new Size(120, 28),
-                Format = DateTimePickerFormat.Short,
-                Font = new Font("Segoe UI", 10F)
-            };
-            leftPanel.Controls.AddRange(new Control[] { rbPrzyjecie, rbWydanie, lblData, dtpData });
-            y += 35;
-
             // Wyszukiwanie
-            Label lblSzukaj = new Label { Text = "Szukaj produktu:", Location = new Point(15, y), AutoSize = true, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
-            leftPanel.Controls.Add(lblSzukaj);
-            y += 22;
-
             txtSearch = new TextBox
             {
                 Location = new Point(15, y),
-                Size = new Size(490, 28),
+                Size = new Size(620, 32),
                 Font = new Font("Segoe UI", 11F)
             };
-            txtSearch.TextChanged += TxtSearch_TextChanged;
+            txtSearch.TextChanged += (s, e) => RefreshProductCards();
             txtSearch.GotFocus += (s, e) => txtSearch.BackColor = Color.FromArgb(255, 255, 230);
             txtSearch.LostFocus += (s, e) => txtSearch.BackColor = Color.White;
             leftPanel.Controls.Add(txtSearch);
-            y += 35;
+            y += 40;
 
             // Karty produktów
             flowProdukty = new FlowLayoutPanel
             {
                 Location = new Point(15, y),
-                Size = new Size(490, 250),
+                Size = new Size(620, 280),
                 AutoScroll = true,
                 BackColor = Color.FromArgb(250, 250, 250),
                 BorderStyle = BorderStyle.FixedSingle,
                 Padding = new Padding(5)
             };
             leftPanel.Controls.Add(flowProdukty);
-            y += 255;
+            y += 285;
 
             lblProduktyInfo = new Label
             {
@@ -3721,71 +3824,61 @@ namespace Kalendarz1
             leftPanel.Controls.Add(lblProduktyInfo);
             y += 25;
 
-            // Sekcja dodawania do koszyka
+            // Panel dodawania
             Panel addPanel = new Panel
             {
                 Location = new Point(15, y),
-                Size = new Size(490, 100),
-                BackColor = Color.FromArgb(240, 248, 255)
+                Size = new Size(620, 120),
+                BackColor = Color.FromArgb(232, 245, 233)
             };
             addPanel.Paint += (s, e) => {
-                using (var pen = new Pen(Color.FromArgb(52, 152, 219), 2))
+                using (var pen = new Pen(Color.FromArgb(76, 175, 80), 2))
                     e.Graphics.DrawRectangle(pen, 0, 0, addPanel.Width - 1, addPanel.Height - 1);
             };
 
             Label lblWybrany = new Label
             {
-                Text = "Wybrany produkt: (kliknij na kartę powyżej)",
-                Location = new Point(10, 10),
-                Size = new Size(470, 20),
-                Font = new Font("Segoe UI", 9F, FontStyle.Italic),
+                Text = "Kliknij na kartę produktu powyżej aby wybrać",
+                Location = new Point(15, 12),
+                Size = new Size(590, 22),
+                Font = new Font("Segoe UI", 10F, FontStyle.Italic),
                 ForeColor = Color.Gray,
                 Tag = "wybrany"
             };
             addPanel.Controls.Add(lblWybrany);
 
-            Label lblIloscAdd = new Label { Text = "Ilość (kg):", Location = new Point(10, 45), AutoSize = true, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
+            Label lblIloscAdd = new Label { Text = "Ilość (kg):", Location = new Point(15, 50), AutoSize = true, Font = new Font("Segoe UI", 10F, FontStyle.Bold) };
             nudIlosc = new NumericUpDown
             {
-                Location = new Point(85, 42),
-                Size = new Size(100, 28),
-                Minimum = 1,
-                Maximum = 999999,
-                Value = 100,
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Location = new Point(100, 46),
+                Size = new Size(120, 32),
+                Minimum = 1, Maximum = 999999, Value = 100,
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
                 TextAlign = HorizontalAlignment.Center
             };
 
-            // Szybkie przyciski
-            int qx = 195;
-            foreach (var val in new[] { +10, +50, +100, +500 })
+            int qx = 235;
+            foreach (var val in new[] { +50, +100, +250, +500, +1000 })
             {
                 Button qbtn = new Button
                 {
-                    Text = $"+{val}",
-                    Location = new Point(qx, 42),
-                    Size = new Size(50, 28),
-                    FlatStyle = FlatStyle.Flat,
-                    BackColor = Color.FromArgb(200, 230, 200),
-                    Font = new Font("Segoe UI", 8F, FontStyle.Bold),
-                    Cursor = Cursors.Hand
+                    Text = $"+{val}", Location = new Point(qx, 46), Size = new Size(60, 32),
+                    FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(200, 230, 200),
+                    Font = new Font("Segoe UI", 9F, FontStyle.Bold), Cursor = Cursors.Hand
                 };
                 qbtn.FlatAppearance.BorderColor = Color.FromArgb(100, 180, 100);
                 int addVal = val;
-                qbtn.Click += (s, e) => {
-                    decimal newVal = nudIlosc.Value + addVal;
-                    if (newVal <= nudIlosc.Maximum) nudIlosc.Value = newVal;
-                };
+                qbtn.Click += (s, e) => { if (nudIlosc.Value + addVal <= nudIlosc.Maximum) nudIlosc.Value += addVal; };
                 addPanel.Controls.Add(qbtn);
-                qx += 55;
+                qx += 65;
             }
 
             btnDodajDoKoszyka = new Button
             {
-                Text = "➕ DODAJ DO DOKUMENTU",
-                Location = new Point(10, 75),
-                Size = new Size(470, 35),
-                BackColor = Color.FromArgb(52, 152, 219),
+                Text = "➕ DODAJ DO LISTY",
+                Location = new Point(15, 85),
+                Size = new Size(590, 30),
+                BackColor = Color.FromArgb(76, 175, 80),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
@@ -3797,23 +3890,12 @@ namespace Kalendarz1
 
             addPanel.Controls.AddRange(new Control[] { lblIloscAdd, nudIlosc, btnDodajDoKoszyka });
             leftPanel.Controls.Add(addPanel);
-            y += 105;
-
-            // Uwagi
-            Label lblUwagi = new Label { Text = "Uwagi do dokumentu:", Location = new Point(15, y), AutoSize = true, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
-            txtUwagi = new TextBox
-            {
-                Location = new Point(15, y + 22),
-                Size = new Size(490, 28),
-                Font = new Font("Segoe UI", 10F)
-            };
-            leftPanel.Controls.AddRange(new Control[] { lblUwagi, txtUwagi });
 
             // === PANEL PRAWY - KOSZYK ===
             Panel rightPanel = new Panel
             {
-                Location = new Point(550, 75),
-                Size = new Size(580, 580),
+                Location = new Point(680, 240),
+                Size = new Size(690, 550),
                 BackColor = Color.White
             };
             rightPanel.Paint += (s, e) => {
@@ -3822,10 +3904,9 @@ namespace Kalendarz1
             };
             this.Controls.Add(rightPanel);
 
-            // Nagłówek koszyka
             Label lblTytulKoszyk = new Label
             {
-                Text = "🛒 POZYCJE DOKUMENTU",
+                Text = "🛒 LISTA PRODUKTÓW W DOKUMENCIE",
                 Location = new Point(15, 15),
                 AutoSize = true,
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold),
@@ -3837,7 +3918,7 @@ namespace Kalendarz1
             dgvKoszyk = new DataGridView
             {
                 Location = new Point(15, 50),
-                Size = new Size(550, 420),
+                Size = new Size(660, 380),
                 BackgroundColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle,
                 CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
@@ -3848,79 +3929,83 @@ namespace Kalendarz1
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
                 ReadOnly = true,
-                Font = new Font("Segoe UI", 10F)
+                Font = new Font("Segoe UI", 10F),
+                RowTemplate = { Height = 35 }
             };
-            dgvKoszyk.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(52, 152, 219);
+            dgvKoszyk.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(52, 73, 94);
             dgvKoszyk.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
             dgvKoszyk.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            dgvKoszyk.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(245, 250, 255);
+            dgvKoszyk.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(245, 247, 250);
 
             dgvKoszyk.Columns.Add("Lp", "Lp");
             dgvKoszyk.Columns.Add("Kod", "Kod");
             dgvKoszyk.Columns.Add("Nazwa", "Nazwa produktu");
             dgvKoszyk.Columns.Add("Ilosc", "Ilość (kg)");
-
-            dgvKoszyk.Columns["Lp"].Width = 40;
-            dgvKoszyk.Columns["Kod"].Width = 100;
-            dgvKoszyk.Columns["Nazwa"].Width = 290;
+            dgvKoszyk.Columns["Lp"].Width = 45;
+            dgvKoszyk.Columns["Kod"].Width = 110;
+            dgvKoszyk.Columns["Nazwa"].Width = 380;
             dgvKoszyk.Columns["Ilosc"].Width = 100;
 
-            // Przycisk usuń
             DataGridViewButtonColumn btnCol = new DataGridViewButtonColumn
             {
-                Name = "Usun",
-                HeaderText = "",
-                Text = "🗑",
-                UseColumnTextForButtonValue = true,
-                Width = 40
+                Name = "Usun", HeaderText = "", Text = "🗑", UseColumnTextForButtonValue = true, Width = 45
             };
             dgvKoszyk.Columns.Add(btnCol);
             dgvKoszyk.CellClick += DgvKoszyk_CellClick;
-
             rightPanel.Controls.Add(dgvKoszyk);
 
-            // Podsumowanie koszyka
+            // Podsumowanie
             Panel sumPanel = new Panel
             {
-                Location = new Point(15, 480),
-                Size = new Size(550, 85),
-                BackColor = Color.FromArgb(245, 250, 255)
+                Location = new Point(15, 440),
+                Size = new Size(660, 95),
+                BackColor = Color.FromArgb(236, 240, 241)
             };
             sumPanel.Paint += (s, e) => {
-                using (var pen = new Pen(Color.FromArgb(52, 152, 219), 2))
+                using (var pen = new Pen(Color.FromArgb(52, 73, 94), 2))
                     e.Graphics.DrawRectangle(pen, 0, 0, sumPanel.Width - 1, sumPanel.Height - 1);
             };
 
             lblKoszykPozycje = new Label
             {
                 Text = "Pozycji: 0",
-                Location = new Point(15, 15),
+                Location = new Point(20, 15),
                 AutoSize = true,
-                Font = new Font("Segoe UI", 11F)
+                Font = new Font("Segoe UI", 12F)
             };
 
             lblKoszykSuma = new Label
             {
                 Text = "RAZEM: 0 kg",
-                Location = new Point(15, 45),
+                Location = new Point(20, 50),
                 AutoSize = true,
-                Font = new Font("Segoe UI", 18F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(52, 152, 219)
+                Font = new Font("Segoe UI", 22F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 73, 94)
             };
 
-            sumPanel.Controls.AddRange(new Control[] { lblKoszykPozycje, lblKoszykSuma });
+            // Uwagi
+            Label lblUwagiLabel = new Label { Text = "Uwagi:", Location = new Point(350, 15), AutoSize = true };
+            txtUwagi = new TextBox
+            {
+                Location = new Point(350, 40),
+                Size = new Size(295, 45),
+                Font = new Font("Segoe UI", 10F),
+                Multiline = true
+            };
+
+            sumPanel.Controls.AddRange(new Control[] { lblKoszykPozycje, lblKoszykSuma, lblUwagiLabel, txtUwagi });
             rightPanel.Controls.Add(sumPanel);
 
             // === PRZYCISKI NA DOLE ===
             btnZapisz = new Button
             {
                 Text = "✓ ZAPISZ DOKUMENT",
-                Location = new Point(880, 665),
-                Size = new Size(160, 45),
-                BackColor = colorPrzyjecie,
+                Location = new Point(1100, 805),
+                Size = new Size(180, 50),
+                BackColor = Color.FromArgb(39, 174, 96),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
                 DialogResult = DialogResult.OK,
                 Cursor = Cursors.Hand,
                 Enabled = false
@@ -3931,12 +4016,12 @@ namespace Kalendarz1
             Button btnAnuluj = new Button
             {
                 Text = "Anuluj",
-                Location = new Point(1050, 665),
-                Size = new Size(80, 45),
-                BackColor = Color.FromArgb(108, 117, 125),
+                Location = new Point(1290, 805),
+                Size = new Size(90, 50),
+                BackColor = Color.FromArgb(149, 165, 166),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10F),
+                Font = new Font("Segoe UI", 11F),
                 DialogResult = DialogResult.Cancel,
                 Cursor = Cursors.Hand
             };
@@ -3944,10 +4029,10 @@ namespace Kalendarz1
 
             Button btnWyczysc = new Button
             {
-                Text = "🗑 Wyczyść",
-                Location = new Point(550, 665),
-                Size = new Size(110, 45),
-                BackColor = Color.FromArgb(220, 53, 69),
+                Text = "🗑 Wyczyść listę",
+                Location = new Point(680, 805),
+                Size = new Size(140, 50),
+                BackColor = Color.FromArgb(231, 76, 60),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 10F),
@@ -3969,36 +4054,96 @@ namespace Kalendarz1
             RefreshProductCards();
         }
 
-        private void TypOperacji_Changed(object sender, EventArgs e)
+        private void CmbZrodloTyp_Changed(object sender, EventArgs e)
         {
-            if (rbPrzyjecie.Checked)
-            {
-                targetHeaderColor = colorPrzyjecie;
-                lblHeader.Text = "📥  PRZYJĘCIE DO MROŹNI - NOWY DOKUMENT";
-                btnZapisz.BackColor = colorPrzyjecie;
-            }
-            else
-            {
-                targetHeaderColor = colorWydanie;
-                lblHeader.Text = "📤  WYDANIE Z MROŹNI - NOWY DOKUMENT";
-                btnZapisz.BackColor = colorWydanie;
-            }
-            animStep = 0;
-            animTimer.Start();
+            RefreshZrodloNazwa();
+            UpdateTrasaInfo();
         }
 
-        private void AnimTimer_Tick(object sender, EventArgs e)
+        private void CmbCelTyp_Changed(object sender, EventArgs e)
         {
-            animStep++;
-            float t = Math.Min(1f, animStep / 10f);
-            int r = (int)(currentHeaderColor.R + (targetHeaderColor.R - currentHeaderColor.R) * t);
-            int g = (int)(currentHeaderColor.G + (targetHeaderColor.G - currentHeaderColor.G) * t);
-            int b = (int)(currentHeaderColor.B + (targetHeaderColor.B - currentHeaderColor.B) * t);
-            headerPanel.BackColor = Color.FromArgb(r, g, b);
-            if (t >= 1f) { animTimer.Stop(); currentHeaderColor = targetHeaderColor; }
+            RefreshCelNazwa();
+            UpdateTrasaInfo();
         }
 
-        private void TxtSearch_TextChanged(object sender, EventArgs e) => RefreshProductCards();
+        private void RefreshZrodloNazwa()
+        {
+            cmbZrodloNazwa.Items.Clear();
+            int idx = cmbZrodloTyp.SelectedIndex;
+
+            if (idx == 0) // Ubojnia
+            {
+                cmbZrodloNazwa.Items.Add("Ubojnia - magazyn główny");
+                cmbZrodloNazwa.Items.Add("Ubojnia - hala produkcyjna");
+                cmbZrodloNazwa.Items.Add("Ubojnia - chłodnia");
+                cmbZrodloNazwa.DropDownStyle = ComboBoxStyle.DropDownList;
+                lblZrodloInfo.Text = "Towar wychodzi z ubojni";
+            }
+            else if (idx == 1) // Mroźnia zewnętrzna
+            {
+                foreach (var m in mroznieZewnetrzne)
+                    cmbZrodloNazwa.Items.Add($"❄️ {m.Nazwa}");
+                if (cmbZrodloNazwa.Items.Count == 0)
+                    cmbZrodloNazwa.Items.Add("(brak mroźni zewnętrznych)");
+                cmbZrodloNazwa.DropDownStyle = ComboBoxStyle.DropDownList;
+                lblZrodloInfo.Text = "Towar wychodzi z mroźni zewnętrznej";
+            }
+            else // Klient
+            {
+                foreach (var k in klienci.Take(100))
+                    cmbZrodloNazwa.Items.Add($"👤 {k.Nazwa}");
+                cmbZrodloNazwa.DropDownStyle = ComboBoxStyle.DropDown;
+                cmbZrodloNazwa.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+                cmbZrodloNazwa.AutoCompleteSource = AutoCompleteSource.ListItems;
+                lblZrodloInfo.Text = "Towar zwracany przez klienta";
+            }
+
+            if (cmbZrodloNazwa.Items.Count > 0)
+                cmbZrodloNazwa.SelectedIndex = 0;
+        }
+
+        private void RefreshCelNazwa()
+        {
+            cmbCelNazwa.Items.Clear();
+            int idx = cmbCelTyp.SelectedIndex;
+
+            if (idx == 0) // Ubojnia
+            {
+                cmbCelNazwa.Items.Add("Ubojnia - magazyn główny");
+                cmbCelNazwa.Items.Add("Ubojnia - hala produkcyjna");
+                cmbCelNazwa.Items.Add("Ubojnia - chłodnia");
+                cmbCelNazwa.DropDownStyle = ComboBoxStyle.DropDownList;
+                lblCelInfo.Text = "Towar wraca do ubojni";
+            }
+            else if (idx == 1) // Mroźnia zewnętrzna
+            {
+                foreach (var m in mroznieZewnetrzne)
+                    cmbCelNazwa.Items.Add($"❄️ {m.Nazwa}");
+                if (cmbCelNazwa.Items.Count == 0)
+                    cmbCelNazwa.Items.Add($"❄️ {nazwaMrozniAktualnej}");
+                cmbCelNazwa.DropDownStyle = ComboBoxStyle.DropDownList;
+                lblCelInfo.Text = "Towar trafia do mroźni zewnętrznej";
+            }
+            else // Klient (przechowanie)
+            {
+                foreach (var k in klienci.Take(100))
+                    cmbCelNazwa.Items.Add($"👤 {k.Nazwa}");
+                cmbCelNazwa.DropDownStyle = ComboBoxStyle.DropDown;
+                cmbCelNazwa.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+                cmbCelNazwa.AutoCompleteSource = AutoCompleteSource.ListItems;
+                lblCelInfo.Text = "Towar dla klienta, przechowywany w mroźni";
+            }
+
+            if (cmbCelNazwa.Items.Count > 0)
+                cmbCelNazwa.SelectedIndex = 0;
+        }
+
+        private void UpdateTrasaInfo()
+        {
+            string zrodlo = cmbZrodloTyp.SelectedItem?.ToString()?.Replace("🏭 ", "").Replace("❄️ ", "").Replace("👤 ", "") ?? "";
+            string cel = cmbCelTyp.SelectedItem?.ToString()?.Replace("🏭 ", "").Replace("❄️ ", "").Replace("👤 ", "") ?? "";
+            lblTrasa.Text = $"{zrodlo} ➡️ {cel}";
+        }
 
         private void RefreshProductCards()
         {
@@ -4013,7 +4158,7 @@ namespace Kalendarz1
                     continue;
                 count++;
                 flowProdukty.Controls.Add(CreateProductCard(p, cardColors[colorIndex++ % cardColors.Length]));
-                if (count >= 60) break;
+                if (count >= 80) break;
             }
             flowProdukty.ResumeLayout();
             lblProduktyInfo.Text = $"Wyświetlono: {count} z {produkty.Count} produktów";
@@ -4021,15 +4166,14 @@ namespace Kalendarz1
 
         private Panel CreateProductCard(ProduktMrozony produkt, Color tagColor)
         {
-            Panel card = new Panel { Size = new Size(145, 60), BackColor = Color.White, Margin = new Padding(4), Cursor = Cursors.Hand, Tag = produkt };
-            Panel tag = new Panel { Location = new Point(0, 0), Size = new Size(4, 60), BackColor = tagColor };
+            Panel card = new Panel { Size = new Size(145, 55), BackColor = Color.White, Margin = new Padding(3), Cursor = Cursors.Hand, Tag = produkt };
+            Panel tag = new Panel { Location = new Point(0, 0), Size = new Size(4, 55), BackColor = tagColor };
             Label lblKod = new Label { Text = produkt.Kod, Location = new Point(8, 4), Size = new Size(130, 16), Font = new Font("Segoe UI", 8F, FontStyle.Bold), ForeColor = tagColor };
-            Label lblNazwa = new Label { Text = produkt.Nazwa.Length > 28 ? produkt.Nazwa.Substring(0, 25) + "..." : produkt.Nazwa, Location = new Point(8, 22), Size = new Size(130, 34), Font = new Font("Segoe UI", 8F), ForeColor = Color.FromArgb(60, 60, 60) };
+            Label lblNazwa = new Label { Text = produkt.Nazwa.Length > 25 ? produkt.Nazwa.Substring(0, 22) + "..." : produkt.Nazwa, Location = new Point(8, 22), Size = new Size(130, 30), Font = new Font("Segoe UI", 8F), ForeColor = Color.FromArgb(60, 60, 60) };
             card.Controls.AddRange(new Control[] { tag, lblKod, lblNazwa });
 
             card.Paint += (s, e) => {
-                Color bc = card == selectedCard ? Color.FromArgb(52, 152, 219) : Color.FromArgb(220, 220, 220);
-                using (var pen = new Pen(bc, card == selectedCard ? 2 : 1))
+                using (var pen = new Pen(card == selectedCard ? Color.FromArgb(39, 174, 96) : Color.FromArgb(220, 220, 220), card == selectedCard ? 2 : 1))
                     e.Graphics.DrawRectangle(pen, 0, 0, card.Width - 1, card.Height - 1);
             };
 
@@ -4046,20 +4190,15 @@ namespace Kalendarz1
             if (selectedCard != null) { selectedCard.BackColor = Color.White; selectedCard.Invalidate(); }
             selectedCard = card;
             selectedProdukt = produkt;
-            card.BackColor = Color.FromArgb(230, 245, 255);
+            card.BackColor = Color.FromArgb(232, 245, 233);
             card.Invalidate();
 
-            // Aktualizuj etykietę
-            var addPanel = this.Controls.OfType<Panel>().FirstOrDefault(p => p.Location.X == 15 && p.Size.Width == 520);
-            if (addPanel != null)
+            var lbl = this.Controls.OfType<Panel>().SelectMany(p => p.Controls.OfType<Panel>()).SelectMany(p => p.Controls.OfType<Label>()).FirstOrDefault(l => l.Tag?.ToString() == "wybrany");
+            if (lbl != null)
             {
-                var lbl = addPanel.Controls.OfType<Panel>().SelectMany(p => p.Controls.OfType<Label>()).FirstOrDefault(l => l.Tag?.ToString() == "wybrany");
-                if (lbl != null)
-                {
-                    lbl.Text = $"✓ {produkt.Kod} - {produkt.Nazwa}";
-                    lbl.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-                    lbl.ForeColor = Color.FromArgb(52, 152, 219);
-                }
+                lbl.Text = $"✓ {produkt.Kod} - {produkt.Nazwa}";
+                lbl.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+                lbl.ForeColor = Color.FromArgb(39, 174, 96);
             }
             btnDodajDoKoszyka.Enabled = true;
         }
@@ -4068,40 +4207,25 @@ namespace Kalendarz1
         {
             if (selectedProdukt == null) return;
 
-            // Sprawdź czy produkt już jest w koszyku
             var existing = Pozycje.FirstOrDefault(p => p.KodProduktu == selectedProdukt.Kod);
             if (existing != null)
-            {
                 existing.Ilosc += nudIlosc.Value;
-            }
             else
-            {
-                Pozycje.Add(new PozycjaDokumentu
-                {
-                    KodProduktu = selectedProdukt.Kod,
-                    Nazwa = selectedProdukt.Nazwa,
-                    Ilosc = nudIlosc.Value
-                });
-            }
+                Pozycje.Add(new PozycjaDokumentu { KodProduktu = selectedProdukt.Kod, Nazwa = selectedProdukt.Nazwa, Ilosc = nudIlosc.Value });
 
             RefreshKoszyk();
 
-            // Reset wyboru
             if (selectedCard != null) { selectedCard.BackColor = Color.White; selectedCard.Invalidate(); }
             selectedCard = null;
             selectedProdukt = null;
             btnDodajDoKoszyka.Enabled = false;
 
-            var addPanel = this.Controls.OfType<Panel>().FirstOrDefault(p => p.Location.X == 15 && p.Size.Width == 520);
-            if (addPanel != null)
+            var lbl = this.Controls.OfType<Panel>().SelectMany(p => p.Controls.OfType<Panel>()).SelectMany(p => p.Controls.OfType<Label>()).FirstOrDefault(l => l.Tag?.ToString() == "wybrany");
+            if (lbl != null)
             {
-                var lbl = addPanel.Controls.OfType<Panel>().SelectMany(p => p.Controls.OfType<Label>()).FirstOrDefault(l => l.Tag?.ToString() == "wybrany");
-                if (lbl != null)
-                {
-                    lbl.Text = "Wybrany produkt: (kliknij na kartę powyżej)";
-                    lbl.Font = new Font("Segoe UI", 9F, FontStyle.Italic);
-                    lbl.ForeColor = Color.Gray;
-                }
+                lbl.Text = "Kliknij na kartę produktu powyżej aby wybrać";
+                lbl.Font = new Font("Segoe UI", 10F, FontStyle.Italic);
+                lbl.ForeColor = Color.Gray;
             }
         }
 
@@ -4130,20 +4254,47 @@ namespace Kalendarz1
             }
         }
 
-        private void LoadProdukty(string connectionString)
+        private void LoadProdukty(string connStr)
         {
             try
             {
-                using (var conn = new Microsoft.Data.SqlClient.SqlConnection(connectionString))
+                using (var conn = new Microsoft.Data.SqlClient.SqlConnection(connStr))
                 {
                     conn.Open();
-                    string query = @"SELECT Id, Kod, Nazwa FROM [HANDEL].[HM].[TW] WHERE katalog = '67153' ORDER BY Nazwa ASC";
-                    using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(query, conn))
+                    using (var cmd = new Microsoft.Data.SqlClient.SqlCommand("SELECT Id, Kod, Nazwa FROM [HANDEL].[HM].[TW] WHERE katalog = '67153' ORDER BY Nazwa ASC", conn))
                     using (var rd = cmd.ExecuteReader())
-                    {
                         while (rd.Read())
                             produkty.Add(new ProduktMrozony { Id = rd.GetInt32(0), Kod = rd["Kod"]?.ToString() ?? "", Nazwa = rd["Nazwa"]?.ToString() ?? "" });
-                    }
+                }
+            }
+            catch { }
+        }
+
+        private void LoadKlienci(string connStr)
+        {
+            try
+            {
+                using (var conn = new Microsoft.Data.SqlClient.SqlConnection(connStr))
+                {
+                    conn.Open();
+                    using (var cmd = new Microsoft.Data.SqlClient.SqlCommand("SELECT TOP 500 Id, Kod, Nazwa FROM [HANDEL].[HM].[KONTRAH] WHERE Typ = 1 ORDER BY Nazwa ASC", conn))
+                    using (var rd = cmd.ExecuteReader())
+                        while (rd.Read())
+                            klienci.Add(new KlientSymfonia { Id = rd.GetInt32(0), Kod = rd["Kod"]?.ToString() ?? "", Nazwa = rd["Nazwa"]?.ToString() ?? "" });
+                }
+            }
+            catch { }
+        }
+
+        private void LoadMroznieZewnetrzne()
+        {
+            try
+            {
+                string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "mroznieZewnetrzne.json");
+                if (File.Exists(path))
+                {
+                    string json = File.ReadAllText(path);
+                    mroznieZewnetrzne = System.Text.Json.JsonSerializer.Deserialize<List<MrozniaZewnetrzna>>(json) ?? new List<MrozniaZewnetrzna>();
                 }
             }
             catch { }
@@ -4153,14 +4304,46 @@ namespace Kalendarz1
         {
             if (Pozycje.Count == 0)
             {
-                MessageBox.Show("Dodaj przynajmniej jeden produkt do dokumentu.", "Brak pozycji", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Dodaj przynajmniej jeden produkt.", "Brak pozycji", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 this.DialogResult = DialogResult.None;
                 return;
             }
+
             Data = dtpData.Value.Date;
-            Typ = rbPrzyjecie.Checked ? "Przyjęcie" : "Wydanie";
+
+            // Określ typ na podstawie kierunku
+            int zrodloIdx = cmbZrodloTyp.SelectedIndex;
+            int celIdx = cmbCelTyp.SelectedIndex;
+
+            if (zrodloIdx == 0) // Z ubojni
+                Typ = "Przyjęcie";
+            else
+                Typ = "Wydanie";
+
+            ZrodloTyp = cmbZrodloTyp.SelectedItem?.ToString()?.Replace("🏭 ", "").Replace("❄️ ", "").Replace("👤 ", "") ?? "";
+            ZrodloNazwa = cmbZrodloNazwa.Text.Replace("❄️ ", "").Replace("👤 ", "");
+            CelTyp = cmbCelTyp.SelectedItem?.ToString()?.Replace("🏭 ", "").Replace("❄️ ", "").Replace("👤 ", "").Replace(" (przechowanie)", "") ?? "";
+            CelNazwa = cmbCelNazwa.Text.Replace("❄️ ", "").Replace("👤 ", "");
+
+            // Jeśli cel to klient, zapisz ID
+            if (celIdx == 2)
+            {
+                var klient = klienci.FirstOrDefault(k => cmbCelNazwa.Text.Contains(k.Nazwa));
+                KlientId = klient?.Id.ToString() ?? "";
+            }
+
             Uwagi = txtUwagi.Text.Trim();
         }
+    }
+
+    /// <summary>
+    /// Klient z Symfonii
+    /// </summary>
+    public class KlientSymfonia
+    {
+        public int Id { get; set; }
+        public string Kod { get; set; } = "";
+        public string Nazwa { get; set; } = "";
     }
 
     /// <summary>
