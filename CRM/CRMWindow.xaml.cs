@@ -435,6 +435,10 @@ namespace Kalendarz1.CRM
                     }
 
                     listaNotatek.ItemsSource = notatki;
+
+                    // Ustaw też listę ostatnich notatek w zakładce Info (max 5)
+                    var ostatnieNotatki = new ObservableCollection<NotatkaCRM>(notatki.Take(5));
+                    listaOstatnichNotatek.ItemsSource = ostatnieNotatki;
                 }
             }
             catch (Exception ex)

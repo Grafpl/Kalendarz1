@@ -419,89 +419,89 @@
                     <!-- Karty KPI -->
                     <StackPanel Grid.Column="0" Orientation="Horizontal">
                         <!-- Dziś do zadzwonienia -->
-                        <Border Background="#ffffff25" CornerRadius="8" Padding="12,6" Margin="0,0,8,0">
+                        <Border Background="#ffffff15" CornerRadius="8" Padding="12,6" Margin="0,0,8,0">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="📞" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center"/>
                                 <StackPanel>
-                                    <TextBlock Text="DZIŚ" FontSize="8" Foreground="#BBF7D0"/>
-                                    <TextBlock x:Name="txtKpiDzisiaj" Text="0" FontSize="16" FontWeight="Bold" Foreground="White"/>
+                                    <TextBlock Text="DZIŚ" FontSize="8" Foreground="#A7F3D0"/>
+                                    <TextBlock x:Name="txtKpiDzisiaj" Text="0" FontSize="16" FontWeight="Bold" Foreground="#E0F2E9"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
 
-                        <!-- Zaległe - CZERWONE -->
-                        <Border Background="#DC262640" CornerRadius="8" Padding="12,6" Margin="0,0,8,0">
+                        <!-- Zaległe -->
+                        <Border Background="#ffffff15" CornerRadius="8" Padding="12,6" Margin="0,0,8,0">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="⚠️" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center"/>
                                 <StackPanel>
                                     <TextBlock Text="ZALEGŁE" FontSize="8" Foreground="#FCA5A5"/>
-                                    <TextBlock x:Name="txtKpiZalegle" Text="0" FontSize="16" FontWeight="Bold" Foreground="#FEE2E2"/>
+                                    <TextBlock x:Name="txtKpiZalegle" Text="0" FontSize="16" FontWeight="Bold" Foreground="#FECACA"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
 
                         <!-- Próby kontaktu -->
-                        <Border Background="#ffffff25" CornerRadius="8" Padding="12,6" Margin="0,0,8,0">
+                        <Border Background="#ffffff15" CornerRadius="8" Padding="12,6" Margin="0,0,8,0">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="🔔" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center"/>
                                 <StackPanel>
-                                    <TextBlock Text="PRÓBY" FontSize="8" Foreground="#BBF7D0"/>
-                                    <TextBlock x:Name="txtKpiProby" Text="0" FontSize="16" FontWeight="Bold" Foreground="White"/>
+                                    <TextBlock Text="PRÓBY" FontSize="8" Foreground="#A7F3D0"/>
+                                    <TextBlock x:Name="txtKpiProby" Text="0" FontSize="16" FontWeight="Bold" Foreground="#E0F2E9"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
 
                         <!-- Nawiązane -->
-                        <Border Background="#ffffff25" CornerRadius="8" Padding="12,6" Margin="0,0,8,0">
+                        <Border Background="#ffffff15" CornerRadius="8" Padding="12,6" Margin="0,0,8,0">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="✅" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center"/>
                                 <StackPanel>
-                                    <TextBlock Text="KONTAKT" FontSize="8" Foreground="#BBF7D0"/>
-                                    <TextBlock x:Name="txtKpiNawiazane" Text="0" FontSize="16" FontWeight="Bold" Foreground="White"/>
+                                    <TextBlock Text="KONTAKT" FontSize="8" Foreground="#A7F3D0"/>
+                                    <TextBlock x:Name="txtKpiNawiazane" Text="0" FontSize="16" FontWeight="Bold" Foreground="#E0F2E9"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
 
                         <!-- Zgoda -->
-                        <Border Background="#ffffff25" CornerRadius="8" Padding="12,6" Margin="0,0,8,0">
+                        <Border Background="#ffffff15" CornerRadius="8" Padding="12,6" Margin="0,0,8,0">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="🤝" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center"/>
                                 <StackPanel>
-                                    <TextBlock Text="ZGODA" FontSize="8" Foreground="#BBF7D0"/>
-                                    <TextBlock x:Name="txtKpiZgoda" Text="0" FontSize="16" FontWeight="Bold" Foreground="White"/>
+                                    <TextBlock Text="ZGODA" FontSize="8" Foreground="#A7F3D0"/>
+                                    <TextBlock x:Name="txtKpiZgoda" Text="0" FontSize="16" FontWeight="Bold" Foreground="#E0F2E9"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
 
                         <!-- Do oferty -->
-                        <Border Background="#ffffff25" CornerRadius="8" Padding="12,6" Margin="0,0,8,0">
+                        <Border Background="#ffffff15" CornerRadius="8" Padding="12,6" Margin="0,0,8,0">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="📄" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center"/>
                                 <StackPanel>
-                                    <TextBlock Text="OFERTY" FontSize="8" Foreground="#BBF7D0"/>
-                                    <TextBlock x:Name="txtKpiOferty" Text="0" FontSize="16" FontWeight="Bold" Foreground="White"/>
+                                    <TextBlock Text="OFERTY" FontSize="8" Foreground="#A7F3D0"/>
+                                    <TextBlock x:Name="txtKpiOferty" Text="0" FontSize="16" FontWeight="Bold" Foreground="#E0F2E9"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
 
                         <!-- Priorytetowe branże -->
-                        <Border Background="#DC262640" CornerRadius="8" Padding="12,6" Margin="0,0,8,0">
+                        <Border Background="#ffffff15" CornerRadius="8" Padding="12,6" Margin="0,0,8,0">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="🏭" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center"/>
                                 <StackPanel>
                                     <TextBlock Text="MIĘSO" FontSize="8" Foreground="#FCA5A5"/>
-                                    <TextBlock x:Name="txtKpiPriorytet" Text="0" FontSize="16" FontWeight="Bold" Foreground="#FEE2E2"/>
+                                    <TextBlock x:Name="txtKpiPriorytet" Text="0" FontSize="16" FontWeight="Bold" Foreground="#FECACA"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
 
                         <!-- Razem -->
-                        <Border Background="#ffffff25" CornerRadius="8" Padding="12,6">
+                        <Border Background="#ffffff15" CornerRadius="8" Padding="12,6">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="👥" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center"/>
                                 <StackPanel>
-                                    <TextBlock Text="RAZEM" FontSize="8" Foreground="#BBF7D0"/>
-                                    <TextBlock x:Name="txtKpiRazem" Text="0" FontSize="16" FontWeight="Bold" Foreground="White"/>
+                                    <TextBlock Text="RAZEM" FontSize="8" Foreground="#A7F3D0"/>
+                                    <TextBlock x:Name="txtKpiRazem" Text="0" FontSize="16" FontWeight="Bold" Foreground="#E0F2E9"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -876,6 +876,31 @@
                                         <Button x:Name="btnKlientGoogle" Content="🔍" Style="{StaticResource ButtonSmall}" Padding="10,8" Margin="0,0,6,6" Click="MenuGoogle_Click" ToolTip="Google"/>
                                         <Button x:Name="btnKlientMapa" Content="🗺️" Style="{StaticResource ButtonSmall}" Padding="10,8" Margin="0,0,0,6" Click="MenuTrasa_Click" ToolTip="Trasa"/>
                                     </WrapPanel>
+
+                                    <!-- Ostatnie notatki -->
+                                    <TextBlock Text="OSTATNIE NOTATKI" FontSize="9" Foreground="{StaticResource ColorTextMuted}" FontWeight="SemiBold" Margin="0,12,0,6"/>
+                                    <Border Background="#F8FAF8" CornerRadius="8" Padding="8" MaxHeight="200">
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                            <ItemsControl x:Name="listaOstatnichNotatek">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="White" CornerRadius="6" Padding="10" Margin="0,0,0,6" BorderBrush="#E2E8F0" BorderThickness="1">
+                                                            <StackPanel>
+                                                                <TextBlock Text="{Binding Tresc}" FontSize="11" Foreground="{StaticResource ColorText}" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="40"/>
+                                                                <Border Background="#F1F5F9" CornerRadius="4" Padding="6,3" Margin="0,6,0,0" HorizontalAlignment="Left">
+                                                                    <StackPanel Orientation="Horizontal">
+                                                                        <TextBlock Text="{Binding DataUtworzenia, StringFormat=dd.MM.yy HH:mm}" FontSize="9" Foreground="{StaticResource ColorTextMuted}"/>
+                                                                        <TextBlock Text=" • " FontSize="9" Foreground="{StaticResource ColorTextMuted}"/>
+                                                                        <TextBlock Text="{Binding Operator}" FontSize="9" Foreground="{StaticResource ColorPrimary}" FontWeight="SemiBold"/>
+                                                                    </StackPanel>
+                                                                </Border>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                    </Border>
                                 </StackPanel>
                             </ScrollViewer>
                         </TabItem>
