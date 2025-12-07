@@ -374,15 +374,18 @@
                         <Button x:Name="btnZadania" Style="{StaticResource ButtonWarning}" Margin="0,0,8,0" Click="BtnZadania_Click" Padding="12,8">
                             <TextBlock Text="📋" FontSize="12"/>
                         </Button>
-                        <Button x:Name="btnUstawienia" Click="BtnUstawienia_Click" Cursor="Hand" Padding="10,8" Background="#ffffff30">
+                        <Button x:Name="btnUstawienia" Click="BtnUstawienia_Click" Cursor="Hand" Padding="10,8" Background="#DC262650" ToolTip="Priorytetowe branże">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
                                     <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
-                                        <TextBlock Text="⚙️" FontSize="12"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="🏭" FontSize="12"/>
+                                            <TextBlock Text=" Branże" FontSize="10" Foreground="White" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                                        </StackPanel>
                                     </Border>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="border" Property="Background" Value="#ffffff50"/>
+                                            <Setter TargetName="border" Property="Background" Value="#DC262680"/>
                                         </Trigger>
                                     </ControlTemplate.Triggers>
                                 </ControlTemplate>

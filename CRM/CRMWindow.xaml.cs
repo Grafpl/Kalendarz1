@@ -20,13 +20,7 @@ namespace Kalendarz1.CRM
         private DataTable dtKontakty;
         private bool isLoading = false;
 
-        private readonly string[] priorytetowePKD = new string[]
-        {
-            "Sprzedaż detaliczna mięsa i wyrobów z mięsa prowadzona w wyspecjalizowanych sklepach",
-            "Przetwarzanie i konserwowanie mięsa z drobiu",
-            "Produkcja wyrobów z mięsa, włączając wyroby z mięsa drobiowego",
-            "Ubój zwierząt, z wyłączeniem drobiu i królików"
-        };
+        // Priorytetowe branże są teraz przechowywane w tabeli PriorytetoweBranzeCRM
 
         public string UserID { get; set; }
 
@@ -106,6 +100,25 @@ namespace Kalendarz1.CRM
                             ALTER TABLE OdbiorcyCRM ADD LiczbaProbKontaktu INT DEFAULT 0
                         END", conn);
                     cmdProby.ExecuteNonQuery();
+
+                    // Tabela priorytetowych branż
+                    var cmdPriorytet = new SqlCommand(@"
+                        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'PriorytetoweBranzeCRM')
+                        BEGIN
+                            CREATE TABLE PriorytetoweBranzeCRM (
+                                ID INT IDENTITY(1,1) PRIMARY KEY,
+                                PKD_Opis NVARCHAR(500) NOT NULL UNIQUE,
+                                DataDodania DATETIME DEFAULT GETDATE()
+                            )
+
+                            -- Dodaj domyślne branże mięsne
+                            INSERT INTO PriorytetoweBranzeCRM (PKD_Opis) VALUES
+                                ('Sprzedaż detaliczna mięsa i wyrobów z mięsa prowadzona w wyspecjalizowanych sklepach'),
+                                ('Przetwarzanie i konserwowanie mięsa z drobiu'),
+                                ('Produkcja wyrobów z mięsa, włączając wyroby z mięsa drobiowego'),
+                                ('Ubój zwierząt, z wyłączeniem drobiu i królików')
+                        END", conn);
+                    cmdPriorytet.ExecuteNonQuery();
                 }
             }
             catch (Exception ex)
@@ -162,7 +175,7 @@ namespace Kalendarz1.CRM
                 {
                     conn.Open();
 
-                    // Własne zapytanie z DataNastepnegoKontaktu
+                    // Własne zapytanie z DataNastepnegoKontaktu - używa dynamicznych priorytetowych branż
                     var cmd = new SqlCommand(@"
                         SELECT
                             o.ID,
@@ -189,16 +202,10 @@ namespace Kalendarz1.CRM
                                 WHEN CAST(o.DataNastepnegoKontaktu AS DATE) = CAST(GETDATE() AS DATE) THEN 2
                                 ELSE 3
                             END as PriorytetKontaktu,
-                            CASE
-                                WHEN o.PKD_Opis IN (
-                                    'Sprzedaż detaliczna mięsa i wyrobów z mięsa prowadzona w wyspecjalizowanych sklepach',
-                                    'Przetwarzanie i konserwowanie mięsa z drobiu',
-                                    'Produkcja wyrobów z mięsa, włączając wyroby z mięsa drobiowego',
-                                    'Ubój zwierząt, z wyłączeniem drobiu i królików'
-                                ) THEN 1 ELSE 0
-                            END as CzyPriorytetowaBranza
+                            CASE WHEN pb.PKD_Opis IS NOT NULL THEN 1 ELSE 0 END as CzyPriorytetowaBranza
                         FROM OdbiorcyCRM o
                         LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
+                        LEFT JOIN PriorytetoweBranzeCRM pb ON o.PKD_Opis = pb.PKD_Opis
                         WHERE (w.OperatorID = @OperatorID OR w.OperatorID IS NULL)
                             AND ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)')
                         ORDER BY
@@ -243,38 +250,34 @@ namespace Kalendarz1.CRM
                 {
                     conn.Open();
 
-                    // Statystyki - dziś na podstawie DataNastepnegoKontaktu
+                    // Statystyki - dziś na podstawie DataNastepnegoKontaktu - używa dynamicznych priorytetowych branż
                     var cmd = new SqlCommand(@"
                         SELECT
                             -- Dziś do zadzwonienia (tylko dziś)
                             ISNULL(SUM(CASE
-                                WHEN DataNastepnegoKontaktu IS NOT NULL
-                                    AND CAST(DataNastepnegoKontaktu AS DATE) = CAST(GETDATE() AS DATE)
+                                WHEN o.DataNastepnegoKontaktu IS NOT NULL
+                                    AND CAST(o.DataNastepnegoKontaktu AS DATE) = CAST(GETDATE() AS DATE)
                                 THEN 1 ELSE 0 END), 0) as DzisDoZadzwonienia,
                             -- Zaległe (przeterminowane)
                             ISNULL(SUM(CASE
-                                WHEN DataNastepnegoKontaktu IS NOT NULL
-                                    AND CAST(DataNastepnegoKontaktu AS DATE) < CAST(GETDATE() AS DATE)
+                                WHEN o.DataNastepnegoKontaktu IS NOT NULL
+                                    AND CAST(o.DataNastepnegoKontaktu AS DATE) < CAST(GETDATE() AS DATE)
                                 THEN 1 ELSE 0 END), 0) as Zalegle,
                             -- Próby kontaktu
-                            ISNULL(SUM(CASE WHEN Status = 'Próba kontaktu' THEN 1 ELSE 0 END), 0) as ProbaKontaktu,
+                            ISNULL(SUM(CASE WHEN o.Status = 'Próba kontaktu' THEN 1 ELSE 0 END), 0) as ProbaKontaktu,
                             -- Nawiązane kontakty
-                            ISNULL(SUM(CASE WHEN Status = 'Nawiązano kontakt' THEN 1 ELSE 0 END), 0) as Nawiazane,
+                            ISNULL(SUM(CASE WHEN o.Status = 'Nawiązano kontakt' THEN 1 ELSE 0 END), 0) as Nawiazane,
                             -- Zgoda na dalszy kontakt
-                            ISNULL(SUM(CASE WHEN Status = 'Zgoda na dalszy kontakt' THEN 1 ELSE 0 END), 0) as Zgoda,
+                            ISNULL(SUM(CASE WHEN o.Status = 'Zgoda na dalszy kontakt' THEN 1 ELSE 0 END), 0) as Zgoda,
                             -- Do wysłania oferty
-                            ISNULL(SUM(CASE WHEN Status = 'Do wysłania oferta' THEN 1 ELSE 0 END), 0) as DoOferty,
-                            -- Priorytetowe branże (mięso)
-                            ISNULL(SUM(CASE WHEN PKD_Opis IN (
-                                'Sprzedaż detaliczna mięsa i wyrobów z mięsa prowadzona w wyspecjalizowanych sklepach',
-                                'Przetwarzanie i konserwowanie mięsa z drobiu',
-                                'Produkcja wyrobów z mięsa, włączając wyroby z mięsa drobiowego',
-                                'Ubój zwierząt, z wyłączeniem drobiu i królików'
-                            ) THEN 1 ELSE 0 END), 0) as Priorytetowe,
+                            ISNULL(SUM(CASE WHEN o.Status = 'Do wysłania oferta' THEN 1 ELSE 0 END), 0) as DoOferty,
+                            -- Priorytetowe branże (dynamiczne z tabeli)
+                            ISNULL(SUM(CASE WHEN pb.PKD_Opis IS NOT NULL THEN 1 ELSE 0 END), 0) as Priorytetowe,
                             -- Razem aktywnych
                             COUNT(*) as Razem
                         FROM OdbiorcyCRM o
                         LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
+                        LEFT JOIN PriorytetoweBranzeCRM pb ON o.PKD_Opis = pb.PKD_Opis
                         WHERE (w.OperatorID = @OperatorID OR w.OperatorID IS NULL)
                             AND ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)', 'Nie zainteresowany')", conn);
 
@@ -1161,8 +1164,14 @@ namespace Kalendarz1.CRM
 
         private void BtnUstawienia_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("Ustawienia CRM będą dostępne w przyszłej aktualizacji.\n\nPlanowane funkcje:\n• Konfiguracja priorytetowych branż\n• Ustawienia powiadomień\n• Eksport danych",
-                "Ustawienia", MessageBoxButton.OK, MessageBoxImage.Information);
+            // Otwórz okno wyboru priorytetowych branż
+            var dialog = new WyborBranzyDialog(connectionString);
+            dialog.Owner = this;
+            if (dialog.ShowDialog() == true && dialog.ZapisanoZmiany)
+            {
+                // Odśwież dane po zapisaniu zmian
+                WczytajDane();
+            }
         }
 
         #endregion
