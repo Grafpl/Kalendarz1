@@ -72,8 +72,9 @@ namespace Kalendarz1.Transport
             Color.FromArgb(32, 201, 151)    // Teal
         };
 
-        // Company location (starting point)
-        private readonly PointLatLng _companyLocation = new PointLatLng(52.0693, 19.4803); // Przykładowa lokalizacja firmy
+        // Company location (starting point) - Ubojnia Koziołki 40, 95-061 Dmosin
+        private readonly PointLatLng _companyLocation = new PointLatLng(51.9148, 19.8089);
+        private const string COMPANY_NAME = "Ubojnia Koziołki 40, 95-061 Dmosin";
 
         #endregion
 
@@ -256,10 +257,10 @@ namespace Kalendarz1.Transport
             {
                 Dock = DockStyle.Fill,
                 Font = new Font("Segoe UI", 8F),
-                Text = "🏭 Firma (start)\n" +
-                       "🔴🔵🟢 Punkty dostawy (kolor = kurs)\n" +
-                       "① ② ③ Kolejność załadunku\n" +
-                       "─── Trasa kursu"
+                Text = "🟢 S = UBOJNIA Koziołki (start)\n" +
+                       "🔴🔵 Punkty dostawy (kolor = kurs)\n" +
+                       "① ② ③ Kolejność przystanków\n" +
+                       "→ Kierunek trasy (strzałki)"
             };
 
             panelLegenda.Controls.Add(lblLegendaContent);
@@ -428,7 +429,8 @@ namespace Kalendarz1.Transport
                 RefreshMapDisplay();
 
                 var punkty = _kursy.Sum(k => k.Ladunki.Count);
-                lblStatystyki.Text = $"Kursów: {_kursy.Count} | Punktów dostawy: {punkty} | Kontrahentów: {_kontrahenciCache.Count}";
+                var punktyZGps = _kursy.Sum(k => k.Ladunki.Count(l => l.Latitude != 0 && l.Longitude != 0));
+                lblStatystyki.Text = $"Start: UBOJNIA Koziołki | Kursów: {_kursy.Count} | Przystanków: {punktyZGps}/{punkty}";
             }
             catch (Exception ex)
             {
@@ -691,19 +693,93 @@ namespace Kalendarz1.Transport
 
         private void AddCompanyMarker()
         {
-            var marker = new GMarkerGoogle(_companyLocation, GMarkerGoogleType.blue_pushpin)
+            // Create custom large marker for the starting point (Ubojnia)
+            int size = 40;
+            var bitmap = new Bitmap(size, size);
+            using (var g = Graphics.FromImage(bitmap))
             {
-                ToolTipText = "🏭 FIRMA - Punkt startowy",
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+
+                // Draw outer circle (dark green)
+                using (var brush = new SolidBrush(Color.FromArgb(27, 94, 32)))
+                {
+                    g.FillEllipse(brush, 0, 0, size - 1, size - 1);
+                }
+
+                // Draw white border
+                using (var pen = new Pen(Color.White, 3))
+                {
+                    g.DrawEllipse(pen, 2, 2, size - 5, size - 5);
+                }
+
+                // Draw "S" for Start
+                using (var font = new Font("Segoe UI", 18, FontStyle.Bold))
+                using (var brush = new SolidBrush(Color.White))
+                {
+                    var textSize = g.MeasureString("S", font);
+                    var x = (size - textSize.Width) / 2;
+                    var y = (size - textSize.Height) / 2;
+                    g.DrawString("S", font, brush, x, y);
+                }
+            }
+
+            var marker = new GMarkerGoogle(_companyLocation, bitmap)
+            {
+                Offset = new Point(-size / 2, -size / 2),
+                ToolTipText = $"🏭 START - PUNKT WYJAZDU\n━━━━━━━━━━━━━━━━━━━━━\n{COMPANY_NAME}\n━━━━━━━━━━━━━━━━━━━━━\nWszystkie kursy rozpoczynają się tutaj",
                 ToolTipMode = MarkerTooltipMode.OnMouseOver
             };
             markersOverlay.Markers.Add(marker);
+
+            // Add label for company
+            AddCompanyLabel();
+        }
+
+        private void AddCompanyLabel()
+        {
+            var font = new Font("Segoe UI", 9, FontStyle.Bold);
+            var text = "🏭 UBOJNIA - START";
+            var textSize = TextRenderer.MeasureText(text, font);
+
+            var bitmap = new Bitmap(textSize.Width + 14, textSize.Height + 8);
+            using (var g = Graphics.FromImage(bitmap))
+            {
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+
+                // Green background
+                using (var brush = new SolidBrush(Color.FromArgb(230, 27, 94, 32)))
+                {
+                    g.FillRectangle(brush, 0, 0, bitmap.Width, bitmap.Height);
+                }
+
+                // White border
+                using (var pen = new Pen(Color.White, 2))
+                {
+                    g.DrawRectangle(pen, 1, 1, bitmap.Width - 3, bitmap.Height - 3);
+                }
+
+                // White text
+                using (var brush = new SolidBrush(Color.White))
+                {
+                    g.DrawString(text, font, brush, 7, 4);
+                }
+            }
+
+            var label = new GMarkerGoogle(new PointLatLng(_companyLocation.Lat + 0.004, _companyLocation.Lng), bitmap)
+            {
+                Offset = new Point(-bitmap.Width / 2, 0)
+            };
+            markersOverlay.Markers.Add(label);
         }
 
         private void AddKursToMap(KursMapData kurs, Color color, bool isSelected)
         {
             var points = new List<PointLatLng> { _companyLocation };
+            var totalLadunki = kurs.Ladunki.Count(l => l.Latitude != 0 && l.Longitude != 0);
 
             int seq = 1;
+            PointLatLng? previousPoint = _companyLocation;
+
             foreach (var ladunek in kurs.Ladunki.OrderBy(l => l.Kolejnosc))
             {
                 if (ladunek.Latitude == 0 || ladunek.Longitude == 0)
@@ -715,7 +791,7 @@ namespace Kalendarz1.Transport
                 // Create custom marker with sequence number
                 var marker = CreateNumberedMarker(point, seq, color, isSelected);
                 marker.Tag = new MarkerData { Kurs = kurs, Ladunek = ladunek };
-                marker.ToolTipText = CreateTooltipText(kurs, ladunek, seq);
+                marker.ToolTipText = CreateTooltipText(kurs, ladunek, seq, totalLadunki);
                 marker.ToolTipMode = MarkerTooltipMode.OnMouseOver;
 
                 markersOverlay.Markers.Add(marker);
@@ -727,21 +803,32 @@ namespace Kalendarz1.Transport
                     labelsOverlay.Markers.Add(label);
                 }
 
+                // Draw route segment from previous point to this point
+                if (chkPokazTrasy.Checked && previousPoint.HasValue)
+                {
+                    DrawRouteSegment(previousPoint.Value, point, color, isSelected, seq == 1);
+                }
+
+                previousPoint = point;
                 seq++;
             }
+        }
 
-            // Draw route if enabled and has at least 2 points
-            if (chkPokazTrasy.Checked && points.Count >= 2)
+        private void DrawRouteSegment(PointLatLng from, PointLatLng to, Color color, bool isSelected, bool isFirstSegment)
+        {
+            var segmentPoints = new List<PointLatLng> { from, to };
+
+            // First segment (from Ubojnia) is always solid
+            var route = new GMapRoute(segmentPoints, Guid.NewGuid().ToString())
             {
-                var route = new GMapRoute(points, kurs.KursID.ToString())
+                Stroke = new Pen(color, isSelected ? 5 : 3)
                 {
-                    Stroke = new Pen(color, isSelected ? 4 : 2)
-                    {
-                        DashStyle = isSelected ? DashStyle.Solid : DashStyle.Dash
-                    }
-                };
-                routesOverlay.Routes.Add(route);
-            }
+                    DashStyle = isFirstSegment ? DashStyle.Solid : (isSelected ? DashStyle.Solid : DashStyle.Dash),
+                    StartCap = LineCap.Round,
+                    EndCap = LineCap.ArrowAnchor // Arrow at the end to show direction
+                }
+            };
+            routesOverlay.Routes.Add(route);
         }
 
         private GMarkerGoogle CreateNumberedMarker(PointLatLng point, int number, Color color, bool isSelected)
@@ -819,19 +906,27 @@ namespace Kalendarz1.Transport
             };
         }
 
-        private string CreateTooltipText(KursMapData kurs, LadunekMapData ladunek, int seq)
+        private string CreateTooltipText(KursMapData kurs, LadunekMapData ladunek, int seq, int totalPoints)
         {
-            return $"📍 Punkt #{seq}\n" +
-                   $"━━━━━━━━━━━━━━━━━\n" +
+            var previousStop = seq == 1 ? "Ubojnia Koziołki" : $"Punkt #{seq - 1}";
+            var routeInfo = seq == 1
+                ? $"🚀 Z: Ubojnia Koziołki → Tu"
+                : $"🚀 Z: Punkt #{seq - 1} → Tu";
+
+            return $"📍 PRZYSTANEK {seq} z {totalPoints}\n" +
+                   $"━━━━━━━━━━━━━━━━━━━━━\n" +
                    $"🏢 {(string.IsNullOrEmpty(ladunek.KontrahentNazwa) ? ladunek.KodKlienta : ladunek.KontrahentNazwa)}\n" +
                    $"📮 {ladunek.Miasto}\n" +
-                   $"━━━━━━━━━━━━━━━━━\n" +
-                   $"📦 Pojemniki: {ladunek.PojemnikiE2}\n" +
-                   $"🎪 Palety: {ladunek.PaletyH1}\n" +
-                   $"━━━━━━━━━━━━━━━━━\n" +
-                   $"🚗 Kurs: {kurs.KierowcaNazwa}\n" +
+                   $"━━━━━━━━━━━━━━━━━━━━━\n" +
+                   $"{routeInfo}\n" +
+                   $"━━━━━━━━━━━━━━━━━━━━━\n" +
+                   $"📦 Pojemniki E2: {ladunek.PojemnikiE2}\n" +
+                   $"🎪 Palety H1: {ladunek.PaletyH1}\n" +
+                   (string.IsNullOrEmpty(ladunek.Uwagi) ? "" : $"📝 Uwagi: {ladunek.Uwagi}\n") +
+                   $"━━━━━━━━━━━━━━━━━━━━━\n" +
+                   $"🚗 Kierowca: {kurs.KierowcaNazwa}\n" +
                    $"🚚 Pojazd: {kurs.PojazdRejestracja}\n" +
-                   $"⏰ Wyjazd: {kurs.GodzWyjazdu?.ToString(@"hh\:mm") ?? "---"}";
+                   $"⏰ Wyjazd z ubojni: {kurs.GodzWyjazdu?.ToString(@"hh\:mm") ?? "---"}";
         }
 
         #endregion
