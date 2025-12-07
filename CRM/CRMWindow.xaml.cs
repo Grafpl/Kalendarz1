@@ -376,20 +376,71 @@ namespace Kalendarz1.CRM
             }
             cmbWojewodztwo.SelectedIndex = 0;
 
-            // Branże
-            var branze = dtKontakty.AsEnumerable()
+            // Pobierz priorytetowe branże z bazy danych
+            var priorytetoweBranze = new List<string>();
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    var cmd = new SqlCommand("SELECT PKD_Opis FROM PriorytetoweBranzeCRM", conn);
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            priorytetoweBranze.Add(reader["PKD_Opis"]?.ToString() ?? "");
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // Branże - priorytetowe pierwsze (czerwone), potem reszta
+            var wszystkieBranze = dtKontakty.AsEnumerable()
                 .Select(r => r.Field<string>("PKD_Opis"))
                 .Where(b => !string.IsNullOrEmpty(b))
                 .Distinct()
+                .ToList();
+
+            var branzePriorytetowe = wszystkieBranze
+                .Where(b => priorytetoweBranze.Contains(b))
+                .OrderBy(b => b)
+                .ToList();
+
+            var branzeZwykle = wszystkieBranze
+                .Where(b => !priorytetoweBranze.Contains(b))
                 .OrderBy(b => b)
                 .ToList();
 
             cmbBranza.Items.Clear();
             cmbBranza.Items.Add(new ComboBoxItem { Content = "Wszystkie branże" });
-            foreach (var branza in branze)
+
+            // Priorytetowe branże - czerwone
+            foreach (var branza in branzePriorytetowe)
             {
-                cmbBranza.Items.Add(new ComboBoxItem { Content = branza });
+                var item = new ComboBoxItem
+                {
+                    Content = "🔴 " + branza,
+                    Tag = branza,
+                    Foreground = new System.Windows.Media.SolidColorBrush(
+                        (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#DC2626")),
+                    FontWeight = FontWeights.Bold
+                };
+                cmbBranza.Items.Add(item);
             }
+
+            // Separator jeśli są obie grupy
+            if (branzePriorytetowe.Count > 0 && branzeZwykle.Count > 0)
+            {
+                cmbBranza.Items.Add(new Separator());
+            }
+
+            // Zwykłe branże
+            foreach (var branza in branzeZwykle)
+            {
+                cmbBranza.Items.Add(new ComboBoxItem { Content = branza, Tag = branza });
+            }
+
             cmbBranza.SelectedIndex = 0;
         }
 
@@ -478,11 +529,12 @@ namespace Kalendarz1.CRM
                     filtry.Add($"Wojewodztwo = '{woj}'");
             }
 
-            // Branża
-            if (cmbBranza.SelectedIndex > 0)
+            // Branża - używamy Tag jeśli istnieje (dla priorytetowych), inaczej Content
+            if (cmbBranza.SelectedIndex > 0 && !(cmbBranza.SelectedItem is Separator))
             {
-                var branza = (cmbBranza.SelectedItem as ComboBoxItem)?.Content?.ToString()?.Replace("'", "''");
-                if (!string.IsNullOrEmpty(branza))
+                var item = cmbBranza.SelectedItem as ComboBoxItem;
+                var branza = (item?.Tag?.ToString() ?? item?.Content?.ToString())?.Replace("'", "''");
+                if (!string.IsNullOrEmpty(branza) && branza != "Wszystkie branże")
                     filtry.Add($"PKD_Opis = '{branza}'");
             }
 
@@ -529,7 +581,9 @@ namespace Kalendarz1.CRM
             aktualnyOdbiorcaID = Convert.ToInt32(row["ID"]);
 
             // Aktualizuj panel klienta
-            txtKlientNazwa.Text = row["NAZWA"]?.ToString() ?? "-";
+            var nazwa = row["NAZWA"]?.ToString() ?? "-";
+            txtKlientNazwa.Text = nazwa;
+            txtZaznaczonyKontakt.Text = nazwa;
             txtKlientStatus.Text = row["Status"]?.ToString() ?? "-";
             txtKlientTelefon.Text = row["TELEFON_K"]?.ToString() ?? "-";
             txtKlientEmail.Text = row["Email"]?.ToString() ?? "-";

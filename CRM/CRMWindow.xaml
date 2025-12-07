@@ -555,6 +555,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <!-- Nagłówek z sortowaniem -->
@@ -645,11 +646,11 @@
                             </DataGrid.ContextMenu>
                             <DataGrid.Columns>
                                 <!-- Status -->
-                                <DataGridTemplateColumn Header="STATUS" Width="100">
+                                <DataGridTemplateColumn Header="STATUS" Width="120">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <Border x:Name="statusBorder" CornerRadius="4" Padding="6,3" HorizontalAlignment="Left">
-                                                <TextBlock x:Name="statusText" Text="{Binding Status}" FontSize="9" FontWeight="SemiBold"/>
+                                            <Border x:Name="statusBorder" CornerRadius="5" Padding="8,4" HorizontalAlignment="Left">
+                                                <TextBlock x:Name="statusText" Text="{Binding Status}" FontSize="11" FontWeight="SemiBold"/>
                                             </Border>
                                             <DataTemplate.Triggers>
                                                 <DataTrigger Binding="{Binding Status}" Value="Do zadzwonienia">
@@ -742,10 +743,10 @@
                                 </DataGridTextColumn>
 
                                 <!-- Branża -->
-                                <DataGridTemplateColumn Header="BRANŻA" Width="120">
+                                <DataGridTemplateColumn Header="BRANŻA" Width="150">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBlock x:Name="branzaText" Text="{Binding PKD_Opis}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Foreground="#64748B" FontSize="9"/>
+                                            <TextBlock x:Name="branzaText" Text="{Binding PKD_Opis}" TextWrapping="Wrap" VerticalAlignment="Center" Foreground="#64748B" FontSize="9" MaxHeight="40" ToolTip="{Binding PKD_Opis}"/>
                                             <DataTemplate.Triggers>
                                                 <DataTrigger Binding="{Binding CzyPriorytetowaBranza}" Value="1">
                                                     <Setter TargetName="branzaText" Property="Foreground" Value="#DC2626"/>
@@ -794,6 +795,30 @@
                                 </DataGridTextColumn>
                             </DataGrid.Columns>
                         </DataGrid>
+                    </Border>
+
+                    <!-- Pasek akcji pod listą -->
+                    <Border Grid.Row="2" Background="#F8FAF8" CornerRadius="8" Padding="12,8" Margin="0,10,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                <TextBlock Text="Akcje:" FontSize="10" Foreground="{StaticResource ColorTextMuted}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <Button x:Name="btnAkcjaZadzwon" Content="📞 Zadzwoń" Style="{StaticResource ButtonPrimary}" Padding="12,6" FontSize="11" Margin="0,0,6,0" Click="BtnKlientZadzwon_Click"/>
+                                <Button x:Name="btnAkcjaOferta" Content="💵 Oferta" Style="{StaticResource ButtonWarning}" Padding="12,6" FontSize="11" Margin="0,0,6,0" Click="BtnKlientOferta_Click"/>
+                                <Button x:Name="btnAkcjaEdytuj" Content="✏️ Edytuj" Style="{StaticResource ButtonSecondary}" Padding="12,6" FontSize="11" Margin="0,0,6,0" Click="BtnKlientEdytuj_Click"/>
+                                <Button x:Name="btnAkcjaData" Content="📅 Data" Style="{StaticResource ButtonSmall}" Padding="10,6" FontSize="11" Click="BtnZmienDate_Click"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                <TextBlock Text="Zaznaczony:" FontSize="10" Foreground="{StaticResource ColorTextMuted}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBlock x:Name="txtZaznaczonyKontakt" Text="-" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource ColorPrimary}" VerticalAlignment="Center" MaxWidth="200" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Grid>
                     </Border>
                 </Grid>
             </Border>
