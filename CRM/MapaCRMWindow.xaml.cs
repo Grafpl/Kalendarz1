@@ -297,6 +297,10 @@ namespace Kalendarz1.CRM
 
         private string GenerujHtmlMapy(List<MapKontakt> kontakty)
         {
+            // Pobierz klucz API z pola tekstowego
+            string apiKey = "";
+            Dispatcher.Invoke(() => apiKey = txtApiKey.Text?.Trim() ?? "");
+
             var dataJson = JsonSerializer.Serialize(kontakty.Select(k => new
             {
                 k.ID, k.Nazwa, k.Miasto, k.Ulica, k.Telefon, k.Email,
@@ -311,74 +315,105 @@ namespace Kalendarz1.CRM
 <head>
     <meta charset='utf-8'/>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'/>
-    <link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>
-    <link rel='stylesheet' href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css'/>
-    <link rel='stylesheet' href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css'/>
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         html, body, #map {{ height: 100%; width: 100%; font-family: 'Segoe UI', sans-serif; }}
-        .leaflet-popup-content-wrapper {{ border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); }}
-        .leaflet-popup-content {{ margin: 12px; min-width: 220px; }}
+        .gm-style-iw {{ max-width: 280px !important; }}
         .p-title {{ font-weight: 700; font-size: 13px; color: #111; margin-bottom: 6px; }}
         .p-info {{ font-size: 11px; color: #666; margin: 3px 0; }}
         .p-status {{ display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-top: 6px; }}
         .p-btn {{ display: inline-block; padding: 8px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; text-decoration: none; margin-top: 8px; margin-right: 4px; }}
         .p-btn-green {{ background: #16A34A; color: white; }}
         .p-btn-gray {{ background: #E5E7EB; color: #374151; }}
-        .marker-cluster-small {{ background-color: rgba(22, 163, 74, 0.6); }}
-        .marker-cluster-small div {{ background-color: rgba(22, 163, 74, 0.9); color: white; }}
-        .marker-cluster-medium {{ background-color: rgba(245, 158, 11, 0.6); }}
-        .marker-cluster-medium div {{ background-color: rgba(245, 158, 11, 0.9); color: white; }}
-        .marker-cluster-large {{ background-color: rgba(239, 68, 68, 0.6); }}
-        .marker-cluster-large div {{ background-color: rgba(239, 68, 68, 0.9); color: white; }}
+        .error-msg {{ display: flex; justify-content: center; align-items: center; height: 100%; font-size: 16px; color: #DC2626; text-align: center; padding: 20px; }}
     </style>
 </head>
 <body>
 <div id='map'></div>
-<script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script>
-<script src='https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'></script>
 <script>
 var data = {dataJson};
-var map = L.map('map').setView([52.0, 19.0], 6);
-
-L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
-    attribution: '© OpenStreetMap', maxZoom: 18
-}}).addTo(map);
-
-var markers = L.markerClusterGroup({{ maxClusterRadius: 50, disableClusteringAtZoom: 13 }});
+var map, markers = [], infoWindow;
 
 var statusBg = {{'Do zadzwonienia':'#F1F5F9','Próba kontaktu':'#FFEDD5','Nawiązano kontakt':'#DCFCE7','Zgoda na dalszy kontakt':'#CCFBF1','Do wysłania oferta':'#CFFAFE','Nie zainteresowany':'#FEE2E2'}};
 var statusTxt = {{'Do zadzwonienia':'#475569','Próba kontaktu':'#9A3412','Nawiązano kontakt':'#166534','Zgoda na dalszy kontakt':'#0D9488','Do wysłania oferta':'#155E75','Nie zainteresowany':'#991B1B'}};
 
-for (var i = 0; i < data.length; i++) {{
-    var p = data[i];
-    var sz = p.CzyPriorytetowa ? 16 : 12;
-    var bw = p.CzyPriorytetowa ? 3 : 2;
-    var bc = p.CzyPriorytetowa ? '#DC2626' : '#333';
-
-    var icon = L.divIcon({{
-        html: '<div style=""width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+p.KolorHex+';border:'+bw+'px solid '+bc+';box-shadow:0 2px 4px rgba(0,0,0,0.3)""></div>',
-        className: '', iconSize: [sz, sz], iconAnchor: [sz/2, sz/2]
+function initMap() {{
+    map = new google.maps.Map(document.getElementById('map'), {{
+        center: {{ lat: 52.0, lng: 19.0 }},
+        zoom: 6,
+        mapTypeControl: true,
+        streetViewControl: false,
+        fullscreenControl: true
     }});
 
-    var adr = [p.Ulica, p.Miasto].filter(Boolean).join(', ');
-    var popup = '<div class=""p-title"">'+p.Nazwa+'</div>'+
-        '<div class=""p-info"">📍 '+adr+'</div>'+
-        '<div class=""p-info"">📞 <b>'+p.Telefon+'</b></div>'+
-        (p.Email ? '<div class=""p-info"">✉️ '+p.Email+'</div>' : '')+
-        '<div><span class=""p-status"" style=""background:'+(statusBg[p.Status]||'#eee')+';color:'+(statusTxt[p.Status]||'#333')+'"">'+p.Status+'</span></div>'+
-        '<div><a class=""p-btn p-btn-green"" href=""tel:'+p.Telefon.replace(/\s/g,'')+'"">📞 Zadzwoń</a>'+
-        '<a class=""p-btn p-btn-gray"" href=""https://www.google.com/maps/dir//'+encodeURIComponent(adr)+'"" target=""_blank"">🗺️ Trasa</a></div>';
+    infoWindow = new google.maps.InfoWindow();
 
-    var m = L.marker([p.Lat, p.Lng], {{ icon: icon }}).bindPopup(popup);
-    markers.addLayer(m);
+    var bounds = new google.maps.LatLngBounds();
+
+    for (var i = 0; i < data.length; i++) {{
+        var p = data[i];
+        var pos = {{ lat: p.Lat, lng: p.Lng }};
+        bounds.extend(pos);
+
+        var sz = p.CzyPriorytetowa ? 16 : 12;
+        var bw = p.CzyPriorytetowa ? 3 : 2;
+        var bc = p.CzyPriorytetowa ? '%23DC2626' : '%23333';
+
+        var svgIcon = {{
+            url: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns=""http://www.w3.org/2000/svg"" width=""'+sz+'"" height=""'+sz+'""><circle cx=""'+(sz/2)+'"" cy=""'+(sz/2)+'"" r=""'+((sz/2)-1)+'"" fill=""'+p.KolorHex+'"" stroke=""'+(p.CzyPriorytetowa?'#DC2626':'#333')+'"" stroke-width=""'+bw+'""/></svg>'),
+            scaledSize: new google.maps.Size(sz, sz),
+            anchor: new google.maps.Point(sz/2, sz/2)
+        }};
+
+        var marker = new google.maps.Marker({{
+            position: pos,
+            map: map,
+            icon: svgIcon,
+            title: p.Nazwa
+        }});
+
+        marker.kontakt = p;
+        markers.push(marker);
+
+        marker.addListener('click', function() {{
+            var k = this.kontakt;
+            var adr = [k.Ulica, k.Miasto].filter(Boolean).join(', ');
+            var content = '<div class=""p-title"">'+k.Nazwa+'</div>'+
+                '<div class=""p-info"">📍 '+adr+'</div>'+
+                '<div class=""p-info"">📞 <b>'+k.Telefon+'</b></div>'+
+                (k.Email ? '<div class=""p-info"">✉️ '+k.Email+'</div>' : '')+
+                '<div><span class=""p-status"" style=""background:'+(statusBg[k.Status]||'#eee')+';color:'+(statusTxt[k.Status]||'#333')+'"">'+k.Status+'</span></div>'+
+                '<div><a class=""p-btn p-btn-green"" href=""tel:'+k.Telefon.replace(/\s/g,'')+'"">📞 Zadzwoń</a>'+
+                '<a class=""p-btn p-btn-gray"" href=""https://www.google.com/maps/dir//'+encodeURIComponent(adr)+'"" target=""_blank"">🗺️ Trasa</a></div>';
+            infoWindow.setContent(content);
+            infoWindow.open(map, this);
+        }});
+    }}
+
+    if (data.length > 0) {{
+        map.fitBounds(bounds);
+        if (data.length === 1) map.setZoom(14);
+    }}
+
+    // MarkerClusterer
+    if (typeof markerClusterer !== 'undefined' && markerClusterer.MarkerClusterer) {{
+        new markerClusterer.MarkerClusterer({{ map: map, markers: markers }});
+    }}
 }}
 
-map.addLayer(markers);
-if (data.length > 0) map.fitBounds(markers.getBounds().pad(0.1));
+window.setView = function(lat, lng, z) {{
+    if (map) {{
+        map.setCenter({{ lat: lat, lng: lng }});
+        map.setZoom(z || 15);
+    }}
+}};
 
-window.setView = function(lat, lng, z) {{ map.setView([lat, lng], z || 15); }};
+window.gm_authFailure = function() {{
+    document.getElementById('map').innerHTML = '<div class=""error-msg"">Błąd autoryzacji Google Maps API.<br/>Sprawdź klucz API i upewnij się, że masz włączone:<br/>- Maps JavaScript API<br/>- Geocoding API</div>';
+}};
 </script>
+<script src=""https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js""></script>
+<script async defer src=""https://maps.googleapis.com/maps/api/js?key={apiKey}&callback=initMap&loading=async""></script>
 </body>
 </html>";
         }
@@ -387,6 +422,20 @@ window.setView = function(lat, lng, z) {{ map.setView([lat, lng], z || 15); }};
         private async void BtnGeokoduj_Click(object sender, RoutedEventArgs e)
         {
             if (isLoading) return;
+
+            // Sprawdź klucz API
+            var apiKey = txtApiKey.Text?.Trim();
+            if (string.IsNullOrEmpty(apiKey))
+            {
+                MessageBox.Show("Wprowadź klucz Google API w polu 'API Key' w nagłówku.\n\n" +
+                    "Aby uzyskać klucz:\n" +
+                    "1. Wejdź na https://console.cloud.google.com/\n" +
+                    "2. Utwórz projekt\n" +
+                    "3. Włącz APIs: Geocoding API i Maps JavaScript API\n" +
+                    "4. Utwórz klucz w sekcji Credentials",
+                    "Brak klucza API", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
             // Sprawdź ile kodów UŻYWANYCH PRZEZ ODBIORCÓW nie ma współrzędnych
             int bezWspolrzednych = 0;
@@ -410,10 +459,10 @@ window.setView = function(lat, lng, z) {{ map.setView([lat, lng], z || 15); }};
 
             var result = MessageBox.Show(
                 $"Znaleziono {bezWspolrzednych} kodów pocztowych (używanych przez odbiorców) bez współrzędnych.\n\n" +
-                $"Pobieranie współrzędnych zajmie około {Math.Min(bezWspolrzednych, 500) / 2} sekund.\n" +
-                $"(To operacja jednorazowa - potem mapa będzie działać błyskawicznie)\n\n" +
+                $"Geokodowanie Google API (50 req/s) - będzie szybko!\n" +
+                $"Koszt: ~$5 za 1000 kodów (pierwsze $200 miesięcznie gratis).\n\n" +
                 $"Kontynuować?",
-                "Uzupełnij współrzędne", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                "Uzupełnij współrzędne (Google Geocoding API)", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
             if (result != MessageBoxResult.Yes) return;
 
@@ -431,7 +480,7 @@ window.setView = function(lat, lng, z) {{ map.setView([lat, lng], z || 15); }};
 
                     // Pobierz kody używane przez odbiorców, posortowane po liczbie odbiorców (najpopularniejsze najpierw)
                     var cmdSelect = new SqlCommand(@"
-                        SELECT TOP 500 kp.Kod, kp.miej, COUNT(*) as Ile
+                        SELECT TOP 2000 kp.Kod, kp.miej, COUNT(*) as Ile
                         FROM KodyPocztowe kp
                         INNER JOIN OdbiorcyCRM o ON o.KOD = kp.Kod
                         WHERE kp.Latitude IS NULL OR kp.Longitude IS NULL
@@ -452,7 +501,7 @@ window.setView = function(lat, lng, z) {{ map.setView([lat, lng], z || 15); }};
                         var (kod, miasto) = kodyDoGeokodowania[i];
                         txtLoadingStatus.Text = $"Geokodowanie {i + 1}/{kodyDoGeokodowania.Count}: {kod} {miasto}...";
 
-                        var coords = await GeokodujKodAsync(kod, miasto);
+                        var coords = await GeokodujKodGoogleAsync(kod, miasto, apiKey);
 
                         if (coords.HasValue)
                         {
@@ -469,8 +518,8 @@ window.setView = function(lat, lng, z) {{ map.setView([lat, lng], z || 15); }};
                             bledy++;
                         }
 
-                        // Opóźnienie dla API (Nominatim wymaga max 1 req/s)
-                        await Task.Delay(500);
+                        // Google API pozwala na 50 req/s, ale dajmy 20ms dla bezpieczeństwa
+                        await Task.Delay(25);
                     }
                 }
             }
@@ -483,26 +532,23 @@ window.setView = function(lat, lng, z) {{ map.setView([lat, lng], z || 15); }};
             btnGeokoduj.IsEnabled = true;
             isLoading = false;
 
-            MessageBox.Show($"Zakończono!\n\nZnalezione: {sukces}\nBłędy: {bledy}", "Geokodowanie", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show($"Zakończono!\n\nZnalezione: {sukces}\nBłędy: {bledy}", "Geokodowanie Google", MessageBoxButton.OK, MessageBoxImage.Information);
 
             // Odśwież mapę
             dtKontakty = null;
             await OdswiezMapeAsync();
         }
 
-        private async Task<(double lat, double lng)?> GeokodujKodAsync(string kod, string miasto)
+        private async Task<(double lat, double lng)?> GeokodujKodGoogleAsync(string kod, string miasto, string apiKey)
         {
             try
             {
-                http.DefaultRequestHeaders.UserAgent.Clear();
-                http.DefaultRequestHeaders.UserAgent.ParseAdd("CRMApp/1.0");
+                // Google Geocoding API - format: kod pocztowy, miasto, Polska
+                var address = !string.IsNullOrEmpty(miasto)
+                    ? $"{kod}, {miasto}, Poland"
+                    : $"{kod}, Poland";
 
-                // Próba 1: kod + miasto + Poland
-                var query = !string.IsNullOrEmpty(miasto)
-                    ? $"{kod} {miasto} Poland"
-                    : $"{kod} Poland";
-
-                var url = $"https://nominatim.openstreetmap.org/search?q={HttpUtility.UrlEncode(query)}&format=json&limit=1&countrycodes=pl";
+                var url = $"https://maps.googleapis.com/maps/api/geocode/json?address={HttpUtility.UrlEncode(address)}&components=country:PL&key={apiKey}";
 
                 using (var resp = await http.GetAsync(url))
                 {
@@ -511,39 +557,25 @@ window.setView = function(lat, lng, z) {{ map.setView([lat, lng], z || 15); }};
                         var json = await resp.Content.ReadAsStringAsync();
                         using (var doc = JsonDocument.Parse(json))
                         {
-                            var arr = doc.RootElement;
-                            if (arr.ValueKind == JsonValueKind.Array && arr.GetArrayLength() > 0)
-                            {
-                                var first = arr[0];
-                                var lat = double.Parse(first.GetProperty("lat").GetString()!, CultureInfo.InvariantCulture);
-                                var lng = double.Parse(first.GetProperty("lon").GetString()!, CultureInfo.InvariantCulture);
-                                return (lat, lng);
-                            }
-                        }
-                    }
-                }
+                            var root = doc.RootElement;
+                            var status = root.GetProperty("status").GetString();
 
-                // Próba 2: tylko miasto jeśli kod nie znaleziony
-                if (!string.IsNullOrEmpty(miasto))
-                {
-                    await Task.Delay(500);
-                    url = $"https://nominatim.openstreetmap.org/search?q={HttpUtility.UrlEncode(miasto + " Poland")}&format=json&limit=1&countrycodes=pl";
-
-                    using (var resp = await http.GetAsync(url))
-                    {
-                        if (resp.IsSuccessStatusCode)
-                        {
-                            var json = await resp.Content.ReadAsStringAsync();
-                            using (var doc = JsonDocument.Parse(json))
+                            if (status == "OK")
                             {
-                                var arr = doc.RootElement;
-                                if (arr.ValueKind == JsonValueKind.Array && arr.GetArrayLength() > 0)
+                                var results = root.GetProperty("results");
+                                if (results.GetArrayLength() > 0)
                                 {
-                                    var first = arr[0];
-                                    var lat = double.Parse(first.GetProperty("lat").GetString()!, CultureInfo.InvariantCulture);
-                                    var lng = double.Parse(first.GetProperty("lon").GetString()!, CultureInfo.InvariantCulture);
+                                    var location = results[0].GetProperty("geometry").GetProperty("location");
+                                    var lat = location.GetProperty("lat").GetDouble();
+                                    var lng = location.GetProperty("lng").GetDouble();
                                     return (lat, lng);
                                 }
+                            }
+                            else if (status == "OVER_QUERY_LIMIT" || status == "REQUEST_DENIED")
+                            {
+                                Debug.WriteLine($"Google API error: {status}");
+                                // Poczekaj chwilę przy przekroczeniu limitu
+                                await Task.Delay(1000);
                             }
                         }
                     }
@@ -551,7 +583,7 @@ window.setView = function(lat, lng, z) {{ map.setView([lat, lng], z || 15); }};
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Geocode error for {kod}: {ex.Message}");
+                Debug.WriteLine($"Google Geocode error for {kod}: {ex.Message}");
             }
             return null;
         }
