@@ -153,13 +153,15 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             {
                 using var cn = new SqlConnection(_connectionStringHandel);
                 cn.Open();
-                var sql = @"SELECT DISTINCT TW.ID, TW.kod + ' - ' + ISNULL(TW.nazwa, '') as Nazwa
+                var sql = @"SELECT TW.ID, TW.kod, TW.kod + ' - ' + ISNULL(TW.nazwa, '') as Nazwa
                            FROM [HANDEL].[HM].[TW] TW
-                           WHERE TW.katalog IN ('67095', '67153') ORDER BY TW.kod";
+                           WHERE TW.katalog IN ('67095', '67153')
+                           GROUP BY TW.ID, TW.kod, TW.nazwa
+                           ORDER BY TW.kod";
                 using var cmd = new SqlCommand(sql, cn);
                 using var reader = cmd.ExecuteReader();
                 while (reader.Read())
-                    towary.Add(new { Value = reader.GetInt32(0), Text = reader.GetString(1) });
+                    towary.Add(new { Value = reader.GetInt32(0), Text = reader.GetString(2) });
             }
             catch (Exception ex)
             {
@@ -252,7 +254,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
                     LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
                     WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
-                      AND WYM.CDim_Handlowiec_Val IS NOT NULL AND WYM.CDim_Handlowiec_Val != 'Ogolne'
+                      AND WYM.CDim_Handlowiec_Val IS NOT NULL
+                      AND WYM.CDim_Handlowiec_Val NOT IN ('Ogolne', 'Ogólne')
                     GROUP BY ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany'), C.shortcut
                     ORDER BY Handlowiec, WartoscSprzedazy DESC";
 
@@ -287,7 +290,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     Values = wartosciHandlowcow,
                     Fill = new SolidColorBrush(_kolory[0]),
                     DataLabels = true,
-                    LabelPoint = p => $"{p.Y:N0} zl"
+                    LabelPoint = p => $"{p.Y:N0} zl",
+                    Foreground = Brushes.White
                 });
 
                 treeSprzedaz.Items.Clear();
@@ -397,7 +401,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     Values = wartosci,
                     Fill = new SolidColorBrush(_kolory[1]),
                     DataLabels = true,
-                    LabelPoint = p => $"{p.X:N0} zl"
+                    LabelPoint = p => $"{p.X:N0} zl",
+                    Foreground = Brushes.White
                 });
 
                 // Oblicz srednia cene
@@ -444,7 +449,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     INNER JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
                     WHERE (YEAR(DK.data) * 100 + MONTH(DK.data)) >= @OdData
                       AND (YEAR(DK.data) * 100 + MONTH(DK.data)) <= @DoData
-                      AND WYM.CDim_Handlowiec_Val IS NOT NULL AND WYM.CDim_Handlowiec_Val != 'Ogolne'
+                      AND WYM.CDim_Handlowiec_Val IS NOT NULL
+                      AND WYM.CDim_Handlowiec_Val NOT IN ('Ogolne', 'Ogólne')
                     GROUP BY WYM.CDim_Handlowiec_Val, YEAR(DK.data), MONTH(DK.data)
                     ORDER BY Rok, Miesiac, Handlowiec";
 
@@ -505,7 +511,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                         PointGeometry = DefaultGeometries.Circle,
                         PointGeometrySize = 8,
                         LineSmoothness = 0.3,
-                        DataLabels = false
+                        DataLabels = false,
+                        Foreground = Brushes.White
                     });
                     idx++;
                 }
@@ -591,7 +598,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
                       AND TW.katalog IN ('67095', '67153')
                       AND (@TowarID IS NULL OR DP.idtw = @TowarID)
-                      AND WYM.CDim_Handlowiec_Val IS NOT NULL AND WYM.CDim_Handlowiec_Val != 'Ogolne'
+                      AND WYM.CDim_Handlowiec_Val IS NOT NULL
+                      AND WYM.CDim_Handlowiec_Val NOT IN ('Ogolne', 'Ogólne')
                     GROUP BY WYM.CDim_Handlowiec_Val
                     ORDER BY SredniaCena DESC";
 
@@ -617,7 +625,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     Values = wartosciCeny,
                     Fill = new SolidColorBrush(_kolory[3]),
                     DataLabels = true,
-                    LabelPoint = p => $"{p.Y:F2} zl"
+                    LabelPoint = p => $"{p.Y:F2} zl",
+                    Foreground = Brushes.White
                 });
 
                 seriesKg.Add(new ColumnSeries
@@ -626,7 +635,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     Values = wartosciKg,
                     Fill = new SolidColorBrush(_kolory[1]),
                     DataLabels = true,
-                    LabelPoint = p => $"{p.Y:N0}"
+                    LabelPoint = p => $"{p.Y:N0}",
+                    Foreground = Brushes.White
                 });
             }
             catch (Exception ex)
@@ -691,7 +701,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     Values = new ChartValues<decimal> { swiezeKg },
                     Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4ECDC4")),
                     DataLabels = true,
-                    LabelPoint = p => $"{p.Y:N0} kg"
+                    LabelPoint = p => $"{p.Y:N0} kg",
+                    Foreground = Brushes.White
                 });
 
                 series.Add(new ColumnSeries
@@ -700,7 +711,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     Values = new ChartValues<decimal> { mrozoneKg },
                     Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#45B7D1")),
                     DataLabels = true,
-                    LabelPoint = p => $"{p.Y:N0} kg"
+                    LabelPoint = p => $"{p.Y:N0} kg",
+                    Foreground = Brushes.White
                 });
             }
             catch (Exception ex)
@@ -768,7 +780,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     PointGeometry = DefaultGeometries.Circle,
                     PointGeometrySize = 8,
                     DataLabels = true,
-                    LabelPoint = p => $"{p.Y:N0}"
+                    LabelPoint = p => $"{p.Y:N0}",
+                    Foreground = Brushes.White
                 });
 
                 series.Add(new LineSeries
@@ -780,7 +793,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     PointGeometry = DefaultGeometries.Square,
                     PointGeometrySize = 8,
                     DataLabels = true,
-                    LabelPoint = p => $"{p.Y:N0}"
+                    LabelPoint = p => $"{p.Y:N0}",
+                    Foreground = Brushes.White
                 });
             }
             catch (Exception ex)
@@ -845,7 +859,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     PointGeometrySize = 10,
                     LineSmoothness = 0.5,
                     DataLabels = true,
-                    LabelPoint = p => $"{p.Y:N0}"
+                    LabelPoint = p => $"{p.Y:N0}",
+                    Foreground = Brushes.White
                 });
             }
             catch (Exception ex)

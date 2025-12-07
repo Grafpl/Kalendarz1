@@ -141,6 +141,16 @@
             <Setter Property="Margin" Value="20,0,0,0"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
+
+        <!-- Ciemny styl dla DefaultTooltip -->
+        <Style TargetType="lvc:DefaultTooltip">
+            <Setter Property="Background" Value="#2D333B"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#444444"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10"/>
+            <Setter Property="CornerRadius" Value="5"/>
+        </Style>
     </Window.Resources>
 
     <Grid>
