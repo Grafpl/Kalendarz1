@@ -1598,15 +1598,9 @@ namespace Kalendarz1.OfertaCenowa
                         {
                             Lp = TowaryWOfercie.Count + 1,
                             WybranyTowar = towar,
-                            Nazwa = pozycja.TowarNazwa,
-                            NazwaTekst = pozycja.TowarNazwa,
-                            Katalog = towar?.Katalog ?? "",
                             Ilosc = pozycja.Ilosc,
-                            IloscTekst = pozycja.Ilosc.ToString("N0"),
                             Cena = pozycja.CenaJednostkowa,
-                            CenaTekst = pozycja.CenaJednostkowa.ToString("N2", System.Globalization.CultureInfo.InvariantCulture).Replace(",", "."),
-                            Opakowanie = pozycja.Opakowanie,
-                            DostepneTowary = DostepneTowary
+                            Opakowanie = pozycja.Opakowanie ?? "E2"
                         };
 
                         wiersz.PropertyChanged += TowarWiersz_PropertyChanged;
