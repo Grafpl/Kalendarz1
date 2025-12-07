@@ -295,6 +295,85 @@ namespace Kalendarz1.CRM
             txtPriorytet.Text = kontakty.Count(k => k.CzyPriorytetowa).ToString();
         }
 
+        // Diagnostyka bazy danych - wywoływana gdy mapa jest pusta
+        private (int wszystkich, int zKodem, bool tabelaIstnieje, int kodowWTabeli, int kodyZeWsp, int kodyBezWsp, int gotowyNaMape, string problem) PobierzDiagnostykeZBazy()
+        {
+            int wszystkich = 0, zKodem = 0, kodowWTabeli = 0, kodyZeWsp = 0, kodyBezWsp = 0, gotowyNaMape = 0;
+            bool tabelaIstnieje = false;
+            string problem = "";
+
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Sprawdź czy tabela istnieje
+                    var cmdTabela = new SqlCommand("SELECT COUNT(*) FROM sys.tables WHERE name = 'KodyPocztowe'", conn);
+                    tabelaIstnieje = (int)cmdTabela.ExecuteScalar() > 0;
+
+                    // Odbiorcy
+                    var cmdOdbiorcy = new SqlCommand("SELECT COUNT(*) FROM OdbiorcyCRM", conn);
+                    wszystkich = (int)cmdOdbiorcy.ExecuteScalar();
+
+                    var cmdZKodem = new SqlCommand("SELECT COUNT(*) FROM OdbiorcyCRM WHERE KOD IS NOT NULL AND KOD <> ''", conn);
+                    zKodem = (int)cmdZKodem.ExecuteScalar();
+
+                    if (tabelaIstnieje)
+                    {
+                        var cmdKodyWTabeli = new SqlCommand("SELECT COUNT(*) FROM KodyPocztowe", conn);
+                        kodowWTabeli = (int)cmdKodyWTabeli.ExecuteScalar();
+
+                        var cmdKodyZeWsp = new SqlCommand("SELECT COUNT(*) FROM KodyPocztowe WHERE Latitude IS NOT NULL AND Longitude IS NOT NULL", conn);
+                        kodyZeWsp = (int)cmdKodyZeWsp.ExecuteScalar();
+
+                        var cmdKodyBezWsp = new SqlCommand(@"
+                            SELECT COUNT(DISTINCT kp.Kod)
+                            FROM KodyPocztowe kp
+                            INNER JOIN OdbiorcyCRM o ON o.KOD = kp.Kod
+                            WHERE kp.Latitude IS NULL OR kp.Longitude IS NULL", conn);
+                        kodyBezWsp = (int)cmdKodyBezWsp.ExecuteScalar();
+
+                        var cmdGotowy = new SqlCommand(@"
+                            SELECT COUNT(*) FROM OdbiorcyCRM o
+                            INNER JOIN KodyPocztowe kp ON o.KOD = kp.Kod
+                            WHERE kp.Latitude IS NOT NULL AND kp.Longitude IS NOT NULL", conn);
+                        gotowyNaMape = (int)cmdGotowy.ExecuteScalar();
+
+                        // Sprawdź czy kody pasują
+                        var cmdNiePasujace = new SqlCommand(@"
+                            SELECT COUNT(*) FROM OdbiorcyCRM o
+                            WHERE o.KOD IS NOT NULL AND o.KOD <> ''
+                              AND NOT EXISTS (SELECT 1 FROM KodyPocztowe kp WHERE kp.Kod = o.KOD)", conn);
+                        int niePasujace = (int)cmdNiePasujace.ExecuteScalar();
+
+                        if (niePasujace > 0)
+                            problem = $"UWAGA: {niePasujace} odbiorców ma kody, które nie istnieją w tabeli KodyPocztowe!";
+                    }
+
+                    // Ustal główny problem
+                    if (!tabelaIstnieje)
+                        problem = "Tabela KodyPocztowe nie istnieje! Kliknij Geokoduj aby ją utworzyć.";
+                    else if (kodowWTabeli == 0)
+                        problem = "Tabela KodyPocztowe jest pusta! Kliknij Geokoduj aby dodać kody.";
+                    else if (kodyZeWsp == 0)
+                        problem = "Żaden kod pocztowy nie ma współrzędnych! Kliknij Geokoduj.";
+                    else if (gotowyNaMape == 0 && kodyZeWsp > 0)
+                        problem = "Kody mają współrzędne, ale nie pasują do kodów odbiorców (sprawdź format XX-XXX)";
+
+                    Debug.WriteLine($"[DIAG] Wszystkich: {wszystkich}, ZKodem: {zKodem}, TabelaIstnieje: {tabelaIstnieje}, " +
+                        $"KodówWTabeli: {kodowWTabeli}, ZeWsp: {kodyZeWsp}, BezWsp: {kodyBezWsp}, GotowyNaMape: {gotowyNaMape}");
+                }
+            }
+            catch (Exception ex)
+            {
+                problem = $"Błąd diagnostyki: {ex.Message}";
+                Debug.WriteLine($"[DIAG] BŁĄD: {ex}");
+            }
+
+            return (wszystkich, zKodem, tabelaIstnieje, kodowWTabeli, kodyZeWsp, kodyBezWsp, gotowyNaMape, problem);
+        }
+
         private string GenerujHtmlMapy(List<MapKontakt> kontakty)
         {
             // Pobierz klucz API z pola tekstowego
@@ -310,35 +389,51 @@ namespace Kalendarz1.CRM
                 Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             });
 
-            // Jeśli brak danych - pokaż komunikat pomocniczy
+            // Jeśli brak danych - pokaż komunikat pomocniczy z diagnostyką
             if (kontakty.Count == 0)
             {
-                return @"<!DOCTYPE html>
+                // Pobierz diagnostykę z bazy
+                var diag = PobierzDiagnostykeZBazy();
+                return $@"<!DOCTYPE html>
 <html>
 <head>
     <meta charset='utf-8'/>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #F8FAF8; }
-        .msg { text-align: center; padding: 40px; background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 500px; }
-        h2 { color: #DC2626; margin-bottom: 16px; }
-        p { color: #666; line-height: 1.6; margin: 8px 0; }
-        .steps { text-align: left; background: #F1F5F9; padding: 16px; border-radius: 8px; margin-top: 16px; }
-        .steps li { margin: 8px 0; color: #374151; }
-        code { background: #E5E7EB; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+        body {{ font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #F8FAF8; }}
+        .msg {{ text-align: center; padding: 40px; background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 600px; }}
+        h2 {{ color: #DC2626; margin-bottom: 16px; }}
+        p {{ color: #666; line-height: 1.6; margin: 8px 0; }}
+        .diag {{ text-align: left; background: #FEF3C7; padding: 16px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #F59E0B; }}
+        .diag-row {{ display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #FDE68A; }}
+        .diag-label {{ color: #92400E; }}
+        .diag-value {{ font-weight: bold; color: #78350F; }}
+        .steps {{ text-align: left; background: #F1F5F9; padding: 16px; border-radius: 8px; margin-top: 16px; }}
+        .steps li {{ margin: 8px 0; color: #374151; }}
+        code {{ background: #E5E7EB; padding: 2px 6px; border-radius: 4px; font-size: 12px; }}
+        .problem {{ background: #FEE2E2; color: #991B1B; padding: 8px 12px; border-radius: 6px; margin-top: 12px; font-weight: bold; }}
     </style>
 </head>
 <body>
 <div class='msg'>
     <h2>Brak kontaktów do wyświetlenia na mapie</h2>
-    <p>Żaden kontakt nie ma przypisanych współrzędnych geograficznych.</p>
+    <div class='diag'>
+        <strong style='color:#92400E;'>DIAGNOSTYKA BAZY DANYCH:</strong>
+        <div class='diag-row'><span class='diag-label'>Wszystkich odbiorców CRM:</span><span class='diag-value'>{diag.wszystkich}</span></div>
+        <div class='diag-row'><span class='diag-label'>Z kodem pocztowym:</span><span class='diag-value'>{diag.zKodem}</span></div>
+        <div class='diag-row'><span class='diag-label'>Tabela KodyPocztowe istnieje:</span><span class='diag-value'>{(diag.tabelaIstnieje ? "TAK" : "NIE")}</span></div>
+        <div class='diag-row'><span class='diag-label'>Kodów w tabeli:</span><span class='diag-value'>{diag.kodowWTabeli}</span></div>
+        <div class='diag-row'><span class='diag-label'>Kodów ze współrzędnymi:</span><span class='diag-value'>{diag.kodyZeWsp}</span></div>
+        <div class='diag-row'><span class='diag-label'>Kodów BEZ współrzędnych:</span><span class='diag-value'>{diag.kodyBezWsp}</span></div>
+        <div class='diag-row' style='border:none;'><span class='diag-label'>Odbiorców gotowych na mapę:</span><span class='diag-value' style='color:{(diag.gotowyNaMape > 0 ? "#16A34A" : "#DC2626")};font-size:16px;'>{diag.gotowyNaMape}</span></div>
+    </div>
+    {(diag.problem != "" ? $"<div class='problem'>{diag.problem}</div>" : "")}
     <div class='steps'>
         <strong>Co zrobić:</strong>
         <ol>
             <li>Kliknij przycisk <b>📍 Geokoduj</b> w nagłówku</li>
-            <li>Poczekaj aż system pobierze współrzędne dla kodów pocztowych</li>
+            <li>Poczekaj aż system pobierze współrzędne (limit: 50 kodów w trybie testowym)</li>
             <li>Kliknij <b>🔄 Odśwież</b> aby zobaczyć mapę</li>
         </ol>
-        <p style='margin-top:12px;font-size:12px;color:#666;'>Jeśli problem się powtarza, sprawdź czy tabela <code>KodyPocztowe</code> istnieje w bazie danych.</p>
     </div>
 </div>
 </body>
@@ -581,6 +676,7 @@ window.gm_authFailure = function() {{
             btnGeokoduj.IsEnabled = false;
 
             int sukces = 0, bledy = 0;
+            var listaZgeokodowanych = new List<string>();
 
             try
             {
@@ -588,9 +684,9 @@ window.gm_authFailure = function() {{
                 {
                     await conn.OpenAsync();
 
-                    // Pobierz kody używane przez odbiorców, posortowane po liczbie odbiorców (najpopularniejsze najpierw)
+                    // LIMIT 50 - tryb testowy, zmień na więcej po potwierdzeniu działania
                     var cmdSelect = new SqlCommand(@"
-                        SELECT TOP 2000 kp.Kod, kp.miej, COUNT(*) as Ile
+                        SELECT TOP 50 kp.Kod, kp.miej, COUNT(*) as Ile
                         FROM KodyPocztowe kp
                         INNER JOIN OdbiorcyCRM o ON o.KOD = kp.Kod
                         WHERE kp.Latitude IS NULL OR kp.Longitude IS NULL
@@ -605,6 +701,8 @@ window.gm_authFailure = function() {{
                             kodyDoGeokodowania.Add((reader.GetString(0), reader.IsDBNull(1) ? "" : reader.GetString(1)));
                         }
                     }
+
+                    Debug.WriteLine($"[MAPA] Znaleziono {kodyDoGeokodowania.Count} kodów do geokodowania");
 
                     for (int i = 0; i < kodyDoGeokodowania.Count; i++)
                     {
@@ -626,28 +724,84 @@ window.gm_authFailure = function() {{
                             cmdUpdate.Parameters.AddWithValue("@kod", kod);
                             await cmdUpdate.ExecuteNonQueryAsync();
                             sukces++;
+                            listaZgeokodowanych.Add($"{kod} -> {coords.Value.lat:F4}, {coords.Value.lng:F4}");
+                            Debug.WriteLine($"[MAPA] OK: {kod} ({miasto}) -> {coords.Value.lat}, {coords.Value.lng}");
                         }
                         else
                         {
                             bledy++;
+                            Debug.WriteLine($"[MAPA] BŁĄD: {kod} ({miasto}) - nie znaleziono współrzędnych");
                         }
 
                         // Google: 50 req/s (25ms), Nominatim: 1 req/s (1100ms)
                         await Task.Delay(uzywanieGoogleApi ? 25 : 1100);
                     }
+
+                    // Diagnostyka - ile odbiorców teraz może być na mapie
+                    txtLoadingStatus.Text = "Sprawdzanie wyników...";
+                    var cmdDiag = new SqlCommand(@"
+                        SELECT
+                            (SELECT COUNT(*) FROM OdbiorcyCRM) as Wszystkich,
+                            (SELECT COUNT(*) FROM OdbiorcyCRM WHERE KOD IS NOT NULL AND KOD <> '') as ZKodem,
+                            (SELECT COUNT(*) FROM KodyPocztowe WHERE Latitude IS NOT NULL) as KodyZeWsp,
+                            (SELECT COUNT(*) FROM OdbiorcyCRM o
+                             INNER JOIN KodyPocztowe kp ON o.KOD = kp.Kod
+                             WHERE kp.Latitude IS NOT NULL) as GotowyNaMape", conn);
+
+                    using (var reader = await cmdDiag.ExecuteReaderAsync())
+                    {
+                        if (await reader.ReadAsync())
+                        {
+                            var wszystkich = reader.GetInt32(0);
+                            var zKodem = reader.GetInt32(1);
+                            var kodyZeWsp = reader.GetInt32(2);
+                            var gotowyNaMape = reader.GetInt32(3);
+
+                            var metodaNazwa = uzywanieGoogleApi ? "Google" : "Nominatim (darmowe)";
+                            var diagnostyka = $"=== DIAGNOSTYKA MAPY ===\n\n" +
+                                $"Geokodowanie ({metodaNazwa}):\n" +
+                                $"  Sukces: {sukces}\n" +
+                                $"  Błędy: {bledy}\n\n" +
+                                $"Stan bazy danych:\n" +
+                                $"  Wszystkich odbiorców: {wszystkich}\n" +
+                                $"  Z kodem pocztowym: {zKodem}\n" +
+                                $"  Kodów ze współrzędnymi: {kodyZeWsp}\n" +
+                                $"  GOTOWYCH NA MAPĘ: {gotowyNaMape}\n\n";
+
+                            if (gotowyNaMape > 0)
+                            {
+                                diagnostyka += $"Mapa powinna pokazać {gotowyNaMape} kontaktów.\n" +
+                                    $"Kliknij 'Odśwież' aby zobaczyć mapę.";
+                            }
+                            else
+                            {
+                                diagnostyka += "UWAGA: Żaden odbiorca nie jest gotowy do wyświetlenia!\n" +
+                                    "Możliwe przyczyny:\n" +
+                                    "1. Kody pocztowe w OdbiorcyCRM nie pasują do KodyPocztowe\n" +
+                                    "2. Geokodowanie nie znalazło współrzędnych\n" +
+                                    "3. Format kodów jest inny (np. '00001' vs '00-001')";
+                            }
+
+                            if (sukces > 0 && listaZgeokodowanych.Count <= 10)
+                            {
+                                diagnostyka += $"\n\nPrzykładowe zgeokodowane:\n" + string.Join("\n", listaZgeokodowanych.Take(10));
+                            }
+
+                            MessageBox.Show(diagnostyka, "Wynik geokodowania", MessageBoxButton.OK,
+                                gotowyNaMape > 0 ? MessageBoxImage.Information : MessageBoxImage.Warning);
+                        }
+                    }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                Debug.WriteLine($"[MAPA] WYJĄTEK: {ex}");
+                MessageBox.Show($"Błąd: {ex.Message}\n\nSzczegóły: {ex}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
 
             loadingOverlay.Visibility = Visibility.Collapsed;
             btnGeokoduj.IsEnabled = true;
             isLoading = false;
-
-            var metodaNazwa = uzywanieGoogleApi ? "Google" : "Nominatim (darmowe)";
-            MessageBox.Show($"Zakończono geokodowanie ({metodaNazwa})!\n\nZnalezione: {sukces}\nBłędy: {bledy}\n\nKliknij 'Odśwież' aby zobaczyć mapę.", "Geokodowanie", MessageBoxButton.OK, MessageBoxImage.Information);
 
             // Odśwież mapę
             dtKontakty = null;
