@@ -530,46 +530,49 @@ namespace Kalendarz1
             tab3.Controls.Add(chartsMainPanel);
 
             // === ZAKŁADKA 4: STAN MAGAZYNU (KOMPAKTOWY LAYOUT) ===
-            TabPage tab4 = new TabPage("  Stan magazynu  ");
+            TabPage tab4 = new TabPage("  Stan mroźni  ");
             tab4.BackColor = BackgroundColor;
-            tab4.Padding = new Padding(5);
+            tab4.Padding = new Padding(8);
 
             // Główny layout: Toolbar + SplitContainer
             Panel stanMainPanel = new Panel { Dock = DockStyle.Fill };
 
-            // === TOOLBAR (kompaktowy) ===
-            Panel stanToolbar = new Panel { Dock = DockStyle.Top, Height = 45, BackColor = CardColor };
-            stanToolbar.Paint += (s, e) => DrawCardBorder(e.Graphics, stanToolbar);
+            // === TOOLBAR (nowoczesny) ===
+            Panel stanToolbar = new Panel { Dock = DockStyle.Top, Height = 50, BackColor = Color.White };
+            stanToolbar.Paint += (s, e) => {
+                using (var pen = new Pen(Color.FromArgb(230, 230, 230), 1))
+                    e.Graphics.DrawLine(pen, 0, stanToolbar.Height - 1, stanToolbar.Width, stanToolbar.Height - 1);
+            };
 
             dtpStanMagazynu = new DateTimePicker
             {
-                Location = new Point(10, 10),
-                Width = 120,
+                Location = new Point(15, 12),
+                Width = 110,
                 Format = DateTimePickerFormat.Short,
                 Value = DateTime.Now,
                 Font = new Font("Segoe UI", 9F)
             };
             dtpStanMagazynu.ValueChanged += (s, e) => BtnStanMagazynu_Click(null, null);
 
-            btnMapowanie = CreateModernButton("Mapowanie", 140, 8, 90, InfoColor);
+            btnMapowanie = CreateModernButton("Mapowanie", 135, 10, 85, InfoColor);
             btnMapowanie.Click += BtnMapowanie_Click;
 
-            // Statystyki inline
+            // Statystyki inline - bardziej widoczne
             lblStanSuma = new Label
             {
                 Text = "Stan: 0 kg",
-                Location = new Point(250, 13),
+                Location = new Point(240, 15),
                 AutoSize = true,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 ForeColor = PrimaryColor
             };
 
             lblStanRezerwacje = new Label
             {
                 Text = "Zarezerwowano: 0 kg",
-                Location = new Point(380, 13),
+                Location = new Point(380, 15),
                 AutoSize = true,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 ForeColor = DangerColor
             };
 
@@ -587,23 +590,31 @@ namespace Kalendarz1
             {
                 Dock = DockStyle.Fill,
                 Orientation = Orientation.Vertical,
-                SplitterDistance = 350,
-                SplitterWidth = 5,
-                BackColor = BackgroundColor
+                SplitterDistance = 320,
+                SplitterWidth = 8,
+                BackColor = BackgroundColor,
+                Panel1MinSize = 250,
+                Panel2MinSize = 300
             };
 
             // --- LEWA STRONA: STAN MAGAZYNU ---
-            Panel leftPanel = new Panel { Dock = DockStyle.Fill, BackColor = CardColor, Padding = new Padding(5) };
+            Panel leftPanel = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(0) };
 
-            Label lblLeftHeader = new Label
+            Panel lblLeftHeader = new Panel
             {
-                Text = "STAN MAGAZYNU MROŹNI",
                 Dock = DockStyle.Top,
-                Height = 25,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = PrimaryColor,
-                Padding = new Padding(5, 5, 0, 0)
+                Height = 35,
+                BackColor = PrimaryColor
             };
+            Label lblLeftTitle = new Label
+            {
+                Text = "STAN MAGAZYNU",
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.White,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            lblLeftHeader.Controls.Add(lblLeftTitle);
 
             dgvStanMagazynu = CreateStyledDataGridView();
             dgvStanMagazynu.DoubleClick += DgvStanMagazynu_DoubleClick;
@@ -625,20 +636,26 @@ namespace Kalendarz1
             leftPanel.Controls.Add(lblLeftHeader);
 
             // --- PRAWA STRONA: REZERWACJE ---
-            Panel rightPanel = new Panel { Dock = DockStyle.Fill, BackColor = CardColor, Padding = new Padding(5) };
+            Panel rightPanel = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(0) };
 
-            Label lblRightHeader = new Label
+            Panel lblRightHeader = new Panel
             {
-                Text = "REZERWACJE (kliknij 2x aby anulować)",
                 Dock = DockStyle.Top,
-                Height = 25,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = DangerColor,
-                Padding = new Padding(5, 5, 0, 0)
+                Height = 35,
+                BackColor = DangerColor
             };
+            Label lblRightTitle = new Label
+            {
+                Text = "REZERWACJE (2x klik = anuluj)",
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.White,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            lblRightHeader.Controls.Add(lblRightTitle);
 
             dgvZamowienia = CreateStyledDataGridView();
-            dgvZamowienia.ColumnHeadersDefaultCellStyle.BackColor = DangerColor;
+            dgvZamowienia.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(220, 53, 69);
             dgvZamowienia.CellDoubleClick += DgvRezerwacje_CellDoubleClick;
 
             Panel rightGridPanel = new Panel { Dock = DockStyle.Fill };
@@ -1035,7 +1052,7 @@ namespace Kalendarz1
             string produkt = row.Cells[columnName].Value.ToString();
 
             // Pomiń wiersz sumy
-            if (produkt == "SUMA CAŁKOWITA") return;
+            if (produkt == "SUMA") return;
 
             decimal stan = Convert.ToDecimal(row.Cells["Stan (kg)"].Value);
             decimal wartosc = Convert.ToDecimal(row.Cells["Wartość (zł)"].Value);
@@ -1933,9 +1950,7 @@ namespace Kalendarz1
                         dtFinal = new DataTable();
                         dtFinal.Columns.Add("Kod", typeof(string));
                         dtFinal.Columns.Add("Stan (kg)", typeof(decimal));
-                        dtFinal.Columns.Add("Rezerwacja", typeof(decimal));
-                        dtFinal.Columns.Add("Wartość (zł)", typeof(decimal));
-                        dtFinal.Columns.Add("Cena śr. (zł/kg)", typeof(decimal));
+                        dtFinal.Columns.Add("Rez. (kg)", typeof(decimal));
                         dtFinal.Columns.Add("Zmiana", typeof(string));
                         dtFinal.Columns.Add("Status", typeof(string));
 
@@ -1947,8 +1962,6 @@ namespace Kalendarz1
                         {
                             string kod = kvp.Key;
                             decimal stan = kvp.Value.Stan;
-                            decimal wartosc = kvp.Value.Wartosc;
-                            decimal cena = stan > 0 ? wartosc / stan : 0;
                             string status = GetStatus(stan);
 
                             // Oblicz zmianę
@@ -1959,7 +1972,7 @@ namespace Kalendarz1
                             // Pobierz rezerwację dla produktu
                             decimal rezerwacja = rezerwacjePerProdukt.ContainsKey(kod) ? rezerwacjePerProdukt[kod] : 0;
 
-                            dtFinal.Rows.Add(kod, stan, rezerwacja, wartosc, cena, zmiana, status);
+                            dtFinal.Rows.Add(kod, stan, rezerwacja, zmiana, status);
                         }
                     }
 
@@ -1967,11 +1980,13 @@ namespace Kalendarz1
 
                     // Formatowanie
                     string colName = isGrupowanie ? "Produkt" : "Kod";
-                    FormatujKolumne(dgvStanMagazynu, "Stan (kg)", "Stan (kg)", "N0");
-                    FormatujKolumne(dgvStanMagazynu, "Rezerwacja", "Rez. (kg)", "N0");
-                    FormatujKolumne(dgvStanMagazynu, "Wartość (zł)", "Wartość (zł)", "N0");
-                    FormatujKolumne(dgvStanMagazynu, "Cena śr. (zł/kg)", "Cena śr. (zł/kg)", "N2");
-                    FormatujKolumne(dgvStanMagazynu, "Zmiana", "Zmiana (7 dni)");
+                    FormatujKolumne(dgvStanMagazynu, "Stan (kg)", "Stan", "N0");
+                    FormatujKolumne(dgvStanMagazynu, "Rez. (kg)", "Rez.", "N0");
+                    FormatujKolumne(dgvStanMagazynu, "Zmiana", "Zmiana");
+
+                    // Ukryj kolumnę Status
+                    if (dgvStanMagazynu.Columns.Contains("Status"))
+                        dgvStanMagazynu.Columns["Status"].Visible = false;
 
                     // Kolorowanie
                     foreach (DataGridViewRow row in dgvStanMagazynu.Rows)
@@ -1980,37 +1995,34 @@ namespace Kalendarz1
                         Color backgroundColor = Color.White;
 
                         if (status == "Krytyczny")
-                            backgroundColor = Color.FromArgb(255, 200, 200); // Czerwony
+                            backgroundColor = Color.FromArgb(255, 230, 230);
                         else if (status == "Poważny")
-                            backgroundColor = Color.FromArgb(255, 255, 200); // Żółty
-                        else if (status == "Dobry")
-                            backgroundColor = Color.White; // Biały
+                            backgroundColor = Color.FromArgb(255, 250, 230);
 
                         row.DefaultCellStyle.BackColor = backgroundColor;
-                        // WAŻNE: Zachowaj kolor tła także przy zaznaczeniu
-                        row.DefaultCellStyle.SelectionBackColor = backgroundColor;
+                        row.DefaultCellStyle.SelectionBackColor = Color.FromArgb(200, 220, 255);
                         row.DefaultCellStyle.SelectionForeColor = TextColor;
 
                         // Koloruj kolumnę zmiany
                         string zmiana = row.Cells["Zmiana"].Value?.ToString();
                         if (zmiana?.Contains("↑") == true)
-                            row.Cells["Zmiana"].Style.ForeColor = Color.Red;
+                            row.Cells["Zmiana"].Style.ForeColor = Color.FromArgb(220, 53, 69);
                         else if (zmiana?.Contains("↓") == true)
-                            row.Cells["Zmiana"].Style.ForeColor = Color.Green;
+                            row.Cells["Zmiana"].Style.ForeColor = Color.FromArgb(40, 167, 69);
                         else
                             row.Cells["Zmiana"].Style.ForeColor = Color.Gray;
 
                         // Koloruj kolumnę Rezerwacja jeśli są zarezerwowane kg
-                        if (dgvStanMagazynu.Columns.Contains("Rezerwacja"))
+                        if (dgvStanMagazynu.Columns.Contains("Rez. (kg)"))
                         {
-                            var rezVal = row.Cells["Rezerwacja"].Value;
+                            var rezVal = row.Cells["Rez. (kg)"].Value;
                             if (rezVal != null && rezVal != DBNull.Value)
                             {
                                 decimal rez = Convert.ToDecimal(rezVal);
                                 if (rez > 0)
                                 {
-                                    row.Cells["Rezerwacja"].Style.ForeColor = Color.OrangeRed;
-                                    row.Cells["Rezerwacja"].Style.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                                    row.Cells["Rez. (kg)"].Style.ForeColor = Color.FromArgb(220, 53, 69);
+                                    row.Cells["Rez. (kg)"].Style.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
                                 }
                             }
                         }
@@ -2018,19 +2030,16 @@ namespace Kalendarz1
 
                     // Oblicz sumy
                     decimal sumaStan = dtFinal.AsEnumerable().Sum(r => Convert.ToDecimal(r["Stan (kg)"]));
-                    decimal sumaRezerwacja = dtFinal.Columns.Contains("Rezerwacja")
-                        ? dtFinal.AsEnumerable().Sum(r => Convert.ToDecimal(r["Rezerwacja"]))
+                    decimal sumaRezerwacja = dtFinal.Columns.Contains("Rez. (kg)")
+                        ? dtFinal.AsEnumerable().Sum(r => Convert.ToDecimal(r["Rez. (kg)"]))
                         : 0;
-                    decimal sumaWartosc = dtFinal.AsEnumerable().Sum(r => Convert.ToDecimal(r["Wartość (zł)"]));
 
                     // Wstaw wiersz sumy NA GÓRĘ tabeli
                     DataRow sumRow = dtFinal.NewRow();
-                    sumRow[colName] = "SUMA CAŁKOWITA";
+                    sumRow[colName] = "SUMA";
                     sumRow["Stan (kg)"] = sumaStan;
-                    if (dtFinal.Columns.Contains("Rezerwacja"))
-                        sumRow["Rezerwacja"] = sumaRezerwacja;
-                    sumRow["Wartość (zł)"] = sumaWartosc;
-                    sumRow["Cena śr. (zł/kg)"] = sumaStan > 0 ? sumaWartosc / sumaStan : 0;
+                    if (dtFinal.Columns.Contains("Rez. (kg)"))
+                        sumRow["Rez. (kg)"] = sumaRezerwacja;
                     sumRow["Zmiana"] = "";
                     sumRow["Status"] = "";
                     dtFinal.Rows.InsertAt(sumRow, 0);
@@ -2039,11 +2048,14 @@ namespace Kalendarz1
                     dgvStanMagazynu.Rows[0].DefaultCellStyle.Font =
                         new Font("Segoe UI", 10F, FontStyle.Bold);
                     dgvStanMagazynu.Rows[0].DefaultCellStyle.BackColor =
-                        Color.FromArgb(200, 220, 240);
+                        Color.FromArgb(41, 128, 185);
+                    dgvStanMagazynu.Rows[0].DefaultCellStyle.ForeColor = Color.White;
+                    dgvStanMagazynu.Rows[0].DefaultCellStyle.SelectionBackColor =
+                        Color.FromArgb(41, 128, 185);
 
                     // Aktualizuj karty statystyk
-                    int liczbaProdukow = dtFinal.Rows.Count - 1; // Minus wiersz sumy
-                    UpdateStanStatystyki(sumaStan, sumaWartosc, liczbaProdukow);
+                    int liczbaProdukow = dtFinal.Rows.Count - 1;
+                    UpdateStanStatystyki(sumaStan, 0, liczbaProdukow);
 
                     // Załaduj rezerwacje w prawym panelu
                     LoadRezerwacjeDoTabeli();
@@ -2563,7 +2575,7 @@ namespace Kalendarz1
 
             DataGridViewRow row = dgvStanMagazynu.SelectedRows[0];
             string kodProduktu = row.Cells["Kod"].Value?.ToString() ?? "";
-            if (string.IsNullOrEmpty(kodProduktu) || kodProduktu == "SUMA CAŁKOWITA") return;
+            if (string.IsNullOrEmpty(kodProduktu) || kodProduktu == "SUMA") return;
 
             decimal stanAktualny = Convert.ToDecimal(row.Cells["Stan (kg)"].Value ?? 0);
             var rezerwacje = WczytajRezerwacje();
@@ -2609,7 +2621,7 @@ namespace Kalendarz1
 
             DataGridViewRow row = dgvStanMagazynu.SelectedRows[0];
             string kodProduktu = row.Cells["Kod"].Value?.ToString() ?? "";
-            if (string.IsNullOrEmpty(kodProduktu) || kodProduktu == "SUMA CAŁKOWITA") return;
+            if (string.IsNullOrEmpty(kodProduktu) || kodProduktu == "SUMA") return;
 
             var rezerwacje = WczytajRezerwacje();
             int usuniete = rezerwacje.RemoveAll(r => r.KodProduktu == kodProduktu);
