@@ -149,7 +149,7 @@
                 <!-- Przyciski + API Key -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="API Key:" FontSize="11" Foreground="White" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                    <TextBox x:Name="txtApiKey" Width="200" FontSize="11" Padding="6,4" VerticalContentAlignment="Center" Margin="0,0,12,0" ToolTip="Wprowadź klucz Google Maps API"/>
+                    <TextBox x:Name="txtApiKey" Width="200" FontSize="11" Padding="6,4" VerticalContentAlignment="Center" Margin="0,0,12,0" ToolTip="Wprowadź klucz Google Maps API" Text="AIzaSyCFXL2NYDnLBpiih1pG27SbsY62ZYsKdgo"/>
                     <Button x:Name="btnGeokoduj" Content="📍 Geokoduj" Style="{StaticResource ButtonPrimary}" Click="BtnGeokoduj_Click" Margin="0,0,8,0" ToolTip="Pobierz współrzędne z Google Geocoding API"/>
                     <Button x:Name="btnOdswiez" Content="🔄 Odśwież" Style="{StaticResource ButtonSecondary}" Click="BtnOdswiez_Click" Margin="0,0,8,0"/>
                     <Button x:Name="btnZamknij" Content="✕ Zamknij" Style="{StaticResource ButtonSecondary}" Click="BtnZamknij_Click"/>
