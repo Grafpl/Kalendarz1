@@ -21,6 +21,10 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         private string _wybranyHandlowiec;
         private bool _isInitializing = true;
 
+        // Uprawnienia uzytkownika
+        private bool _isAdmin;
+        private List<string> _przypisaniHandlowcy;
+
         // Kolory dla wykresow
         private static readonly SolidColorBrush OrangeBrush = new SolidColorBrush(Color.FromRgb(244, 162, 97));
         private static readonly SolidColorBrush BlueBrush = new SolidColorBrush(Color.FromRgb(78, 168, 222));
@@ -46,21 +50,90 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
             try
             {
-                // Pobierz liste handlowcow
-                var handlowcy = await _service.PobierzHandlowcowAsync();
-                cmbHandlowiec.ItemsSource = handlowcy;
+                // Sprawdz uprawnienia uzytkownika
+                _isAdmin = App.UserID == "11111";
+                _przypisaniHandlowcy = UserHandlowcyManager.GetUserHandlowcy(App.UserID);
 
-                // Ustaw domyslnie aktualnego uzytkownika lub "Wszyscy"
-                var currentUser = App.UserFullName;
-                if (!string.IsNullOrEmpty(currentUser) && handlowcy.Contains(currentUser))
+                // Ustaw tytul okna
+                if (_isAdmin)
                 {
-                    cmbHandlowiec.SelectedItem = currentUser;
-                    _wybranyHandlowiec = currentUser;
+                    this.Title = "Dashboard Handlowca [ADMINISTRATOR]";
                 }
                 else
                 {
+                    string userName = App.UserFullName ?? $"Uzytkownik {App.UserID}";
+                    this.Title = $"Dashboard Handlowca [{userName}]";
+                }
+
+                // Pobierz liste handlowcow
+                var handlowcy = await _service.PobierzHandlowcowAsync();
+
+                // Dla nie-admina filtruj liste do przypisanych handlowcow
+                if (!_isAdmin)
+                {
+                    // Filtruj liste do przypisanych handlowcow
+                    var dostepniHandlowcy = new List<string>();
+
+                    if (_przypisaniHandlowcy.Count > 0)
+                    {
+                        // Dodaj tylko przypisanych handlowcow (zachowaj kolejnosc z oryginalnej listy)
+                        dostepniHandlowcy.AddRange(handlowcy.Where(h => _przypisaniHandlowcy.Contains(h)));
+                    }
+
+                    if (dostepniHandlowcy.Count == 1)
+                    {
+                        // Jesli handlowiec ma tylko jednego przypisanego - pokaz tylko jego, zablokuj ComboBox
+                        handlowcy = dostepniHandlowcy;
+                        cmbHandlowiec.IsEnabled = false;
+                    }
+                    else if (dostepniHandlowcy.Count > 1)
+                    {
+                        // Jesli ma wielu - moze przelaczac miedzy SWOIMI (bez "Wszyscy")
+                        handlowcy = dostepniHandlowcy;
+                        cmbHandlowiec.IsEnabled = true;
+                    }
+                    else
+                    {
+                        // Brak przypisanych handlowcow
+                        handlowcy = new List<string> { "— Brak przypisanych handlowców —" };
+                        cmbHandlowiec.IsEnabled = false;
+                    }
+                }
+                else
+                {
+                    // Admin moze wybierac wszystkich
+                    cmbHandlowiec.IsEnabled = true;
+                }
+
+                cmbHandlowiec.ItemsSource = handlowcy;
+
+                // Ustaw domyslnie aktualnego uzytkownika
+                if (!_isAdmin && _przypisaniHandlowcy.Count > 0)
+                {
+                    // Dla handlowca - wybierz pierwszego przypisanego
                     cmbHandlowiec.SelectedIndex = 0;
-                    _wybranyHandlowiec = "— Wszyscy —";
+                    _wybranyHandlowiec = handlowcy[0];
+                }
+                else if (_isAdmin)
+                {
+                    // Admin - ustaw "Wszyscy" lub aktualnego uzytkownika
+                    var currentUser = App.UserFullName;
+                    if (!string.IsNullOrEmpty(currentUser) && handlowcy.Contains(currentUser))
+                    {
+                        cmbHandlowiec.SelectedItem = currentUser;
+                        _wybranyHandlowiec = currentUser;
+                    }
+                    else
+                    {
+                        cmbHandlowiec.SelectedIndex = 0;
+                        _wybranyHandlowiec = "— Wszyscy —";
+                    }
+                }
+                else
+                {
+                    // Brak przypisanych handlowcow
+                    cmbHandlowiec.SelectedIndex = 0;
+                    _wybranyHandlowiec = null;
                 }
 
                 _isInitializing = false;
