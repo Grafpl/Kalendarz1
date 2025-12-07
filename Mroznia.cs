@@ -2945,26 +2945,33 @@ namespace Kalendarz1
 
             dgvWydaniaZewnetrzne.DataSource = dt;
 
-            // Formatowanie kolumn - z null check
-            if (dgvWydaniaZewnetrzne.Columns["Data"] != null)
-                dgvWydaniaZewnetrzne.Columns["Data"].DefaultCellStyle.Format = "dd.MM.yyyy";
-            if (dgvWydaniaZewnetrzne.Columns["Ilość (kg)"] != null)
-                dgvWydaniaZewnetrzne.Columns["Ilość (kg)"].DefaultCellStyle.Format = "N0";
-            if (dgvWydaniaZewnetrzne.Columns["Trasa"] != null)
-                dgvWydaniaZewnetrzne.Columns["Trasa"].Width = 180;
-            if (dgvWydaniaZewnetrzne.Columns["Klient"] != null)
-                dgvWydaniaZewnetrzne.Columns["Klient"].Width = 120;
-
-            // Koloruj wydania/przyjęcia
-            foreach (DataGridViewRow row in dgvWydaniaZewnetrzne.Rows)
+            // Formatowanie kolumn - z try-catch dla bezpieczeństwa
+            try
             {
-                if (row.Cells["Typ"] == null) continue;
-                string typ = row.Cells["Typ"].Value?.ToString();
-                if (typ == "Przyjęcie")
-                    row.DefaultCellStyle.ForeColor = Color.FromArgb(40, 167, 69);
-                else if (typ == "Wydanie")
-                    row.DefaultCellStyle.ForeColor = Color.FromArgb(220, 53, 69);
+                if (dgvWydaniaZewnetrzne.Columns.Count > 0)
+                {
+                    if (dgvWydaniaZewnetrzne.Columns["Data"] != null)
+                        dgvWydaniaZewnetrzne.Columns["Data"].DefaultCellStyle.Format = "dd.MM.yyyy";
+                    if (dgvWydaniaZewnetrzne.Columns["Ilość (kg)"] != null)
+                        dgvWydaniaZewnetrzne.Columns["Ilość (kg)"].DefaultCellStyle.Format = "N0";
+                    if (dgvWydaniaZewnetrzne.Columns["Trasa"] != null)
+                        dgvWydaniaZewnetrzne.Columns["Trasa"].Width = 180;
+                    if (dgvWydaniaZewnetrzne.Columns["Klient"] != null)
+                        dgvWydaniaZewnetrzne.Columns["Klient"].Width = 120;
+
+                    // Koloruj wydania/przyjęcia
+                    foreach (DataGridViewRow row in dgvWydaniaZewnetrzne.Rows)
+                    {
+                        if (row.IsNewRow) continue;
+                        string typ = row.Cells["Typ"]?.Value?.ToString();
+                        if (typ == "Przyjęcie")
+                            row.DefaultCellStyle.ForeColor = Color.FromArgb(40, 167, 69);
+                        else if (typ == "Wydanie")
+                            row.DefaultCellStyle.ForeColor = Color.FromArgb(220, 53, 69);
+                    }
+                }
             }
+            catch { }
         }
 
         private void UpdateFiltrMrozniComboBox()
