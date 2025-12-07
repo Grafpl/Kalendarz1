@@ -148,6 +148,7 @@
 
                 <!-- Przyciski -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="btnGeokoduj" Content="📍 Geokoduj" Style="{StaticResource ButtonPrimary}" Click="BtnGeokoduj_Click" Margin="0,0,8,0" ToolTip="Pobierz współrzędne dla kontaktów bez lokalizacji"/>
                     <Button x:Name="btnOdswiez" Content="🔄 Odśwież" Style="{StaticResource ButtonSecondary}" Click="BtnOdswiez_Click" Margin="0,0,8,0"/>
                     <Button x:Name="btnZamknij" Content="✕ Zamknij" Style="{StaticResource ButtonSecondary}" Click="BtnZamknij_Click"/>
                 </StackPanel>

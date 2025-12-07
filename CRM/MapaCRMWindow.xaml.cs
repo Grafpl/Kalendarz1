@@ -271,7 +271,7 @@ namespace Kalendarz1.CRM
                 if (tylkoPriorytetowe && !czyPriorytetowa)
                     continue;
 
-                // Sprawdź współrzędne
+                // Sprawdź współrzędne - TYLKO te które już mają zapisane
                 double lat = 0, lng = 0;
                 bool hasCoords = false;
 
@@ -288,22 +288,7 @@ namespace Kalendarz1.CRM
                     }
                 }
 
-                // Jeśli brak współrzędnych, spróbuj geokodować (tylko pierwsze 50)
-                if (!hasCoords && wynik.Count(k => k.Lat == 0) < 50)
-                {
-                    var adres = ZbudujAdres(row);
-                    if (!string.IsNullOrEmpty(adres))
-                    {
-                        var geo = await GeokodujZCacheAsync(adres, Convert.ToInt32(row["ID"]));
-                        if (geo.HasValue)
-                        {
-                            lat = geo.Value.lat;
-                            lng = geo.Value.lng;
-                            hasCoords = true;
-                        }
-                    }
-                }
-
+                // Pomiń kontakty bez współrzędnych - geokodowanie w tle
                 if (!hasCoords) continue;
 
                 // Dodaj do wyników
@@ -702,6 +687,73 @@ if (data.length > 0) {{
         private void BtnZamknij_Click(object sender, RoutedEventArgs e)
         {
             Close();
+        }
+
+        private async void BtnGeokoduj_Click(object sender, RoutedEventArgs e)
+        {
+            if (dtKontakty == null || isLoading) return;
+
+            // Znajdź kontakty bez współrzędnych
+            var bezWspolrzednych = dtKontakty.AsEnumerable()
+                .Where(r => r["Latitude"] == DBNull.Value || r["Longitude"] == DBNull.Value ||
+                           !double.TryParse(r["Latitude"]?.ToString(), out _) ||
+                           !double.TryParse(r["Longitude"]?.ToString(), out _))
+                .Take(100) // Max 100 na raz
+                .ToList();
+
+            if (bezWspolrzednych.Count == 0)
+            {
+                MessageBox.Show("Wszystkie kontakty mają już współrzędne!", "Geokodowanie", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var result = MessageBox.Show($"Znaleziono {bezWspolrzednych.Count} kontaktów bez współrzędnych.\nCzy chcesz je teraz geokodować?\n\nTo może potrwać około {bezWspolrzednych.Count} sekund.",
+                "Geokodowanie", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (result != MessageBoxResult.Yes) return;
+
+            isLoading = true;
+            loadingOverlay.Visibility = Visibility.Visible;
+            btnGeokoduj.IsEnabled = false;
+
+            int sukces = 0;
+            int bledy = 0;
+
+            for (int i = 0; i < bezWspolrzednych.Count; i++)
+            {
+                var row = bezWspolrzednych[i];
+                txtLoadingStatus.Text = $"Geokodowanie {i + 1}/{bezWspolrzednych.Count}...";
+
+                var adres = ZbudujAdres(row);
+                if (!string.IsNullOrEmpty(adres))
+                {
+                    var geo = await GeokodujZCacheAsync(adres, Convert.ToInt32(row["ID"]));
+                    if (geo.HasValue)
+                    {
+                        row["Latitude"] = geo.Value.lat;
+                        row["Longitude"] = geo.Value.lng;
+                        sukces++;
+                    }
+                    else
+                    {
+                        bledy++;
+                    }
+                }
+                else
+                {
+                    bledy++;
+                }
+            }
+
+            loadingOverlay.Visibility = Visibility.Collapsed;
+            btnGeokoduj.IsEnabled = true;
+            isLoading = false;
+
+            MessageBox.Show($"Geokodowanie zakończone!\n\nZnalezione: {sukces}\nBłędy: {bledy}",
+                "Geokodowanie", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            // Odśwież mapę
+            await OdswiezMapeAsync();
         }
 
         private async void KontaktItem_Click(object sender, MouseButtonEventArgs e)
