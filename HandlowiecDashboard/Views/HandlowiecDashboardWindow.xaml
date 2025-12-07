@@ -242,7 +242,7 @@
                 </Grid>
             </Border>
 
-            <!-- Sprzedaz wg Regionu (Top 10 Wojewodztw) -->
+            <!-- Sprzedaz wg Handlowca (Top 10) -->
             <Border Grid.Column="1" Style="{StaticResource SectionCardStyle}">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -250,13 +250,13 @@
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <TextBlock Grid.Row="0" Text="Sprzedaz wg Regionu (Top 10)" Style="{StaticResource SectionHeaderStyle}"/>
+                    <TextBlock Grid.Row="0" Text="Sprzedaz wg Handlowca (Top 10)" Style="{StaticResource SectionHeaderStyle}"/>
 
                     <DataGrid Grid.Row="1" x:Name="dgRegiony" Style="{StaticResource DarkDataGridStyle}"
                               ColumnHeaderStyle="{StaticResource DarkDataGridHeaderStyle}"
                               CellStyle="{StaticResource DarkDataGridCellStyle}">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Woj." Binding="{Binding Wojewodztwo}" Width="*" MinWidth="80"/>
+                            <DataGridTextColumn Header="Handlowiec" Binding="{Binding Wojewodztwo}" Width="*" MinWidth="80"/>
                             <DataGridTextColumn Header="Wartosc" Binding="{Binding WartoscTekst}" Width="80"/>
                         </DataGrid.Columns>
                     </DataGrid>

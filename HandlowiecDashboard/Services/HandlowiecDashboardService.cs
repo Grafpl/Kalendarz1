@@ -40,7 +40,7 @@ namespace Kalendarz1.HandlowiecDashboard.Services
 
             try
             {
-                await using var cn = new SqlConnection(_connectionStringHandel);
+                await using var cn = new SqlConnection(_connectionStringLibraNet);
                 await cn.OpenAsync();
 
                 // Bieżący miesiąc
@@ -116,7 +116,7 @@ namespace Kalendarz1.HandlowiecDashboard.Services
 
             try
             {
-                await using var cn = new SqlConnection(_connectionStringHandel);
+                await using var cn = new SqlConnection(_connectionStringLibraNet);
                 await cn.OpenAsync();
 
                 var sql = @"
@@ -181,20 +181,18 @@ namespace Kalendarz1.HandlowiecDashboard.Services
 
             try
             {
-                await using var cn = new SqlConnection(_connectionStringHandel);
+                await using var cn = new SqlConnection(_connectionStringLibraNet);
                 await cn.OpenAsync();
 
                 var sql = @"
                     SELECT TOP (@Limit)
                         z.OdbiorcaId,
-                        k.Nazwa,
-                        k.Miasto,
+                        z.Odbiorca as Nazwa,
                         COUNT(DISTINCT z.ID) as LiczbaZamowien,
                         ISNULL(SUM(zp.Ilosc), 0) as SumaKg,
                         ISNULL(SUM(zp.Ilosc * CAST(ISNULL(zp.Cena, 0) AS DECIMAL(18,2))), 0) as SumaWartosc
                     FROM ZamowieniaMieso z
                     LEFT JOIN ZamowieniaMiesoPozycje zp ON z.ID = zp.ZamowienieId
-                    LEFT JOIN Kontrahenci k ON z.OdbiorcaId = k.id
                     WHERE z.DataOdbioru >= @DataStart
                         AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
 
@@ -202,7 +200,7 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                     sql += " AND z.Handlowiec = @Handlowiec";
 
                 sql += @"
-                    GROUP BY z.OdbiorcaId, k.Nazwa, k.Miasto
+                    GROUP BY z.OdbiorcaId, z.Odbiorca
                     ORDER BY SumaWartosc DESC";
 
                 await using var cmd = new SqlCommand(sql, cn);
@@ -220,10 +218,10 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                         Pozycja = pozycja++,
                         OdbiorcaId = reader.IsDBNull(0) ? 0 : reader.GetInt32(0),
                         Nazwa = reader.IsDBNull(1) ? "Nieznany" : reader.GetString(1),
-                        Miasto = reader.IsDBNull(2) ? "" : reader.GetString(2),
-                        LiczbaZamowien = reader.GetInt32(3),
-                        SumaKg = reader.GetDecimal(4),
-                        SumaWartosc = reader.GetDecimal(5)
+                        Miasto = "",
+                        LiczbaZamowien = reader.GetInt32(2),
+                        SumaKg = reader.GetDecimal(3),
+                        SumaWartosc = reader.GetDecimal(4)
                     };
                     sumaCalkowita += odbiorca.SumaWartosc;
                     odbiorcy.Add(odbiorca);
@@ -254,7 +252,7 @@ namespace Kalendarz1.HandlowiecDashboard.Services
 
             try
             {
-                await using var cn = new SqlConnection(_connectionStringHandel);
+                await using var cn = new SqlConnection(_connectionStringLibraNet);
                 await cn.OpenAsync();
 
                 var sql = @"
@@ -324,28 +322,27 @@ namespace Kalendarz1.HandlowiecDashboard.Services
 
             try
             {
-                await using var cn = new SqlConnection(_connectionStringHandel);
+                await using var cn = new SqlConnection(_connectionStringLibraNet);
                 await cn.OpenAsync();
 
                 var sql = @"
                     SELECT TOP (@Limit)
                         z.ID,
                         z.DataOdbioru,
-                        k.Nazwa as Odbiorca,
+                        z.Odbiorca,
                         ISNULL(SUM(zp.Ilosc), 0) as Kg,
                         ISNULL(SUM(zp.Ilosc * CAST(ISNULL(zp.Cena, 0) AS DECIMAL(18,2))), 0) as Wartosc,
                         CASE WHEN z.Anulowane = 1 THEN 'Anulowane' ELSE 'Aktywne' END as Status,
                         ISNULL(z.TransportStatus, 'Firma') as TransportStatus
                     FROM ZamowieniaMieso z
                     LEFT JOIN ZamowieniaMiesoPozycje zp ON z.ID = zp.ZamowienieId
-                    LEFT JOIN Kontrahenci k ON z.OdbiorcaId = k.id
                     WHERE 1=1";
 
                 if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
                     sql += " AND z.Handlowiec = @Handlowiec";
 
                 sql += @"
-                    GROUP BY z.ID, z.DataOdbioru, k.Nazwa, z.Anulowane, z.TransportStatus
+                    GROUP BY z.ID, z.DataOdbioru, z.Odbiorca, z.Anulowane, z.TransportStatus
                     ORDER BY z.DataOdbioru DESC, z.ID DESC";
 
                 await using var cmd = new SqlCommand(sql, cn);
@@ -385,7 +382,7 @@ namespace Kalendarz1.HandlowiecDashboard.Services
 
             try
             {
-                await using var cn = new SqlConnection(_connectionStringHandel);
+                await using var cn = new SqlConnection(_connectionStringLibraNet);
                 await cn.OpenAsync();
 
                 var sql = @"
@@ -421,7 +418,7 @@ namespace Kalendarz1.HandlowiecDashboard.Services
 
             try
             {
-                await using var cn = new SqlConnection(_connectionStringHandel);
+                await using var cn = new SqlConnection(_connectionStringLibraNet);
                 await cn.OpenAsync();
 
                 for (int i = 0; i < 6; i++)
@@ -483,7 +480,7 @@ namespace Kalendarz1.HandlowiecDashboard.Services
 
             try
             {
-                await using var cn = new SqlConnection(_connectionStringHandel);
+                await using var cn = new SqlConnection(_connectionStringLibraNet);
                 await cn.OpenAsync();
 
                 var sql = @"
@@ -559,19 +556,19 @@ namespace Kalendarz1.HandlowiecDashboard.Services
 
             try
             {
-                await using var cn = new SqlConnection(_connectionStringHandel);
+                await using var cn = new SqlConnection(_connectionStringLibraNet);
                 await cn.OpenAsync();
 
+                // Grupujemy po handlowcach zamiast po województwach (brak danych geograficznych w LibraNet)
                 var sql = @"
                     SELECT TOP 10
-                        ISNULL(k.Wojewodztwo, 'Nieznane') as Wojewodztwo,
+                        ISNULL(z.Handlowiec, 'Nieznany') as Handlowiec,
                         COUNT(DISTINCT z.ID) as LiczbaZamowien,
                         ISNULL(SUM(zp.Ilosc), 0) as SumaKg,
                         ISNULL(SUM(zp.Ilosc * CAST(ISNULL(zp.Cena, 0) AS DECIMAL(18,2))), 0) as SumaWartosc,
                         COUNT(DISTINCT z.OdbiorcaId) as LiczbaOdbiorcow
                     FROM ZamowieniaMieso z
                     LEFT JOIN ZamowieniaMiesoPozycje zp ON z.ID = zp.ZamowienieId
-                    LEFT JOIN Kontrahenci k ON z.OdbiorcaId = k.id
                     WHERE z.DataOdbioru >= @DataStart
                         AND (z.Anulowane IS NULL OR z.Anulowane = 0)";
 
@@ -579,7 +576,7 @@ namespace Kalendarz1.HandlowiecDashboard.Services
                     sql += " AND z.Handlowiec = @Handlowiec";
 
                 sql += @"
-                    GROUP BY ISNULL(k.Wojewodztwo, 'Nieznane')
+                    GROUP BY ISNULL(z.Handlowiec, 'Nieznany')
                     ORDER BY SumaWartosc DESC";
 
                 await using var cmd = new SqlCommand(sql, cn);
@@ -628,7 +625,7 @@ namespace Kalendarz1.HandlowiecDashboard.Services
 
             try
             {
-                await using var cn = new SqlConnection(_connectionStringHandel);
+                await using var cn = new SqlConnection(_connectionStringLibraNet);
                 await cn.OpenAsync();
 
                 var sql = @"
@@ -686,7 +683,7 @@ namespace Kalendarz1.HandlowiecDashboard.Services
 
             try
             {
-                await using var cn = new SqlConnection(_connectionStringHandel);
+                await using var cn = new SqlConnection(_connectionStringLibraNet);
                 await cn.OpenAsync();
 
                 var sql = @"
@@ -753,7 +750,7 @@ namespace Kalendarz1.HandlowiecDashboard.Services
 
             try
             {
-                await using var cn = new SqlConnection(_connectionStringHandel);
+                await using var cn = new SqlConnection(_connectionStringLibraNet);
                 await cn.OpenAsync();
 
                 // Pobierz dane dla ostatnich 7 dni i poprzednich 7 dni do porównania
