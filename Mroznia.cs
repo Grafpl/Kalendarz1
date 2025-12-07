@@ -3537,102 +3537,206 @@ namespace Kalendarz1
         public decimal Ilosc { get; private set; }
         public string Uwagi { get; private set; } = "";
 
-        private ComboBox cmbTyp, cmbProdukt;
+        private Panel headerPanel;
+        private Label lblHeader;
+        private RadioButton rbPrzyjecie, rbWydanie;
         private DateTimePicker dtpData;
+        private TextBox txtSearch;
+        private ListBox lstProdukty;
+        private Label lblProduktyInfo;
         private NumericUpDown nudIlosc;
         private TextBox txtUwagi;
+        private Button btnZapisz;
         private List<ProduktMrozony> produkty = new List<ProduktMrozony>();
+        private List<ProduktMrozony> filteredProdukty = new List<ProduktMrozony>();
+
+        private readonly Color colorPrzyjecie = Color.FromArgb(40, 167, 69);
+        private readonly Color colorWydanie = Color.FromArgb(220, 53, 69);
 
         public WydanieZewnetrzneDialog(string nazwaMrozni, string connectionString)
         {
             this.Text = $"Operacja - {nazwaMrozni}";
-            this.Size = new Size(420, 360);
+            this.Size = new Size(500, 580);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
-            this.BackColor = Color.White;
+            this.BackColor = Color.FromArgb(245, 247, 250);
             this.Font = new Font("Segoe UI", 10F);
 
-            // Załaduj produkty
             LoadProdukty(connectionString);
 
-            int y = 20;
-
-            // Typ operacji
-            Label lblTyp = new Label { Text = "Typ operacji:", Location = new Point(20, y), AutoSize = true };
-            cmbTyp = new ComboBox
+            // === HEADER DYNAMICZNY ===
+            headerPanel = new Panel
             {
-                Location = new Point(20, y + 22),
-                Size = new Size(360, 28),
-                DropDownStyle = ComboBoxStyle.DropDownList,
+                Dock = DockStyle.Top,
+                Height = 60,
+                BackColor = colorPrzyjecie
+            };
+            lblHeader = new Label
+            {
+                Text = "📥  PRZYJĘCIE DO MROŹNI",
+                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                ForeColor = Color.White,
+                AutoSize = false,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Dock = DockStyle.Fill
+            };
+            headerPanel.Controls.Add(lblHeader);
+            this.Controls.Add(headerPanel);
+
+            // === PANEL GŁÓWNY ===
+            Panel mainPanel = new Panel
+            {
+                Location = new Point(15, 75),
+                Size = new Size(455, 455),
+                BackColor = Color.White
+            };
+            mainPanel.Paint += (s, e) => {
+                using (var pen = new Pen(Color.FromArgb(220, 220, 220), 1))
+                    e.Graphics.DrawRectangle(pen, 0, 0, mainPanel.Width - 1, mainPanel.Height - 1);
+            };
+            this.Controls.Add(mainPanel);
+
+            int y = 15;
+
+            // === TYP OPERACJI - RADIO BUTTONS ===
+            Label lblTyp = new Label { Text = "Typ operacji:", Location = new Point(15, y), AutoSize = true, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
+            mainPanel.Controls.Add(lblTyp);
+            y += 25;
+
+            rbPrzyjecie = new RadioButton
+            {
+                Text = "📥 Przyjęcie (do mroźni)",
+                Location = new Point(15, y),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 11F),
+                Checked = true
+            };
+            rbPrzyjecie.CheckedChanged += TypOperacji_Changed;
+
+            rbWydanie = new RadioButton
+            {
+                Text = "📤 Wydanie (z mroźni)",
+                Location = new Point(230, y),
+                AutoSize = true,
                 Font = new Font("Segoe UI", 11F)
             };
-            cmbTyp.Items.AddRange(new[] { "Przyjęcie (do mroźni)", "Wydanie (z mroźni)" });
-            cmbTyp.SelectedIndex = 0;
-            this.Controls.AddRange(new Control[] { lblTyp, cmbTyp });
-            y += 55;
+            rbWydanie.CheckedChanged += TypOperacji_Changed;
 
-            // Data
-            Label lblData = new Label { Text = "Data:", Location = new Point(20, y), AutoSize = true };
+            mainPanel.Controls.AddRange(new Control[] { rbPrzyjecie, rbWydanie });
+            y += 35;
+
+            // === DATA ===
+            Label lblData = new Label { Text = "Data:", Location = new Point(15, y), AutoSize = true, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
             dtpData = new DateTimePicker
             {
-                Location = new Point(20, y + 22),
-                Size = new Size(170, 28),
+                Location = new Point(15, y + 22),
+                Size = new Size(150, 28),
                 Format = DateTimePickerFormat.Short,
                 Font = new Font("Segoe UI", 11F)
             };
-            this.Controls.AddRange(new Control[] { lblData, dtpData });
-            y += 55;
+            mainPanel.Controls.AddRange(new Control[] { lblData, dtpData });
+            y += 60;
 
-            // Produkt - ComboBox z autocomplete
-            Label lblProdukt = new Label { Text = "Produkt:", Location = new Point(20, y), AutoSize = true };
-            cmbProdukt = new ComboBox
+            // === WYSZUKIWANIE PRODUKTU ===
+            Label lblProdukt = new Label { Text = "Produkt (wpisz aby filtrować):", Location = new Point(15, y), AutoSize = true, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
+            mainPanel.Controls.Add(lblProdukt);
+            y += 22;
+
+            txtSearch = new TextBox
             {
-                Location = new Point(20, y + 22),
-                Size = new Size(360, 28),
-                DropDownStyle = ComboBoxStyle.DropDown,
-                AutoCompleteMode = AutoCompleteMode.SuggestAppend,
-                AutoCompleteSource = AutoCompleteSource.ListItems,
+                Location = new Point(15, y),
+                Size = new Size(425, 28),
                 Font = new Font("Segoe UI", 11F)
             };
-            foreach (var p in produkty)
-                cmbProdukt.Items.Add($"{p.Kod} - {p.Nazwa}");
-            this.Controls.AddRange(new Control[] { lblProdukt, cmbProdukt });
-            y += 55;
+            txtSearch.TextChanged += TxtSearch_TextChanged;
+            txtSearch.GotFocus += (s, e) => txtSearch.BackColor = Color.FromArgb(255, 255, 230);
+            txtSearch.LostFocus += (s, e) => txtSearch.BackColor = Color.White;
+            mainPanel.Controls.Add(txtSearch);
+            y += 35;
 
-            // Ilość
-            Label lblIlosc = new Label { Text = "Ilość (kg):", Location = new Point(20, y), AutoSize = true };
+            // === LISTA PRODUKTÓW ===
+            lstProdukty = new ListBox
+            {
+                Location = new Point(15, y),
+                Size = new Size(425, 120),
+                Font = new Font("Segoe UI", 10F),
+                BorderStyle = BorderStyle.FixedSingle
+            };
+            lstProdukty.SelectedIndexChanged += LstProdukty_SelectedIndexChanged;
+            mainPanel.Controls.Add(lstProdukty);
+            y += 125;
+
+            lblProduktyInfo = new Label
+            {
+                Location = new Point(15, y),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 8F, FontStyle.Italic),
+                ForeColor = Color.Gray
+            };
+            mainPanel.Controls.Add(lblProduktyInfo);
+            y += 25;
+
+            // === ILOŚĆ Z PRZYCISKAMI ===
+            Label lblIlosc = new Label { Text = "Ilość (kg):", Location = new Point(15, y), AutoSize = true, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
+            mainPanel.Controls.Add(lblIlosc);
+            y += 22;
+
             nudIlosc = new NumericUpDown
             {
-                Location = new Point(20, y + 22),
-                Size = new Size(120, 28),
+                Location = new Point(15, y),
+                Size = new Size(100, 32),
                 Minimum = 1,
                 Maximum = 999999,
                 Value = 100,
-                Font = new Font("Segoe UI", 11F)
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                TextAlign = HorizontalAlignment.Center
             };
-            this.Controls.AddRange(new Control[] { lblIlosc, nudIlosc });
-            y += 55;
+            mainPanel.Controls.Add(nudIlosc);
 
-            // Uwagi
-            Label lblUwagi = new Label { Text = "Uwagi:", Location = new Point(20, y), AutoSize = true };
+            // Przyciski szybkiego dodawania
+            int btnX = 125;
+            foreach (var val in new[] { -50, -10, +10, +50, +100 })
+            {
+                Button btn = new Button
+                {
+                    Text = val > 0 ? $"+{val}" : val.ToString(),
+                    Location = new Point(btnX, y),
+                    Size = new Size(55, 32),
+                    FlatStyle = FlatStyle.Flat,
+                    BackColor = val > 0 ? Color.FromArgb(200, 230, 200) : Color.FromArgb(255, 220, 220),
+                    Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                };
+                btn.FlatAppearance.BorderColor = val > 0 ? Color.FromArgb(100, 180, 100) : Color.FromArgb(200, 100, 100);
+                int addVal = val;
+                btn.Click += (s, e) => {
+                    decimal newVal = nudIlosc.Value + addVal;
+                    if (newVal >= nudIlosc.Minimum && newVal <= nudIlosc.Maximum)
+                        nudIlosc.Value = newVal;
+                };
+                mainPanel.Controls.Add(btn);
+                btnX += 60;
+            }
+            y += 45;
+
+            // === UWAGI ===
+            Label lblUwagi = new Label { Text = "Uwagi:", Location = new Point(15, y), AutoSize = true, Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
             txtUwagi = new TextBox
             {
-                Location = new Point(20, y + 22),
-                Size = new Size(360, 28),
+                Location = new Point(15, y + 22),
+                Size = new Size(425, 28),
                 Font = new Font("Segoe UI", 10F)
             };
-            this.Controls.AddRange(new Control[] { lblUwagi, txtUwagi });
-            y += 55;
+            mainPanel.Controls.AddRange(new Control[] { lblUwagi, txtUwagi });
 
-            // Przyciski
-            Button btnZapisz = new Button
+            // === PRZYCISKI NA DOLE ===
+            btnZapisz = new Button
             {
-                Text = "Zapisz",
-                Location = new Point(200, y),
-                Size = new Size(85, 35),
-                BackColor = Color.FromArgb(40, 167, 69),
+                Text = "✓ ZAPISZ",
+                Location = new Point(280, 535),
+                Size = new Size(100, 38),
+                BackColor = colorPrzyjecie,
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
@@ -3644,11 +3748,12 @@ namespace Kalendarz1
             Button btnAnuluj = new Button
             {
                 Text = "Anuluj",
-                Location = new Point(295, y),
-                Size = new Size(85, 35),
+                Location = new Point(390, 535),
+                Size = new Size(80, 38),
                 BackColor = Color.FromArgb(108, 117, 125),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10F),
                 DialogResult = DialogResult.Cancel
             };
             btnAnuluj.FlatAppearance.BorderSize = 0;
@@ -3656,6 +3761,63 @@ namespace Kalendarz1
             this.Controls.AddRange(new Control[] { btnZapisz, btnAnuluj });
             this.AcceptButton = btnZapisz;
             this.CancelButton = btnAnuluj;
+
+            // Załaduj listę produktów
+            RefreshProductList();
+        }
+
+        private void TypOperacji_Changed(object sender, EventArgs e)
+        {
+            if (rbPrzyjecie.Checked)
+            {
+                headerPanel.BackColor = colorPrzyjecie;
+                lblHeader.Text = "📥  PRZYJĘCIE DO MROŹNI";
+                btnZapisz.BackColor = colorPrzyjecie;
+            }
+            else
+            {
+                headerPanel.BackColor = colorWydanie;
+                lblHeader.Text = "📤  WYDANIE Z MROŹNI";
+                btnZapisz.BackColor = colorWydanie;
+            }
+        }
+
+        private void TxtSearch_TextChanged(object sender, EventArgs e)
+        {
+            RefreshProductList();
+        }
+
+        private void RefreshProductList()
+        {
+            string filter = txtSearch.Text.Trim().ToLower();
+            lstProdukty.Items.Clear();
+            filteredProdukty.Clear();
+
+            foreach (var p in produkty)
+            {
+                if (string.IsNullOrEmpty(filter) ||
+                    p.Nazwa.ToLower().Contains(filter) ||
+                    p.Kod.ToLower().Contains(filter))
+                {
+                    filteredProdukty.Add(p);
+                    lstProdukty.Items.Add($"{p.Kod} - {p.Nazwa}");
+                }
+            }
+
+            lblProduktyInfo.Text = $"Znaleziono: {filteredProdukty.Count} z {produkty.Count} produktów";
+
+            if (filteredProdukty.Count == 1)
+                lstProdukty.SelectedIndex = 0;
+        }
+
+        private void LstProdukty_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (lstProdukty.SelectedIndex >= 0)
+            {
+                txtSearch.TextChanged -= TxtSearch_TextChanged;
+                txtSearch.Text = lstProdukty.SelectedItem?.ToString() ?? "";
+                txtSearch.TextChanged += TxtSearch_TextChanged;
+            }
         }
 
         private void LoadProdukty(string connectionString)
@@ -3688,18 +3850,17 @@ namespace Kalendarz1
 
         private void BtnZapisz_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(cmbProdukt.Text))
+            if (lstProdukty.SelectedIndex < 0 && string.IsNullOrWhiteSpace(txtSearch.Text))
             {
-                MessageBox.Show("Wybierz lub wpisz produkt.", "Brak produktu", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Wybierz produkt z listy.", "Brak produktu", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 this.DialogResult = DialogResult.None;
                 return;
             }
 
             Data = dtpData.Value.Date;
-            Typ = cmbTyp.SelectedIndex == 0 ? "Przyjęcie" : "Wydanie";
+            Typ = rbPrzyjecie.Checked ? "Przyjęcie" : "Wydanie";
 
-            // Parsuj produkt (format: "KOD - Nazwa")
-            string txt = cmbProdukt.Text.Trim();
+            string txt = txtSearch.Text.Trim();
             int sep = txt.IndexOf(" - ");
             if (sep > 0)
             {
