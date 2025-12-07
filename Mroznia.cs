@@ -33,7 +33,7 @@ namespace Kalendarz1
         private DateTimePicker dtpOd, dtpDo, dtpStanMagazynu;
         private Button btnAnalizuj, btnWykres, btnStanMagazynu, btnEksport, btnResetFiltr, btnSzybkiRaport, btnMapowanie;
         private DataGridView dgvDzienne, dgvAnaliza, dgvStanMagazynu, dgvZamowienia;
-        private DataGridView dgvMroznieZewnetrzne, dgvWydaniaZewnetrzne;
+        private DataGridView dgvMroznieZewnetrzne, dgvWydaniaZewnetrzne, dgvStanMrozniZewnetrznych;
         private TabControl tabControl;
         private ComboBox cmbFiltrProduktu, cmbPredkosc, cmbWykresTyp, cmbFiltrMroznia;
         private TextBox txtSzukaj;
@@ -902,12 +902,27 @@ namespace Kalendarz1
                     splitZewn.SplitterDistance = splitZewn.Width / 3;
             };
 
-            // Lewa: Lista mroźni
+            // Lewa: Split - Lista mroźni górna / Stan zbiorczy dolny
             Panel zewnLeftPanel = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+
+            SplitContainer splitLeftMroznia = new SplitContainer
+            {
+                Dock = DockStyle.Fill,
+                Orientation = Orientation.Horizontal,
+                SplitterWidth = 5,
+                BackColor = BackgroundColor
+            };
+            splitLeftMroznia.SizeChanged += (s, e) => {
+                if (splitLeftMroznia.Height > 0)
+                    splitLeftMroznia.SplitterDistance = (int)(splitLeftMroznia.Height * 0.35);
+            };
+
+            // Górna część: Lista mroźni
+            Panel panelListaMrozni = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             Panel zewnLeftHeader = new Panel { Dock = DockStyle.Top, Height = 35, BackColor = SuccessColor };
             Label lblZewnLeft = new Label
             {
-                Text = "LISTA MROŹNI ZEWNĘTRZNYCH",
+                Text = "📋 LISTA MROŹNI ZEWNĘTRZNYCH",
                 Dock = DockStyle.Fill,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 ForeColor = Color.White,
@@ -921,8 +936,33 @@ namespace Kalendarz1
 
             Panel zewnLeftGrid = new Panel { Dock = DockStyle.Fill };
             zewnLeftGrid.Controls.Add(dgvMroznieZewnetrzne);
-            zewnLeftPanel.Controls.Add(zewnLeftGrid);
-            zewnLeftPanel.Controls.Add(zewnLeftHeader);
+            panelListaMrozni.Controls.Add(zewnLeftGrid);
+            panelListaMrozni.Controls.Add(zewnLeftHeader);
+
+            // Dolna część: Stan zbiorczy wszystkich mroźni
+            Panel panelStanZbiorczy = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            Panel stanZbiorczyHeader = new Panel { Dock = DockStyle.Top, Height = 35, BackColor = Color.FromArgb(108, 117, 125) };
+            Label lblStanZbiorczy = new Label
+            {
+                Text = "📦 STAN WSZYSTKICH MROŹNI ZEWNĘTRZNYCH",
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.White,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            stanZbiorczyHeader.Controls.Add(lblStanZbiorczy);
+
+            dgvStanMrozniZewnetrznych = CreateStyledDataGridView();
+            dgvStanMrozniZewnetrznych.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(108, 117, 125);
+
+            Panel stanZbiorczyGrid = new Panel { Dock = DockStyle.Fill };
+            stanZbiorczyGrid.Controls.Add(dgvStanMrozniZewnetrznych);
+            panelStanZbiorczy.Controls.Add(stanZbiorczyGrid);
+            panelStanZbiorczy.Controls.Add(stanZbiorczyHeader);
+
+            splitLeftMroznia.Panel1.Controls.Add(panelListaMrozni);
+            splitLeftMroznia.Panel2.Controls.Add(panelStanZbiorczy);
+            zewnLeftPanel.Controls.Add(splitLeftMroznia);
 
             // Prawa: Szczegóły i wydania
             Panel zewnRightPanel = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
@@ -2264,9 +2304,29 @@ namespace Kalendarz1
                             scaloneDane[kodDocelowy] = dane;
                         }
 
+                        // Pobierz stany mroźni zewnętrznych per produkt
+                        var stanyMrozniZewn = GetStanMrozniZewnetrznychPerProdukt();
+                        var nazwyMrozniZewn = stanyMrozniZewn.Values
+                            .SelectMany(d => d.Keys)
+                            .Distinct()
+                            .OrderBy(n => n)
+                            .ToList();
+                        bool maJakasZewnetrznaMroznia = nazwyMrozniZewn.Count > 0;
+
                         dtFinal = new DataTable();
                         dtFinal.Columns.Add("Kod", typeof(string));
                         dtFinal.Columns.Add("Stan (kg)", typeof(decimal));
+
+                        // Dodaj kolumny dla mroźni zewnętrznych jeśli są
+                        if (maJakasZewnetrznaMroznia)
+                        {
+                            foreach (var nazwaMrozni in nazwyMrozniZewn)
+                            {
+                                dtFinal.Columns.Add($"MZ: {nazwaMrozni}", typeof(decimal));
+                            }
+                            dtFinal.Columns.Add("Suma Stan", typeof(decimal));
+                        }
+
                         dtFinal.Columns.Add("Rez. (kg)", typeof(decimal));
                         dtFinal.Columns.Add("Zmiana", typeof(string));
                         dtFinal.Columns.Add("Status", typeof(string));
@@ -2289,7 +2349,58 @@ namespace Kalendarz1
                             // Pobierz rezerwację dla produktu
                             decimal rezerwacja = rezerwacjePerProdukt.ContainsKey(kod) ? rezerwacjePerProdukt[kod] : 0;
 
-                            dtFinal.Rows.Add(kod, stan, rezerwacja, zmiana, status);
+                            var row = dtFinal.NewRow();
+                            row["Kod"] = kod;
+                            row["Stan (kg)"] = stan;
+
+                            // Wypełnij stany mroźni zewnętrznych
+                            decimal sumaMrozniZewn = 0;
+                            if (maJakasZewnetrznaMroznia)
+                            {
+                                foreach (var nazwaMrozni in nazwyMrozniZewn)
+                                {
+                                    decimal stanMrozni = 0;
+                                    if (stanyMrozniZewn.ContainsKey(kod) && stanyMrozniZewn[kod].ContainsKey(nazwaMrozni))
+                                        stanMrozni = stanyMrozniZewn[kod][nazwaMrozni];
+                                    row[$"MZ: {nazwaMrozni}"] = stanMrozni;
+                                    sumaMrozniZewn += stanMrozni;
+                                }
+                                row["Suma Stan"] = stan + sumaMrozniZewn;
+                            }
+
+                            row["Rez. (kg)"] = rezerwacja;
+                            row["Zmiana"] = zmiana;
+                            row["Status"] = status;
+
+                            dtFinal.Rows.Add(row);
+                        }
+
+                        // Dodaj produkty które są tylko na mroźniach zewnętrznych
+                        foreach (var kodZewn in stanyMrozniZewn.Keys)
+                        {
+                            if (!scaloneDane.ContainsKey(kodZewn))
+                            {
+                                var row = dtFinal.NewRow();
+                                row["Kod"] = kodZewn;
+                                row["Stan (kg)"] = 0m;
+
+                                decimal sumaMrozniZewn = 0;
+                                foreach (var nazwaMrozni in nazwyMrozniZewn)
+                                {
+                                    decimal stanMrozni = stanyMrozniZewn[kodZewn].ContainsKey(nazwaMrozni)
+                                        ? stanyMrozniZewn[kodZewn][nazwaMrozni]
+                                        : 0;
+                                    row[$"MZ: {nazwaMrozni}"] = stanMrozni;
+                                    sumaMrozniZewn += stanMrozni;
+                                }
+                                row["Suma Stan"] = sumaMrozniZewn;
+                                row["Rez. (kg)"] = 0m;
+                                row["Zmiana"] = "";
+                                row["Status"] = sumaMrozniZewn > 0 ? "OK" : "";
+
+                                if (sumaMrozniZewn != 0)
+                                    dtFinal.Rows.Add(row);
+                            }
                         }
                     }
 
@@ -2300,6 +2411,30 @@ namespace Kalendarz1
                     FormatujKolumne(dgvStanMagazynu, "Stan (kg)", "Stan", "N0");
                     FormatujKolumne(dgvStanMagazynu, "Rez. (kg)", "Rez.", "N0");
                     FormatujKolumne(dgvStanMagazynu, "Zmiana", "Zmiana");
+
+                    // Formatuj kolumny mroźni zewnętrznych
+                    foreach (DataGridViewColumn col in dgvStanMagazynu.Columns)
+                    {
+                        if (col.Name.StartsWith("MZ: "))
+                        {
+                            col.DefaultCellStyle.Format = "N0";
+                            col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                            col.DefaultCellStyle.BackColor = Color.FromArgb(255, 253, 240);
+                            col.HeaderCell.Style.BackColor = Color.FromArgb(255, 193, 7);
+                            col.HeaderCell.Style.ForeColor = Color.Black;
+                        }
+                    }
+
+                    // Formatuj kolumnę Suma Stan
+                    if (dgvStanMagazynu.Columns.Contains("Suma Stan"))
+                    {
+                        var colSuma = dgvStanMagazynu.Columns["Suma Stan"];
+                        colSuma.DefaultCellStyle.Format = "N0";
+                        colSuma.DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                        colSuma.DefaultCellStyle.BackColor = Color.FromArgb(230, 247, 255);
+                        colSuma.HeaderCell.Style.BackColor = Color.FromArgb(0, 123, 255);
+                        colSuma.HeaderCell.Style.ForeColor = Color.White;
+                    }
 
                     // Ukryj kolumnę Status
                     if (dgvStanMagazynu.Columns.Contains("Status"))
@@ -3055,6 +3190,131 @@ namespace Kalendarz1
             dgvMroznieZewnetrzne.DataSource = dt;
             dgvMroznieZewnetrzne.Columns["ID"].Visible = false;
             dgvMroznieZewnetrzne.Columns["Stan (kg)"].DefaultCellStyle.Format = "N0";
+
+            // Załaduj stan zbiorczy wszystkich mroźni
+            LoadStanZbiorczyMrozniZewnetrznych(mroznie);
+        }
+
+        private void LoadStanZbiorczyMrozniZewnetrznych(List<MrozniaZewnetrzna> mroznie)
+        {
+            // Słownik: kod produktu -> (nazwa produktu, słownik: nazwa mroźni -> ilość)
+            var stanPerProdukt = new Dictionary<string, (string Nazwa, Dictionary<string, decimal> StanyPerMroznia)>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var mroznia in mroznie)
+            {
+                if (mroznia.Wydania == null) continue;
+
+                foreach (var w in mroznia.Wydania)
+                {
+                    string kod = w.KodProduktu ?? "";
+                    if (string.IsNullOrEmpty(kod)) continue;
+
+                    if (!stanPerProdukt.ContainsKey(kod))
+                        stanPerProdukt[kod] = (w.Produkt ?? kod, new Dictionary<string, decimal>());
+
+                    var stanyMrozni = stanPerProdukt[kod].StanyPerMroznia;
+                    if (!stanyMrozni.ContainsKey(mroznia.Nazwa))
+                        stanyMrozni[mroznia.Nazwa] = 0;
+
+                    if (w.Typ == "Przyjęcie")
+                        stanyMrozni[mroznia.Nazwa] += w.Ilosc;
+                    else if (w.Typ == "Wydanie")
+                        stanyMrozni[mroznia.Nazwa] -= w.Ilosc;
+                }
+            }
+
+            // Utwórz DataTable z kolumnami dla każdej mroźni
+            DataTable dt = new DataTable();
+            dt.Columns.Add("Kod", typeof(string));
+            dt.Columns.Add("Produkt", typeof(string));
+
+            // Dodaj kolumny dla każdej mroźni
+            var nazwyMrozni = mroznie.Select(m => m.Nazwa).OrderBy(n => n).ToList();
+            foreach (var nazwa in nazwyMrozni)
+            {
+                dt.Columns.Add(nazwa, typeof(decimal));
+            }
+            dt.Columns.Add("SUMA", typeof(decimal));
+
+            // Wypełnij danymi
+            foreach (var kvp in stanPerProdukt.OrderByDescending(x => x.Value.StanyPerMroznia.Values.Sum()))
+            {
+                var row = dt.NewRow();
+                row["Kod"] = kvp.Key;
+                row["Produkt"] = kvp.Value.Nazwa;
+
+                decimal suma = 0;
+                foreach (var nazwa in nazwyMrozni)
+                {
+                    decimal stanMrozni = kvp.Value.StanyPerMroznia.ContainsKey(nazwa) ? kvp.Value.StanyPerMroznia[nazwa] : 0;
+                    row[nazwa] = stanMrozni;
+                    suma += stanMrozni;
+                }
+                row["SUMA"] = suma;
+
+                // Dodaj tylko jeśli jest jakiś stan
+                if (suma != 0)
+                    dt.Rows.Add(row);
+            }
+
+            dgvStanMrozniZewnetrznych.DataSource = dt;
+
+            // Formatowanie
+            dgvStanMrozniZewnetrznych.BeginInvoke(new Action(() =>
+            {
+                try
+                {
+                    foreach (DataGridViewColumn col in dgvStanMrozniZewnetrznych.Columns)
+                    {
+                        if (col.ValueType == typeof(decimal))
+                        {
+                            col.DefaultCellStyle.Format = "N0";
+                            col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                        }
+                    }
+
+                    // Wyróżnij kolumnę SUMA
+                    if (dgvStanMrozniZewnetrznych.Columns["SUMA"] != null)
+                    {
+                        dgvStanMrozniZewnetrznych.Columns["SUMA"].DefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                        dgvStanMrozniZewnetrznych.Columns["SUMA"].DefaultCellStyle.BackColor = Color.FromArgb(240, 248, 255);
+                    }
+                }
+                catch { }
+            }));
+        }
+
+        /// <summary>
+        /// Pobiera stan mroźni zewnętrznych per produkt (dla integracji ze stanem magazynu)
+        /// </summary>
+        private Dictionary<string, Dictionary<string, decimal>> GetStanMrozniZewnetrznychPerProdukt()
+        {
+            var mroznie = WczytajMroznieZewnetrzne();
+            var result = new Dictionary<string, Dictionary<string, decimal>>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var mroznia in mroznie)
+            {
+                if (mroznia.Wydania == null) continue;
+
+                foreach (var w in mroznia.Wydania)
+                {
+                    string kod = w.KodProduktu ?? "";
+                    if (string.IsNullOrEmpty(kod)) continue;
+
+                    if (!result.ContainsKey(kod))
+                        result[kod] = new Dictionary<string, decimal>();
+
+                    if (!result[kod].ContainsKey(mroznia.Nazwa))
+                        result[kod][mroznia.Nazwa] = 0;
+
+                    if (w.Typ == "Przyjęcie")
+                        result[kod][mroznia.Nazwa] += w.Ilosc;
+                    else if (w.Typ == "Wydanie")
+                        result[kod][mroznia.Nazwa] -= w.Ilosc;
+                }
+            }
+
+            return result;
         }
 
         private void DgvMroznieZewnetrzne_SelectionChanged(object sender, EventArgs e)
