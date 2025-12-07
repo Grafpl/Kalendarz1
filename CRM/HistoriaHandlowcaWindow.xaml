@@ -23,30 +23,25 @@
             </Setter>
         </Style>
 
-        <Style x:Key="StatCard" TargetType="Border">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="CornerRadius" Value="10"/>
-            <Setter Property="Padding" Value="20,15"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
-            <Setter Property="BorderThickness" Value="1"/>
+        <Style x:Key="MiniStat" TargetType="Border">
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Margin" Value="3,0"/>
         </Style>
     </Window.Resources>
 
-    <Grid Margin="25">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="500"/>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
+    <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="220"/>
         </Grid.RowDefinitions>
 
-        <!-- HEADER - pełna szerokość -->
-        <Border Grid.ColumnSpan="2" Style="{StaticResource CardStyle}" Padding="25" Margin="0,0,0,20">
+        <!-- HEADER z danymi i mini-statystykami -->
+        <Border Style="{StaticResource CardStyle}" Padding="20" Margin="0,0,0,15">
             <Grid>
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
@@ -54,116 +49,93 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- Avatar -->
-                <Border Background="{StaticResource PrimaryLight}" Width="80" Height="80" CornerRadius="40" Margin="0,0,25,0">
-                    <TextBlock x:Name="txtInitials" Text="??" FontSize="32" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}"
+                <Border Background="{StaticResource PrimaryLight}" Width="60" Height="60" CornerRadius="30" Margin="0,0,15,0">
+                    <TextBlock x:Name="txtInitials" Text="??" FontSize="24" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}"
                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
 
                 <!-- Info -->
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                    <TextBlock x:Name="txtNazwaHandlowca" Text="Nazwa Handlowca" FontSize="28" FontWeight="Bold" Foreground="{StaticResource TextDark}"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                        <Border Background="{StaticResource PrimaryLight}" CornerRadius="4" Padding="10,4" Margin="0,0,15,0">
+                    <TextBlock x:Name="txtNazwaHandlowca" Text="Nazwa Handlowca" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextDark}"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                        <Border Background="{StaticResource PrimaryLight}" CornerRadius="4" Padding="8,3" Margin="0,0,10,0">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="🏆 Pozycja: " FontSize="13" Foreground="{StaticResource TextGray}"/>
-                                <TextBlock x:Name="txtPozycja" Text="#1" FontSize="13" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}"/>
+                                <TextBlock Text="🏆 " FontSize="11"/>
+                                <TextBlock x:Name="txtPozycja" Text="#1" FontSize="11" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}"/>
                             </StackPanel>
                         </Border>
-                        <Border Background="#F3F4F6" CornerRadius="4" Padding="10,4" Margin="0,0,15,0">
+                        <Border Background="#F3F4F6" CornerRadius="4" Padding="8,3" Margin="0,0,10,0">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="📅 Okres: " FontSize="13" Foreground="{StaticResource TextGray}"/>
-                                <TextBlock x:Name="txtOkres" Text="Ostatnie 30 dni" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextDark}"/>
+                                <TextBlock Text="📅 " FontSize="11"/>
+                                <TextBlock x:Name="txtOkres" Text="Ostatnie 30 dni" FontSize="11" Foreground="{StaticResource TextDark}"/>
                             </StackPanel>
                         </Border>
-                        <Border Background="#FEF3C7" CornerRadius="4" Padding="10,4">
+                        <Border Background="#FEF3C7" CornerRadius="4" Padding="8,3">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="📊 Śr. dziennie: " FontSize="13" Foreground="{StaticResource TextGray}"/>
-                                <TextBlock x:Name="txtSrednia" Text="0" FontSize="13" FontWeight="Bold" Foreground="#B45309"/>
+                                <TextBlock Text="📊 Śr: " FontSize="11"/>
+                                <TextBlock x:Name="txtSrednia" Text="0" FontSize="11" FontWeight="Bold" Foreground="#B45309"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
                 </StackPanel>
 
+                <!-- Mini statystyki w środku -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Border Style="{StaticResource MiniStat}" Background="#FFFBEB">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⏳" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBlock x:Name="txtStatProby" Text="0" FontSize="16" FontWeight="Bold" Foreground="#B45309" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource MiniStat}" Background="#F0FDF4">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="✅" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBlock x:Name="txtStatNawiazano" Text="0" FontSize="16" FontWeight="Bold" Foreground="#166534" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource MiniStat}" Background="#F0FDFA">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🤝" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBlock x:Name="txtStatZgoda" Text="0" FontSize="16" FontWeight="Bold" Foreground="#0D9488" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource MiniStat}" Background="#EFF6FF">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="📄" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBlock x:Name="txtStatOferty" Text="0" FontSize="16" FontWeight="Bold" Foreground="#1E40AF" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource MiniStat}" Background="#FEF2F2">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="❌" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBlock x:Name="txtStatNieZaint" Text="0" FontSize="16" FontWeight="Bold" Foreground="#991B1B" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
                 <!-- Skuteczność -->
-                <StackPanel Grid.Column="2" HorizontalAlignment="Center" Margin="30,0">
-                    <TextBlock Text="SKUTECZNOŚĆ" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextGray}" HorizontalAlignment="Center"/>
-                    <TextBlock x:Name="txtSkutecznosc" Text="0%" FontSize="36" FontWeight="Bold" Foreground="#0891B2" HorizontalAlignment="Center"/>
-                    <TextBlock Text="(Zgody + Oferty) / Wszystkie" FontSize="9" Foreground="{StaticResource TextGray}" HorizontalAlignment="Center"/>
+                <StackPanel Grid.Column="3" HorizontalAlignment="Center" Margin="20,0">
+                    <TextBlock Text="SKUTECZNOŚĆ" FontSize="9" FontWeight="Bold" Foreground="{StaticResource TextGray}" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="txtSkutecznosc" Text="0%" FontSize="28" FontWeight="Bold" Foreground="#0891B2" HorizontalAlignment="Center"/>
                 </StackPanel>
 
                 <!-- Suma -->
-                <StackPanel Grid.Column="3" HorizontalAlignment="Right">
-                    <TextBlock x:Name="txtSuma" Text="0" FontSize="48" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}" HorizontalAlignment="Center"/>
-                    <TextBlock Text="WSZYSTKICH AKCJI" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextGray}" HorizontalAlignment="Center"/>
+                <StackPanel Grid.Column="4" HorizontalAlignment="Right">
+                    <TextBlock x:Name="txtSuma" Text="0" FontSize="36" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}" HorizontalAlignment="Center"/>
+                    <TextBlock Text="AKCJI" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextGray}" HorizontalAlignment="Center"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- STATYSTYKI - 5 kart (bez Do zadzwonienia) -->
-        <Grid Grid.Row="1" Grid.ColumnSpan="2" Margin="0,0,0,20">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-
-            <!-- Próba kontaktu -->
-            <Border Grid.Column="0" Style="{StaticResource StatCard}" Background="#FFFBEB" Margin="0,0,10,0">
-                <StackPanel HorizontalAlignment="Center">
-                    <TextBlock Text="⏳" FontSize="28" HorizontalAlignment="Center"/>
-                    <TextBlock x:Name="txtStatProby" Text="0" FontSize="32" FontWeight="Bold" Foreground="#B45309" HorizontalAlignment="Center" Margin="0,8,0,0"/>
-                    <TextBlock Text="Próba kontaktu" FontSize="11" Foreground="{StaticResource TextGray}" HorizontalAlignment="Center"/>
-                </StackPanel>
-            </Border>
-
-            <!-- Nawiązano kontakt -->
-            <Border Grid.Column="1" Style="{StaticResource StatCard}" Background="#F0FDF4" Margin="5,0">
-                <StackPanel HorizontalAlignment="Center">
-                    <TextBlock Text="✅" FontSize="28" HorizontalAlignment="Center"/>
-                    <TextBlock x:Name="txtStatNawiazano" Text="0" FontSize="32" FontWeight="Bold" Foreground="#166534" HorizontalAlignment="Center" Margin="0,8,0,0"/>
-                    <TextBlock Text="Nawiązano kontakt" FontSize="11" Foreground="{StaticResource TextGray}" HorizontalAlignment="Center"/>
-                </StackPanel>
-            </Border>
-
-            <!-- Zgoda -->
-            <Border Grid.Column="2" Style="{StaticResource StatCard}" Background="#F0FDFA" Margin="5,0">
-                <StackPanel HorizontalAlignment="Center">
-                    <TextBlock Text="🤝" FontSize="28" HorizontalAlignment="Center"/>
-                    <TextBlock x:Name="txtStatZgoda" Text="0" FontSize="32" FontWeight="Bold" Foreground="#0D9488" HorizontalAlignment="Center" Margin="0,8,0,0"/>
-                    <TextBlock Text="Zgoda na kontakt" FontSize="11" Foreground="{StaticResource TextGray}" HorizontalAlignment="Center"/>
-                </StackPanel>
-            </Border>
-
-            <!-- Oferty -->
-            <Border Grid.Column="3" Style="{StaticResource StatCard}" Background="#EFF6FF" Margin="5,0">
-                <StackPanel HorizontalAlignment="Center">
-                    <TextBlock Text="📄" FontSize="28" HorizontalAlignment="Center"/>
-                    <TextBlock x:Name="txtStatOferty" Text="0" FontSize="32" FontWeight="Bold" Foreground="#1E40AF" HorizontalAlignment="Center" Margin="0,8,0,0"/>
-                    <TextBlock Text="Wysłane oferty" FontSize="11" Foreground="{StaticResource TextGray}" HorizontalAlignment="Center"/>
-                </StackPanel>
-            </Border>
-
-            <!-- Nie zainteresowany -->
-            <Border Grid.Column="4" Style="{StaticResource StatCard}" Background="#FEF2F2" Margin="10,0,0,0">
-                <StackPanel HorizontalAlignment="Center">
-                    <TextBlock Text="❌" FontSize="28" HorizontalAlignment="Center"/>
-                    <TextBlock x:Name="txtStatNieZaint" Text="0" FontSize="32" FontWeight="Bold" Foreground="#991B1B" HorizontalAlignment="Center" Margin="0,8,0,0"/>
-                    <TextBlock Text="Nie zainteresowani" FontSize="11" Foreground="{StaticResource TextGray}" HorizontalAlignment="Center"/>
-                </StackPanel>
-            </Border>
-        </Grid>
-
-        <!-- HISTORIA AKCJI - lewa strona -->
-        <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource CardStyle}" Padding="20" Margin="0,0,10,0">
+        <!-- PEŁNA HISTORIA AKCJI - szeroka -->
+        <Border Grid.Row="1" Style="{StaticResource CardStyle}" Padding="20" Margin="0,0,0,15">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
                     <TextBlock Text="📋 PEŁNA HISTORIA AKCJI" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextDark}"/>
                     <TextBlock x:Name="txtLiczbaAkcji" Text=" (0 rekordów)" FontSize="14" Foreground="{StaticResource TextGray}"/>
                 </StackPanel>
@@ -178,7 +150,7 @@
                         <Style TargetType="DataGridColumnHeader">
                             <Setter Property="Background" Value="#F9FAFB"/>
                             <Setter Property="Foreground" Value="{StaticResource TextGray}"/>
-                            <Setter Property="Padding" Value="12,10"/>
+                            <Setter Property="Padding" Value="12,8"/>
                             <Setter Property="FontWeight" Value="SemiBold"/>
                             <Setter Property="FontSize" Value="11"/>
                             <Setter Property="BorderThickness" Value="0,0,0,1"/>
@@ -188,7 +160,7 @@
 
                     <DataGrid.RowStyle>
                         <Style TargetType="DataGridRow">
-                            <Setter Property="Height" Value="50"/>
+                            <Setter Property="Height" Value="42"/>
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
                                     <Setter Property="Background" Value="#F9FAFB"/>
@@ -208,12 +180,12 @@
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
 
-                        <DataGridTemplateColumn Header="Status" Width="180">
+                        <DataGridTemplateColumn Header="Status" Width="170">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Border CornerRadius="4" Padding="8,4" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{Binding StatusKolor}">
+                                    <Border CornerRadius="4" Padding="8,3" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{Binding StatusKolor}">
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding StatusIkona}" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                            <TextBlock Text="{Binding StatusIkona}" FontSize="11" VerticalAlignment="Center" Margin="0,0,5,0"/>
                                             <TextBlock Text="{Binding WartoscNowa}" FontSize="11" FontWeight="SemiBold" Foreground="{Binding StatusTekstKolor}" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Border>
@@ -232,7 +204,7 @@
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
 
-                        <DataGridTextColumn Header="Miasto" Binding="{Binding Miasto}" Width="120">
+                        <DataGridTextColumn Header="Miasto" Binding="{Binding Miasto}" Width="130">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="VerticalAlignment" Value="Center"/>
@@ -255,88 +227,82 @@
             </Grid>
         </Border>
 
-        <!-- PANEL PRAWY - Wykres i dodatkowe info -->
-        <Grid Grid.Row="2" Grid.Column="1" Margin="15,0,0,0">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="2*"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
+        <!-- DOLNY PANEL - Wykres miesięczny + Rozkład statusów -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
-            <!-- WYKRES AKTYWNOŚCI -->
-            <Border Style="{StaticResource CardStyle}" Padding="20" Margin="0,0,0,15">
+            <!-- WYKRES MIESIĘCZNY -->
+            <Border Style="{StaticResource CardStyle}" Padding="20" Margin="0,0,10,0">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <TextBlock Text="📈 AKTYWNOŚĆ W CZASIE" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextDark}" Margin="0,0,0,15"/>
+                    <TextBlock Text="📈 AKTYWNOŚĆ MIESIĘCZNA" FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextDark}" Margin="0,0,0,10"/>
 
-                    <Border Grid.Row="1" Background="#F9FAFB" CornerRadius="8" Padding="15">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-
-                            <!-- Wykres słupkowy -->
-                            <ItemsControl x:Name="wykresAktywnosci" VerticalAlignment="Bottom">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <UniformGrid Rows="1"/>
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid Margin="2,0" ToolTip="{Binding Tooltip}">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-                                            <Border Background="{Binding Kolor}" CornerRadius="4,4,0,0"
-                                                    Height="{Binding Wysokosc}" VerticalAlignment="Bottom" MinHeight="5"/>
-                                            <TextBlock Grid.Row="1" Text="{Binding Etykieta}" FontSize="8"
-                                                       HorizontalAlignment="Center" Foreground="{StaticResource TextGray}" Margin="0,4,0,0"/>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </Grid>
+                    <Border Grid.Row="1" Background="#F9FAFB" CornerRadius="8" Padding="15,10">
+                        <ItemsControl x:Name="wykresAktywnosci" VerticalAlignment="Bottom">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Rows="1"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="4,0" ToolTip="{Binding Tooltip}">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <Border Background="{Binding Kolor}" CornerRadius="4,4,0,0"
+                                                Height="{Binding Wysokosc}" VerticalAlignment="Bottom" MinHeight="5"/>
+                                        <TextBlock Grid.Row="1" Text="{Binding Etykieta}" FontSize="10" FontWeight="SemiBold"
+                                                   HorizontalAlignment="Center" Foreground="{StaticResource TextGray}" Margin="0,5,0,0"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </Border>
                 </Grid>
             </Border>
 
-            <!-- PODSUMOWANIE PO STATUSACH -->
-            <Border Grid.Row="1" Style="{StaticResource CardStyle}" Padding="20">
-                <StackPanel>
-                    <TextBlock Text="📊 ROZKŁAD STATUSÓW" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextDark}" Margin="0,0,0,15"/>
+            <!-- ROZKŁAD STATUSÓW -->
+            <Border Grid.Column="1" Style="{StaticResource CardStyle}" Padding="20" Margin="10,0,0,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
 
-                    <ItemsControl x:Name="listaStatusow">
+                    <TextBlock Text="📊 ROZKŁAD STATUSÓW" FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextDark}" Margin="0,0,0,10"/>
+
+                    <ItemsControl x:Name="listaStatusow" Grid.Row="1" VerticalAlignment="Center">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Grid Margin="0,0,0,12">
+                                <Grid Margin="0,0,0,8">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="150"/>
                                         <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="60"/>
+                                        <ColumnDefinition Width="50"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <TextBlock Text="{Binding Ikona}" FontSize="18" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding Nazwa}" FontSize="13" VerticalAlignment="Center" Foreground="{StaticResource TextDark}"/>
+                                    <TextBlock Text="{Binding Ikona}" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
 
-                                    <!-- Progress bar -->
-                                    <Border Grid.Column="2" Height="12" Background="#E5E7EB" CornerRadius="6" Margin="15,0">
-                                        <Border Background="{Binding Kolor}" CornerRadius="6" HorizontalAlignment="Left" Width="{Binding SzerokoscPaska}"/>
+                                    <Border Grid.Column="1" Height="18" Background="#E5E7EB" CornerRadius="9">
+                                        <Border Background="{Binding Kolor}" CornerRadius="9" HorizontalAlignment="Left" Width="{Binding SzerokoscPaska}"/>
                                     </Border>
 
-                                    <TextBlock Grid.Column="3" Text="{Binding Wartosc}" FontSize="16" FontWeight="Bold"
+                                    <TextBlock Grid.Column="2" Text="{Binding Wartosc}" FontSize="14" FontWeight="Bold"
                                                Foreground="{Binding KolorTekst}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                </StackPanel>
+                </Grid>
             </Border>
         </Grid>
     </Grid>

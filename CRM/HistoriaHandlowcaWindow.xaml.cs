@@ -106,33 +106,34 @@ namespace Kalendarz1.CRM
         private void UstawRozkladStatusow()
         {
             int max = Math.Max(1, new[] { proby, nawiazano, zgoda, oferty, nieZainteresowany }.Max());
+            double maxSzerokosc = 180; // Max szerokość paska w pikselach
 
             var statusy = new ObservableCollection<StatusRozklad>
             {
-                new StatusRozklad { Ikona = "⏳", Nazwa = "Próba kontaktu", Wartosc = proby.ToString(),
+                new StatusRozklad { Ikona = "⏳", Wartosc = proby.ToString(),
                     Kolor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B")),
                     KolorTekst = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#B45309")),
-                    SzerokoscPaska = (double)proby / max * 100 },
+                    SzerokoscPaska = (double)proby / max * maxSzerokosc },
 
-                new StatusRozklad { Ikona = "✅", Nazwa = "Nawiązano kontakt", Wartosc = nawiazano.ToString(),
+                new StatusRozklad { Ikona = "✅", Wartosc = nawiazano.ToString(),
                     Kolor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#22C55E")),
                     KolorTekst = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#166534")),
-                    SzerokoscPaska = (double)nawiazano / max * 100 },
+                    SzerokoscPaska = (double)nawiazano / max * maxSzerokosc },
 
-                new StatusRozklad { Ikona = "🤝", Nazwa = "Zgoda na kontakt", Wartosc = zgoda.ToString(),
+                new StatusRozklad { Ikona = "🤝", Wartosc = zgoda.ToString(),
                     Kolor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#14B8A6")),
                     KolorTekst = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0D9488")),
-                    SzerokoscPaska = (double)zgoda / max * 100 },
+                    SzerokoscPaska = (double)zgoda / max * maxSzerokosc },
 
-                new StatusRozklad { Ikona = "📄", Nazwa = "Wysłane oferty", Wartosc = oferty.ToString(),
+                new StatusRozklad { Ikona = "📄", Wartosc = oferty.ToString(),
                     Kolor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3B82F6")),
                     KolorTekst = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E40AF")),
-                    SzerokoscPaska = (double)oferty / max * 100 },
+                    SzerokoscPaska = (double)oferty / max * maxSzerokosc },
 
-                new StatusRozklad { Ikona = "❌", Nazwa = "Nie zainteresowani", Wartosc = nieZainteresowany.ToString(),
+                new StatusRozklad { Ikona = "❌", Wartosc = nieZainteresowany.ToString(),
                     Kolor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444")),
                     KolorTekst = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#991B1B")),
-                    SzerokoscPaska = (double)nieZainteresowany / max * 100 }
+                    SzerokoscPaska = (double)nieZainteresowany / max * maxSzerokosc }
             };
 
             listaStatusow.ItemsSource = statusy;
@@ -146,25 +147,17 @@ namespace Kalendarz1.CRM
                 {
                     conn.Open();
 
-                    string whereDate = wszystkieDni
-                        ? "AND h.DataZmiany > DATEADD(month, -12, GETDATE()) AND h.WartoscNowa NOT IN ('Do zadzwonienia', 'Nowy')"
-                        : "AND h.DataZmiany > DATEADD(day, -30, GETDATE()) AND h.WartoscNowa NOT IN ('Do zadzwonienia', 'Nowy')";
-
-                    // Grupuj po dniach lub tygodniach
-                    string groupBy = wszystkieDni
-                        ? "DATEPART(week, h.DataZmiany), DATEPART(year, h.DataZmiany)"
-                        : "CAST(h.DataZmiany AS DATE)";
-
-                    string selectDate = wszystkieDni
-                        ? "CONCAT('T', DATEPART(week, h.DataZmiany)) as Okres"
-                        : "FORMAT(CAST(h.DataZmiany AS DATE), 'dd.MM') as Okres";
-
-                    var cmd = new SqlCommand($@"
-                        SELECT {selectDate}, COUNT(*) as Liczba
+                    // Zawsze grupuj po miesiącach - ostatnie 12 miesięcy
+                    var cmd = new SqlCommand(@"
+                        SELECT FORMAT(h.DataZmiany, 'MMM yy', 'pl-PL') as Okres,
+                               YEAR(h.DataZmiany) as Rok, MONTH(h.DataZmiany) as Miesiac,
+                               COUNT(*) as Liczba
                         FROM HistoriaZmianCRM h
-                        WHERE h.KtoWykonal = @opId {whereDate}
-                        GROUP BY {groupBy}
-                        ORDER BY MIN(h.DataZmiany)", conn);
+                        WHERE h.KtoWykonal = @opId
+                          AND h.DataZmiany > DATEADD(month, -12, GETDATE())
+                          AND h.WartoscNowa NOT IN ('Do zadzwonienia', 'Nowy')
+                        GROUP BY YEAR(h.DataZmiany), MONTH(h.DataZmiany), FORMAT(h.DataZmiany, 'MMM yy', 'pl-PL')
+                        ORDER BY Rok, Miesiac", conn);
 
                     cmd.Parameters.AddWithValue("@opId", operatorId);
 
@@ -175,7 +168,7 @@ namespace Kalendarz1.CRM
                     if (dt.Rows.Count == 0) return;
 
                     int maxWartosc = dt.AsEnumerable().Max(r => Convert.ToInt32(r["Liczba"]));
-                    double maxWysokosc = 280;
+                    double maxWysokosc = 120;
 
                     var dane = new ObservableCollection<WykresSlupek>();
                     foreach (DataRow row in dt.Rows)
@@ -310,7 +303,6 @@ namespace Kalendarz1.CRM
     public class StatusRozklad
     {
         public string Ikona { get; set; }
-        public string Nazwa { get; set; }
         public string Wartosc { get; set; }
         public SolidColorBrush Kolor { get; set; }
         public SolidColorBrush KolorTekst { get; set; }
