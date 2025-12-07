@@ -2944,16 +2944,21 @@ namespace Kalendarz1
             }
 
             dgvWydaniaZewnetrzne.DataSource = dt;
-            dgvWydaniaZewnetrzne.Columns["Data"].DefaultCellStyle.Format = "dd.MM.yyyy";
-            dgvWydaniaZewnetrzne.Columns["Ilość (kg)"].DefaultCellStyle.Format = "N0";
-            if (dgvWydaniaZewnetrzne.Columns.Contains("Trasa"))
+
+            // Formatowanie kolumn - z null check
+            if (dgvWydaniaZewnetrzne.Columns["Data"] != null)
+                dgvWydaniaZewnetrzne.Columns["Data"].DefaultCellStyle.Format = "dd.MM.yyyy";
+            if (dgvWydaniaZewnetrzne.Columns["Ilość (kg)"] != null)
+                dgvWydaniaZewnetrzne.Columns["Ilość (kg)"].DefaultCellStyle.Format = "N0";
+            if (dgvWydaniaZewnetrzne.Columns["Trasa"] != null)
                 dgvWydaniaZewnetrzne.Columns["Trasa"].Width = 180;
-            if (dgvWydaniaZewnetrzne.Columns.Contains("Klient"))
+            if (dgvWydaniaZewnetrzne.Columns["Klient"] != null)
                 dgvWydaniaZewnetrzne.Columns["Klient"].Width = 120;
 
             // Koloruj wydania/przyjęcia
             foreach (DataGridViewRow row in dgvWydaniaZewnetrzne.Rows)
             {
+                if (row.Cells["Typ"] == null) continue;
                 string typ = row.Cells["Typ"].Value?.ToString();
                 if (typ == "Przyjęcie")
                     row.DefaultCellStyle.ForeColor = Color.FromArgb(40, 167, 69);
