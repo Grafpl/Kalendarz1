@@ -445,29 +445,37 @@ namespace Kalendarz1.Transport
         {
             _kontrahenciCache.Clear();
 
+            // Load coordinates from local cache
+            var coordinatesCache = new CoordinatesCache();
+
             await using var cn = new SqlConnection(_connectionStringHandel);
             await cn.OpenAsync();
 
             var sql = @"
                 SELECT
-                    kh.Id,
-                    kh.Shortcut,
-                    kh.Name,
-                    ISNULL(addr.City, '') AS Miasto,
-                    ISNULL(addr.Street, '') AS Ulica,
-                    ISNULL(addr.ZipCode, '') AS KodPocztowy,
-                    kh.Latitude,
-                    kh.Longitude
-                FROM [HANDEL].[SSCommon].[STContractors] kh
-                LEFT JOIN [HANDEL].[SSCommon].[STContractorsAddr] addr ON kh.Id = addr.ContractorId AND addr.IsDefault = 1
-                WHERE kh.Latitude IS NOT NULL AND kh.Longitude IS NOT NULL";
+                    C.Id,
+                    C.Shortcut,
+                    C.Name,
+                    ISNULL(PA.Place, '') AS Miasto,
+                    ISNULL(PA.Street, '') AS Ulica,
+                    ISNULL(PA.PostCode, '') AS KodPocztowy
+                FROM [HANDEL].[SSCommon].[STContractors] C WITH (NOLOCK)
+                LEFT JOIN [HANDEL].[SSCommon].[STPostOfficeAddresses] PA WITH (NOLOCK)
+                    ON PA.ContactGuid = C.ContactGuid
+                    AND PA.AddressName = 'adres domyślny'
+                WHERE C.Id IS NOT NULL";
 
             await using var cmd = new SqlCommand(sql, cn);
+            cmd.CommandTimeout = 30;
             await using var reader = await cmd.ExecuteReaderAsync();
 
             while (await reader.ReadAsync())
             {
                 var id = reader.GetInt32(0);
+
+                // Get coordinates from local cache
+                var coords = await coordinatesCache.GetCoordinatesAsync(id);
+
                 _kontrahenciCache[id] = new KontrahentMapData
                 {
                     Id = id,
@@ -476,8 +484,8 @@ namespace Kalendarz1.Transport
                     Miasto = reader.IsDBNull(3) ? "" : reader.GetString(3),
                     Ulica = reader.IsDBNull(4) ? "" : reader.GetString(4),
                     KodPocztowy = reader.IsDBNull(5) ? "" : reader.GetString(5),
-                    Latitude = reader.IsDBNull(6) ? 0 : Convert.ToDouble(reader.GetValue(6)),
-                    Longitude = reader.IsDBNull(7) ? 0 : Convert.ToDouble(reader.GetValue(7))
+                    Latitude = coords?.lat ?? 0,
+                    Longitude = coords?.lng ?? 0
                 };
             }
         }
