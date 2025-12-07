@@ -5,10 +5,8 @@ using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -35,58 +33,46 @@ namespace Kalendarz1.CRM
             AutomaticDecompression = System.Net.DecompressionMethods.All
         })
         {
-            Timeout = TimeSpan.FromSeconds(20)
+            Timeout = TimeSpan.FromSeconds(15)
         };
-        private DateTime lastGeocode = DateTime.MinValue;
-        private static readonly TimeSpan GeocodeDelay = TimeSpan.FromMilliseconds(500); // Szybsze dla kodów pocztowych
 
         public MapaCRMWindow(string connString, string opID)
         {
             InitializeComponent();
             connectionString = connString;
             operatorID = opID;
-
             Loaded += MapaCRMWindow_Loaded;
         }
 
         private async void MapaCRMWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            // Inicjalizuj filtry
             InicjalizujFiltry();
 
-            // Inicjalizuj WebView2
             try
             {
                 txtLoadingStatus.Text = "Inicjalizacja WebView2...";
                 await webView.EnsureCoreWebView2Async();
                 isWebViewReady = true;
-
-                // Wczytaj dane i pokaż mapę
                 await OdswiezMapeAsync();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd inicjalizacji WebView2: {ex.Message}\n\nUpewnij się, że masz zainstalowany WebView2 Runtime.",
-                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Błąd inicjalizacji WebView2: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
                 loadingOverlay.Visibility = Visibility.Collapsed;
             }
         }
 
         private void InicjalizujFiltry()
         {
-            // Województwa
             cmbWojewodztwo.Items.Clear();
             cmbWojewodztwo.Items.Add(new ComboBoxItem { Content = "Wszystkie" });
             var wojewodztwa = new[] { "dolnośląskie", "kujawsko-pomorskie", "lubelskie", "lubuskie",
                 "łódzkie", "małopolskie", "mazowieckie", "opolskie", "podkarpackie", "podlaskie",
                 "pomorskie", "śląskie", "świętokrzyskie", "warmińsko-mazurskie", "wielkopolskie", "zachodniopomorskie" };
             foreach (var woj in wojewodztwa)
-            {
                 cmbWojewodztwo.Items.Add(new ComboBoxItem { Content = woj });
-            }
             cmbWojewodztwo.SelectedIndex = 0;
 
-            // Branże
             cmbBranza.Items.Clear();
             cmbBranza.Items.Add(new ComboBoxItem { Content = "Wszystkie branże" });
             cmbBranza.SelectedIndex = 0;
@@ -100,38 +86,28 @@ namespace Kalendarz1.CRM
             try
             {
                 loadingOverlay.Visibility = Visibility.Visible;
-                txtLoadingStatus.Text = "Pobieranie danych z bazy...";
+                txtLoadingStatus.Text = "Pobieranie danych...";
 
-                // Pobierz dane z bazy
                 await Task.Run(() => WczytajDaneZBazy());
-
-                // Wypełnij filtry branż
                 WypelnijFiltrBranz();
 
-                txtLoadingStatus.Text = "Przetwarzanie kontaktów...";
-
-                // Filtruj kontakty
+                txtLoadingStatus.Text = "Filtrowanie...";
                 var przefiltrowane = await FiltrujKontaktyAsync();
 
                 txtLoadingStatus.Text = $"Renderowanie mapy ({przefiltrowane.Count} punktów)...";
-
-                // Generuj i załaduj mapę
                 var html = GenerujHtmlMapy(przefiltrowane);
                 webView.NavigateToString(html);
 
-                // Aktualizuj listę boczną
                 kontaktyNaMapie = przefiltrowane;
                 listaKontaktow.ItemsSource = kontaktyNaMapie.Take(100).ToList();
                 txtLiczbaKontaktow.Text = $"{kontaktyNaMapie.Count} kontaktów";
 
-                // Aktualizuj statystyki
                 AktualizujStatystyki(przefiltrowane);
-
                 loadingOverlay.Visibility = Visibility.Collapsed;
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd wczytywania mapy: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
                 loadingOverlay.Visibility = Visibility.Collapsed;
             }
             finally
@@ -146,18 +122,7 @@ namespace Kalendarz1.CRM
             {
                 conn.Open();
 
-                // Sprawdź czy kolumny Latitude/Longitude istnieją
-                var cmdCheck = new SqlCommand(@"
-                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('OdbiorcyCRM') AND name = 'Latitude')
-                    BEGIN
-                        ALTER TABLE OdbiorcyCRM ADD Latitude FLOAT NULL
-                    END
-                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('OdbiorcyCRM') AND name = 'Longitude')
-                    BEGIN
-                        ALTER TABLE OdbiorcyCRM ADD Longitude FLOAT NULL
-                    END", conn);
-                cmdCheck.ExecuteNonQuery();
-
+                // Prosty JOIN z tabelą KodyPocztowe - współrzędne pobierane z gotowej tabeli
                 var sql = @"
                     SELECT
                         o.ID,
@@ -171,11 +136,12 @@ namespace Kalendarz1.CRM
                         o.PKD_Opis,
                         ISNULL(o.Status, 'Do zadzwonienia') as Status,
                         CASE WHEN pb.PKD_Opis IS NOT NULL THEN 1 ELSE 0 END as CzyPriorytetowa,
-                        o.Latitude,
-                        o.Longitude
+                        kp.Latitude,
+                        kp.Longitude
                     FROM OdbiorcyCRM o
                     LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
                     LEFT JOIN PriorytetoweBranzeCRM pb ON o.PKD_Opis = pb.PKD_Opis
+                    LEFT JOIN KodyPocztowe kp ON o.KOD = kp.Kod
                     WHERE (w.OperatorID = @OperatorID OR w.OperatorID IS NULL)
                         AND ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)')";
 
@@ -206,9 +172,7 @@ namespace Kalendarz1.CRM
                 cmbBranza.Items.Clear();
                 cmbBranza.Items.Add(new ComboBoxItem { Content = "Wszystkie branże" });
                 foreach (var branza in branze)
-                {
                     cmbBranza.Items.Add(new ComboBoxItem { Content = branza, Tag = branza });
-                }
                 cmbBranza.SelectedIndex = currentIndex >= 0 && currentIndex < cmbBranza.Items.Count ? currentIndex : 0;
             });
         }
@@ -218,10 +182,7 @@ namespace Kalendarz1.CRM
             if (dtKontakty == null) return new List<MapKontakt>();
 
             var wynik = new List<MapKontakt>();
-
-            // Pobierz wartości filtrów
-            string filtrWoj = "";
-            string filtrBranza = "";
+            string filtrWoj = "", filtrBranza = "";
             bool tylkoPriorytetowe = false;
             var statusyDoPokazania = new List<string>();
 
@@ -252,46 +213,29 @@ namespace Kalendarz1.CRM
                 if (status == "Nowy" || string.IsNullOrWhiteSpace(status))
                     status = "Do zadzwonienia";
 
-                // Filtr statusu
-                if (!statusyDoPokazania.Contains(status))
-                    continue;
+                if (!statusyDoPokazania.Contains(status)) continue;
 
-                // Filtr województwa
                 var woj = row["Wojewodztwo"]?.ToString()?.ToLower() ?? "";
-                if (!string.IsNullOrEmpty(filtrWoj) && !woj.Contains(filtrWoj))
-                    continue;
+                if (!string.IsNullOrEmpty(filtrWoj) && !woj.Contains(filtrWoj)) continue;
 
-                // Filtr branży
                 var branza = row["PKD_Opis"]?.ToString() ?? "";
-                if (!string.IsNullOrEmpty(filtrBranza) && branza != filtrBranza)
-                    continue;
+                if (!string.IsNullOrEmpty(filtrBranza) && branza != filtrBranza) continue;
 
-                // Filtr priorytetowe
                 var czyPriorytetowa = Convert.ToInt32(row["CzyPriorytetowa"] ?? 0) == 1;
-                if (tylkoPriorytetowe && !czyPriorytetowa)
-                    continue;
+                if (tylkoPriorytetowe && !czyPriorytetowa) continue;
 
-                // Sprawdź współrzędne - TYLKO te które już mają zapisane
-                double lat = 0, lng = 0;
-                bool hasCoords = false;
-
+                // Sprawdź współrzędne z JOIN
                 var latVal = row["Latitude"];
                 var lngVal = row["Longitude"];
 
-                if (latVal != DBNull.Value && lngVal != DBNull.Value)
-                {
-                    if (double.TryParse(latVal?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out lat) &&
-                        double.TryParse(lngVal?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out lng) &&
-                        Math.Abs(lat) > 0.0001 && Math.Abs(lng) > 0.0001)
-                    {
-                        hasCoords = true;
-                    }
-                }
+                if (latVal == DBNull.Value || lngVal == DBNull.Value) continue;
 
-                // Pomiń kontakty bez współrzędnych - geokodowanie w tle
-                if (!hasCoords) continue;
+                if (!double.TryParse(latVal?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double lat) ||
+                    !double.TryParse(lngVal?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double lng))
+                    continue;
 
-                // Dodaj do wyników
+                if (Math.Abs(lat) < 0.001 || Math.Abs(lng) < 0.001) continue;
+
                 var kontakt = new MapKontakt
                 {
                     ID = Convert.ToInt32(row["ID"]),
@@ -308,7 +252,6 @@ namespace Kalendarz1.CRM
                     Lng = lng
                 };
 
-                // Ustaw kolory
                 UstawKoloryStatusu(kontakt);
                 wynik.Add(kontakt);
             }
@@ -316,213 +259,31 @@ namespace Kalendarz1.CRM
             return wynik;
         }
 
-        private async Task<(double lat, double lng)?> GeokodujPoKodziePoczAsync(string kodPocztowy, string miasto, int idOdbiorcy)
-        {
-            if (string.IsNullOrWhiteSpace(kodPocztowy)) return null;
-
-            // Normalizuj kod pocztowy (usuń myślnik, spacje)
-            var kodNormalized = kodPocztowy.Replace("-", "").Replace(" ", "").Trim();
-            if (kodNormalized.Length < 2) return null;
-
-            try
-            {
-                using (var conn = new SqlConnection(connectionString))
-                {
-                    await conn.OpenAsync();
-
-                    // Sprawdź czy tabela cache kodów pocztowych istnieje
-                    var cmdCreate = new SqlCommand(@"
-                        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'GeoCacheKodyPocztowe')
-                        BEGIN
-                            CREATE TABLE GeoCacheKodyPocztowe (
-                                KodPocztowy NVARCHAR(10) PRIMARY KEY,
-                                Latitude FLOAT,
-                                Longitude FLOAT,
-                                Miasto NVARCHAR(100),
-                                LastUpdate DATETIME2 DEFAULT SYSUTCDATETIME()
-                            )
-                        END", conn);
-                    await cmdCreate.ExecuteNonQueryAsync();
-
-                    // Sprawdź cache kodów pocztowych
-                    var cmdCache = new SqlCommand("SELECT Latitude, Longitude FROM GeoCacheKodyPocztowe WHERE KodPocztowy = @kod", conn);
-                    cmdCache.Parameters.AddWithValue("@kod", kodNormalized);
-                    using (var rdr = await cmdCache.ExecuteReaderAsync())
-                    {
-                        if (await rdr.ReadAsync() && !rdr.IsDBNull(0) && !rdr.IsDBNull(1))
-                        {
-                            var lat = rdr.GetDouble(0);
-                            var lng = rdr.GetDouble(1);
-                            rdr.Close();
-
-                            // Zapisz do OdbiorcyCRM
-                            var cmdUpdate = new SqlCommand("UPDATE OdbiorcyCRM SET Latitude = @lat, Longitude = @lng WHERE ID = @id", conn);
-                            cmdUpdate.Parameters.AddWithValue("@id", idOdbiorcy);
-                            cmdUpdate.Parameters.AddWithValue("@lat", lat);
-                            cmdUpdate.Parameters.AddWithValue("@lng", lng);
-                            await cmdUpdate.ExecuteNonQueryAsync();
-
-                            return (lat, lng);
-                        }
-                    }
-
-                    // Geokoduj z API używając tylko kodu pocztowego
-                    var wait = GeocodeDelay - (DateTime.UtcNow - lastGeocode);
-                    if (wait > TimeSpan.Zero) await Task.Delay(wait);
-                    lastGeocode = DateTime.UtcNow;
-
-                    var geo = await GeokodujKodPocztowyAsync(kodPocztowy, miasto);
-                    if (geo.HasValue)
-                    {
-                        // Zapisz do cache kodów pocztowych
-                        var cmdInsert = new SqlCommand(@"
-                            MERGE GeoCacheKodyPocztowe AS tgt
-                            USING (SELECT @kod AS KodPocztowy) AS src ON tgt.KodPocztowy = src.KodPocztowy
-                            WHEN MATCHED THEN UPDATE SET Latitude=@lat, Longitude=@lng, Miasto=@miasto, LastUpdate=SYSUTCDATETIME()
-                            WHEN NOT MATCHED THEN INSERT (KodPocztowy, Latitude, Longitude, Miasto) VALUES (@kod, @lat, @lng, @miasto);", conn);
-                        cmdInsert.Parameters.AddWithValue("@kod", kodNormalized);
-                        cmdInsert.Parameters.AddWithValue("@lat", geo.Value.lat);
-                        cmdInsert.Parameters.AddWithValue("@lng", geo.Value.lng);
-                        cmdInsert.Parameters.AddWithValue("@miasto", miasto ?? "");
-                        await cmdInsert.ExecuteNonQueryAsync();
-
-                        // Zapisz do OdbiorcyCRM
-                        var cmdUpdate = new SqlCommand("UPDATE OdbiorcyCRM SET Latitude = @lat, Longitude = @lng WHERE ID = @id", conn);
-                        cmdUpdate.Parameters.AddWithValue("@id", idOdbiorcy);
-                        cmdUpdate.Parameters.AddWithValue("@lat", geo.Value.lat);
-                        cmdUpdate.Parameters.AddWithValue("@lng", geo.Value.lng);
-                        await cmdUpdate.ExecuteNonQueryAsync();
-
-                        return geo;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Geocode error: {ex.Message}");
-            }
-            return null;
-        }
-
-        private async Task<(double lat, double lng)?> GeokodujKodPocztowyAsync(string kodPocztowy, string? miasto)
-        {
-            try
-            {
-                // Użyj Nominatim z parametrem postalcode dla lepszej dokładności
-                string query;
-                if (!string.IsNullOrWhiteSpace(miasto))
-                {
-                    query = $"postalcode={HttpUtility.UrlEncode(kodPocztowy)}&city={HttpUtility.UrlEncode(miasto)}&country=Poland";
-                }
-                else
-                {
-                    query = $"postalcode={HttpUtility.UrlEncode(kodPocztowy)}&country=Poland";
-                }
-
-                string url = $"https://nominatim.openstreetmap.org/search?{query}&format=json&limit=1";
-
-                http.DefaultRequestHeaders.UserAgent.Clear();
-                http.DefaultRequestHeaders.UserAgent.ParseAdd("CRMMapApp/1.0 (contact@example.com)");
-
-                using (var resp = await http.GetAsync(url))
-                {
-                    resp.EnsureSuccessStatusCode();
-                    var json = await resp.Content.ReadAsStringAsync();
-                    using (var doc = JsonDocument.Parse(json))
-                    {
-                        var arr = doc.RootElement;
-                        if (arr.ValueKind == JsonValueKind.Array && arr.GetArrayLength() > 0)
-                        {
-                            var first = arr[0];
-                            double lat = double.Parse(first.GetProperty("lat").GetString()!, CultureInfo.InvariantCulture);
-                            double lon = double.Parse(first.GetProperty("lon").GetString()!, CultureInfo.InvariantCulture);
-                            return (lat, lon);
-                        }
-                    }
-                }
-
-                // Fallback - prostsze zapytanie tylko z kodem
-                url = $"https://nominatim.openstreetmap.org/search?q={HttpUtility.UrlEncode(kodPocztowy + " Poland")}&format=json&limit=1";
-                using (var resp = await http.GetAsync(url))
-                {
-                    resp.EnsureSuccessStatusCode();
-                    var json = await resp.Content.ReadAsStringAsync();
-                    using (var doc = JsonDocument.Parse(json))
-                    {
-                        var arr = doc.RootElement;
-                        if (arr.ValueKind == JsonValueKind.Array && arr.GetArrayLength() > 0)
-                        {
-                            var first = arr[0];
-                            double lat = double.Parse(first.GetProperty("lat").GetString()!, CultureInfo.InvariantCulture);
-                            double lon = double.Parse(first.GetProperty("lon").GetString()!, CultureInfo.InvariantCulture);
-                            return (lat, lon);
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine("Geocode API error: " + ex.Message);
-            }
-            return null;
-        }
-
         private void UstawKoloryStatusu(MapKontakt kontakt)
         {
-            switch (kontakt.Status)
+            var kolory = new Dictionary<string, (string hex, string bg, string txt)>
             {
-                case "Do zadzwonienia":
-                    kontakt.KolorHex = "#64748B";
-                    kontakt.KolorStatusu = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748B"));
-                    kontakt.TloStatusu = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F1F5F9"));
-                    kontakt.KolorStatusuTekst = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#475569"));
-                    break;
-                case "Próba kontaktu":
-                    kontakt.KolorHex = "#F97316";
-                    kontakt.KolorStatusu = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F97316"));
-                    kontakt.TloStatusu = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFEDD5"));
-                    kontakt.KolorStatusuTekst = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#9A3412"));
-                    break;
-                case "Nawiązano kontakt":
-                    kontakt.KolorHex = "#22C55E";
-                    kontakt.KolorStatusu = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#22C55E"));
-                    kontakt.TloStatusu = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DCFCE7"));
-                    kontakt.KolorStatusuTekst = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#166534"));
-                    break;
-                case "Zgoda na dalszy kontakt":
-                    kontakt.KolorHex = "#14B8A6";
-                    kontakt.KolorStatusu = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#14B8A6"));
-                    kontakt.TloStatusu = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CCFBF1"));
-                    kontakt.KolorStatusuTekst = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0D9488"));
-                    break;
-                case "Do wysłania oferta":
-                    kontakt.KolorHex = "#0891B2";
-                    kontakt.KolorStatusu = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0891B2"));
-                    kontakt.TloStatusu = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CFFAFE"));
-                    kontakt.KolorStatusuTekst = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#155E75"));
-                    break;
-                case "Nie zainteresowany":
-                    kontakt.KolorHex = "#EF4444";
-                    kontakt.KolorStatusu = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"));
-                    kontakt.TloStatusu = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FEE2E2"));
-                    kontakt.KolorStatusuTekst = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#991B1B"));
-                    break;
-                default:
-                    kontakt.KolorHex = "#9CA3AF";
-                    kontakt.KolorStatusu = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#9CA3AF"));
-                    kontakt.TloStatusu = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F3F4F6"));
-                    kontakt.KolorStatusuTekst = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4B5563"));
-                    break;
-            }
-        }
+                ["Do zadzwonienia"] = ("#64748B", "#F1F5F9", "#475569"),
+                ["Próba kontaktu"] = ("#F97316", "#FFEDD5", "#9A3412"),
+                ["Nawiązano kontakt"] = ("#22C55E", "#DCFCE7", "#166534"),
+                ["Zgoda na dalszy kontakt"] = ("#14B8A6", "#CCFBF1", "#0D9488"),
+                ["Do wysłania oferta"] = ("#0891B2", "#CFFAFE", "#155E75"),
+                ["Nie zainteresowany"] = ("#EF4444", "#FEE2E2", "#991B1B")
+            };
 
-        private static string Sha1(string text)
-        {
-            using (var sha1 = SHA1.Create())
+            if (kolory.TryGetValue(kontakt.Status, out var k))
             {
-                var bytes = Encoding.UTF8.GetBytes(text);
-                var hash = sha1.ComputeHash(bytes);
-                return string.Concat(hash.Select(b => b.ToString("x2")));
+                kontakt.KolorHex = k.hex;
+                kontakt.KolorStatusu = new SolidColorBrush((Color)ColorConverter.ConvertFromString(k.hex));
+                kontakt.TloStatusu = new SolidColorBrush((Color)ColorConverter.ConvertFromString(k.bg));
+                kontakt.KolorStatusuTekst = new SolidColorBrush((Color)ColorConverter.ConvertFromString(k.txt));
+            }
+            else
+            {
+                kontakt.KolorHex = "#9CA3AF";
+                kontakt.KolorStatusu = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#9CA3AF"));
+                kontakt.TloStatusu = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F3F4F6"));
+                kontakt.KolorStatusuTekst = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4B5563"));
             }
         }
 
@@ -538,57 +299,38 @@ namespace Kalendarz1.CRM
         {
             var dataJson = JsonSerializer.Serialize(kontakty.Select(k => new
             {
-                k.ID,
-                k.Nazwa,
-                k.Miasto,
-                k.Ulica,
-                k.Telefon,
-                k.Email,
-                k.Status,
-                k.Branza,
-                k.CzyPriorytetowa,
-                k.KolorHex,
-                k.Lat,
-                k.Lng
+                k.ID, k.Nazwa, k.Miasto, k.Ulica, k.Telefon, k.Email,
+                k.Status, k.Branza, k.CzyPriorytetowa, k.KolorHex, k.Lat, k.Lng
             }), new JsonSerializerOptions
             {
-                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-                WriteIndented = false
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             });
 
-            // Leaflet + OpenStreetMap (bez klucza API, niezawodne)
             return $@"<!DOCTYPE html>
 <html>
 <head>
     <meta charset='utf-8'/>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'/>
-    <title>Mapa CRM</title>
     <link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>
     <link rel='stylesheet' href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css'/>
     <link rel='stylesheet' href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css'/>
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        html, body {{ height: 100%; font-family: 'Segoe UI', Arial, sans-serif; }}
-        #map {{ height: 100%; width: 100%; }}
-        .leaflet-popup-content-wrapper {{ border-radius: 12px; padding: 0; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }}
-        .leaflet-popup-content {{ margin: 0; min-width: 280px; }}
-        .popup-container {{ padding: 16px; }}
-        .popup-title {{ font-weight: 700; font-size: 14px; color: #111827; margin-bottom: 8px; line-height: 1.3; }}
-        .popup-info {{ font-size: 12px; color: #6B7280; margin-bottom: 4px; }}
-        .popup-info strong {{ color: #374151; }}
-        .popup-status {{ display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; margin-top: 8px; }}
-        .popup-priority {{ display: inline-block; background: #FEE2E2; color: #DC2626; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 6px; }}
-        .popup-actions {{ margin-top: 12px; padding-top: 12px; border-top: 1px solid #E5E7EB; display: flex; gap: 8px; }}
-        .popup-btn {{ flex: 1; padding: 10px 12px; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: none; text-align: center; }}
-        .popup-btn-primary {{ background: #16A34A; color: white; }}
-        .popup-btn-secondary {{ background: #F1F5F9; color: #475569; }}
+        html, body, #map {{ height: 100%; width: 100%; font-family: 'Segoe UI', sans-serif; }}
+        .leaflet-popup-content-wrapper {{ border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); }}
+        .leaflet-popup-content {{ margin: 12px; min-width: 220px; }}
+        .p-title {{ font-weight: 700; font-size: 13px; color: #111; margin-bottom: 6px; }}
+        .p-info {{ font-size: 11px; color: #666; margin: 3px 0; }}
+        .p-status {{ display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-top: 6px; }}
+        .p-btn {{ display: inline-block; padding: 8px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; text-decoration: none; margin-top: 8px; margin-right: 4px; }}
+        .p-btn-green {{ background: #16A34A; color: white; }}
+        .p-btn-gray {{ background: #E5E7EB; color: #374151; }}
         .marker-cluster-small {{ background-color: rgba(22, 163, 74, 0.6); }}
-        .marker-cluster-small div {{ background-color: rgba(22, 163, 74, 0.8); }}
+        .marker-cluster-small div {{ background-color: rgba(22, 163, 74, 0.9); color: white; }}
         .marker-cluster-medium {{ background-color: rgba(245, 158, 11, 0.6); }}
-        .marker-cluster-medium div {{ background-color: rgba(245, 158, 11, 0.8); }}
+        .marker-cluster-medium div {{ background-color: rgba(245, 158, 11, 0.9); color: white; }}
         .marker-cluster-large {{ background-color: rgba(239, 68, 68, 0.6); }}
-        .marker-cluster-large div {{ background-color: rgba(239, 68, 68, 0.8); }}
-        .marker-cluster {{ color: white; font-weight: bold; }}
+        .marker-cluster-large div {{ background-color: rgba(239, 68, 68, 0.9); color: white; }}
     </style>
 </head>
 <body>
@@ -597,103 +339,217 @@ namespace Kalendarz1.CRM
 <script src='https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'></script>
 <script>
 var data = {dataJson};
-
 var map = L.map('map').setView([52.0, 19.0], 6);
 
 L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
-    attribution: '© OpenStreetMap',
-    maxZoom: 18
+    attribution: '© OpenStreetMap', maxZoom: 18
 }}).addTo(map);
 
-var markers = L.markerClusterGroup({{
-    showCoverageOnHover: false,
-    maxClusterRadius: 60,
-    spiderfyOnMaxZoom: true,
-    disableClusteringAtZoom: 14
-}});
+var markers = L.markerClusterGroup({{ maxClusterRadius: 50, disableClusteringAtZoom: 13 }});
 
-function getStatusBg(status) {{
-    var colors = {{
-        'Do zadzwonienia': '#F1F5F9',
-        'Próba kontaktu': '#FFEDD5',
-        'Nawiązano kontakt': '#DCFCE7',
-        'Zgoda na dalszy kontakt': '#CCFBF1',
-        'Do wysłania oferta': '#CFFAFE',
-        'Nie zainteresowany': '#FEE2E2'
-    }};
-    return colors[status] || '#F3F4F6';
-}}
-
-function getStatusColor(status) {{
-    var colors = {{
-        'Do zadzwonienia': '#475569',
-        'Próba kontaktu': '#9A3412',
-        'Nawiązano kontakt': '#166534',
-        'Zgoda na dalszy kontakt': '#0D9488',
-        'Do wysłania oferta': '#155E75',
-        'Nie zainteresowany': '#991B1B'
-    }};
-    return colors[status] || '#4B5563';
-}}
+var statusBg = {{'Do zadzwonienia':'#F1F5F9','Próba kontaktu':'#FFEDD5','Nawiązano kontakt':'#DCFCE7','Zgoda na dalszy kontakt':'#CCFBF1','Do wysłania oferta':'#CFFAFE','Nie zainteresowany':'#FEE2E2'}};
+var statusTxt = {{'Do zadzwonienia':'#475569','Próba kontaktu':'#9A3412','Nawiązano kontakt':'#166534','Zgoda na dalszy kontakt':'#0D9488','Do wysłania oferta':'#155E75','Nie zainteresowany':'#991B1B'}};
 
 for (var i = 0; i < data.length; i++) {{
     var p = data[i];
-
-    var borderColor = p.CzyPriorytetowa ? '#DC2626' : '#374151';
-    var borderWidth = p.CzyPriorytetowa ? 3 : 2;
-    var size = p.CzyPriorytetowa ? 18 : 14;
+    var sz = p.CzyPriorytetowa ? 16 : 12;
+    var bw = p.CzyPriorytetowa ? 3 : 2;
+    var bc = p.CzyPriorytetowa ? '#DC2626' : '#333';
 
     var icon = L.divIcon({{
-        html: '<div style=""width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:' + p.KolorHex + ';border:' + borderWidth + 'px solid ' + borderColor + ';box-shadow:0 2px 6px rgba(0,0,0,0.3)""></div>',
-        className: '',
-        iconSize: [size, size],
-        iconAnchor: [size/2, size/2]
+        html: '<div style=""width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+p.KolorHex+';border:'+bw+'px solid '+bc+';box-shadow:0 2px 4px rgba(0,0,0,0.3)""></div>',
+        className: '', iconSize: [sz, sz], iconAnchor: [sz/2, sz/2]
     }});
 
-    var adres = [p.Ulica, p.Miasto].filter(function(x) {{ return x; }}).join(', ');
-    var priorityBadge = p.CzyPriorytetowa ? '<span class=""popup-priority"">PRIORYTET</span>' : '';
+    var adr = [p.Ulica, p.Miasto].filter(Boolean).join(', ');
+    var popup = '<div class=""p-title"">'+p.Nazwa+'</div>'+
+        '<div class=""p-info"">📍 '+adr+'</div>'+
+        '<div class=""p-info"">📞 <b>'+p.Telefon+'</b></div>'+
+        (p.Email ? '<div class=""p-info"">✉️ '+p.Email+'</div>' : '')+
+        '<div><span class=""p-status"" style=""background:'+(statusBg[p.Status]||'#eee')+';color:'+(statusTxt[p.Status]||'#333')+'"">'+p.Status+'</span></div>'+
+        '<div><a class=""p-btn p-btn-green"" href=""tel:'+p.Telefon.replace(/\s/g,'')+'"">📞 Zadzwoń</a>'+
+        '<a class=""p-btn p-btn-gray"" href=""https://www.google.com/maps/dir//'+encodeURIComponent(adr)+'"" target=""_blank"">🗺️ Trasa</a></div>';
 
-    var popup = '<div class=""popup-container"">' +
-        '<div class=""popup-title"">' + (p.Nazwa || 'Brak nazwy') + '</div>' +
-        '<div class=""popup-info"">📍 ' + (adres || 'Brak adresu') + '</div>' +
-        '<div class=""popup-info"">📞 <strong>' + (p.Telefon || '-') + '</strong></div>' +
-        (p.Email ? '<div class=""popup-info"">✉️ ' + p.Email + '</div>' : '') +
-        (p.Branza ? '<div class=""popup-info"" style=""font-size:10px;color:#9CA3AF"">🏢 ' + (p.Branza.length > 40 ? p.Branza.substring(0, 40) + '...' : p.Branza) + '</div>' : '') +
-        '<div style=""margin-top:10px"">' +
-        '<span class=""popup-status"" style=""background:' + getStatusBg(p.Status) + ';color:' + getStatusColor(p.Status) + '"">' + p.Status + '</span>' +
-        priorityBadge +
-        '</div>' +
-        '<div class=""popup-actions"">' +
-        '<a class=""popup-btn popup-btn-primary"" href=""tel:' + (p.Telefon || '').replace(/\s/g, '') + '"">📞 Zadzwoń</a>' +
-        '<a class=""popup-btn popup-btn-secondary"" href=""https://www.google.com/maps/dir//' + encodeURIComponent(adres) + '"" target=""_blank"">🗺️ Trasa</a>' +
-        '</div></div>';
-
-    var m = L.marker([p.Lat, p.Lng], {{ icon: icon }});
-    m.bindPopup(popup, {{ maxWidth: 320 }});
+    var m = L.marker([p.Lat, p.Lng], {{ icon: icon }}).bindPopup(popup);
     markers.addLayer(m);
 }}
 
 map.addLayer(markers);
+if (data.length > 0) map.fitBounds(markers.getBounds().pad(0.1));
 
-if (data.length > 0) {{
-    var group = new L.featureGroup(markers.getLayers());
-    map.fitBounds(group.getBounds().pad(0.1));
-}}
-
-window.setView = function(lat, lng, zoom) {{
-    map.setView([lat, lng], zoom || 16);
-}};
+window.setView = function(lat, lng, z) {{ map.setView([lat, lng], z || 15); }};
 </script>
 </body>
 </html>";
         }
 
+        // ===== GEOKODOWANIE TABELI KODYPOCZTOWE (jednorazowe) =====
+        private async void BtnGeokoduj_Click(object sender, RoutedEventArgs e)
+        {
+            if (isLoading) return;
+
+            // Sprawdź ile kodów nie ma współrzędnych
+            int bezWspolrzednych = 0;
+            using (var conn = new SqlConnection(connectionString))
+            {
+                await conn.OpenAsync();
+                var cmd = new SqlCommand("SELECT COUNT(*) FROM KodyPocztowe WHERE Latitude IS NULL OR Longitude IS NULL", conn);
+                bezWspolrzednych = (int)await cmd.ExecuteScalarAsync();
+            }
+
+            if (bezWspolrzednych == 0)
+            {
+                MessageBox.Show("Wszystkie kody pocztowe mają już współrzędne!", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var result = MessageBox.Show(
+                $"Znaleziono {bezWspolrzednych} kodów pocztowych bez współrzędnych.\n\n" +
+                $"Pobieranie współrzędnych zajmie około {bezWspolrzednych / 2} sekund.\n" +
+                $"(To operacja jednorazowa - potem mapa będzie działać błyskawicznie)\n\n" +
+                $"Kontynuować?",
+                "Uzupełnij współrzędne", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (result != MessageBoxResult.Yes) return;
+
+            isLoading = true;
+            loadingOverlay.Visibility = Visibility.Visible;
+            btnGeokoduj.IsEnabled = false;
+
+            int sukces = 0, bledy = 0;
+
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    await conn.OpenAsync();
+
+                    // Pobierz kody bez współrzędnych
+                    var cmdSelect = new SqlCommand(
+                        "SELECT TOP 500 Kod, miej FROM KodyPocztowe WHERE Latitude IS NULL OR Longitude IS NULL", conn);
+
+                    var kodyDoGeokodowania = new List<(string kod, string miasto)>();
+                    using (var reader = await cmdSelect.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            kodyDoGeokodowania.Add((reader.GetString(0), reader.IsDBNull(1) ? "" : reader.GetString(1)));
+                        }
+                    }
+
+                    for (int i = 0; i < kodyDoGeokodowania.Count; i++)
+                    {
+                        var (kod, miasto) = kodyDoGeokodowania[i];
+                        txtLoadingStatus.Text = $"Geokodowanie {i + 1}/{kodyDoGeokodowania.Count}: {kod} {miasto}...";
+
+                        var coords = await GeokodujKodAsync(kod, miasto);
+
+                        if (coords.HasValue)
+                        {
+                            var cmdUpdate = new SqlCommand(
+                                "UPDATE KodyPocztowe SET Latitude = @lat, Longitude = @lng WHERE Kod = @kod", conn);
+                            cmdUpdate.Parameters.AddWithValue("@lat", coords.Value.lat);
+                            cmdUpdate.Parameters.AddWithValue("@lng", coords.Value.lng);
+                            cmdUpdate.Parameters.AddWithValue("@kod", kod);
+                            await cmdUpdate.ExecuteNonQueryAsync();
+                            sukces++;
+                        }
+                        else
+                        {
+                            bledy++;
+                        }
+
+                        // Opóźnienie dla API (Nominatim wymaga max 1 req/s)
+                        await Task.Delay(500);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
+            loadingOverlay.Visibility = Visibility.Collapsed;
+            btnGeokoduj.IsEnabled = true;
+            isLoading = false;
+
+            MessageBox.Show($"Zakończono!\n\nZnalezione: {sukces}\nBłędy: {bledy}", "Geokodowanie", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            // Odśwież mapę
+            dtKontakty = null;
+            await OdswiezMapeAsync();
+        }
+
+        private async Task<(double lat, double lng)?> GeokodujKodAsync(string kod, string miasto)
+        {
+            try
+            {
+                http.DefaultRequestHeaders.UserAgent.Clear();
+                http.DefaultRequestHeaders.UserAgent.ParseAdd("CRMApp/1.0");
+
+                // Próba 1: kod + miasto + Poland
+                var query = !string.IsNullOrEmpty(miasto)
+                    ? $"{kod} {miasto} Poland"
+                    : $"{kod} Poland";
+
+                var url = $"https://nominatim.openstreetmap.org/search?q={HttpUtility.UrlEncode(query)}&format=json&limit=1&countrycodes=pl";
+
+                using (var resp = await http.GetAsync(url))
+                {
+                    if (resp.IsSuccessStatusCode)
+                    {
+                        var json = await resp.Content.ReadAsStringAsync();
+                        using (var doc = JsonDocument.Parse(json))
+                        {
+                            var arr = doc.RootElement;
+                            if (arr.ValueKind == JsonValueKind.Array && arr.GetArrayLength() > 0)
+                            {
+                                var first = arr[0];
+                                var lat = double.Parse(first.GetProperty("lat").GetString()!, CultureInfo.InvariantCulture);
+                                var lng = double.Parse(first.GetProperty("lon").GetString()!, CultureInfo.InvariantCulture);
+                                return (lat, lng);
+                            }
+                        }
+                    }
+                }
+
+                // Próba 2: tylko miasto jeśli kod nie znaleziony
+                if (!string.IsNullOrEmpty(miasto))
+                {
+                    await Task.Delay(500);
+                    url = $"https://nominatim.openstreetmap.org/search?q={HttpUtility.UrlEncode(miasto + " Poland")}&format=json&limit=1&countrycodes=pl";
+
+                    using (var resp = await http.GetAsync(url))
+                    {
+                        if (resp.IsSuccessStatusCode)
+                        {
+                            var json = await resp.Content.ReadAsStringAsync();
+                            using (var doc = JsonDocument.Parse(json))
+                            {
+                                var arr = doc.RootElement;
+                                if (arr.ValueKind == JsonValueKind.Array && arr.GetArrayLength() > 0)
+                                {
+                                    var first = arr[0];
+                                    var lat = double.Parse(first.GetProperty("lat").GetString()!, CultureInfo.InvariantCulture);
+                                    var lng = double.Parse(first.GetProperty("lon").GetString()!, CultureInfo.InvariantCulture);
+                                    return (lat, lng);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Geocode error for {kod}: {ex.Message}");
+            }
+            return null;
+        }
+
         private async void Filtr_Changed(object sender, RoutedEventArgs e)
         {
             if (!isLoading && dtKontakty != null && isWebViewReady)
-            {
                 await OdswiezMapeAsync();
-            }
         }
 
         private async void BtnOdswiez_Click(object sender, RoutedEventArgs e)
@@ -702,115 +558,15 @@ window.setView = function(lat, lng, zoom) {{
             await OdswiezMapeAsync();
         }
 
-        private void BtnZamknij_Click(object sender, RoutedEventArgs e)
-        {
-            Close();
-        }
-
-        private async void BtnGeokoduj_Click(object sender, RoutedEventArgs e)
-        {
-            if (dtKontakty == null || isLoading) return;
-
-            // Znajdź kontakty bez współrzędnych ALE z kodem pocztowym
-            var bezWspolrzednych = dtKontakty.AsEnumerable()
-                .Where(r =>
-                {
-                    var lat = r["Latitude"];
-                    var lng = r["Longitude"];
-                    var kod = r["KOD"]?.ToString()?.Trim() ?? "";
-
-                    // Musi mieć kod pocztowy i nie mieć współrzędnych
-                    if (string.IsNullOrWhiteSpace(kod) || kod.Length < 3) return false;
-
-                    if (lat == DBNull.Value || lng == DBNull.Value) return true;
-                    if (!double.TryParse(lat?.ToString(), out var latVal) ||
-                        !double.TryParse(lng?.ToString(), out var lngVal)) return true;
-                    if (Math.Abs(latVal) < 0.001 || Math.Abs(lngVal) < 0.001) return true;
-
-                    return false;
-                })
-                .Take(200) // Max 200 na raz (szybsze z kodami pocztowymi)
-                .ToList();
-
-            if (bezWspolrzednych.Count == 0)
-            {
-                // Sprawdź ile w ogóle ma kody pocztowe
-                var bezKodow = dtKontakty.AsEnumerable()
-                    .Count(r => string.IsNullOrWhiteSpace(r["KOD"]?.ToString()?.Trim()));
-
-                if (bezKodow > 0)
-                {
-                    MessageBox.Show($"Wszystkie kontakty z kodem pocztowym mają już współrzędne!\n\n{bezKodow} kontaktów nie ma kodu pocztowego.",
-                        "Geokodowanie", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-                else
-                {
-                    MessageBox.Show("Wszystkie kontakty mają już współrzędne!", "Geokodowanie", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-                return;
-            }
-
-            var result = MessageBox.Show($"Znaleziono {bezWspolrzednych.Count} kontaktów bez współrzędnych.\nGeokodowanie po kodzie pocztowym.\n\nCzy kontynuować?",
-                "Geokodowanie", MessageBoxButton.YesNo, MessageBoxImage.Question);
-
-            if (result != MessageBoxResult.Yes) return;
-
-            isLoading = true;
-            loadingOverlay.Visibility = Visibility.Visible;
-            btnGeokoduj.IsEnabled = false;
-
-            int sukces = 0;
-            int bledy = 0;
-            int zCache = 0;
-
-            for (int i = 0; i < bezWspolrzednych.Count; i++)
-            {
-                var row = bezWspolrzednych[i];
-                var kod = row["KOD"]?.ToString()?.Trim() ?? "";
-                var miasto = row["MIASTO"]?.ToString()?.Trim() ?? "";
-
-                txtLoadingStatus.Text = $"Geokodowanie {i + 1}/{bezWspolrzednych.Count}: {kod} {miasto}...";
-
-                var geo = await GeokodujPoKodziePoczAsync(kod, miasto, Convert.ToInt32(row["ID"]));
-                if (geo.HasValue)
-                {
-                    row["Latitude"] = geo.Value.lat;
-                    row["Longitude"] = geo.Value.lng;
-                    sukces++;
-                }
-                else
-                {
-                    bledy++;
-                }
-
-                // Aktualizuj UI co 10 rekordów
-                if (i % 10 == 0)
-                {
-                    await Task.Delay(1); // pozwól UI się odświeżyć
-                }
-            }
-
-            loadingOverlay.Visibility = Visibility.Collapsed;
-            btnGeokoduj.IsEnabled = true;
-            isLoading = false;
-
-            MessageBox.Show($"Geokodowanie zakończone!\n\nZnalezione: {sukces}\nBłędy (brak danych): {bledy}",
-                "Geokodowanie", MessageBoxButton.OK, MessageBoxImage.Information);
-
-            // Odśwież mapę - przeładuj dane z bazy
-            dtKontakty = null;
-            await OdswiezMapeAsync();
-        }
+        private void BtnZamknij_Click(object sender, RoutedEventArgs e) => Close();
 
         private async void KontaktItem_Click(object sender, MouseButtonEventArgs e)
         {
-            if (sender is FrameworkElement element && element.DataContext is MapKontakt kontakt && isWebViewReady)
+            if (sender is FrameworkElement el && el.DataContext is MapKontakt k && isWebViewReady)
             {
                 try
                 {
-                    var lat = kontakt.Lat.ToString(CultureInfo.InvariantCulture);
-                    var lng = kontakt.Lng.ToString(CultureInfo.InvariantCulture);
-                    await webView.ExecuteScriptAsync($"setView({lat}, {lng}, 16);");
+                    await webView.ExecuteScriptAsync($"setView({k.Lat.ToString(CultureInfo.InvariantCulture)}, {k.Lng.ToString(CultureInfo.InvariantCulture)}, 15);");
                 }
                 catch { }
             }
