@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -105,6 +106,11 @@ namespace Kalendarz1.OfertaCenowa
         public string WystawiajacyNazwa { get; set; } = "";
         public string WystawiajacyEmail { get; set; } = "";
         public string WystawiajacyTelefon { get; set; } = "";
+
+        /// <summary>
+        /// Czy oferta jest generowana bez danych odbiorcy (oferta ogólna)
+        /// </summary>
+        public bool BezOdbiorcy { get; set; } = false;
     }
 
     /// <summary>
@@ -167,6 +173,39 @@ namespace Kalendarz1.OfertaCenowa
         public bool DodajNotkeOCenach { get; set; } = false;
         public string NotatkaCustom { get; set; } = "";
         public override string ToString() => Nazwa;
+    }
+
+    /// <summary>
+    /// Szablon zestawu odbiorców - dla szybkiego wyboru grupy odbiorców
+    /// </summary>
+    public class SzablonOdbiorcow
+    {
+        public int Id { get; set; }
+        public string Nazwa { get; set; } = "";
+        public string Opis { get; set; } = "";
+        public string OperatorId { get; set; } = ""; // ID handlowca - każdy ma swoje szablony
+        public DateTime DataUtworzenia { get; set; } = DateTime.Now;
+        public DateTime DataModyfikacji { get; set; } = DateTime.Now;
+        public List<OdbiorcaSzablonu> Odbiorcy { get; set; } = new List<OdbiorcaSzablonu>();
+        public int LiczbaOdbiorcow => Odbiorcy?.Count ?? 0;
+        public override string ToString() => $"{Nazwa} ({LiczbaOdbiorcow} odb.)";
+    }
+
+    /// <summary>
+    /// Odbiorca w szablonie
+    /// </summary>
+    public class OdbiorcaSzablonu
+    {
+        public string Id { get; set; } = "";
+        public string Nazwa { get; set; } = "";
+        public string NIP { get; set; } = "";
+        public string Adres { get; set; } = "";
+        public string KodPocztowy { get; set; } = "";
+        public string Miejscowosc { get; set; } = "";
+        public string Telefon { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string OsobaKontaktowa { get; set; } = "";
+        public string Zrodlo { get; set; } = "HANDEL"; // HANDEL, CRM, RECZNY
     }
 
     /// <summary>

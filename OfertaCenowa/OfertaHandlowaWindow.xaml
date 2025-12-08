@@ -137,15 +137,17 @@
                     <GradientStop Color="#5A9447" Offset="1"/>
                 </LinearGradientBrush>
             </Border.Background>
-            <Grid Height="50">
-                <StackPanel Orientation="Horizontal" Margin="20,0" VerticalAlignment="Center">
-                    <TextBlock Text="📋 Oferta Handlowa" FontSize="18" FontWeight="Bold" Foreground="White" Margin="0,0,15,0" VerticalAlignment="Center"/>
-                    <Border Background="#3A6D2E" CornerRadius="5" Padding="12,6" VerticalAlignment="Center">
-                        <TextBlock FontSize="12" Foreground="White">
-                            <Run Text="👤 "/>
-                            <Run x:Name="txtWystawiajacy" Text="..." FontWeight="SemiBold"/>
-                        </TextBlock>
-                    </Border>
+            <Grid Height="70">
+                <StackPanel Orientation="Horizontal" Margin="15,0" VerticalAlignment="Center">
+                    <!-- Logo firmy -->
+                    <Image x:Name="imgLogoHeader" Height="55" Margin="0,0,15,0" VerticalAlignment="Center"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Kreator Ofert Handlowych" FontSize="16" FontWeight="Bold" Foreground="White"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                            <TextBlock Text="👤 " FontSize="11" Foreground="White" Opacity="0.9"/>
+                            <TextBlock x:Name="txtWystawiajacy" Text="..." FontSize="11" Foreground="White" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </StackPanel>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="—" Click="MinimizeButton_Click" Style="{StaticResource WindowButtonStyle}"/>
@@ -287,18 +289,40 @@
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
-                        <StackPanel Grid.Row="0" Margin="0,0,0,10">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="✅ WYBRANI (" FontSize="11" FontWeight="Bold" Foreground="{StaticResource PrimaryGreenBrush}"/>
-                                <TextBlock x:Name="txtLiczbaOdbiorcow" Text="0" FontSize="11" FontWeight="Bold" Foreground="{StaticResource PrimaryGreenBrush}"/>
-                                <TextBlock Text=")" FontSize="11" FontWeight="Bold" Foreground="{StaticResource PrimaryGreenBrush}"/>
+                        <Grid Grid.Row="0" Margin="0,0,0,5">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="✅ WYBRANI (" FontSize="11" FontWeight="Bold" Foreground="{StaticResource PrimaryGreenBrush}"/>
+                                    <TextBlock x:Name="txtLiczbaOdbiorcow" Text="0" FontSize="11" FontWeight="Bold" Foreground="{StaticResource PrimaryGreenBrush}"/>
+                                    <TextBlock Text=")" FontSize="11" FontWeight="Bold" Foreground="{StaticResource PrimaryGreenBrush}"/>
+                                </StackPanel>
+                                <TextBlock x:Name="txtTrybOdbiorcow" Text="Brak" FontSize="11" Foreground="{StaticResource LightTextBrush}"/>
                             </StackPanel>
-                            <TextBlock x:Name="txtTrybOdbiorcow" Text="Brak" FontSize="11" Foreground="{StaticResource LightTextBrush}"/>
-                        </StackPanel>
-                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        </Grid>
+                        <!-- Przyciski szablonów odbiorców -->
+                        <Grid Grid.Row="1" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="📁 Wczytaj" Style="{StaticResource SecondaryButtonStyle}"
+                                    Click="BtnWczytajSzablonOdbiorcow_Click" Padding="8,6" FontSize="11" Margin="0,0,4,0"
+                                    ToolTip="Wczytaj zapisany szablon odbiorców"/>
+                            <Button Grid.Column="1" Content="💾 Zapisz" Style="{StaticResource SecondaryButtonStyle}"
+                                    Click="BtnZapiszSzablonOdbiorcow_Click" Padding="8,6" FontSize="11" Margin="4,0,4,0"
+                                    ToolTip="Zapisz aktualnych odbiorców jako nowy szablon"/>
+                            <Button x:Name="btnNadpiszSzablon" Grid.Column="2" Content="🔄 Nadpisz"
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    Click="BtnNadpiszSzablon_Click" Padding="8,6" FontSize="11" Margin="0,0,0,0"
+                                    ToolTip="Nadpisz wczytany szablon aktualnymi odbiorcami"
+                                    IsEnabled="False"/>
+                        </Grid>
+                        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                             <StackPanel x:Name="panelWybraniOdbiorcy">
                                 <StackPanel x:Name="placeholderBrakWybranych" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,30,0,0">
                                     <TextBlock Text="👤" FontSize="40" HorizontalAlignment="Center" Opacity="0.3"/>
@@ -306,7 +330,18 @@
                                 </StackPanel>
                             </StackPanel>
                         </ScrollViewer>
-                        <Button Grid.Row="2" Content="✏️ Ręcznie" Style="{StaticResource SecondaryButtonStyle}" Click="BtnWprowadzRecznie_Click" Margin="0,10,0,0" Padding="12,8" FontSize="12"/>
+                        <StackPanel Grid.Row="3" Margin="0,10,0,0">
+                            <CheckBox x:Name="chkBezOdbiorcy"
+                                      Content="📋 Bez odbiorcy (oferta ogólna)"
+                                      FontSize="12"
+                                      FontWeight="SemiBold"
+                                      Foreground="#9333EA"
+                                      Margin="0,0,0,10"
+                                      Checked="ChkBezOdbiorcy_Changed"
+                                      Unchecked="ChkBezOdbiorcy_Changed"
+                                      ToolTip="Wygeneruj ofertę bez danych odbiorcy - oferta ogólna"/>
+                            <Button Content="✏️ Ręcznie" Style="{StaticResource SecondaryButtonStyle}" Click="BtnWprowadzRecznie_Click" Padding="12,8" FontSize="12"/>
+                        </StackPanel>
                     </Grid>
                 </Border>
             </Grid>
@@ -324,6 +359,7 @@
                 <Grid Grid.Row="0" Margin="0,0,0,12">
                     <TextBlock Text="Dodaj produkty" FontSize="20" FontWeight="Bold" Foreground="{StaticResource DarkTextBrush}"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="📋 Kopiuj ostatnią" Style="{StaticResource SecondaryButtonStyle}" Click="BtnKopiujOstatniaOferte_Click" Margin="0,0,8,0" FontSize="12" Padding="12,8" ToolTip="Wczytaj produkty z ostatniej oferty"/>
                         <Button Content="📊 Marże" Style="{StaticResource SecondaryButtonStyle}" Click="BtnMarze_Click" Margin="0,0,8,0" FontSize="12" Padding="12,8"/>
                         <Button Content="🥩↔️❄️ Mapowanie" Style="{StaticResource SecondaryButtonStyle}" Click="BtnMapowanie_Click" Margin="0,0,8,0" FontSize="12" Padding="12,8"/>
                         <Button Content="🌐 Tłumaczenia" Style="{StaticResource SecondaryButtonStyle}" Click="BtnTlumaczenia_Click" Margin="0,0,8,0" FontSize="12" Padding="12,8"/>

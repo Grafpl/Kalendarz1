@@ -8,12 +8,14 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Threading.Tasks;
 using System.Windows.Threading;
 
@@ -237,6 +239,8 @@ namespace Kalendarz1.OfertaCenowa
 
         private int _aktualnyKrok = 1;
         private readonly SzablonyManager _szablonyManager = new();
+        private readonly UlubieniOdbiorcyManager _ulubieniManager = new();
+        private SzablonOdbiorcow? _ostatnioWczytanySzablon = null;
         private readonly OfertaRepository _ofertaRepository = new();
         private string _nazwaOperatora = "";
         private string _emailOperatora = "";
@@ -273,6 +277,9 @@ namespace Kalendarz1.OfertaCenowa
 
             TowaryWOfercie.CollectionChanged += TowaryWOfercie_CollectionChanged;
 
+            // Wczytaj logo do nagłówka
+            WczytajLogoDoNaglowka();
+
             LoadDataAsync();
             _szablonyManager.UtworzSzablonyPrzykladowe();
 
@@ -300,6 +307,84 @@ namespace Kalendarz1.OfertaCenowa
 
             DodajNowyPustyWiersz();
             AktualizujWidokKroku();
+        }
+
+        // =====================================================
+        // LOGO W NAGŁÓWKU
+        // =====================================================
+
+        private void WczytajLogoDoNaglowka()
+        {
+            try
+            {
+                // Próbuj wczytać logo z embedded resources
+                var assemblies = new[]
+                {
+                    Assembly.GetExecutingAssembly(),
+                    Assembly.GetEntryAssembly(),
+                    Assembly.GetCallingAssembly()
+                }.Where(a => a != null).Distinct().ToList();
+
+                foreach (var assembly in assemblies)
+                {
+                    if (assembly == null) continue;
+
+                    var allResources = assembly.GetManifestResourceNames();
+
+                    // Szukaj białego logo (logo2white) - idealne na zielone tło
+                    string? resourceName = allResources
+                        .FirstOrDefault(name => name.ToLower().Contains("logo2white") || name.ToLower().Contains("logo-2-white"));
+
+                    if (resourceName != null)
+                    {
+                        using var stream = assembly.GetManifestResourceStream(resourceName);
+                        if (stream != null)
+                        {
+                            var bitmap = new BitmapImage();
+                            bitmap.BeginInit();
+                            bitmap.StreamSource = stream;
+                            bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                            bitmap.EndInit();
+                            bitmap.Freeze();
+
+                            imgLogoHeader.Source = bitmap;
+                            return;
+                        }
+                    }
+                }
+
+                // Fallback: spróbuj wczytać z folderu aplikacji
+                var exeAssembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
+                string appFolder = Path.GetDirectoryName(exeAssembly.Location) ?? AppDomain.CurrentDomain.BaseDirectory;
+
+                var possiblePaths = new[]
+                {
+                    Path.Combine(appFolder, "logo2white.png"),
+                    Path.Combine(appFolder, "logo-2-white.png"),
+                    Path.Combine(appFolder, "logo-2-green.png"),
+                    Path.Combine(appFolder, "Logo.png")
+                };
+
+                foreach (var logoPath in possiblePaths)
+                {
+                    if (File.Exists(logoPath))
+                    {
+                        var bitmap = new BitmapImage();
+                        bitmap.BeginInit();
+                        bitmap.UriSource = new Uri(logoPath);
+                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                        bitmap.EndInit();
+                        bitmap.Freeze();
+
+                        imgLogoHeader.Source = bitmap;
+                        return;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Błąd wczytywania logo do nagłówka: {ex.Message}");
+            }
         }
 
         // =====================================================
@@ -574,6 +659,36 @@ namespace Kalendarz1.OfertaCenowa
         }
 
         /// <summary>
+        /// Obsługa checkboxa "Bez odbiorcy" - oferta ogólna bez danych klienta
+        /// </summary>
+        private void ChkBezOdbiorcy_Changed(object sender, RoutedEventArgs e)
+        {
+            if (chkBezOdbiorcy.IsChecked == true)
+            {
+                // Zaznaczony - wyczyść wybranych odbiorców i pokaż komunikat
+                WybraniOdbiorcy.Clear();
+                OdswiezListeWybranychOdbiorcow();
+                txtTrybOdbiorcow.Text = "Bez odbiorcy";
+                placeholderBrakWybranych.Visibility = Visibility.Collapsed;
+
+                // Pokaż informację w panelu wybranych
+                var infoPanel = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
+                var infoIcon = new TextBlock { Text = "📋", FontSize = 32, HorizontalAlignment = HorizontalAlignment.Center, Opacity = 0.7 };
+                var infoText = new TextBlock { Text = "Oferta ogólna", FontSize = 14, FontWeight = FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0), Foreground = new SolidColorBrush(Color.FromRgb(147, 51, 234)) };
+                var infoDesc = new TextBlock { Text = "bez danych odbiorcy", FontSize = 11, HorizontalAlignment = HorizontalAlignment.Center, Foreground = (SolidColorBrush)FindResource("LightTextBrush") };
+                infoPanel.Children.Add(infoIcon);
+                infoPanel.Children.Add(infoText);
+                infoPanel.Children.Add(infoDesc);
+                panelWybraniOdbiorcy.Children.Add(infoPanel);
+            }
+            else
+            {
+                // Odznaczony - przywróć normalny widok
+                OdswiezListeWybranychOdbiorcow();
+            }
+        }
+
+        /// <summary>
         /// Wczytuje wszystkich klientów CRM ze statusem "Do wysłania oferta"
         /// </summary>
         private async Task WczytajKlientowDoWyslaniaOfertaAsync()
@@ -706,6 +821,25 @@ namespace Kalendarz1.OfertaCenowa
             var stackDane = new StackPanel();
 
             var badgePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+
+            // Gwiazdka ulubionego
+            bool czyUlubiony = _ulubieniManager.CzyUlubiony(_userId, odbiorca.Id, odbiorca.Zrodlo);
+            var btnUlubiony = new Button
+            {
+                Content = czyUlubiony ? "⭐" : "☆",
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                FontSize = 14,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Tag = odbiorca,
+                ToolTip = czyUlubiony ? "Usuń z ulubionych" : "Dodaj do ulubionych",
+                Padding = new Thickness(0),
+                Margin = new Thickness(0, 0, 6, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            btnUlubiony.Click += BtnPrzelaczUlubiony_Click;
+            badgePanel.Children.Add(btnUlubiony);
+
             var badge = new Border
             {
                 Background = odbiorca.ZrodloBadgeBackground,
@@ -727,19 +861,138 @@ namespace Kalendarz1.OfertaCenowa
 
             stackDane.Children.Add(new TextBlock { Text = odbiorca.AdresPelny, FontSize = 11, Foreground = (SolidColorBrush)FindResource("LightTextBrush"), TextTrimming = TextTrimming.CharacterEllipsis });
 
+            // Panel kontaktowy (telefon i email)
+            var kontaktPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 0) };
+
             if (!string.IsNullOrEmpty(odbiorca.Telefon))
-                stackDane.Children.Add(new TextBlock { Text = $"📞 {odbiorca.Telefon}", FontSize = 10, Foreground = (SolidColorBrush)FindResource("PrimaryGreenBrush"), Margin = new Thickness(0, 3, 0, 0) });
+                kontaktPanel.Children.Add(new TextBlock { Text = $"📞 {odbiorca.Telefon}", FontSize = 10, Foreground = (SolidColorBrush)FindResource("PrimaryGreenBrush"), Margin = new Thickness(0, 0, 10, 0) });
+
+            // Wskaźnik emaila
+            if (!string.IsNullOrEmpty(odbiorca.Email))
+            {
+                kontaktPanel.Children.Add(new TextBlock { Text = $"✉️ {odbiorca.Email}", FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(59, 130, 246)) });
+            }
+            else
+            {
+                kontaktPanel.Children.Add(new TextBlock { Text = "⚠️ Brak emaila", FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68)) });
+            }
+
+            if (kontaktPanel.Children.Count > 0)
+                stackDane.Children.Add(kontaktPanel);
 
             Grid.SetColumn(stackDane, 0);
             grid.Children.Add(stackDane);
 
-            var btnUsun = new Button { Content = "❌", Style = (Style)FindResource("SmallButtonStyle"), FontSize = 14, VerticalAlignment = VerticalAlignment.Top, Tag = odbiorca };
+            // Panel z przyciskami (statystyki, edytuj, usuń)
+            var btnPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
+
+            // Przycisk statystyk
+            var btnStatystyka = new Button
+            {
+                Content = "📊",
+                Style = (Style)FindResource("SmallButtonStyle"),
+                FontSize = 14,
+                Tag = odbiorca,
+                ToolTip = "Pokaż statystyki ofert",
+                Margin = new Thickness(0, 0, 0, 4)
+            };
+            btnStatystyka.Click += BtnStatystykaOdbiorcy_Click;
+            btnPanel.Children.Add(btnStatystyka);
+
+            // Przycisk edycji kontaktu - tylko dla CRM
+            if (odbiorca.Zrodlo == "CRM" && int.TryParse(odbiorca.Id, out _))
+            {
+                var btnEdytuj = new Button
+                {
+                    Content = "✏️",
+                    Style = (Style)FindResource("SmallButtonStyle"),
+                    FontSize = 14,
+                    Tag = odbiorca,
+                    ToolTip = "Edytuj dane kontaktowe",
+                    Margin = new Thickness(0, 0, 0, 4)
+                };
+                btnEdytuj.Click += BtnEdytujKontaktOdbiorcy_Click;
+                btnPanel.Children.Add(btnEdytuj);
+            }
+
+            var btnUsun = new Button { Content = "❌", Style = (Style)FindResource("SmallButtonStyle"), FontSize = 14, Tag = odbiorca, ToolTip = "Usuń z listy" };
             btnUsun.Click += BtnUsunOdbiorce_Click;
-            Grid.SetColumn(btnUsun, 1);
-            grid.Children.Add(btnUsun);
+            btnPanel.Children.Add(btnUsun);
+
+            Grid.SetColumn(btnPanel, 1);
+            grid.Children.Add(btnPanel);
 
             border.Child = grid;
             return border;
+        }
+
+        private void BtnEdytujKontaktOdbiorcy_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is OdbiorcaOferta odbiorca)
+            {
+                if (!int.TryParse(odbiorca.Id, out int klientId))
+                {
+                    MessageBox.Show("Nie można edytować tego odbiorcy.", "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                var okno = new EdycjaKontaktuWindow
+                {
+                    KlientID = klientId,
+                    KlientNazwa = odbiorca.Nazwa,
+                    OperatorID = _userId
+                };
+                okno.Owner = this;
+
+                if (okno.ShowDialog() == true && okno.ZapisanoZmiany)
+                {
+                    // Zaktualizuj dane odbiorcy w liście
+                    odbiorca.Email = okno.NowyEmail ?? "";
+                    odbiorca.Telefon = okno.NowyTelefon ?? "";
+                    odbiorca.OsobaKontaktowa = $"{okno.NoweImie} {okno.NoweNazwisko}".Trim();
+
+                    // Odśwież widok
+                    OdswiezListeWybranychOdbiorcow();
+
+                    MessageBox.Show("Dane kontaktowe zostały zaktualizowane.", "Zapisano", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+        }
+
+        private void BtnPrzelaczUlubiony_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is OdbiorcaOferta odbiorca)
+            {
+                bool terazUlubiony = _ulubieniManager.PrzelaczUlubiony(_userId, odbiorca.Id, odbiorca.Zrodlo);
+                btn.Content = terazUlubiony ? "⭐" : "☆";
+                btn.ToolTip = terazUlubiony ? "Usuń z ulubionych" : "Dodaj do ulubionych";
+            }
+        }
+
+        private async void BtnStatystykaOdbiorcy_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is OdbiorcaOferta odbiorca)
+            {
+                try
+                {
+                    var stat = await _ofertaRepository.PobierzStatystykeOdbiorcyAsync(odbiorca.Id, odbiorca.Nazwa);
+
+                    string info = $"📊 Statystyki dla: {odbiorca.Nazwa}\n\n" +
+                                  $"Liczba ofert: {stat.LiczbaOfert}\n" +
+                                  $"Ostatnia oferta: {stat.OstatniaOfertaTekst}\n" +
+                                  $"Suma wartości: {stat.SumaWartosci:N2} PLN\n\n" +
+                                  $"✅ Zaakceptowane: {stat.Zaakceptowane}\n" +
+                                  $"📤 Wysłane: {stat.Wyslane}\n" +
+                                  $"❌ Odrzucone: {stat.Odrzucone}\n\n" +
+                                  $"Procent akceptacji: {stat.ProcentAkceptacji}%";
+
+                    MessageBox.Show(info, "Statystyki odbiorcy", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd pobierania statystyk: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
         }
 
         private void BtnUsunOdbiorce_Click(object sender, RoutedEventArgs e)
@@ -757,6 +1010,141 @@ namespace Kalendarz1.OfertaCenowa
             okno.Owner = this;
             if (okno.ShowDialog() == true && okno.Odbiorca != null)
                 DodajOdbiorce(okno.Odbiorca);
+        }
+
+        // =====================================================
+        // SZABLONY ODBIORCÓW
+        // =====================================================
+
+        private void BtnWczytajSzablonOdbiorcow_Click(object sender, RoutedEventArgs e)
+        {
+            var okno = new SzablonOdbiorcowWindow(_userId);
+            okno.Owner = this;
+
+            if (okno.ShowDialog() == true && okno.WybranySzablon != null)
+            {
+                // Zapamiętaj wczytany szablon
+                _ostatnioWczytanySzablon = okno.WybranySzablon;
+                btnNadpiszSzablon.IsEnabled = true;
+
+                // Wyczyść aktualnych odbiorców
+                WybraniOdbiorcy.Clear();
+
+                // Wczytaj odbiorców z szablonu
+                foreach (var odbiorcaSzablonu in okno.WybranySzablon.Odbiorcy)
+                {
+                    var odbiorca = new OdbiorcaOferta
+                    {
+                        Id = odbiorcaSzablonu.Id,
+                        Nazwa = odbiorcaSzablonu.Nazwa,
+                        NIP = odbiorcaSzablonu.NIP,
+                        Adres = odbiorcaSzablonu.Adres,
+                        KodPocztowy = odbiorcaSzablonu.KodPocztowy,
+                        Miejscowosc = odbiorcaSzablonu.Miejscowosc,
+                        Telefon = odbiorcaSzablonu.Telefon,
+                        Email = odbiorcaSzablonu.Email,
+                        OsobaKontaktowa = odbiorcaSzablonu.OsobaKontaktowa,
+                        Zrodlo = odbiorcaSzablonu.Zrodlo
+                    };
+                    WybraniOdbiorcy.Add(odbiorca);
+                }
+
+                OdswiezListeWybranychOdbiorcow();
+
+                // Odznacz checkbox "Bez odbiorcy" jeśli był zaznaczony
+                if (chkBezOdbiorcy.IsChecked == true)
+                    chkBezOdbiorcy.IsChecked = false;
+
+                MessageBox.Show($"Wczytano szablon \"{okno.WybranySzablon.Nazwa}\"\nLiczba odbiorców: {okno.WybranySzablon.LiczbaOdbiorcow}",
+                    "Szablon wczytany", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void BtnZapiszSzablonOdbiorcow_Click(object sender, RoutedEventArgs e)
+        {
+            if (WybraniOdbiorcy.Count == 0)
+            {
+                MessageBox.Show("Najpierw dodaj odbiorców do listy.", "Brak odbiorców", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Dialog do wprowadzenia nazwy szablonu
+            var inputDialog = new InputDialog("Zapisz szablon odbiorców", "Nazwa szablonu:", $"Szablon {DateTime.Now:dd.MM.yyyy}");
+            inputDialog.Owner = this;
+
+            if (inputDialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(inputDialog.InputText))
+            {
+                var szablon = new SzablonOdbiorcow
+                {
+                    Nazwa = inputDialog.InputText,
+                    Opis = $"{WybraniOdbiorcy.Count} odbiorców",
+                    OperatorId = _userId,
+                    Odbiorcy = WybraniOdbiorcy.Select(o => new OdbiorcaSzablonu
+                    {
+                        Id = o.Id,
+                        Nazwa = o.Nazwa,
+                        NIP = o.NIP,
+                        Adres = o.Adres,
+                        KodPocztowy = o.KodPocztowy,
+                        Miejscowosc = o.Miejscowosc,
+                        Telefon = o.Telefon,
+                        Email = o.Email,
+                        OsobaKontaktowa = o.OsobaKontaktowa,
+                        Zrodlo = o.Zrodlo
+                    }).ToList()
+                };
+
+                _szablonyManager.DodajSzablonOdbiorcow(_userId, szablon);
+
+                MessageBox.Show($"Zapisano szablon \"{szablon.Nazwa}\"\nLiczba odbiorców: {szablon.LiczbaOdbiorcow}",
+                    "Szablon zapisany", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void BtnNadpiszSzablon_Click(object sender, RoutedEventArgs e)
+        {
+            if (_ostatnioWczytanySzablon == null)
+            {
+                MessageBox.Show("Najpierw wczytaj szablon.", "Brak szablonu", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (WybraniOdbiorcy.Count == 0)
+            {
+                MessageBox.Show("Lista odbiorców jest pusta.", "Brak odbiorców", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var result = MessageBox.Show(
+                $"Czy na pewno chcesz nadpisać szablon \"{_ostatnioWczytanySzablon.Nazwa}\"?\n\nAktualna liczba odbiorców: {WybraniOdbiorcy.Count}",
+                "Potwierdź nadpisanie",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                // Aktualizuj odbiorców w szablonie
+                _ostatnioWczytanySzablon.Odbiorcy = WybraniOdbiorcy.Select(o => new OdbiorcaSzablonu
+                {
+                    Id = o.Id,
+                    Nazwa = o.Nazwa,
+                    NIP = o.NIP,
+                    Adres = o.Adres,
+                    KodPocztowy = o.KodPocztowy,
+                    Miejscowosc = o.Miejscowosc,
+                    Telefon = o.Telefon,
+                    Email = o.Email,
+                    OsobaKontaktowa = o.OsobaKontaktowa,
+                    Zrodlo = o.Zrodlo
+                }).ToList();
+
+                _ostatnioWczytanySzablon.Opis = $"{WybraniOdbiorcy.Count} odbiorców";
+
+                _szablonyManager.AktualizujSzablonOdbiorcow(_userId, _ostatnioWczytanySzablon);
+
+                MessageBox.Show($"Szablon \"{_ostatnioWczytanySzablon.Nazwa}\" został nadpisany.\nLiczba odbiorców: {WybraniOdbiorcy.Count}",
+                    "Szablon zaktualizowany", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
         }
 
         // =====================================================
@@ -1166,6 +1554,75 @@ namespace Kalendarz1.OfertaCenowa
                 "Marża zastosowana", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
+        // Kopiuj produkty z ostatniej oferty
+        private async void BtnKopiujOstatniaOferte_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var ostatniaOferta = await _ofertaRepository.PobierzOstatniaOferteHandlowcaAsync(_userId);
+
+                if (ostatniaOferta == null || ostatniaOferta.Pozycje.Count == 0)
+                {
+                    MessageBox.Show("Nie znaleziono poprzedniej oferty z produktami.", "Brak oferty", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                var result = MessageBox.Show(
+                    $"Znaleziono ofertę: {ostatniaOferta.NumerOferty}\n" +
+                    $"Data: {ostatniaOferta.DataWystawienia:dd.MM.yyyy}\n" +
+                    $"Klient: {ostatniaOferta.KlientNazwa}\n" +
+                    $"Produktów: {ostatniaOferta.Pozycje.Count}\n\n" +
+                    "Czy chcesz wczytać produkty z tej oferty?",
+                    "Kopiuj ostatnią ofertę",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    // Wyczyść aktualną listę
+                    foreach (var w in TowaryWOfercie)
+                    {
+                        w.PropertyChanged -= TowarWiersz_PropertyChanged;
+                        w.TowarZmieniony -= TowarWiersz_TowarZmieniony;
+                        w.TypZmieniony -= TowarWiersz_TypZmieniony;
+                    }
+                    TowaryWOfercie.Clear();
+
+                    // Dodaj produkty z ostatniej oferty
+                    foreach (var pozycja in ostatniaOferta.Pozycje)
+                    {
+                        // Znajdź towar w dostępnych
+                        var towar = DostepneTowary.FirstOrDefault(t => t.Kod == pozycja.TowarKod);
+
+                        var wiersz = new TowarWiersz
+                        {
+                            Lp = TowaryWOfercie.Count + 1,
+                            WybranyTowar = towar,
+                            Ilosc = pozycja.Ilosc,
+                            Cena = pozycja.CenaJednostkowa,
+                            Opakowanie = pozycja.Opakowanie ?? "E2"
+                        };
+
+                        wiersz.PropertyChanged += TowarWiersz_PropertyChanged;
+                        wiersz.TowarZmieniony += TowarWiersz_TowarZmieniony;
+                        wiersz.TypZmieniony += TowarWiersz_TypZmieniony;
+
+                        TowaryWOfercie.Add(wiersz);
+                    }
+
+                    DodajNowyPustyWiersz();
+                    AktualizujPodsumowanieTowary();
+
+                    MessageBox.Show($"Wczytano {ostatniaOferta.Pozycje.Count} produktów z oferty {ostatniaOferta.NumerOferty}",
+                        "Produkty wczytane", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd wczytywania ostatniej oferty: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         // NOWY: Otwórz okno wyboru szablonu (nie od razu edytor)
         private void BtnWczytajSzablonTowarow_Click(object sender, RoutedEventArgs e)
         {
@@ -1347,9 +1804,10 @@ namespace Kalendarz1.OfertaCenowa
             switch (krok)
             {
                 case 1:
-                    if (WybraniOdbiorcy.Count == 0)
+                    // Pozwól przejść jeśli zaznaczono "Bez odbiorcy" lub wybrano co najmniej jednego odbiorcę
+                    if (WybraniOdbiorcy.Count == 0 && chkBezOdbiorcy.IsChecked != true)
                     {
-                        MessageBox.Show("Wybierz przynajmniej jednego odbiorcę.", "Walidacja", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        MessageBox.Show("Wybierz przynajmniej jednego odbiorcę lub zaznacz opcję 'Bez odbiorcy'.", "Walidacja", MessageBoxButton.OK, MessageBoxImage.Warning);
                         return false;
                     }
                     return true;
@@ -1419,14 +1877,26 @@ namespace Kalendarz1.OfertaCenowa
             txtPodWystawiajacy.Text = _nazwaOperatora;
 
             panelPodsumowanieOdbiorcy.Children.Clear();
-            foreach (var odbiorca in WybraniOdbiorcy)
+
+            // Sprawdź czy to oferta bez odbiorcy
+            if (chkBezOdbiorcy.IsChecked == true)
             {
                 var sp = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
-                sp.Children.Add(new TextBlock { Text = odbiorca.Nazwa, FontSize = 14, FontWeight = FontWeights.SemiBold });
-                sp.Children.Add(new TextBlock { Text = odbiorca.AdresPelny, FontSize = 11, Foreground = (SolidColorBrush)FindResource("LightTextBrush") });
-                if (!string.IsNullOrEmpty(odbiorca.NIP))
-                    sp.Children.Add(new TextBlock { Text = $"NIP: {odbiorca.NIP}", FontSize = 11, Foreground = (SolidColorBrush)FindResource("LightTextBrush") });
+                sp.Children.Add(new TextBlock { Text = "📋 Oferta ogólna", FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(147, 51, 234)) });
+                sp.Children.Add(new TextBlock { Text = "bez danych odbiorcy", FontSize = 11, Foreground = (SolidColorBrush)FindResource("LightTextBrush") });
                 panelPodsumowanieOdbiorcy.Children.Add(sp);
+            }
+            else
+            {
+                foreach (var odbiorca in WybraniOdbiorcy)
+                {
+                    var sp = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
+                    sp.Children.Add(new TextBlock { Text = odbiorca.Nazwa, FontSize = 14, FontWeight = FontWeights.SemiBold });
+                    sp.Children.Add(new TextBlock { Text = odbiorca.AdresPelny, FontSize = 11, Foreground = (SolidColorBrush)FindResource("LightTextBrush") });
+                    if (!string.IsNullOrEmpty(odbiorca.NIP))
+                        sp.Children.Add(new TextBlock { Text = $"NIP: {odbiorca.NIP}", FontSize = 11, Foreground = (SolidColorBrush)FindResource("LightTextBrush") });
+                    panelPodsumowanieOdbiorcy.Children.Add(sp);
+                }
             }
 
             txtPodTermin.Text = (cboTerminPlatnosci.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "-";
@@ -1511,9 +1981,20 @@ namespace Kalendarz1.OfertaCenowa
         {
             try
             {
-                var odbiorca = WybraniOdbiorcy.First();
-                var klient = odbiorca.ToKlientOferta();
-                
+                bool bezOdbiorcy = chkBezOdbiorcy.IsChecked == true;
+
+                // Utwórz klienta - pustego jeśli bez odbiorcy
+                KlientOferta klient;
+                if (bezOdbiorcy)
+                {
+                    klient = new KlientOferta { Nazwa = "", NIP = "", Adres = "", KodPocztowy = "", Miejscowosc = "" };
+                }
+                else
+                {
+                    var odbiorca = WybraniOdbiorcy.First();
+                    klient = odbiorca.ToKlientOferta();
+                }
+
                 int dniWaznosci = int.Parse((cboWaznoscOferty.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "1");
 
                 var parametry = new ParametryOferty
@@ -1530,7 +2011,8 @@ namespace Kalendarz1.OfertaCenowa
                     PokazTerminPlatnosci = chkPdfPokazTermin.IsChecked == true,
                     WystawiajacyNazwa = _nazwaOperatora,
                     WystawiajacyEmail = _emailOperatora,
-                    WystawiajacyTelefon = _telefonOperatora
+                    WystawiajacyTelefon = _telefonOperatora,
+                    BezOdbiorcy = bezOdbiorcy
                 };
 
                 var produkty = TowaryWOfercie
@@ -1539,10 +2021,18 @@ namespace Kalendarz1.OfertaCenowa
                     .ToList();
 
                 string transport = rbTransportWlasny.IsChecked == true ? "Transport własny" : "Transport klienta";
-                string nazwaKlienta = klient.Nazwa.Replace(" ", "_").Replace("\"", "").Replace("/", "_").Replace("\\", "_");
-                if (nazwaKlienta.Length > 30) nazwaKlienta = nazwaKlienta.Substring(0, 30);
 
-                string nazwaPliku = $"Oferta_{nazwaKlienta}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+                string nazwaPliku;
+                if (bezOdbiorcy)
+                {
+                    nazwaPliku = $"Oferta_Ogolna_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+                }
+                else
+                {
+                    string nazwaKlienta = klient.Nazwa.Replace(" ", "_").Replace("\"", "").Replace("/", "_").Replace("\\", "_");
+                    if (nazwaKlienta.Length > 30) nazwaKlienta = nazwaKlienta.Substring(0, 30);
+                    nazwaPliku = $"Oferta_{nazwaKlienta}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+                }
                 string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Oferty");
                 Directory.CreateDirectory(folder);
                 string sciezka = Path.Combine(folder, nazwaPliku);
@@ -1561,7 +2051,8 @@ namespace Kalendarz1.OfertaCenowa
                     MessageBox.Show($"PDF wygenerowany:\n{sciezka}", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
 
-                if (WybraniOdbiorcy.Count > 1)
+                // Generuj dla pozostałych odbiorców (tylko jeśli nie jest to oferta bez odbiorcy)
+                if (!bezOdbiorcy && WybraniOdbiorcy.Count > 1)
                 {
                     MessageBox.Show($"Wygenerowano dla pierwszego odbiorcy.\nGeneruję dla pozostałych {WybraniOdbiorcy.Count - 1}...", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
 
@@ -1569,12 +2060,12 @@ namespace Kalendarz1.OfertaCenowa
                     {
                         var kolejnyOdbiorca = WybraniOdbiorcy[i];
                         var kolejnyKlient = kolejnyOdbiorca.ToKlientOferta();
-                        nazwaKlienta = kolejnyKlient.Nazwa.Replace(" ", "_").Replace("\"", "").Replace("/", "_").Replace("\\", "_");
+                        string nazwaKlienta = kolejnyKlient.Nazwa.Replace(" ", "_").Replace("\"", "").Replace("/", "_").Replace("\\", "_");
                         if (nazwaKlienta.Length > 30) nazwaKlienta = nazwaKlienta.Substring(0, 30);
                         nazwaPliku = $"Oferta_{nazwaKlienta}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
                         sciezka = Path.Combine(folder, nazwaPliku);
                         generator.GenerujPDF(sciezka, kolejnyKlient, produkty, txtNotatki.Text, transport, parametry);
-                        
+
                         // Zapisz też kolejną ofertę do bazy
                         await ZapiszOferteDoBazyAsync(kolejnyKlient, produkty, parametry, txtNotatki.Text, transport, sciezka, nazwaPliku);
                     }
@@ -1596,10 +2087,10 @@ namespace Kalendarz1.OfertaCenowa
                 bool pokazIlosc = chkPdfPokazIlosc.IsChecked == true;
                 bool pokazOpakowanie = chkPdfPokazOpakowanie.IsChecked == true;
                 bool pokazWartosc = pokazIlosc && pokazCene;
-                
-                string temat = Uri.EscapeDataString("Oferta cenowa - Piórkowscy");
+
+                string temat = "Oferta cenowa - Piórkowscy";
                 string dniSlowo = dniWaznosci == 1 ? "dzień" : "dni";
-                
+
                 var sb = new StringBuilder();
                 sb.AppendLine("Szanowni Państwo,");
                 sb.AppendLine();
@@ -1616,21 +2107,21 @@ namespace Kalendarz1.OfertaCenowa
                 foreach (var p in produkty)
                 {
                     sb.AppendLine($"{lp}. {p.Nazwa}");
-                    
+
                     if (pokazCene && p.CenaJednostkowa > 0)
                         sb.AppendLine($"   Cena: {p.CenaJednostkowa:N2} zł/kg");
-                    
+
                     if (pokazIlosc && p.Ilosc > 0)
                         sb.AppendLine($"   Ilość: {p.Ilosc:N0} kg");
-                    
+
                     decimal wartosc = p.Ilosc * p.CenaJednostkowa;
-                    
+
                     if (pokazWartosc && wartosc > 0)
                         sb.AppendLine($"   Wartość: {wartosc:N2} zł");
-                    
+
                     if (pokazOpakowanie)
                         sb.AppendLine($"   Opakowanie: {p.Opakowanie}");
-                    
+
                     sb.AppendLine();
                     suma += wartosc;
                     lp++;
@@ -1641,7 +2132,7 @@ namespace Kalendarz1.OfertaCenowa
                     sb.AppendLine("═══════════════════════════════════════");
                     sb.AppendLine($"SUMA: {suma:N2} zł");
                 }
-                
+
                 sb.AppendLine("═══════════════════════════════════════");
                 sb.AppendLine();
                 sb.AppendLine("Ceny nie zawierają podatku VAT.");
@@ -1652,17 +2143,68 @@ namespace Kalendarz1.OfertaCenowa
                 sb.AppendLine("Koziołki 40, 95-061 Dmosin");
                 sb.AppendLine("Tel: +48 46 874 71 70");
 
-                string tresc = Uri.EscapeDataString(sb.ToString());
+                string tresc = sb.ToString();
 
-                string mailtoUrl = $"mailto:?subject={temat}&body={tresc}";
-                Process.Start(new ProcessStartInfo(mailtoUrl) { UseShellExecute = true });
-                Process.Start(new ProcessStartInfo(sciezkaPDF) { UseShellExecute = true });
+                // Próbuj otworzyć Outlook z załącznikiem
+                bool outlookOtworzony = SprobujOtworzycOutlookZZalacznikiem(temat, tresc, sciezkaPDF);
 
-                MessageBox.Show($"Otwarto klienta email i PDF.\nDołącz PDF ręcznie:\n{sciezkaPDF}", "Email", MessageBoxButton.OK, MessageBoxImage.Information);
+                if (!outlookOtworzony)
+                {
+                    // Fallback - użyj mailto i skopiuj ścieżkę do schowka
+                    string mailtoUrl = $"mailto:?subject={Uri.EscapeDataString(temat)}&body={Uri.EscapeDataString(tresc)}";
+                    Process.Start(new ProcessStartInfo(mailtoUrl) { UseShellExecute = true });
+
+                    // Skopiuj ścieżkę PDF do schowka
+                    Clipboard.SetText(sciezkaPDF);
+
+                    // Otwórz PDF
+                    Process.Start(new ProcessStartInfo(sciezkaPDF) { UseShellExecute = true });
+
+                    MessageBox.Show($"Otwarto klienta email i PDF.\n\n📎 Ścieżka do PDF została skopiowana do schowka.\nWklej załącznik (Ctrl+V) w oknie email:\n{sciezkaPDF}",
+                        "Email", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd otwierania email: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        /// <summary>
+        /// Próbuje otworzyć Microsoft Outlook z załącznikiem PDF
+        /// </summary>
+        private bool SprobujOtworzycOutlookZZalacznikiem(string temat, string tresc, string sciezkaPDF)
+        {
+            try
+            {
+                // Użyj dynamic aby uniknąć referencji do Outlook Interop
+                Type outlookType = Type.GetTypeFromProgID("Outlook.Application");
+                if (outlookType == null)
+                    return false;
+
+                dynamic outlookApp = Activator.CreateInstance(outlookType);
+                dynamic mailItem = outlookApp.CreateItem(0); // olMailItem = 0
+
+                mailItem.Subject = temat;
+                mailItem.Body = tresc;
+
+                // Dodaj załącznik PDF
+                if (File.Exists(sciezkaPDF))
+                {
+                    mailItem.Attachments.Add(sciezkaPDF);
+                }
+
+                mailItem.Display(); // Otwórz okno nowej wiadomości
+
+                MessageBox.Show("Otwarto Microsoft Outlook z załączonym PDF.\nWypełnij adres odbiorcy i wyślij.",
+                    "📧 Email gotowy", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                return true;
+            }
+            catch
+            {
+                // Outlook nie jest zainstalowany lub wystąpił błąd
+                return false;
             }
         }
 

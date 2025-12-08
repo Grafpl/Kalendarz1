@@ -1,0 +1,112 @@
+<Window x:Class="Kalendarz1.OfertaCenowa.SzablonOdbiorcowWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Szablony odbiorców" Height="650" Width="750"
+        WindowStartupLocation="CenterOwner" WindowStyle="None"
+        Background="Transparent" AllowsTransparency="True" ResizeMode="NoResize">
+
+    <Border Background="White" CornerRadius="12" BorderBrush="#E5E7EB" BorderThickness="1">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.3"/>
+        </Border.Effect>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Nagłówek -->
+            <Border Grid.Row="0" Background="#4B833C" CornerRadius="12,12,0,0" Padding="20,15" MouseLeftButtonDown="TitleBar_MouseDown">
+                <Grid>
+                    <TextBlock Text="📁 Szablony odbiorców" FontSize="16" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                    <Button Content="✕" HorizontalAlignment="Right" Click="BtnZamknij_Click"
+                            Background="Transparent" Foreground="White" BorderThickness="0"
+                            FontSize="16" Cursor="Hand" Padding="8,4"/>
+                </Grid>
+            </Border>
+
+            <!-- Treść -->
+            <Grid Grid.Row="1" Margin="20">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Info -->
+                <TextBlock Grid.Row="0" Text="Wybierz szablon do wczytania lub zarządzaj swoimi szablonami:"
+                           FontSize="12" Foreground="#6B7280" Margin="0,0,0,15"/>
+
+                <!-- Lista szablonów -->
+                <Border Grid.Row="1" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8">
+                    <Grid>
+                        <ListBox x:Name="lstSzablony" BorderThickness="0" Background="Transparent"
+                                 SelectionChanged="LstSzablony_SelectionChanged">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Padding="12" BorderBrush="#E5E7EB" BorderThickness="0,0,0,1" Background="White">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="{Binding Nazwa}" FontSize="14" FontWeight="SemiBold" Foreground="#1F2937"/>
+                                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                    <TextBlock Text="👥 " FontSize="11"/>
+                                                    <TextBlock Text="{Binding LiczbaOdbiorcow}" FontSize="11" FontWeight="SemiBold" Foreground="#4B833C"/>
+                                                    <TextBlock Text=" odbiorców" FontSize="11" Foreground="#6B7280"/>
+                                                    <TextBlock Text=" • " FontSize="11" Foreground="#D1D5DB"/>
+                                                    <TextBlock Text="{Binding DataModyfikacji, StringFormat='dd.MM.yyyy HH:mm'}" FontSize="11" Foreground="#9CA3AF"/>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding Opis}" FontSize="10" Foreground="#9CA3AF" Margin="0,2,0,0"
+                                                           TextTrimming="CharacterEllipsis" MaxWidth="500"/>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Button Content="👁️" Tag="{Binding}" Click="BtnPodgladSzablon_Click"
+                                                        Background="Transparent" BorderThickness="0" FontSize="14" Cursor="Hand" Padding="6"
+                                                        ToolTip="Podgląd odbiorców"/>
+                                                <Button Content="✏️" Tag="{Binding}" Click="BtnEdytujSzablon_Click"
+                                                        Background="Transparent" BorderThickness="0" FontSize="14" Cursor="Hand" Padding="6"
+                                                        ToolTip="Edytuj szablon"/>
+                                                <Button Content="📋" Tag="{Binding}" Click="BtnDuplikujSzablon_Click"
+                                                        Background="Transparent" BorderThickness="0" FontSize="14" Cursor="Hand" Padding="6"
+                                                        ToolTip="Duplikuj szablon"/>
+                                                <Button Content="🗑️" Tag="{Binding}" Click="BtnUsunSzablon_Click"
+                                                        Background="Transparent" BorderThickness="0" FontSize="14" Cursor="Hand" Padding="6"
+                                                        ToolTip="Usuń szablon"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <!-- Placeholder gdy brak szablonów -->
+                        <StackPanel x:Name="placeholderBrakSzablonow" VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <TextBlock Text="📁" FontSize="48" HorizontalAlignment="Center" Opacity="0.3"/>
+                            <TextBlock Text="Brak zapisanych szablonów" FontSize="14" Foreground="#9CA3AF" HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                            <TextBlock Text="Zapisz odbiorców żeby utworzyć szablon" FontSize="12" Foreground="#D1D5DB" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- Stopka z przyciskami -->
+            <Border Grid.Row="2" Background="#F9FAFB" CornerRadius="0,0,12,12" Padding="20,15">
+                <Grid>
+                    <Button Content="Anuluj" Click="BtnAnuluj_Click" HorizontalAlignment="Left"
+                            Background="White" Foreground="#374151" BorderBrush="#D1D5DB" BorderThickness="1"
+                            Padding="20,10" FontSize="13" Cursor="Hand"/>
+
+                    <Button x:Name="btnWczytaj" Content="✅ Wczytaj wybrany szablon" Click="BtnWczytaj_Click" HorizontalAlignment="Right"
+                            Background="#4B833C" Foreground="White" BorderThickness="0"
+                            Padding="20,10" FontSize="13" Cursor="Hand" IsEnabled="False"/>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

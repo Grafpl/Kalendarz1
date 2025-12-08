@@ -449,6 +449,75 @@ namespace Kalendarz1.OfertaCenowa
 
         #endregion
 
+        #region Ostatnia oferta handlowca
+
+        /// <summary>
+        /// Pobiera ostatnią ofertę handlowca z produktami
+        /// </summary>
+        public async Task<OfertaSzczegoly> PobierzOstatniaOferteHandlowcaAsync(string handlowiecId)
+        {
+            await using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            // Znajdź ID ostatniej oferty
+            await using var cmdId = new SqlCommand(@"
+                SELECT TOP 1 ID FROM [Oferty]
+                WHERE HandlowiecID = @HandlowiecID
+                ORDER BY DataWystawienia DESC", conn);
+            cmdId.Parameters.AddWithValue("@HandlowiecID", handlowiecId);
+
+            var result = await cmdId.ExecuteScalarAsync();
+            if (result == null) return null;
+
+            int ofertaId = (int)result;
+            return await PobierzOferteAsync(ofertaId);
+        }
+
+        #endregion
+
+        #region Statystyki odbiorcy
+
+        /// <summary>
+        /// Pobiera statystyki ofert dla danego odbiorcy
+        /// </summary>
+        public async Task<StatystykaOdbiorcy> PobierzStatystykeOdbiorcyAsync(string klientId, string klientNazwa)
+        {
+            await using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var stat = new StatystykaOdbiorcy { KlientID = klientId, KlientNazwa = klientNazwa };
+
+            var sql = @"
+                SELECT
+                    COUNT(*) as LiczbaOfert,
+                    ISNULL(SUM(WartoscNetto), 0) as SumaWartosci,
+                    MAX(DataWystawienia) as OstatniaOferta,
+                    SUM(CASE WHEN Status = 'Zaakceptowana' THEN 1 ELSE 0 END) as Zaakceptowane,
+                    SUM(CASE WHEN Status = 'Odrzucona' THEN 1 ELSE 0 END) as Odrzucone,
+                    SUM(CASE WHEN Status = 'Wysłana' THEN 1 ELSE 0 END) as Wyslane
+                FROM Oferty
+                WHERE KlientID = @KlientID OR KlientNazwa = @KlientNazwa";
+
+            await using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@KlientID", (object)klientId ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@KlientNazwa", klientNazwa);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                stat.LiczbaOfert = reader.GetInt32(0);
+                stat.SumaWartosci = reader.GetDecimal(1);
+                stat.OstatniaOferta = reader.IsDBNull(2) ? null : reader.GetDateTime(2);
+                stat.Zaakceptowane = reader.GetInt32(3);
+                stat.Odrzucone = reader.GetInt32(4);
+                stat.Wyslane = reader.GetInt32(5);
+            }
+
+            return stat;
+        }
+
+        #endregion
+
         #region Słowniki
 
         public async Task<List<StatusOferty>> PobierzSlownikStatusowAsync()
@@ -579,6 +648,29 @@ namespace Kalendarz1.OfertaCenowa
         public string NazwaEN { get; set; } = "";
         public string Kolor { get; set; } = "";
         public string Ikona { get; set; } = "";
+    }
+
+    /// <summary>
+    /// Statystyka ofert dla odbiorcy
+    /// </summary>
+    public class StatystykaOdbiorcy
+    {
+        public string KlientID { get; set; } = "";
+        public string KlientNazwa { get; set; } = "";
+        public int LiczbaOfert { get; set; }
+        public decimal SumaWartosci { get; set; }
+        public DateTime? OstatniaOferta { get; set; }
+        public int Zaakceptowane { get; set; }
+        public int Odrzucone { get; set; }
+        public int Wyslane { get; set; }
+
+        public string OstatniaOfertaTekst => OstatniaOferta.HasValue
+            ? OstatniaOferta.Value.ToString("dd.MM.yyyy")
+            : "Brak";
+
+        public decimal ProcentAkceptacji => LiczbaOfert > 0
+            ? Math.Round((decimal)Zaakceptowane / LiczbaOfert * 100, 1)
+            : 0;
     }
 
     #endregion
