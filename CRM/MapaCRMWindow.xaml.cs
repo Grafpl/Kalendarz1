@@ -501,23 +501,23 @@ namespace Kalendarz1.CRM
             sb.AppendLine(".btn-calc:hover { background: #1D4ED8; }");
             sb.AppendLine("#toggle-panel { position: absolute; right: 20px; top: 20px; z-index: 900; background: white; padding: 10px 15px; border-radius: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; font-weight: bold; color: #16A34A; }");
             sb.AppendLine("#route-summary { margin-top: 10px; font-size: 13px; font-weight: bold; color: #16A34A; text-align: center; display: none; }");
-            // Leaderboard CSS
-            sb.AppendLine("#toggle-leaderboard { position: absolute; left: 20px; top: 20px; z-index: 900; background: white; padding: 10px 15px; border-radius: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; font-weight: bold; color: #6366F1; }");
-            sb.AppendLine("#leaderboard-panel { position: absolute; left: 0; top: 0; bottom: 0; width: 280px; background: white; box-shadow: 2px 0 10px rgba(0,0,0,0.1); z-index: 1000; transform: translateX(-280px); transition: transform 0.3s ease; display: flex; flex-direction: column; }");
+            // Leaderboard CSS - większy i bardziej kompaktowy
+            sb.AppendLine("#toggle-leaderboard { position: absolute; left: 20px; top: 20px; z-index: 900; background: white; padding: 8px 14px; border-radius: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; font-weight: bold; color: #6366F1; font-size: 12px; }");
+            sb.AppendLine("#leaderboard-panel { position: absolute; left: 0; top: 0; bottom: 0; width: 320px; background: white; box-shadow: 2px 0 10px rgba(0,0,0,0.1); z-index: 1000; transform: translateX(-320px); transition: transform 0.3s ease; display: flex; flex-direction: column; }");
             sb.AppendLine("#leaderboard-panel.open { transform: translateX(0); }");
-            sb.AppendLine(".lb-header { background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%); color: white; padding: 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }");
-            sb.AppendLine(".lb-content { flex: 1; overflow-y: auto; padding: 10px; }");
-            sb.AppendLine(".lb-item { display: flex; align-items: center; padding: 10px; margin-bottom: 8px; background: #F8FAFC; border-radius: 8px; transition: all 0.2s; }");
+            sb.AppendLine(".lb-header { background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%); color: white; padding: 12px 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }");
+            sb.AppendLine(".lb-content { flex: 1; overflow-y: auto; padding: 8px; }");
+            sb.AppendLine(".lb-item { display: flex; align-items: center; padding: 6px 8px; margin-bottom: 4px; background: #F8FAFC; border-radius: 6px; transition: all 0.2s; }");
             sb.AppendLine(".lb-item:hover { background: #EEF2FF; }");
-            sb.AppendLine(".lb-rank { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; margin-right: 10px; }");
+            sb.AppendLine(".lb-rank { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 10px; margin-right: 8px; flex-shrink: 0; }");
             sb.AppendLine(".lb-rank.gold { background: #FEF3C7; color: #92400E; }");
             sb.AppendLine(".lb-rank.silver { background: #E5E7EB; color: #374151; }");
             sb.AppendLine(".lb-rank.bronze { background: #FFEDD5; color: #9A3412; }");
             sb.AppendLine(".lb-rank.normal { background: #F1F5F9; color: #64748B; }");
-            sb.AppendLine(".lb-info { flex: 1; }");
-            sb.AppendLine(".lb-name { font-weight: 600; font-size: 12px; color: #1E293B; }");
-            sb.AppendLine(".lb-stats { font-size: 10px; color: #64748B; margin-top: 2px; }");
-            sb.AppendLine(".lb-score { font-weight: bold; font-size: 14px; color: #4F46E5; }");
+            sb.AppendLine(".lb-info { flex: 1; min-width: 0; }");
+            sb.AppendLine(".lb-name { font-weight: 600; font-size: 11px; color: #1E293B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }");
+            sb.AppendLine(".lb-stats { font-size: 9px; color: #64748B; margin-top: 1px; }");
+            sb.AppendLine(".lb-score { font-weight: bold; font-size: 13px; color: #4F46E5; margin-left: 8px; flex-shrink: 0; }");
             // Konfetti CSS
             sb.AppendLine("#confetti-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 99999; overflow: hidden; }");
             sb.AppendLine(".confetti { position: absolute; width: 10px; height: 10px; opacity: 0; animation: confetti-fall 3s ease-out forwards; }");
@@ -616,6 +616,16 @@ namespace Kalendarz1.CRM
             sb.AppendLine("          (k.Handlowiec ? '<div class=\"p-row\"><span class=\"p-icon\">👤</span><div><div class=\"p-label\">Opiekun</div><div class=\"p-value\" style=\"color:#6366F1;font-weight:600\">' + k.Handlowiec + '</div></div></div>' : '') +");
             sb.AppendLine("          '<div class=\"p-row\"><span class=\"p-icon\">📞</span><div><div class=\"p-label\">Telefon</div><div class=\"p-value\">' + k.Telefon + '<button class=\"copy-btn\" onclick=\"kopiuj(\\x27' + k.Telefon + '\\x27)\">📋</button></div></div></div>' +");
             sb.AppendLine("          '<div class=\"p-row\"><span class=\"p-icon\">📋</span><div><div class=\"p-label\">Status</div><div class=\"p-value\">' + k.Status + '</div></div></div>' +");
+            // NOTATKI - wyżej
+            sb.AppendLine("          '<div class=\"p-section\">' +");
+            sb.AppendLine("            '<div class=\"p-section-title\">📝 Notatki</div>' +");
+            sb.AppendLine("            '<div class=\"quick-note\">' +");
+            sb.AppendLine("              '<input type=\"text\" id=\"qnote-' + k.ID + '\" placeholder=\"Dodaj nową notatkę...\">' +");
+            sb.AppendLine("              '<button onclick=\"dodajNotatke(' + k.ID + ')\">+</button>' +");
+            sb.AppendLine("            '</div>' +");
+            sb.AppendLine("            (k.Notatki ? '<div class=\"notes-list\">' + renderNotatki(k.Notatki) + '</div>' : '<div style=\"font-size:10px;color:#94A3B8;margin-top:6px;text-align:center\">Brak notatek</div>') +");
+            sb.AppendLine("          '</div>' +");
+            // ZMIEŃ STATUS
             sb.AppendLine("          '<div class=\"p-section\">' +");
             sb.AppendLine("            '<div class=\"p-section-title\">Zmień status</div>' +");
             sb.AppendLine("            '<div class=\"status-grid\">' +");
@@ -626,14 +636,7 @@ namespace Kalendarz1.CRM
             sb.AppendLine("              '<button class=\"s-btn\" style=\"background:#FEE2E2;color:#991B1B\" onclick=\"zmienStatus(' + k.ID + ',\\x27Nie zainteresowany\\x27)\" title=\"Nie zainteresowany\">❌<span>Odmowa</span></button>' +");
             sb.AppendLine("            '</div>' +");
             sb.AppendLine("          '</div>' +");
-            sb.AppendLine("          '<div class=\"p-section\">' +");
-            sb.AppendLine("            '<div class=\"p-section-title\">📝 Notatki</div>' +");
-            sb.AppendLine("            '<div class=\"quick-note\">' +");
-            sb.AppendLine("              '<input type=\"text\" id=\"qnote-' + k.ID + '\" placeholder=\"Dodaj nową notatkę...\">' +");
-            sb.AppendLine("              '<button onclick=\"dodajNotatke(' + k.ID + ')\">+</button>' +");
-            sb.AppendLine("            '</div>' +");
-            sb.AppendLine("            (k.Notatki ? '<div class=\"notes-list\">' + renderNotatki(k.Notatki) + '</div>' : '<div style=\"font-size:10px;color:#94A3B8;margin-top:6px;text-align:center\">Brak notatek</div>') +");
-            sb.AppendLine("          '</div>' +");
+            // HISTORIA
             sb.AppendLine("          '<div class=\"p-section\">' +");
             sb.AppendLine("            '<div class=\"p-section-title\">📅 Historia działań</div>' +");
             sb.AppendLine("            (k.Historia ? '<div class=\"timeline\">' + renderHistoria(k.Historia) + '</div>' : '<div style=\"font-size:10px;color:#94A3B8;text-align:center\">Brak historii</div>') +");
