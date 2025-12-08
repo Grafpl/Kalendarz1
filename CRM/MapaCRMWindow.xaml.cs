@@ -1,6 +1,4 @@
-extern alias WebView2;
 using Microsoft.Data.SqlClient;
-using WebView2Core = WebView2::Microsoft.Web.WebView2.Core;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -57,7 +55,34 @@ namespace Kalendarz1.CRM
             {
                 txtLoadingStatus.Text = "Inicjalizacja mapy...";
                 await webView.EnsureCoreWebView2Async();
-                webView.CoreWebView2.WebMessageReceived += CoreWebView2_WebMessageReceived;
+                webView.CoreWebView2.WebMessageReceived += (s, e) =>
+                {
+                    try
+                    {
+                        var json = e.WebMessageAsJson;
+                        using (var doc = JsonDocument.Parse(json))
+                        {
+                            var root = doc.RootElement;
+                            string action = root.GetProperty("action").GetString();
+                            int id = root.GetProperty("id").GetInt32();
+
+                            if (action == "zmienStatus")
+                            {
+                                string nowyStatus = root.GetProperty("status").GetString();
+                                ZmienStatusOdbiorcy(id, nowyStatus);
+                            }
+                            else if (action == "dodajNotatke")
+                            {
+                                string tresc = root.GetProperty("tresc").GetString();
+                                DodajNotatkeOdbiorcy(id, tresc);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"WebMessage error: {ex.Message}");
+                    }
+                };
                 isWebViewReady = true;
                 await Task.Delay(500);
                 await OdswiezMapeAsync();
@@ -733,35 +758,6 @@ namespace Kalendarz1.CRM
         {
             if (sender is FrameworkElement el && el.DataContext is MapKontakt k && isWebViewReady)
                 await webView.ExecuteScriptAsync($"setView({k.Lat.ToString(CultureInfo.InvariantCulture)}, {k.Lng.ToString(CultureInfo.InvariantCulture)}, 15);");
-        }
-
-        private void CoreWebView2_WebMessageReceived(object sender, WebView2Core.CoreWebView2WebMessageReceivedEventArgs e)
-        {
-            try
-            {
-                var json = e.WebMessageAsJson;
-                using (var doc = JsonDocument.Parse(json))
-                {
-                    var root = doc.RootElement;
-                    string action = root.GetProperty("action").GetString();
-                    int id = root.GetProperty("id").GetInt32();
-
-                    if (action == "zmienStatus")
-                    {
-                        string nowyStatus = root.GetProperty("status").GetString();
-                        ZmienStatusOdbiorcy(id, nowyStatus);
-                    }
-                    else if (action == "dodajNotatke")
-                    {
-                        string tresc = root.GetProperty("tresc").GetString();
-                        DodajNotatkeOdbiorcy(id, tresc);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"WebMessage error: {ex.Message}");
-            }
         }
 
         private void DodajNotatkeOdbiorcy(int id, string tresc)
