@@ -1039,9 +1039,12 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
                 // Aktualizuj karty statystyk
                 txtOpakE2Aktualne.Text = $"{e2Dzisiaj:N0}";
                 txtOpakH1Aktualne.Text = $"{h1Dzisiaj:N0}";
+                txtOpakRazemAktualne.Text = $"{e2Dzisiaj + h1Dzisiaj:N0}";
 
                 var zmianaE2 = e2Dzisiaj - e2Niedziela1;
                 var zmianaH1 = h1Dzisiaj - h1Niedziela1;
+                var zmianaRazem = zmianaE2 + zmianaH1;
+
                 txtOpakE2Zmiana.Text = $"vs niedz: {(zmianaE2 >= 0 ? "+" : "")}{zmianaE2:N0}";
                 txtOpakE2Zmiana.Foreground = zmianaE2 > 0 ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 107, 107)) :
                                               zmianaE2 < 0 ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(78, 205, 196)) :
@@ -1050,13 +1053,17 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
                 txtOpakH1Zmiana.Foreground = zmianaH1 > 0 ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 107, 107)) :
                                               zmianaH1 < 0 ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(78, 205, 196)) :
                                               new SolidColorBrush(System.Windows.Media.Color.FromRgb(139, 148, 158));
+                txtOpakRazemZmiana.Text = $"vs niedz: {(zmianaRazem >= 0 ? "+" : "")}{zmianaRazem:N0}";
+                txtOpakRazemZmiana.Foreground = zmianaRazem > 0 ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 107, 107)) :
+                                              zmianaRazem < 0 ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(78, 205, 196)) :
+                                              new SolidColorBrush(System.Windows.Media.Color.FromRgb(139, 148, 158));
 
-                txtOpakOstatniaNiedzielaData.Text = $"NIEDZIELA {ostatniaNiedziela:dd.MM}";
+                txtOpakOstatniaNiedzielaData.Text = $"NIEDZ. {ostatniaNiedziela:dd.MM}";
                 txtOpakE2Niedziela1.Text = $"{e2Niedziela1:N0}";
                 txtOpakH1Niedziela1.Text = $"{h1Niedziela1:N0}";
                 txtOpakRazemNiedziela1.Text = $"Razem: {e2Niedziela1 + h1Niedziela1:N0}";
 
-                txtOpakPoprzedniaNiedzielaData.Text = $"NIEDZIELA {poprzedniaNiedziela:dd.MM}";
+                txtOpakPoprzedniaNiedzielaData.Text = $"NIEDZ. {poprzedniaNiedziela:dd.MM}";
                 txtOpakE2Niedziela2.Text = $"{e2Niedziela2:N0}";
                 txtOpakH1Niedziela2.Text = $"{h1Niedziela2:N0}";
                 txtOpakRazemNiedziela2.Text = $"Razem: {e2Niedziela2 + h1Niedziela2:N0}";
@@ -1138,6 +1145,108 @@ ORDER BY ISNULL(SUM(CASE WHEN MZ.data <= @Dzisiaj THEN MZ.Ilosc ELSE 0 END), 0) 
                         ZmianaH1TydzienAlert = zH1 > 0,
                         ZmianaH1TydzienGood = zH1 < 0
                     });
+                }
+
+                // Aktualizuj liczbe kontrahentow
+                txtOpakLiczbaKontrahentow.Text = $"{dane.Count}";
+                txtOpakKontrahenciInfo.Text = $"z saldem opakowan";
+
+                // Podzial salda - dodatnie/ujemne
+                var e2Dodatnie = dane.Where(d => d.PojemnikiE2 > 0).Sum(d => d.PojemnikiE2);
+                var e2Ujemne = dane.Where(d => d.PojemnikiE2 < 0).Sum(d => Math.Abs(d.PojemnikiE2));
+                var h1Dodatnie = dane.Where(d => d.PaletaH1 > 0).Sum(d => d.PaletaH1);
+                var h1Ujemne = dane.Where(d => d.PaletaH1 < 0).Sum(d => Math.Abs(d.PaletaH1));
+
+                var e2DodatnieKontr = dane.Count(d => d.PojemnikiE2 > 0);
+                var e2UjemneKontr = dane.Count(d => d.PojemnikiE2 < 0);
+                var h1DodatnieKontr = dane.Count(d => d.PaletaH1 > 0);
+                var h1UjemneKontr = dane.Count(d => d.PaletaH1 < 0);
+
+                txtOpakE2Dodatnie.Text = $"{e2Dodatnie:N0}";
+                txtOpakE2DodatnieInfo.Text = $"{e2DodatnieKontr} kontr.";
+                txtOpakE2Ujemne.Text = $"{e2Ujemne:N0}";
+                txtOpakE2UjemneInfo.Text = $"{e2UjemneKontr} kontr.";
+                txtOpakH1Dodatnie.Text = $"{h1Dodatnie:N0}";
+                txtOpakH1DodatnieInfo.Text = $"{h1DodatnieKontr} kontr.";
+                txtOpakH1Ujemne.Text = $"{h1Ujemne:N0}";
+                txtOpakH1UjemneInfo.Text = $"{h1UjemneKontr} kontr.";
+
+                // Top 5 E2
+                panelTopE2.Children.Clear();
+                var top5E2 = dane.Where(d => d.PojemnikiE2 > 0).OrderByDescending(d => d.PojemnikiE2).Take(5).ToList();
+                int idx = 1;
+                foreach (var d in top5E2)
+                {
+                    var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
+                    sp.Children.Add(new TextBlock { Text = $"{idx}. ", Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(78, 205, 196)), FontWeight = FontWeights.Bold, Width = 18, FontSize = 11 });
+                    sp.Children.Add(new TextBlock { Text = d.Kontrahent, Foreground = Brushes.White, Width = 120, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 11 });
+                    sp.Children.Add(new TextBlock { Text = $"{d.PojemnikiE2:N0}", Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(78, 205, 196)), FontWeight = FontWeights.Bold, FontSize = 11 });
+                    panelTopE2.Children.Add(sp);
+                    idx++;
+                }
+
+                // Top 5 H1
+                panelTopH1.Children.Clear();
+                var top5H1 = dane.Where(d => d.PaletaH1 > 0).OrderByDescending(d => d.PaletaH1).Take(5).ToList();
+                idx = 1;
+                foreach (var d in top5H1)
+                {
+                    var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
+                    sp.Children.Add(new TextBlock { Text = $"{idx}. ", Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(244, 162, 97)), FontWeight = FontWeights.Bold, Width = 18, FontSize = 11 });
+                    sp.Children.Add(new TextBlock { Text = d.Kontrahent, Foreground = Brushes.White, Width = 120, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 11 });
+                    sp.Children.Add(new TextBlock { Text = $"{d.PaletaH1:N0}", Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(244, 162, 97)), FontWeight = FontWeights.Bold, FontSize = 11 });
+                    panelTopH1.Children.Add(sp);
+                    idx++;
+                }
+
+                // Top 5 wzrost tygodniowy
+                panelTopWzrost.Children.Clear();
+                var top5Wzrost = dane.Where(d => d.ZmianaRazem > 0).OrderByDescending(d => d.ZmianaRazem).Take(5).ToList();
+                idx = 1;
+                foreach (var d in top5Wzrost)
+                {
+                    var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
+                    sp.Children.Add(new TextBlock { Text = $"{idx}. ", Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 107, 107)), FontWeight = FontWeights.Bold, Width = 18, FontSize = 11 });
+                    sp.Children.Add(new TextBlock { Text = d.Kontrahent, Foreground = Brushes.White, Width = 105, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 11 });
+                    sp.Children.Add(new TextBlock { Text = $"+{d.ZmianaRazem:N0}", Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 107, 107)), FontWeight = FontWeights.Bold, FontSize = 11 });
+                    panelTopWzrost.Children.Add(sp);
+                    idx++;
+                }
+
+                // Podsumowanie per handlowiec
+                panelHandlowcyOpak.Items.Clear();
+                var handlowcySummary = dane.GroupBy(d => d.Handlowiec)
+                    .Select(g => new HandlowiecOpakowanieRow
+                    {
+                        Handlowiec = g.Key,
+                        E2 = g.Sum(x => x.PojemnikiE2),
+                        H1 = g.Sum(x => x.PaletaH1),
+                        LiczbaKontrahentow = g.Count()
+                    })
+                    .OrderByDescending(h => h.Razem)
+                    .ToList();
+
+                foreach (var h in handlowcySummary)
+                {
+                    var border = new Border
+                    {
+                        Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(26, 29, 33)),
+                        CornerRadius = new CornerRadius(5),
+                        Padding = new Thickness(10, 8, 10, 8),
+                        Margin = new Thickness(0, 0, 8, 8),
+                        MinWidth = 150
+                    };
+                    var sp = new StackPanel();
+                    sp.Children.Add(new TextBlock { Text = h.Handlowiec, Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(244, 162, 97)), FontWeight = FontWeights.Bold, FontSize = 11 });
+                    var spRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+                    spRow.Children.Add(new TextBlock { Text = $"E2: ", Foreground = Brushes.White, FontSize = 10 });
+                    spRow.Children.Add(new TextBlock { Text = $"{h.E2:N0}", Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(78, 205, 196)), FontWeight = FontWeights.Bold, FontSize = 10 });
+                    spRow.Children.Add(new TextBlock { Text = $"  H1: ", Foreground = Brushes.White, FontSize = 10 });
+                    spRow.Children.Add(new TextBlock { Text = $"{h.H1:N0}", Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(244, 162, 97)), FontWeight = FontWeights.Bold, FontSize = 10 });
+                    sp.Children.Add(spRow);
+                    sp.Children.Add(new TextBlock { Text = $"Razem: {h.Razem:N0} ({h.LiczbaKontrahentow} kontr.)", Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(139, 148, 158)), FontSize = 9, Margin = new Thickness(0, 2, 0, 0) });
+                    border.Child = sp;
+                    panelHandlowcyOpak.Items.Add(border);
                 }
             }
             catch (Exception ex)
@@ -1418,10 +1527,31 @@ FROM FakturyPrzeterminowane";
         public decimal Razem { get; set; }
         public decimal ZmianaE2Tydzien { get; set; }
         public decimal ZmianaH1Tydzien { get; set; }
+        public decimal ZmianaRazem => ZmianaE2Tydzien + ZmianaH1Tydzien;
         public bool ZmianaE2TydzienAlert { get; set; }
         public bool ZmianaE2TydzienGood { get; set; }
         public bool ZmianaH1TydzienAlert { get; set; }
         public bool ZmianaH1TydzienGood { get; set; }
+        public bool DuzyWzrostAlert => ZmianaRazem > 10;
+        public bool DuzySpadekGood => ZmianaRazem < -10;
+
+        // Formatowane teksty do bindowania
+        public string PojemnikiE2Tekst => $"{PojemnikiE2:N0}";
+        public string PaletaH1Tekst => $"{PaletaH1:N0}";
+        public string RazemTekst => $"{Razem:N0}";
+        public string ZmianaE2TydzienTekst => ZmianaE2Tydzien != 0 ? $"{(ZmianaE2Tydzien > 0 ? "+" : "")}{ZmianaE2Tydzien:N0}" : "0";
+        public string ZmianaH1TydzienTekst => ZmianaH1Tydzien != 0 ? $"{(ZmianaH1Tydzien > 0 ? "+" : "")}{ZmianaH1Tydzien:N0}" : "0";
+        public string ZmianaRazemTekst => ZmianaRazem != 0 ? $"{(ZmianaRazem > 0 ? "+" : "")}{ZmianaRazem:N0}" : "0";
+    }
+
+    // Klasa danych dla podsumowania per handlowiec
+    public class HandlowiecOpakowanieRow
+    {
+        public string Handlowiec { get; set; }
+        public decimal E2 { get; set; }
+        public decimal H1 { get; set; }
+        public decimal Razem => E2 + H1;
+        public int LiczbaKontrahentow { get; set; }
     }
 
     // Klasa danych dla tabeli platnosci
