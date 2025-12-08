@@ -131,7 +131,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             var lista = new List<FakturaRow>();
 
             var sql = @"
-                SELECT DK.nrdokwewn AS NrDokumentu,
+                SELECT DK.kod AS NrDokumentu,
                        DK.data AS Data,
                        ISNULL(PN.TerminPrawdziwy, DK.plattermin) AS Termin,
                        DK.walbrutto AS KwotaBrutto,

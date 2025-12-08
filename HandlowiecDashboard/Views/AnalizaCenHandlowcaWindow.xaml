@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
         Title="Analiza Cen Handlowca" Height="800" Width="1200"
-        WindowStartupLocation="CenterScreen" Background="#1A1D21">
+        WindowStartupLocation="CenterScreen" WindowState="Maximized" Background="#1A1D21">
 
     <Window.Resources>
         <SolidColorBrush x:Key="BackgroundDarkBrush" Color="#1A1D21"/>
