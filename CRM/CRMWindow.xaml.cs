@@ -84,10 +84,18 @@ namespace Kalendarz1.CRM
 
         private void WczytajKontakty()
         {
+            bool tylkoMoje = chkTylkoMoje?.IsChecked == true;
+
             using (var conn = new SqlConnection(connectionString))
             {
                 conn.Open();
-                var cmd = new SqlCommand(@"
+
+                // Różne zapytanie w zależności od filtra "Tylko moi"
+                string whereClause = tylkoMoje
+                    ? "WHERE w.OperatorID = @OperatorID AND ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)')"
+                    : "WHERE (w.OperatorID = @OperatorID OR w.OperatorID IS NULL) AND ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)')";
+
+                var cmd = new SqlCommand($@"
                     SELECT o.ID, o.Nazwa as NAZWA, o.KOD, o.MIASTO, o.ULICA, o.Telefon_K as TELEFON_K, o.Email,
                         o.Wojewodztwo, o.PKD_Opis, o.Tagi, ISNULL(o.Status, 'Do zadzwonienia') as Status, o.DataNastepnegoKontaktu,
                         (SELECT TOP 1 DataZmiany FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID ORDER BY DataZmiany DESC) as OstatniaZmiana,
@@ -96,7 +104,7 @@ namespace Kalendarz1.CRM
                     FROM OdbiorcyCRM o
                     LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
                     LEFT JOIN KodyPocztowe kp ON o.KOD = kp.Kod
-                    WHERE (w.OperatorID = @OperatorID OR w.OperatorID IS NULL) AND ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)')
+                    {whereClause}
                     ORDER BY CASE WHEN o.DataNastepnegoKontaktu IS NULL THEN 1 ELSE 0 END, o.DataNastepnegoKontaktu ASC", conn);
 
                 cmd.Parameters.AddWithValue("@OperatorID", operatorID);
@@ -492,8 +500,21 @@ namespace Kalendarz1.CRM
         private void BtnKanban_Click(object sender, RoutedEventArgs e) { new KanbanWindow(connectionString, operatorID).Show(); }
         private void BtnManager_Click(object sender, RoutedEventArgs e) { new PanelManageraWindow(connectionString).Show(); }
         private void BtnMapa_Click(object sender, RoutedEventArgs e) { new MapaCRMWindow(connectionString, operatorID).Show(); }
-        private void BtnDodaj_Click(object sender, RoutedEventArgs e) { if (new FormDodajOdbiorce(connectionString, operatorID).ShowDialog() == System.Windows.Forms.DialogResult.OK) WczytajDane(); }
+        private void BtnDodaj_Click(object sender, RoutedEventArgs e)
+        {
+            var form = new FormDodajOdbiorce(connectionString, operatorID);
+            if (form.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                // Jeśli użytkownik wybrał "Tylko moi", włącz ten filtr
+                if (form.FiltrujTylkoMoje && chkTylkoMoje != null)
+                {
+                    chkTylkoMoje.IsChecked = true;
+                }
+                WczytajDane();
+            }
+        }
         private void BtnOdswiez_Click(object sender, RoutedEventArgs e) => WczytajDane();
+        private void ChkTylkoMoje_Changed(object sender, RoutedEventArgs e) => WczytajDane();
         private void BtnAdmin_Click(object sender, RoutedEventArgs e) { }
 
         private string aktywnyChip = "";

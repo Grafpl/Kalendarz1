@@ -221,7 +221,8 @@
                 <TextBlock Text="Woj:" FontSize="10" Foreground="#6B7280" VerticalAlignment="Center" Margin="0,0,4,0"/>
                 <ComboBox x:Name="cmbWojewodztwo" Width="100" Margin="0,0,8,0" Padding="4" FontSize="11" SelectionChanged="CmbWojewodztwo_SelectionChanged"/>
                 <TextBlock Text="Branża:" FontSize="10" Foreground="#6B7280" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                <ComboBox x:Name="cmbBranza" Width="130" Margin="0,0,0,0" Padding="4" FontSize="11" SelectionChanged="CmbBranza_SelectionChanged"/>
+                <ComboBox x:Name="cmbBranza" Width="130" Margin="0,0,8,0" Padding="4" FontSize="11" SelectionChanged="CmbBranza_SelectionChanged"/>
+                <CheckBox x:Name="chkTylkoMoje" Content="Tylko moi" FontSize="10" Foreground="#6366F1" FontWeight="SemiBold" VerticalContentAlignment="Center" Margin="4,0,0,0" Checked="ChkTylkoMoje_Changed" Unchecked="ChkTylkoMoje_Changed"/>
             </StackPanel>
 
             <!-- PRAWA STRONA: KPI -->
