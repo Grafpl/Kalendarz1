@@ -784,7 +784,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
                     WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
                       AND TW.katalog IN (67095, 67153)
-                    GROUP BY CASE WHEN TW.katalog = '67153' THEN 'Mrozone' ELSE 'Swieze' END";
+                    GROUP BY CASE WHEN TW.katalog = 67153 THEN 'Mrozone' ELSE 'Swieze' END";
 
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Rok", rok);

@@ -124,7 +124,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             var lista = new List<TransakcjaRow>();
 
             var sql = @"
-                SELECT DK.data AS Data, DK.nrdokwewn AS NrDokumentu, C.shortcut AS Kontrahent,
+                SELECT DK.data AS Data, DK.kod AS NrDokumentu, C.shortcut AS Kontrahent,
                        TW.kod + ' - ' + ISNULL(TW.nazwa, '') AS Towar,
                        DP.ilosc AS Ilosc, DP.cena AS Cena, DP.wartNetto AS Wartosc
                 FROM [HANDEL].[HM].[DK] DK
@@ -135,7 +135,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
                   AND TW.katalog IN (67095, 67153)
                   AND WYM.CDim_Handlowiec_Val = @Handlowiec
-                ORDER BY DK.data DESC, DK.nrdokwewn";
+                ORDER BY DK.data DESC, DK.kod";
 
             await using var cmd = new SqlCommand(sql, cn);
             cmd.Parameters.AddWithValue("@Rok", rok);
