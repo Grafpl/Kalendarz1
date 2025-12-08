@@ -56,6 +56,7 @@ namespace Kalendarz1.CRM
             {
                 txtLoadingStatus.Text = "Inicjalizacja mapy...";
                 await webView.EnsureCoreWebView2Async();
+                webView.CoreWebView2.WebMessageReceived += CoreWebView2_WebMessageReceived;
                 isWebViewReady = true;
                 await Task.Delay(500);
                 await OdswiezMapeAsync();
@@ -146,7 +147,7 @@ namespace Kalendarz1.CRM
                         CASE WHEN pb.PKD_Opis IS NOT NULL THEN 1 ELSE 0 END as CzyPriorytetowa,
                         kp.Latitude,
                         kp.Longitude,
-                        (SELECT TOP 1 ISNULL(op.Name, n.KtoDodal) FROM NotatkiCRM n LEFT JOIN operators op ON n.KtoDodal = CAST(op.ID AS NVARCHAR) WHERE n.IDOdbiorcy = o.ID ORDER BY n.DataUtworzenia DESC) as Handlowiec
+                        (SELECT TOP 1 ISNULL(op.Name, h.KtoWykonal) FROM HistoriaZmianCRM h LEFT JOIN operators op ON h.KtoWykonal = CAST(op.ID AS NVARCHAR) WHERE h.IDOdbiorcy = o.ID ORDER BY h.DataZmiany DESC) as Handlowiec
                     FROM OdbiorcyCRM o
                     LEFT JOIN PriorytetoweBranzeCRM pb ON o.PKD_Opis = pb.PKD_Opis
                     INNER JOIN KodyPocztowe kp ON REPLACE(o.KOD, '-', '') = REPLACE(kp.Kod, '-', '')
@@ -350,6 +351,7 @@ namespace Kalendarz1.CRM
                 k.Ulica,
                 k.Telefon,
                 k.Email,
+                k.Wojewodztwo,
                 k.Status,
                 k.Branza,
                 k.Handlowiec,
@@ -375,6 +377,7 @@ namespace Kalendarz1.CRM
             sb.AppendLine(".btn-row { display:flex; gap:5px; margin-top:8px; }");
             sb.AppendLine(".p-btn { flex:1; text-align:center; padding: 6px 4px; color: white; text-decoration: none; border-radius: 4px; margin-top: 4px; font-size: 11px; border:none; cursor:pointer; }");
             sb.AppendLine(".btn-add { background: #0F172A; } .btn-add:hover { background: #1E293B; }");
+            sb.AppendLine(".s-btn { padding:4px 8px; border:none; border-radius:4px; cursor:pointer; font-size:12px; }");
             sb.AppendLine("#route-panel { position: absolute; right: 0; top: 0; bottom: 0; width: 320px; background: white; box-shadow: -2px 0 10px rgba(0,0,0,0.1); z-index: 1000; transform: translateX(320px); transition: transform 0.3s ease; display: flex; flex-direction: column; }");
             sb.AppendLine("#route-panel.open { transform: translateX(0); }");
             sb.AppendLine(".rp-header { background: #16A34A; color: white; padding: 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }");
@@ -428,14 +431,25 @@ namespace Kalendarz1.CRM
             sb.AppendLine("    marker.kontakt = p;");
             sb.AppendLine("    marker.addListener('click', function() {");
             sb.AppendLine("      var k = this.kontakt;");
+            sb.AppendLine("      var wojewodztwoHtml = k.Wojewodztwo ? '<div class=\"p-info\">🗺️ woj. ' + k.Wojewodztwo + '</div>' : '';");
             sb.AppendLine("      var branzaHtml = k.Branza ? '<div class=\"p-info\">🏭 ' + k.Branza + '</div>' : '';");
             sb.AppendLine("      var handlowiecHtml = k.Handlowiec ? '<div class=\"p-info\" style=\"color:#6366F1;font-weight:bold\">👤 ' + k.Handlowiec + '</div>' : '';");
+            sb.AppendLine("      var statusHtml = '<div class=\"p-info\" style=\"margin-top:5px\"><b>Status:</b> ' + k.Status + '</div>';");
+            sb.AppendLine("      var statusBtns = '<div style=\"margin-top:8px;font-size:10px;border-top:1px solid #eee;padding-top:8px\"><b>Zmień status:</b></div>' +");
+            sb.AppendLine("        '<div style=\"display:flex;flex-wrap:wrap;gap:3px;margin-top:5px\">' +");
+            sb.AppendLine("        '<button class=\"s-btn\" style=\"background:#F1F5F9;color:#64748B\" onclick=\"zmienStatus(' + k.ID + ',\\x27Próba kontaktu\\x27)\">⏳</button>' +");
+            sb.AppendLine("        '<button class=\"s-btn\" style=\"background:#DCFCE7;color:#166534\" onclick=\"zmienStatus(' + k.ID + ',\\x27Nawiązano kontakt\\x27)\">✅</button>' +");
+            sb.AppendLine("        '<button class=\"s-btn\" style=\"background:#CCFBF1;color:#0D9488\" onclick=\"zmienStatus(' + k.ID + ',\\x27Zgoda na dalszy kontakt\\x27)\">🤝</button>' +");
+            sb.AppendLine("        '<button class=\"s-btn\" style=\"background:#DBEAFE;color:#1E40AF\" onclick=\"zmienStatus(' + k.ID + ',\\x27Do wysłania oferta\\x27)\">📄</button>' +");
+            sb.AppendLine("        '<button class=\"s-btn\" style=\"background:#FEE2E2;color:#991B1B\" onclick=\"zmienStatus(' + k.ID + ',\\x27Nie zainteresowany\\x27)\">❌</button>' +");
+            sb.AppendLine("        '</div>';");
             sb.AppendLine("      var content = '<div class=\"p-title\">' + k.Nazwa + '</div>' +");
             sb.AppendLine("                    '<div class=\"p-info\">📍 ' + k.Miasto + ' (' + k.DystansKm + ' km)</div>' +");
-            sb.AppendLine("                    branzaHtml + handlowiecHtml +");
+            sb.AppendLine("                    wojewodztwoHtml + branzaHtml + handlowiecHtml +");
             sb.AppendLine("                    '<div class=\"p-info\">📞 ' + k.Telefon + '</div>' +");
+            sb.AppendLine("                    statusHtml + statusBtns +");
             sb.AppendLine("                    '<div class=\"btn-row\">' +");
-            sb.AppendLine("                    '<button class=\"p-btn btn-add\" onclick=\"addToRoute(' + k.ID + ')\">➕ Dodaj do trasy</button>' +");
+            sb.AppendLine("                    '<button class=\"p-btn btn-add\" onclick=\"addToRoute(' + k.ID + ')\">➕ Trasa</button>' +");
             sb.AppendLine("                    '<a class=\"p-btn\" style=\"background:#16A34A\" href=\"tel:' + k.Telefon + '\">📞 Zadzwoń</a>' +");
             sb.AppendLine("                    '</div>';");
             sb.AppendLine("      infoWindow.setContent(content);");
@@ -515,6 +529,11 @@ namespace Kalendarz1.CRM
             sb.AppendLine("  document.getElementById('route-summary').style.display = 'none';");
             sb.AppendLine("}");
             sb.AppendLine("window.setView = function(lat, lng, z) { if(map) { map.setCenter({ lat: lat, lng: lng }); map.setZoom(z||15); } };");
+            sb.AppendLine("function zmienStatus(id, nowyStatus) {");
+            sb.AppendLine("  window.chrome.webview.postMessage(JSON.stringify({ action: 'zmienStatus', id: id, status: nowyStatus }));");
+            sb.AppendLine("  infoWindow.close();");
+            sb.AppendLine("  var k = data.find(x => x.ID == id); if(k) k.Status = nowyStatus;");
+            sb.AppendLine("}");
             sb.AppendLine("</script>");
 
             sb.Append("<script async defer src=\"https://maps.googleapis.com/maps/api/js?key=");
@@ -621,6 +640,63 @@ namespace Kalendarz1.CRM
         {
             if (sender is FrameworkElement el && el.DataContext is MapKontakt k && isWebViewReady)
                 await webView.ExecuteScriptAsync($"setView({k.Lat.ToString(CultureInfo.InvariantCulture)}, {k.Lng.ToString(CultureInfo.InvariantCulture)}, 15);");
+        }
+
+        private void CoreWebView2_WebMessageReceived(object sender, CoreWebView2WebMessageReceivedEventArgs e)
+        {
+            try
+            {
+                var json = e.WebMessageAsJson;
+                using (var doc = JsonDocument.Parse(json))
+                {
+                    var root = doc.RootElement;
+                    if (root.GetProperty("action").GetString() == "zmienStatus")
+                    {
+                        int id = root.GetProperty("id").GetInt32();
+                        string nowyStatus = root.GetProperty("status").GetString();
+                        ZmienStatusOdbiorcy(id, nowyStatus);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}");
+            }
+        }
+
+        private void ZmienStatusOdbiorcy(int id, string nowyStatus)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    var cmdUpdate = new SqlCommand("UPDATE OdbiorcyCRM SET Status = @status WHERE ID = @id", conn);
+                    cmdUpdate.Parameters.AddWithValue("@status", nowyStatus);
+                    cmdUpdate.Parameters.AddWithValue("@id", id);
+                    cmdUpdate.ExecuteNonQuery();
+
+                    var cmdLog = new SqlCommand("INSERT INTO HistoriaZmianCRM (IDOdbiorcy, TypZmiany, WartoscNowa, KtoWykonal, DataZmiany) VALUES (@id, 'Zmiana statusu', @val, @op, GETDATE())", conn);
+                    cmdLog.Parameters.AddWithValue("@id", id);
+                    cmdLog.Parameters.AddWithValue("@val", nowyStatus);
+                    cmdLog.Parameters.AddWithValue("@op", operatorID);
+                    cmdLog.ExecuteNonQuery();
+                }
+
+                // Aktualizuj lokalną listę
+                var kontakt = kontaktyNaMapie.FirstOrDefault(k => k.ID == id);
+                if (kontakt != null)
+                {
+                    kontakt.Status = nowyStatus;
+                    UstawKoloryStatusu(kontakt);
+                }
+
+                MessageBox.Show($"Status zmieniony na: {nowyStatus}", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd zmiany statusu: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
     }
 
