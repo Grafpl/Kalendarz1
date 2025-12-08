@@ -3,6 +3,7 @@ using Microsoft.Data.SqlClient;
 using System;
 using System.Data;
 using System.Drawing;
+using System.IO;
 using System.Windows.Forms;
 
 namespace Kalendarz1
@@ -37,39 +38,63 @@ namespace Kalendarz1
 
         private void InitializeComponent()
         {
-            this.Text = "📋 Panel Reklamacji - Zarządzanie";
+            this.Text = "Panel Reklamacji - Zarządzanie";
             this.Size = new Size(1600, 900);
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.BackColor = ColorTranslator.FromHtml("#f5f7fa");
+            this.BackColor = ColorTranslator.FromHtml("#f8f9fa");
 
-            // Panel nagłówka
+            // Panel nagłówka - gradient zielono-czerwony
             Panel panelHeader = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 120,
-                BackColor = ColorTranslator.FromHtml("#2c3e50"),
+                Height = 100,
+                BackColor = ColorTranslator.FromHtml("#1e8449"),
                 Padding = new Padding(20)
             };
 
+            // Pasek czerwony na górze
+            Panel redStripe = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 6,
+                BackColor = ColorTranslator.FromHtml("#c0392b")
+            };
+            this.Controls.Add(redStripe);
+
             Label lblTytul = new Label
             {
-                Text = "📋 PANEL REKLAMACJI",
-                Font = new Font("Segoe UI", 22F, FontStyle.Bold),
+                Text = "PANEL REKLAMACJI",
+                Font = new Font("Segoe UI", 24F, FontStyle.Bold),
                 ForeColor = Color.White,
                 AutoSize = true,
-                Location = new Point(20, 20)
+                Location = new Point(25, 18)
             };
             panelHeader.Controls.Add(lblTytul);
 
             lblLicznik = new Label
             {
                 Text = "Reklamacji: 0",
-                Font = new Font("Segoe UI", 12F),
-                ForeColor = ColorTranslator.FromHtml("#ecf0f1"),
+                Font = new Font("Segoe UI", 11F),
+                ForeColor = ColorTranslator.FromHtml("#d5f5e3"),
                 AutoSize = true,
-                Location = new Point(20, 60)
+                Location = new Point(25, 55)
             };
             panelHeader.Controls.Add(lblLicznik);
+
+            // Logo po prawej stronie nagłówka
+            PictureBox pbLogo = new PictureBox
+            {
+                Size = new Size(180, 80),
+                SizeMode = PictureBoxSizeMode.Zoom,
+                BackColor = Color.Transparent,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Location = new Point(this.Width - 220, 10)
+            };
+
+            // Załaduj logo firmy
+            try { pbLogo.Image = Reklamacje.LogoFirmyBase64.GetLogo(); }
+            catch { }
+            panelHeader.Controls.Add(pbLogo);
 
             this.Controls.Add(panelHeader);
 
@@ -77,9 +102,17 @@ namespace Kalendarz1
             Panel panelFiltry = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 80,
+                Height = 85,
                 BackColor = Color.White,
                 Padding = new Padding(20, 15, 20, 15)
+            };
+            panelFiltry.Paint += (s, e) =>
+            {
+                // Dolna linia zielona
+                using (var pen = new Pen(ColorTranslator.FromHtml("#27ae60"), 2))
+                {
+                    e.Graphics.DrawLine(pen, 0, panelFiltry.Height - 1, panelFiltry.Width, panelFiltry.Height - 1);
+                }
             };
 
             Label lblStatus = new Label
@@ -160,47 +193,50 @@ namespace Kalendarz1
 
             btnOdswiez = new Button
             {
-                Text = "🔄 Odśwież",
+                Text = "Odśwież",
                 Location = new Point(800, 35),
-                Size = new Size(120, 30),
-                BackColor = ColorTranslator.FromHtml("#3498db"),
+                Size = new Size(110, 32),
+                BackColor = ColorTranslator.FromHtml("#27ae60"),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             btnOdswiez.FlatAppearance.BorderSize = 0;
+            btnOdswiez.FlatAppearance.MouseOverBackColor = ColorTranslator.FromHtml("#1e8449");
             btnOdswiez.Click += (s, e) => WczytajReklamacje();
             panelFiltry.Controls.Add(btnOdswiez);
 
             btnStatystyki = new Button
             {
-                Text = "📊 Statystyki",
-                Location = new Point(940, 35),
-                Size = new Size(120, 30),
-                BackColor = ColorTranslator.FromHtml("#9b59b6"),
+                Text = "Statystyki",
+                Location = new Point(920, 35),
+                Size = new Size(110, 32),
+                BackColor = ColorTranslator.FromHtml("#2ecc71"),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             btnStatystyki.FlatAppearance.BorderSize = 0;
+            btnStatystyki.FlatAppearance.MouseOverBackColor = ColorTranslator.FromHtml("#27ae60");
             btnStatystyki.Click += BtnStatystyki_Click;
             panelFiltry.Controls.Add(btnStatystyki);
 
             // Przycisk eksportu zestawienia PDF
             Button btnExportZestawienie = new Button
             {
-                Text = "📄 Eksport PDF",
-                Location = new Point(1070, 35),
-                Size = new Size(120, 30),
-                BackColor = ColorTranslator.FromHtml("#e74c3c"),
+                Text = "Eksport PDF",
+                Location = new Point(1040, 35),
+                Size = new Size(110, 32),
+                BackColor = ColorTranslator.FromHtml("#c0392b"),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             btnExportZestawienie.FlatAppearance.BorderSize = 0;
+            btnExportZestawienie.FlatAppearance.MouseOverBackColor = ColorTranslator.FromHtml("#922b21");
             btnExportZestawienie.Click += BtnExportZestawienie_Click;
             panelFiltry.Controls.Add(btnExportZestawienie);
 
@@ -231,16 +267,17 @@ namespace Kalendarz1
                 RowTemplate = { Height = 35 }
             };
 
-            dgvReklamacje.ColumnHeadersDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#34495e");
+            dgvReklamacje.ColumnHeadersDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#1e8449");
             dgvReklamacje.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
             dgvReklamacje.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             dgvReklamacje.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
             dgvReklamacje.ColumnHeadersDefaultCellStyle.Padding = new Padding(10, 0, 0, 0);
 
             dgvReklamacje.EnableHeadersVisualStyles = false;
-            dgvReklamacje.AlternatingRowsDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#f8f9fa");
-            dgvReklamacje.DefaultCellStyle.SelectionBackColor = ColorTranslator.FromHtml("#3498db");
+            dgvReklamacje.AlternatingRowsDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#e8f8f5");
+            dgvReklamacje.DefaultCellStyle.SelectionBackColor = ColorTranslator.FromHtml("#27ae60");
             dgvReklamacje.DefaultCellStyle.SelectionForeColor = Color.White;
+            dgvReklamacje.GridColor = ColorTranslator.FromHtml("#d5f5e3");
             dgvReklamacje.CellFormatting += DgvReklamacje_CellFormatting;
             dgvReklamacje.CellDoubleClick += (s, e) => OtworzSzczegoly();
 
@@ -251,17 +288,25 @@ namespace Kalendarz1
             Panel panelFooter = new Panel
             {
                 Dock = DockStyle.Bottom,
-                Height = 70,
-                BackColor = ColorTranslator.FromHtml("#ecf0f1"),
+                Height = 75,
+                BackColor = ColorTranslator.FromHtml("#d5f5e3"),
                 Padding = new Padding(20, 15, 20, 15)
+            };
+            panelFooter.Paint += (s, e) =>
+            {
+                // Górna linia zielona
+                using (var pen = new Pen(ColorTranslator.FromHtml("#27ae60"), 3))
+                {
+                    e.Graphics.DrawLine(pen, 0, 0, panelFooter.Width, 0);
+                }
             };
 
             btnSzczegoly = new Button
             {
-                Text = "📄 Szczegóły reklamacji",
-                Size = new Size(180, 40),
-                Location = new Point(20, 15),
-                BackColor = ColorTranslator.FromHtml("#3498db"),
+                Text = "Szczegóły",
+                Size = new Size(140, 42),
+                Location = new Point(20, 16),
+                BackColor = ColorTranslator.FromHtml("#27ae60"),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
@@ -269,15 +314,16 @@ namespace Kalendarz1
                 Enabled = false
             };
             btnSzczegoly.FlatAppearance.BorderSize = 0;
+            btnSzczegoly.FlatAppearance.MouseOverBackColor = ColorTranslator.FromHtml("#1e8449");
             btnSzczegoly.Click += (s, e) => OtworzSzczegoly();
             panelFooter.Controls.Add(btnSzczegoly);
 
             btnZmienStatus = new Button
             {
-                Text = "✏ Zmień status",
-                Size = new Size(180, 40),
-                Location = new Point(220, 15),
-                BackColor = ColorTranslator.FromHtml("#f39c12"),
+                Text = "Zmień status",
+                Size = new Size(140, 42),
+                Location = new Point(175, 16),
+                BackColor = ColorTranslator.FromHtml("#2ecc71"),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
@@ -285,15 +331,16 @@ namespace Kalendarz1
                 Enabled = false
             };
             btnZmienStatus.FlatAppearance.BorderSize = 0;
+            btnZmienStatus.FlatAppearance.MouseOverBackColor = ColorTranslator.FromHtml("#27ae60");
             btnZmienStatus.Click += BtnZmienStatus_Click;
             panelFooter.Controls.Add(btnZmienStatus);
 
             // Przycisk usuwania - tylko dla admina (11111)
             btnUsun = new Button
             {
-                Text = "🗑 Usuń reklamację",
-                Size = new Size(180, 40),
-                Location = new Point(420, 15),
+                Text = "Usuń reklamację",
+                Size = new Size(160, 42),
+                Location = new Point(330, 16),
                 BackColor = ColorTranslator.FromHtml("#c0392b"),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
@@ -303,6 +350,7 @@ namespace Kalendarz1
                 Visible = (userId == "11111") // Tylko admin widzi ten przycisk
             };
             btnUsun.FlatAppearance.BorderSize = 0;
+            btnUsun.FlatAppearance.MouseOverBackColor = ColorTranslator.FromHtml("#922b21");
             btnUsun.Click += BtnUsun_Click;
             panelFooter.Controls.Add(btnUsun);
 
@@ -412,27 +460,27 @@ namespace Kalendarz1
                 switch (status)
                 {
                     case "Nowa":
-                        e.CellStyle.BackColor = ColorTranslator.FromHtml("#3498db");
+                        e.CellStyle.BackColor = ColorTranslator.FromHtml("#e74c3c"); // Czerwony - wymaga uwagi
                         e.CellStyle.ForeColor = Color.White;
                         e.CellStyle.Font = new Font(dgvReklamacje.Font, FontStyle.Bold);
                         break;
                     case "W trakcie":
-                        e.CellStyle.BackColor = ColorTranslator.FromHtml("#f39c12");
+                        e.CellStyle.BackColor = ColorTranslator.FromHtml("#f39c12"); // Pomarańczowy - w toku
                         e.CellStyle.ForeColor = Color.White;
                         e.CellStyle.Font = new Font(dgvReklamacje.Font, FontStyle.Bold);
                         break;
                     case "Zaakceptowana":
-                        e.CellStyle.BackColor = ColorTranslator.FromHtml("#27ae60");
+                        e.CellStyle.BackColor = ColorTranslator.FromHtml("#27ae60"); // Zielony - zaakceptowana
                         e.CellStyle.ForeColor = Color.White;
                         e.CellStyle.Font = new Font(dgvReklamacje.Font, FontStyle.Bold);
                         break;
                     case "Odrzucona":
-                        e.CellStyle.BackColor = ColorTranslator.FromHtml("#e74c3c");
+                        e.CellStyle.BackColor = ColorTranslator.FromHtml("#c0392b"); // Ciemny czerwony - odrzucona
                         e.CellStyle.ForeColor = Color.White;
                         e.CellStyle.Font = new Font(dgvReklamacje.Font, FontStyle.Bold);
                         break;
                     case "Zamknieta":
-                        e.CellStyle.BackColor = ColorTranslator.FromHtml("#95a5a6");
+                        e.CellStyle.BackColor = ColorTranslator.FromHtml("#1e8449"); // Ciemny zielony - zamknięta
                         e.CellStyle.ForeColor = Color.White;
                         e.CellStyle.Font = new Font(dgvReklamacje.Font, FontStyle.Bold);
                         break;
@@ -833,5 +881,6 @@ namespace Kalendarz1
                     "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
     }
 }

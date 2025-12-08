@@ -50,21 +50,80 @@ namespace Kalendarz1.Reklamacje
 
         private void InitializeComponent()
         {
-            Text = $"📄 Szczegóły reklamacji #{idReklamacji}";
+            Text = $"Szczegóły reklamacji #{idReklamacji}";
             Size = new Size(1200, 800);
             StartPosition = FormStartPosition.CenterParent;
-            BackColor = ColorTranslator.FromHtml("#f5f7fa");
+            BackColor = ColorTranslator.FromHtml("#f8f9fa");
 
-            // Główny panel z zakładkami
+            // ============================================
+            // STRUKTURA: RedStripe -> Header -> TabControl -> Buttons
+            // ============================================
+
+            // 1. Czerwony pasek na samej górze
+            Panel redStripe = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 4,
+                BackColor = ColorTranslator.FromHtml("#c0392b")
+            };
+
+            // 2. Panel nagłówka pod czerwonym paskiem
+            Panel panelHeader = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 70,
+                BackColor = ColorTranslator.FromHtml("#1e8449")
+            };
+            Label lblHeader = new Label
+            {
+                Text = $"REKLAMACJA #{idReklamacji}",
+                Font = new Font("Segoe UI", 18F, FontStyle.Bold),
+                ForeColor = Color.White,
+                AutoSize = true,
+                Location = new Point(20, 18)
+            };
+            panelHeader.Controls.Add(lblHeader);
+
+            // Logo po prawej stronie nagłówka
+            PictureBox pbLogo = new PictureBox
+            {
+                Size = new Size(150, 60),
+                SizeMode = PictureBoxSizeMode.Zoom,
+                BackColor = Color.Transparent,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Location = new Point(this.Width - 180, 5)
+            };
+
+            // Załaduj logo z osadzonego Base64
+            try { pbLogo.Image = PobierzLogoFirmy(); }
+            catch { }
+            panelHeader.Controls.Add(pbLogo);
+
+            // 3. Panel przycisków na dole
+            Panel panelButtons = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 65,
+                BackColor = ColorTranslator.FromHtml("#d5f5e3")
+            };
+            panelButtons.Paint += (s, e) =>
+            {
+                using (var pen = new Pen(ColorTranslator.FromHtml("#27ae60"), 2))
+                {
+                    e.Graphics.DrawLine(pen, 0, 0, panelButtons.Width, 0);
+                }
+            };
+
+            // 4. Główny panel z zakładkami (wypełnia środek)
             tabControl = new TabControl
             {
                 Dock = DockStyle.Fill,
                 Font = new Font("Segoe UI", 10F),
-                Padding = new Point(10, 5)
+                Padding = new Point(12, 6)
             };
 
             // Zakładka: Podstawowe informacje
-            TabPage tabInfo = new TabPage("📋 Informacje podstawowe");
+            TabPage tabInfo = new TabPage("Informacje");
             tabInfo.BackColor = Color.White;
             tabInfo.Padding = new Padding(15);
 
@@ -73,13 +132,13 @@ namespace Kalendarz1.Reklamacje
                 Dock = DockStyle.Fill,
                 ReadOnly = true,
                 Font = new Font("Consolas", 10F),
-                BackColor = ColorTranslator.FromHtml("#fafbfc"),
+                BackColor = ColorTranslator.FromHtml("#f8fff8"),
                 BorderStyle = BorderStyle.None
             };
             tabInfo.Controls.Add(rtbInfo);
 
             // Zakładka: Towary
-            TabPage tabTowary = new TabPage("📦 Towary");
+            TabPage tabTowary = new TabPage("Towary");
             tabTowary.BackColor = Color.White;
 
             dgvTowary = new DataGridView
@@ -90,26 +149,30 @@ namespace Kalendarz1.Reklamacje
                 BorderStyle = BorderStyle.None,
                 AllowUserToAddRows = false,
                 RowHeadersVisible = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                GridColor = ColorTranslator.FromHtml("#d5f5e3")
             };
+            dgvTowary.ColumnHeadersDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#27ae60");
+            dgvTowary.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            dgvTowary.EnableHeadersVisualStyles = false;
             tabTowary.Controls.Add(dgvTowary);
 
             // Zakładka: Partie
-            TabPage tabPartie = new TabPage("🔢 Partie");
+            TabPage tabPartie = new TabPage("Partie");
             tabPartie.BackColor = Color.White;
 
             lbPartie = new ListBox
             {
                 Dock = DockStyle.Fill,
                 Font = new Font("Segoe UI", 10F),
-                BackColor = ColorTranslator.FromHtml("#fafbfc"),
+                BackColor = ColorTranslator.FromHtml("#f8fff8"),
                 BorderStyle = BorderStyle.None,
-                ItemHeight = 25
+                ItemHeight = 28
             };
             tabPartie.Controls.Add(lbPartie);
 
             // Zakładka: Zdjęcia
-            TabPage tabZdjecia = new TabPage("📷 Zdjęcia");
+            TabPage tabZdjecia = new TabPage("Zdjęcia");
             tabZdjecia.BackColor = Color.White;
 
             SplitContainer splitZdjecia = new SplitContainer
@@ -194,16 +257,17 @@ namespace Kalendarz1.Reklamacje
 
             Button btnPowieksz = new Button
             {
-                Text = "🔍 Powiększ zdjęcie",
+                Text = "Powiększ zdjęcie",
                 Dock = DockStyle.Bottom,
-                Height = 35,
-                BackColor = ColorTranslator.FromHtml("#3498db"),
+                Height = 38,
+                BackColor = ColorTranslator.FromHtml("#27ae60"),
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
             btnPowieksz.FlatAppearance.BorderSize = 0;
+            btnPowieksz.FlatAppearance.MouseOverBackColor = ColorTranslator.FromHtml("#1e8449");
             btnPowieksz.Click += (s, e) =>
             {
                 if (lbZdjecia.SelectedIndex >= 0 && lbZdjecia.SelectedIndex < listaZdjec.Count)
@@ -232,7 +296,7 @@ namespace Kalendarz1.Reklamacje
             tabZdjecia.Controls.Add(splitZdjecia);
 
             // Zakładka: Historia
-            TabPage tabHistoria = new TabPage("📜 Historia zmian");
+            TabPage tabHistoria = new TabPage("Historia");
             tabHistoria.BackColor = Color.White;
 
             dgvHistoria = new DataGridView
@@ -253,19 +317,11 @@ namespace Kalendarz1.Reklamacje
             tabControl.TabPages.Add(tabZdjecia);
             tabControl.TabPages.Add(tabHistoria);
 
-            // Panel przycisków
-            Panel panelButtons = new Panel
-            {
-                Dock = DockStyle.Bottom,
-                Height = 60,
-                BackColor = ColorTranslator.FromHtml("#ecf0f1"),
-                Padding = new Padding(15)
-            };
-
+            // Przyciski w panelu dolnym (panelButtons zdefiniowany wcześniej)
             Button btnZmienStatus = new Button
             {
-                Text = "✏ Zmień status",
-                Size = new Size(150, 35),
+                Text = "Zmień status",
+                Size = new Size(130, 38),
                 Location = new Point(15, 12),
                 BackColor = ColorTranslator.FromHtml("#f39c12"),
                 ForeColor = Color.White,
@@ -274,6 +330,7 @@ namespace Kalendarz1.Reklamacje
                 Cursor = Cursors.Hand
             };
             btnZmienStatus.FlatAppearance.BorderSize = 0;
+            btnZmienStatus.FlatAppearance.MouseOverBackColor = ColorTranslator.FromHtml("#d68910");
             btnZmienStatus.Click += (s, e) =>
             {
                 var formZmiana = new FormZmianaStatusu(connectionString, idReklamacji, "", userId);
@@ -286,16 +343,17 @@ namespace Kalendarz1.Reklamacje
 
             Button btnOtworz = new Button
             {
-                Text = "📂 Otwórz folder",
-                Size = new Size(130, 35),
-                Location = new Point(175, 12),
-                BackColor = ColorTranslator.FromHtml("#3498db"),
+                Text = "Otwórz folder",
+                Size = new Size(120, 38),
+                Location = new Point(155, 12),
+                BackColor = ColorTranslator.FromHtml("#27ae60"),
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
             btnOtworz.FlatAppearance.BorderSize = 0;
+            btnOtworz.FlatAppearance.MouseOverBackColor = ColorTranslator.FromHtml("#1e8449");
             btnOtworz.Click += (s, e) =>
             {
                 string folder = Path.Combine(
@@ -312,39 +370,41 @@ namespace Kalendarz1.Reklamacje
             // Przycisk eksportu do PDF
             Button btnExportPDF = new Button
             {
-                Text = "📄 Eksport PDF",
-                Size = new Size(130, 35),
-                Location = new Point(315, 12),
-                BackColor = ColorTranslator.FromHtml("#e74c3c"),
+                Text = "Eksport PDF",
+                Size = new Size(120, 38),
+                Location = new Point(285, 12),
+                BackColor = ColorTranslator.FromHtml("#c0392b"),
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
             btnExportPDF.FlatAppearance.BorderSize = 0;
+            btnExportPDF.FlatAppearance.MouseOverBackColor = ColorTranslator.FromHtml("#922b21");
             btnExportPDF.Click += BtnExportPDF_Click;
 
             // Przycisk wysyłania email
             Button btnEmail = new Button
             {
-                Text = "📧 Wyślij email",
-                Size = new Size(130, 35),
-                Location = new Point(455, 12),
-                BackColor = ColorTranslator.FromHtml("#9b59b6"),
+                Text = "Wyślij email",
+                Size = new Size(120, 38),
+                Location = new Point(415, 12),
+                BackColor = ColorTranslator.FromHtml("#e74c3c"),
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
             btnEmail.FlatAppearance.BorderSize = 0;
+            btnEmail.FlatAppearance.MouseOverBackColor = ColorTranslator.FromHtml("#c0392b");
             btnEmail.Click += BtnEmail_Click;
 
             Button btnZamknij = new Button
             {
-                Text = "✗ Zamknij",
-                Size = new Size(120, 35),
-                Location = new Point(panelButtons.Width - 135, 12),
-                BackColor = ColorTranslator.FromHtml("#95a5a6"),
+                Text = "Zamknij",
+                Size = new Size(100, 38),
+                Location = new Point(panelButtons.Width - 115, 12),
+                BackColor = ColorTranslator.FromHtml("#7f8c8d"),
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 FlatStyle = FlatStyle.Flat,
@@ -352,6 +412,7 @@ namespace Kalendarz1.Reklamacje
                 Anchor = AnchorStyles.Right | AnchorStyles.Top
             };
             btnZamknij.FlatAppearance.BorderSize = 0;
+            btnZamknij.FlatAppearance.MouseOverBackColor = ColorTranslator.FromHtml("#5d6d7e");
             btnZamknij.Click += (s, e) => Close();
 
             panelButtons.Controls.Add(btnZmienStatus);
@@ -360,8 +421,27 @@ namespace Kalendarz1.Reklamacje
             panelButtons.Controls.Add(btnEmail);
             panelButtons.Controls.Add(btnZamknij);
 
-            Controls.Add(tabControl);
-            Controls.Add(panelButtons);
+            // ============================================
+            // DODAWANIE KONTROLEK - KOLEJNOŚĆ KRYTYCZNA!
+            // Dla prawidłowego Dock: najpierw Bottom i Top, potem Fill
+            // ============================================
+
+            // Wyczyść i dodaj w prawidłowej kolejności
+            this.SuspendLayout();
+
+            this.Controls.Add(tabControl);      // Fill - dodaj pierwszy (będzie renderowany ostatni)
+            this.Controls.Add(panelButtons);    // Bottom
+            this.Controls.Add(panelHeader);     // Top - pod redStripe
+            this.Controls.Add(redStripe);       // Top - na samej górze
+
+            // Ustaw kolejność renderowania (Z-order)
+            redStripe.BringToFront();
+            panelHeader.BringToFront();
+            panelButtons.BringToFront();
+            tabControl.BringToFront();
+
+            this.ResumeLayout(false);
+            this.PerformLayout();
         }
 
         private void WczytajSzczegoly()
@@ -701,6 +781,14 @@ namespace Kalendarz1.Reklamacje
             };
 
             formPodglad.ShowDialog();
+        }
+
+        /// <summary>
+        /// Pobiera logo firmy
+        /// </summary>
+        private static Image PobierzLogoFirmy()
+        {
+            return LogoFirmyBase64.GetLogo();
         }
 
         // ========================================
