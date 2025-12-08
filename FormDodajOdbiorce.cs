@@ -287,14 +287,18 @@ namespace Kalendarz1
                             )", conn, transaction);
                         cmdCheckTable.ExecuteNonQuery();
 
+                        // Pobierz następne dostępne ID (tabela nie ma IDENTITY)
+                        var cmdMaxId = new SqlCommand("SELECT ISNULL(MAX(ID), 0) + 1 FROM OdbiorcyCRM", conn, transaction);
+                        int nowyID = (int)cmdMaxId.ExecuteScalar();
+
                         var cmdOdbiorca = new SqlCommand(@"
                             INSERT INTO OdbiorcyCRM
-                            (Nazwa, KOD, MIASTO, Ulica, Telefon_K, Wojewodztwo, Powiat, PKD_Opis, Status)
-                            OUTPUT INSERTED.ID
+                            (ID, Nazwa, KOD, MIASTO, Ulica, Telefon_K, Wojewodztwo, Powiat, PKD_Opis, Status)
                             VALUES
-                            (@nazwa, @kod, @miasto, @ulica, @tel, @woj, @pow, @pkd, 'Do zadzwonienia')",
+                            (@id, @nazwa, @kod, @miasto, @ulica, @tel, @woj, @pow, @pkd, 'Do zadzwonienia')",
                             conn, transaction);
 
+                        cmdOdbiorca.Parameters.AddWithValue("@id", nowyID);
                         cmdOdbiorca.Parameters.AddWithValue("@nazwa", textBoxNazwa.Text.Trim());
                         cmdOdbiorca.Parameters.AddWithValue("@kod", textBoxKod.Text.Trim());
                         cmdOdbiorca.Parameters.AddWithValue("@miasto", textBoxMiasto.Text.Trim());
@@ -304,7 +308,7 @@ namespace Kalendarz1
                         cmdOdbiorca.Parameters.AddWithValue("@pow", textBoxPowiat.Text.Trim());
                         cmdOdbiorca.Parameters.AddWithValue("@pkd", comboBoxPKD.Text.Trim());
 
-                        int nowyID = (int)cmdOdbiorca.ExecuteScalar();
+                        cmdOdbiorca.ExecuteNonQuery();
 
                         var cmdWlasciciel = new SqlCommand(@"
                             INSERT INTO WlascicieleOdbiorcow (IDOdbiorcy, OperatorID)
