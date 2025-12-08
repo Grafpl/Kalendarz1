@@ -465,6 +465,226 @@
                 </Border>
             </TabItem>
 
+            <!-- Tab: Saldo opakowan -->
+            <TabItem Header="Saldo opakowan">
+                <Border Background="{StaticResource CardBackgroundLightBrush}" CornerRadius="0,8,8,8">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Border Grid.Row="0" Background="{StaticResource CardBackgroundBrush}" Padding="15,10">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Handlowiec:" Style="{StaticResource FilterLabelStyle}"/>
+                                <ComboBox x:Name="cmbHandlowiecOpak" Style="{StaticResource DarkComboBoxStyle}" Width="150" SelectionChanged="CmbOpakowania_SelectionChanged"/>
+                                <TextBlock Text="Saldo opakowan klientow - pojemniki i palety do zwrotu" Style="{StaticResource DescriptionStyle}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Row="1" Background="{StaticResource CardBackgroundBrush}" Padding="10,8" Margin="0,1,0,0">
+                            <TextBlock x:Name="txtOpakowaniaInfo" Text="" FontSize="12" Foreground="#F4A261" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        </Border>
+                        <DataGrid Grid.Row="2" x:Name="gridOpakowania" AutoGenerateColumns="False" IsReadOnly="True"
+                                  Background="Transparent" BorderThickness="0" Margin="10"
+                                  RowBackground="#252A31" AlternatingRowBackground="#2D333B"
+                                  Foreground="#FFFFFF" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#30363D"
+                                  HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False">
+                            <DataGrid.ColumnHeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="Background" Value="#1A1D21"/>
+                                    <Setter Property="Foreground" Value="#F4A261"/>
+                                    <Setter Property="Padding" Value="10,8"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="BorderThickness" Value="0,0,0,2"/>
+                                    <Setter Property="BorderBrush" Value="#30363D"/>
+                                </Style>
+                            </DataGrid.ColumnHeaderStyle>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Kontrahent" Binding="{Binding Kontrahent}" Width="200"/>
+                                <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="120"/>
+                                <DataGridTextColumn Header="Pojemniki E2" Binding="{Binding PojemnikiE2, StringFormat=N0}" Width="100">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding PojemnikiE2Alert}" Value="True">
+                                                    <Setter Property="Foreground" Value="#FF6B6B"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Paleta H1" Binding="{Binding PaletaH1, StringFormat=N0}" Width="90">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding PaletaH1Alert}" Value="True">
+                                                    <Setter Property="Foreground" Value="#FF6B6B"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Paleta EURO" Binding="{Binding PaletaEuro, StringFormat=N0}" Width="100">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding PaletaEuroAlert}" Value="True">
+                                                    <Setter Property="Foreground" Value="#FF6B6B"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Paleta plastikowa" Binding="{Binding PaletaPlastikowa, StringFormat=N0}" Width="120">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding PaletaPlastikowaAlert}" Value="True">
+                                                    <Setter Property="Foreground" Value="#FF6B6B"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Paleta drewniana" Binding="{Binding PaletaDrewniana, StringFormat=N0}" Width="120">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding PaletaDrewnianaAlert}" Value="True">
+                                                    <Setter Property="Foreground" Value="#FF6B6B"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Razem" Binding="{Binding Razem, StringFormat=N0}" Width="80">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding RazemAlert}" Value="True">
+                                                    <Setter Property="Foreground" Value="#FF6B6B"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+            </TabItem>
+
+            <!-- Tab: Platnosci -->
+            <TabItem Header="Platnosci">
+                <Border Background="{StaticResource CardBackgroundLightBrush}" CornerRadius="0,8,8,8">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Border Grid.Row="0" Background="{StaticResource CardBackgroundBrush}" Padding="15,10">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Handlowiec:" Style="{StaticResource FilterLabelStyle}"/>
+                                <ComboBox x:Name="cmbHandlowiecPlat" Style="{StaticResource DarkComboBoxStyle}" Width="150" SelectionChanged="CmbPlatnosci_SelectionChanged"/>
+                                <TextBlock Text="Status platnosci klientow - przeterminowane platnosci i limity" Style="{StaticResource DescriptionStyle}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Row="1" Background="{StaticResource CardBackgroundBrush}" Padding="10,8" Margin="0,1,0,0">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <TextBlock x:Name="txtPlatnosciInfo" Text="" FontSize="12" Foreground="#F4A261" FontWeight="Bold"/>
+                            </StackPanel>
+                        </Border>
+                        <DataGrid Grid.Row="2" x:Name="gridPlatnosci" AutoGenerateColumns="False" IsReadOnly="True"
+                                  Background="Transparent" BorderThickness="0" Margin="10"
+                                  RowBackground="#252A31" AlternatingRowBackground="#2D333B"
+                                  Foreground="#FFFFFF" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#30363D"
+                                  HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False">
+                            <DataGrid.ColumnHeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="Background" Value="#1A1D21"/>
+                                    <Setter Property="Foreground" Value="#F4A261"/>
+                                    <Setter Property="Padding" Value="10,8"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="BorderThickness" Value="0,0,0,2"/>
+                                    <Setter Property="BorderBrush" Value="#30363D"/>
+                                </Style>
+                            </DataGrid.ColumnHeaderStyle>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Kontrahent" Binding="{Binding Kontrahent}" Width="200"/>
+                                <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="120"/>
+                                <DataGridTextColumn Header="Limit kredytu" Binding="{Binding LimitKredytu, StringFormat=N2}" Width="110">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Do zaplaty" Binding="{Binding DoZaplaty, StringFormat=N2}" Width="110">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Terminowe" Binding="{Binding Terminowe, StringFormat=N2}" Width="100">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Foreground" Value="#4ECDC4"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Przeterminowane" Binding="{Binding Przeterminowane, StringFormat=N2}" Width="130">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding PrzeterminowaneAlert}" Value="True">
+                                                    <Setter Property="Foreground" Value="#FF6B6B"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Przekr. limit" Binding="{Binding PrzekroczonyLimit, StringFormat=N2}" Width="100">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding PrzekroczonyLimitAlert}" Value="True">
+                                                    <Setter Property="Foreground" Value="#FF6B6B"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Najstarsza platnosc" Binding="{Binding NajstarszaPlatnosc, StringFormat=dd.MM.yyyy}" Width="130">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+            </TabItem>
+
         </TabControl>
 
         <Border Grid.RowSpan="2" Background="#CC1A1D21" x:Name="loadingOverlay" Visibility="Collapsed">

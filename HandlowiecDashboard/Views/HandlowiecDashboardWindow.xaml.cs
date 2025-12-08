@@ -11,6 +11,14 @@ using LiveCharts.Wpf;
 
 namespace Kalendarz1.HandlowiecDashboard.Views
 {
+    // Klasa pomocnicza do ComboBox - rozwiazuje problem "Value = X, Text"
+    public class ComboItem
+    {
+        public int Value { get; set; }
+        public string Text { get; set; }
+        public override string ToString() => Text;
+    }
+
     public partial class HandlowiecDashboardWindow : Window
     {
         private readonly string _connectionStringHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
@@ -85,7 +93,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         private void WypelnijLataIMiesiace()
         {
             var lata = Enumerable.Range(2020, DateTime.Now.Year - 2020 + 1).Reverse().ToList();
-            var miesiace = Enumerable.Range(1, 12).Select(m => new { Value = m, Text = _nazwyMiesiecy[m] }).ToList();
+            var miesiace = Enumerable.Range(1, 12).Select(m => new ComboItem { Value = m, Text = _nazwyMiesiecy[m] }).ToList();
 
             // Sprzedaz miesieczna
             cmbRokSprzedaz.ItemsSource = lata;
@@ -144,11 +152,50 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             // Trend sprzedazy
             cmbOkres.ItemsSource = new[] { 3, 6, 9, 12, 18, 24 };
             cmbOkres.SelectedItem = 12;
+
+            // Opakowania i Platnosci - wczytaj liste handlowcow
+            WypelnijHandlowcow();
+        }
+
+        private void WypelnijHandlowcow()
+        {
+            var handlowcy = new List<ComboItem> { new ComboItem { Value = 0, Text = "Wszyscy handlowcy" } };
+            try
+            {
+                using var cn = new SqlConnection(_connectionStringHandel);
+                cn.Open();
+                var sql = @"SELECT DISTINCT WYM.CDim_Handlowiec_Val AS Handlowiec
+                           FROM [HANDEL].[SSCommon].[ContractorClassification] WYM
+                           WHERE WYM.CDim_Handlowiec_Val IS NOT NULL
+                             AND WYM.CDim_Handlowiec_Val NOT IN ('Ogolne', 'Ogólne')
+                           ORDER BY Handlowiec";
+                using var cmd = new SqlCommand(sql, cn);
+                using var reader = cmd.ExecuteReader();
+                int idx = 1;
+                while (reader.Read())
+                {
+                    handlowcy.Add(new ComboItem { Value = idx++, Text = reader.GetString(0) });
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad pobierania handlowcow:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
+            cmbHandlowiecOpak.ItemsSource = handlowcy;
+            cmbHandlowiecOpak.DisplayMemberPath = "Text";
+            cmbHandlowiecOpak.SelectedValuePath = "Value";
+            cmbHandlowiecOpak.SelectedIndex = 0;
+
+            cmbHandlowiecPlat.ItemsSource = handlowcy;
+            cmbHandlowiecPlat.DisplayMemberPath = "Text";
+            cmbHandlowiecPlat.SelectedValuePath = "Value";
+            cmbHandlowiecPlat.SelectedIndex = 0;
         }
 
         private void WypelnijTowary(ComboBox cmb)
         {
-            var towary = new List<dynamic> { new { Value = 0, Text = "Wszystkie towary" } };
+            var towary = new List<ComboItem> { new ComboItem { Value = 0, Text = "Wszystkie towary" } };
             try
             {
                 using var cn = new SqlConnection(_connectionStringHandel);
@@ -161,7 +208,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 using var cmd = new SqlCommand(sql, cn);
                 using var reader = cmd.ExecuteReader();
                 while (reader.Read())
-                    towary.Add(new { Value = reader.GetInt32(0), Text = reader.GetString(2) });
+                    towary.Add(new ComboItem { Value = reader.GetInt32(0), Text = reader.GetString(2) });
             }
             catch (Exception ex)
             {
@@ -191,6 +238,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         private void CmbSM_SelectionChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
         private void CmbPorown_SelectionChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
         private void CmbTrend_SelectionChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
+        private void CmbOpakowania_SelectionChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
+        private void CmbPlatnosci_SelectionChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
 
         private void OdswiezJesliGotowe()
         {
@@ -213,6 +262,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     case 4: await OdswiezSwiezeMrozoneAsync(); break;
                     case 5: await OdswiezPorownanieAsync(); break;
                     case 6: await OdswiezTrendAsync(); break;
+                    case 7: await OdswiezOpakowaniaAsync(); break;
+                    case 8: await OdswiezPlatnosciAsync(); break;
                 }
             }
             catch (Exception ex)
@@ -309,18 +360,22 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
                     foreach (var (klient, wartosc) in h.Value.Take(10))
                     {
+                        // Oblicz % klienta w stosunku do handlowca
+                        var procentKlienta = sumaHandlowca > 0 ? (wartosc / sumaHandlowca) * 100 : 0;
                         item.Items.Add(new TreeViewItem
                         {
-                            Header = $"  {klient}: {wartosc:N0} zl",
+                            Header = $"  {klient}: {wartosc:N0} zl ({procentKlienta:F1}%)",
                             Foreground = Brushes.White
                         });
                     }
 
                     if (h.Value.Count > 10)
                     {
+                        var pozostaleWartosc = h.Value.Skip(10).Sum(v => v.Wartosc);
+                        var pozostaleProcent = sumaHandlowca > 0 ? (pozostaleWartosc / sumaHandlowca) * 100 : 0;
                         item.Items.Add(new TreeViewItem
                         {
-                            Header = $"  ... i {h.Value.Count - 10} wiecej",
+                            Header = $"  ... i {h.Value.Count - 10} wiecej ({pozostaleProcent:F1}%)",
                             Foreground = Brushes.Gray,
                             FontStyle = FontStyles.Italic
                         });
@@ -873,5 +928,222 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         }
 
         #endregion
+
+        #region Saldo Opakowan
+
+        private async System.Threading.Tasks.Task OdswiezOpakowaniaAsync()
+        {
+            string wybranyHandlowiec = null;
+            if (cmbHandlowiecOpak.SelectedItem is ComboItem item && item.Value > 0)
+                wybranyHandlowiec = item.Text;
+
+            var dane = new List<OpakowanieRow>();
+
+            try
+            {
+                await using var cn = new SqlConnection(_connectionStringHandel);
+                await cn.OpenAsync();
+
+                // Zapytanie o saldo opakowan per kontrahent
+                var sql = @"
+                    SELECT C.shortcut AS Kontrahent,
+                           ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
+                           SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN
+                               CASE WHEN DK.typ IN (301, 302, 305, 306, 360) THEN DP.ilosc ELSE -DP.ilosc END
+                           ELSE 0 END) AS PojemnikiE2,
+                           SUM(CASE WHEN TW.nazwa = 'Paleta H1' THEN
+                               CASE WHEN DK.typ IN (301, 302, 305, 306, 360) THEN DP.ilosc ELSE -DP.ilosc END
+                           ELSE 0 END) AS PaletaH1,
+                           SUM(CASE WHEN TW.nazwa = 'Paleta EURO' THEN
+                               CASE WHEN DK.typ IN (301, 302, 305, 306, 360) THEN DP.ilosc ELSE -DP.ilosc END
+                           ELSE 0 END) AS PaletaEuro,
+                           SUM(CASE WHEN TW.nazwa = 'Paleta plastikowa' THEN
+                               CASE WHEN DK.typ IN (301, 302, 305, 306, 360) THEN DP.ilosc ELSE -DP.ilosc END
+                           ELSE 0 END) AS PaletaPlastikowa,
+                           SUM(CASE WHEN TW.nazwa = 'Paleta Drewniana' THEN
+                               CASE WHEN DK.typ IN (301, 302, 305, 306, 360) THEN DP.ilosc ELSE -DP.ilosc END
+                           ELSE 0 END) AS PaletaDrewniana
+                    FROM [HANDEL].[HM].[DK] DK
+                    INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+                    INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
+                    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
+                    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+                    WHERE TW.nazwa IN ('Pojemnik Drobiowy E2', 'Paleta H1', 'Paleta EURO', 'Paleta plastikowa', 'Paleta Drewniana')
+                      AND (@Handlowiec IS NULL OR WYM.CDim_Handlowiec_Val = @Handlowiec)
+                    GROUP BY C.shortcut, ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany')
+                    HAVING SUM(CASE WHEN DK.typ IN (301, 302, 305, 306, 360) THEN DP.ilosc ELSE -DP.ilosc END) <> 0
+                    ORDER BY Handlowiec, Kontrahent";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@Handlowiec", (object)wybranyHandlowiec ?? DBNull.Value);
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    var pojemniki = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
+                    var paletaH1 = reader.IsDBNull(3) ? 0m : Convert.ToDecimal(reader.GetValue(3));
+                    var paletaEuro = reader.IsDBNull(4) ? 0m : Convert.ToDecimal(reader.GetValue(4));
+                    var paletaPlastikowa = reader.IsDBNull(5) ? 0m : Convert.ToDecimal(reader.GetValue(5));
+                    var paletaDrewniana = reader.IsDBNull(6) ? 0m : Convert.ToDecimal(reader.GetValue(6));
+                    var razem = pojemniki + paletaH1 + paletaEuro + paletaPlastikowa + paletaDrewniana;
+
+                    dane.Add(new OpakowanieRow
+                    {
+                        Kontrahent = reader.GetString(0),
+                        Handlowiec = reader.GetString(1),
+                        PojemnikiE2 = pojemniki,
+                        PaletaH1 = paletaH1,
+                        PaletaEuro = paletaEuro,
+                        PaletaPlastikowa = paletaPlastikowa,
+                        PaletaDrewniana = paletaDrewniana,
+                        Razem = razem,
+                        PojemnikiE2Alert = pojemniki > 50,
+                        PaletaH1Alert = paletaH1 > 10,
+                        PaletaEuroAlert = paletaEuro > 10,
+                        PaletaPlastikowaAlert = paletaPlastikowa > 10,
+                        PaletaDrewnianaAlert = paletaDrewniana > 10,
+                        RazemAlert = razem > 100
+                    });
+                }
+
+                // Posortuj od najwiekszego salda
+                dane = dane.OrderByDescending(d => d.Razem).ToList();
+
+                // Podsumowanie
+                var sumaPojemniki = dane.Sum(d => d.PojemnikiE2);
+                var sumaPaletH1 = dane.Sum(d => d.PaletaH1);
+                var sumaPaletEuro = dane.Sum(d => d.PaletaEuro);
+                var sumaPaletPlast = dane.Sum(d => d.PaletaPlastikowa);
+                var sumaPaletDrew = dane.Sum(d => d.PaletaDrewniana);
+                var sumaRazem = dane.Sum(d => d.Razem);
+
+                txtOpakowaniaInfo.Text = $"SUMA: Pojemniki E2: {sumaPojemniki:N0} | Palety H1: {sumaPaletH1:N0} | EURO: {sumaPaletEuro:N0} | Plastikowe: {sumaPaletPlast:N0} | Drewniane: {sumaPaletDrew:N0} | RAZEM: {sumaRazem:N0}";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad wczytywania opakowan:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
+            gridOpakowania.ItemsSource = dane;
+        }
+
+        #endregion
+
+        #region Platnosci
+
+        private async System.Threading.Tasks.Task OdswiezPlatnosciAsync()
+        {
+            string wybranyHandlowiec = null;
+            if (cmbHandlowiecPlat.SelectedItem is ComboItem item && item.Value > 0)
+                wybranyHandlowiec = item.Text;
+
+            var dane = new List<PlatnoscRow>();
+
+            try
+            {
+                await using var cn = new SqlConnection(_connectionStringHandel);
+                await cn.OpenAsync();
+
+                // Zapytanie o platnosci per kontrahent
+                var sql = @"
+                    SELECT C.shortcut AS Kontrahent,
+                           ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
+                           ISNULL(C.creditLimit, 0) AS LimitKredytu,
+                           SUM(PN.wartosc - ISNULL(PN.zaplacono, 0)) AS DoZaplaty,
+                           SUM(CASE WHEN PN.termin >= GETDATE() THEN PN.wartosc - ISNULL(PN.zaplacono, 0) ELSE 0 END) AS Terminowe,
+                           SUM(CASE WHEN PN.termin < GETDATE() THEN PN.wartosc - ISNULL(PN.zaplacono, 0) ELSE 0 END) AS Przeterminowane,
+                           MIN(CASE WHEN PN.termin < GETDATE() AND (PN.wartosc - ISNULL(PN.zaplacono, 0)) > 0 THEN PN.termin ELSE NULL END) AS NajstarszaPlatnosc
+                    FROM [HANDEL].[HM].[PN] PN
+                    INNER JOIN [HANDEL].[HM].[DK] DK ON PN.super = DK.id
+                    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
+                    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+                    WHERE (PN.wartosc - ISNULL(PN.zaplacono, 0)) > 0.01
+                      AND (@Handlowiec IS NULL OR WYM.CDim_Handlowiec_Val = @Handlowiec)
+                    GROUP BY C.shortcut, ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany'), ISNULL(C.creditLimit, 0)
+                    HAVING SUM(PN.wartosc - ISNULL(PN.zaplacono, 0)) > 0.01
+                    ORDER BY Przeterminowane DESC, DoZaplaty DESC";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@Handlowiec", (object)wybranyHandlowiec ?? DBNull.Value);
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    var kontrahent = reader.GetString(0);
+                    var handlowiec = reader.GetString(1);
+                    var limitKredytu = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
+                    var doZaplaty = reader.IsDBNull(3) ? 0m : Convert.ToDecimal(reader.GetValue(3));
+                    var terminowe = reader.IsDBNull(4) ? 0m : Convert.ToDecimal(reader.GetValue(4));
+                    var przeterminowane = reader.IsDBNull(5) ? 0m : Convert.ToDecimal(reader.GetValue(5));
+                    var najstarszaPlatnosc = reader.IsDBNull(6) ? (DateTime?)null : reader.GetDateTime(6);
+                    var przekroczonyLimit = limitKredytu > 0 ? Math.Max(0, doZaplaty - limitKredytu) : 0;
+
+                    dane.Add(new PlatnoscRow
+                    {
+                        Kontrahent = kontrahent,
+                        Handlowiec = handlowiec,
+                        LimitKredytu = limitKredytu,
+                        DoZaplaty = doZaplaty,
+                        Terminowe = terminowe,
+                        Przeterminowane = przeterminowane,
+                        PrzekroczonyLimit = przekroczonyLimit,
+                        NajstarszaPlatnosc = najstarszaPlatnosc,
+                        PrzeterminowaneAlert = przeterminowane > 0,
+                        PrzekroczonyLimitAlert = przekroczonyLimit > 0
+                    });
+                }
+
+                // Podsumowanie
+                var sumaDoZaplaty = dane.Sum(d => d.DoZaplaty);
+                var sumaTerminowe = dane.Sum(d => d.Terminowe);
+                var sumaPrzeterminowane = dane.Sum(d => d.Przeterminowane);
+                var sumaPrzekroczony = dane.Sum(d => d.PrzekroczonyLimit);
+                var iloscZPrzeterminowanymi = dane.Count(d => d.Przeterminowane > 0);
+
+                txtPlatnosciInfo.Text = $"SUMA: Do zaplaty: {sumaDoZaplaty:N2} zl | Terminowe: {sumaTerminowe:N2} zl | Przeterminowane: {sumaPrzeterminowane:N2} zl ({iloscZPrzeterminowanymi} klientow) | Przekr. limit: {sumaPrzekroczony:N2} zl";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad wczytywania platnosci:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
+            gridPlatnosci.ItemsSource = dane;
+        }
+
+        #endregion
+    }
+
+    // Klasa danych dla tabeli opakowan
+    public class OpakowanieRow
+    {
+        public string Kontrahent { get; set; }
+        public string Handlowiec { get; set; }
+        public decimal PojemnikiE2 { get; set; }
+        public decimal PaletaH1 { get; set; }
+        public decimal PaletaEuro { get; set; }
+        public decimal PaletaPlastikowa { get; set; }
+        public decimal PaletaDrewniana { get; set; }
+        public decimal Razem { get; set; }
+        public bool PojemnikiE2Alert { get; set; }
+        public bool PaletaH1Alert { get; set; }
+        public bool PaletaEuroAlert { get; set; }
+        public bool PaletaPlastikowaAlert { get; set; }
+        public bool PaletaDrewnianaAlert { get; set; }
+        public bool RazemAlert { get; set; }
+    }
+
+    // Klasa danych dla tabeli platnosci
+    public class PlatnoscRow
+    {
+        public string Kontrahent { get; set; }
+        public string Handlowiec { get; set; }
+        public decimal LimitKredytu { get; set; }
+        public decimal DoZaplaty { get; set; }
+        public decimal Terminowe { get; set; }
+        public decimal Przeterminowane { get; set; }
+        public decimal PrzekroczonyLimit { get; set; }
+        public DateTime? NajstarszaPlatnosc { get; set; }
+        public bool PrzeterminowaneAlert { get; set; }
+        public bool PrzekroczonyLimitAlert { get; set; }
     }
 }
