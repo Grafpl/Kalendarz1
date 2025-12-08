@@ -220,7 +220,32 @@
                 </Border>
             </StackPanel>
 
+            <!-- Quick Filter Chips -->
             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <Border x:Name="chipVIP" Background="#FEF3C7" CornerRadius="15" Padding="12,6" Margin="0,0,8,0" Cursor="Hand" MouseLeftButtonDown="Chip_Click" Tag="VIP">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⭐" FontSize="12" VerticalAlignment="Center"/>
+                        <TextBlock Text="VIP" FontSize="11" FontWeight="Bold" Foreground="#92400E" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+                <Border x:Name="chipPilne" Background="#FEE2E2" CornerRadius="15" Padding="12,6" Margin="0,0,8,0" Cursor="Hand" MouseLeftButtonDown="Chip_Click" Tag="Pilne">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="🔥" FontSize="12" VerticalAlignment="Center"/>
+                        <TextBlock Text="Pilne" FontSize="11" FontWeight="Bold" Foreground="#991B1B" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+                <Border x:Name="chipPremium" Background="#E0E7FF" CornerRadius="15" Padding="12,6" Margin="0,0,8,0" Cursor="Hand" MouseLeftButtonDown="Chip_Click" Tag="Premium">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="💎" FontSize="12" VerticalAlignment="Center"/>
+                        <TextBlock Text="Premium" FontSize="11" FontWeight="Bold" Foreground="#3730A3" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+                <Border x:Name="chipZalegle" Background="#FEE2E2" CornerRadius="15" Padding="12,6" Margin="0,0,15,0" Cursor="Hand" MouseLeftButtonDown="ChipZalegle_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⚠️" FontSize="12" VerticalAlignment="Center"/>
+                        <TextBlock Text="Zaległe" FontSize="11" FontWeight="Bold" Foreground="#991B1B" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
                 <ComboBox x:Name="cmbStatus" Width="150" Margin="5,0" Padding="6" SelectionChanged="CmbStatus_SelectionChanged"/>
                 <ComboBox x:Name="cmbWojewodztwo" Width="130" Margin="5,0" Padding="6" SelectionChanged="CmbWojewodztwo_SelectionChanged"/>
                 <ComboBox x:Name="cmbBranza" Width="160" Margin="5,0" Padding="6" SelectionChanged="CmbBranza_SelectionChanged"/>
@@ -708,6 +733,45 @@
                 <TextBlock x:Name="toastText" Text="Wykonano" Foreground="White" FontWeight="SemiBold" FontSize="14"/>
             </StackPanel>
         </Border>
+
+        <!-- Floating Action Button -->
+        <Button x:Name="fabButton" Grid.Row="2"
+                Width="56" Height="56"
+                VerticalAlignment="Bottom" HorizontalAlignment="Right"
+                Margin="0,0,30,30"
+                Click="FabButton_Click"
+                Cursor="Hand">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Ellipse x:Name="ellipse" Fill="{StaticResource PrimaryColor}">
+                            <Ellipse.Effect>
+                                <DropShadowEffect Color="Black" Opacity="0.3" BlurRadius="15" ShadowDepth="3"/>
+                            </Ellipse.Effect>
+                        </Ellipse>
+                        <TextBlock Text="+" FontSize="28" FontWeight="Light" Foreground="White"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ellipse" Property="Fill" Value="#15803D"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="ellipse" Property="Fill" Value="#166534"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Button.Template>
+            <Button.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="📞 Nowy kontakt" Click="BtnDodaj_Click"/>
+                    <MenuItem Header="🗺️ Mapa" Click="BtnMapa_Click"/>
+                    <MenuItem Header="📊 Kanban" Click="BtnKanban_Click"/>
+                    <Separator/>
+                    <MenuItem Header="🔄 Odśwież" Click="BtnOdswiez_Click"/>
+                </ContextMenu>
+            </Button.ContextMenu>
+        </Button>
 
         <Border x:Name="loadingOverlay" Grid.RowSpan="3" Background="#95FFFFFF" Visibility="Collapsed">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">

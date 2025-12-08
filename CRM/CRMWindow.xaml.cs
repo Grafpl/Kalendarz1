@@ -475,6 +475,16 @@ namespace Kalendarz1.CRM
             if (cmbStatus.SelectedIndex > 0) filter += $" AND Status = '{(cmbStatus.SelectedItem as ComboBoxItem).Content}'";
             if (cmbWojewodztwo.SelectedIndex > 0) filter += $" AND Wojewodztwo = '{(cmbWojewodztwo.SelectedItem as ComboBoxItem).Content}'";
             if (cmbBranza.SelectedIndex > 0) filter += $" AND PKD_Opis = '{(cmbBranza.SelectedItem as ComboBoxItem).Content}'";
+
+            // Quick filter chips
+            if (!string.IsNullOrEmpty(aktywnyChip))
+            {
+                if (aktywnyChip == "Zaległe")
+                    filter += " AND DataNastepnegoKontaktu < #" + DateTime.Today.ToString("yyyy-MM-dd") + "#";
+                else
+                    filter += $" AND Tagi LIKE '%{aktywnyChip}%'";
+            }
+
             dtKontakty.DefaultView.RowFilter = filter;
             if (txtLiczbaWynikow != null) txtLiczbaWynikow.Text = $"{dtKontakty.DefaultView.Count} klientów";
         }
@@ -485,6 +495,65 @@ namespace Kalendarz1.CRM
         private void BtnDodaj_Click(object sender, RoutedEventArgs e) { if (new FormDodajOdbiorce(connectionString, operatorID).ShowDialog() == System.Windows.Forms.DialogResult.OK) WczytajDane(); }
         private void BtnOdswiez_Click(object sender, RoutedEventArgs e) => WczytajDane();
         private void BtnAdmin_Click(object sender, RoutedEventArgs e) { }
+
+        private string aktywnyChip = "";
+
+        private void Chip_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is Border chip && chip.Tag != null)
+            {
+                string tag = chip.Tag.ToString();
+                if (aktywnyChip == tag)
+                {
+                    // Odznacz chip
+                    aktywnyChip = "";
+                    chip.BorderThickness = new Thickness(0);
+                    chip.BorderBrush = null;
+                }
+                else
+                {
+                    // Zresetuj poprzedni chip
+                    ResetujChipsy();
+                    aktywnyChip = tag;
+                    chip.BorderThickness = new Thickness(2);
+                    chip.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0F172A"));
+                }
+                Filtruj();
+            }
+        }
+
+        private void ChipZalegle_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is Border chip)
+            {
+                if (aktywnyChip == "Zaległe")
+                {
+                    aktywnyChip = "";
+                    chip.BorderThickness = new Thickness(0);
+                }
+                else
+                {
+                    ResetujChipsy();
+                    aktywnyChip = "Zaległe";
+                    chip.BorderThickness = new Thickness(2);
+                    chip.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0F172A"));
+                }
+                Filtruj();
+            }
+        }
+
+        private void ResetujChipsy()
+        {
+            chipVIP.BorderThickness = new Thickness(0);
+            chipPilne.BorderThickness = new Thickness(0);
+            chipPremium.BorderThickness = new Thickness(0);
+            chipZalegle.BorderThickness = new Thickness(0);
+        }
+
+        private void FabButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn) btn.ContextMenu.IsOpen = true;
+        }
 
         private void BtnKlientZadzwon_Click(object sender, RoutedEventArgs e)
         {
