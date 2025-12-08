@@ -174,7 +174,10 @@ namespace Kalendarz1.CRM
                         CASE WHEN pb.PKD_Opis IS NOT NULL THEN 1 ELSE 0 END as CzyPriorytetowa,
                         kp.Latitude,
                         kp.Longitude,
-                        (SELECT TOP 1 ISNULL(op.Name, h.KtoWykonal) FROM HistoriaZmianCRM h LEFT JOIN operators op ON h.KtoWykonal = CAST(op.ID AS NVARCHAR) WHERE h.IDOdbiorcy = o.ID ORDER BY h.DataZmiany DESC) as Handlowiec
+                        (SELECT TOP 1 ISNULL(op.Name, h.KtoWykonal) FROM HistoriaZmianCRM h LEFT JOIN operators op ON h.KtoWykonal = CAST(op.ID AS NVARCHAR) WHERE h.IDOdbiorcy = o.ID ORDER BY h.DataZmiany DESC) as Handlowiec,
+                        (SELECT STRING_AGG(CONCAT(FORMAT(n.DataDodania, 'dd.MM'), '|', ISNULL(op.Name, 'System'), '|', LEFT(n.Tresc, 100)), ';;;') WITHIN GROUP (ORDER BY n.DataDodania DESC)
+                         FROM (SELECT TOP 3 * FROM NotatkiCRM WHERE IDOdbiorcy = o.ID ORDER BY DataDodania DESC) n
+                         LEFT JOIN operators op ON n.KtoDodal = CAST(op.ID AS NVARCHAR)) as Notatki
                     FROM OdbiorcyCRM o
                     LEFT JOIN PriorytetoweBranzeCRM pb ON o.PKD_Opis = pb.PKD_Opis
                     INNER JOIN KodyPocztowe kp ON REPLACE(o.KOD, '-', '') = REPLACE(kp.Kod, '-', '')
@@ -316,6 +319,7 @@ namespace Kalendarz1.CRM
                     Branza = branza,
                     Handlowiec = row["Handlowiec"]?.ToString() ?? "",
                     Tagi = row["Tagi"]?.ToString() ?? "",
+                    Notatki = row["Notatki"]?.ToString() ?? "",
                     Status = status,
                     CzyPriorytetowa = czyPriorytetowa,
                     Lat = lat,
@@ -385,6 +389,7 @@ namespace Kalendarz1.CRM
                 k.Handlowiec,
                 k.CzyPriorytetowa,
                 Tagi = k.Tagi ?? "",
+                Notatki = k.Notatki ?? "",
                 k.KolorHex,
                 k.Lat,
                 k.Lng,
@@ -432,6 +437,13 @@ namespace Kalendarz1.CRM
             sb.AppendLine(".quick-note { display: flex; gap: 6px; margin-top: 8px; }");
             sb.AppendLine(".quick-note input { flex: 1; border: 1px solid #E2E8F0; border-radius: 6px; padding: 8px 10px; font-size: 11px; }");
             sb.AppendLine(".quick-note button { background: #16A34A; color: white; border: none; border-radius: 6px; padding: 8px 12px; cursor: pointer; font-size: 11px; font-weight: 600; }");
+            // Notes history styles
+            sb.AppendLine(".notes-list { max-height: 120px; overflow-y: auto; margin-top: 6px; }");
+            sb.AppendLine(".note-item { background: #F8FAFC; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; border-left: 3px solid #16A34A; }");
+            sb.AppendLine(".note-header { display: flex; justify-content: space-between; margin-bottom: 4px; }");
+            sb.AppendLine(".note-date { font-size: 9px; color: #64748B; font-weight: 600; }");
+            sb.AppendLine(".note-author { font-size: 9px; color: #6366F1; font-weight: 600; }");
+            sb.AppendLine(".note-text { font-size: 11px; color: #334155; line-height: 1.4; }");
             sb.AppendLine(".btn-row { display: flex; gap: 8px; margin-top: 12px; }");
             sb.AppendLine(".p-btn { flex: 1; text-align: center; padding: 10px 8px; color: white; text-decoration: none; border-radius: 6px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; }");
             sb.AppendLine(".p-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }");
@@ -544,11 +556,12 @@ namespace Kalendarz1.CRM
             sb.AppendLine("            '</div>' +");
             sb.AppendLine("          '</div>' +");
             sb.AppendLine("          '<div class=\"p-section\">' +");
-            sb.AppendLine("            '<div class=\"p-section-title\">Szybka notatka</div>' +");
+            sb.AppendLine("            '<div class=\"p-section-title\">📝 Notatki</div>' +");
             sb.AppendLine("            '<div class=\"quick-note\">' +");
-            sb.AppendLine("              '<input type=\"text\" id=\"qnote-' + k.ID + '\" placeholder=\"Wpisz notatkę...\">' +");
-            sb.AppendLine("              '<button onclick=\"dodajNotatke(' + k.ID + ')\">Dodaj</button>' +");
+            sb.AppendLine("              '<input type=\"text\" id=\"qnote-' + k.ID + '\" placeholder=\"Dodaj nową notatkę...\">' +");
+            sb.AppendLine("              '<button onclick=\"dodajNotatke(' + k.ID + ')\">+</button>' +");
             sb.AppendLine("            '</div>' +");
+            sb.AppendLine("            (k.Notatki ? '<div class=\"notes-list\">' + renderNotatki(k.Notatki) + '</div>' : '<div style=\"font-size:10px;color:#94A3B8;margin-top:6px;text-align:center\">Brak notatek</div>') +");
             sb.AppendLine("          '</div>' +");
             sb.AppendLine("          '<div class=\"btn-row\">' +");
             sb.AppendLine("            '<button class=\"p-btn btn-route\" onclick=\"addToRoute(' + k.ID + ')\">🗺️ Do trasy</button>' +");
@@ -698,6 +711,21 @@ namespace Kalendarz1.CRM
             sb.AppendLine("  setTimeout(function() { hideToast(); }, 5000);");
             sb.AppendLine("}");
             sb.AppendLine("function hideToast() { document.getElementById('map-toast').classList.remove('show'); }");
+            sb.AppendLine("function renderNotatki(notatkiStr) {");
+            sb.AppendLine("  if(!notatkiStr) return '';");
+            sb.AppendLine("  var html = '';");
+            sb.AppendLine("  var notatki = notatkiStr.split(';;;');");
+            sb.AppendLine("  for(var i = 0; i < notatki.length; i++) {");
+            sb.AppendLine("    var parts = notatki[i].split('|');");
+            sb.AppendLine("    if(parts.length >= 3) {");
+            sb.AppendLine("      html += '<div class=\"note-item\">';");
+            sb.AppendLine("      html += '<div class=\"note-header\"><span class=\"note-date\">📅 ' + parts[0] + '</span><span class=\"note-author\">👤 ' + parts[1] + '</span></div>';");
+            sb.AppendLine("      html += '<div class=\"note-text\">' + parts[2] + '</div>';");
+            sb.AppendLine("      html += '</div>';");
+            sb.AppendLine("    }");
+            sb.AppendLine("  }");
+            sb.AppendLine("  return html;");
+            sb.AppendLine("}");
             sb.AppendLine("function kopiuj(tekst) {");
             sb.AppendLine("  navigator.clipboard.writeText(tekst).then(function() { showToast('📋 Skopiowano: ' + tekst); });");
             sb.AppendLine("}");
@@ -923,6 +951,7 @@ namespace Kalendarz1.CRM
         public string Branza { get; set; } = "";
         public string Handlowiec { get; set; } = "";
         public string Tagi { get; set; } = "";
+        public string Notatki { get; set; } = "";
         public string Status { get; set; } = "";
         public bool CzyPriorytetowa { get; set; }
         public double Lat { get; set; }
