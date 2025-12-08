@@ -319,6 +319,7 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
                         <Border Grid.Row="0" Background="{StaticResource CardBackgroundBrush}" Padding="15,10">
                             <StackPanel Orientation="Horizontal">
@@ -328,15 +329,19 @@
                                 <ComboBox x:Name="cmbMiesiacCeny" Style="{StaticResource DarkComboBoxStyle}" Width="120" SelectionChanged="CmbCeny_SelectionChanged"/>
                                 <TextBlock Text="Towar:" Style="{StaticResource FilterLabelStyle}" Margin="20,0,8,0"/>
                                 <ComboBox x:Name="cmbTowarCeny" Style="{StaticResource DarkComboBoxStyle}" Width="250" SelectionChanged="CmbCeny_SelectionChanged"/>
-                                <TextBlock Text="Srednia cena i ilosc kg per handlowiec" Style="{StaticResource DescriptionStyle}"/>
+                                <TextBlock Text="Kliknij 2x na handlowca aby otworzyc szczegoly" Style="{StaticResource DescriptionStyle}"/>
                             </StackPanel>
                         </Border>
-                        <Grid Grid.Row="1" Margin="20">
+                        <Grid Grid.Row="1" Margin="10">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <lvc:CartesianChart Grid.Column="0" x:Name="chartCeny" Margin="0,0,10,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <lvc:CartesianChart Grid.Column="0" Grid.Row="0" x:Name="chartCeny" Margin="0,0,10,0">
                                 <lvc:CartesianChart.AxisX>
                                     <lvc:Axis x:Name="axisXCeny" ShowLabels="True" FontSize="11" Foreground="#FFFFFF" LabelsRotation="30">
                                         <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
@@ -348,7 +353,7 @@
                                     </lvc:Axis>
                                 </lvc:CartesianChart.AxisY>
                             </lvc:CartesianChart>
-                            <lvc:CartesianChart Grid.Column="1" x:Name="chartCenyKg" Margin="10,0,0,0">
+                            <lvc:CartesianChart Grid.Column="1" Grid.Row="0" x:Name="chartCenyKg" Margin="10,0,0,0">
                                 <lvc:CartesianChart.AxisX>
                                     <lvc:Axis x:Name="axisXCenyKg" ShowLabels="True" FontSize="11" Foreground="#FFFFFF" LabelsRotation="30">
                                         <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
@@ -360,6 +365,93 @@
                                     </lvc:Axis>
                                 </lvc:CartesianChart.AxisY>
                             </lvc:CartesianChart>
+                            <!-- Tabela handlowcow z mozliwoscia klikniecia -->
+                            <DataGrid Grid.Row="1" Grid.ColumnSpan="2" x:Name="gridAnalizaCeny" AutoGenerateColumns="False" IsReadOnly="True"
+                                      Background="Transparent" BorderThickness="0" Margin="0,10,0,0"
+                                      RowBackground="#252A31" AlternatingRowBackground="#2D333B"
+                                      Foreground="#FFFFFF" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#30363D"
+                                      HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
+                                      MaxHeight="200" MouseDoubleClick="GridAnalizaCeny_MouseDoubleClick">
+                                <DataGrid.ColumnHeaderStyle>
+                                    <Style TargetType="DataGridColumnHeader">
+                                        <Setter Property="Background" Value="#1A1D21"/>
+                                        <Setter Property="Foreground" Value="#F4A261"/>
+                                        <Setter Property="Padding" Value="8,6"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="FontSize" Value="11"/>
+                                        <Setter Property="BorderThickness" Value="0,0,0,2"/>
+                                        <Setter Property="BorderBrush" Value="#30363D"/>
+                                    </Style>
+                                </DataGrid.ColumnHeaderStyle>
+                                <DataGrid.RowStyle>
+                                    <Style TargetType="DataGridRow">
+                                        <Setter Property="Cursor" Value="Hand"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#3D434B"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGrid.RowStyle>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="150"/>
+                                    <DataGridTextColumn Header="Suma kg" Binding="{Binding SumaKgTekst}" Width="100">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Foreground" Value="#4ECDC4"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Srednia cena" Binding="{Binding SredniaCenaTekst}" Width="100">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Min cena" Binding="{Binding MinCenaTekst}" Width="90">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Foreground" Value="#FF6B6B"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Max cena" Binding="{Binding MaxCenaTekst}" Width="90">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Foreground" Value="#4ECDC4"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Suma wartosc" Binding="{Binding SumaWartoscTekst}" Width="110">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Foreground" Value="#F4A261"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Transakcji" Binding="{Binding LiczbaTransakcji}" Width="80">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Kontrahentow" Binding="{Binding LiczbaKontrahentow}" Width="90">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
                         </Grid>
                     </Grid>
                 </Border>
@@ -682,7 +774,7 @@
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="Handlowiec:" Style="{StaticResource FilterLabelStyle}"/>
                                     <ComboBox x:Name="cmbHandlowiecPlat" Style="{StaticResource DarkComboBoxStyle}" Width="150" SelectionChanged="CmbPlatnosci_SelectionChanged"/>
-                                    <TextBlock Text="Kompleksowy przeglad platnosci i naleznosci" Style="{StaticResource DescriptionStyle}" Margin="20,0,0,0"/>
+                                    <TextBlock Text="Kliknij 2x na kontrahenta aby otworzyc szczegoly platnosci" Style="{StaticResource DescriptionStyle}" Margin="20,0,0,0"/>
                                 </StackPanel>
                             </Border>
 
@@ -831,7 +923,18 @@
                                       Background="Transparent" BorderThickness="0"
                                       RowBackground="#252A31" AlternatingRowBackground="#2D333B"
                                       Foreground="#FFFFFF" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#30363D"
-                                      HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False">
+                                      HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
+                                      MouseDoubleClick="GridPlatnosci_MouseDoubleClick">
+                                <DataGrid.RowStyle>
+                                    <Style TargetType="DataGridRow">
+                                        <Setter Property="Cursor" Value="Hand"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#3D434B"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGrid.RowStyle>
                                 <DataGrid.ColumnHeaderStyle>
                                     <Style TargetType="DataGridColumnHeader">
                                         <Setter Property="Background" Value="#1A1D21"/>

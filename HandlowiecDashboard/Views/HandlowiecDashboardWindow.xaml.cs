@@ -635,6 +635,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
         #region Analiza Cen
 
+        private List<string> _analizaCenyLabels = new List<string>();
+
         private async System.Threading.Tasks.Task OdswiezAnalizeCenAsync()
         {
             if (cmbRokCeny.SelectedItem == null || cmbMiesiacCeny.SelectedValue == null) return;
@@ -647,6 +649,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             var seriesCeny = new SeriesCollection();
             var seriesKg = new SeriesCollection();
             var labels = new List<string>();
+            var daneTabeli = new List<HandlowiecCenyRow>();
 
             try
             {
@@ -656,7 +659,12 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 var sql = @"
                     SELECT WYM.CDim_Handlowiec_Val AS Handlowiec,
                            AVG(DP.cena) AS SredniaCena,
-                           SUM(DP.ilosc) AS SumaKg
+                           SUM(DP.ilosc) AS SumaKg,
+                           MIN(DP.cena) AS MinCena,
+                           MAX(DP.cena) AS MaxCena,
+                           SUM(DP.wartNetto) AS SumaWartosc,
+                           COUNT(*) AS LiczbaTransakcji,
+                           COUNT(DISTINCT DK.khid) AS LiczbaKontrahentow
                     FROM [HANDEL].[HM].[DK] DK
                     INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
                     INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
@@ -680,9 +688,30 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
-                    labels.Add(reader.GetString(0));
-                    wartosciCeny.Add(reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1)));
-                    wartosciKg.Add(reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2)));
+                    var handlowiec = reader.GetString(0);
+                    var sredniaCena = reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1));
+                    var sumaKg = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
+                    var minCena = reader.IsDBNull(3) ? 0m : Convert.ToDecimal(reader.GetValue(3));
+                    var maxCena = reader.IsDBNull(4) ? 0m : Convert.ToDecimal(reader.GetValue(4));
+                    var sumaWartosc = reader.IsDBNull(5) ? 0m : Convert.ToDecimal(reader.GetValue(5));
+                    var liczbaTransakcji = reader.GetInt32(6);
+                    var liczbaKontrahentow = reader.GetInt32(7);
+
+                    labels.Add(handlowiec);
+                    wartosciCeny.Add(sredniaCena);
+                    wartosciKg.Add(sumaKg);
+
+                    daneTabeli.Add(new HandlowiecCenyRow
+                    {
+                        Handlowiec = handlowiec,
+                        SumaKg = sumaKg,
+                        SredniaCena = sredniaCena,
+                        MinCena = minCena,
+                        MaxCena = maxCena,
+                        SumaWartosc = sumaWartosc,
+                        LiczbaTransakcji = liczbaTransakcji,
+                        LiczbaKontrahentow = liczbaKontrahentow
+                    });
                 }
 
                 seriesCeny.Add(new ColumnSeries
@@ -710,10 +739,23 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 MessageBox.Show($"Blad analizy cen:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
 
+            _analizaCenyLabels = labels;
             chartCeny.Series = seriesCeny;
             axisXCeny.Labels = labels;
             chartCenyKg.Series = seriesKg;
             axisXCenyKg.Labels = labels;
+            gridAnalizaCeny.ItemsSource = daneTabeli;
+        }
+
+        private void GridAnalizaCeny_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (gridAnalizaCeny.SelectedItem is HandlowiecCenyRow row)
+            {
+                int rok = (int)cmbRokCeny.SelectedItem;
+                int miesiac = (int)cmbMiesiacCeny.SelectedValue;
+                var okno = new AnalizaCenHandlowcaWindow(row.Handlowiec, rok, miesiac);
+                okno.Show();
+            }
         }
 
         #endregion
@@ -1276,6 +1318,15 @@ ORDER BY Przeterminowane DESC, DoZaplaty DESC";
             gridPlatnosci.ItemsSource = dane;
         }
 
+        private void GridPlatnosci_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (gridPlatnosci.SelectedItem is PlatnoscRow row)
+            {
+                var okno = new KontrahentPlatnosciWindow(row.Kontrahent, row.Handlowiec);
+                okno.Show();
+            }
+        }
+
         #endregion
     }
 
@@ -1309,5 +1360,24 @@ ORDER BY Przeterminowane DESC, DoZaplaty DESC";
         public bool PrzeterminowaneAlert { get; set; }
         public bool PrzekroczonyLimitAlert { get; set; }
         public string KategoriaWiekowa { get; set; }
+    }
+
+    // Klasa danych dla tabeli analizy cen handlowcow
+    public class HandlowiecCenyRow
+    {
+        public string Handlowiec { get; set; }
+        public decimal SumaKg { get; set; }
+        public decimal SredniaCena { get; set; }
+        public decimal MinCena { get; set; }
+        public decimal MaxCena { get; set; }
+        public decimal SumaWartosc { get; set; }
+        public int LiczbaTransakcji { get; set; }
+        public int LiczbaKontrahentow { get; set; }
+
+        public string SumaKgTekst => $"{SumaKg:N2}";
+        public string SredniaCenaTekst => $"{SredniaCena:F2}";
+        public string MinCenaTekst => $"{MinCena:F2}";
+        public string MaxCenaTekst => $"{MaxCena:F2}";
+        public string SumaWartoscTekst => $"{SumaWartosc:N2}";
     }
 }
