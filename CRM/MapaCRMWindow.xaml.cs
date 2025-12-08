@@ -145,12 +145,13 @@ namespace Kalendarz1.CRM
                         ISNULL(o.Status, 'Do zadzwonienia') as Status,
                         CASE WHEN pb.PKD_Opis IS NOT NULL THEN 1 ELSE 0 END as CzyPriorytetowa,
                         kp.Latitude,
-                        kp.Longitude
+                        kp.Longitude,
+                        (SELECT TOP 1 ISNULL(op.Name, n.KtoDodal) FROM NotatkiCRM n LEFT JOIN operators op ON n.KtoDodal = CAST(op.ID AS NVARCHAR) WHERE n.IDOdbiorcy = o.ID ORDER BY n.DataUtworzenia DESC) as Handlowiec
                     FROM OdbiorcyCRM o
                     LEFT JOIN PriorytetoweBranzeCRM pb ON o.PKD_Opis = pb.PKD_Opis
                     INNER JOIN KodyPocztowe kp ON REPLACE(o.KOD, '-', '') = REPLACE(kp.Kod, '-', '')
                     WHERE ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)')
-                      AND kp.Latitude IS NOT NULL 
+                      AND kp.Latitude IS NOT NULL
                       AND kp.Longitude IS NOT NULL";
 
                 using (var cmd = new SqlCommand(sql, conn))
@@ -285,11 +286,11 @@ namespace Kalendarz1.CRM
                     Email = row["Email"]?.ToString() ?? "",
                     Wojewodztwo = row["Wojewodztwo"]?.ToString() ?? "",
                     Branza = branza,
+                    Handlowiec = row["Handlowiec"]?.ToString() ?? "",
                     Status = status,
                     CzyPriorytetowa = czyPriorytetowa,
                     Lat = lat,
                     Lng = lng,
-                    // Wyliczenie dystansu
                     DystansKm = ObliczDystans(BazaLat, BazaLng, lat, lng)
                 };
 
@@ -351,11 +352,12 @@ namespace Kalendarz1.CRM
                 k.Email,
                 k.Status,
                 k.Branza,
+                k.Handlowiec,
                 k.CzyPriorytetowa,
                 k.KolorHex,
                 k.Lat,
                 k.Lng,
-                k.DystansKm // Dodano dystans do JSON
+                k.DystansKm
             }), new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
 
             var sb = new StringBuilder();
@@ -426,9 +428,11 @@ namespace Kalendarz1.CRM
             sb.AppendLine("    marker.kontakt = p;");
             sb.AppendLine("    marker.addListener('click', function() {");
             sb.AppendLine("      var k = this.kontakt;");
-            // WYŚWIETLANIE ODLEGŁOŚCI W DYMKU
+            sb.AppendLine("      var branzaHtml = k.Branza ? '<div class=\"p-info\">🏭 ' + k.Branza + '</div>' : '';");
+            sb.AppendLine("      var handlowiecHtml = k.Handlowiec ? '<div class=\"p-info\" style=\"color:#6366F1;font-weight:bold\">👤 ' + k.Handlowiec + '</div>' : '';");
             sb.AppendLine("      var content = '<div class=\"p-title\">' + k.Nazwa + '</div>' +");
             sb.AppendLine("                    '<div class=\"p-info\">📍 ' + k.Miasto + ' (' + k.DystansKm + ' km)</div>' +");
+            sb.AppendLine("                    branzaHtml + handlowiecHtml +");
             sb.AppendLine("                    '<div class=\"p-info\">📞 ' + k.Telefon + '</div>' +");
             sb.AppendLine("                    '<div class=\"btn-row\">' +");
             sb.AppendLine("                    '<button class=\"p-btn btn-add\" onclick=\"addToRoute(' + k.ID + ')\">➕ Dodaj do trasy</button>' +");
@@ -463,9 +467,11 @@ namespace Kalendarz1.CRM
             sb.AppendLine("  var html = '';");
             sb.AppendLine("  for(var i=0; i<routePoints.length; i++) {");
             sb.AppendLine("    var p = routePoints[i];");
+            sb.AppendLine("    var branzaTxt = p.Branza ? '<br><span style=\"font-size:10px;color:#666\">🏭 ' + p.Branza + '</span>' : '';");
+            sb.AppendLine("    var handlowiecTxt = p.Handlowiec ? '<br><span style=\"font-size:10px;color:#6366F1;font-weight:bold\">👤 ' + p.Handlowiec + '</span>' : '';");
             sb.AppendLine("    html += '<div class=\"rp-item\">' +");
             sb.AppendLine("            '<div class=\"rp-remove\" onclick=\"removeFromRoute(' + p.ID + ')\">✕</div>' +");
-            sb.AppendLine("            '<b>' + (i+1) + '. ' + p.Nazwa + '</b><br>' + p.Miasto + ' (' + p.DystansKm + ' km)</div>';");
+            sb.AppendLine("            '<b>' + (i+1) + '. ' + p.Nazwa + '</b><br>' + p.Miasto + ' (' + p.DystansKm + ' km)' + branzaTxt + handlowiecTxt + '</div>';");
             sb.AppendLine("  }");
             sb.AppendLine("  div.innerHTML = html;");
             sb.AppendLine("}");
@@ -628,11 +634,12 @@ namespace Kalendarz1.CRM
         public string Email { get; set; } = "";
         public string Wojewodztwo { get; set; } = "";
         public string Branza { get; set; } = "";
+        public string Handlowiec { get; set; } = "";
         public string Status { get; set; } = "";
         public bool CzyPriorytetowa { get; set; }
         public double Lat { get; set; }
         public double Lng { get; set; }
-        public double DystansKm { get; set; } // Nowe pole
+        public double DystansKm { get; set; }
         public string KolorHex { get; set; } = "#9CA3AF";
         public SolidColorBrush KolorStatusu { get; set; }
         public SolidColorBrush TloStatusu { get; set; }
