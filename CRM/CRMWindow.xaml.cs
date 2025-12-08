@@ -78,6 +78,10 @@ namespace Kalendarz1.CRM
             }
         }
 
+        // Baza firmy - współrzędne do obliczania dystansu
+        private const double BazaLat = 51.907335;
+        private const double BazaLng = 19.678605;
+
         private void WczytajKontakty()
         {
             using (var conn = new SqlConnection(connectionString))
@@ -87,8 +91,11 @@ namespace Kalendarz1.CRM
                     SELECT o.ID, o.Nazwa as NAZWA, o.KOD, o.MIASTO, o.ULICA, o.Telefon_K as TELEFON_K, o.Email,
                         o.Wojewodztwo, o.PKD_Opis, o.Tagi, ISNULL(o.Status, 'Do zadzwonienia') as Status, o.DataNastepnegoKontaktu,
                         (SELECT TOP 1 DataZmiany FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID ORDER BY DataZmiany DESC) as OstatniaZmiana,
-                        (SELECT TOP 1 ISNULL(op.Name, h.KtoDodal) FROM NotatkiCRM h LEFT JOIN operators op ON h.KtoDodal = CAST(op.ID AS NVARCHAR) WHERE h.IDOdbiorcy = o.ID ORDER BY h.DataUtworzenia DESC) as OstatniHandlowiec
-                    FROM OdbiorcyCRM o LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
+                        (SELECT TOP 1 ISNULL(op.Name, h.KtoDodal) FROM NotatkiCRM h LEFT JOIN operators op ON h.KtoDodal = CAST(op.ID AS NVARCHAR) WHERE h.IDOdbiorcy = o.ID ORDER BY h.DataUtworzenia DESC) as OstatniHandlowiec,
+                        kp.Latitude, kp.Longitude
+                    FROM OdbiorcyCRM o
+                    LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
+                    LEFT JOIN KodyPocztowe kp ON o.KOD = kp.Kod
                     WHERE (w.OperatorID = @OperatorID OR w.OperatorID IS NULL) AND ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)')
                     ORDER BY CASE WHEN o.DataNastepnegoKontaktu IS NULL THEN 1 ELSE 0 END, o.DataNastepnegoKontaktu ASC", conn);
 
@@ -99,6 +106,7 @@ namespace Kalendarz1.CRM
 
                 if (!dtKontakty.Columns.Contains("CzyZaniedbany")) dtKontakty.Columns.Add("CzyZaniedbany", typeof(bool));
                 if (!dtKontakty.Columns.Contains("MaTagi")) dtKontakty.Columns.Add("MaTagi", typeof(bool));
+                if (!dtKontakty.Columns.Contains("Km")) dtKontakty.Columns.Add("Km", typeof(string));
 
                 foreach (DataRow r in dtKontakty.Rows)
                 {
@@ -110,10 +118,32 @@ namespace Kalendarz1.CRM
                     }
                     else r["CzyZaniedbany"] = false;
                     r["MaTagi"] = !string.IsNullOrEmpty(r["Tagi"]?.ToString());
+
+                    // Oblicz dystans
+                    if (r["Latitude"] != DBNull.Value && r["Longitude"] != DBNull.Value)
+                    {
+                        double lat = Convert.ToDouble(r["Latitude"]);
+                        double lng = Convert.ToDouble(r["Longitude"]);
+                        double km = ObliczDystans(BazaLat, BazaLng, lat, lng);
+                        r["Km"] = km.ToString("0");
+                    }
+                    else r["Km"] = "-";
                 }
                 dgKontakty.ItemsSource = dtKontakty.DefaultView;
                 if (txtLiczbaWynikow != null) txtLiczbaWynikow.Text = $"{dtKontakty.Rows.Count} klientów";
             }
+        }
+
+        private double ObliczDystans(double lat1, double lon1, double lat2, double lon2)
+        {
+            var R = 6371; // Promień ziemi w km
+            var dLat = (lat2 - lat1) * Math.PI / 180;
+            var dLon = (lon2 - lon1) * Math.PI / 180;
+            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                    Math.Cos(lat1 * Math.PI / 180) * Math.Cos(lat2 * Math.PI / 180) *
+                    Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+            return R * c;
         }
 
         private void WczytajKPI()
@@ -228,6 +258,14 @@ namespace Kalendarz1.CRM
         #region Interakcje
         private void DgKontakty_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            // Anuluj edycję notatki przy zmianie wiersza
+            if (edytowanaNotatkaId > 0)
+            {
+                edytowanaNotatkaId = 0;
+                txtNowaNotatka.Text = "";
+                btnDodajNotatke.Content = "Dodaj";
+            }
+
             if (dgKontakty.SelectedItem is DataRowView row)
             {
                 aktualnyOdbiorcaID = Convert.ToInt32(row["ID"]);
@@ -346,11 +384,16 @@ namespace Kalendarz1.CRM
         {
             try
             {
+                // Dodaj znacznik "(edytowano)" jeśli jeszcze nie ma
+                string tekstDoZapisu = nowyTekst.TrimEnd();
+                if (!tekstDoZapisu.EndsWith("(edytowano)"))
+                    tekstDoZapisu += " (edytowano)";
+
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
                     var cmd = new SqlCommand("UPDATE NotatkiCRM SET Tresc = @tresc WHERE ID = @id", conn);
-                    cmd.Parameters.AddWithValue("@tresc", nowyTekst);
+                    cmd.Parameters.AddWithValue("@tresc", tekstDoZapisu);
                     cmd.Parameters.AddWithValue("@id", id);
                     cmd.ExecuteNonQuery();
                 }
