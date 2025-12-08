@@ -371,13 +371,29 @@ namespace Kalendarz1.CRM
             sb.AppendLine("<meta name='viewport' content='width=device-width, initial-scale=1.0'/>");
             sb.AppendLine("<style>");
             sb.AppendLine("html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; }");
-            sb.AppendLine(".gm-style-iw { max-width: 300px !important; font-family: 'Segoe UI', sans-serif; }");
-            sb.AppendLine(".p-title { font-weight: 700; font-size: 14px; margin-bottom: 5px; }");
-            sb.AppendLine(".p-info { font-size: 12px; margin: 2px 0; }");
-            sb.AppendLine(".btn-row { display:flex; gap:5px; margin-top:8px; }");
-            sb.AppendLine(".p-btn { flex:1; text-align:center; padding: 6px 4px; color: white; text-decoration: none; border-radius: 4px; margin-top: 4px; font-size: 11px; border:none; cursor:pointer; }");
-            sb.AppendLine(".btn-add { background: #0F172A; } .btn-add:hover { background: #1E293B; }");
-            sb.AppendLine(".s-btn { padding:4px 8px; border:none; border-radius:4px; cursor:pointer; font-size:12px; }");
+            sb.AppendLine(".gm-style-iw { max-width: 340px !important; font-family: 'Segoe UI', sans-serif; }");
+            sb.AppendLine(".gm-style-iw-d { overflow: hidden !important; }");
+            sb.AppendLine(".popup-card { padding: 4px; }");
+            sb.AppendLine(".p-header { background: linear-gradient(135deg, #16A34A 0%, #22C55E 100%); color: white; padding: 12px 14px; border-radius: 8px 8px 0 0; margin: -12px -12px 12px -12px; }");
+            sb.AppendLine(".p-title { font-weight: 700; font-size: 15px; margin: 0; line-height: 1.3; }");
+            sb.AppendLine(".p-subtitle { font-size: 11px; opacity: 0.9; margin-top: 4px; }");
+            sb.AppendLine(".p-body { padding: 0 2px; }");
+            sb.AppendLine(".p-row { display: flex; align-items: center; padding: 6px 0; border-bottom: 1px solid #F1F5F9; }");
+            sb.AppendLine(".p-row:last-child { border-bottom: none; }");
+            sb.AppendLine(".p-icon { width: 24px; text-align: center; font-size: 14px; }");
+            sb.AppendLine(".p-label { font-size: 10px; color: #64748B; text-transform: uppercase; font-weight: 600; }");
+            sb.AppendLine(".p-value { font-size: 12px; color: #1E293B; font-weight: 500; }");
+            sb.AppendLine(".p-section { margin-top: 12px; padding-top: 12px; border-top: 2px solid #F1F5F9; }");
+            sb.AppendLine(".p-section-title { font-size: 10px; color: #64748B; text-transform: uppercase; font-weight: 700; margin-bottom: 8px; letter-spacing: 0.5px; }");
+            sb.AppendLine(".status-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }");
+            sb.AppendLine(".s-btn { padding: 8px 4px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 2px; }");
+            sb.AppendLine(".s-btn:hover { transform: scale(1.05); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }");
+            sb.AppendLine(".s-btn span { font-size: 8px; font-weight: 600; }");
+            sb.AppendLine(".btn-row { display: flex; gap: 8px; margin-top: 12px; }");
+            sb.AppendLine(".p-btn { flex: 1; text-align: center; padding: 10px 8px; color: white; text-decoration: none; border-radius: 6px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; }");
+            sb.AppendLine(".p-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }");
+            sb.AppendLine(".btn-route { background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%); }");
+            sb.AppendLine(".btn-call { background: linear-gradient(135deg, #16A34A 0%, #22C55E 100%); }");
             sb.AppendLine("#route-panel { position: absolute; right: 0; top: 0; bottom: 0; width: 320px; background: white; box-shadow: -2px 0 10px rgba(0,0,0,0.1); z-index: 1000; transform: translateX(320px); transition: transform 0.3s ease; display: flex; flex-direction: column; }");
             sb.AppendLine("#route-panel.open { transform: translateX(0); }");
             sb.AppendLine(".rp-header { background: #16A34A; color: white; padding: 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }");
@@ -431,27 +447,33 @@ namespace Kalendarz1.CRM
             sb.AppendLine("    marker.kontakt = p;");
             sb.AppendLine("    marker.addListener('click', function() {");
             sb.AppendLine("      var k = this.kontakt;");
-            sb.AppendLine("      var wojewodztwoHtml = k.Wojewodztwo ? '<div class=\"p-info\">🗺️ woj. ' + k.Wojewodztwo + '</div>' : '';");
-            sb.AppendLine("      var branzaHtml = k.Branza ? '<div class=\"p-info\">🏭 ' + k.Branza + '</div>' : '';");
-            sb.AppendLine("      var handlowiecHtml = k.Handlowiec ? '<div class=\"p-info\" style=\"color:#6366F1;font-weight:bold\">👤 ' + k.Handlowiec + '</div>' : '';");
-            sb.AppendLine("      var statusHtml = '<div class=\"p-info\" style=\"margin-top:5px\"><b>Status:</b> ' + k.Status + '</div>';");
-            sb.AppendLine("      var statusBtns = '<div style=\"margin-top:8px;font-size:10px;border-top:1px solid #eee;padding-top:8px\"><b>Zmień status:</b></div>' +");
-            sb.AppendLine("        '<div style=\"display:flex;flex-wrap:wrap;gap:3px;margin-top:5px\">' +");
-            sb.AppendLine("        '<button class=\"s-btn\" style=\"background:#F1F5F9;color:#64748B\" onclick=\"zmienStatus(' + k.ID + ',\\x27Próba kontaktu\\x27)\">⏳</button>' +");
-            sb.AppendLine("        '<button class=\"s-btn\" style=\"background:#DCFCE7;color:#166534\" onclick=\"zmienStatus(' + k.ID + ',\\x27Nawiązano kontakt\\x27)\">✅</button>' +");
-            sb.AppendLine("        '<button class=\"s-btn\" style=\"background:#CCFBF1;color:#0D9488\" onclick=\"zmienStatus(' + k.ID + ',\\x27Zgoda na dalszy kontakt\\x27)\">🤝</button>' +");
-            sb.AppendLine("        '<button class=\"s-btn\" style=\"background:#DBEAFE;color:#1E40AF\" onclick=\"zmienStatus(' + k.ID + ',\\x27Do wysłania oferta\\x27)\">📄</button>' +");
-            sb.AppendLine("        '<button class=\"s-btn\" style=\"background:#FEE2E2;color:#991B1B\" onclick=\"zmienStatus(' + k.ID + ',\\x27Nie zainteresowany\\x27)\">❌</button>' +");
-            sb.AppendLine("        '</div>';");
-            sb.AppendLine("      var content = '<div class=\"p-title\">' + k.Nazwa + '</div>' +");
-            sb.AppendLine("                    '<div class=\"p-info\">📍 ' + k.Miasto + ' (' + k.DystansKm + ' km)</div>' +");
-            sb.AppendLine("                    wojewodztwoHtml + branzaHtml + handlowiecHtml +");
-            sb.AppendLine("                    '<div class=\"p-info\">📞 ' + k.Telefon + '</div>' +");
-            sb.AppendLine("                    statusHtml + statusBtns +");
-            sb.AppendLine("                    '<div class=\"btn-row\">' +");
-            sb.AppendLine("                    '<button class=\"p-btn btn-add\" onclick=\"addToRoute(' + k.ID + ')\">➕ Trasa</button>' +");
-            sb.AppendLine("                    '<a class=\"p-btn\" style=\"background:#16A34A\" href=\"tel:' + k.Telefon + '\">📞 Zadzwoń</a>' +");
-            sb.AppendLine("                    '</div>';");
+            sb.AppendLine("      var content = '<div class=\"popup-card\">' +");
+            sb.AppendLine("        '<div class=\"p-header\">' +");
+            sb.AppendLine("          '<div class=\"p-title\">' + k.Nazwa + '</div>' +");
+            sb.AppendLine("          '<div class=\"p-subtitle\">📍 ' + k.Miasto + ' • ' + k.DystansKm + ' km od bazy</div>' +");
+            sb.AppendLine("        '</div>' +");
+            sb.AppendLine("        '<div class=\"p-body\">' +");
+            sb.AppendLine("          (k.Wojewodztwo ? '<div class=\"p-row\"><span class=\"p-icon\">🗺️</span><div><div class=\"p-label\">Województwo</div><div class=\"p-value\">' + k.Wojewodztwo + '</div></div></div>' : '') +");
+            sb.AppendLine("          (k.Branza ? '<div class=\"p-row\"><span class=\"p-icon\">🏭</span><div><div class=\"p-label\">Branża</div><div class=\"p-value\">' + k.Branza + '</div></div></div>' : '') +");
+            sb.AppendLine("          (k.Handlowiec ? '<div class=\"p-row\"><span class=\"p-icon\">👤</span><div><div class=\"p-label\">Opiekun</div><div class=\"p-value\" style=\"color:#6366F1;font-weight:600\">' + k.Handlowiec + '</div></div></div>' : '') +");
+            sb.AppendLine("          '<div class=\"p-row\"><span class=\"p-icon\">📞</span><div><div class=\"p-label\">Telefon</div><div class=\"p-value\">' + k.Telefon + '</div></div></div>' +");
+            sb.AppendLine("          '<div class=\"p-row\"><span class=\"p-icon\">📋</span><div><div class=\"p-label\">Status</div><div class=\"p-value\">' + k.Status + '</div></div></div>' +");
+            sb.AppendLine("          '<div class=\"p-section\">' +");
+            sb.AppendLine("            '<div class=\"p-section-title\">Zmień status</div>' +");
+            sb.AppendLine("            '<div class=\"status-grid\">' +");
+            sb.AppendLine("              '<button class=\"s-btn\" style=\"background:#FFEDD5;color:#9A3412\" onclick=\"zmienStatus(' + k.ID + ',\\x27Próba kontaktu\\x27)\" title=\"Próba kontaktu\">⏳<span>Próba</span></button>' +");
+            sb.AppendLine("              '<button class=\"s-btn\" style=\"background:#DCFCE7;color:#166534\" onclick=\"zmienStatus(' + k.ID + ',\\x27Nawiązano kontakt\\x27)\" title=\"Nawiązano kontakt\">✅<span>Kontakt</span></button>' +");
+            sb.AppendLine("              '<button class=\"s-btn\" style=\"background:#CCFBF1;color:#0D9488\" onclick=\"zmienStatus(' + k.ID + ',\\x27Zgoda na dalszy kontakt\\x27)\" title=\"Zgoda na dalszy kontakt\">🤝<span>Zgoda</span></button>' +");
+            sb.AppendLine("              '<button class=\"s-btn\" style=\"background:#DBEAFE;color:#1E40AF\" onclick=\"zmienStatus(' + k.ID + ',\\x27Do wysłania oferta\\x27)\" title=\"Do wysłania oferta\">📄<span>Oferta</span></button>' +");
+            sb.AppendLine("              '<button class=\"s-btn\" style=\"background:#FEE2E2;color:#991B1B\" onclick=\"zmienStatus(' + k.ID + ',\\x27Nie zainteresowany\\x27)\" title=\"Nie zainteresowany\">❌<span>Odmowa</span></button>' +");
+            sb.AppendLine("            '</div>' +");
+            sb.AppendLine("          '</div>' +");
+            sb.AppendLine("          '<div class=\"btn-row\">' +");
+            sb.AppendLine("            '<button class=\"p-btn btn-route\" onclick=\"addToRoute(' + k.ID + ')\">🗺️ Dodaj do trasy</button>' +");
+            sb.AppendLine("            '<a class=\"p-btn btn-call\" href=\"tel:' + k.Telefon + '\">📞 Zadzwoń</a>' +");
+            sb.AppendLine("          '</div>' +");
+            sb.AppendLine("        '</div>' +");
+            sb.AppendLine("      '</div>';");
             sb.AppendLine("      infoWindow.setContent(content);");
             sb.AppendLine("      infoWindow.open(map, this);");
             sb.AppendLine("    });");
@@ -642,7 +664,7 @@ namespace Kalendarz1.CRM
                 await webView.ExecuteScriptAsync($"setView({k.Lat.ToString(CultureInfo.InvariantCulture)}, {k.Lng.ToString(CultureInfo.InvariantCulture)}, 15);");
         }
 
-        private void CoreWebView2_WebMessageReceived(object sender, CoreWebView2WebMessageReceivedEventArgs e)
+        private void CoreWebView2_WebMessageReceived(object sender, Microsoft.Web.WebView2.Core.CoreWebView2WebMessageReceivedEventArgs e)
         {
             try
             {
