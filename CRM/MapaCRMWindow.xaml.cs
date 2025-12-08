@@ -1,6 +1,6 @@
+extern alias WebView2;
 using Microsoft.Data.SqlClient;
-using Microsoft.Web.WebView2.Core;
-using WebView2Args = Microsoft.Web.WebView2.Core.CoreWebView2WebMessageReceivedEventArgs;
+using WebView2Core = WebView2::Microsoft.Web.WebView2.Core;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -735,7 +735,7 @@ namespace Kalendarz1.CRM
                 await webView.ExecuteScriptAsync($"setView({k.Lat.ToString(CultureInfo.InvariantCulture)}, {k.Lng.ToString(CultureInfo.InvariantCulture)}, 15);");
         }
 
-        private void CoreWebView2_WebMessageReceived(object sender, WebView2Args e)
+        private void CoreWebView2_WebMessageReceived(object sender, WebView2Core.CoreWebView2WebMessageReceivedEventArgs e)
         {
             try
             {
