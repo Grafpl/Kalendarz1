@@ -266,14 +266,15 @@ namespace Kalendarz1.CRM
                 conn.Open();
                 // Łączymy notatki i zmiany statusów
                 var cmd = new SqlCommand(@"
-                    SELECT Tresc, DataUtworzenia, Operator, Typ FROM (
-                        SELECT n.Tresc, n.DataUtworzenia, ISNULL(o.Name, n.KtoDodal) as Operator, '📝' as Typ
+                    SELECT Id, Tresc, DataUtworzenia, Operator, Typ, CzyNotatka FROM (
+                        SELECT n.ID as Id, n.Tresc, n.DataUtworzenia, ISNULL(o.Name, n.KtoDodal) as Operator,
+                               '📝' as Typ, CAST(1 AS BIT) as CzyNotatka
                         FROM NotatkiCRM n
                         LEFT JOIN operators o ON n.KtoDodal = CAST(o.ID AS NVARCHAR)
                         WHERE n.IDOdbiorcy = @id
                         UNION ALL
-                        SELECT CONCAT('Status: ', h.WartoscNowa) as Tresc, h.DataZmiany as DataUtworzenia,
-                               ISNULL(o.Name, h.KtoWykonal) as Operator, '🔄' as Typ
+                        SELECT 0 as Id, CONCAT('Status: ', h.WartoscNowa) as Tresc, h.DataZmiany as DataUtworzenia,
+                               ISNULL(o.Name, h.KtoWykonal) as Operator, '🔄' as Typ, CAST(0 AS BIT) as CzyNotatka
                         FROM HistoriaZmianCRM h
                         LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
                         WHERE h.IDOdbiorcy = @id AND h.TypZmiany = 'Zmiana statusu'
@@ -284,10 +285,12 @@ namespace Kalendarz1.CRM
                 var dt = new DataTable(); adapter.Fill(dt);
                 var list = new ObservableCollection<NotatkaCRM>();
                 foreach (DataRow r in dt.Rows) list.Add(new NotatkaCRM {
+                    Id = Convert.ToInt32(r["Id"]),
                     Tresc = r["Tresc"].ToString(),
                     DataUtworzenia = (DateTime)r["DataUtworzenia"],
                     Operator = r["Operator"].ToString(),
-                    Typ = r["Typ"].ToString()
+                    Typ = r["Typ"].ToString(),
+                    CzyNotatka = Convert.ToBoolean(r["CzyNotatka"])
                 });
                 listaNotatek.ItemsSource = list;
             }
@@ -296,6 +299,18 @@ namespace Kalendarz1.CRM
         private void BtnDodajNotatke_Click(object sender, RoutedEventArgs e)
         {
             if (aktualnyOdbiorcaID == 0 || string.IsNullOrWhiteSpace(txtNowaNotatka.Text)) return;
+
+            // Tryb edycji
+            if (edytowanaNotatkaId > 0)
+            {
+                ZapiszEdycjeNotatki(edytowanaNotatkaId, txtNowaNotatka.Text);
+                edytowanaNotatkaId = 0;
+                txtNowaNotatka.Text = "";
+                btnDodajNotatke.Content = "Dodaj";
+                return;
+            }
+
+            // Tryb dodawania
             try
             {
                 using (var conn = new SqlConnection(connectionString))
@@ -312,6 +327,63 @@ namespace Kalendarz1.CRM
                 ShowToast("Notatka dodana! 📝");
             }
             catch (Exception ex) { MessageBox.Show(ex.Message); }
+        }
+
+        private int edytowanaNotatkaId = 0;
+
+        private void BtnEdytujNotatke_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is NotatkaCRM notatka)
+            {
+                edytowanaNotatkaId = notatka.Id;
+                txtNowaNotatka.Text = notatka.Tresc;
+                txtNowaNotatka.Focus();
+                btnDodajNotatke.Content = "Zapisz";
+            }
+        }
+
+        private void ZapiszEdycjeNotatki(int id, string nowyTekst)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    var cmd = new SqlCommand("UPDATE NotatkiCRM SET Tresc = @tresc WHERE ID = @id", conn);
+                    cmd.Parameters.AddWithValue("@tresc", nowyTekst);
+                    cmd.Parameters.AddWithValue("@id", id);
+                    cmd.ExecuteNonQuery();
+                }
+                WczytajNotatki(aktualnyOdbiorcaID);
+                ShowToast("Notatka zaktualizowana! ✏️");
+            }
+            catch (Exception ex) { MessageBox.Show(ex.Message); }
+        }
+
+        private void BtnUsunNotatke_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is NotatkaCRM notatka)
+            {
+                var result = MessageBox.Show("Czy na pewno chcesz usunąć tę notatkę?", "Potwierdzenie",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    try
+                    {
+                        using (var conn = new SqlConnection(connectionString))
+                        {
+                            conn.Open();
+                            var cmd = new SqlCommand("DELETE FROM NotatkiCRM WHERE ID = @id", conn);
+                            cmd.Parameters.AddWithValue("@id", notatka.Id);
+                            cmd.ExecuteNonQuery();
+                        }
+                        WczytajNotatki(aktualnyOdbiorcaID);
+                        ShowToast("Notatka usunięta! 🗑️");
+                    }
+                    catch (Exception ex) { MessageBox.Show(ex.Message); }
+                }
+            }
         }
 
         private void MenuTag_Click(object sender, RoutedEventArgs e)
@@ -486,9 +558,11 @@ namespace Kalendarz1.CRM
 
     public class NotatkaCRM
     {
+        public int Id { get; set; }
         public string Tresc { get; set; }
         public DateTime DataUtworzenia { get; set; }
         public string Operator { get; set; }
         public string Typ { get; set; } = "📝";
+        public bool CzyNotatka { get; set; } = true;
     }
 }
