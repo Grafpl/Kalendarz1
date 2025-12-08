@@ -175,15 +175,21 @@ namespace Kalendarz1.CRM
                         kp.Latitude,
                         kp.Longitude,
                         (SELECT TOP 1 ISNULL(op.Name, h.KtoWykonal) FROM HistoriaZmianCRM h LEFT JOIN operators op ON h.KtoWykonal = CAST(op.ID AS NVARCHAR) WHERE h.IDOdbiorcy = o.ID ORDER BY h.DataZmiany DESC) as Handlowiec,
-                        (SELECT STRING_AGG(CONCAT(FORMAT(n.DataDodania, 'dd.MM'), '|', ISNULL(op.Name, 'System'), '|', LEFT(n.Tresc, 100)), ';;;') WITHIN GROUP (ORDER BY n.DataDodania DESC)
-                         FROM (SELECT TOP 3 * FROM NotatkiCRM WHERE IDOdbiorcy = o.ID ORDER BY DataDodania DESC) n
-                         LEFT JOIN operators op ON n.KtoDodal = CAST(op.ID AS NVARCHAR)) as Notatki,
-                        (SELECT STRING_AGG(CONCAT(FORMAT(h.DataZmiany, 'dd.MM HH:mm'), '|', h.TypZmiany, '|', ISNULL(h.WartoscNowa, ''), '|', ISNULL(op.Name, 'System')), ';;;') WITHIN GROUP (ORDER BY h.DataZmiany DESC)
-                         FROM (SELECT TOP 5 * FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID ORDER BY DataZmiany DESC) h
-                         LEFT JOIN operators op ON h.KtoWykonal = CAST(op.ID AS NVARCHAR)) as Historia
+                        notatki_agg.Notatki,
+                        historia_agg.Historia
                     FROM OdbiorcyCRM o
                     LEFT JOIN PriorytetoweBranzeCRM pb ON o.PKD_Opis = pb.PKD_Opis
                     INNER JOIN KodyPocztowe kp ON REPLACE(o.KOD, '-', '') = REPLACE(kp.Kod, '-', '')
+                    OUTER APPLY (
+                        SELECT STRING_AGG(CONCAT(FORMAT(n.DataDodania, 'dd.MM'), '|', ISNULL(op.Name, 'System'), '|', LEFT(n.Tresc, 100)), ';;;') as Notatki
+                        FROM (SELECT TOP 3 ID, IDOdbiorcy, DataDodania, Tresc, KtoDodal FROM NotatkiCRM WHERE IDOdbiorcy = o.ID ORDER BY DataDodania DESC) n
+                        LEFT JOIN operators op ON n.KtoDodal = CAST(op.ID AS NVARCHAR)
+                    ) notatki_agg
+                    OUTER APPLY (
+                        SELECT STRING_AGG(CONCAT(FORMAT(h.DataZmiany, 'dd.MM HH:mm'), '|', h.TypZmiany, '|', ISNULL(h.WartoscNowa, ''), '|', ISNULL(op.Name, 'System')), ';;;') as Historia
+                        FROM (SELECT TOP 5 ID, IDOdbiorcy, DataZmiany, TypZmiany, WartoscNowa, KtoWykonal FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID ORDER BY DataZmiany DESC) h
+                        LEFT JOIN operators op ON h.KtoWykonal = CAST(op.ID AS NVARCHAR)
+                    ) historia_agg
                     WHERE ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)')
                       AND kp.Latitude IS NOT NULL
                       AND kp.Longitude IS NOT NULL";
