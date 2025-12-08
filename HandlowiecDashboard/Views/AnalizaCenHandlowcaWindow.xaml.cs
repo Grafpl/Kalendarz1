@@ -133,7 +133,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
                 LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
                 WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
-                  AND TW.katalog IN ('67095', '67153')
+                  AND TW.katalog IN (67095, 67153)
                   AND WYM.CDim_Handlowiec_Val = @Handlowiec
                 ORDER BY DK.data DESC, DK.nrdokwewn";
 
@@ -207,7 +207,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
                 LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
                 WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
-                  AND TW.katalog IN ('67095', '67153')
+                  AND TW.katalog IN (67095, 67153)
                   AND WYM.CDim_Handlowiec_Val = @Handlowiec";
 
             await using var cmd = new SqlCommand(sqlPoprzedni, cn);
@@ -256,7 +256,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
                 LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
                 WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
-                  AND TW.katalog IN ('67095', '67153')
+                  AND TW.katalog IN (67095, 67153)
                   AND WYM.CDim_Handlowiec_Val = @Handlowiec
                 GROUP BY CAST(DK.data AS DATE)
                 ORDER BY Dzien";
@@ -317,7 +317,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
                 LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
                 WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
-                  AND TW.katalog IN ('67095', '67153')
+                  AND TW.katalog IN (67095, 67153)
                   AND WYM.CDim_Handlowiec_Val = @Handlowiec
                 GROUP BY TW.kod, TW.nazwa
                 ORDER BY SumaWartosc DESC";
@@ -364,7 +364,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
                 LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
                 WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
-                  AND TW.katalog IN ('67095', '67153')
+                  AND TW.katalog IN (67095, 67153)
                   AND WYM.CDim_Handlowiec_Val = @Handlowiec
                 GROUP BY C.shortcut
                 ORDER BY SumaWartosc DESC";
@@ -415,7 +415,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
                 LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
                 WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
-                  AND TW.katalog IN ('67095', '67153')
+                  AND TW.katalog IN (67095, 67153)
                   AND WYM.CDim_Handlowiec_Val = @Handlowiec
                 GROUP BY TW.kod, TW.nazwa
                 ORDER BY SumaWartosc DESC";

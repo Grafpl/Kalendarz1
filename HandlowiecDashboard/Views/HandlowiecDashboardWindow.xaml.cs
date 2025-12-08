@@ -213,7 +213,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 cn.Open();
                 var sql = @"SELECT TW.ID, TW.kod, TW.kod + ' - ' + ISNULL(TW.nazwa, '') as Nazwa
                            FROM [HANDEL].[HM].[TW] TW
-                           WHERE TW.katalog IN ('67095', '67153')
+                           WHERE TW.katalog IN (67095, 67153)
                            GROUP BY TW.ID, TW.kod, TW.nazwa
                            ORDER BY TW.kod";
                 using var cmd = new SqlCommand(sql, cn);
@@ -670,7 +670,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
                     LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
                     WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
-                      AND TW.katalog IN ('67095', '67153')
+                      AND TW.katalog IN (67095, 67153)
                       AND (@TowarID IS NULL OR DP.idtw = @TowarID)
                       AND WYM.CDim_Handlowiec_Val IS NOT NULL
                       AND WYM.CDim_Handlowiec_Val NOT IN ('Ogolne', 'Ogólne')
@@ -777,13 +777,13 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 await cn.OpenAsync();
 
                 var sql = @"
-                    SELECT CASE WHEN TW.katalog = '67153' THEN 'Mrozone' ELSE 'Swieze' END AS Typ,
+                    SELECT CASE WHEN TW.katalog = 67153 THEN 'Mrozone' ELSE 'Swieze' END AS Typ,
                            SUM(DP.ilosc) AS SumaKg, SUM(DP.wartNetto) AS WartoscNetto
                     FROM [HANDEL].[HM].[DK] DK
                     INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
                     INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
                     WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
-                      AND TW.katalog IN ('67095', '67153')
+                      AND TW.katalog IN (67095, 67153)
                     GROUP BY CASE WHEN TW.katalog = '67153' THEN 'Mrozone' ELSE 'Swieze' END";
 
                 await using var cmd = new SqlCommand(sql, cn);
