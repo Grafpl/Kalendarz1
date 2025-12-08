@@ -143,6 +143,7 @@ namespace Kalendarz1.CRM
                         o.Email,
                         o.Wojewodztwo,
                         o.PKD_Opis,
+                        o.Tagi,
                         ISNULL(o.Status, 'Do zadzwonienia') as Status,
                         CASE WHEN pb.PKD_Opis IS NOT NULL THEN 1 ELSE 0 END as CzyPriorytetowa,
                         kp.Latitude,
@@ -288,6 +289,7 @@ namespace Kalendarz1.CRM
                     Wojewodztwo = row["Wojewodztwo"]?.ToString() ?? "",
                     Branza = branza,
                     Handlowiec = row["Handlowiec"]?.ToString() ?? "",
+                    Tagi = row["Tagi"]?.ToString() ?? "",
                     Status = status,
                     CzyPriorytetowa = czyPriorytetowa,
                     Lat = lat,
@@ -356,6 +358,7 @@ namespace Kalendarz1.CRM
                 k.Branza,
                 k.Handlowiec,
                 k.CzyPriorytetowa,
+                Tagi = k.Tagi ?? "",
                 k.KolorHex,
                 k.Lat,
                 k.Lng,
@@ -371,29 +374,46 @@ namespace Kalendarz1.CRM
             sb.AppendLine("<meta name='viewport' content='width=device-width, initial-scale=1.0'/>");
             sb.AppendLine("<style>");
             sb.AppendLine("html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; }");
-            sb.AppendLine(".gm-style-iw { max-width: 340px !important; font-family: 'Segoe UI', sans-serif; }");
+            sb.AppendLine(".gm-style-iw { max-width: 360px !important; font-family: 'Segoe UI', sans-serif; }");
             sb.AppendLine(".gm-style-iw-d { overflow: hidden !important; }");
             sb.AppendLine(".popup-card { padding: 4px; }");
-            sb.AppendLine(".p-header { background: linear-gradient(135deg, #16A34A 0%, #22C55E 100%); color: white; padding: 12px 14px; border-radius: 8px 8px 0 0; margin: -12px -12px 12px -12px; }");
-            sb.AppendLine(".p-title { font-weight: 700; font-size: 15px; margin: 0; line-height: 1.3; }");
-            sb.AppendLine(".p-subtitle { font-size: 11px; opacity: 0.9; margin-top: 4px; }");
+            sb.AppendLine(".p-header { background: linear-gradient(135deg, #16A34A 0%, #22C55E 100%); color: white; padding: 12px 14px; border-radius: 8px 8px 0 0; margin: -12px -12px 12px -12px; position: relative; }");
+            sb.AppendLine(".p-header-top { display: flex; align-items: flex-start; gap: 10px; }");
+            sb.AppendLine(".p-avatar { width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; }");
+            sb.AppendLine(".p-header-info { flex: 1; }");
+            sb.AppendLine(".p-title { font-weight: 700; font-size: 14px; margin: 0; line-height: 1.3; }");
+            sb.AppendLine(".p-subtitle { font-size: 11px; opacity: 0.9; margin-top: 2px; }");
+            sb.AppendLine(".p-badges { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }");
+            sb.AppendLine(".p-badge { font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 700; }");
+            sb.AppendLine(".badge-vip { background: #FEF3C7; color: #92400E; }");
+            sb.AppendLine(".badge-pilne { background: #FEE2E2; color: #991B1B; }");
+            sb.AppendLine(".badge-premium { background: #E0E7FF; color: #3730A3; }");
+            sb.AppendLine(".badge-priorytet { background: #DCFCE7; color: #166534; }");
             sb.AppendLine(".p-body { padding: 0 2px; }");
             sb.AppendLine(".p-row { display: flex; align-items: center; padding: 6px 0; border-bottom: 1px solid #F1F5F9; }");
             sb.AppendLine(".p-row:last-child { border-bottom: none; }");
             sb.AppendLine(".p-icon { width: 24px; text-align: center; font-size: 14px; }");
             sb.AppendLine(".p-label { font-size: 10px; color: #64748B; text-transform: uppercase; font-weight: 600; }");
-            sb.AppendLine(".p-value { font-size: 12px; color: #1E293B; font-weight: 500; }");
-            sb.AppendLine(".p-section { margin-top: 12px; padding-top: 12px; border-top: 2px solid #F1F5F9; }");
+            sb.AppendLine(".p-value { font-size: 12px; color: #1E293B; font-weight: 500; display: flex; align-items: center; gap: 6px; }");
+            sb.AppendLine(".copy-btn { background: #F1F5F9; border: none; padding: 3px 6px; border-radius: 4px; cursor: pointer; font-size: 10px; transition: all 0.2s; }");
+            sb.AppendLine(".copy-btn:hover { background: #E2E8F0; }");
+            sb.AppendLine(".p-section { margin-top: 10px; padding-top: 10px; border-top: 2px solid #F1F5F9; }");
             sb.AppendLine(".p-section-title { font-size: 10px; color: #64748B; text-transform: uppercase; font-weight: 700; margin-bottom: 8px; letter-spacing: 0.5px; }");
             sb.AppendLine(".status-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }");
             sb.AppendLine(".s-btn { padding: 8px 4px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 2px; }");
             sb.AppendLine(".s-btn:hover { transform: scale(1.05); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }");
             sb.AppendLine(".s-btn span { font-size: 8px; font-weight: 600; }");
+            sb.AppendLine(".quick-note { display: flex; gap: 6px; margin-top: 8px; }");
+            sb.AppendLine(".quick-note input { flex: 1; border: 1px solid #E2E8F0; border-radius: 6px; padding: 8px 10px; font-size: 11px; }");
+            sb.AppendLine(".quick-note button { background: #16A34A; color: white; border: none; border-radius: 6px; padding: 8px 12px; cursor: pointer; font-size: 11px; font-weight: 600; }");
             sb.AppendLine(".btn-row { display: flex; gap: 8px; margin-top: 12px; }");
             sb.AppendLine(".p-btn { flex: 1; text-align: center; padding: 10px 8px; color: white; text-decoration: none; border-radius: 6px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; }");
             sb.AppendLine(".p-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }");
             sb.AppendLine(".btn-route { background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%); }");
             sb.AppendLine(".btn-call { background: linear-gradient(135deg, #16A34A 0%, #22C55E 100%); }");
+            sb.AppendLine("#map-toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px); background: #1F2937; color: white; padding: 12px 20px; border-radius: 30px; font-size: 13px; font-weight: 600; z-index: 9999; transition: transform 0.3s ease; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }");
+            sb.AppendLine("#map-toast.show { transform: translateX(-50%) translateY(0); }");
+            sb.AppendLine("#map-toast .undo-btn { background: #16A34A; border: none; color: white; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; }");
             sb.AppendLine("#route-panel { position: absolute; right: 0; top: 0; bottom: 0; width: 320px; background: white; box-shadow: -2px 0 10px rgba(0,0,0,0.1); z-index: 1000; transform: translateX(320px); transition: transform 0.3s ease; display: flex; flex-direction: column; }");
             sb.AppendLine("#route-panel.open { transform: translateX(0); }");
             sb.AppendLine(".rp-header { background: #16A34A; color: white; padding: 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }");
@@ -409,6 +429,7 @@ namespace Kalendarz1.CRM
             sb.AppendLine("</head>");
             sb.AppendLine("<body>");
             sb.AppendLine("<div id='map'></div>");
+            sb.AppendLine("<div id='map-toast'><span id='toast-msg'></span><button class='undo-btn' onclick='cofnijStatus()'>Cofnij</button></div>");
             sb.AppendLine("<div id='toggle-panel' onclick='togglePanel()'>📋 Twoja trasa (<span id='count-badge'>0</span>)</div>");
             sb.AppendLine("<div id='route-panel'>");
             sb.AppendLine("  <div class='rp-header'><span>PLANOWANIE TRASY</span><span style='cursor:pointer' onclick='togglePanel()'>✕</span></div>");
@@ -447,16 +468,30 @@ namespace Kalendarz1.CRM
             sb.AppendLine("    marker.kontakt = p;");
             sb.AppendLine("    marker.addListener('click', function() {");
             sb.AppendLine("      var k = this.kontakt;");
+            sb.AppendLine("      var avatarIcon = k.Branza ? (k.Branza.includes('Produkcja') ? '🏭' : k.Branza.includes('Handel') ? '🏪' : k.Branza.includes('Usługi') ? '🔧' : '🏢') : '🏢';");
+            sb.AppendLine("      var badges = '';");
+            sb.AppendLine("      if(k.Tagi) {");
+            sb.AppendLine("        if(k.Tagi.includes('VIP')) badges += '<span class=\"p-badge badge-vip\">⭐ VIP</span>';");
+            sb.AppendLine("        if(k.Tagi.includes('Pilne')) badges += '<span class=\"p-badge badge-pilne\">🔥 PILNE</span>';");
+            sb.AppendLine("        if(k.Tagi.includes('Premium')) badges += '<span class=\"p-badge badge-premium\">💎 PREMIUM</span>';");
+            sb.AppendLine("      }");
+            sb.AppendLine("      if(k.CzyPriorytetowa) badges += '<span class=\"p-badge badge-priorytet\">✓ PRIORYTET</span>';");
             sb.AppendLine("      var content = '<div class=\"popup-card\">' +");
             sb.AppendLine("        '<div class=\"p-header\">' +");
-            sb.AppendLine("          '<div class=\"p-title\">' + k.Nazwa + '</div>' +");
-            sb.AppendLine("          '<div class=\"p-subtitle\">📍 ' + k.Miasto + ' • ' + k.DystansKm + ' km od bazy</div>' +");
+            sb.AppendLine("          '<div class=\"p-header-top\">' +");
+            sb.AppendLine("            '<div class=\"p-avatar\">' + avatarIcon + '</div>' +");
+            sb.AppendLine("            '<div class=\"p-header-info\">' +");
+            sb.AppendLine("              '<div class=\"p-title\">' + k.Nazwa + '</div>' +");
+            sb.AppendLine("              '<div class=\"p-subtitle\">📍 ' + k.Miasto + ' • ' + k.DystansKm + ' km</div>' +");
+            sb.AppendLine("              (badges ? '<div class=\"p-badges\">' + badges + '</div>' : '') +");
+            sb.AppendLine("            '</div>' +");
+            sb.AppendLine("          '</div>' +");
             sb.AppendLine("        '</div>' +");
             sb.AppendLine("        '<div class=\"p-body\">' +");
             sb.AppendLine("          (k.Wojewodztwo ? '<div class=\"p-row\"><span class=\"p-icon\">🗺️</span><div><div class=\"p-label\">Województwo</div><div class=\"p-value\">' + k.Wojewodztwo + '</div></div></div>' : '') +");
             sb.AppendLine("          (k.Branza ? '<div class=\"p-row\"><span class=\"p-icon\">🏭</span><div><div class=\"p-label\">Branża</div><div class=\"p-value\">' + k.Branza + '</div></div></div>' : '') +");
             sb.AppendLine("          (k.Handlowiec ? '<div class=\"p-row\"><span class=\"p-icon\">👤</span><div><div class=\"p-label\">Opiekun</div><div class=\"p-value\" style=\"color:#6366F1;font-weight:600\">' + k.Handlowiec + '</div></div></div>' : '') +");
-            sb.AppendLine("          '<div class=\"p-row\"><span class=\"p-icon\">📞</span><div><div class=\"p-label\">Telefon</div><div class=\"p-value\">' + k.Telefon + '</div></div></div>' +");
+            sb.AppendLine("          '<div class=\"p-row\"><span class=\"p-icon\">📞</span><div><div class=\"p-label\">Telefon</div><div class=\"p-value\">' + k.Telefon + '<button class=\"copy-btn\" onclick=\"kopiuj(\\x27' + k.Telefon + '\\x27)\">📋</button></div></div></div>' +");
             sb.AppendLine("          '<div class=\"p-row\"><span class=\"p-icon\">📋</span><div><div class=\"p-label\">Status</div><div class=\"p-value\">' + k.Status + '</div></div></div>' +");
             sb.AppendLine("          '<div class=\"p-section\">' +");
             sb.AppendLine("            '<div class=\"p-section-title\">Zmień status</div>' +");
@@ -468,8 +503,15 @@ namespace Kalendarz1.CRM
             sb.AppendLine("              '<button class=\"s-btn\" style=\"background:#FEE2E2;color:#991B1B\" onclick=\"zmienStatus(' + k.ID + ',\\x27Nie zainteresowany\\x27)\" title=\"Nie zainteresowany\">❌<span>Odmowa</span></button>' +");
             sb.AppendLine("            '</div>' +");
             sb.AppendLine("          '</div>' +");
+            sb.AppendLine("          '<div class=\"p-section\">' +");
+            sb.AppendLine("            '<div class=\"p-section-title\">Szybka notatka</div>' +");
+            sb.AppendLine("            '<div class=\"quick-note\">' +");
+            sb.AppendLine("              '<input type=\"text\" id=\"qnote-' + k.ID + '\" placeholder=\"Wpisz notatkę...\">' +");
+            sb.AppendLine("              '<button onclick=\"dodajNotatke(' + k.ID + ')\">Dodaj</button>' +");
+            sb.AppendLine("            '</div>' +");
+            sb.AppendLine("          '</div>' +");
             sb.AppendLine("          '<div class=\"btn-row\">' +");
-            sb.AppendLine("            '<button class=\"p-btn btn-route\" onclick=\"addToRoute(' + k.ID + ')\">🗺️ Dodaj do trasy</button>' +");
+            sb.AppendLine("            '<button class=\"p-btn btn-route\" onclick=\"addToRoute(' + k.ID + ')\">🗺️ Do trasy</button>' +");
             sb.AppendLine("            '<a class=\"p-btn btn-call\" href=\"tel:' + k.Telefon + '\">📞 Zadzwoń</a>' +");
             sb.AppendLine("          '</div>' +");
             sb.AppendLine("        '</div>' +");
@@ -551,10 +593,38 @@ namespace Kalendarz1.CRM
             sb.AppendLine("  document.getElementById('route-summary').style.display = 'none';");
             sb.AppendLine("}");
             sb.AppendLine("window.setView = function(lat, lng, z) { if(map) { map.setCenter({ lat: lat, lng: lng }); map.setZoom(z||15); } };");
+            sb.AppendLine("var lastStatusChange = null;");
             sb.AppendLine("function zmienStatus(id, nowyStatus) {");
+            sb.AppendLine("  var k = data.find(x => x.ID == id);");
+            sb.AppendLine("  if(k) { lastStatusChange = { id: id, oldStatus: k.Status, newStatus: nowyStatus }; k.Status = nowyStatus; }");
             sb.AppendLine("  window.chrome.webview.postMessage(JSON.stringify({ action: 'zmienStatus', id: id, status: nowyStatus }));");
             sb.AppendLine("  infoWindow.close();");
-            sb.AppendLine("  var k = data.find(x => x.ID == id); if(k) k.Status = nowyStatus;");
+            sb.AppendLine("  showToast('✅ Status: ' + nowyStatus);");
+            sb.AppendLine("}");
+            sb.AppendLine("function cofnijStatus() {");
+            sb.AppendLine("  if(!lastStatusChange) return;");
+            sb.AppendLine("  var k = data.find(x => x.ID == lastStatusChange.id);");
+            sb.AppendLine("  if(k) k.Status = lastStatusChange.oldStatus;");
+            sb.AppendLine("  window.chrome.webview.postMessage(JSON.stringify({ action: 'zmienStatus', id: lastStatusChange.id, status: lastStatusChange.oldStatus }));");
+            sb.AppendLine("  hideToast();");
+            sb.AppendLine("  lastStatusChange = null;");
+            sb.AppendLine("}");
+            sb.AppendLine("function showToast(msg) {");
+            sb.AppendLine("  document.getElementById('toast-msg').innerText = msg;");
+            sb.AppendLine("  document.getElementById('map-toast').classList.add('show');");
+            sb.AppendLine("  setTimeout(function() { hideToast(); }, 5000);");
+            sb.AppendLine("}");
+            sb.AppendLine("function hideToast() { document.getElementById('map-toast').classList.remove('show'); }");
+            sb.AppendLine("function kopiuj(tekst) {");
+            sb.AppendLine("  navigator.clipboard.writeText(tekst).then(function() { showToast('📋 Skopiowano: ' + tekst); });");
+            sb.AppendLine("}");
+            sb.AppendLine("function dodajNotatke(id) {");
+            sb.AppendLine("  var input = document.getElementById('qnote-' + id);");
+            sb.AppendLine("  if(!input || !input.value.trim()) return;");
+            sb.AppendLine("  window.chrome.webview.postMessage(JSON.stringify({ action: 'dodajNotatke', id: id, tresc: input.value.trim() }));");
+            sb.AppendLine("  input.value = '';");
+            sb.AppendLine("  showToast('📝 Notatka dodana!');");
+            sb.AppendLine("  infoWindow.close();");
             sb.AppendLine("}");
             sb.AppendLine("</script>");
 
@@ -672,17 +742,44 @@ namespace Kalendarz1.CRM
                 using (var doc = JsonDocument.Parse(json))
                 {
                     var root = doc.RootElement;
-                    if (root.GetProperty("action").GetString() == "zmienStatus")
+                    string action = root.GetProperty("action").GetString();
+                    int id = root.GetProperty("id").GetInt32();
+
+                    if (action == "zmienStatus")
                     {
-                        int id = root.GetProperty("id").GetInt32();
                         string nowyStatus = root.GetProperty("status").GetString();
                         ZmienStatusOdbiorcy(id, nowyStatus);
+                    }
+                    else if (action == "dodajNotatke")
+                    {
+                        string tresc = root.GetProperty("tresc").GetString();
+                        DodajNotatkeOdbiorcy(id, tresc);
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd: {ex.Message}");
+                Debug.WriteLine($"WebMessage error: {ex.Message}");
+            }
+        }
+
+        private void DodajNotatkeOdbiorcy(int id, string tresc)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    var cmd = new SqlCommand("INSERT INTO NotatkiCRM (IDOdbiorcy, Tresc, KtoDodal) VALUES (@id, @tresc, @op)", conn);
+                    cmd.Parameters.AddWithValue("@id", id);
+                    cmd.Parameters.AddWithValue("@tresc", tresc);
+                    cmd.Parameters.AddWithValue("@op", operatorID);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Błąd dodawania notatki: {ex.Message}");
             }
         }
 
@@ -712,8 +809,6 @@ namespace Kalendarz1.CRM
                     kontakt.Status = nowyStatus;
                     UstawKoloryStatusu(kontakt);
                 }
-
-                MessageBox.Show($"Status zmieniony na: {nowyStatus}", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
@@ -733,6 +828,7 @@ namespace Kalendarz1.CRM
         public string Wojewodztwo { get; set; } = "";
         public string Branza { get; set; } = "";
         public string Handlowiec { get; set; } = "";
+        public string Tagi { get; set; } = "";
         public string Status { get; set; } = "";
         public bool CzyPriorytetowa { get; set; }
         public double Lat { get; set; }
