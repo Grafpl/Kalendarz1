@@ -191,6 +191,9 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             cmbHandlowiecPlat.DisplayMemberPath = "Text";
             cmbHandlowiecPlat.SelectedValuePath = "Value";
             cmbHandlowiecPlat.SelectedIndex = 0;
+
+            // Ustaw domyslna date dla opakowan na dzisiaj
+            dpOpakowania.SelectedDate = DateTime.Today;
         }
 
         private void WypelnijTowary(ComboBox cmb)
@@ -240,6 +243,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         private void CmbTrend_SelectionChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
         private void CmbOpakowania_SelectionChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
         private void CmbPlatnosci_SelectionChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
+        private void DpOpakowania_SelectedDateChanged(object sender, SelectionChangedEventArgs e) => OdswiezJesliGotowe();
 
         private void OdswiezJesliGotowe()
         {
@@ -592,20 +596,20 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 // Ustaw os Y do maksymalnego punktu + 10%
                 axisYUdzial.MaxValue = maxProcent * 1.1;
 
-                // Dodaj adnotacje tekstowe z nazwami handlowcow na koncu
-                // Zamiast tego uzyj DataLabels tylko na ostatnim punkcie
+                // Dodaj etykiety procentowe na wszystkich punktach + nazwe handlowca na koncu
                 idx = 0;
                 foreach (LineSeries ls in series)
                 {
                     var handlowiecNazwa = ls.Title;
                     var color = _kolory[idx % _kolory.Length];
+                    var valuesCount = ls.Values.Count;
 
-                    // Ustaw etykiete tylko na ostatnim punkcie
+                    // Ustaw etykiete na kazdym punkcie: % na wszystkich, + nazwe na ostatnim
                     ls.LabelPoint = p =>
                     {
-                        if (p.Key == ls.Values.Count - 1)
-                            return $" {handlowiecNazwa}";
-                        return "";
+                        if (p.Key == valuesCount - 1)
+                            return $"{p.Y:F1}% {handlowiecNazwa}";
+                        return $"{p.Y:F1}%";
                     };
                     ls.DataLabels = true;
                     idx++;
@@ -937,6 +941,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             if (cmbHandlowiecOpak.SelectedItem is ComboItem item && item.Value > 0)
                 wybranyHandlowiec = item.Text;
 
+            DateTime dataDo = dpOpakowania.SelectedDate ?? DateTime.Today;
+
             var dane = new List<OpakowanieRow>();
 
             try
@@ -944,38 +950,33 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 await using var cn = new SqlConnection(_connectionStringHandel);
                 await cn.OpenAsync();
 
-                // Zapytanie o saldo opakowan per kontrahent
+                // Zapytanie o saldo opakowan per kontrahent - uzywa tabel MG/MZ
                 var sql = @"
-                    SELECT C.shortcut AS Kontrahent,
-                           ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
-                           SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN
-                               CASE WHEN DK.typ IN (301, 302, 305, 306, 360) THEN DP.ilosc ELSE -DP.ilosc END
-                           ELSE 0 END) AS PojemnikiE2,
-                           SUM(CASE WHEN TW.nazwa = 'Paleta H1' THEN
-                               CASE WHEN DK.typ IN (301, 302, 305, 306, 360) THEN DP.ilosc ELSE -DP.ilosc END
-                           ELSE 0 END) AS PaletaH1,
-                           SUM(CASE WHEN TW.nazwa = 'Paleta EURO' THEN
-                               CASE WHEN DK.typ IN (301, 302, 305, 306, 360) THEN DP.ilosc ELSE -DP.ilosc END
-                           ELSE 0 END) AS PaletaEuro,
-                           SUM(CASE WHEN TW.nazwa = 'Paleta plastikowa' THEN
-                               CASE WHEN DK.typ IN (301, 302, 305, 306, 360) THEN DP.ilosc ELSE -DP.ilosc END
-                           ELSE 0 END) AS PaletaPlastikowa,
-                           SUM(CASE WHEN TW.nazwa = 'Paleta Drewniana' THEN
-                               CASE WHEN DK.typ IN (301, 302, 305, 306, 360) THEN DP.ilosc ELSE -DP.ilosc END
-                           ELSE 0 END) AS PaletaDrewniana
-                    FROM [HANDEL].[HM].[DK] DK
-                    INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
-                    INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
-                    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
-                    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
-                    WHERE TW.nazwa IN ('Pojemnik Drobiowy E2', 'Paleta H1', 'Paleta EURO', 'Paleta plastikowa', 'Paleta Drewniana')
-                      AND (@Handlowiec IS NULL OR WYM.CDim_Handlowiec_Val = @Handlowiec)
-                    GROUP BY C.shortcut, ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany')
-                    HAVING SUM(CASE WHEN DK.typ IN (301, 302, 305, 306, 360) THEN DP.ilosc ELSE -DP.ilosc END) <> 0
-                    ORDER BY Handlowiec, Kontrahent";
+SELECT
+    C.shortcut AS Kontrahent,
+    ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
+    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc ELSE 0 END), 0) AS DECIMAL(18,0)) AS PojemnikiE2,
+    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta H1' THEN MZ.Ilosc ELSE 0 END), 0) AS DECIMAL(18,0)) AS PaletaH1,
+    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta EURO' THEN MZ.Ilosc ELSE 0 END), 0) AS DECIMAL(18,0)) AS PaletaEuro,
+    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta plastikowa' THEN MZ.Ilosc ELSE 0 END), 0) AS DECIMAL(18,0)) AS PaletaPlastikowa,
+    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta Drewniana' THEN MZ.Ilosc ELSE 0 END), 0) AS DECIMAL(18,0)) AS PaletaDrewniana
+FROM [HANDEL].[HM].[MZ] MZ
+INNER JOIN [HANDEL].[HM].[TW] TW ON MZ.idtw = TW.id
+INNER JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id
+INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON MG.khid = C.id
+LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON C.Id = WYM.ElementId
+WHERE MZ.data >= '2020-01-01'
+  AND MZ.data <= @DataDo
+  AND MG.anulowany = 0
+  AND TW.nazwa IN ('Pojemnik Drobiowy E2', 'Paleta H1', 'Paleta EURO', 'Paleta plastikowa', 'Paleta Drewniana')
+  AND (@Handlowiec IS NULL OR WYM.CDim_Handlowiec_Val = @Handlowiec)
+GROUP BY C.shortcut, ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany')
+HAVING SUM(MZ.Ilosc) <> 0
+ORDER BY SUM(MZ.Ilosc) DESC, Kontrahent";
 
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Handlowiec", (object)wybranyHandlowiec ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@DataDo", dataDo);
 
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
@@ -1006,9 +1007,6 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     });
                 }
 
-                // Posortuj od najwiekszego salda
-                dane = dane.OrderByDescending(d => d.Razem).ToList();
-
                 // Podsumowanie
                 var sumaPojemniki = dane.Sum(d => d.PojemnikiE2);
                 var sumaPaletH1 = dane.Sum(d => d.PaletaH1);
@@ -1017,7 +1015,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 var sumaPaletDrew = dane.Sum(d => d.PaletaDrewniana);
                 var sumaRazem = dane.Sum(d => d.Razem);
 
-                txtOpakowaniaInfo.Text = $"SUMA: Pojemniki E2: {sumaPojemniki:N0} | Palety H1: {sumaPaletH1:N0} | EURO: {sumaPaletEuro:N0} | Plastikowe: {sumaPaletPlast:N0} | Drewniane: {sumaPaletDrew:N0} | RAZEM: {sumaRazem:N0}";
+                txtOpakowaniaInfo.Text = $"SUMA do {dataDo:dd.MM.yyyy}: Pojemniki E2: {sumaPojemniki:N0} | Palety H1: {sumaPaletH1:N0} | EURO: {sumaPaletEuro:N0} | Plastikowe: {sumaPaletPlast:N0} | Drewniane: {sumaPaletDrew:N0} | RAZEM: {sumaRazem:N0}";
             }
             catch (Exception ex)
             {
@@ -1044,24 +1042,59 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 await using var cn = new SqlConnection(_connectionStringHandel);
                 await cn.OpenAsync();
 
-                // Zapytanie o platnosci per kontrahent
+                // Poprawione zapytanie o platnosci per kontrahent
                 var sql = @"
-                    SELECT C.shortcut AS Kontrahent,
-                           ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
-                           ISNULL(C.creditLimit, 0) AS LimitKredytu,
-                           SUM(PN.wartosc - ISNULL(PN.zaplacono, 0)) AS DoZaplaty,
-                           SUM(CASE WHEN PN.termin >= GETDATE() THEN PN.wartosc - ISNULL(PN.zaplacono, 0) ELSE 0 END) AS Terminowe,
-                           SUM(CASE WHEN PN.termin < GETDATE() THEN PN.wartosc - ISNULL(PN.zaplacono, 0) ELSE 0 END) AS Przeterminowane,
-                           MIN(CASE WHEN PN.termin < GETDATE() AND (PN.wartosc - ISNULL(PN.zaplacono, 0)) > 0 THEN PN.termin ELSE NULL END) AS NajstarszaPlatnosc
-                    FROM [HANDEL].[HM].[PN] PN
-                    INNER JOIN [HANDEL].[HM].[DK] DK ON PN.super = DK.id
-                    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
-                    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
-                    WHERE (PN.wartosc - ISNULL(PN.zaplacono, 0)) > 0.01
-                      AND (@Handlowiec IS NULL OR WYM.CDim_Handlowiec_Val = @Handlowiec)
-                    GROUP BY C.shortcut, ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany'), ISNULL(C.creditLimit, 0)
-                    HAVING SUM(PN.wartosc - ISNULL(PN.zaplacono, 0)) > 0.01
-                    ORDER BY Przeterminowane DESC, DoZaplaty DESC";
+WITH PNAgg AS (
+    SELECT PN.dkid,
+           SUM(ISNULL(PN.kwotarozl,0)) AS KwotaRozliczona,
+           MAX(PN.Termin) AS TerminPrawdziwy
+    FROM [HANDEL].[HM].[PN] PN
+    GROUP BY PN.dkid
+),
+Dokumenty AS (
+    SELECT DISTINCT DK.id, DK.khid, DK.walbrutto, DK.plattermin
+    FROM [HANDEL].[HM].[DK] DK
+    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
+    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+    WHERE DK.anulowany = 0
+      AND (@Handlowiec IS NULL OR WYM.CDim_Handlowiec_Val = @Handlowiec)
+),
+Saldo AS (
+    SELECT D.khid,
+           (D.walbrutto - ISNULL(PA.KwotaRozliczona,0)) AS DoZaplacenia,
+           ISNULL(PA.TerminPrawdziwy, D.plattermin) AS TerminPlatnosci,
+           CASE
+               WHEN (D.walbrutto - ISNULL(PA.KwotaRozliczona,0)) > 0.01 AND GETDATE() > ISNULL(PA.TerminPrawdziwy, D.plattermin)
+               THEN DATEDIFF(day, ISNULL(PA.TerminPrawdziwy, D.plattermin), GETDATE())
+               ELSE 0
+           END AS DniPrzeterminowania
+    FROM Dokumenty D
+    LEFT JOIN PNAgg PA ON PA.dkid = D.id
+),
+MaxPrzeterminowania AS (
+    SELECT khid, MAX(CASE WHEN DniPrzeterminowania > 0 THEN DniPrzeterminowania ELSE NULL END) AS MaxDniPrzeterminowania
+    FROM Saldo
+    GROUP BY khid
+)
+SELECT
+    C.Shortcut AS Kontrahent,
+    ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
+    ISNULL(C.LimitAmount, 0) AS LimitKredytu,
+    CAST(SUM(CASE WHEN S.DoZaplacenia > 0 THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2)) AS DoZaplaty,
+    CAST(SUM(CASE WHEN S.DoZaplacenia > 0 AND GETDATE() <= S.TerminPlatnosci THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2)) AS Terminowe,
+    CAST(SUM(CASE WHEN S.DoZaplacenia > 0 AND GETDATE() > S.TerminPlatnosci THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2)) AS Przeterminowane,
+    CAST(CASE WHEN ISNULL(C.LimitAmount, 0) > 0
+         THEN ISNULL(C.LimitAmount, 0) - SUM(CASE WHEN S.DoZaplacenia > 0 THEN S.DoZaplacenia ELSE 0 END)
+         ELSE 0 END AS DECIMAL(18,2)) AS PrzekroczonyLimit,
+    MP.MaxDniPrzeterminowania AS DniPrzeterminowania
+FROM Saldo S
+JOIN [HANDEL].[SSCommon].[STContractors] C ON C.id = S.khid
+LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON C.id = WYM.ElementId
+LEFT JOIN MaxPrzeterminowania MP ON MP.khid = S.khid
+WHERE (@Handlowiec IS NULL OR WYM.CDim_Handlowiec_Val = @Handlowiec)
+GROUP BY C.Shortcut, WYM.CDim_Handlowiec_Val, C.LimitAmount, MP.MaxDniPrzeterminowania
+HAVING SUM(CASE WHEN S.DoZaplacenia > 0 THEN S.DoZaplacenia ELSE 0 END) > 0.01
+ORDER BY Przeterminowane DESC, DoZaplaty DESC";
 
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Handlowiec", (object)wybranyHandlowiec ?? DBNull.Value);
@@ -1075,8 +1108,11 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     var doZaplaty = reader.IsDBNull(3) ? 0m : Convert.ToDecimal(reader.GetValue(3));
                     var terminowe = reader.IsDBNull(4) ? 0m : Convert.ToDecimal(reader.GetValue(4));
                     var przeterminowane = reader.IsDBNull(5) ? 0m : Convert.ToDecimal(reader.GetValue(5));
-                    var najstarszaPlatnosc = reader.IsDBNull(6) ? (DateTime?)null : reader.GetDateTime(6);
-                    var przekroczonyLimit = limitKredytu > 0 ? Math.Max(0, doZaplaty - limitKredytu) : 0;
+                    var przekroczonyLimitVal = reader.IsDBNull(6) ? 0m : Convert.ToDecimal(reader.GetValue(6));
+                    var dniPrzeterminowania = reader.IsDBNull(7) ? (int?)null : Convert.ToInt32(reader.GetValue(7));
+
+                    // Przekroczony limit - ujemna wartosc oznacza przekroczenie
+                    var przekroczonyLimit = przekroczonyLimitVal < 0 ? Math.Abs(przekroczonyLimitVal) : 0;
 
                     dane.Add(new PlatnoscRow
                     {
@@ -1087,7 +1123,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                         Terminowe = terminowe,
                         Przeterminowane = przeterminowane,
                         PrzekroczonyLimit = przekroczonyLimit,
-                        NajstarszaPlatnosc = najstarszaPlatnosc,
+                        DniPrzeterminowania = dniPrzeterminowania,
                         PrzeterminowaneAlert = przeterminowane > 0,
                         PrzekroczonyLimitAlert = przekroczonyLimit > 0
                     });
@@ -1142,7 +1178,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         public decimal Terminowe { get; set; }
         public decimal Przeterminowane { get; set; }
         public decimal PrzekroczonyLimit { get; set; }
-        public DateTime? NajstarszaPlatnosc { get; set; }
+        public int? DniPrzeterminowania { get; set; }
         public bool PrzeterminowaneAlert { get; set; }
         public bool PrzekroczonyLimitAlert { get; set; }
     }

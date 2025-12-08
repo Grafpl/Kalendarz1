@@ -478,7 +478,9 @@
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Handlowiec:" Style="{StaticResource FilterLabelStyle}"/>
                                 <ComboBox x:Name="cmbHandlowiecOpak" Style="{StaticResource DarkComboBoxStyle}" Width="150" SelectionChanged="CmbOpakowania_SelectionChanged"/>
-                                <TextBlock Text="Saldo opakowan klientow - pojemniki i palety do zwrotu" Style="{StaticResource DescriptionStyle}"/>
+                                <TextBlock Text="Do dnia:" Style="{StaticResource FilterLabelStyle}" Margin="20,0,8,0"/>
+                                <DatePicker x:Name="dpOpakowania" Width="120" SelectedDateChanged="DpOpakowania_SelectedDateChanged"/>
+                                <TextBlock Text="Saldo opakowan klientow - pojemniki i palety do zwrotu (dodatnie = u klienta)" Style="{StaticResource DescriptionStyle}"/>
                             </StackPanel>
                         </Border>
                         <Border Grid.Row="1" Background="{StaticResource CardBackgroundBrush}" Padding="10,8" Margin="0,1,0,0">
@@ -672,10 +674,16 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Najstarsza platnosc" Binding="{Binding NajstarszaPlatnosc, StringFormat=dd.MM.yyyy}" Width="130">
+                                <DataGridTextColumn Header="Dni przet." Binding="{Binding DniPrzeterminowania}" Width="80">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding PrzeterminowaneAlert}" Value="True">
+                                                    <Setter Property="Foreground" Value="#FF6B6B"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
