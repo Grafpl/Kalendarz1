@@ -177,7 +177,10 @@ namespace Kalendarz1.CRM
                         (SELECT TOP 1 ISNULL(op.Name, h.KtoWykonal) FROM HistoriaZmianCRM h LEFT JOIN operators op ON h.KtoWykonal = CAST(op.ID AS NVARCHAR) WHERE h.IDOdbiorcy = o.ID ORDER BY h.DataZmiany DESC) as Handlowiec,
                         (SELECT STRING_AGG(CONCAT(FORMAT(n.DataDodania, 'dd.MM'), '|', ISNULL(op.Name, 'System'), '|', LEFT(n.Tresc, 100)), ';;;') WITHIN GROUP (ORDER BY n.DataDodania DESC)
                          FROM (SELECT TOP 3 * FROM NotatkiCRM WHERE IDOdbiorcy = o.ID ORDER BY DataDodania DESC) n
-                         LEFT JOIN operators op ON n.KtoDodal = CAST(op.ID AS NVARCHAR)) as Notatki
+                         LEFT JOIN operators op ON n.KtoDodal = CAST(op.ID AS NVARCHAR)) as Notatki,
+                        (SELECT STRING_AGG(CONCAT(FORMAT(h.DataZmiany, 'dd.MM HH:mm'), '|', h.TypZmiany, '|', ISNULL(h.WartoscNowa, ''), '|', ISNULL(op.Name, 'System')), ';;;') WITHIN GROUP (ORDER BY h.DataZmiany DESC)
+                         FROM (SELECT TOP 5 * FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID ORDER BY DataZmiany DESC) h
+                         LEFT JOIN operators op ON h.KtoWykonal = CAST(op.ID AS NVARCHAR)) as Historia
                     FROM OdbiorcyCRM o
                     LEFT JOIN PriorytetoweBranzeCRM pb ON o.PKD_Opis = pb.PKD_Opis
                     INNER JOIN KodyPocztowe kp ON REPLACE(o.KOD, '-', '') = REPLACE(kp.Kod, '-', '')
@@ -320,6 +323,7 @@ namespace Kalendarz1.CRM
                     Handlowiec = row["Handlowiec"]?.ToString() ?? "",
                     Tagi = row["Tagi"]?.ToString() ?? "",
                     Notatki = row["Notatki"]?.ToString() ?? "",
+                    Historia = row["Historia"]?.ToString() ?? "",
                     Status = status,
                     CzyPriorytetowa = czyPriorytetowa,
                     Lat = lat,
@@ -390,6 +394,7 @@ namespace Kalendarz1.CRM
                 k.CzyPriorytetowa,
                 Tagi = k.Tagi ?? "",
                 Notatki = k.Notatki ?? "",
+                Historia = k.Historia ?? "",
                 k.KolorHex,
                 k.Lat,
                 k.Lng,
@@ -444,6 +449,33 @@ namespace Kalendarz1.CRM
             sb.AppendLine(".note-date { font-size: 9px; color: #64748B; font-weight: 600; }");
             sb.AppendLine(".note-author { font-size: 9px; color: #6366F1; font-weight: 600; }");
             sb.AppendLine(".note-text { font-size: 11px; color: #334155; line-height: 1.4; }");
+            // Timeline styles
+            sb.AppendLine(".timeline { max-height: 140px; overflow-y: auto; margin-top: 6px; padding-left: 12px; border-left: 2px solid #E2E8F0; }");
+            sb.AppendLine(".tl-item { position: relative; padding: 6px 0 6px 14px; }");
+            sb.AppendLine(".tl-item::before { content: ''; position: absolute; left: -7px; top: 10px; width: 12px; height: 12px; border-radius: 50%; background: #16A34A; border: 2px solid white; box-shadow: 0 0 0 2px #E2E8F0; }");
+            sb.AppendLine(".tl-item.status::before { background: #3B82F6; }");
+            sb.AppendLine(".tl-item.note::before { background: #F97316; }");
+            sb.AppendLine(".tl-date { font-size: 9px; color: #94A3B8; font-weight: 600; }");
+            sb.AppendLine(".tl-action { font-size: 10px; color: #475569; font-weight: 600; }");
+            sb.AppendLine(".tl-value { font-size: 11px; color: #1E293B; }");
+            sb.AppendLine(".tl-author { font-size: 9px; color: #6366F1; margin-top: 2px; }");
+            // Quick actions toolbar
+            sb.AppendLine("#quick-toolbar { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: white; padding: 8px 16px; border-radius: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); z-index: 9000; display: none; gap: 8px; align-items: center; }");
+            sb.AppendLine("#quick-toolbar.show { display: flex; }");
+            sb.AppendLine(".qt-btn { width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer; font-size: 16px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }");
+            sb.AppendLine(".qt-btn:hover { transform: scale(1.1); }");
+            sb.AppendLine(".qt-btn.call { background: #DCFCE7; }");
+            sb.AppendLine(".qt-btn.status { background: #DBEAFE; }");
+            sb.AppendLine(".qt-btn.note { background: #FEF3C7; }");
+            sb.AppendLine(".qt-btn.route { background: #F3E8FF; }");
+            sb.AppendLine(".qt-btn.copy { background: #F1F5F9; }");
+            sb.AppendLine("#qt-name { font-size: 12px; font-weight: 600; color: #1E293B; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 8px; }");
+            // Navigation buttons in popup
+            sb.AppendLine(".p-nav { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; }");
+            sb.AppendLine(".nav-btn { width: 24px; height: 24px; border-radius: 50%; background: rgba(255,255,255,0.2); border: none; color: white; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }");
+            sb.AppendLine(".nav-btn:hover { background: rgba(255,255,255,0.4); }");
+            sb.AppendLine(".nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }");
+            sb.AppendLine(".p-counter { font-size: 9px; color: rgba(255,255,255,0.8); margin-right: 6px; }");
             sb.AppendLine(".btn-row { display: flex; gap: 8px; margin-top: 12px; }");
             sb.AppendLine(".p-btn { flex: 1; text-align: center; padding: 10px 8px; color: white; text-decoration: none; border-radius: 6px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; }");
             sb.AppendLine(".p-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }");
@@ -463,6 +495,23 @@ namespace Kalendarz1.CRM
             sb.AppendLine(".btn-calc:hover { background: #1D4ED8; }");
             sb.AppendLine("#toggle-panel { position: absolute; right: 20px; top: 20px; z-index: 900; background: white; padding: 10px 15px; border-radius: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; font-weight: bold; color: #16A34A; }");
             sb.AppendLine("#route-summary { margin-top: 10px; font-size: 13px; font-weight: bold; color: #16A34A; text-align: center; display: none; }");
+            // Leaderboard CSS
+            sb.AppendLine("#toggle-leaderboard { position: absolute; left: 20px; top: 20px; z-index: 900; background: white; padding: 10px 15px; border-radius: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; font-weight: bold; color: #6366F1; }");
+            sb.AppendLine("#leaderboard-panel { position: absolute; left: 0; top: 0; bottom: 0; width: 280px; background: white; box-shadow: 2px 0 10px rgba(0,0,0,0.1); z-index: 1000; transform: translateX(-280px); transition: transform 0.3s ease; display: flex; flex-direction: column; }");
+            sb.AppendLine("#leaderboard-panel.open { transform: translateX(0); }");
+            sb.AppendLine(".lb-header { background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%); color: white; padding: 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }");
+            sb.AppendLine(".lb-content { flex: 1; overflow-y: auto; padding: 10px; }");
+            sb.AppendLine(".lb-item { display: flex; align-items: center; padding: 10px; margin-bottom: 8px; background: #F8FAFC; border-radius: 8px; transition: all 0.2s; }");
+            sb.AppendLine(".lb-item:hover { background: #EEF2FF; }");
+            sb.AppendLine(".lb-rank { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; margin-right: 10px; }");
+            sb.AppendLine(".lb-rank.gold { background: #FEF3C7; color: #92400E; }");
+            sb.AppendLine(".lb-rank.silver { background: #E5E7EB; color: #374151; }");
+            sb.AppendLine(".lb-rank.bronze { background: #FFEDD5; color: #9A3412; }");
+            sb.AppendLine(".lb-rank.normal { background: #F1F5F9; color: #64748B; }");
+            sb.AppendLine(".lb-info { flex: 1; }");
+            sb.AppendLine(".lb-name { font-weight: 600; font-size: 12px; color: #1E293B; }");
+            sb.AppendLine(".lb-stats { font-size: 10px; color: #64748B; margin-top: 2px; }");
+            sb.AppendLine(".lb-score { font-weight: bold; font-size: 14px; color: #4F46E5; }");
             // Konfetti CSS
             sb.AppendLine("#confetti-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 99999; overflow: hidden; }");
             sb.AppendLine(".confetti { position: absolute; width: 10px; height: 10px; opacity: 0; animation: confetti-fall 3s ease-out forwards; }");
@@ -480,6 +529,7 @@ namespace Kalendarz1.CRM
             sb.AppendLine("<div id='map'></div>");
             sb.AppendLine("<div id='confetti-container'></div>");
             sb.AppendLine("<div id='cluster-tooltip'></div>");
+            sb.AppendLine("<div id='quick-toolbar'><span id='qt-name'></span><button class='qt-btn call' onclick='qtCall()' title='Zadzwoń'>📞</button><button class='qt-btn status' onclick='qtStatus()' title='Zmień status'>📊</button><button class='qt-btn note' onclick='qtNote()' title='Notatka'>📝</button><button class='qt-btn route' onclick='qtRoute()' title='Do trasy'>🗺️</button><button class='qt-btn copy' onclick='qtCopy()' title='Kopiuj'>📋</button></div>");
             sb.AppendLine("<div id='map-toast'><span id='toast-msg'></span><button class='undo-btn' onclick='cofnijStatus()'>Cofnij</button></div>");
             sb.AppendLine("<div id='toggle-panel' onclick='togglePanel()'>📋 Twoja trasa (<span id='count-badge'>0</span>)</div>");
             sb.AppendLine("<div id='route-panel'>");
@@ -490,6 +540,11 @@ namespace Kalendarz1.CRM
             sb.AppendLine("    <div id='route-summary'></div>");
             sb.AppendLine("    <div style='text-align:center; margin-top:10px;'><a href='#' onclick='clearRoute()' style='color:#666;font-size:11px;'>Wyczyść trasę</a></div>");
             sb.AppendLine("  </div>");
+            sb.AppendLine("</div>");
+            sb.AppendLine("<div id='toggle-leaderboard' onclick='toggleLeaderboard()'>🏆 Ranking</div>");
+            sb.AppendLine("<div id='leaderboard-panel'>");
+            sb.AppendLine("  <div class='lb-header'><span>🏆 RANKING HANDLOWCÓW</span><span style='cursor:pointer' onclick='toggleLeaderboard()'>✕</span></div>");
+            sb.AppendLine("  <div class='lb-content' id='leaderboard-list'></div>");
             sb.AppendLine("</div>");
             sb.AppendLine("<script>");
             sb.Append("var data = ");
@@ -504,6 +559,8 @@ namespace Kalendarz1.CRM
             sb.AppendLine("  var centerPos = data.length > 0 ? { lat: data[0].Lat, lng: data[0].Lng } : startPos;");
             sb.AppendLine("  map = new google.maps.Map(document.getElementById('map'), { center: centerPos, zoom: 6, fullscreenControl: true, streetViewControl: false, mapTypeControl: false });");
             sb.AppendLine("  infoWindow = new google.maps.InfoWindow();");
+            sb.AppendLine("  infoWindow.addListener('closeclick', function() { hideQuickToolbar(); });");
+            sb.AppendLine("  map.addListener('click', function() { hideQuickToolbar(); infoWindow.close(); });");
             sb.AppendLine("  directionsService = new google.maps.DirectionsService();");
             sb.AppendLine("  directionsRenderer = new google.maps.DirectionsRenderer({ map: map, suppressMarkers: false });");
             sb.AppendLine("  new google.maps.Marker({ position: startPos, map: map, label: '🏠', title: 'BAZA: Koziołki 40' });");
@@ -528,8 +585,16 @@ namespace Kalendarz1.CRM
             sb.AppendLine("        if(k.Tagi.includes('Premium')) badges += '<span class=\"p-badge badge-premium\">💎 PREMIUM</span>';");
             sb.AppendLine("      }");
             sb.AppendLine("      if(k.CzyPriorytetowa) badges += '<span class=\"p-badge badge-priorytet\">✓ PRIORYTET</span>';");
+            sb.AppendLine("      var idx = data.indexOf(k);");
+            sb.AppendLine("      var hasPrev = idx > 0;");
+            sb.AppendLine("      var hasNext = idx < data.length - 1;");
             sb.AppendLine("      var content = '<div class=\"popup-card\">' +");
             sb.AppendLine("        '<div class=\"p-header\">' +");
+            sb.AppendLine("          '<div class=\"p-nav\">' +");
+            sb.AppendLine("            '<span class=\"p-counter\">' + (idx+1) + '/' + data.length + '</span>' +");
+            sb.AppendLine("            '<button class=\"nav-btn\" onclick=\"navPrev()\" ' + (hasPrev ? '' : 'disabled') + ' title=\"Poprzedni\">◀</button>' +");
+            sb.AppendLine("            '<button class=\"nav-btn\" onclick=\"navNext()\" ' + (hasNext ? '' : 'disabled') + ' title=\"Następny\">▶</button>' +");
+            sb.AppendLine("          '</div>' +");
             sb.AppendLine("          '<div class=\"p-header-top\">' +");
             sb.AppendLine("            '<div class=\"p-avatar\">' + avatarIcon + '</div>' +");
             sb.AppendLine("            '<div class=\"p-header-info\">' +");
@@ -563,6 +628,10 @@ namespace Kalendarz1.CRM
             sb.AppendLine("            '</div>' +");
             sb.AppendLine("            (k.Notatki ? '<div class=\"notes-list\">' + renderNotatki(k.Notatki) + '</div>' : '<div style=\"font-size:10px;color:#94A3B8;margin-top:6px;text-align:center\">Brak notatek</div>') +");
             sb.AppendLine("          '</div>' +");
+            sb.AppendLine("          '<div class=\"p-section\">' +");
+            sb.AppendLine("            '<div class=\"p-section-title\">📅 Historia działań</div>' +");
+            sb.AppendLine("            (k.Historia ? '<div class=\"timeline\">' + renderHistoria(k.Historia) + '</div>' : '<div style=\"font-size:10px;color:#94A3B8;text-align:center\">Brak historii</div>') +");
+            sb.AppendLine("          '</div>' +");
             sb.AppendLine("          '<div class=\"btn-row\">' +");
             sb.AppendLine("            '<button class=\"p-btn btn-route\" onclick=\"addToRoute(' + k.ID + ')\">🗺️ Do trasy</button>' +");
             sb.AppendLine("            '<a class=\"p-btn btn-call\" href=\"tel:' + k.Telefon + '\">📞 Zadzwoń</a>' +");
@@ -571,6 +640,7 @@ namespace Kalendarz1.CRM
             sb.AppendLine("      '</div>';");
             sb.AppendLine("      infoWindow.setContent(content);");
             sb.AppendLine("      infoWindow.open(map, this);");
+            sb.AppendLine("      showQuickToolbar(k);");
             sb.AppendLine("    });");
             sb.AppendLine("  }");
             sb.AppendLine("  if (data.length > 0) map.fitBounds(bounds);");
@@ -726,6 +796,49 @@ namespace Kalendarz1.CRM
             sb.AppendLine("  }");
             sb.AppendLine("  return html;");
             sb.AppendLine("}");
+            sb.AppendLine("function renderHistoria(historiaStr) {");
+            sb.AppendLine("  if(!historiaStr) return '';");
+            sb.AppendLine("  var html = '';");
+            sb.AppendLine("  var items = historiaStr.split(';;;');");
+            sb.AppendLine("  for(var i = 0; i < items.length; i++) {");
+            sb.AppendLine("    var parts = items[i].split('|');");
+            sb.AppendLine("    if(parts.length >= 4) {");
+            sb.AppendLine("      var typ = parts[1].includes('status') ? 'status' : 'note';");
+            sb.AppendLine("      html += '<div class=\"tl-item ' + typ + '\">';");
+            sb.AppendLine("      html += '<div class=\"tl-date\">' + parts[0] + '</div>';");
+            sb.AppendLine("      html += '<div class=\"tl-action\">' + parts[1] + '</div>';");
+            sb.AppendLine("      if(parts[2]) html += '<div class=\"tl-value\">' + parts[2] + '</div>';");
+            sb.AppendLine("      html += '<div class=\"tl-author\">👤 ' + parts[3] + '</div>';");
+            sb.AppendLine("      html += '</div>';");
+            sb.AppendLine("    }");
+            sb.AppendLine("  }");
+            sb.AppendLine("  return html;");
+            sb.AppendLine("}");
+            // Quick toolbar
+            sb.AppendLine("var selectedKontakt = null;");
+            sb.AppendLine("function showQuickToolbar(k) {");
+            sb.AppendLine("  selectedKontakt = k;");
+            sb.AppendLine("  currentIndex = data.indexOf(k);");
+            sb.AppendLine("  document.getElementById('qt-name').innerText = k.Nazwa;");
+            sb.AppendLine("  document.getElementById('quick-toolbar').classList.add('show');");
+            sb.AppendLine("}");
+            sb.AppendLine("function hideQuickToolbar() {");
+            sb.AppendLine("  selectedKontakt = null;");
+            sb.AppendLine("  document.getElementById('quick-toolbar').classList.remove('show');");
+            sb.AppendLine("}");
+            sb.AppendLine("function qtCall() { if(selectedKontakt) window.location.href = 'tel:' + selectedKontakt.Telefon; }");
+            sb.AppendLine("function qtStatus() { if(selectedKontakt) { var k = selectedKontakt; zmienStatus(k.ID, 'Nawiązano kontakt'); } }");
+            sb.AppendLine("function qtNote() { if(selectedKontakt) { var note = prompt('Dodaj notatkę:'); if(note) { window.chrome.webview.postMessage(JSON.stringify({ action: 'dodajNotatke', id: selectedKontakt.ID, tresc: note })); showToast('📝 Notatka dodana!'); playSound('note'); } } }");
+            sb.AppendLine("function qtRoute() { if(selectedKontakt) addToRoute(selectedKontakt.ID); }");
+            sb.AppendLine("function qtCopy() { if(selectedKontakt) kopiuj(selectedKontakt.Telefon); }");
+            // Navigation between contacts
+            sb.AppendLine("var currentIndex = 0;");
+            sb.AppendLine("function navPrev() { if(currentIndex > 0) { currentIndex--; openKontaktPopup(data[currentIndex]); } }");
+            sb.AppendLine("function navNext() { if(currentIndex < data.length - 1) { currentIndex++; openKontaktPopup(data[currentIndex]); } }");
+            sb.AppendLine("function openKontaktPopup(k) {");
+            sb.AppendLine("  var marker = markers.find(m => m.kontakt && m.kontakt.ID === k.ID);");
+            sb.AppendLine("  if(marker) { google.maps.event.trigger(marker, 'click'); map.panTo(marker.getPosition()); }");
+            sb.AppendLine("}");
             sb.AppendLine("function kopiuj(tekst) {");
             sb.AppendLine("  navigator.clipboard.writeText(tekst).then(function() { showToast('📋 Skopiowano: ' + tekst); });");
             sb.AppendLine("}");
@@ -776,6 +889,34 @@ namespace Kalendarz1.CRM
             sb.AppendLine("    container.appendChild(confetti);");
             sb.AppendLine("  }");
             sb.AppendLine("  setTimeout(function() { container.innerHTML = ''; }, 3500);");
+            sb.AppendLine("}");
+            // Leaderboard functions
+            sb.AppendLine("function toggleLeaderboard() { document.getElementById('leaderboard-panel').classList.toggle('open'); renderLeaderboard(); }");
+            sb.AppendLine("function renderLeaderboard() {");
+            sb.AppendLine("  var stats = {};");
+            sb.AppendLine("  data.forEach(function(k) {");
+            sb.AppendLine("    var h = k.Handlowiec || 'Nieprzypisany';");
+            sb.AppendLine("    if(!stats[h]) stats[h] = { name: h, total: 0, kontakt: 0, zgoda: 0, oferta: 0 };");
+            sb.AppendLine("    stats[h].total++;");
+            sb.AppendLine("    if(k.Status === 'Nawiązano kontakt') stats[h].kontakt++;");
+            sb.AppendLine("    if(k.Status === 'Zgoda na dalszy kontakt') stats[h].zgoda++;");
+            sb.AppendLine("    if(k.Status === 'Do wysłania oferta') stats[h].oferta++;");
+            sb.AppendLine("  });");
+            sb.AppendLine("  var arr = Object.values(stats).map(function(s) { s.score = s.kontakt * 2 + s.zgoda * 3 + s.oferta * 5; return s; });");
+            sb.AppendLine("  arr.sort(function(a, b) { return b.score - a.score; });");
+            sb.AppendLine("  var html = '';");
+            sb.AppendLine("  for(var i = 0; i < arr.length; i++) {");
+            sb.AppendLine("    var s = arr[i];");
+            sb.AppendLine("    var rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : 'normal';");
+            sb.AppendLine("    var medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1);");
+            sb.AppendLine("    html += '<div class=\"lb-item\">';");
+            sb.AppendLine("    html += '<div class=\"lb-rank ' + rankClass + '\">' + medal + '</div>';");
+            sb.AppendLine("    html += '<div class=\"lb-info\"><div class=\"lb-name\">' + s.name + '</div>';");
+            sb.AppendLine("    html += '<div class=\"lb-stats\">📊 ' + s.total + ' • ✅ ' + s.kontakt + ' • 🤝 ' + s.zgoda + ' • 📄 ' + s.oferta + '</div></div>';");
+            sb.AppendLine("    html += '<div class=\"lb-score\">' + s.score + '</div>';");
+            sb.AppendLine("    html += '</div>';");
+            sb.AppendLine("  }");
+            sb.AppendLine("  document.getElementById('leaderboard-list').innerHTML = html || '<div style=\"text-align:center;color:#999;padding:20px\">Brak danych</div>';");
             sb.AppendLine("}");
             sb.AppendLine("</script>");
 
@@ -952,6 +1093,7 @@ namespace Kalendarz1.CRM
         public string Handlowiec { get; set; } = "";
         public string Tagi { get; set; } = "";
         public string Notatki { get; set; } = "";
+        public string Historia { get; set; } = "";
         public string Status { get; set; } = "";
         public bool CzyPriorytetowa { get; set; }
         public double Lat { get; set; }
