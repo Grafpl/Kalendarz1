@@ -1168,49 +1168,49 @@ ORDER BY ISNULL(SUM(CASE WHEN MZ.data <= @Dzisiaj THEN MZ.Ilosc ELSE 0 END), 0) 
                 wybranyHandlowiec = item.Text;
 
             var dane = new List<PlatnoscRow>();
+            var agingData = new AgingData();
 
             try
             {
                 await using var cn = new SqlConnection(_connectionStringHandel);
                 await cn.OpenAsync();
 
+                // Glowne zapytanie z liczba faktur
                 var sql = @"
 WITH PNAgg AS (
     SELECT PN.dkid, SUM(ISNULL(PN.kwotarozl,0)) AS KwotaRozliczona, MAX(PN.Termin) AS TerminPrawdziwy
     FROM [HANDEL].[HM].[PN] PN GROUP BY PN.dkid
 ),
 Dokumenty AS (
-    SELECT DISTINCT DK.id, DK.khid, DK.walbrutto, DK.plattermin
+    SELECT DK.id, DK.khid, DK.walbrutto, DK.plattermin
     FROM [HANDEL].[HM].[DK] DK
     INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
     LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
     WHERE DK.anulowany = 0 AND (@Handlowiec IS NULL OR WYM.CDim_Handlowiec_Val = @Handlowiec)
 ),
 Saldo AS (
-    SELECT D.khid, (D.walbrutto - ISNULL(PA.KwotaRozliczona,0)) AS DoZaplacenia,
+    SELECT D.id, D.khid,
+           (D.walbrutto - ISNULL(PA.KwotaRozliczona,0)) AS DoZaplacenia,
            ISNULL(PA.TerminPrawdziwy, D.plattermin) AS TerminPlatnosci,
            CASE WHEN (D.walbrutto - ISNULL(PA.KwotaRozliczona,0)) > 0.01 AND GETDATE() > ISNULL(PA.TerminPrawdziwy, D.plattermin)
                 THEN DATEDIFF(day, ISNULL(PA.TerminPrawdziwy, D.plattermin), GETDATE()) ELSE 0 END AS DniPrzeterminowania
     FROM Dokumenty D LEFT JOIN PNAgg PA ON PA.dkid = D.id
-),
-MaxPrzeterminowania AS (
-    SELECT khid, MAX(CASE WHEN DniPrzeterminowania > 0 THEN DniPrzeterminowania ELSE NULL END) AS MaxDniPrzeterminowania
-    FROM Saldo GROUP BY khid
+    WHERE (D.walbrutto - ISNULL(PA.KwotaRozliczona,0)) > 0.01
 )
-SELECT C.Shortcut AS Kontrahent, ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
+SELECT C.Shortcut AS Kontrahent,
+       ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
        ISNULL(C.LimitAmount, 0) AS LimitKredytu,
-       CAST(SUM(CASE WHEN S.DoZaplacenia > 0 THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2)) AS DoZaplaty,
-       CAST(SUM(CASE WHEN S.DoZaplacenia > 0 AND GETDATE() <= S.TerminPlatnosci THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2)) AS Terminowe,
-       CAST(SUM(CASE WHEN S.DoZaplacenia > 0 AND GETDATE() > S.TerminPlatnosci THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2)) AS Przeterminowane,
-       CAST(CASE WHEN ISNULL(C.LimitAmount, 0) > 0 THEN ISNULL(C.LimitAmount, 0) - SUM(CASE WHEN S.DoZaplacenia > 0 THEN S.DoZaplacenia ELSE 0 END) ELSE 0 END AS DECIMAL(18,2)) AS PrzekroczonyLimit,
-       MP.MaxDniPrzeterminowania AS DniPrzeterminowania
+       CAST(SUM(S.DoZaplacenia) AS DECIMAL(18,2)) AS DoZaplaty,
+       CAST(SUM(CASE WHEN S.DniPrzeterminowania = 0 THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2)) AS Terminowe,
+       CAST(SUM(CASE WHEN S.DniPrzeterminowania > 0 THEN S.DoZaplacenia ELSE 0 END) AS DECIMAL(18,2)) AS Przeterminowane,
+       MAX(S.DniPrzeterminowania) AS MaxDniPrzeterminowania,
+       COUNT(*) AS LiczbaFaktur,
+       SUM(CASE WHEN S.DniPrzeterminowania > 0 THEN 1 ELSE 0 END) AS LiczbaFakturPrzeterminowanych
 FROM Saldo S
 JOIN [HANDEL].[SSCommon].[STContractors] C ON C.id = S.khid
 LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON C.id = WYM.ElementId
-LEFT JOIN MaxPrzeterminowania MP ON MP.khid = S.khid
 WHERE (@Handlowiec IS NULL OR WYM.CDim_Handlowiec_Val = @Handlowiec)
-GROUP BY C.Shortcut, WYM.CDim_Handlowiec_Val, C.LimitAmount, MP.MaxDniPrzeterminowania
-HAVING SUM(CASE WHEN S.DoZaplacenia > 0 THEN S.DoZaplacenia ELSE 0 END) > 0.01
+GROUP BY C.Shortcut, WYM.CDim_Handlowiec_Val, C.LimitAmount
 ORDER BY Przeterminowane DESC, DoZaplaty DESC";
 
                 await using var cmd = new SqlCommand(sql, cn);
@@ -1225,18 +1225,74 @@ ORDER BY Przeterminowane DESC, DoZaplaty DESC";
                     var doZaplaty = reader.IsDBNull(3) ? 0m : Convert.ToDecimal(reader.GetValue(3));
                     var terminowe = reader.IsDBNull(4) ? 0m : Convert.ToDecimal(reader.GetValue(4));
                     var przeterminowane = reader.IsDBNull(5) ? 0m : Convert.ToDecimal(reader.GetValue(5));
-                    var przekroczonyLimitVal = reader.IsDBNull(6) ? 0m : Convert.ToDecimal(reader.GetValue(6));
-                    var dniPrzeterminowania = reader.IsDBNull(7) ? (int?)null : Convert.ToInt32(reader.GetValue(7));
-                    var przekroczonyLimit = przekroczonyLimitVal < 0 ? Math.Abs(przekroczonyLimitVal) : 0;
+                    var dniPrzeterminowania = reader.IsDBNull(6) ? (int?)null : Convert.ToInt32(reader.GetValue(6));
+                    var liczbaFaktur = reader.IsDBNull(7) ? 0 : Convert.ToInt32(reader.GetValue(7));
+                    var liczbaFakturPrzet = reader.IsDBNull(8) ? 0 : Convert.ToInt32(reader.GetValue(8));
+
+                    var przekroczonyLimit = limitKredytu > 0 && doZaplaty > limitKredytu ? doZaplaty - limitKredytu : 0;
+                    var procentLimitu = limitKredytu > 0 ? (doZaplaty / limitKredytu) * 100 : 0;
 
                     dane.Add(new PlatnoscRow
                     {
-                        Kontrahent = kontrahent, Handlowiec = handlowiec, LimitKredytu = limitKredytu,
-                        DoZaplaty = doZaplaty, Terminowe = terminowe, Przeterminowane = przeterminowane,
-                        PrzekroczonyLimit = przekroczonyLimit, DniPrzeterminowania = dniPrzeterminowania,
-                        PrzeterminowaneAlert = przeterminowane > 0, PrzekroczonyLimitAlert = przekroczonyLimit > 0,
-                        KategoriaWiekowa = GetKategoriaWiekowa(dniPrzeterminowania)
+                        Kontrahent = kontrahent,
+                        Handlowiec = handlowiec,
+                        LimitKredytu = limitKredytu,
+                        DoZaplaty = doZaplaty,
+                        Terminowe = terminowe,
+                        Przeterminowane = przeterminowane,
+                        PrzekroczonyLimit = przekroczonyLimit,
+                        DniPrzeterminowania = dniPrzeterminowania,
+                        PrzeterminowaneAlert = przeterminowane > 0,
+                        PrzekroczonyLimitAlert = przekroczonyLimit > 0,
+                        KategoriaWiekowa = GetKategoriaWiekowa(dniPrzeterminowania),
+                        LiczbaFaktur = liczbaFaktur,
+                        LiczbaFakturPrzeterminowanych = liczbaFakturPrzet,
+                        ProcentLimitu = procentLimitu
                     });
+                }
+
+                // Pobierz aging per faktura
+                await reader.CloseAsync();
+                var sqlAging = @"
+WITH PNAgg AS (
+    SELECT PN.dkid, SUM(ISNULL(PN.kwotarozl,0)) AS KwotaRozliczona, MAX(PN.Termin) AS TerminPrawdziwy
+    FROM [HANDEL].[HM].[PN] PN GROUP BY PN.dkid
+),
+FakturyPrzeterminowane AS (
+    SELECT (DK.walbrutto - ISNULL(PA.KwotaRozliczona,0)) AS Kwota,
+           DATEDIFF(day, ISNULL(PA.TerminPrawdziwy, DK.plattermin), GETDATE()) AS DniPrzeterminowania
+    FROM [HANDEL].[HM].[DK] DK
+    LEFT JOIN PNAgg PA ON PA.dkid = DK.id
+    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
+    WHERE DK.anulowany = 0
+      AND (DK.walbrutto - ISNULL(PA.KwotaRozliczona,0)) > 0.01
+      AND GETDATE() > ISNULL(PA.TerminPrawdziwy, DK.plattermin)
+      AND (@Handlowiec IS NULL OR WYM.CDim_Handlowiec_Val = @Handlowiec)
+)
+SELECT
+    CAST(SUM(CASE WHEN DniPrzeterminowania BETWEEN 1 AND 30 THEN Kwota ELSE 0 END) AS DECIMAL(18,2)) AS Kwota030,
+    CAST(SUM(CASE WHEN DniPrzeterminowania BETWEEN 31 AND 60 THEN Kwota ELSE 0 END) AS DECIMAL(18,2)) AS Kwota3160,
+    CAST(SUM(CASE WHEN DniPrzeterminowania BETWEEN 61 AND 90 THEN Kwota ELSE 0 END) AS DECIMAL(18,2)) AS Kwota6190,
+    CAST(SUM(CASE WHEN DniPrzeterminowania > 90 THEN Kwota ELSE 0 END) AS DECIMAL(18,2)) AS Kwota90Plus,
+    SUM(CASE WHEN DniPrzeterminowania BETWEEN 1 AND 30 THEN 1 ELSE 0 END) AS Faktur030,
+    SUM(CASE WHEN DniPrzeterminowania BETWEEN 31 AND 60 THEN 1 ELSE 0 END) AS Faktur3160,
+    SUM(CASE WHEN DniPrzeterminowania BETWEEN 61 AND 90 THEN 1 ELSE 0 END) AS Faktur6190,
+    SUM(CASE WHEN DniPrzeterminowania > 90 THEN 1 ELSE 0 END) AS Faktur90Plus
+FROM FakturyPrzeterminowane";
+
+                await using var cmdAging = new SqlCommand(sqlAging, cn);
+                cmdAging.Parameters.AddWithValue("@Handlowiec", (object)wybranyHandlowiec ?? DBNull.Value);
+                await using var readerAging = await cmdAging.ExecuteReaderAsync();
+                if (await readerAging.ReadAsync())
+                {
+                    agingData.Kwota030 = readerAging.IsDBNull(0) ? 0 : Convert.ToDecimal(readerAging.GetValue(0));
+                    agingData.Kwota3160 = readerAging.IsDBNull(1) ? 0 : Convert.ToDecimal(readerAging.GetValue(1));
+                    agingData.Kwota6190 = readerAging.IsDBNull(2) ? 0 : Convert.ToDecimal(readerAging.GetValue(2));
+                    agingData.Kwota90Plus = readerAging.IsDBNull(3) ? 0 : Convert.ToDecimal(readerAging.GetValue(3));
+                    agingData.Faktur030 = readerAging.IsDBNull(4) ? 0 : Convert.ToInt32(readerAging.GetValue(4));
+                    agingData.Faktur3160 = readerAging.IsDBNull(5) ? 0 : Convert.ToInt32(readerAging.GetValue(5));
+                    agingData.Faktur6190 = readerAging.IsDBNull(6) ? 0 : Convert.ToInt32(readerAging.GetValue(6));
+                    agingData.Faktur90Plus = readerAging.IsDBNull(7) ? 0 : Convert.ToInt32(readerAging.GetValue(7));
                 }
 
                 // Statystyki glowne
@@ -1247,7 +1303,8 @@ ORDER BY Przeterminowane DESC, DoZaplaty DESC";
                 var iloscKlientow = dane.Count;
                 var iloscZPrzeterminowanymi = dane.Count(d => d.Przeterminowane > 0);
                 var iloscZPrzekroczonym = dane.Count(d => d.PrzekroczonyLimit > 0);
-                var maxDni = dane.Where(d => d.DniPrzeterminowania.HasValue).MaxOrDefault(d => d.DniPrzeterminowania.Value);
+                var sumaFakturPrzeterminowanych = dane.Sum(d => d.LiczbaFakturPrzeterminowanych);
+                var maxDni = dane.Where(d => d.DniPrzeterminowania.HasValue && d.DniPrzeterminowania > 0).MaxOrDefault(d => d.DniPrzeterminowania.Value);
                 var maxDniKlient = dane.FirstOrDefault(d => d.DniPrzeterminowania == maxDni)?.Kontrahent ?? "";
 
                 // Aktualizuj karty
@@ -1256,57 +1313,78 @@ ORDER BY Przeterminowane DESC, DoZaplaty DESC";
                 txtPlatTerminowe.Text = $"{sumaTerminowe:N0} zl";
                 txtPlatTerminoweProcent.Text = sumaDoZaplaty > 0 ? $"{sumaTerminowe / sumaDoZaplaty * 100:F1}%" : "0%";
                 txtPlatPrzeterminowane.Text = $"{sumaPrzeterminowane:N0} zl";
-                txtPlatPrzeterminowaneProcent.Text = $"{(sumaDoZaplaty > 0 ? sumaPrzeterminowane / sumaDoZaplaty * 100 : 0):F1}% ({iloscZPrzeterminowanymi} kl.)";
+                txtPlatPrzeterminowaneProcent.Text = $"{(sumaDoZaplaty > 0 ? sumaPrzeterminowane / sumaDoZaplaty * 100 : 0):F1}%";
+                txtPlatLiczbaFakturPrzet.Text = $"{sumaFakturPrzeterminowanych}";
+                txtPlatLiczbaKlientowPrzet.Text = $"u {iloscZPrzeterminowanymi} klientow";
                 txtPlatPrzekroczony.Text = $"{sumaPrzekroczony:N0} zl";
                 txtPlatPrzekroczonyIlosc.Text = $"{iloscZPrzekroczonym} klientow";
                 txtPlatMaxDni.Text = $"{maxDni} dni";
                 txtPlatMaxDniKlient.Text = maxDniKlient;
 
-                // Aging analysis
-                var aging030 = dane.Where(d => d.DniPrzeterminowania > 0 && d.DniPrzeterminowania <= 30).Sum(d => d.Przeterminowane);
-                var aging3160 = dane.Where(d => d.DniPrzeterminowania > 30 && d.DniPrzeterminowania <= 60).Sum(d => d.Przeterminowane);
-                var aging6190 = dane.Where(d => d.DniPrzeterminowania > 60 && d.DniPrzeterminowania <= 90).Sum(d => d.Przeterminowane);
-                var aging90Plus = dane.Where(d => d.DniPrzeterminowania > 90).Sum(d => d.Przeterminowane);
-                var agingTotal = aging030 + aging3160 + aging6190 + aging90Plus;
+                // Aging analysis - z prawidlowym podzialem per faktura
+                var agingTotal = agingData.Kwota030 + agingData.Kwota3160 + agingData.Kwota6190 + agingData.Kwota90Plus;
 
-                txtAging030.Text = $"{aging030:N0} zl";
-                txtAging030Procent.Text = agingTotal > 0 ? $"{aging030 / agingTotal * 100:F0}%" : "0%";
-                txtAging3160.Text = $"{aging3160:N0} zl";
-                txtAging3160Procent.Text = agingTotal > 0 ? $"{aging3160 / agingTotal * 100:F0}%" : "0%";
-                txtAging6190.Text = $"{aging6190:N0} zl";
-                txtAging6190Procent.Text = agingTotal > 0 ? $"{aging6190 / agingTotal * 100:F0}%" : "0%";
-                txtAging90Plus.Text = $"{aging90Plus:N0} zl";
-                txtAging90PlusProcent.Text = agingTotal > 0 ? $"{aging90Plus / agingTotal * 100:F0}%" : "0%";
+                txtAging030.Text = $"{agingData.Kwota030:N0} zl";
+                txtAging030Procent.Text = $"{(agingTotal > 0 ? agingData.Kwota030 / agingTotal * 100 : 0):F0}% | {agingData.Faktur030} fakt.";
+                txtAging3160.Text = $"{agingData.Kwota3160:N0} zl";
+                txtAging3160Procent.Text = $"{(agingTotal > 0 ? agingData.Kwota3160 / agingTotal * 100 : 0):F0}% | {agingData.Faktur3160} fakt.";
+                txtAging6190.Text = $"{agingData.Kwota6190:N0} zl";
+                txtAging6190Procent.Text = $"{(agingTotal > 0 ? agingData.Kwota6190 / agingTotal * 100 : 0):F0}% | {agingData.Faktur6190} fakt.";
+                txtAging90Plus.Text = $"{agingData.Kwota90Plus:N0} zl";
+                txtAging90PlusProcent.Text = $"{(agingTotal > 0 ? agingData.Kwota90Plus / agingTotal * 100 : 0):F0}% | {agingData.Faktur90Plus} fakt.";
 
                 // Top 5 dluznicy - wykres
-                var top5 = dane.OrderByDescending(d => d.Przeterminowane).Take(5).ToList();
-                var labels = top5.Select(d => d.Kontrahent.Length > 15 ? d.Kontrahent.Substring(0, 15) + "..." : d.Kontrahent).ToList();
-                var values = new ChartValues<double>(top5.Select(d => (double)d.Przeterminowane));
-
-                chartTopDluznicy.Series = new SeriesCollection
+                var top5Dluznicy = dane.Where(d => d.Przeterminowane > 0).OrderByDescending(d => d.Przeterminowane).Take(5).ToList();
+                if (top5Dluznicy.Any())
                 {
-                    new RowSeries
+                    var labels = top5Dluznicy.Select(d => d.Kontrahent.Length > 12 ? d.Kontrahent.Substring(0, 12) + ".." : d.Kontrahent).ToList();
+                    var values = new ChartValues<double>(top5Dluznicy.Select(d => (double)d.Przeterminowane));
+
+                    chartTopDluznicy.Series = new SeriesCollection
                     {
-                        Title = "Przeterminowane",
-                        Values = values,
-                        Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 107, 107)),
-                        DataLabels = true,
-                        LabelPoint = p => $"{p.X:N0}",
-                        Foreground = Brushes.White
-                    }
-                };
-                axisYDluznicy.Labels = labels;
+                        new RowSeries
+                        {
+                            Title = "Przeterminowane",
+                            Values = values,
+                            Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 107, 107)),
+                            DataLabels = true,
+                            LabelPoint = p => $"{p.X:N0}",
+                            Foreground = Brushes.White
+                        }
+                    };
+                    axisYDluznicy.Labels = labels;
+                }
+                else
+                {
+                    chartTopDluznicy.Series = new SeriesCollection();
+                    axisYDluznicy.Labels = new List<string>();
+                }
 
                 // Panel top dluznicy
                 panelTopDluznicy.Children.Clear();
                 int idx = 1;
-                foreach (var d in top5)
+                foreach (var d in top5Dluznicy)
                 {
-                    var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-                    sp.Children.Add(new TextBlock { Text = $"{idx}. ", Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(244, 162, 97)), FontWeight = FontWeights.Bold, Width = 20 });
-                    sp.Children.Add(new TextBlock { Text = d.Kontrahent, Foreground = Brushes.White, Width = 140, TextTrimming = TextTrimming.CharacterEllipsis });
-                    sp.Children.Add(new TextBlock { Text = $"{d.Przeterminowane:N0}", Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 107, 107)), FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Right });
+                    var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
+                    sp.Children.Add(new TextBlock { Text = $"{idx}. ", Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 107, 107)), FontWeight = FontWeights.Bold, Width = 18, FontSize = 11 });
+                    sp.Children.Add(new TextBlock { Text = d.Kontrahent, Foreground = Brushes.White, Width = 130, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 11 });
+                    sp.Children.Add(new TextBlock { Text = $"{d.Przeterminowane:N0}", Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 107, 107)), FontWeight = FontWeights.Bold, FontSize = 11 });
                     panelTopDluznicy.Children.Add(sp);
+                    idx++;
+                }
+
+                // Panel top przekroczone limity
+                panelTopPrzekroczone.Children.Clear();
+                var top5Limity = dane.Where(d => d.PrzekroczonyLimit > 0).OrderByDescending(d => d.PrzekroczonyLimit).Take(5).ToList();
+                idx = 1;
+                foreach (var d in top5Limity)
+                {
+                    var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
+                    sp.Children.Add(new TextBlock { Text = $"{idx}. ", Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(244, 162, 97)), FontWeight = FontWeights.Bold, Width = 18, FontSize = 11 });
+                    sp.Children.Add(new TextBlock { Text = d.Kontrahent, Foreground = Brushes.White, Width = 115, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 11 });
+                    sp.Children.Add(new TextBlock { Text = $"+{d.PrzekroczonyLimit:N0}", Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(244, 162, 97)), FontWeight = FontWeights.Bold, FontSize = 11 });
+                    sp.Children.Add(new TextBlock { Text = $" ({d.ProcentLimitu:F0}%)", Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(139, 148, 158)), FontSize = 10 });
+                    panelTopPrzekroczone.Children.Add(sp);
                     idx++;
                 }
             }
@@ -1360,6 +1438,30 @@ ORDER BY Przeterminowane DESC, DoZaplaty DESC";
         public bool PrzeterminowaneAlert { get; set; }
         public bool PrzekroczonyLimitAlert { get; set; }
         public string KategoriaWiekowa { get; set; }
+        public int LiczbaFaktur { get; set; }
+        public int LiczbaFakturPrzeterminowanych { get; set; }
+        public decimal ProcentLimitu { get; set; }
+
+        // Formatowane teksty do bindowania
+        public string LimitKredytuTekst => LimitKredytu > 0 ? $"{LimitKredytu:N0}" : "-";
+        public string DoZaplatyTekst => $"{DoZaplaty:N0}";
+        public string TerminoweTekst => $"{Terminowe:N0}";
+        public string PrzeterminowaneTekst => Przeterminowane > 0 ? $"{Przeterminowane:N0}" : "-";
+        public string PrzekroczonyLimitTekst => PrzekroczonyLimit > 0 ? $"{PrzekroczonyLimit:N0}" : "-";
+        public string ProcentLimituTekst => LimitKredytu > 0 ? $"{ProcentLimitu:F0}%" : "-";
+    }
+
+    // Klasa do przechowywania danych aging per faktura
+    public class AgingData
+    {
+        public decimal Kwota030 { get; set; }
+        public decimal Kwota3160 { get; set; }
+        public decimal Kwota6190 { get; set; }
+        public decimal Kwota90Plus { get; set; }
+        public int Faktur030 { get; set; }
+        public int Faktur3160 { get; set; }
+        public int Faktur6190 { get; set; }
+        public int Faktur90Plus { get; set; }
     }
 
     // Klasa danych dla tabeli analizy cen handlowcow

@@ -778,9 +778,10 @@
                                 </StackPanel>
                             </Border>
 
-                            <!-- Glowne karty statystyk -->
+                            <!-- Glowne karty statystyk - 6 kart -->
                             <Grid Grid.Row="1" Margin="0,0,0,10">
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
@@ -791,57 +792,66 @@
                                 <!-- Karta: Suma do zaplaty -->
                                 <Border Grid.Column="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="0,0,5,0">
                                     <StackPanel>
-                                        <TextBlock Text="DO ZAPLATY" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
-                                        <TextBlock x:Name="txtPlatSumaDoZaplaty" Text="0 zl" FontSize="22" FontWeight="Bold" Foreground="#FFFFFF" Margin="0,3,0,0"/>
-                                        <TextBlock x:Name="txtPlatIloscKlientow" Text="0 klientow" FontSize="11" Foreground="#8B949E" Margin="0,3,0,0"/>
+                                        <TextBlock Text="SUMA DO ZAPLATY" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
+                                        <TextBlock x:Name="txtPlatSumaDoZaplaty" Text="0 zl" FontSize="20" FontWeight="Bold" Foreground="#FFFFFF" Margin="0,3,0,0"/>
+                                        <TextBlock x:Name="txtPlatIloscKlientow" Text="0 klientow" FontSize="10" Foreground="#8B949E" Margin="0,3,0,0"/>
                                     </StackPanel>
                                 </Border>
 
                                 <!-- Karta: Terminowe -->
                                 <Border Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,5,0">
                                     <StackPanel>
-                                        <TextBlock Text="TERMINOWE" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
-                                        <TextBlock x:Name="txtPlatTerminowe" Text="0 zl" FontSize="22" FontWeight="Bold" Foreground="#4ECDC4" Margin="0,3,0,0"/>
-                                        <TextBlock x:Name="txtPlatTerminoweProcent" Text="0%" FontSize="11" Foreground="#4ECDC4" Margin="0,3,0,0"/>
+                                        <TextBlock Text="TERMINOWE" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
+                                        <TextBlock x:Name="txtPlatTerminowe" Text="0 zl" FontSize="20" FontWeight="Bold" Foreground="#4ECDC4" Margin="0,3,0,0"/>
+                                        <TextBlock x:Name="txtPlatTerminoweProcent" Text="0%" FontSize="10" Foreground="#4ECDC4" Margin="0,3,0,0"/>
                                     </StackPanel>
                                 </Border>
 
                                 <!-- Karta: Przeterminowane -->
                                 <Border Grid.Column="2" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,5,0">
                                     <StackPanel>
-                                        <TextBlock Text="PRZETERMINOWANE" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
-                                        <TextBlock x:Name="txtPlatPrzeterminowane" Text="0 zl" FontSize="22" FontWeight="Bold" Foreground="#FF6B6B" Margin="0,3,0,0"/>
-                                        <TextBlock x:Name="txtPlatPrzeterminowaneProcent" Text="0% (0 klientow)" FontSize="11" Foreground="#FF6B6B" Margin="0,3,0,0"/>
+                                        <TextBlock Text="PRZETERMINOWANE" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
+                                        <TextBlock x:Name="txtPlatPrzeterminowane" Text="0 zl" FontSize="20" FontWeight="Bold" Foreground="#FF6B6B" Margin="0,3,0,0"/>
+                                        <TextBlock x:Name="txtPlatPrzeterminowaneProcent" Text="0%" FontSize="10" Foreground="#FF6B6B" Margin="0,3,0,0"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Karta: Liczba faktur przeterminowanych -->
+                                <Border Grid.Column="3" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,5,0">
+                                    <StackPanel>
+                                        <TextBlock Text="FAKTUR PRZET." FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
+                                        <TextBlock x:Name="txtPlatLiczbaFakturPrzet" Text="0" FontSize="20" FontWeight="Bold" Foreground="#FF6B6B" Margin="0,3,0,0"/>
+                                        <TextBlock x:Name="txtPlatLiczbaKlientowPrzet" Text="u 0 klientow" FontSize="10" Foreground="#8B949E" Margin="0,3,0,0"/>
                                     </StackPanel>
                                 </Border>
 
                                 <!-- Karta: Przekroczony limit -->
-                                <Border Grid.Column="3" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,5,0">
+                                <Border Grid.Column="4" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,5,0">
                                     <StackPanel>
-                                        <TextBlock Text="PRZEKR. LIMIT" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
-                                        <TextBlock x:Name="txtPlatPrzekroczony" Text="0 zl" FontSize="22" FontWeight="Bold" Foreground="#F4A261" Margin="0,3,0,0"/>
-                                        <TextBlock x:Name="txtPlatPrzekroczonyIlosc" Text="0 klientow" FontSize="11" Foreground="#F4A261" Margin="0,3,0,0"/>
+                                        <TextBlock Text="PRZEKR. LIMIT" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
+                                        <TextBlock x:Name="txtPlatPrzekroczony" Text="0 zl" FontSize="20" FontWeight="Bold" Foreground="#F4A261" Margin="0,3,0,0"/>
+                                        <TextBlock x:Name="txtPlatPrzekroczonyIlosc" Text="0 klientow" FontSize="10" Foreground="#F4A261" Margin="0,3,0,0"/>
                                     </StackPanel>
                                 </Border>
 
                                 <!-- Karta: Max dni przeterminowania -->
-                                <Border Grid.Column="4" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,0,0">
+                                <Border Grid.Column="5" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,0,0">
                                     <StackPanel>
-                                        <TextBlock Text="MAX DNI PRZET." FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
-                                        <TextBlock x:Name="txtPlatMaxDni" Text="0 dni" FontSize="22" FontWeight="Bold" Foreground="#AA96DA" Margin="0,3,0,0"/>
-                                        <TextBlock x:Name="txtPlatMaxDniKlient" Text="" FontSize="10" Foreground="#8B949E" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="MAX DNI PRZET." FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
+                                        <TextBlock x:Name="txtPlatMaxDni" Text="0 dni" FontSize="20" FontWeight="Bold" Foreground="#AA96DA" Margin="0,3,0,0"/>
+                                        <TextBlock x:Name="txtPlatMaxDniKlient" Text="" FontSize="9" Foreground="#8B949E" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
                                     </StackPanel>
                                 </Border>
                             </Grid>
 
-                            <!-- Aging Analysis - podzial wg dni -->
+                            <!-- Aging Analysis - podzial wg dni z liczba faktur -->
                             <Border Grid.Row="2" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="15" Margin="0,0,0,10">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
-                                    <TextBlock Grid.Row="0" Text="ANALIZA WIEKOWA NALEZNOSCI" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold" Margin="0,0,0,10"/>
+                                    <TextBlock Grid.Row="0" Text="ANALIZA WIEKOWA NALEZNOSCI (przeterminowane wg liczby dni)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold" Margin="0,0,0,10"/>
                                     <Grid Grid.Row="1">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
@@ -851,72 +861,91 @@
                                         </Grid.ColumnDefinitions>
 
                                         <!-- 0-30 dni -->
-                                        <Border Grid.Column="0" Background="#1A1D21" CornerRadius="5" Padding="10" Margin="0,0,5,0">
+                                        <Border Grid.Column="0" Background="#1A1D21" CornerRadius="5" Padding="12" Margin="0,0,5,0">
                                             <StackPanel HorizontalAlignment="Center">
-                                                <TextBlock Text="0-30 dni" FontSize="11" Foreground="#4ECDC4" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                                <TextBlock x:Name="txtAging030" Text="0 zl" FontSize="16" FontWeight="Bold" Foreground="#4ECDC4" HorizontalAlignment="Center" Margin="0,3,0,0"/>
-                                                <TextBlock x:Name="txtAging030Procent" Text="0%" FontSize="10" Foreground="#8B949E" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="1-30 DNI" FontSize="12" Foreground="#4ECDC4" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                                <TextBlock x:Name="txtAging030" Text="0 zl" FontSize="18" FontWeight="Bold" Foreground="#4ECDC4" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                                                <TextBlock x:Name="txtAging030Procent" Text="0% | 0 faktur" FontSize="10" Foreground="#8B949E" HorizontalAlignment="Center" Margin="0,3,0,0"/>
                                             </StackPanel>
                                         </Border>
 
                                         <!-- 31-60 dni -->
-                                        <Border Grid.Column="1" Background="#1A1D21" CornerRadius="5" Padding="10" Margin="5,0,5,0">
+                                        <Border Grid.Column="1" Background="#1A1D21" CornerRadius="5" Padding="12" Margin="5,0,5,0">
                                             <StackPanel HorizontalAlignment="Center">
-                                                <TextBlock Text="31-60 dni" FontSize="11" Foreground="#FFE66D" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                                <TextBlock x:Name="txtAging3160" Text="0 zl" FontSize="16" FontWeight="Bold" Foreground="#FFE66D" HorizontalAlignment="Center" Margin="0,3,0,0"/>
-                                                <TextBlock x:Name="txtAging3160Procent" Text="0%" FontSize="10" Foreground="#8B949E" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="31-60 DNI" FontSize="12" Foreground="#FFE66D" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                                <TextBlock x:Name="txtAging3160" Text="0 zl" FontSize="18" FontWeight="Bold" Foreground="#FFE66D" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                                                <TextBlock x:Name="txtAging3160Procent" Text="0% | 0 faktur" FontSize="10" Foreground="#8B949E" HorizontalAlignment="Center" Margin="0,3,0,0"/>
                                             </StackPanel>
                                         </Border>
 
                                         <!-- 61-90 dni -->
-                                        <Border Grid.Column="2" Background="#1A1D21" CornerRadius="5" Padding="10" Margin="5,0,5,0">
+                                        <Border Grid.Column="2" Background="#1A1D21" CornerRadius="5" Padding="12" Margin="5,0,5,0">
                                             <StackPanel HorizontalAlignment="Center">
-                                                <TextBlock Text="61-90 dni" FontSize="11" Foreground="#F4A261" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                                <TextBlock x:Name="txtAging6190" Text="0 zl" FontSize="16" FontWeight="Bold" Foreground="#F4A261" HorizontalAlignment="Center" Margin="0,3,0,0"/>
-                                                <TextBlock x:Name="txtAging6190Procent" Text="0%" FontSize="10" Foreground="#8B949E" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="61-90 DNI" FontSize="12" Foreground="#F4A261" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                                <TextBlock x:Name="txtAging6190" Text="0 zl" FontSize="18" FontWeight="Bold" Foreground="#F4A261" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                                                <TextBlock x:Name="txtAging6190Procent" Text="0% | 0 faktur" FontSize="10" Foreground="#8B949E" HorizontalAlignment="Center" Margin="0,3,0,0"/>
                                             </StackPanel>
                                         </Border>
 
                                         <!-- 90+ dni -->
-                                        <Border Grid.Column="3" Background="#1A1D21" CornerRadius="5" Padding="10" Margin="5,0,0,0">
+                                        <Border Grid.Column="3" Background="#1A1D21" CornerRadius="5" Padding="12" Margin="5,0,0,0">
                                             <StackPanel HorizontalAlignment="Center">
-                                                <TextBlock Text="90+ dni" FontSize="11" Foreground="#FF6B6B" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                                <TextBlock x:Name="txtAging90Plus" Text="0 zl" FontSize="16" FontWeight="Bold" Foreground="#FF6B6B" HorizontalAlignment="Center" Margin="0,3,0,0"/>
-                                                <TextBlock x:Name="txtAging90PlusProcent" Text="0%" FontSize="10" Foreground="#8B949E" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="90+ DNI" FontSize="12" Foreground="#FF6B6B" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                                <TextBlock x:Name="txtAging90Plus" Text="0 zl" FontSize="18" FontWeight="Bold" Foreground="#FF6B6B" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                                                <TextBlock x:Name="txtAging90PlusProcent" Text="0% | 0 faktur" FontSize="10" Foreground="#8B949E" HorizontalAlignment="Center" Margin="0,3,0,0"/>
                                             </StackPanel>
                                         </Border>
                                     </Grid>
                                 </Grid>
                             </Border>
 
-                            <!-- Wykres top dluznikow -->
-                            <Border Grid.Row="3" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="0,0,0,10" Height="180">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="300"/>
-                                    </Grid.ColumnDefinitions>
-                                    <lvc:CartesianChart Grid.Column="0" x:Name="chartTopDluznicy" Margin="5">
-                                        <lvc:CartesianChart.AxisX>
-                                            <lvc:Axis x:Name="axisXDluznicy" Title="Przeterminowane (zl)" MinValue="0" Foreground="#FFFFFF" FontSize="10">
-                                                <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
-                                            </lvc:Axis>
-                                        </lvc:CartesianChart.AxisX>
-                                        <lvc:CartesianChart.AxisY>
-                                            <lvc:Axis x:Name="axisYDluznicy" ShowLabels="True" FontSize="10" Foreground="#FFFFFF">
-                                                <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
-                                            </lvc:Axis>
-                                        </lvc:CartesianChart.AxisY>
-                                    </lvc:CartesianChart>
-                                    <!-- Legenda / podsumowanie -->
-                                    <Border Grid.Column="1" Background="#1A1D21" CornerRadius="5" Margin="5" Padding="10">
-                                        <StackPanel>
-                                            <TextBlock Text="TOP 5 DLUZNICY" FontSize="11" Foreground="{StaticResource AccentOrangeBrush}" FontWeight="Bold" Margin="0,0,0,8"/>
-                                            <StackPanel x:Name="panelTopDluznicy"/>
-                                        </StackPanel>
-                                    </Border>
-                                </Grid>
-                            </Border>
+                            <!-- Wykres + Top 5 przekroczonych limitow + Top 5 dluznikow -->
+                            <Grid Grid.Row="3" Margin="0,0,0,10" Height="200">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="280"/>
+                                    <ColumnDefinition Width="280"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Wykres slupkowy przeterminowanych -->
+                                <Border Grid.Column="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="0,0,5,0">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Text="TOP 5 PRZETERMINOWANYCH" FontSize="10" Foreground="{StaticResource AccentOrangeBrush}" FontWeight="Bold" Margin="5,0,0,5"/>
+                                        <lvc:CartesianChart Grid.Row="1" x:Name="chartTopDluznicy" Margin="0">
+                                            <lvc:CartesianChart.AxisX>
+                                                <lvc:Axis x:Name="axisXDluznicy" Title="" MinValue="0" Foreground="#FFFFFF" FontSize="9">
+                                                    <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
+                                                </lvc:Axis>
+                                            </lvc:CartesianChart.AxisX>
+                                            <lvc:CartesianChart.AxisY>
+                                                <lvc:Axis x:Name="axisYDluznicy" ShowLabels="True" FontSize="9" Foreground="#FFFFFF">
+                                                    <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
+                                                </lvc:Axis>
+                                            </lvc:CartesianChart.AxisY>
+                                        </lvc:CartesianChart>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Panel Top dluznicy -->
+                                <Border Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,5,0">
+                                    <StackPanel>
+                                        <TextBlock Text="TOP 5 DLUZNICY (przeterminowane)" FontSize="10" Foreground="#FF6B6B" FontWeight="Bold" Margin="0,0,0,8"/>
+                                        <StackPanel x:Name="panelTopDluznicy"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Panel Top przekroczone limity -->
+                                <Border Grid.Column="2" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="TOP 5 PRZEKROCZONE LIMITY" FontSize="10" Foreground="#F4A261" FontWeight="Bold" Margin="0,0,0,8"/>
+                                        <StackPanel x:Name="panelTopPrzekroczone"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
 
                             <!-- Tabela ze szczegolami -->
                             <DataGrid Grid.Row="4" x:Name="gridPlatnosci" AutoGenerateColumns="False" IsReadOnly="True"
@@ -932,6 +961,9 @@
                                             <Trigger Property="IsMouseOver" Value="True">
                                                 <Setter Property="Background" Value="#3D434B"/>
                                             </Trigger>
+                                            <DataTrigger Binding="{Binding PrzekroczonyLimitAlert}" Value="True">
+                                                <Setter Property="Background" Value="#3D2A2A"/>
+                                            </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
                                 </DataGrid.RowStyle>
@@ -947,14 +979,14 @@
                                     </Style>
                                 </DataGrid.ColumnHeaderStyle>
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Kontrahent" Binding="{Binding Kontrahent}" Width="180"/>
-                                    <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="100"/>
-                                    <DataGridTextColumn Header="Limit" Binding="{Binding LimitKredytu, StringFormat=N0}" Width="85">
+                                    <DataGridTextColumn Header="Kontrahent" Binding="{Binding Kontrahent}" Width="160"/>
+                                    <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="90"/>
+                                    <DataGridTextColumn Header="Limit kredytu" Binding="{Binding LimitKredytuTekst}" Width="90">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Do zaplaty" Binding="{Binding DoZaplaty, StringFormat=N0}" Width="95">
+                                    <DataGridTextColumn Header="Do zaplaty" Binding="{Binding DoZaplatyTekst}" Width="90">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -962,7 +994,7 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Terminowe" Binding="{Binding Terminowe, StringFormat=N0}" Width="90">
+                                    <DataGridTextColumn Header="Terminowe" Binding="{Binding TerminoweTekst}" Width="85">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -970,7 +1002,7 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Przetermin." Binding="{Binding Przeterminowane, StringFormat=N0}" Width="95">
+                                    <DataGridTextColumn Header="Przetermin." Binding="{Binding PrzeterminowaneTekst}" Width="85">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -983,10 +1015,23 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Przekr.Lim" Binding="{Binding PrzekroczonyLimit, StringFormat=N0}" Width="85">
+                                    <DataGridTextColumn Header="Po limicie" Binding="{Binding PrzekroczonyLimitTekst}" Width="80">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding PrzekroczonyLimitAlert}" Value="True">
+                                                        <Setter Property="Foreground" Value="#F4A261"/>
+                                                        <Setter Property="FontWeight" Value="Bold"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="% limitu" Binding="{Binding ProcentLimituTekst}" Width="65">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Center"/>
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding PrzekroczonyLimitAlert}" Value="True">
                                                         <Setter Property="Foreground" Value="#FF6B6B"/>
@@ -996,7 +1041,7 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Dni" Binding="{Binding DniPrzeterminowania}" Width="50">
+                                    <DataGridTextColumn Header="Max dni" Binding="{Binding DniPrzeterminowania}" Width="60">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -1009,11 +1054,10 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Kategoria" Binding="{Binding KategoriaWiekowa}" Width="80">
+                                    <DataGridTextColumn Header="Faktur" Binding="{Binding LiczbaFaktur}" Width="55">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Center"/>
-                                                <Setter Property="FontSize" Value="10"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
