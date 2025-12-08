@@ -966,7 +966,7 @@ WITH CenyHandlowcow AS (
     INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
     LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
     WHERE DK.data >= @DataOd AND DK.data <= @DataDo
-      AND TW.katalog IN ('67095', '67153')
+      AND TW.katalog IN (67095, 67153)
       AND ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') NOT IN ('Ogólne')
 ),
 CenyWczoraj AS (
@@ -1064,7 +1064,7 @@ INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
 INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
 LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
 WHERE YEAR(DK.data) = @Rok AND MONTH(DK.data) = @Miesiac
-  AND TW.katalog IN ('67095', '67153')
+  AND TW.katalog IN (67095, 67153)
   AND ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') NOT IN ('Ogólne')
 GROUP BY ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany')
 ORDER BY SumaWartosc DESC";
@@ -1176,14 +1176,14 @@ SELECT TOP {top}
     TW.kod AS NazwaProduktu,
     CAST(SUM(DP.ilosc) AS DECIMAL(18,2)) AS SumaKg,
     CAST(SUM(DP.ilosc * DP.cena) AS DECIMAL(18,2)) AS SumaWartosc,
-    CAST(AVG(DP.cena) AS DECIMAL(18,2)) AS SredniaCena,
+    CAST(CASE WHEN SUM(DP.ilosc) > 0 THEN SUM(DP.wartNetto) / SUM(DP.ilosc) ELSE 0 END AS DECIMAL(18,2)) AS SredniaCena,
     COUNT(*) AS LiczbaTransakcji
 FROM [HANDEL].[HM].[DK] DK
 INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
 INNER JOIN [HANDEL].[HM].[TW] TW ON DP.idtw = TW.ID
 LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
 WHERE DK.data >= @DataOd
-  AND TW.katalog IN ('67095', '67153')";
+  AND TW.katalog IN (67095, 67153)";
 
                 if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "— Wszyscy —")
                     sql += " AND WYM.CDim_Handlowiec_Val = @Handlowiec";

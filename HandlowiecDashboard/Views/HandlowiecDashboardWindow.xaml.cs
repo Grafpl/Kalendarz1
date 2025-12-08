@@ -658,7 +658,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
                 var sql = @"
                     SELECT WYM.CDim_Handlowiec_Val AS Handlowiec,
-                           AVG(DP.cena) AS SredniaCena,
+                           CASE WHEN SUM(DP.ilosc) > 0 THEN SUM(DP.wartNetto) / SUM(DP.ilosc) ELSE 0 END AS SredniaCena,
                            SUM(DP.ilosc) AS SumaKg,
                            MIN(DP.cena) AS MinCena,
                            MAX(DP.cena) AS MaxCena,

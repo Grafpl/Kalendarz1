@@ -249,7 +249,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         {
             var sql = @"
                 SELECT CAST(DK.data AS DATE) AS Dzien,
-                       AVG(DP.cena) AS SredniaCena,
+                       CASE WHEN SUM(DP.ilosc) > 0 THEN SUM(DP.wartNetto) / SUM(DP.ilosc) ELSE 0 END AS SredniaCena,
                        SUM(DP.ilosc) AS SumaKg
                 FROM [HANDEL].[HM].[DK] DK
                 INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
@@ -405,7 +405,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             var sql = @"
                 SELECT TW.kod AS Kod, TW.kod + ' - ' + ISNULL(TW.nazwa, '') AS Towar,
                        SUM(DP.ilosc) AS SumaKg,
-                       AVG(DP.cena) AS SredniaCena,
+                       CASE WHEN SUM(DP.ilosc) > 0 THEN SUM(DP.wartNetto) / SUM(DP.ilosc) ELSE 0 END AS SredniaCena,
                        MIN(DP.cena) AS MinCena,
                        MAX(DP.cena) AS MaxCena,
                        SUM(DP.wartNetto) AS SumaWartosc,
