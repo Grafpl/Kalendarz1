@@ -5,7 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Data.SqlClient;
 
-namespace HandlowiecDashboard.Views
+namespace Kalendarz1.HandlowiecDashboard.Views
 {
     public partial class KontrahentOpakowaniaWindow : Window
     {
