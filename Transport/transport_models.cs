@@ -75,11 +75,9 @@ namespace Kalendarz1.Transport
         [Required]
         public DateTime DataKursu { get; set; }
 
-        [Required]
-        public int KierowcaID { get; set; }
-
-        [Required]
-        public int PojazdID { get; set; }
+        // Kierowca i pojazd są teraz opcjonalne - można je przypisać później
+        public int? KierowcaID { get; set; }
+        public int? PojazdID { get; set; }
 
         [MaxLength(500)]
         public string? Trasa { get; set; }
@@ -90,6 +88,16 @@ namespace Kalendarz1.Transport
         [Required]
         [MaxLength(50)]
         public string Status { get; set; } = "Planowany";
+
+        /// <summary>
+        /// Sprawdza czy kurs ma przypisanego kierowcę i pojazd
+        /// </summary>
+        public bool MaPelneZasoby => KierowcaID.HasValue && PojazdID.HasValue;
+
+        /// <summary>
+        /// Sprawdza czy kurs wymaga przydzielenia zasobów
+        /// </summary>
+        public bool WymagaPrzydzialu => !KierowcaID.HasValue || !PojazdID.HasValue;
 
         [Range(1, 255)]
         public byte PlanE2NaPalete { get; set; } = 36;

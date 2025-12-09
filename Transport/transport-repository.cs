@@ -242,24 +242,26 @@ namespace Kalendarz1.Transport.Repozytorium
                     }
                 }
 
-                // Pobierz dane kursu
+                // Pobierz dane kursu - kierowca i pojazd mogą być null
                 var sql = @"
-            SELECT 
-                k.KursID, 
-                k.DataKursu, 
-                ISNULL(k.KierowcaID, 0) AS KierowcaID, 
-                ISNULL(k.PojazdID, 0) AS PojazdID, 
+            SELECT
+                k.KursID,
+                k.DataKursu,
+                k.KierowcaID,
+                k.PojazdID,
                 k.Trasa,
-                k.GodzWyjazdu, 
-                k.GodzPowrotu, 
-                ISNULL(k.Status, 'Planowany') AS Status, 
+                k.GodzWyjazdu,
+                k.GodzPowrotu,
+                ISNULL(k.Status, 'Planowany') AS Status,
                 ISNULL(k.PlanE2NaPalete, 36) AS PlanE2NaPalete,
-                k.UtworzonoUTC, 
-                k.Utworzyl, 
-                k.ZmienionoUTC, 
+                k.UtworzonoUTC,
+                k.Utworzyl,
+                k.ZmienionoUTC,
                 k.Zmienil,
-                ISNULL(CONCAT(ki.Imie, ' ', ki.Nazwisko), 'Brak kierowcy') AS KierowcaNazwa,
-                ISNULL(p.Rejestracja, 'Brak pojazdu') AS Rejestracja,
+                CASE WHEN ki.KierowcaID IS NOT NULL
+                     THEN CONCAT(ki.Imie, ' ', ki.Nazwisko)
+                     ELSE NULL END AS KierowcaNazwa,
+                p.Rejestracja,
                 ISNULL(p.PaletyH1, 33) AS PaletyPojazdu
             FROM dbo.Kurs k
             LEFT JOIN dbo.Kierowca ki ON k.KierowcaID = ki.KierowcaID
@@ -277,8 +279,8 @@ namespace Kalendarz1.Transport.Repozytorium
                     {
                         KursID = reader.GetInt64(0),
                         DataKursu = reader.GetDateTime(1),
-                        KierowcaID = reader.GetInt32(2),
-                        PojazdID = reader.GetInt32(3),
+                        KierowcaID = reader.IsDBNull(2) ? null : reader.GetInt32(2),
+                        PojazdID = reader.IsDBNull(3) ? null : reader.GetInt32(3),
                         Trasa = reader.IsDBNull(4) ? null : reader.GetString(4),
                         GodzWyjazdu = reader.IsDBNull(5) ? null : (TimeSpan?)reader.GetTimeSpan(5),
                         GodzPowrotu = reader.IsDBNull(6) ? null : (TimeSpan?)reader.GetTimeSpan(6),
@@ -288,8 +290,8 @@ namespace Kalendarz1.Transport.Repozytorium
                         Utworzyl = reader.IsDBNull(10) ? null : reader.GetString(10),
                         ZmienionoUTC = reader.IsDBNull(11) ? null : (DateTime?)reader.GetDateTime(11),
                         Zmienil = reader.IsDBNull(12) ? null : reader.GetString(12),
-                        KierowcaNazwa = reader.GetString(13),
-                        PojazdRejestracja = reader.GetString(14),
+                        KierowcaNazwa = reader.IsDBNull(13) ? null : reader.GetString(13),
+                        PojazdRejestracja = reader.IsDBNull(14) ? null : reader.GetString(14),
                         PaletyPojazdu = reader.GetInt32(15),
                         SumaE2 = 0,
                         PaletyNominal = 0,
@@ -347,22 +349,25 @@ namespace Kalendarz1.Transport.Repozytorium
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
 
+            // LEFT JOIN pozwala na pobieranie kursów bez przypisanego kierowcy lub pojazdu
             var sql = @"
-        SELECT 
+        SELECT
             k.KursID, k.DataKursu, k.KierowcaID, k.PojazdID, k.Trasa,
             k.GodzWyjazdu, k.GodzPowrotu, k.Status, k.PlanE2NaPalete,
             k.UtworzonoUTC, k.Utworzyl, k.ZmienionoUTC, k.Zmienil,
-            CONCAT(ki.Imie, ' ', ki.Nazwisko) AS KierowcaNazwa,
+            CASE WHEN ki.KierowcaID IS NOT NULL
+                 THEN CONCAT(ki.Imie, ' ', ki.Nazwisko)
+                 ELSE NULL END AS KierowcaNazwa,
             p.Rejestracja,
-            ISNULL(v.PaletyPojazdu, p.PaletyH1) AS PaletyPojazdu,
+            ISNULL(ISNULL(v.PaletyPojazdu, p.PaletyH1), 33) AS PaletyPojazdu,
             ISNULL(v.SumaE2, 0) AS SumaE2,
             ISNULL(v.PaletyNominal, 0) AS PaletyNominal,
             ISNULL(v.PaletyMax, 0) AS PaletyMax,
             ISNULL(v.ProcNominal, 0) AS ProcNominal,
             ISNULL(v.ProcMax, 0) AS ProcMax
         FROM dbo.Kurs k
-        JOIN dbo.Kierowca ki ON k.KierowcaID = ki.KierowcaID
-        JOIN dbo.Pojazd p ON k.PojazdID = p.PojazdID
+        LEFT JOIN dbo.Kierowca ki ON k.KierowcaID = ki.KierowcaID
+        LEFT JOIN dbo.Pojazd p ON k.PojazdID = p.PojazdID
         LEFT JOIN dbo.vKursWypelnienie v ON k.KursID = v.KursID
         WHERE k.DataKursu = @Data
         ORDER BY k.GodzWyjazdu, k.KursID";
@@ -377,8 +382,8 @@ namespace Kalendarz1.Transport.Repozytorium
                 {
                     KursID = reader.GetInt64(0),
                     DataKursu = reader.GetDateTime(1),
-                    KierowcaID = reader.GetInt32(2),
-                    PojazdID = reader.GetInt32(3),
+                    KierowcaID = reader.IsDBNull(2) ? null : reader.GetInt32(2),
+                    PojazdID = reader.IsDBNull(3) ? null : reader.GetInt32(3),
                     Trasa = reader.IsDBNull(4) ? null : reader.GetString(4),
                     GodzWyjazdu = reader.IsDBNull(5) ? null : reader.GetTimeSpan(5),
                     GodzPowrotu = reader.IsDBNull(6) ? null : reader.GetTimeSpan(6),
@@ -388,9 +393,9 @@ namespace Kalendarz1.Transport.Repozytorium
                     Utworzyl = reader.IsDBNull(10) ? null : reader.GetString(10),
                     ZmienionoUTC = reader.IsDBNull(11) ? null : reader.GetDateTime(11),
                     Zmienil = reader.IsDBNull(12) ? null : reader.GetString(12),
-                    KierowcaNazwa = reader.GetString(13),
-                    PojazdRejestracja = reader.GetString(14),
-                    PaletyPojazdu = SafeConvert<int>(reader.GetValue(15), 0),
+                    KierowcaNazwa = reader.IsDBNull(13) ? null : reader.GetString(13),
+                    PojazdRejestracja = reader.IsDBNull(14) ? null : reader.GetString(14),
+                    PaletyPojazdu = SafeConvert<int>(reader.GetValue(15), 33),
                     SumaE2 = SafeConvert<int>(reader.GetValue(16), 0),
                     PaletyNominal = SafeConvert<int>(reader.GetValue(17), 0),
                     PaletyMax = SafeConvert<int>(reader.GetValue(18), 0),
@@ -422,17 +427,18 @@ namespace Kalendarz1.Transport.Repozytorium
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
 
-            var sql = @"INSERT INTO dbo.Kurs 
-                       (DataKursu, KierowcaID, PojazdID, Trasa, GodzWyjazdu, GodzPowrotu, 
-                        Status, PlanE2NaPalete, Utworzyl) 
+            var sql = @"INSERT INTO dbo.Kurs
+                       (DataKursu, KierowcaID, PojazdID, Trasa, GodzWyjazdu, GodzPowrotu,
+                        Status, PlanE2NaPalete, Utworzyl)
                        OUTPUT INSERTED.KursID
-                       VALUES (@DataKursu, @KierowcaID, @PojazdID, @Trasa, @GodzWyjazdu, 
+                       VALUES (@DataKursu, @KierowcaID, @PojazdID, @Trasa, @GodzWyjazdu,
                                @GodzPowrotu, @Status, @PlanE2NaPalete, @Utworzyl)";
 
             using var cmd = new SqlCommand(sql, connection);
             cmd.Parameters.AddWithValue("@DataKursu", kurs.DataKursu);
-            cmd.Parameters.AddWithValue("@KierowcaID", kurs.KierowcaID);
-            cmd.Parameters.AddWithValue("@PojazdID", kurs.PojazdID);
+            // Kierowca i pojazd mogą być null - umożliwia późniejsze przypisanie
+            cmd.Parameters.AddWithValue("@KierowcaID", kurs.KierowcaID.HasValue ? kurs.KierowcaID.Value : DBNull.Value);
+            cmd.Parameters.AddWithValue("@PojazdID", kurs.PojazdID.HasValue ? kurs.PojazdID.Value : DBNull.Value);
             cmd.Parameters.AddWithValue("@Trasa", (object)kurs.Trasa ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@GodzWyjazdu", (object)kurs.GodzWyjazdu ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@GodzPowrotu", (object)kurs.GodzPowrotu ?? DBNull.Value);
@@ -448,7 +454,7 @@ namespace Kalendarz1.Transport.Repozytorium
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
 
-            var sql = @"UPDATE dbo.Kurs 
+            var sql = @"UPDATE dbo.Kurs
                        SET DataKursu = @DataKursu, KierowcaID = @KierowcaID, PojazdID = @PojazdID,
                            Trasa = @Trasa, GodzWyjazdu = @GodzWyjazdu, GodzPowrotu = @GodzPowrotu,
                            Status = @Status, PlanE2NaPalete = @PlanE2NaPalete,
@@ -458,8 +464,9 @@ namespace Kalendarz1.Transport.Repozytorium
             using var cmd = new SqlCommand(sql, connection);
             cmd.Parameters.AddWithValue("@KursID", kurs.KursID);
             cmd.Parameters.AddWithValue("@DataKursu", kurs.DataKursu);
-            cmd.Parameters.AddWithValue("@KierowcaID", kurs.KierowcaID);
-            cmd.Parameters.AddWithValue("@PojazdID", kurs.PojazdID);
+            // Kierowca i pojazd mogą być null - umożliwia późniejsze przypisanie
+            cmd.Parameters.AddWithValue("@KierowcaID", kurs.KierowcaID.HasValue ? kurs.KierowcaID.Value : DBNull.Value);
+            cmd.Parameters.AddWithValue("@PojazdID", kurs.PojazdID.HasValue ? kurs.PojazdID.Value : DBNull.Value);
             cmd.Parameters.AddWithValue("@Trasa", (object)kurs.Trasa ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@GodzWyjazdu", (object)kurs.GodzWyjazdu ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@GodzPowrotu", (object)kurs.GodzPowrotu ?? DBNull.Value);

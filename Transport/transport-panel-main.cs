@@ -44,6 +44,7 @@ namespace Kalendarz1.Transport.Formularze
         private Button btnMapa;
         private Button btnKierowcy;
         private Button btnPojazdy;
+        private Button btnPrzydziel; // Szybkie przypisanie kierowcy/pojazdu
 
         // Podsumowanie
         private Label lblSummaryKursy;
@@ -216,9 +217,14 @@ namespace Kalendarz1.Transport.Formularze
             btnPojazdy = CreateActionButton("POJAZDY", Color.FromArgb(52, 73, 94), 100);
             btnPojazdy.Click += SafeBtnPojazdy_Click;
 
-            // Dodanie wszystkich przycisków do panelu - WŁĄCZNIE Z RAPORTEM
+            // Przycisk szybkiego przypisania kierowcy/pojazdu - pomarańczowy
+            btnPrzydziel = CreateActionButton("⚡ PRZYDZIEL", Color.FromArgb(230, 126, 34), 120);
+            btnPrzydziel.Click += BtnPrzydziel_Click;
+            btnPrzydziel.Enabled = false; // Aktywowany gdy wybrany kurs wymaga przypisania
+
+            // Dodanie wszystkich przycisków do panelu - WŁĄCZNIE Z RAPORTEM i PRZYDZIEL
             panelButtons.Controls.AddRange(new Control[] {
-        btnUsun, btnKopiuj, btnMapa, btnRaport, btnKierowcy, btnPojazdy, btnEdytuj, btnNowyKurs
+        btnUsun, btnKopiuj, btnMapa, btnRaport, btnKierowcy, btnPojazdy, btnPrzydziel, btnEdytuj, btnNowyKurs
     });
 
             panelHeader.Controls.Add(panelDate);
@@ -652,6 +658,16 @@ namespace Kalendarz1.Transport.Formularze
             btnUsun.Enabled = hasSelection;
             btnKopiuj.Enabled = hasSelection;
             btnMapa.Enabled = hasSelection;
+
+            // Aktywuj przycisk PRZYDZIEL tylko dla kursów wymagających przypisania
+            if (hasSelection && dgvKursy.CurrentRow.Cells["WymagaPrzydzialu"]?.Value != null)
+            {
+                btnPrzydziel.Enabled = Convert.ToBoolean(dgvKursy.CurrentRow.Cells["WymagaPrzydzialu"].Value);
+            }
+            else
+            {
+                btnPrzydziel.Enabled = false;
+            }
         }
 
         private async Task LoadKursyAsync()
@@ -698,21 +714,37 @@ namespace Kalendarz1.Transport.Formularze
                 dt.Columns.Add("Pojemniki", typeof(int));
                 dt.Columns.Add("Wypełnienie", typeof(decimal));
                 dt.Columns.Add("Status", typeof(string));
+                dt.Columns.Add("WymagaPrzydzialu", typeof(bool)); // Ukryta kolumna do formatowania
 
                 if (_kursy != null)
                 {
                     foreach (var kurs in _kursy.OrderBy(k => k.GodzWyjazdu))
                     {
                         var wyp = _wypelnienia.ContainsKey(kurs.KursID) ? _wypelnienia[kurs.KursID] : null;
+                        var wymagaPrzydzialu = kurs.WymagaPrzydzialu;
+
+                        // Wyświetl informację o braku przypisania
+                        var kierowcaTekst = string.IsNullOrEmpty(kurs.KierowcaNazwa)
+                            ? "⚠ DO PRZYDZIELENIA"
+                            : kurs.KierowcaNazwa;
+
+                        var pojazdTekst = string.IsNullOrEmpty(kurs.PojazdRejestracja)
+                            ? "⚠ DO PRZYDZIELENIA"
+                            : kurs.PojazdRejestracja;
+
+                        // Status z bazy lub "Planowany" jako domyślny - brak zasobów oznaczony wizualnie
+                        var status = kurs.Status ?? "Planowany";
+
                         dt.Rows.Add(
                             kurs.KursID,
                             kurs.GodzWyjazdu?.ToString(@"hh\:mm") ?? "--:--",
-                            kurs.KierowcaNazwa ?? "",
-                            kurs.PojazdRejestracja ?? "",
+                            kierowcaTekst,
+                            pojazdTekst,
                             kurs.Trasa ?? "",
                             wyp?.SumaE2 ?? 0,
                             wyp?.ProcNominal ?? 0,
-                            kurs.Status ?? "Planowany"
+                            status,
+                            wymagaPrzydzialu
                         );
                     }
                 }
@@ -723,10 +755,24 @@ namespace Kalendarz1.Transport.Formularze
                 if (dgvKursy.Columns["KursID"] != null)
                     dgvKursy.Columns["KursID"].Visible = false;
 
+                // Ukryj kolumnę pomocniczą
+                if (dgvKursy.Columns["WymagaPrzydzialu"] != null)
+                    dgvKursy.Columns["WymagaPrzydzialu"].Visible = false;
+
                 if (dgvKursy.Columns["Godzina"] != null)
                 {
                     dgvKursy.Columns["Godzina"].Width = 80;
                     dgvKursy.Columns["Godzina"].HeaderText = "Wyjazd";
+                }
+
+                if (dgvKursy.Columns["Kierowca"] != null)
+                {
+                    dgvKursy.Columns["Kierowca"].Width = 180;
+                }
+
+                if (dgvKursy.Columns["Pojazd"] != null)
+                {
+                    dgvKursy.Columns["Pojazd"].Width = 150;
                 }
 
                 if (dgvKursy.Columns["Wypełnienie"] != null)
@@ -905,6 +951,41 @@ namespace Kalendarz1.Transport.Formularze
 
             var row = dgvKursy.Rows[e.RowIndex];
 
+            // Sprawdź czy kurs wymaga przydzielenia zasobów
+            bool wymagaPrzydzialu = false;
+            if (row.Cells["WymagaPrzydzialu"]?.Value != null)
+            {
+                wymagaPrzydzialu = Convert.ToBoolean(row.Cells["WymagaPrzydzialu"].Value);
+            }
+
+            // Formatowanie wierszy wymagających przydzielenia - pomarańczowe tło
+            if (wymagaPrzydzialu)
+            {
+                row.DefaultCellStyle.BackColor = Color.FromArgb(255, 248, 225); // Jasno-żółte tło
+            }
+
+            // Formatowanie kolumny kierowca - pomarańczowy tekst gdy brak przypisania
+            if (dgvKursy.Columns[e.ColumnIndex].Name == "Kierowca")
+            {
+                var kierowcaTekst = e.Value?.ToString() ?? "";
+                if (kierowcaTekst.Contains("DO PRZYDZIELENIA"))
+                {
+                    e.CellStyle.ForeColor = Color.FromArgb(230, 126, 34); // Pomarańczowy
+                    e.CellStyle.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+                }
+            }
+
+            // Formatowanie kolumny pojazd - pomarańczowy tekst gdy brak przypisania
+            if (dgvKursy.Columns[e.ColumnIndex].Name == "Pojazd")
+            {
+                var pojazdTekst = e.Value?.ToString() ?? "";
+                if (pojazdTekst.Contains("DO PRZYDZIELENIA"))
+                {
+                    e.CellStyle.ForeColor = Color.FromArgb(230, 126, 34); // Pomarańczowy
+                    e.CellStyle.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+                }
+            }
+
             // Formatowanie kolumny wypełnienie
             if (dgvKursy.Columns[e.ColumnIndex].Name == "Wypełnienie")
             {
@@ -998,6 +1079,36 @@ namespace Kalendarz1.Transport.Formularze
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd podczas edycji kursu: {ex.Message}",
+                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// Szybkie przypisanie kierowcy i pojazdu do kursu
+        /// </summary>
+        private async void BtnPrzydziel_Click(object sender, EventArgs e)
+        {
+            if (dgvKursy.CurrentRow == null) return;
+
+            try
+            {
+                var kursId = Convert.ToInt64(dgvKursy.CurrentRow.Cells["KursID"].Value);
+                var kurs = _kursy.FirstOrDefault(k => k.KursID == kursId);
+
+                if (kurs == null) return;
+
+                // Otwórz dialog szybkiego przypisania
+                using var dlg = new SzybkiePrzypisanieDialog(_repozytorium, kurs);
+                if (dlg.ShowDialog(this) == DialogResult.OK)
+                {
+                    await LoadKursyAsync();
+                    MessageBox.Show("Zasoby zostały przydzielone do kursu.",
+                        "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas przypisywania zasobów: {ex.Message}",
                     "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -1437,5 +1548,205 @@ namespace Kalendarz1.Transport.Formularze
         }
 
         #endregion
+    }
+
+    /// <summary>
+    /// Dialog do szybkiego przypisania kierowcy i pojazdu do kursu
+    /// </summary>
+    public class SzybkiePrzypisanieDialog : Form
+    {
+        private readonly TransportRepozytorium _repozytorium;
+        private readonly Kurs _kurs;
+        private ComboBox cboKierowca;
+        private ComboBox cboPojazd;
+        private Label lblInfo;
+        private Button btnZapisz;
+        private Button btnAnuluj;
+
+        public SzybkiePrzypisanieDialog(TransportRepozytorium repozytorium, Kurs kurs)
+        {
+            _repozytorium = repozytorium;
+            _kurs = kurs;
+            InitializeComponent();
+            _ = LoadDataAsync();
+        }
+
+        private void InitializeComponent()
+        {
+            Text = "Szybkie przydzielenie zasobów";
+            Size = new Size(450, 320);
+            StartPosition = FormStartPosition.CenterParent;
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false;
+            MinimizeBox = false;
+            Font = new Font("Segoe UI", 10F);
+            BackColor = Color.FromArgb(240, 242, 247);
+
+            // Informacja o kursie
+            lblInfo = new Label
+            {
+                Location = new Point(20, 20),
+                Size = new Size(400, 60),
+                Text = $"Przydziel kierowcę i pojazd do kursu:\n" +
+                       $"Data: {_kurs.DataKursu:dd.MM.yyyy}\n" +
+                       $"Trasa: {_kurs.Trasa ?? "Brak trasy"}",
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(52, 73, 94)
+            };
+
+            // Kierowca
+            var lblKierowca = new Label
+            {
+                Location = new Point(20, 95),
+                Size = new Size(80, 25),
+                Text = "Kierowca:",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 73, 94),
+                TextAlign = ContentAlignment.MiddleRight
+            };
+
+            cboKierowca = new ComboBox
+            {
+                Location = new Point(110, 95),
+                Size = new Size(300, 30),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 10F),
+                DisplayMember = "PelneNazwisko"
+            };
+
+            // Pojazd
+            var lblPojazd = new Label
+            {
+                Location = new Point(20, 140),
+                Size = new Size(80, 25),
+                Text = "Pojazd:",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 73, 94),
+                TextAlign = ContentAlignment.MiddleRight
+            };
+
+            cboPojazd = new ComboBox
+            {
+                Location = new Point(110, 140),
+                Size = new Size(300, 30),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 10F),
+                DisplayMember = "Opis"
+            };
+
+            // Ostrzeżenie
+            var lblOstrzezenie = new Label
+            {
+                Location = new Point(20, 185),
+                Size = new Size(400, 40),
+                Text = "⚠ Wybierz kierowcę i pojazd, aby zakończyć przydzielanie.",
+                Font = new Font("Segoe UI", 9F, FontStyle.Italic),
+                ForeColor = Color.FromArgb(230, 126, 34)
+            };
+
+            // Przyciski
+            btnZapisz = new Button
+            {
+                Location = new Point(220, 235),
+                Size = new Size(100, 35),
+                Text = "Przydziel",
+                BackColor = Color.FromArgb(46, 204, 113),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnZapisz.FlatAppearance.BorderSize = 0;
+            btnZapisz.Click += BtnZapisz_Click;
+
+            btnAnuluj = new Button
+            {
+                Location = new Point(330, 235),
+                Size = new Size(80, 35),
+                Text = "Anuluj",
+                BackColor = Color.FromArgb(108, 117, 125),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10F),
+                Cursor = Cursors.Hand,
+                DialogResult = DialogResult.Cancel
+            };
+            btnAnuluj.FlatAppearance.BorderSize = 0;
+
+            Controls.AddRange(new Control[] {
+                lblInfo, lblKierowca, cboKierowca, lblPojazd, cboPojazd,
+                lblOstrzezenie, btnZapisz, btnAnuluj
+            });
+
+            AcceptButton = btnZapisz;
+            CancelButton = btnAnuluj;
+        }
+
+        private async Task LoadDataAsync()
+        {
+            try
+            {
+                var kierowcy = await _repozytorium.PobierzKierowcowAsync(true);
+                var pojazdy = await _repozytorium.PobierzPojazdyAsync(true);
+
+                cboKierowca.DataSource = kierowcy;
+                cboPojazd.DataSource = pojazdy;
+
+                // Jeśli kurs ma już przypisanego kierowcę lub pojazd, ustaw go
+                if (_kurs.KierowcaID.HasValue)
+                {
+                    var kierowca = kierowcy.FirstOrDefault(k => k.KierowcaID == _kurs.KierowcaID.Value);
+                    if (kierowca != null) cboKierowca.SelectedItem = kierowca;
+                }
+
+                if (_kurs.PojazdID.HasValue)
+                {
+                    var pojazd = pojazdy.FirstOrDefault(p => p.PojazdID == _kurs.PojazdID.Value);
+                    if (pojazd != null) cboPojazd.SelectedItem = pojazd;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd ładowania danych: {ex.Message}",
+                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private async void BtnZapisz_Click(object sender, EventArgs e)
+        {
+            var kierowca = cboKierowca.SelectedItem as Kierowca;
+            var pojazd = cboPojazd.SelectedItem as Pojazd;
+
+            if (kierowca == null || pojazd == null)
+            {
+                MessageBox.Show("Wybierz kierowcę i pojazd, aby przydzielić zasoby.",
+                    "Brak wyboru", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                Cursor = Cursors.WaitCursor;
+
+                // Zaktualizuj kurs z nowymi wartościami
+                _kurs.KierowcaID = kierowca.KierowcaID;
+                _kurs.PojazdID = pojazd.PojazdID;
+                _kurs.Status = "Planowany"; // Zachowaj status "Planowany"
+
+                await _repozytorium.AktualizujNaglowekKursuAsync(_kurs, Environment.UserName);
+
+                DialogResult = DialogResult.OK;
+                Close();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas zapisywania: {ex.Message}",
+                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                Cursor = Cursors.Default;
+            }
+        }
     }
 }
