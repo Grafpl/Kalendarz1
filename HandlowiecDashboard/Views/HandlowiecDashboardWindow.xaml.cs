@@ -1022,6 +1022,16 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
         private List<OpakowanieRow> _opakowaniaData = new List<OpakowanieRow>();
         private string _wybranyKontrahentOpak = null;
         private DateTime _lastClickTime = DateTime.MinValue;
+        private Dictionary<string, Color> _handlowiecKolory = new Dictionary<string, Color>();
+
+        private Color GetHandlowiecColor(string handlowiec)
+        {
+            if (!_handlowiecKolory.ContainsKey(handlowiec))
+            {
+                _handlowiecKolory[handlowiec] = _kolory[_handlowiecKolory.Count % _kolory.Length];
+            }
+            return _handlowiecKolory[handlowiec];
+        }
 
         private void InicjalizujTygodnieOpak()
         {
@@ -1060,11 +1070,13 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
 
             try
             {
-                await using var cn = new SqlConnection(_connectionStringHandel);
-                await cn.OpenAsync();
+                // Pierwsza polaczenie - dane kontrahentow
+                await using (var cn = new SqlConnection(_connectionStringHandel))
+                {
+                    await cn.OpenAsync();
 
-                // Dane per kontrahent
-                var sqlKontrahenci = @"
+                    // Dane per kontrahent
+                    var sqlKontrahenci = @"
 SELECT
     C.shortcut AS Kontrahent,
     ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
@@ -1082,74 +1094,85 @@ GROUP BY C.shortcut, ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany')
 HAVING ISNULL(SUM(MZ.Ilosc), 0) <> 0
 ORDER BY ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc ELSE 0 END), 0) DESC";
 
-                await using var cmdK = new SqlCommand(sqlKontrahenci, cn);
-                cmdK.Parameters.AddWithValue("@Handlowiec", (object)wybranyHandlowiec ?? DBNull.Value);
-                cmdK.Parameters.AddWithValue("@DataDo", dataDo);
+                    await using var cmdK = new SqlCommand(sqlKontrahenci, cn);
+                    cmdK.Parameters.AddWithValue("@Handlowiec", (object)wybranyHandlowiec ?? DBNull.Value);
+                    cmdK.Parameters.AddWithValue("@DataDo", dataDo);
 
-                await using var readerK = await cmdK.ExecuteReaderAsync();
-                while (await readerK.ReadAsync())
-                {
-                    _opakowaniaData.Add(new OpakowanieRow
+                    await using var readerK = await cmdK.ExecuteReaderAsync();
+                    while (await readerK.ReadAsync())
                     {
-                        Kontrahent = readerK.GetString(0),
-                        Handlowiec = readerK.GetString(1),
-                        PojemnikiE2 = readerK.IsDBNull(2) ? 0m : Convert.ToDecimal(readerK.GetValue(2)),
-                        PaletaH1 = readerK.IsDBNull(3) ? 0m : Convert.ToDecimal(readerK.GetValue(3)),
-                    });
+                        _opakowaniaData.Add(new OpakowanieRow
+                        {
+                            Kontrahent = readerK.GetString(0),
+                            Handlowiec = readerK.GetString(1),
+                            PojemnikiE2 = readerK.IsDBNull(2) ? 0m : Convert.ToDecimal(readerK.GetValue(2)),
+                            PaletaH1 = readerK.IsDBNull(3) ? 0m : Convert.ToDecimal(readerK.GetValue(3)),
+                        });
+                    }
                 }
 
-                // Wykres slupkowy poziomy E2 - Top 10
-                var top10E2 = _opakowaniaData.Where(d => d.PojemnikiE2 > 0).OrderByDescending(d => d.PojemnikiE2).Take(10).Reverse().ToList();
-                var labelsE2 = top10E2.Select(d => d.Kontrahent.Length > 15 ? d.Kontrahent.Substring(0, 15) + "..." : d.Kontrahent).ToList();
-                var valuesE2 = new ChartValues<double>(top10E2.Select(d => (double)d.PojemnikiE2));
+                // Wykres slupkowy poziomy E2 - Top 10 (najwyzszy na gorze)
+                var top10E2 = _opakowaniaData.Where(d => d.PojemnikiE2 > 0).OrderByDescending(d => d.PojemnikiE2).Take(10).ToList();
+                var seriesE2 = new SeriesCollection();
+                var labelsE2 = new List<string>();
 
-                chartOpakowaniaE2.Series = new SeriesCollection
+                // Odwroc kolejnosc dla wyswietlania (najwyzszy na gorze = ostatni w liscie)
+                for (int i = top10E2.Count - 1; i >= 0; i--)
                 {
-                    new RowSeries
+                    var d = top10E2[i];
+                    labelsE2.Add(d.Kontrahent.Length > 15 ? d.Kontrahent.Substring(0, 15) + "..." : d.Kontrahent);
+                    seriesE2.Add(new RowSeries
                     {
-                        Title = "E2",
-                        Values = valuesE2,
-                        Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(90, 150, 180)),
+                        Title = d.Handlowiec,
+                        Values = new ChartValues<double> { (double)d.PojemnikiE2 },
+                        Fill = new SolidColorBrush(GetHandlowiecColor(d.Handlowiec)),
                         DataLabels = true,
                         LabelPoint = p => $"{p.X:N0}",
                         Foreground = Brushes.White
-                    }
-                };
+                    });
+                }
+
+                chartOpakowaniaE2.Series = seriesE2;
                 axisYOpakE2.Labels = labelsE2;
 
                 var sumaE2 = _opakowaniaData.Where(d => d.PojemnikiE2 > 0).Sum(d => d.PojemnikiE2);
                 txtOpakE2Suma.Text = $"Razem: {sumaE2:N0}";
 
-                // Wykres slupkowy poziomy H1 - Top 10
-                var top10H1 = _opakowaniaData.Where(d => d.PaletaH1 > 0).OrderByDescending(d => d.PaletaH1).Take(10).Reverse().ToList();
-                var labelsH1 = top10H1.Select(d => d.Kontrahent.Length > 15 ? d.Kontrahent.Substring(0, 15) + "..." : d.Kontrahent).ToList();
-                var valuesH1 = new ChartValues<double>(top10H1.Select(d => (double)d.PaletaH1));
+                // Wykres slupkowy poziomy H1 - Top 10 (najwyzszy na gorze)
+                var top10H1 = _opakowaniaData.Where(d => d.PaletaH1 > 0).OrderByDescending(d => d.PaletaH1).Take(10).ToList();
+                var seriesH1 = new SeriesCollection();
+                var labelsH1 = new List<string>();
 
-                chartOpakowaniaH1.Series = new SeriesCollection
+                // Odwroc kolejnosc dla wyswietlania (najwyzszy na gorze = ostatni w liscie)
+                for (int i = top10H1.Count - 1; i >= 0; i--)
                 {
-                    new RowSeries
+                    var d = top10H1[i];
+                    labelsH1.Add(d.Kontrahent.Length > 15 ? d.Kontrahent.Substring(0, 15) + "..." : d.Kontrahent);
+                    seriesH1.Add(new RowSeries
                     {
-                        Title = "H1",
-                        Values = valuesH1,
-                        Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(90, 150, 180)),
+                        Title = d.Handlowiec,
+                        Values = new ChartValues<double> { (double)d.PaletaH1 },
+                        Fill = new SolidColorBrush(GetHandlowiecColor(d.Handlowiec)),
                         DataLabels = true,
                         LabelPoint = p => $"{p.X:N0}",
                         Foreground = Brushes.White
-                    }
-                };
+                    });
+                }
+
+                chartOpakowaniaH1.Series = seriesH1;
                 axisYOpakH1.Labels = labelsH1;
 
                 var sumaH1 = _opakowaniaData.Where(d => d.PaletaH1 > 0).Sum(d => d.PaletaH1);
                 txtOpakH1Suma.Text = $"Razem: {sumaH1:N0}";
 
-                // Wyczysc wykresy trendow jesli nie ma wybranego kontrahenta
+                // Wykresy trendow - uzywaja osobnych polaczen
                 if (string.IsNullOrEmpty(_wybranyKontrahentOpak))
                 {
-                    await OdswiezTrendOpakowaniaDlaWszystkich(cn);
+                    await OdswiezTrendOpakowaniaDlaWszystkich();
                 }
                 else
                 {
-                    await OdswiezTrendOpakowaniaKontrahenta(cn, _wybranyKontrahentOpak);
+                    await OdswiezTrendOpakowaniaKontrahenta(_wybranyKontrahentOpak);
                 }
             }
             catch (Exception ex)
@@ -1158,7 +1181,7 @@ ORDER BY ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc EL
             }
         }
 
-        private async Task OdswiezTrendOpakowaniaDlaWszystkich(SqlConnection cn)
+        private async Task OdswiezTrendOpakowaniaDlaWszystkich()
         {
             string wybranyHandlowiec = null;
             if (cmbHandlowiecOpak.SelectedItem is ComboItem item && item.Value > 0)
@@ -1168,6 +1191,9 @@ ORDER BY ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc EL
             var valuesE2 = new ChartValues<double>();
             var valuesH1 = new ChartValues<double>();
             var niedziela = GetLastSunday(DateTime.Today);
+
+            await using var cn = new SqlConnection(_connectionStringHandel);
+            await cn.OpenAsync();
 
             // Ostatnie 6 tygodni
             for (int i = 5; i >= 0; i--)
@@ -1218,12 +1244,15 @@ ORDER BY ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc EL
             axisXOpakTrendH1.Labels = labels;
         }
 
-        private async Task OdswiezTrendOpakowaniaKontrahenta(SqlConnection cn, string kontrahent)
+        private async Task OdswiezTrendOpakowaniaKontrahenta(string kontrahent)
         {
             var labels = new List<string>();
             var valuesE2 = new ChartValues<double>();
             var valuesH1 = new ChartValues<double>();
             var niedziela = GetLastSunday(DateTime.Today);
+
+            await using var cn = new SqlConnection(_connectionStringHandel);
+            await cn.OpenAsync();
 
             // Ostatnie 6 tygodni dla wybranego kontrahenta
             var sql = @"
@@ -1334,10 +1363,7 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
             {
                 // Pojedyncze klikniecie - pokaz trend
                 _wybranyKontrahentOpak = kontrahent;
-
-                await using var cn = new SqlConnection(_connectionStringHandel);
-                await cn.OpenAsync();
-                await OdswiezTrendOpakowaniaKontrahenta(cn, kontrahent);
+                await OdswiezTrendOpakowaniaKontrahenta(kontrahent);
             }
 
             _lastClickTime = now;
