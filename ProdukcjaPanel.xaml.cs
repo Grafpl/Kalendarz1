@@ -22,6 +22,8 @@ namespace Kalendarz1
         private readonly string _connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
         private readonly string _connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
+        private static bool? _dataAkceptacjiProdukcjaColumnExists = null;
+
         public string UserID { get; set; } = "User";
         private DateTime _selectedDate = DateTime.Today;
         private readonly Dictionary<int, ZamowienieInfo> _zamowienia = new();
@@ -292,6 +294,18 @@ namespace Kalendarz1
             }
         }
 
+        private async Task<bool> CheckDataAkceptacjiProdukcjaColumnExistsAsync(SqlConnection cn)
+        {
+            if (_dataAkceptacjiProdukcjaColumnExists.HasValue)
+                return _dataAkceptacjiProdukcjaColumnExists.Value;
+
+            string checkSql = @"SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'DataAkceptacjiProdukcja'";
+            using var cmd = new SqlCommand(checkSql, cn);
+            var result = await cmd.ExecuteScalarAsync();
+            _dataAkceptacjiProdukcjaColumnExists = result != null;
+            return _dataAkceptacjiProdukcjaColumnExists.Value;
+        }
+
         private async Task LoadOrdersAsync()
         {
             string dateColumn = "DataUboju";
@@ -304,6 +318,11 @@ namespace Kalendarz1
                 using (var cn = new SqlConnection(_connLibra))
                 {
                     await cn.OpenAsync();
+
+                    // Sprawdź czy kolumna DataAkceptacjiProdukcja istnieje
+                    bool hasAkceptacjaColumn = await CheckDataAkceptacjiProdukcjaColumnExistsAsync(cn);
+                    string akceptacjaColumn = hasAkceptacjaColumn ? ", z.DataAkceptacjiProdukcja" : ", NULL AS DataAkceptacjiProdukcja";
+
                     var sqlBuilder = new System.Text.StringBuilder();
                     sqlBuilder.Append("SELECT z.Id, z.KlientId, ISNULL(z.Uwagi,'') AS Uwagi, ISNULL(z.Status,'Nowe') AS Status, ");
                     sqlBuilder.Append("(SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id");
@@ -316,8 +335,9 @@ namespace Kalendarz1
                     sqlBuilder.Append("CAST(CASE WHEN z.TransportStatus = 'Wlasny' THEN 1 ELSE 0 END AS BIT) AS WlasnyTransport, ");
                     sqlBuilder.Append("z.DataPrzyjazdu, ");
                     // Nowe pola do wykrywania zmian
-                    sqlBuilder.Append("z.DataOstatniejModyfikacji, z.DataRealizacji ");
-                    sqlBuilder.Append($"FROM dbo.ZamowieniaMieso z WHERE z.{dateColumn}=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')");
+                    sqlBuilder.Append("z.DataOstatniejModyfikacji, z.DataRealizacji");
+                    sqlBuilder.Append(akceptacjaColumn);
+                    sqlBuilder.Append($" FROM dbo.ZamowieniaMieso z WHERE z.{dateColumn}=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')");
                     if (_filteredProductId.HasValue) sqlBuilder.Append(" AND EXISTS (SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId=z.Id AND t.KodTowaru=@P)");
 
                     var cmd = new SqlCommand(sqlBuilder.ToString(), cn);
@@ -329,12 +349,24 @@ namespace Kalendarz1
                     {
                         var dataOstatniejModyfikacji = rd.IsDBNull(13) ? (DateTime?)null : rd.GetDateTime(13);
                         var dataRealizacji = rd.IsDBNull(14) ? (DateTime?)null : rd.GetDateTime(14);
+                        var dataAkceptacjiProdukcja = rd.IsDBNull(15) ? (DateTime?)null : rd.GetDateTime(15);
+                        var czyZrealizowane = rd.GetBoolean(8);
 
-                        // Sprawdź czy zamówienie zostało zmodyfikowane od czasu realizacji
+                        // Sprawdź czy zamówienie zostało zmodyfikowane od czasu akceptacji przez produkcję
+                        // Produkcja używa DataAkceptacjiProdukcja, a DataRealizacji jako fallback
                         bool czyZmodyfikowane = false;
-                        if (dataRealizacji.HasValue && dataOstatniejModyfikacji.HasValue)
+                        if (czyZrealizowane && dataOstatniejModyfikacji.HasValue)
                         {
-                            czyZmodyfikowane = dataOstatniejModyfikacji.Value > dataRealizacji.Value;
+                            // Jeśli produkcja już zaakceptowała, porównaj z jej datą akceptacji
+                            if (dataAkceptacjiProdukcja.HasValue)
+                            {
+                                czyZmodyfikowane = dataOstatniejModyfikacji.Value > dataAkceptacjiProdukcja.Value;
+                            }
+                            // Jeśli produkcja jeszcze nie akceptowała, użyj daty realizacji
+                            else if (dataRealizacji.HasValue)
+                            {
+                                czyZmodyfikowane = dataOstatniejModyfikacji.Value > dataRealizacji.Value;
+                            }
                         }
 
                         var info = new ZamowienieInfo
@@ -348,7 +380,7 @@ namespace Kalendarz1
                             TransportKursId = rd.IsDBNull(6) ? null : rd.GetInt64(6),
                             MaFolie = rd.GetBoolean(7),
                             MaNotatke = !string.IsNullOrWhiteSpace(rd.GetString(2)),
-                            CzyZrealizowane = rd.GetBoolean(8),
+                            CzyZrealizowane = czyZrealizowane,
                             CzyWydane = rd.GetBoolean(9),
                             MaHalal = rd.GetBoolean(10),
                             WlasnyTransport = rd.GetBoolean(11),
@@ -356,6 +388,7 @@ namespace Kalendarz1
                             // Nowe pola do wykrywania zmian
                             DataOstatniejModyfikacji = dataOstatniejModyfikacji,
                             DataRealizacji = dataRealizacji,
+                            DataAkceptacjiProdukcja = dataAkceptacjiProdukcja,
                             CzyZmodyfikowaneOdRealizacji = czyZmodyfikowane
                         };
                         _zamowienia[info.Id] = info;
@@ -644,8 +677,9 @@ namespace Kalendarz1
             var result = MessageBox.Show(
                 $"Czy potwierdzasz, że wiesz o zmianach w zamówieniu '{vm.Info.Klient}'?\n\n" +
                 "Aktualny stan pozycji zostanie zapisany jako nowy snapshot.\n" +
-                "Ikona ⚠️ zniknie dopóki zamówienie nie zostanie ponownie zmodyfikowane.",
-                "Potwierdzenie przyjęcia zmiany",
+                "Ikona ⚠️ zniknie dopóki zamówienie nie zostanie ponownie zmodyfikowane.\n" +
+                "(Magazyn ma swoją osobną akceptację)",
+                "Potwierdzenie przyjęcia zmiany - Produkcja",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
 
@@ -656,15 +690,25 @@ namespace Kalendarz1
                 using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
 
+                // Upewnij się że kolumna DataAkceptacjiProdukcja istnieje
+                var checkCmd = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'DataAkceptacjiProdukcja'", cn);
+                if ((int)await checkCmd.ExecuteScalarAsync() == 0)
+                {
+                    var addCmd = new SqlCommand("ALTER TABLE dbo.ZamowieniaMieso ADD DataAkceptacjiProdukcja DATETIME NULL", cn);
+                    await addCmd.ExecuteNonQueryAsync();
+                    // Zresetuj cache po utworzeniu kolumny
+                    _dataAkceptacjiProdukcjaColumnExists = true;
+                }
+
                 // Zaktualizuj snapshot do aktualnego stanu
                 await SaveOrderSnapshotAsync(cn, vm.Info.Id, "Realizacja");
 
-                // Zaktualizuj DataRealizacji na teraz (żeby DataOstatniejModyfikacji < DataRealizacji)
-                var cmd = new SqlCommand("UPDATE dbo.ZamowieniaMieso SET DataRealizacji = GETDATE() WHERE Id = @Id", cn);
+                // Zaktualizuj DataAkceptacjiProdukcja na teraz (osobna akceptacja dla produkcji)
+                var cmd = new SqlCommand("UPDATE dbo.ZamowieniaMieso SET DataAkceptacjiProdukcja = GETDATE() WHERE Id = @Id", cn);
                 cmd.Parameters.AddWithValue("@Id", vm.Info.Id);
                 await cmd.ExecuteNonQueryAsync();
 
-                MessageBox.Show("Zmiana została przyjęta. Snapshot zaktualizowany.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Zmiana została przyjęta przez produkcję. Snapshot zaktualizowany.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
 
                 // Odśwież dane
                 await ReloadAllAsync();
@@ -1259,6 +1303,7 @@ namespace Kalendarz1
             // Nowe pola do wykrywania zmian
             public DateTime? DataOstatniejModyfikacji { get; set; }
             public DateTime? DataRealizacji { get; set; }
+            public DateTime? DataAkceptacjiProdukcja { get; set; } // Osobna akceptacja produkcji
             public bool CzyZmodyfikowaneOdRealizacji { get; set; }
         }
 
