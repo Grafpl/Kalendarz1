@@ -602,6 +602,91 @@ namespace Kalendarz1
             }
 
             dgvPozycje.ItemsSource = dt.DefaultView;
+
+            // Pokaż/ukryj przycisk "Przyjmuję zmianę"
+            btnAcceptChange.Visibility = info.CzyZmodyfikowaneOdRealizacji ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private async void btnAcceptChange_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = (dgvZamowienia1.SelectedItem ?? dgvZamowienia2.SelectedItem) as ZamowienieViewModel;
+            if (selected == null || !selected.Info.CzyZmodyfikowaneOdRealizacji) return;
+
+            var result = MessageBox.Show(
+                $"Czy potwierdzasz, że wiesz o zmianach w zamówieniu '{selected.Info.Klient}'?\n\n" +
+                "Aktualny stan pozycji zostanie zapisany jako nowy snapshot.\n" +
+                "Ikona ⚠️ zniknie dopóki zamówienie nie zostanie ponownie zmodyfikowane.",
+                "Potwierdzenie przyjęcia zmiany",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result != MessageBoxResult.Yes) return;
+
+            try
+            {
+                using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Zaktualizuj snapshot do aktualnego stanu
+                await SaveOrderSnapshotAsync(cn, selected.Info.Id, "Realizacja");
+
+                // Zaktualizuj DataRealizacji na teraz (żeby DataOstatniejModyfikacji < DataRealizacji)
+                var cmd = new SqlCommand("UPDATE dbo.ZamowieniaMieso SET DataRealizacji = GETDATE() WHERE Id = @Id", cn);
+                cmd.Parameters.AddWithValue("@Id", selected.Info.Id);
+                await cmd.ExecuteNonQueryAsync();
+
+                MessageBox.Show("Zmiana została przyjęta. Snapshot zaktualizowany.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Odśwież dane
+                await ReloadAllAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas aktualizacji snapshotu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async Task SaveOrderSnapshotAsync(SqlConnection cn, int zamowienieId, string typSnapshotu)
+        {
+            try
+            {
+                // Sprawdź czy tabela snapshotów istnieje
+                var checkCmd = new SqlCommand("SELECT COUNT(*) FROM sys.objects WHERE name='ZamowieniaMiesoSnapshot' AND type='U'", cn);
+                if ((int)await checkCmd.ExecuteScalarAsync() == 0)
+                {
+                    // Utwórz tabelę jeśli nie istnieje
+                    var createCmd = new SqlCommand(@"
+                        CREATE TABLE dbo.ZamowieniaMiesoSnapshot (
+                            Id INT IDENTITY(1,1) PRIMARY KEY,
+                            ZamowienieId INT NOT NULL,
+                            KodTowaru INT NOT NULL,
+                            Ilosc DECIMAL(18,3) NOT NULL,
+                            Folia BIT NULL,
+                            Hallal BIT NULL,
+                            DataSnapshotu DATETIME NOT NULL DEFAULT GETDATE(),
+                            TypSnapshotu NVARCHAR(20) NOT NULL
+                        );
+                        CREATE INDEX IX_Snapshot_ZamowienieId ON dbo.ZamowieniaMiesoSnapshot(ZamowienieId);", cn);
+                    await createCmd.ExecuteNonQueryAsync();
+                }
+
+                // Usuń stary snapshot tego samego typu
+                var cmdDelete = new SqlCommand(@"DELETE FROM dbo.ZamowieniaMiesoSnapshot WHERE ZamowienieId = @ZamId AND TypSnapshotu = @Typ", cn);
+                cmdDelete.Parameters.AddWithValue("@ZamId", zamowienieId);
+                cmdDelete.Parameters.AddWithValue("@Typ", typSnapshotu);
+                await cmdDelete.ExecuteNonQueryAsync();
+
+                // Zapisz nowy snapshot
+                var cmdInsert = new SqlCommand(@"
+                    INSERT INTO dbo.ZamowieniaMiesoSnapshot (ZamowienieId, KodTowaru, Ilosc, Folia, Hallal, TypSnapshotu)
+                    SELECT ZamowienieId, KodTowaru, Ilosc, Folia, Hallal, @Typ
+                    FROM dbo.ZamowieniaMiesoTowar
+                    WHERE ZamowienieId = @ZamId", cn);
+                cmdInsert.Parameters.AddWithValue("@ZamId", zamowienieId);
+                cmdInsert.Parameters.AddWithValue("@Typ", typSnapshotu);
+                await cmdInsert.ExecuteNonQueryAsync();
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Błąd zapisywania snapshotu: {ex.Message}"); }
         }
 
         private async Task<Dictionary<int, decimal>> GetOrderSnapshotAsync(int zamowienieId, string typSnapshotu)
@@ -843,6 +928,21 @@ namespace Kalendarz1
                     return DateTime.MaxValue;
                 }
             }
+
+            // Wyświetlanie ostatniej zmiany
+            public string OstatniaZmianaDisplay
+            {
+                get
+                {
+                    if (!Info.CzyZrealizowane) return "-";
+                    if (!Info.CzyZmodyfikowaneOdRealizacji) return "✓ OK";
+                    if (Info.DataOstatniejModyfikacji.HasValue)
+                        return $"⚠️ {Info.DataOstatniejModyfikacji.Value:HH:mm}";
+                    return "⚠️ Zmiana";
+                }
+            }
+
+            public Brush ZmianaColor => Info.CzyZmodyfikowaneOdRealizacji ? Brushes.Orange : Brushes.LimeGreen;
 
             public event PropertyChangedEventHandler PropertyChanged;
             protected void OnPropertyChanged([CallerMemberName] string propertyName = null)

@@ -631,6 +631,48 @@ namespace Kalendarz1
             }
 
             dgvPozycje.ItemsSource = dt.DefaultView;
+
+            // Pokaż/ukryj przycisk "Przyjmuję zmianę"
+            btnAcceptChange.Visibility = info.CzyZmodyfikowaneOdRealizacji ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private async void btnAcceptChange_Click(object sender, RoutedEventArgs e)
+        {
+            var vm = SelectedZamowienie;
+            if (vm == null || !vm.Info.CzyZmodyfikowaneOdRealizacji) return;
+
+            var result = MessageBox.Show(
+                $"Czy potwierdzasz, że wiesz o zmianach w zamówieniu '{vm.Info.Klient}'?\n\n" +
+                "Aktualny stan pozycji zostanie zapisany jako nowy snapshot.\n" +
+                "Ikona ⚠️ zniknie dopóki zamówienie nie zostanie ponownie zmodyfikowane.",
+                "Potwierdzenie przyjęcia zmiany",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result != MessageBoxResult.Yes) return;
+
+            try
+            {
+                using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Zaktualizuj snapshot do aktualnego stanu
+                await SaveOrderSnapshotAsync(cn, vm.Info.Id, "Realizacja");
+
+                // Zaktualizuj DataRealizacji na teraz (żeby DataOstatniejModyfikacji < DataRealizacji)
+                var cmd = new SqlCommand("UPDATE dbo.ZamowieniaMieso SET DataRealizacji = GETDATE() WHERE Id = @Id", cn);
+                cmd.Parameters.AddWithValue("@Id", vm.Info.Id);
+                await cmd.ExecuteNonQueryAsync();
+
+                MessageBox.Show("Zmiana została przyjęta. Snapshot zaktualizowany.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Odśwież dane
+                await ReloadAllAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas aktualizacji snapshotu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private async Task LoadIn0ESummaryAsync()
@@ -1310,6 +1352,21 @@ namespace Kalendarz1
 
             private Brush _textColor = Brushes.White;
             public Brush TextColor { get => _textColor; set { _textColor = value; OnPropertyChanged(); } }
+
+            // Wyświetlanie ostatniej zmiany
+            public string OstatniaZmianaDisplay
+            {
+                get
+                {
+                    if (!Info.CzyZrealizowane) return "-";
+                    if (!Info.CzyZmodyfikowaneOdRealizacji) return "✓ OK";
+                    if (Info.DataOstatniejModyfikacji.HasValue)
+                        return $"⚠️ {Info.DataOstatniejModyfikacji.Value:HH:mm}";
+                    return "⚠️ Zmiana";
+                }
+            }
+
+            public Brush ZmianaColor => Info.CzyZmodyfikowaneOdRealizacji ? Brushes.Orange : Brushes.LimeGreen;
 
             public event PropertyChangedEventHandler PropertyChanged;
             protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
