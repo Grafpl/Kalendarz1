@@ -228,7 +228,8 @@ namespace Kalendarz1
                                   z.DataUtworzenia, z.TransportKursID, z.DataWydania, ISNULL(z.KtoWydal, '') AS KtoWydal,
                                   CAST(CASE WHEN z.TransportStatus = 'Wlasny' THEN 1 ELSE 0 END AS BIT) AS WlasnyTransport,
                                   z.DataPrzyjazdu,
-                                  z.DataOstatniejModyfikacji, z.DataRealizacji, ISNULL(z.CzyZrealizowane, 0) AS CzyZrealizowane
+                                  z.DataOstatniejModyfikacji, z.DataRealizacji, ISNULL(z.CzyZrealizowane, 0) AS CzyZrealizowane,
+                                  z.DataAkceptacjiMagazyn
                                   FROM dbo.ZamowieniaMieso z
                                   WHERE z.DataUboju=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')";
 
@@ -241,12 +242,30 @@ namespace Kalendarz1
                         var dataOstatniejModyfikacji = rd.IsDBNull(11) ? (DateTime?)null : rd.GetDateTime(11);
                         var dataRealizacji = rd.IsDBNull(12) ? (DateTime?)null : rd.GetDateTime(12);
                         var czyZrealizowane = rd.GetBoolean(13);
+                        var dataAkceptacjiMagazyn = rd.IsDBNull(14) ? (DateTime?)null : rd.GetDateTime(14);
 
-                        // Sprawdź czy zamówienie zostało zmodyfikowane od czasu realizacji
-                        bool czyZmodyfikowane = false;
+                        // Sprawdź czy zamówienie zostało zmodyfikowane od czasu realizacji (dla produkcji)
+                        bool czyZmodyfikowaneProdukcja = false;
                         if (dataRealizacji.HasValue && dataOstatniejModyfikacji.HasValue)
                         {
-                            czyZmodyfikowane = dataOstatniejModyfikacji.Value > dataRealizacji.Value;
+                            czyZmodyfikowaneProdukcja = dataOstatniejModyfikacji.Value > dataRealizacji.Value;
+                        }
+
+                        // Sprawdź czy zamówienie zostało zmodyfikowane dla magazynu
+                        // Magazyn używa swojej własnej daty akceptacji lub DataRealizacji jako fallback
+                        bool czyZmodyfikowaneMagazyn = false;
+                        if (czyZrealizowane && dataOstatniejModyfikacji.HasValue)
+                        {
+                            // Jeśli magazyn już zaakceptował, porównaj z jego datą akceptacji
+                            if (dataAkceptacjiMagazyn.HasValue)
+                            {
+                                czyZmodyfikowaneMagazyn = dataOstatniejModyfikacji.Value > dataAkceptacjiMagazyn.Value;
+                            }
+                            // Jeśli magazyn jeszcze nie akceptował, użyj daty realizacji jako punktu odniesienia
+                            else if (dataRealizacji.HasValue)
+                            {
+                                czyZmodyfikowaneMagazyn = dataOstatniejModyfikacji.Value > dataRealizacji.Value;
+                            }
                         }
 
                         var info = new ZamowienieInfo
@@ -265,8 +284,10 @@ namespace Kalendarz1
                             // Nowe pola do wykrywania zmian
                             DataOstatniejModyfikacji = dataOstatniejModyfikacji,
                             DataRealizacji = dataRealizacji,
+                            DataAkceptacjiMagazyn = dataAkceptacjiMagazyn,
                             CzyZrealizowane = czyZrealizowane,
-                            CzyZmodyfikowaneOdRealizacji = czyZmodyfikowane
+                            CzyZmodyfikowaneOdRealizacji = czyZmodyfikowaneProdukcja,
+                            CzyZmodyfikowaneDlaMagazynu = czyZmodyfikowaneMagazyn
                         };
 
                         _zamowienia[info.Id] = info;
@@ -603,20 +624,20 @@ namespace Kalendarz1
 
             dgvPozycje.ItemsSource = dt.DefaultView;
 
-            // Pokaż/ukryj przycisk "Przyjmuję zmianę"
-            btnAcceptChange.Visibility = info.CzyZmodyfikowaneOdRealizacji ? Visibility.Visible : Visibility.Collapsed;
+            // Pokaż/ukryj przycisk "Przyjmuję zmianę" (dla magazynu - osobna flaga)
+            btnAcceptChange.Visibility = info.CzyZmodyfikowaneDlaMagazynu ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private async void btnAcceptChange_Click(object sender, RoutedEventArgs e)
         {
             var selected = (dgvZamowienia1.SelectedItem ?? dgvZamowienia2.SelectedItem) as ZamowienieViewModel;
-            if (selected == null || !selected.Info.CzyZmodyfikowaneOdRealizacji) return;
+            if (selected == null || !selected.Info.CzyZmodyfikowaneDlaMagazynu) return;
 
             var result = MessageBox.Show(
                 $"Czy potwierdzasz, że wiesz o zmianach w zamówieniu '{selected.Info.Klient}'?\n\n" +
-                "Aktualny stan pozycji zostanie zapisany jako nowy snapshot.\n" +
-                "Ikona ⚠️ zniknie dopóki zamówienie nie zostanie ponownie zmodyfikowane.",
-                "Potwierdzenie przyjęcia zmiany",
+                "Ikona ⚠️ zniknie dopóki zamówienie nie zostanie ponownie zmodyfikowane.\n" +
+                "(Produkcja ma swoją osobną akceptację)",
+                "Potwierdzenie przyjęcia zmiany - Magazyn",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
 
@@ -627,22 +648,27 @@ namespace Kalendarz1
                 using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
 
-                // Zaktualizuj snapshot do aktualnego stanu
-                await SaveOrderSnapshotAsync(cn, selected.Info.Id, "Realizacja");
+                // Upewnij się że kolumna DataAkceptacjiMagazyn istnieje
+                var checkCmd = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'DataAkceptacjiMagazyn'", cn);
+                if ((int)await checkCmd.ExecuteScalarAsync() == 0)
+                {
+                    var addCmd = new SqlCommand("ALTER TABLE dbo.ZamowieniaMieso ADD DataAkceptacjiMagazyn DATETIME NULL", cn);
+                    await addCmd.ExecuteNonQueryAsync();
+                }
 
-                // Zaktualizuj DataRealizacji na teraz (żeby DataOstatniejModyfikacji < DataRealizacji)
-                var cmd = new SqlCommand("UPDATE dbo.ZamowieniaMieso SET DataRealizacji = GETDATE() WHERE Id = @Id", cn);
+                // Zaktualizuj DataAkceptacjiMagazyn na teraz (osobna akceptacja dla magazynu)
+                var cmd = new SqlCommand("UPDATE dbo.ZamowieniaMieso SET DataAkceptacjiMagazyn = GETDATE() WHERE Id = @Id", cn);
                 cmd.Parameters.AddWithValue("@Id", selected.Info.Id);
                 await cmd.ExecuteNonQueryAsync();
 
-                MessageBox.Show("Zmiana została przyjęta. Snapshot zaktualizowany.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Zmiana została przyjęta przez magazyn.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
 
                 // Odśwież dane
                 await ReloadAllAsync();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas aktualizacji snapshotu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Błąd podczas akceptacji zmiany:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -827,8 +853,10 @@ namespace Kalendarz1
             // Nowe pola do wykrywania zmian
             public DateTime? DataOstatniejModyfikacji { get; set; }
             public DateTime? DataRealizacji { get; set; }
+            public DateTime? DataAkceptacjiMagazyn { get; set; } // Osobna akceptacja magazynu
             public bool CzyZrealizowane { get; set; }
-            public bool CzyZmodyfikowaneOdRealizacji { get; set; }
+            public bool CzyZmodyfikowaneOdRealizacji { get; set; } // Dla produkcji
+            public bool CzyZmodyfikowaneDlaMagazynu { get; set; } // Dla magazynu - osobna flaga
         }
 
         public class ContractorInfo
@@ -850,8 +878,8 @@ namespace Kalendarz1
             public ZamowienieViewModel(ZamowienieInfo info) { Info = info; }
 
             // Klient z ikoną ciężarówki dla własnego transportu
-            // ⚠️ pokazuje się gdy zamówienie zostało zmodyfikowane od czasu realizacji
-            public string Klient => $"{(Info.CzyZmodyfikowaneOdRealizacji ? "⚠️ " : "")}{(Info.WlasnyTransport ? "🚚 " : "")}{Info.Klient}";
+            // ⚠️ pokazuje się gdy zamówienie zostało zmodyfikowane (dla magazynu - osobna flaga)
+            public string Klient => $"{(Info.CzyZmodyfikowaneDlaMagazynu ? "⚠️ " : "")}{(Info.WlasnyTransport ? "🚚 " : "")}{Info.Klient}";
             public decimal TotalIlosc => Info.TotalIlosc;
             public string Handlowiec => Info.Handlowiec;
             public string Status => Info.Status;
@@ -929,20 +957,20 @@ namespace Kalendarz1
                 }
             }
 
-            // Wyświetlanie ostatniej zmiany
+            // Wyświetlanie ostatniej zmiany (dla magazynu - osobna logika)
             public string OstatniaZmianaDisplay
             {
                 get
                 {
                     if (!Info.CzyZrealizowane) return "-";
-                    if (!Info.CzyZmodyfikowaneOdRealizacji) return "✓ OK";
+                    if (!Info.CzyZmodyfikowaneDlaMagazynu) return "✓ OK";
                     if (Info.DataOstatniejModyfikacji.HasValue)
                         return $"⚠️ {Info.DataOstatniejModyfikacji.Value:HH:mm}";
                     return "⚠️ Zmiana";
                 }
             }
 
-            public Brush ZmianaColor => Info.CzyZmodyfikowaneOdRealizacji ? Brushes.Orange : Brushes.LimeGreen;
+            public Brush ZmianaColor => Info.CzyZmodyfikowaneDlaMagazynu ? Brushes.Orange : Brushes.LimeGreen;
 
             public event PropertyChangedEventHandler PropertyChanged;
             protected void OnPropertyChanged([CallerMemberName] string propertyName = null)

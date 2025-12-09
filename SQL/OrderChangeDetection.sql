@@ -12,6 +12,14 @@ BEGIN
 END
 GO
 
+-- 1b. Dodaj kolumnę DataAkceptacjiMagazyn - osobna akceptacja dla magazynu
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'DataAkceptacjiMagazyn')
+BEGIN
+    ALTER TABLE dbo.ZamowieniaMieso ADD DataAkceptacjiMagazyn DATETIME NULL;
+    PRINT 'Dodano kolumnę DataAkceptacjiMagazyn do ZamowieniaMieso';
+END
+GO
+
 -- 2. Utwórz tabelę snapshotów pozycji zamówienia
 -- (zapisuje stan pozycji w momencie realizacji/wydania)
 IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE name = 'ZamowieniaMiesoSnapshot' AND type = 'U')
