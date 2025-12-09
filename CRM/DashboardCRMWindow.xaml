@@ -54,7 +54,6 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- HEADER z animowanym tytułem -->
         <Grid Grid.Row="0" Margin="0,0,0,24">
             <Border CornerRadius="20" Padding="28,20">
                 <Border.Background>
@@ -98,7 +97,6 @@
             </Border>
         </Grid>
 
-        <!-- STATYSTYKI GLOBALNE - 4 karty -->
         <Grid Grid.Row="1" Margin="0,0,0,20">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
@@ -107,7 +105,6 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Telefony -->
             <Border Grid.Column="0" Style="{StaticResource StatBadge}" Background="White">
                 <Grid>
                     <Border Background="#DBEAFE" CornerRadius="50" Width="70" Height="70" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-5,-5,0,0" Opacity="0.5"/>
@@ -117,7 +114,7 @@
                                 <TextBlock Text="📞" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                             <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="TELEFONY" FontSize="11" FontWeight="Bold" Foreground="#64748B" CharacterSpacing="50"/>
+                                <TextBlock Text="TELEFONY" FontSize="11" FontWeight="Bold" Foreground="#64748B"/>
                                 <TextBlock x:Name="txtTelefonyTotal" Text="0" FontSize="36" FontWeight="Bold" Foreground="#1E40AF" Margin="0,-4,0,0"/>
                             </StackPanel>
                         </StackPanel>
@@ -126,7 +123,6 @@
                 </Grid>
             </Border>
 
-            <!-- Zmiany statusów -->
             <Border Grid.Column="1" Style="{StaticResource StatBadge}" Background="White">
                 <Grid>
                     <Border Background="#EDE9FE" CornerRadius="50" Width="70" Height="70" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-5,-5,0,0" Opacity="0.5"/>
@@ -136,7 +132,7 @@
                                 <TextBlock Text="🔄" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                             <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="STATUSY" FontSize="11" FontWeight="Bold" Foreground="#64748B" CharacterSpacing="50"/>
+                                <TextBlock Text="STATUSY" FontSize="11" FontWeight="Bold" Foreground="#64748B"/>
                                 <TextBlock x:Name="txtStatusyTotal" Text="0" FontSize="36" FontWeight="Bold" Foreground="#5B21B6" Margin="0,-4,0,0"/>
                             </StackPanel>
                         </StackPanel>
@@ -145,7 +141,6 @@
                 </Grid>
             </Border>
 
-            <!-- Notatki -->
             <Border Grid.Column="2" Style="{StaticResource StatBadge}" Background="White">
                 <Grid>
                     <Border Background="#FEF3C7" CornerRadius="50" Width="70" Height="70" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-5,-5,0,0" Opacity="0.5"/>
@@ -155,7 +150,7 @@
                                 <TextBlock Text="📝" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                             <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="NOTATKI" FontSize="11" FontWeight="Bold" Foreground="#64748B" CharacterSpacing="50"/>
+                                <TextBlock Text="NOTATKI" FontSize="11" FontWeight="Bold" Foreground="#64748B"/>
                                 <TextBlock x:Name="txtNotatkiTotal" Text="0" FontSize="36" FontWeight="Bold" Foreground="#B45309" Margin="0,-4,0,0"/>
                             </StackPanel>
                         </StackPanel>
@@ -164,7 +159,6 @@
                 </Grid>
             </Border>
 
-            <!-- Łączna aktywność -->
             <Border Grid.Column="3" Style="{StaticResource StatBadge}" Margin="0">
                 <Border.Background>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
@@ -179,7 +173,7 @@
                                 <TextBlock Text="⚡" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                             <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="RAZEM" FontSize="11" FontWeight="Bold" Foreground="#166534" CharacterSpacing="50"/>
+                                <TextBlock Text="RAZEM" FontSize="11" FontWeight="Bold" Foreground="#166534"/>
                                 <TextBlock x:Name="txtAktywnoscTotal" Text="0" FontSize="36" FontWeight="Bold" Foreground="#166534" Margin="0,-4,0,0"/>
                             </StackPanel>
                         </StackPanel>
@@ -189,7 +183,6 @@
             </Border>
         </Grid>
 
-        <!-- GŁÓWNA ZAWARTOŚĆ -->
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
@@ -200,7 +193,6 @@
                 <RowDefinition Height="220"/>
             </Grid.RowDefinitions>
 
-            <!-- WYKRES LINIOWY - TRENDY MIESIĘCZNE -->
             <Border Grid.Column="0" Grid.Row="0" Style="{StaticResource CardStyle}" Margin="0,0,16,16">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -215,16 +207,12 @@
                         <TextBlock Text=" - aktywność zespołu w czasie" FontSize="14" Foreground="{StaticResource TextGray}" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
                     </StackPanel>
 
-                    <!-- Wykres liniowy -->
                     <Grid Grid.Row="1" Margin="40,10,20,30">
                         <Canvas x:Name="canvasWykres" Background="Transparent" ClipToBounds="True"/>
-                        <!-- Etykiety osi Y -->
                         <StackPanel x:Name="panelOsY" Orientation="Vertical" HorizontalAlignment="Left" Margin="-40,0,0,0"/>
-                        <!-- Etykiety osi X -->
                         <StackPanel x:Name="panelOsX" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,-25"/>
                     </Grid>
 
-                    <!-- Legenda -->
                     <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
                         <StackPanel Orientation="Horizontal" Margin="0,0,30,0">
                             <Border Background="#3B82F6" Width="24" Height="4" CornerRadius="2" VerticalAlignment="Center"/>
@@ -245,7 +233,6 @@
                 </Grid>
             </Border>
 
-            <!-- RANKING HANDLOWCÓW -->
             <Border Grid.Column="1" Grid.Row="0" Grid.RowSpan="2" Style="{StaticResource CardStyle}">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -259,7 +246,6 @@
                         <TextBlock Text="Ranking zespołu" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextDark}"/>
                     </StackPanel>
 
-                    <!-- PODIUM TOP 3 -->
                     <Grid Grid.Row="1" Margin="0,0,0,20" Height="140">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -267,7 +253,6 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
-                        <!-- 2 miejsce -->
                         <StackPanel Grid.Column="0" VerticalAlignment="Bottom" HorizontalAlignment="Center">
                             <TextBlock x:Name="txtTop2Nazwa" Text="-" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextDark}" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90"/>
                             <TextBlock x:Name="txtTop2Punkty" Text="0" FontSize="16" FontWeight="Bold" Foreground="#64748B" HorizontalAlignment="Center"/>
@@ -276,7 +261,6 @@
                             </Border>
                         </StackPanel>
 
-                        <!-- 1 miejsce -->
                         <StackPanel Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Center">
                             <TextBlock x:Name="txtTop1Nazwa" Text="-" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextDark}" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90"/>
                             <TextBlock x:Name="txtTop1Punkty" Text="0" FontSize="18" FontWeight="Bold" Foreground="#16A34A" HorizontalAlignment="Center"/>
@@ -291,7 +275,6 @@
                             </Border>
                         </StackPanel>
 
-                        <!-- 3 miejsce -->
                         <StackPanel Grid.Column="2" VerticalAlignment="Bottom" HorizontalAlignment="Center">
                             <TextBlock x:Name="txtTop3Nazwa" Text="-" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextDark}" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90"/>
                             <TextBlock x:Name="txtTop3Punkty" Text="0" FontSize="16" FontWeight="Bold" Foreground="#92400E" HorizontalAlignment="Center"/>
@@ -301,7 +284,6 @@
                         </StackPanel>
                     </Grid>
 
-                    <!-- Lista pozostałych -->
                     <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                         <ItemsControl x:Name="listaHandlowcy">
                             <ItemsControl.ItemTemplate>
@@ -347,7 +329,6 @@
                 </Grid>
             </Border>
 
-            <!-- AKTYWNOŚĆ OSTATNICH DNI - dolny panel -->
             <Border Grid.Column="0" Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,16,0">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -373,7 +354,6 @@
                                         <TextBlock Text="{Binding DzienSkrot}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextGray}" HorizontalAlignment="Center"/>
                                         <TextBlock Text="{Binding Data}" FontSize="10" Foreground="{StaticResource TextGray}" HorizontalAlignment="Center" Margin="0,2,0,8"/>
 
-                                        <!-- Słupki pionowe -->
                                         <Grid Height="80" Width="50">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
