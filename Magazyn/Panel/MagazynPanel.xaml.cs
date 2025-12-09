@@ -22,6 +22,8 @@ namespace Kalendarz1
         private readonly string _connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private readonly string _connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
 
+        private static bool? _dataAkceptacjiMagazynColumnExists = null;
+
         public string UserID { get; set; } = "Magazynier";
         private DateTime _selectedDate = DateTime.Today;
         private DispatcherTimer refreshTimer;
@@ -209,6 +211,18 @@ namespace Kalendarz1
             await LoadOrdersAsync();
         }
 
+        private async Task<bool> CheckDataAkceptacjiMagazynColumnExistsAsync(SqlConnection cn)
+        {
+            if (_dataAkceptacjiMagazynColumnExists.HasValue)
+                return _dataAkceptacjiMagazynColumnExists.Value;
+
+            string checkSql = @"SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'DataAkceptacjiMagazyn'";
+            using var cmd = new SqlCommand(checkSql, cn);
+            var result = await cmd.ExecuteScalarAsync();
+            _dataAkceptacjiMagazynColumnExists = result != null;
+            return _dataAkceptacjiMagazynColumnExists.Value;
+        }
+
         private async Task LoadOrdersAsync()
         {
             _zamowienia.Clear();
@@ -223,13 +237,18 @@ namespace Kalendarz1
                 {
                     await cn.OpenAsync();
 
-                    string sql = @"SELECT z.Id, z.KlientId, ISNULL(z.Uwagi,'') AS Uwagi, ISNULL(z.Status,'Nowe') AS Status,
+                    // Sprawdź czy kolumna DataAkceptacjiMagazyn istnieje
+                    bool hasAkceptacjaColumn = await CheckDataAkceptacjiMagazynColumnExistsAsync(cn);
+
+                    string akceptacjaColumn = hasAkceptacjaColumn ? "z.DataAkceptacjiMagazyn" : "NULL AS DataAkceptacjiMagazyn";
+
+                    string sql = $@"SELECT z.Id, z.KlientId, ISNULL(z.Uwagi,'') AS Uwagi, ISNULL(z.Status,'Nowe') AS Status,
                                   (SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id) AS TotalIlosc,
                                   z.DataUtworzenia, z.TransportKursID, z.DataWydania, ISNULL(z.KtoWydal, '') AS KtoWydal,
                                   CAST(CASE WHEN z.TransportStatus = 'Wlasny' THEN 1 ELSE 0 END AS BIT) AS WlasnyTransport,
                                   z.DataPrzyjazdu,
                                   z.DataOstatniejModyfikacji, z.DataRealizacji, ISNULL(z.CzyZrealizowane, 0) AS CzyZrealizowane,
-                                  z.DataAkceptacjiMagazyn
+                                  {akceptacjaColumn}
                                   FROM dbo.ZamowieniaMieso z
                                   WHERE z.DataUboju=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')";
 
@@ -654,6 +673,8 @@ namespace Kalendarz1
                 {
                     var addCmd = new SqlCommand("ALTER TABLE dbo.ZamowieniaMieso ADD DataAkceptacjiMagazyn DATETIME NULL", cn);
                     await addCmd.ExecuteNonQueryAsync();
+                    // Zresetuj cache po utworzeniu kolumny
+                    _dataAkceptacjiMagazynColumnExists = true;
                 }
 
                 // Zaktualizuj DataAkceptacjiMagazyn na teraz (osobna akceptacja dla magazynu)
