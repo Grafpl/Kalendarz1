@@ -175,7 +175,8 @@
                     </StackPanel>
 
                     <Button Content="📊 Kanban" Style="{StaticResource BtnIcon}" Click="BtnKanban_Click"/>
-                    <Button x:Name="btnManager" Content="📈 Szef" Style="{StaticResource BtnIcon}" Click="BtnManager_Click" Foreground="{StaticResource DangerColor}" FontWeight="Bold"/>
+                    <Button Content="📈 Dashboard" Style="{StaticResource BtnIcon}" Click="BtnDashboard_Click" Foreground="#2563EB" FontWeight="SemiBold"/>
+                    <Button x:Name="btnManager" Content="👔 Szef" Style="{StaticResource BtnIcon}" Click="BtnManager_Click" Foreground="{StaticResource DangerColor}" FontWeight="Bold"/>
                     <Button Content="🗺️ Mapa" Style="{StaticResource BtnIcon}" Click="BtnMapa_Click"/>
                     <Button x:Name="btnAdmin" Content="⚙️" Style="{StaticResource BtnIcon}" Click="BtnAdmin_Click" Visibility="Collapsed"/>
 
