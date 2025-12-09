@@ -1,0 +1,126 @@
+<Window x:Class="HandlowiecDashboard.Views.KontrahentOpakowaniaWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Dokumenty opakowan kontrahenta"
+        Height="700" Width="1100"
+        WindowStartupLocation="CenterOwner"
+        WindowState="Maximized"
+        Background="#1A1D21">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="CardBackgroundBrush" Color="#21262D"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#E6EDF3"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#8B949E"/>
+        <SolidColorBrush x:Key="AccentOrangeBrush" Color="#F4A261"/>
+        <SolidColorBrush x:Key="AccentTealBrush" Color="#4ECDC4"/>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Naglowek -->
+        <Border Grid.Row="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="20" Margin="0,0,0,15">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock x:Name="txtKontrahent" Text="Kontrahent" FontSize="20" FontWeight="Bold" Foreground="{StaticResource AccentOrangeBrush}"/>
+                    <TextBlock x:Name="txtHandlowiec" Text="Handlowiec: -" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,5,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Margin="30,0">
+                    <TextBlock Text="SALDO E2" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
+                    <TextBlock x:Name="txtSaldoE2" Text="0" FontSize="24" FontWeight="Bold" Foreground="{StaticResource AccentTealBrush}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Margin="30,0">
+                    <TextBlock Text="SALDO H1" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
+                    <TextBlock x:Name="txtSaldoH1" Text="0" FontSize="24" FontWeight="Bold" Foreground="{StaticResource AccentOrangeBrush}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="3" Margin="30,0,0,0">
+                    <TextBlock Text="DOKUMENTOW" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
+                    <TextBlock x:Name="txtLiczbaDokumentow" Text="0" FontSize="24" FontWeight="Bold" Foreground="#FFFFFF"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Filtry -->
+        <Border Grid.Row="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="15,10" Margin="0,0,0,15">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Rok:" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <ComboBox x:Name="cmbRok" Width="100" SelectionChanged="CmbRok_SelectionChanged"/>
+                <TextBlock Text="Typ:" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="20,0,8,0"/>
+                <ComboBox x:Name="cmbTyp" Width="150" SelectionChanged="CmbTyp_SelectionChanged"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Tabela dokumentow -->
+        <Border Grid.Row="2" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="15">
+            <DataGrid x:Name="gridDokumenty" AutoGenerateColumns="False" IsReadOnly="True"
+                      Background="Transparent" BorderThickness="0"
+                      RowBackground="#252A31" AlternatingRowBackground="#2D333B"
+                      Foreground="#FFFFFF" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#30363D"
+                      HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False">
+                <DataGrid.ColumnHeaderStyle>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background" Value="#1A1D21"/>
+                        <Setter Property="Foreground" Value="#F4A261"/>
+                        <Setter Property="Padding" Value="10,8"/>
+                        <Setter Property="FontWeight" Value="Bold"/>
+                        <Setter Property="BorderThickness" Value="0,0,0,2"/>
+                        <Setter Property="BorderBrush" Value="#30363D"/>
+                    </Style>
+                </DataGrid.ColumnHeaderStyle>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat=yyyy-MM-dd}" Width="100"/>
+                    <DataGridTextColumn Header="Nr dokumentu" Binding="{Binding NrDokumentu}" Width="150"/>
+                    <DataGridTextColumn Header="Typ" Binding="{Binding Typ}" Width="80"/>
+                    <DataGridTextColumn Header="Opakowanie" Binding="{Binding Opakowanie}" Width="180"/>
+                    <DataGridTextColumn Header="Ilosc" Binding="{Binding Ilosc, StringFormat=N0}" Width="80">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IloscDodatnia}" Value="True">
+                                        <Setter Property="Foreground" Value="#FF6B6B"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IloscDodatnia}" Value="False">
+                                        <Setter Property="Foreground" Value="#4ECDC4"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Saldo E2" Binding="{Binding SaldoE2, StringFormat=N0}" Width="80">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="Foreground" Value="#4ECDC4"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Saldo H1" Binding="{Binding SaldoH1, StringFormat=N0}" Width="80">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="Foreground" Value="#F4A261"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+    </Grid>
+</Window>

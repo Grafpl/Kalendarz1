@@ -557,358 +557,148 @@
                 </Border>
             </TabItem>
 
-            <!-- Tab: Saldo opakowan -->
+            <!-- Tab: Saldo opakowan - styl Power BI -->
             <TabItem Header="Saldo opakowan">
                 <Border Background="{StaticResource CardBackgroundLightBrush}" CornerRadius="0,8,8,8">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <Grid Margin="10">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
+                    <Grid Margin="10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="220"/>
+                        </Grid.RowDefinitions>
 
-                            <!-- Filtry -->
-                            <Border Grid.Row="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="15,10" Margin="0,0,0,10">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Handlowiec:" Style="{StaticResource FilterLabelStyle}"/>
-                                    <ComboBox x:Name="cmbHandlowiecOpak" Style="{StaticResource DarkComboBoxStyle}" Width="150" SelectionChanged="CmbOpakowania_SelectionChanged"/>
-                                    <TextBlock Text="Saldo opakowan - Pojemniki E2 i Palety H1 (dodatnie = u klienta, ujemne = u nas)" Style="{StaticResource DescriptionStyle}" Margin="20,0,0,0"/>
-                                </StackPanel>
-                            </Border>
+                        <!-- Filtry -->
+                        <Border Grid.Row="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="15,10" Margin="0,0,0,10">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Handlowiec:" Style="{StaticResource FilterLabelStyle}"/>
+                                <ComboBox x:Name="cmbHandlowiecOpak" Style="{StaticResource DarkComboBoxStyle}" Width="150" SelectionChanged="CmbOpakowania_SelectionChanged"/>
+                                <TextBlock Text="Tydzien:" Style="{StaticResource FilterLabelStyle}" Margin="20,0,8,0"/>
+                                <ComboBox x:Name="cmbTydzienOpak" Style="{StaticResource DarkComboBoxStyle}" Width="180" SelectionChanged="CmbOpakowania_SelectionChanged"/>
+                                <TextBlock x:Name="txtOpakWybranyKontrahent" Text="" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentOrangeBrush}" VerticalAlignment="Center" Margin="30,0,0,0"/>
+                                <TextBlock Text="Kliknij 2x na wykresie aby zobaczyc dokumenty kontrahenta" Style="{StaticResource DescriptionStyle}" Margin="20,0,0,0"/>
+                            </StackPanel>
+                        </Border>
 
-                            <!-- Glowne karty statystyk - 6 kart -->
-                            <Grid Grid.Row="1" Margin="0,0,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
+                        <!-- Gorny panel - dwa wykresy slupkowe poziome -->
+                        <Grid Grid.Row="1" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
 
-                                <!-- Karta: Aktualne saldo E2 -->
-                                <Border Grid.Column="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="0,0,5,0">
-                                    <StackPanel>
-                                        <TextBlock Text="POJEMNIKI E2" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
-                                        <TextBlock x:Name="txtOpakE2Aktualne" Text="0" FontSize="20" FontWeight="Bold" Foreground="#4ECDC4" Margin="0,3,0,0"/>
-                                        <TextBlock x:Name="txtOpakE2Zmiana" Text="vs niedz: 0" FontSize="10" Foreground="#8B949E" Margin="0,3,0,0"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Karta: Aktualne saldo H1 -->
-                                <Border Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,5,0">
-                                    <StackPanel>
-                                        <TextBlock Text="PALETY H1" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
-                                        <TextBlock x:Name="txtOpakH1Aktualne" Text="0" FontSize="20" FontWeight="Bold" Foreground="#F4A261" Margin="0,3,0,0"/>
-                                        <TextBlock x:Name="txtOpakH1Zmiana" Text="vs niedz: 0" FontSize="10" Foreground="#8B949E" Margin="0,3,0,0"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Karta: Razem saldo -->
-                                <Border Grid.Column="2" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,5,0">
-                                    <StackPanel>
-                                        <TextBlock Text="RAZEM SALDO" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
-                                        <TextBlock x:Name="txtOpakRazemAktualne" Text="0" FontSize="20" FontWeight="Bold" Foreground="#FFFFFF" Margin="0,3,0,0"/>
-                                        <TextBlock x:Name="txtOpakRazemZmiana" Text="vs niedz: 0" FontSize="10" Foreground="#8B949E" Margin="0,3,0,0"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Karta: Liczba kontrahentow z saldem -->
-                                <Border Grid.Column="3" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,5,0">
-                                    <StackPanel>
-                                        <TextBlock Text="KONTRAHENTOW" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
-                                        <TextBlock x:Name="txtOpakLiczbaKontrahentow" Text="0" FontSize="20" FontWeight="Bold" Foreground="#AA96DA" Margin="0,3,0,0"/>
-                                        <TextBlock x:Name="txtOpakKontrahenciInfo" Text="z saldem opakowan" FontSize="10" Foreground="#8B949E" Margin="0,3,0,0"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Karta: Ostatnia niedziela -->
-                                <Border Grid.Column="4" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,5,0">
-                                    <StackPanel>
-                                        <TextBlock x:Name="txtOpakOstatniaNiedzielaData" Text="NIEDZIELA" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
-                                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
-                                            <TextBlock x:Name="txtOpakE2Niedziela1" Text="0" FontSize="14" FontWeight="Bold" Foreground="#4ECDC4"/>
-                                            <TextBlock Text=" / " FontSize="14" Foreground="#8B949E"/>
-                                            <TextBlock x:Name="txtOpakH1Niedziela1" Text="0" FontSize="14" FontWeight="Bold" Foreground="#F4A261"/>
-                                        </StackPanel>
-                                        <TextBlock x:Name="txtOpakRazemNiedziela1" Text="Razem: 0" FontSize="10" Foreground="#8B949E" Margin="0,3,0,0"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Karta: Poprzednia niedziela -->
-                                <Border Grid.Column="5" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,0,0">
-                                    <StackPanel>
-                                        <TextBlock x:Name="txtOpakPoprzedniaNiedzielaData" Text="NIEDZIELA" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold"/>
-                                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
-                                            <TextBlock x:Name="txtOpakE2Niedziela2" Text="0" FontSize="14" FontWeight="Bold" Foreground="#4ECDC4"/>
-                                            <TextBlock Text=" / " FontSize="14" Foreground="#8B949E"/>
-                                            <TextBlock x:Name="txtOpakH1Niedziela2" Text="0" FontSize="14" FontWeight="Bold" Foreground="#F4A261"/>
-                                        </StackPanel>
-                                        <TextBlock x:Name="txtOpakRazemNiedziela2" Text="Razem: 0" FontSize="10" Foreground="#8B949E" Margin="0,3,0,0"/>
-                                    </StackPanel>
-                                </Border>
-                            </Grid>
-
-                            <!-- Sekcja alertow - kontrahenci z duzym wzrostem salda -->
-                            <Border Grid.Row="2" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="15" Margin="0,0,0,10">
+                            <!-- Wykres slupkowy E2 per kontrahent -->
+                            <Border Grid.Column="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="0,0,5,0">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
-                                    <TextBlock Grid.Row="0" Text="PODZIAL SALDA (dodatnie = u klienta, ujemne = do odebrania)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold" Margin="0,0,0,10"/>
-                                    <Grid Grid.Row="1">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-
-                                        <!-- U klienta E2 -->
-                                        <Border Grid.Column="0" Background="#1A1D21" CornerRadius="5" Padding="12" Margin="0,0,5,0">
-                                            <StackPanel HorizontalAlignment="Center">
-                                                <TextBlock Text="E2 U KLIENTA" FontSize="10" Foreground="#4ECDC4" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                                <TextBlock x:Name="txtOpakE2Dodatnie" Text="0" FontSize="18" FontWeight="Bold" Foreground="#4ECDC4" HorizontalAlignment="Center" Margin="0,5,0,0"/>
-                                                <TextBlock x:Name="txtOpakE2DodatnieInfo" Text="0 kontr." FontSize="10" Foreground="#8B949E" HorizontalAlignment="Center" Margin="0,3,0,0"/>
-                                            </StackPanel>
-                                        </Border>
-
-                                        <!-- Do odebrania E2 -->
-                                        <Border Grid.Column="1" Background="#1A1D21" CornerRadius="5" Padding="12" Margin="5,0,5,0">
-                                            <StackPanel HorizontalAlignment="Center">
-                                                <TextBlock Text="E2 DO ODEBRANIA" FontSize="10" Foreground="#FF6B6B" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                                <TextBlock x:Name="txtOpakE2Ujemne" Text="0" FontSize="18" FontWeight="Bold" Foreground="#FF6B6B" HorizontalAlignment="Center" Margin="0,5,0,0"/>
-                                                <TextBlock x:Name="txtOpakE2UjemneInfo" Text="0 kontr." FontSize="10" Foreground="#8B949E" HorizontalAlignment="Center" Margin="0,3,0,0"/>
-                                            </StackPanel>
-                                        </Border>
-
-                                        <!-- U klienta H1 -->
-                                        <Border Grid.Column="2" Background="#1A1D21" CornerRadius="5" Padding="12" Margin="5,0,5,0">
-                                            <StackPanel HorizontalAlignment="Center">
-                                                <TextBlock Text="H1 U KLIENTA" FontSize="10" Foreground="#F4A261" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                                <TextBlock x:Name="txtOpakH1Dodatnie" Text="0" FontSize="18" FontWeight="Bold" Foreground="#F4A261" HorizontalAlignment="Center" Margin="0,5,0,0"/>
-                                                <TextBlock x:Name="txtOpakH1DodatnieInfo" Text="0 kontr." FontSize="10" Foreground="#8B949E" HorizontalAlignment="Center" Margin="0,3,0,0"/>
-                                            </StackPanel>
-                                        </Border>
-
-                                        <!-- Do odebrania H1 -->
-                                        <Border Grid.Column="3" Background="#1A1D21" CornerRadius="5" Padding="12" Margin="5,0,0,0">
-                                            <StackPanel HorizontalAlignment="Center">
-                                                <TextBlock Text="H1 DO ODEBRANIA" FontSize="10" Foreground="#FF6B6B" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                                <TextBlock x:Name="txtOpakH1Ujemne" Text="0" FontSize="18" FontWeight="Bold" Foreground="#FF6B6B" HorizontalAlignment="Center" Margin="0,5,0,0"/>
-                                                <TextBlock x:Name="txtOpakH1UjemneInfo" Text="0 kontr." FontSize="10" Foreground="#8B949E" HorizontalAlignment="Center" Margin="0,3,0,0"/>
-                                            </StackPanel>
-                                        </Border>
-                                    </Grid>
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5,0,0,5">
+                                        <TextBlock Text="Saldo E2 wg Kontrahenta" FontSize="12" FontWeight="Bold" Foreground="#4ECDC4"/>
+                                        <TextBlock x:Name="txtOpakE2Suma" Text="" FontSize="11" Foreground="#8B949E" Margin="15,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <lvc:CartesianChart Grid.Row="1" x:Name="chartOpakowaniaE2" Margin="0" DataClick="ChartOpakowaniaE2_DataClick">
+                                        <lvc:CartesianChart.AxisX>
+                                            <lvc:Axis x:Name="axisXOpakE2" Title="" MinValue="0" Foreground="#FFFFFF" FontSize="9">
+                                                <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
+                                            </lvc:Axis>
+                                        </lvc:CartesianChart.AxisX>
+                                        <lvc:CartesianChart.AxisY>
+                                            <lvc:Axis x:Name="axisYOpakE2" ShowLabels="True" FontSize="10" Foreground="#FFFFFF">
+                                                <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
+                                            </lvc:Axis>
+                                        </lvc:CartesianChart.AxisY>
+                                    </lvc:CartesianChart>
                                 </Grid>
                             </Border>
 
-                            <!-- Wykres + Top 5 panele -->
-                            <Grid Grid.Row="3" Margin="0,0,0,10" Height="200">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="240"/>
-                                    <ColumnDefinition Width="240"/>
-                                    <ColumnDefinition Width="240"/>
-                                </Grid.ColumnDefinitions>
-
-                                <!-- Wykres slupkowy historii 4 tygodni -->
-                                <Border Grid.Column="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="0,0,5,0">
-                                    <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="*"/>
-                                        </Grid.RowDefinitions>
-                                        <TextBlock Grid.Row="0" Text="HISTORIA OSTATNICH 4 TYGODNI" FontSize="10" Foreground="{StaticResource AccentOrangeBrush}" FontWeight="Bold" Margin="5,0,0,5"/>
-                                        <Grid Grid.Row="1">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <lvc:CartesianChart Grid.Column="0" x:Name="chartOpakowaniaE2" Margin="0">
-                                                <lvc:CartesianChart.AxisX>
-                                                    <lvc:Axis x:Name="axisXOpakE2" ShowLabels="True" FontSize="9" Foreground="#FFFFFF">
-                                                        <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
-                                                    </lvc:Axis>
-                                                </lvc:CartesianChart.AxisX>
-                                                <lvc:CartesianChart.AxisY>
-                                                    <lvc:Axis x:Name="axisYOpakE2" Title="E2" Foreground="#4ECDC4" FontSize="9" MinValue="0">
-                                                        <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
-                                                    </lvc:Axis>
-                                                </lvc:CartesianChart.AxisY>
-                                            </lvc:CartesianChart>
-                                            <lvc:CartesianChart Grid.Column="1" x:Name="chartOpakowaniaH1" Margin="0">
-                                                <lvc:CartesianChart.AxisX>
-                                                    <lvc:Axis x:Name="axisXOpakH1" ShowLabels="True" FontSize="9" Foreground="#FFFFFF">
-                                                        <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
-                                                    </lvc:Axis>
-                                                </lvc:CartesianChart.AxisX>
-                                                <lvc:CartesianChart.AxisY>
-                                                    <lvc:Axis x:Name="axisYOpakH1" Title="H1" Foreground="#F4A261" FontSize="9" MinValue="0">
-                                                        <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
-                                                    </lvc:Axis>
-                                                </lvc:CartesianChart.AxisY>
-                                            </lvc:CartesianChart>
-                                        </Grid>
-                                    </Grid>
-                                </Border>
-
-                                <!-- Panel Top 5 E2 -->
-                                <Border Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,5,0">
-                                    <StackPanel>
-                                        <TextBlock Text="TOP 5 SALDO E2" FontSize="10" Foreground="#4ECDC4" FontWeight="Bold" Margin="0,0,0,8"/>
-                                        <StackPanel x:Name="panelTopE2"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Panel Top 5 H1 -->
-                                <Border Grid.Column="2" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,5,0">
-                                    <StackPanel>
-                                        <TextBlock Text="TOP 5 SALDO H1" FontSize="10" Foreground="#F4A261" FontWeight="Bold" Margin="0,0,0,8"/>
-                                        <StackPanel x:Name="panelTopH1"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Panel Top 5 wzrost tygodniowy -->
-                                <Border Grid.Column="3" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,0,0">
-                                    <StackPanel>
-                                        <TextBlock Text="TOP 5 WZROST TYDZIEN" FontSize="10" Foreground="#FF6B6B" FontWeight="Bold" Margin="0,0,0,8"/>
-                                        <StackPanel x:Name="panelTopWzrost"/>
-                                    </StackPanel>
-                                </Border>
-                            </Grid>
-
-                            <!-- Podsumowanie per handlowiec -->
-                            <Border Grid.Row="4" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="0,0,0,10">
+                            <!-- Wykres slupkowy H1 per kontrahent -->
+                            <Border Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="5,0,0,0">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
-                                    <TextBlock Grid.Row="0" Text="SALDO WG HANDLOWCOW" FontSize="10" Foreground="{StaticResource AccentOrangeBrush}" FontWeight="Bold" Margin="5,0,0,8"/>
-                                    <ItemsControl Grid.Row="1" x:Name="panelHandlowcyOpak">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <WrapPanel Orientation="Horizontal"/>
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                    </ItemsControl>
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5,0,0,5">
+                                        <TextBlock Text="Saldo H1 wg Kontrahenta" FontSize="12" FontWeight="Bold" Foreground="#F4A261"/>
+                                        <TextBlock x:Name="txtOpakH1Suma" Text="" FontSize="11" Foreground="#8B949E" Margin="15,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <lvc:CartesianChart Grid.Row="1" x:Name="chartOpakowaniaH1" Margin="0" DataClick="ChartOpakowaniaH1_DataClick">
+                                        <lvc:CartesianChart.AxisX>
+                                            <lvc:Axis x:Name="axisXOpakH1" Title="" MinValue="0" Foreground="#FFFFFF" FontSize="9">
+                                                <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
+                                            </lvc:Axis>
+                                        </lvc:CartesianChart.AxisX>
+                                        <lvc:CartesianChart.AxisY>
+                                            <lvc:Axis x:Name="axisYOpakH1" ShowLabels="True" FontSize="10" Foreground="#FFFFFF">
+                                                <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
+                                            </lvc:Axis>
+                                        </lvc:CartesianChart.AxisY>
+                                    </lvc:CartesianChart>
                                 </Grid>
                             </Border>
-
-                            <!-- Tabela ze szczegolami -->
-                            <DataGrid Grid.Row="5" x:Name="gridOpakowania" AutoGenerateColumns="False" IsReadOnly="True"
-                                      Background="Transparent" BorderThickness="0"
-                                      RowBackground="#252A31" AlternatingRowBackground="#2D333B"
-                                      Foreground="#FFFFFF" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#30363D"
-                                      HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False">
-                                <DataGrid.RowStyle>
-                                    <Style TargetType="DataGridRow">
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding DuzyWzrostAlert}" Value="True">
-                                                <Setter Property="Background" Value="#3D2A2A"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </DataGrid.RowStyle>
-                                <DataGrid.ColumnHeaderStyle>
-                                    <Style TargetType="DataGridColumnHeader">
-                                        <Setter Property="Background" Value="#1A1D21"/>
-                                        <Setter Property="Foreground" Value="#F4A261"/>
-                                        <Setter Property="Padding" Value="8,6"/>
-                                        <Setter Property="FontWeight" Value="Bold"/>
-                                        <Setter Property="FontSize" Value="11"/>
-                                        <Setter Property="BorderThickness" Value="0,0,0,2"/>
-                                        <Setter Property="BorderBrush" Value="#30363D"/>
-                                    </Style>
-                                </DataGrid.ColumnHeaderStyle>
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Kontrahent" Binding="{Binding Kontrahent}" Width="180"/>
-                                    <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="100"/>
-                                    <DataGridTextColumn Header="E2 Teraz" Binding="{Binding PojemnikiE2Tekst}" Width="80">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Setter Property="Foreground" Value="#4ECDC4"/>
-                                                <Setter Property="FontWeight" Value="Bold"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="E2 Zm.Tydz" Binding="{Binding ZmianaE2TydzienTekst}" Width="80">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding ZmianaE2TydzienAlert}" Value="True">
-                                                        <Setter Property="Foreground" Value="#FF6B6B"/>
-                                                        <Setter Property="FontWeight" Value="Bold"/>
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding ZmianaE2TydzienGood}" Value="True">
-                                                        <Setter Property="Foreground" Value="#4ECDC4"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="H1 Teraz" Binding="{Binding PaletaH1Tekst}" Width="80">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Setter Property="Foreground" Value="#F4A261"/>
-                                                <Setter Property="FontWeight" Value="Bold"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="H1 Zm.Tydz" Binding="{Binding ZmianaH1TydzienTekst}" Width="80">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding ZmianaH1TydzienAlert}" Value="True">
-                                                        <Setter Property="Foreground" Value="#FF6B6B"/>
-                                                        <Setter Property="FontWeight" Value="Bold"/>
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding ZmianaH1TydzienGood}" Value="True">
-                                                        <Setter Property="Foreground" Value="#4ECDC4"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Razem" Binding="{Binding RazemTekst}" Width="80">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Setter Property="FontWeight" Value="Bold"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Zm. Razem" Binding="{Binding ZmianaRazemTekst}" Width="80">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding DuzyWzrostAlert}" Value="True">
-                                                        <Setter Property="Foreground" Value="#FF6B6B"/>
-                                                        <Setter Property="FontWeight" Value="Bold"/>
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding DuzySpadekGood}" Value="True">
-                                                        <Setter Property="Foreground" Value="#4ECDC4"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                </DataGrid.Columns>
-                            </DataGrid>
                         </Grid>
-                    </ScrollViewer>
+
+                        <!-- Dolny panel - dwa wykresy liniowe tygodniowe -->
+                        <Grid Grid.Row="2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Wykres liniowy E2 - historia tygodniowa wybranego kontrahenta -->
+                            <Border Grid.Column="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="0,0,5,0">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5,0,0,5">
+                                        <TextBlock Text="Ilosc pojemnikow E2 ktore 'wisza' nam odbiorcy w tygodniach" FontSize="10" Foreground="#4ECDC4" FontWeight="Bold"/>
+                                        <TextBlock x:Name="txtOpakE2TrendKontrahent" Text="" FontSize="10" Foreground="#F4A261" FontWeight="Bold" Margin="10,0,0,0"/>
+                                    </StackPanel>
+                                    <lvc:CartesianChart Grid.Row="1" x:Name="chartOpakTrendE2" Margin="0">
+                                        <lvc:CartesianChart.AxisX>
+                                            <lvc:Axis x:Name="axisXOpakTrendE2" ShowLabels="True" FontSize="9" Foreground="#FFFFFF" LabelsRotation="0">
+                                                <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
+                                            </lvc:Axis>
+                                        </lvc:CartesianChart.AxisX>
+                                        <lvc:CartesianChart.AxisY>
+                                            <lvc:Axis x:Name="axisYOpakTrendE2" Title="" Foreground="#4ECDC4" FontSize="9" MinValue="0">
+                                                <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
+                                            </lvc:Axis>
+                                        </lvc:CartesianChart.AxisY>
+                                    </lvc:CartesianChart>
+                                </Grid>
+                            </Border>
+
+                            <!-- Wykres liniowy H1 - historia tygodniowa wybranego kontrahenta -->
+                            <Border Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="5,0,0,0">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5,0,0,5">
+                                        <TextBlock Text="Ilosc pojemnikow H1 ktore 'wisza' nam odbiorcy w tygodniach" FontSize="10" Foreground="#F4A261" FontWeight="Bold"/>
+                                        <TextBlock x:Name="txtOpakH1TrendKontrahent" Text="" FontSize="10" Foreground="#F4A261" FontWeight="Bold" Margin="10,0,0,0"/>
+                                    </StackPanel>
+                                    <lvc:CartesianChart Grid.Row="1" x:Name="chartOpakTrendH1" Margin="0">
+                                        <lvc:CartesianChart.AxisX>
+                                            <lvc:Axis x:Name="axisXOpakTrendH1" ShowLabels="True" FontSize="9" Foreground="#FFFFFF" LabelsRotation="0">
+                                                <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
+                                            </lvc:Axis>
+                                        </lvc:CartesianChart.AxisX>
+                                        <lvc:CartesianChart.AxisY>
+                                            <lvc:Axis x:Name="axisYOpakTrendH1" Title="" Foreground="#F4A261" FontSize="9" MinValue="0">
+                                                <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
+                                            </lvc:Axis>
+                                        </lvc:CartesianChart.AxisY>
+                                    </lvc:CartesianChart>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </Grid>
                 </Border>
             </TabItem>
 
