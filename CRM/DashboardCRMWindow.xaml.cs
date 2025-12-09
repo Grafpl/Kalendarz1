@@ -13,17 +13,18 @@ namespace Kalendarz1.CRM
     {
         private readonly string connectionString;
         private int okresDni = 7;
+        private bool isLoaded = false;
 
         public DashboardCRMWindow(string connString)
         {
             connectionString = connString;
             InitializeComponent();
-            Loaded += (s, e) => WczytajDane();
+            Loaded += (s, e) => { isLoaded = true; WczytajDane(); };
         }
 
         private void CmbOkres_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (cmbOkres.SelectedIndex < 0) return;
+            if (!isLoaded || cmbOkres == null || cmbOkres.SelectedIndex < 0) return;
 
             switch (cmbOkres.SelectedIndex)
             {
@@ -56,6 +57,8 @@ namespace Kalendarz1.CRM
 
         private void WczytajKPI()
         {
+            if (txtKpiWszystkie == null) return; // Kontrolki nie są jeszcze gotowe
+
             using (var conn = new SqlConnection(connectionString))
             {
                 conn.Open();
@@ -69,15 +72,15 @@ namespace Kalendarz1.CRM
                 var cmdNowe = new SqlCommand($@"SELECT COUNT(*) FROM HistoriaZmianCRM
                     WHERE TypZmiany = 'Utworzenie kontaktu' AND DataZmiany > DATEADD(day, -{okresDni}, GETDATE())", conn);
                 int nowe = (int)cmdNowe.ExecuteScalar();
-                txtKpiWszystkieTrend.Text = $"+{nowe} w tym okresie";
+                if (txtKpiWszystkieTrend != null) txtKpiWszystkieTrend.Text = $"+{nowe} w tym okresie";
 
                 // Wykonane akcje w okresie
                 var cmdAkcje = new SqlCommand($@"SELECT COUNT(*) FROM HistoriaZmianCRM
                     WHERE DataZmiany > DATEADD(day, -{okresDni}, GETDATE())", conn);
                 int akcje = (int)cmdAkcje.ExecuteScalar();
-                txtKpiAkcje.Text = akcje.ToString("N0");
+                if (txtKpiAkcje != null) txtKpiAkcje.Text = akcje.ToString("N0");
                 double srednia = okresDni > 0 ? (double)akcje / okresDni : 0;
-                txtKpiAkcjeSrednia.Text = $"śr. {srednia:F1}/dzień";
+                if (txtKpiAkcjeSrednia != null) txtKpiAkcjeSrednia.Text = $"śr. {srednia:F1}/dzień";
 
                 // Skuteczność (pozytywne statusy / wszystkie zmiany statusów)
                 var cmdSkut = new SqlCommand($@"
@@ -93,14 +96,14 @@ namespace Kalendarz1.CRM
                         int pozytywne = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
                         int wszystkieZmiany = reader.IsDBNull(1) ? 0 : reader.GetInt32(1);
                         double skutecznosc = wszystkieZmiany > 0 ? (double)pozytywne / wszystkieZmiany * 100 : 0;
-                        txtKpiSkutecznosc.Text = $"{skutecznosc:F0}%";
+                        if (txtKpiSkutecznosc != null) txtKpiSkutecznosc.Text = $"{skutecznosc:F0}%";
                     }
                 }
 
                 // Otwarte oferty
                 var cmdOferty = new SqlCommand("SELECT COUNT(*) FROM OdbiorcyCRM WHERE Status = 'Do wysłania oferta'", conn);
                 int oferty = (int)cmdOferty.ExecuteScalar();
-                txtKpiOferty.Text = oferty.ToString();
+                if (txtKpiOferty != null) txtKpiOferty.Text = oferty.ToString();
 
                 // Zaniedbane (>30 dni bez aktywności)
                 var cmdZaniedbane = new SqlCommand(@"
@@ -111,7 +114,7 @@ namespace Kalendarz1.CRM
                         WHERE h.IDOdbiorcy = o.ID AND h.DataZmiany > DATEADD(day, -30, GETDATE())
                     )", conn);
                 int zaniedbane = (int)cmdZaniedbane.ExecuteScalar();
-                txtKpiZaniedbane.Text = zaniedbane.ToString();
+                if (txtKpiZaniedbane != null) txtKpiZaniedbane.Text = zaniedbane.ToString();
             }
         }
 
