@@ -587,7 +587,29 @@
                             </Grid.ColumnDefinitions>
 
                             <!-- Wykres slupkowy E2 per kontrahent -->
-                            <Border Grid.Column="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="0,0,5,0">
+                            <Border x:Name="borderChartE2" Grid.Column="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="0,0,5,0"
+                                    RenderTransformOrigin="0.5,0.5">
+                                <Border.RenderTransform>
+                                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                                </Border.RenderTransform>
+                                <Border.Triggers>
+                                    <EventTrigger RoutedEvent="MouseEnter">
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleX)" To="1.01" Duration="0:0:0.15"/>
+                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleY)" To="1.01" Duration="0:0:0.15"/>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </EventTrigger>
+                                    <EventTrigger RoutedEvent="MouseLeave">
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleX)" To="1" Duration="0:0:0.15"/>
+                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleY)" To="1" Duration="0:0:0.15"/>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </EventTrigger>
+                                </Border.Triggers>
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
@@ -597,7 +619,8 @@
                                         <TextBlock Text="Saldo E2 wg Kontrahenta" FontSize="12" FontWeight="Bold" Foreground="#4ECDC4"/>
                                         <TextBlock x:Name="txtOpakE2Suma" Text="" FontSize="11" Foreground="#8B949E" Margin="15,0,0,0" VerticalAlignment="Center"/>
                                     </StackPanel>
-                                    <lvc:CartesianChart Grid.Row="1" x:Name="chartOpakowaniaE2" Margin="0" DataClick="ChartOpakowaniaE2_DataClick">
+                                    <lvc:CartesianChart Grid.Row="1" x:Name="chartOpakowaniaE2" Margin="0" DataClick="ChartOpakowaniaE2_DataClick"
+                                                        AnimationsSpeed="0:0:0.5" Hoverable="True" DisableAnimations="False">
                                         <lvc:CartesianChart.AxisX>
                                             <lvc:Axis x:Name="axisXOpakE2" Title="" MinValue="0" Foreground="#FFFFFF" FontSize="9">
                                                 <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
@@ -613,7 +636,29 @@
                             </Border>
 
                             <!-- Wykres slupkowy H1 per kontrahent -->
-                            <Border Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="5,0,0,0">
+                            <Border x:Name="borderChartH1" Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="5,0,0,0"
+                                    RenderTransformOrigin="0.5,0.5">
+                                <Border.RenderTransform>
+                                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                                </Border.RenderTransform>
+                                <Border.Triggers>
+                                    <EventTrigger RoutedEvent="MouseEnter">
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleX)" To="1.01" Duration="0:0:0.15"/>
+                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleY)" To="1.01" Duration="0:0:0.15"/>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </EventTrigger>
+                                    <EventTrigger RoutedEvent="MouseLeave">
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleX)" To="1" Duration="0:0:0.15"/>
+                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleY)" To="1" Duration="0:0:0.15"/>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </EventTrigger>
+                                </Border.Triggers>
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
@@ -623,7 +668,8 @@
                                         <TextBlock Text="Saldo H1 wg Kontrahenta" FontSize="12" FontWeight="Bold" Foreground="#F4A261"/>
                                         <TextBlock x:Name="txtOpakH1Suma" Text="" FontSize="11" Foreground="#8B949E" Margin="15,0,0,0" VerticalAlignment="Center"/>
                                     </StackPanel>
-                                    <lvc:CartesianChart Grid.Row="1" x:Name="chartOpakowaniaH1" Margin="0" DataClick="ChartOpakowaniaH1_DataClick">
+                                    <lvc:CartesianChart Grid.Row="1" x:Name="chartOpakowaniaH1" Margin="0" DataClick="ChartOpakowaniaH1_DataClick"
+                                                        AnimationsSpeed="0:0:0.5" Hoverable="True" DisableAnimations="False">
                                         <lvc:CartesianChart.AxisX>
                                             <lvc:Axis x:Name="axisXOpakH1" Title="" MinValue="0" Foreground="#FFFFFF" FontSize="9">
                                                 <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
@@ -647,7 +693,29 @@
                             </Grid.ColumnDefinitions>
 
                             <!-- Wykres liniowy E2 - historia tygodniowa wybranego kontrahenta -->
-                            <Border Grid.Column="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="0,0,5,0">
+                            <Border x:Name="borderTrendE2" Grid.Column="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="0,0,5,0"
+                                    RenderTransformOrigin="0.5,0.5">
+                                <Border.RenderTransform>
+                                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                                </Border.RenderTransform>
+                                <Border.Triggers>
+                                    <EventTrigger RoutedEvent="MouseEnter">
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleX)" To="1.02" Duration="0:0:0.2"/>
+                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleY)" To="1.02" Duration="0:0:0.2"/>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </EventTrigger>
+                                    <EventTrigger RoutedEvent="MouseLeave">
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleX)" To="1" Duration="0:0:0.2"/>
+                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleY)" To="1" Duration="0:0:0.2"/>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </EventTrigger>
+                                </Border.Triggers>
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
@@ -657,7 +725,8 @@
                                         <TextBlock Text="Ilosc pojemnikow E2 ktore 'wisza' nam odbiorcy w tygodniach" FontSize="10" Foreground="#4ECDC4" FontWeight="Bold"/>
                                         <TextBlock x:Name="txtOpakE2TrendKontrahent" Text="" FontSize="10" Foreground="#F4A261" FontWeight="Bold" Margin="10,0,0,0"/>
                                     </StackPanel>
-                                    <lvc:CartesianChart Grid.Row="1" x:Name="chartOpakTrendE2" Margin="0">
+                                    <lvc:CartesianChart Grid.Row="1" x:Name="chartOpakTrendE2" Margin="0"
+                                                        AnimationsSpeed="0:0:0.7" Hoverable="True" DisableAnimations="False">
                                         <lvc:CartesianChart.AxisX>
                                             <lvc:Axis x:Name="axisXOpakTrendE2" ShowLabels="True" FontSize="9" Foreground="#FFFFFF" LabelsRotation="0">
                                                 <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
@@ -673,7 +742,29 @@
                             </Border>
 
                             <!-- Wykres liniowy H1 - historia tygodniowa wybranego kontrahenta -->
-                            <Border Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="5,0,0,0">
+                            <Border x:Name="borderTrendH1" Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="5,0,0,0"
+                                    RenderTransformOrigin="0.5,0.5">
+                                <Border.RenderTransform>
+                                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                                </Border.RenderTransform>
+                                <Border.Triggers>
+                                    <EventTrigger RoutedEvent="MouseEnter">
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleX)" To="1.02" Duration="0:0:0.2"/>
+                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleY)" To="1.02" Duration="0:0:0.2"/>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </EventTrigger>
+                                    <EventTrigger RoutedEvent="MouseLeave">
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleX)" To="1" Duration="0:0:0.2"/>
+                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleY)" To="1" Duration="0:0:0.2"/>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </EventTrigger>
+                                </Border.Triggers>
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
@@ -683,7 +774,8 @@
                                         <TextBlock Text="Ilosc pojemnikow H1 ktore 'wisza' nam odbiorcy w tygodniach" FontSize="10" Foreground="#F4A261" FontWeight="Bold"/>
                                         <TextBlock x:Name="txtOpakH1TrendKontrahent" Text="" FontSize="10" Foreground="#F4A261" FontWeight="Bold" Margin="10,0,0,0"/>
                                     </StackPanel>
-                                    <lvc:CartesianChart Grid.Row="1" x:Name="chartOpakTrendH1" Margin="0">
+                                    <lvc:CartesianChart Grid.Row="1" x:Name="chartOpakTrendH1" Margin="0"
+                                                        AnimationsSpeed="0:0:0.7" Hoverable="True" DisableAnimations="False">
                                         <lvc:CartesianChart.AxisX>
                                             <lvc:Axis x:Name="axisXOpakTrendH1" ShowLabels="True" FontSize="9" Foreground="#FFFFFF" LabelsRotation="0">
                                                 <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
