@@ -22,6 +22,8 @@ namespace Kalendarz1
         private readonly string _connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private readonly string _connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
 
+        private static bool? _dataAkceptacjiMagazynColumnExists = null;
+
         public string UserID { get; set; } = "Magazynier";
         private DateTime _selectedDate = DateTime.Today;
         private DispatcherTimer refreshTimer;
@@ -209,6 +211,18 @@ namespace Kalendarz1
             await LoadOrdersAsync();
         }
 
+        private async Task<bool> CheckDataAkceptacjiMagazynColumnExistsAsync(SqlConnection cn)
+        {
+            if (_dataAkceptacjiMagazynColumnExists.HasValue)
+                return _dataAkceptacjiMagazynColumnExists.Value;
+
+            string checkSql = @"SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'DataAkceptacjiMagazyn'";
+            using var cmd = new SqlCommand(checkSql, cn);
+            var result = await cmd.ExecuteScalarAsync();
+            _dataAkceptacjiMagazynColumnExists = result != null;
+            return _dataAkceptacjiMagazynColumnExists.Value;
+        }
+
         private async Task LoadOrdersAsync()
         {
             _zamowienia.Clear();
@@ -223,11 +237,18 @@ namespace Kalendarz1
                 {
                     await cn.OpenAsync();
 
-                    string sql = @"SELECT z.Id, z.KlientId, ISNULL(z.Uwagi,'') AS Uwagi, ISNULL(z.Status,'Nowe') AS Status,
+                    // Sprawdź czy kolumna DataAkceptacjiMagazyn istnieje
+                    bool hasAkceptacjaColumn = await CheckDataAkceptacjiMagazynColumnExistsAsync(cn);
+
+                    string akceptacjaColumn = hasAkceptacjaColumn ? "z.DataAkceptacjiMagazyn" : "NULL AS DataAkceptacjiMagazyn";
+
+                    string sql = $@"SELECT z.Id, z.KlientId, ISNULL(z.Uwagi,'') AS Uwagi, ISNULL(z.Status,'Nowe') AS Status,
                                   (SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id) AS TotalIlosc,
                                   z.DataUtworzenia, z.TransportKursID, z.DataWydania, ISNULL(z.KtoWydal, '') AS KtoWydal,
                                   CAST(CASE WHEN z.TransportStatus = 'Wlasny' THEN 1 ELSE 0 END AS BIT) AS WlasnyTransport,
-                                  z.DataPrzyjazdu
+                                  z.DataPrzyjazdu,
+                                  z.DataOstatniejModyfikacji, z.DataRealizacji, ISNULL(z.CzyZrealizowane, 0) AS CzyZrealizowane,
+                                  {akceptacjaColumn}
                                   FROM dbo.ZamowieniaMieso z
                                   WHERE z.DataUboju=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')";
 
@@ -237,6 +258,35 @@ namespace Kalendarz1
                     using var rd = await cmd.ExecuteReaderAsync();
                     while (await rd.ReadAsync())
                     {
+                        var dataOstatniejModyfikacji = rd.IsDBNull(11) ? (DateTime?)null : rd.GetDateTime(11);
+                        var dataRealizacji = rd.IsDBNull(12) ? (DateTime?)null : rd.GetDateTime(12);
+                        var czyZrealizowane = rd.GetBoolean(13);
+                        var dataAkceptacjiMagazyn = rd.IsDBNull(14) ? (DateTime?)null : rd.GetDateTime(14);
+
+                        // Sprawdź czy zamówienie zostało zmodyfikowane od czasu realizacji (dla produkcji)
+                        bool czyZmodyfikowaneProdukcja = false;
+                        if (dataRealizacji.HasValue && dataOstatniejModyfikacji.HasValue)
+                        {
+                            czyZmodyfikowaneProdukcja = dataOstatniejModyfikacji.Value > dataRealizacji.Value;
+                        }
+
+                        // Sprawdź czy zamówienie zostało zmodyfikowane dla magazynu
+                        // Magazyn używa swojej własnej daty akceptacji lub DataRealizacji jako fallback
+                        bool czyZmodyfikowaneMagazyn = false;
+                        if (czyZrealizowane && dataOstatniejModyfikacji.HasValue)
+                        {
+                            // Jeśli magazyn już zaakceptował, porównaj z jego datą akceptacji
+                            if (dataAkceptacjiMagazyn.HasValue)
+                            {
+                                czyZmodyfikowaneMagazyn = dataOstatniejModyfikacji.Value > dataAkceptacjiMagazyn.Value;
+                            }
+                            // Jeśli magazyn jeszcze nie akceptował, użyj daty realizacji jako punktu odniesienia
+                            else if (dataRealizacji.HasValue)
+                            {
+                                czyZmodyfikowaneMagazyn = dataOstatniejModyfikacji.Value > dataRealizacji.Value;
+                            }
+                        }
+
                         var info = new ZamowienieInfo
                         {
                             Id = rd.GetInt32(0),
@@ -249,7 +299,14 @@ namespace Kalendarz1
                             DataWydania = rd.IsDBNull(7) ? null : rd.GetDateTime(7),
                             KtoWydal = rd.GetString(8),
                             WlasnyTransport = rd.GetBoolean(9),
-                            DataPrzyjazdu = rd.IsDBNull(10) ? null : rd.GetDateTime(10)
+                            DataPrzyjazdu = rd.IsDBNull(10) ? null : rd.GetDateTime(10),
+                            // Nowe pola do wykrywania zmian
+                            DataOstatniejModyfikacji = dataOstatniejModyfikacji,
+                            DataRealizacji = dataRealizacji,
+                            DataAkceptacjiMagazyn = dataAkceptacjiMagazyn,
+                            CzyZrealizowane = czyZrealizowane,
+                            CzyZmodyfikowaneOdRealizacji = czyZmodyfikowaneProdukcja,
+                            CzyZmodyfikowaneDlaMagazynu = czyZmodyfikowaneMagazyn
                         };
 
                         _zamowienia[info.Id] = info;
@@ -524,8 +581,11 @@ namespace Kalendarz1
             // Pobierz wydania dla klienta - DOKŁADNIE JAK W PRODUKCJAPANEL
             var shipments = await GetShipmentsForClientAsync(info.KlientId);
 
+            // Pobierz snapshot (jeśli zamówienie było realizowane)
+            var snapshot = info.CzyZrealizowane ? await GetOrderSnapshotAsync(info.Id, "Realizacja") : new Dictionary<int, decimal>();
+
             // Połącz wszystkie ID towarów
-            var ids = orderPositions.Select(p => p.TowarId).Union(shipments.Keys).Where(i => i > 0).Distinct().ToList();
+            var ids = orderPositions.Select(p => p.TowarId).Union(shipments.Keys).Union(snapshot.Keys).Where(i => i > 0).Distinct().ToList();
 
             // Pobierz nazwy towarów - DOKŁADNIE JAK W PRODUKCJAPANEL
             var towary = await LoadTowaryAsync(ids);
@@ -536,17 +596,173 @@ namespace Kalendarz1
             dt.Columns.Add("Zamówiono (kg)", typeof(decimal));
             dt.Columns.Add("Wydano (kg)", typeof(decimal));
             dt.Columns.Add("Różnica (kg)", typeof(decimal));
+            // Kolumna zmian - pokazuje różnicę między aktualnym stanem a snapshotem
+            dt.Columns.Add("Zmiana", typeof(string));
 
-            foreach (var pos in orderPositions)
+            var mapOrd = orderPositions.ToDictionary(p => p.TowarId, p => p.Ilosc);
+
+            foreach (var id in ids.Where(i => mapOrd.ContainsKey(i) || !snapshot.ContainsKey(i)))
             {
-                string produktNazwa = towary.ContainsKey(pos.TowarId) ? towary[pos.TowarId].Kod : $"Towar {pos.TowarId}";
-                decimal wydano = shipments.ContainsKey(pos.TowarId) ? shipments[pos.TowarId] : 0;
-                decimal roznica = pos.Ilosc - wydano;
+                mapOrd.TryGetValue(id, out var ord);
+                shipments.TryGetValue(id, out var wyd);
+                snapshot.TryGetValue(id, out var snap);
 
-                dt.Rows.Add(produktNazwa, pos.Ilosc, wydano, roznica);
+                string produktNazwa = towary.ContainsKey(id) ? towary[id].Kod : $"Towar {id}";
+
+                // Oblicz zmianę od snapshotu
+                string zmiana = "";
+                if (info.CzyZrealizowane && snapshot.Count > 0)
+                {
+                    if (!snapshot.ContainsKey(id))
+                    {
+                        // Nowa pozycja dodana po realizacji
+                        zmiana = "🆕 NOWE";
+                        produktNazwa = "🆕 " + produktNazwa;
+                    }
+                    else if (ord != snap)
+                    {
+                        // Zmieniona ilość
+                        decimal diff = ord - snap;
+                        zmiana = diff > 0 ? $"+{diff:N0} kg" : $"{diff:N0} kg";
+                    }
+                }
+
+                dt.Rows.Add(produktNazwa, ord, wyd, ord - wyd, zmiana);
+            }
+
+            // Sprawdź czy są pozycje usunięte (były w snapshocie, ale nie ma w aktualnym zamówieniu)
+            if (info.CzyZrealizowane && snapshot.Count > 0)
+            {
+                foreach (var snapItem in snapshot.Where(s => !mapOrd.ContainsKey(s.Key)))
+                {
+                    string produktNazwa = towary.ContainsKey(snapItem.Key) ? towary[snapItem.Key].Kod : $"Towar {snapItem.Key}";
+                    produktNazwa = "❌ " + produktNazwa;
+                    dt.Rows.Add(produktNazwa, 0, 0, 0, $"USUNIĘTO ({snapItem.Value:N0} kg)");
+                }
             }
 
             dgvPozycje.ItemsSource = dt.DefaultView;
+
+            // Pokaż/ukryj przycisk "Przyjmuję zmianę" (dla magazynu - osobna flaga)
+            btnAcceptChange.Visibility = info.CzyZmodyfikowaneDlaMagazynu ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private async void btnAcceptChange_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = (dgvZamowienia1.SelectedItem ?? dgvZamowienia2.SelectedItem) as ZamowienieViewModel;
+            if (selected == null || !selected.Info.CzyZmodyfikowaneDlaMagazynu) return;
+
+            var result = MessageBox.Show(
+                $"Czy potwierdzasz, że wiesz o zmianach w zamówieniu '{selected.Info.Klient}'?\n\n" +
+                "Ikona ⚠️ zniknie dopóki zamówienie nie zostanie ponownie zmodyfikowane.\n" +
+                "(Produkcja ma swoją osobną akceptację)",
+                "Potwierdzenie przyjęcia zmiany - Magazyn",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result != MessageBoxResult.Yes) return;
+
+            try
+            {
+                using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Upewnij się że kolumna DataAkceptacjiMagazyn istnieje
+                var checkCmd = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'DataAkceptacjiMagazyn'", cn);
+                if ((int)await checkCmd.ExecuteScalarAsync() == 0)
+                {
+                    var addCmd = new SqlCommand("ALTER TABLE dbo.ZamowieniaMieso ADD DataAkceptacjiMagazyn DATETIME NULL", cn);
+                    await addCmd.ExecuteNonQueryAsync();
+                    // Zresetuj cache po utworzeniu kolumny
+                    _dataAkceptacjiMagazynColumnExists = true;
+                }
+
+                // Zaktualizuj DataAkceptacjiMagazyn na teraz (osobna akceptacja dla magazynu)
+                var cmd = new SqlCommand("UPDATE dbo.ZamowieniaMieso SET DataAkceptacjiMagazyn = GETDATE() WHERE Id = @Id", cn);
+                cmd.Parameters.AddWithValue("@Id", selected.Info.Id);
+                await cmd.ExecuteNonQueryAsync();
+
+                MessageBox.Show("Zmiana została przyjęta przez magazyn.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Odśwież dane
+                await ReloadAllAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas akceptacji zmiany:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async Task SaveOrderSnapshotAsync(SqlConnection cn, int zamowienieId, string typSnapshotu)
+        {
+            try
+            {
+                // Sprawdź czy tabela snapshotów istnieje
+                var checkCmd = new SqlCommand("SELECT COUNT(*) FROM sys.objects WHERE name='ZamowieniaMiesoSnapshot' AND type='U'", cn);
+                if ((int)await checkCmd.ExecuteScalarAsync() == 0)
+                {
+                    // Utwórz tabelę jeśli nie istnieje
+                    var createCmd = new SqlCommand(@"
+                        CREATE TABLE dbo.ZamowieniaMiesoSnapshot (
+                            Id INT IDENTITY(1,1) PRIMARY KEY,
+                            ZamowienieId INT NOT NULL,
+                            KodTowaru INT NOT NULL,
+                            Ilosc DECIMAL(18,3) NOT NULL,
+                            Folia BIT NULL,
+                            Hallal BIT NULL,
+                            DataSnapshotu DATETIME NOT NULL DEFAULT GETDATE(),
+                            TypSnapshotu NVARCHAR(20) NOT NULL
+                        );
+                        CREATE INDEX IX_Snapshot_ZamowienieId ON dbo.ZamowieniaMiesoSnapshot(ZamowienieId);", cn);
+                    await createCmd.ExecuteNonQueryAsync();
+                }
+
+                // Usuń stary snapshot tego samego typu
+                var cmdDelete = new SqlCommand(@"DELETE FROM dbo.ZamowieniaMiesoSnapshot WHERE ZamowienieId = @ZamId AND TypSnapshotu = @Typ", cn);
+                cmdDelete.Parameters.AddWithValue("@ZamId", zamowienieId);
+                cmdDelete.Parameters.AddWithValue("@Typ", typSnapshotu);
+                await cmdDelete.ExecuteNonQueryAsync();
+
+                // Zapisz nowy snapshot
+                var cmdInsert = new SqlCommand(@"
+                    INSERT INTO dbo.ZamowieniaMiesoSnapshot (ZamowienieId, KodTowaru, Ilosc, Folia, Hallal, TypSnapshotu)
+                    SELECT ZamowienieId, KodTowaru, Ilosc, Folia, Hallal, @Typ
+                    FROM dbo.ZamowieniaMiesoTowar
+                    WHERE ZamowienieId = @ZamId", cn);
+                cmdInsert.Parameters.AddWithValue("@ZamId", zamowienieId);
+                cmdInsert.Parameters.AddWithValue("@Typ", typSnapshotu);
+                await cmdInsert.ExecuteNonQueryAsync();
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Błąd zapisywania snapshotu: {ex.Message}"); }
+        }
+
+        private async Task<Dictionary<int, decimal>> GetOrderSnapshotAsync(int zamowienieId, string typSnapshotu)
+        {
+            var snapshot = new Dictionary<int, decimal>();
+            try
+            {
+                using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Sprawdź czy tabela snapshotów istnieje
+                var checkCmd = new SqlCommand("SELECT COUNT(*) FROM sys.objects WHERE name='ZamowieniaMiesoSnapshot' AND type='U'", cn);
+                if ((int)await checkCmd.ExecuteScalarAsync() == 0)
+                    return snapshot;
+
+                var cmd = new SqlCommand(@"SELECT KodTowaru, Ilosc
+                                           FROM dbo.ZamowieniaMiesoSnapshot
+                                           WHERE ZamowienieId = @ZamId AND TypSnapshotu = @Typ", cn);
+                cmd.Parameters.AddWithValue("@ZamId", zamowienieId);
+                cmd.Parameters.AddWithValue("@Typ", typSnapshotu);
+
+                using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    snapshot[rd.GetInt32(0)] = rd.GetDecimal(1);
+                }
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Błąd pobierania snapshotu: {ex.Message}"); }
+            return snapshot;
         }
 
         private async Task<Dictionary<int, TowarInfo>> LoadTowaryAsync(List<int> ids)
@@ -655,6 +871,13 @@ namespace Kalendarz1
             public string KtoWydalNazwa { get; set; } = ""; // Pełna nazwa użytkownika
             public bool WlasnyTransport { get; set; } // Własny transport
             public DateTime? DataPrzyjazdu { get; set; } // Godzina odbioru dla własnego transportu
+            // Nowe pola do wykrywania zmian
+            public DateTime? DataOstatniejModyfikacji { get; set; }
+            public DateTime? DataRealizacji { get; set; }
+            public DateTime? DataAkceptacjiMagazyn { get; set; } // Osobna akceptacja magazynu
+            public bool CzyZrealizowane { get; set; }
+            public bool CzyZmodyfikowaneOdRealizacji { get; set; } // Dla produkcji
+            public bool CzyZmodyfikowaneDlaMagazynu { get; set; } // Dla magazynu - osobna flaga
         }
 
         public class ContractorInfo
@@ -676,7 +899,8 @@ namespace Kalendarz1
             public ZamowienieViewModel(ZamowienieInfo info) { Info = info; }
 
             // Klient z ikoną ciężarówki dla własnego transportu
-            public string Klient => Info.WlasnyTransport ? $"🚚 {Info.Klient}" : Info.Klient;
+            // ⚠️ pokazuje się gdy zamówienie zostało zmodyfikowane (dla magazynu - osobna flaga)
+            public string Klient => $"{(Info.CzyZmodyfikowaneDlaMagazynu ? "⚠️ " : "")}{(Info.WlasnyTransport ? "🚚 " : "")}{Info.Klient}";
             public decimal TotalIlosc => Info.TotalIlosc;
             public string Handlowiec => Info.Handlowiec;
             public string Status => Info.Status;
@@ -753,6 +977,21 @@ namespace Kalendarz1
                     return DateTime.MaxValue;
                 }
             }
+
+            // Wyświetlanie ostatniej zmiany (dla magazynu - osobna logika)
+            public string OstatniaZmianaDisplay
+            {
+                get
+                {
+                    if (!Info.CzyZrealizowane) return "-";
+                    if (!Info.CzyZmodyfikowaneDlaMagazynu) return "✓ OK";
+                    if (Info.DataOstatniejModyfikacji.HasValue)
+                        return $"⚠️ {Info.DataOstatniejModyfikacji.Value:HH:mm}";
+                    return "⚠️ Zmiana";
+                }
+            }
+
+            public Brush ZmianaColor => Info.CzyZmodyfikowaneDlaMagazynu ? Brushes.Orange : Brushes.LimeGreen;
 
             public event PropertyChangedEventHandler PropertyChanged;
             protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
