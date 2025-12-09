@@ -1058,6 +1058,30 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
             }
         }
 
+        private async void BtnOpakOkres_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag != null)
+            {
+                int dni = int.Parse(btn.Tag.ToString());
+                if (dni == 9999)
+                {
+                    // Calosc - od 2020 do dzisiaj
+                    dpOpakOd.SelectedDate = new DateTime(2020, 1, 1);
+                }
+                else if (dni == 0)
+                {
+                    // Dzisiaj
+                    dpOpakOd.SelectedDate = DateTime.Today;
+                }
+                else
+                {
+                    dpOpakOd.SelectedDate = DateTime.Today.AddDays(-dni);
+                }
+                dpOpakDo.SelectedDate = DateTime.Today;
+                await OdswiezOpakowaniaAsync();
+            }
+        }
+
         private async System.Threading.Tasks.Task OdswiezOpakowaniaAsync()
         {
             string wybranyHandlowiec = null;
@@ -1116,26 +1140,33 @@ ORDER BY ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc EL
 
                 // Wykres slupkowy poziomy E2 - Top 16 (najwyzszy na gorze)
                 var top16E2 = _opakowaniaData.Where(d => d.PojemnikiE2 > 0).OrderByDescending(d => d.PojemnikiE2).Take(16).ToList();
-                var seriesE2 = new SeriesCollection();
-                var labelsE2 = new List<string>();
 
-                // Odwroc kolejnosc dla wyswietlania (najwyzszy na gorze = ostatni w liscie)
-                for (int i = top16E2.Count - 1; i >= 0; i--)
+                // Odwroc aby najwyzszy byl na gorze
+                top16E2.Reverse();
+
+                var valuesE2 = new ChartValues<double>(top16E2.Select(d => (double)d.PojemnikiE2));
+                var labelsE2 = top16E2.Select(d => d.Kontrahent.Length > 18 ? d.Kontrahent.Substring(0, 18) + ".." : d.Kontrahent).ToList();
+
+                // Przygotuj dane dla etykiet z nazwami
+                var top16E2Data = top16E2.ToList();
+
+                chartOpakowaniaE2.Series = new SeriesCollection
                 {
-                    var d = top16E2[i];
-                    labelsE2.Add(d.Kontrahent.Length > 20 ? d.Kontrahent.Substring(0, 20) + "..." : d.Kontrahent);
-                    seriesE2.Add(new RowSeries
+                    new RowSeries
                     {
-                        Title = d.Handlowiec,
-                        Values = new ChartValues<double> { (double)d.PojemnikiE2 },
-                        Fill = new SolidColorBrush(GetHandlowiecColor(d.Handlowiec)),
+                        Title = "E2",
+                        Values = valuesE2,
+                        Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(78, 205, 196)),
                         DataLabels = true,
-                        LabelPoint = p => $"{p.X:N0}",
+                        LabelPoint = p => {
+                            var idx = (int)p.Y;
+                            if (idx >= 0 && idx < top16E2Data.Count)
+                                return $"{p.X:N0} | {top16E2Data[idx].Handlowiec}";
+                            return $"{p.X:N0}";
+                        },
                         Foreground = Brushes.White
-                    });
-                }
-
-                chartOpakowaniaE2.Series = seriesE2;
+                    }
+                };
                 axisYOpakE2.Labels = labelsE2;
 
                 var sumaE2 = _opakowaniaData.Where(d => d.PojemnikiE2 > 0).Sum(d => d.PojemnikiE2);
@@ -1143,26 +1174,33 @@ ORDER BY ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc EL
 
                 // Wykres slupkowy poziomy H1 - Top 16 (najwyzszy na gorze)
                 var top16H1 = _opakowaniaData.Where(d => d.PaletaH1 > 0).OrderByDescending(d => d.PaletaH1).Take(16).ToList();
-                var seriesH1 = new SeriesCollection();
-                var labelsH1 = new List<string>();
 
-                // Odwroc kolejnosc dla wyswietlania (najwyzszy na gorze = ostatni w liscie)
-                for (int i = top16H1.Count - 1; i >= 0; i--)
+                // Odwroc aby najwyzszy byl na gorze
+                top16H1.Reverse();
+
+                var valuesH1 = new ChartValues<double>(top16H1.Select(d => (double)d.PaletaH1));
+                var labelsH1 = top16H1.Select(d => d.Kontrahent.Length > 18 ? d.Kontrahent.Substring(0, 18) + ".." : d.Kontrahent).ToList();
+
+                // Przygotuj dane dla etykiet z nazwami
+                var top16H1Data = top16H1.ToList();
+
+                chartOpakowaniaH1.Series = new SeriesCollection
                 {
-                    var d = top16H1[i];
-                    labelsH1.Add(d.Kontrahent.Length > 20 ? d.Kontrahent.Substring(0, 20) + "..." : d.Kontrahent);
-                    seriesH1.Add(new RowSeries
+                    new RowSeries
                     {
-                        Title = d.Handlowiec,
-                        Values = new ChartValues<double> { (double)d.PaletaH1 },
-                        Fill = new SolidColorBrush(GetHandlowiecColor(d.Handlowiec)),
+                        Title = "H1",
+                        Values = valuesH1,
+                        Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(244, 162, 97)),
                         DataLabels = true,
-                        LabelPoint = p => $"{p.X:N0}",
+                        LabelPoint = p => {
+                            var idx = (int)p.Y;
+                            if (idx >= 0 && idx < top16H1Data.Count)
+                                return $"{p.X:N0} | {top16H1Data[idx].Handlowiec}";
+                            return $"{p.X:N0}";
+                        },
                         Foreground = Brushes.White
-                    });
-                }
-
-                chartOpakowaniaH1.Series = seriesH1;
+                    }
+                };
                 axisYOpakH1.Labels = labelsH1;
 
                 var sumaH1 = _opakowaniaData.Where(d => d.PaletaH1 > 0).Sum(d => d.PaletaH1);
@@ -1349,7 +1387,7 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
             var skrocona = labels[idx];
             var kontrahent = _opakowaniaData.FirstOrDefault(d =>
                 d.Kontrahent == skrocona ||
-                (d.Kontrahent.Length > 20 && d.Kontrahent.Substring(0, 20) + "..." == skrocona))?.Kontrahent;
+                (d.Kontrahent.Length > 18 && d.Kontrahent.Substring(0, 18) + ".." == skrocona))?.Kontrahent;
 
             if (string.IsNullOrEmpty(kontrahent)) return;
 

@@ -127,6 +127,29 @@
             </Setter>
         </Style>
 
+        <Style x:Key="SmallButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#3D4450"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#4ECDC4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="FilterLabelStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
             <Setter Property="FontSize" Value="12"/>
@@ -569,15 +592,28 @@
 
                         <!-- Filtry -->
                         <Border Grid.Row="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="15,10" Margin="0,0,0,10">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Handlowiec:" Style="{StaticResource FilterLabelStyle}"/>
-                                <ComboBox x:Name="cmbHandlowiecOpak" Style="{StaticResource DarkComboBoxStyle}" Width="150" SelectionChanged="CmbOpakowania_SelectionChanged"/>
-                                <TextBlock Text="Od:" Style="{StaticResource FilterLabelStyle}" Margin="20,0,8,0"/>
-                                <DatePicker x:Name="dpOpakOd" Width="120" SelectedDateChanged="DpOpakowania_SelectedDateChanged"/>
-                                <TextBlock Text="Do:" Style="{StaticResource FilterLabelStyle}" Margin="15,0,8,0"/>
-                                <DatePicker x:Name="dpOpakDo" Width="120" SelectedDateChanged="DpOpakowania_SelectedDateChanged"/>
-                                <TextBlock x:Name="txtOpakWybranyKontrahent" Text="" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentOrangeBrush}" VerticalAlignment="Center" Margin="30,0,0,0"/>
-                                <TextBlock Text="Kliknij na wykresie aby zaznaczyc odbiorce" Style="{StaticResource DescriptionStyle}" Margin="20,0,0,0"/>
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Handlowiec:" Style="{StaticResource FilterLabelStyle}"/>
+                                    <ComboBox x:Name="cmbHandlowiecOpak" Style="{StaticResource DarkComboBoxStyle}" Width="150" SelectionChanged="CmbOpakowania_SelectionChanged"/>
+                                    <TextBlock Text="Od:" Style="{StaticResource FilterLabelStyle}" Margin="20,0,8,0"/>
+                                    <DatePicker x:Name="dpOpakOd" Width="110" SelectedDateChanged="DpOpakowania_SelectedDateChanged"/>
+                                    <TextBlock Text="Do:" Style="{StaticResource FilterLabelStyle}" Margin="10,0,8,0"/>
+                                    <DatePicker x:Name="dpOpakDo" Width="110" SelectedDateChanged="DpOpakowania_SelectedDateChanged"/>
+                                    <TextBlock x:Name="txtOpakWybranyKontrahent" Text="" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentOrangeBrush}" VerticalAlignment="Center" Margin="20,0,0,0"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <TextBlock Text="Szybki wybor:" Style="{StaticResource FilterLabelStyle}"/>
+                                    <Button Content="Dzisiaj" Tag="0" Click="BtnOpakOkres_Click" Style="{StaticResource SmallButtonStyle}" Margin="5,0,3,0"/>
+                                    <Button Content="1 tydz" Tag="7" Click="BtnOpakOkres_Click" Style="{StaticResource SmallButtonStyle}" Margin="3,0,3,0"/>
+                                    <Button Content="2 tydz" Tag="14" Click="BtnOpakOkres_Click" Style="{StaticResource SmallButtonStyle}" Margin="3,0,3,0"/>
+                                    <Button Content="1 mies" Tag="30" Click="BtnOpakOkres_Click" Style="{StaticResource SmallButtonStyle}" Margin="3,0,3,0"/>
+                                    <Button Content="3 mies" Tag="90" Click="BtnOpakOkres_Click" Style="{StaticResource SmallButtonStyle}" Margin="3,0,3,0"/>
+                                    <Button Content="6 mies" Tag="180" Click="BtnOpakOkres_Click" Style="{StaticResource SmallButtonStyle}" Margin="3,0,3,0"/>
+                                    <Button Content="1 rok" Tag="365" Click="BtnOpakOkres_Click" Style="{StaticResource SmallButtonStyle}" Margin="3,0,3,0"/>
+                                    <Button Content="Calosc" Tag="9999" Click="BtnOpakOkres_Click" Style="{StaticResource SmallButtonStyle}" Margin="3,0,10,0"/>
+                                    <TextBlock Text="Kliknij na wykresie aby zaznaczyc odbiorce" Style="{StaticResource DescriptionStyle}" VerticalAlignment="Center"/>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
 
