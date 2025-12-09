@@ -564,7 +564,7 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
-                            <RowDefinition Height="220"/>
+                            <RowDefinition Height="250"/>
                         </Grid.RowDefinitions>
 
                         <!-- Filtry -->
@@ -572,10 +572,12 @@
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Handlowiec:" Style="{StaticResource FilterLabelStyle}"/>
                                 <ComboBox x:Name="cmbHandlowiecOpak" Style="{StaticResource DarkComboBoxStyle}" Width="150" SelectionChanged="CmbOpakowania_SelectionChanged"/>
-                                <TextBlock Text="Tydzien:" Style="{StaticResource FilterLabelStyle}" Margin="20,0,8,0"/>
-                                <ComboBox x:Name="cmbTydzienOpak" Style="{StaticResource DarkComboBoxStyle}" Width="180" SelectionChanged="CmbOpakowania_SelectionChanged"/>
+                                <TextBlock Text="Od:" Style="{StaticResource FilterLabelStyle}" Margin="20,0,8,0"/>
+                                <DatePicker x:Name="dpOpakOd" Width="120" SelectedDateChanged="DpOpakowania_SelectedDateChanged"/>
+                                <TextBlock Text="Do:" Style="{StaticResource FilterLabelStyle}" Margin="15,0,8,0"/>
+                                <DatePicker x:Name="dpOpakDo" Width="120" SelectedDateChanged="DpOpakowania_SelectedDateChanged"/>
                                 <TextBlock x:Name="txtOpakWybranyKontrahent" Text="" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentOrangeBrush}" VerticalAlignment="Center" Margin="30,0,0,0"/>
-                                <TextBlock Text="Kliknij 2x na wykresie aby zobaczyc dokumenty kontrahenta" Style="{StaticResource DescriptionStyle}" Margin="20,0,0,0"/>
+                                <TextBlock Text="Kliknij na wykresie aby zaznaczyc odbiorce" Style="{StaticResource DescriptionStyle}" Margin="20,0,0,0"/>
                             </StackPanel>
                         </Border>
 

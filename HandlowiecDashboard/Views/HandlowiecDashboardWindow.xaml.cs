@@ -185,7 +185,18 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 int idx = 1;
                 while (reader.Read())
                 {
-                    handlowcy.Add(new ComboItem { Value = idx++, Text = reader.GetString(0) });
+                    var handlowiec = reader.GetString(0);
+                    handlowcy.Add(new ComboItem { Value = idx++, Text = handlowiec });
+                    // Inicjalizuj globalne kolory dla handlowcow
+                    if (!_handlowiecKolory.ContainsKey(handlowiec))
+                    {
+                        _handlowiecKolory[handlowiec] = _kolory[(_handlowiecKolory.Count) % _kolory.Length];
+                    }
+                }
+                // Dodaj kolor dla "Nieprzypisany"
+                if (!_handlowiecKolory.ContainsKey("Nieprzypisany"))
+                {
+                    _handlowiecKolory["Nieprzypisany"] = _kolory[_handlowiecKolory.Count % _kolory.Length];
                 }
             }
             catch (Exception ex)
@@ -198,8 +209,8 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             cmbHandlowiecOpak.SelectedValuePath = "Value";
             cmbHandlowiecOpak.SelectedIndex = 0;
 
-            // Inicjalizuj dropdown tygodni dla opakowan
-            InicjalizujTygodnieOpak();
+            // Inicjalizuj date pickers dla opakowan
+            InicjalizujDatyOpak();
 
             cmbHandlowiecPlat.ItemsSource = handlowcy;
             cmbHandlowiecPlat.DisplayMemberPath = "Text";
@@ -1021,7 +1032,6 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
         // Zmienne dla opakowan
         private List<OpakowanieRow> _opakowaniaData = new List<OpakowanieRow>();
         private string _wybranyKontrahentOpak = null;
-        private DateTime _lastClickTime = DateTime.MinValue;
         private Dictionary<string, Color> _handlowiecKolory = new Dictionary<string, Color>();
 
         private Color GetHandlowiecColor(string handlowiec)
@@ -1033,23 +1043,19 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
             return _handlowiecKolory[handlowiec];
         }
 
-        private void InicjalizujTygodnieOpak()
+        private void InicjalizujDatyOpak()
         {
-            var tygodnie = new List<ComboItem> { new ComboItem { Text = "Aktualny tydzien", Value = 0 } };
-            var dzisiaj = DateTime.Today;
-            var niedziela = GetLastSunday(dzisiaj);
+            // Domyslnie: od 6 tygodni temu do dzisiaj
+            dpOpakOd.SelectedDate = DateTime.Today.AddDays(-42);
+            dpOpakDo.SelectedDate = DateTime.Today;
+        }
 
-            // Ostatnie 12 tygodni
-            for (int i = 0; i < 12; i++)
+        private async void DpOpakowania_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (dpOpakOd.SelectedDate.HasValue && dpOpakDo.SelectedDate.HasValue)
             {
-                var data = niedziela.AddDays(-7 * i);
-                var nrTygodnia = System.Globalization.CultureInfo.CurrentCulture.Calendar.GetWeekOfYear(
-                    data, System.Globalization.CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
-                tygodnie.Add(new ComboItem { Text = $"Tydzien {nrTygodnia} ({data:dd.MM.yyyy})", Value = i + 1 });
+                await OdswiezOpakowaniaAsync();
             }
-
-            cmbTydzienOpak.ItemsSource = tygodnie;
-            cmbTydzienOpak.SelectedIndex = 0;
         }
 
         private async System.Threading.Tasks.Task OdswiezOpakowaniaAsync()
@@ -1058,13 +1064,9 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
             if (cmbHandlowiecOpak.SelectedItem is ComboItem item && item.Value > 0)
                 wybranyHandlowiec = item.Text;
 
-            // Pobierz wybrany tydzien
-            DateTime dataDo = DateTime.Today;
-            if (cmbTydzienOpak.SelectedItem is ComboItem tydzienItem && tydzienItem.Value > 0)
-            {
-                var niedziela = GetLastSunday(DateTime.Today);
-                dataDo = niedziela.AddDays(-7 * (tydzienItem.Value - 1));
-            }
+            // Pobierz zakres dat z date pickerow
+            DateTime dataOd = dpOpakOd.SelectedDate ?? DateTime.Today.AddDays(-42);
+            DateTime dataDo = dpOpakDo.SelectedDate ?? DateTime.Today;
 
             _opakowaniaData = new List<OpakowanieRow>();
 
@@ -1075,7 +1077,7 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
                 {
                     await cn.OpenAsync();
 
-                    // Dane per kontrahent
+                    // Dane per kontrahent - filtruj po zakresie dat
                     var sqlKontrahenci = @"
 SELECT
     C.shortcut AS Kontrahent,
@@ -1087,7 +1089,7 @@ INNER JOIN [HANDEL].[HM].[TW] TW ON MZ.idtw = TW.id
 INNER JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id
 INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON MG.khid = C.id
 LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON C.Id = WYM.ElementId
-WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
+WHERE MZ.data >= @DataOd AND MZ.data <= @DataDo AND MG.anulowany = 0
   AND TW.nazwa IN ('Pojemnik Drobiowy E2', 'Paleta H1')
   AND (@Handlowiec IS NULL OR WYM.CDim_Handlowiec_Val = @Handlowiec)
 GROUP BY C.shortcut, ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany')
@@ -1096,6 +1098,7 @@ ORDER BY ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc EL
 
                     await using var cmdK = new SqlCommand(sqlKontrahenci, cn);
                     cmdK.Parameters.AddWithValue("@Handlowiec", (object)wybranyHandlowiec ?? DBNull.Value);
+                    cmdK.Parameters.AddWithValue("@DataOd", dataOd);
                     cmdK.Parameters.AddWithValue("@DataDo", dataDo);
 
                     await using var readerK = await cmdK.ExecuteReaderAsync();
@@ -1111,16 +1114,16 @@ ORDER BY ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc EL
                     }
                 }
 
-                // Wykres slupkowy poziomy E2 - Top 10 (najwyzszy na gorze)
-                var top10E2 = _opakowaniaData.Where(d => d.PojemnikiE2 > 0).OrderByDescending(d => d.PojemnikiE2).Take(10).ToList();
+                // Wykres slupkowy poziomy E2 - Top 16 (najwyzszy na gorze)
+                var top16E2 = _opakowaniaData.Where(d => d.PojemnikiE2 > 0).OrderByDescending(d => d.PojemnikiE2).Take(16).ToList();
                 var seriesE2 = new SeriesCollection();
                 var labelsE2 = new List<string>();
 
                 // Odwroc kolejnosc dla wyswietlania (najwyzszy na gorze = ostatni w liscie)
-                for (int i = top10E2.Count - 1; i >= 0; i--)
+                for (int i = top16E2.Count - 1; i >= 0; i--)
                 {
-                    var d = top10E2[i];
-                    labelsE2.Add(d.Kontrahent.Length > 15 ? d.Kontrahent.Substring(0, 15) + "..." : d.Kontrahent);
+                    var d = top16E2[i];
+                    labelsE2.Add(d.Kontrahent.Length > 20 ? d.Kontrahent.Substring(0, 20) + "..." : d.Kontrahent);
                     seriesE2.Add(new RowSeries
                     {
                         Title = d.Handlowiec,
@@ -1138,16 +1141,16 @@ ORDER BY ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc EL
                 var sumaE2 = _opakowaniaData.Where(d => d.PojemnikiE2 > 0).Sum(d => d.PojemnikiE2);
                 txtOpakE2Suma.Text = $"Razem: {sumaE2:N0}";
 
-                // Wykres slupkowy poziomy H1 - Top 10 (najwyzszy na gorze)
-                var top10H1 = _opakowaniaData.Where(d => d.PaletaH1 > 0).OrderByDescending(d => d.PaletaH1).Take(10).ToList();
+                // Wykres slupkowy poziomy H1 - Top 16 (najwyzszy na gorze)
+                var top16H1 = _opakowaniaData.Where(d => d.PaletaH1 > 0).OrderByDescending(d => d.PaletaH1).Take(16).ToList();
                 var seriesH1 = new SeriesCollection();
                 var labelsH1 = new List<string>();
 
                 // Odwroc kolejnosc dla wyswietlania (najwyzszy na gorze = ostatni w liscie)
-                for (int i = top10H1.Count - 1; i >= 0; i--)
+                for (int i = top16H1.Count - 1; i >= 0; i--)
                 {
-                    var d = top10H1[i];
-                    labelsH1.Add(d.Kontrahent.Length > 15 ? d.Kontrahent.Substring(0, 15) + "..." : d.Kontrahent);
+                    var d = top16H1[i];
+                    labelsH1.Add(d.Kontrahent.Length > 20 ? d.Kontrahent.Substring(0, 20) + "..." : d.Kontrahent);
                     seriesH1.Add(new RowSeries
                     {
                         Title = d.Handlowiec,
@@ -1339,7 +1342,6 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
 
         private async Task ObsluzKlikniecieNaWykresOpakowania(ChartPoint chartPoint, IList<string> labels)
         {
-            var now = DateTime.Now;
             var idx = (int)chartPoint.Y;
             if (idx < 0 || idx >= labels.Count) return;
 
@@ -1347,26 +1349,19 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
             var skrocona = labels[idx];
             var kontrahent = _opakowaniaData.FirstOrDefault(d =>
                 d.Kontrahent == skrocona ||
-                (d.Kontrahent.Length > 15 && d.Kontrahent.Substring(0, 15) + "..." == skrocona))?.Kontrahent;
+                (d.Kontrahent.Length > 20 && d.Kontrahent.Substring(0, 20) + "..." == skrocona))?.Kontrahent;
 
             if (string.IsNullOrEmpty(kontrahent)) return;
 
-            // Sprawdz czy to podwojne klikniecie (w ciagu 500ms)
-            if ((now - _lastClickTime).TotalMilliseconds < 500 && _wybranyKontrahentOpak == kontrahent)
-            {
-                // Podwojne klikniecie - otworz okno dokumentow
-                var window = new KontrahentOpakowaniaWindow(kontrahent, _connectionStringHandel);
-                window.Owner = this;
-                window.Show();
-            }
-            else
-            {
-                // Pojedyncze klikniecie - pokaz trend
-                _wybranyKontrahentOpak = kontrahent;
-                await OdswiezTrendOpakowaniaKontrahenta(kontrahent);
-            }
+            // Pojedyncze klikniecie - zaznacz odbiorce i pokaz trend
+            _wybranyKontrahentOpak = kontrahent;
+            txtOpakWybranyKontrahent.Text = $"Wybrany: {kontrahent}";
+            await OdswiezTrendOpakowaniaKontrahenta(kontrahent);
 
-            _lastClickTime = now;
+            // Otworz okno dokumentow
+            var window = new KontrahentOpakowaniaWindow(kontrahent, _connectionStringHandel);
+            window.Owner = this;
+            window.Show();
         }
 
         #endregion
@@ -1554,26 +1549,31 @@ FROM FakturyPrzeterminowane";
                 txtAging90Plus.Text = $"{agingData.Kwota90Plus:N0} zl";
                 txtAging90PlusProcent.Text = $"{(agingTotal > 0 ? agingData.Kwota90Plus / agingTotal * 100 : 0):F0}% | {agingData.Faktur90Plus} fakt.";
 
-                // Top 5 dluznicy - wykres
+                // Top 5 dluznicy - wykres z kolorami per handlowiec
                 var top5Dluznicy = dane.Where(d => d.Przeterminowane > 0).OrderByDescending(d => d.Przeterminowane).Take(5).ToList();
                 if (top5Dluznicy.Any())
                 {
-                    var labels = top5Dluznicy.Select(d => d.Kontrahent.Length > 12 ? d.Kontrahent.Substring(0, 12) + ".." : d.Kontrahent).ToList();
-                    var values = new ChartValues<double>(top5Dluznicy.Select(d => (double)d.Przeterminowane));
+                    var seriesDluznicy = new SeriesCollection();
+                    var labelsDluznicy = new List<string>();
 
-                    chartTopDluznicy.Series = new SeriesCollection
+                    // Odwroc kolejnosc dla wyswietlania (najwyzszy na gorze = ostatni w liscie)
+                    for (int i = top5Dluznicy.Count - 1; i >= 0; i--)
                     {
-                        new RowSeries
+                        var d = top5Dluznicy[i];
+                        labelsDluznicy.Add(d.Kontrahent.Length > 15 ? d.Kontrahent.Substring(0, 15) + ".." : d.Kontrahent);
+                        seriesDluznicy.Add(new RowSeries
                         {
-                            Title = "Przeterminowane",
-                            Values = values,
-                            Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 107, 107)),
+                            Title = d.Handlowiec,
+                            Values = new ChartValues<double> { (double)d.Przeterminowane },
+                            Fill = new SolidColorBrush(GetHandlowiecColor(d.Handlowiec)),
                             DataLabels = true,
                             LabelPoint = p => $"{p.X:N0}",
                             Foreground = Brushes.White
-                        }
-                    };
-                    axisYDluznicy.Labels = labels;
+                        });
+                    }
+
+                    chartTopDluznicy.Series = seriesDluznicy;
+                    axisYDluznicy.Labels = labelsDluznicy;
                 }
                 else
                 {
@@ -1581,29 +1581,31 @@ FROM FakturyPrzeterminowane";
                     axisYDluznicy.Labels = new List<string>();
                 }
 
-                // Panel top dluznicy
+                // Panel top dluznicy z kolorami per handlowiec
                 panelTopDluznicy.Children.Clear();
                 int idx = 1;
                 foreach (var d in top5Dluznicy)
                 {
+                    var kolorHandlowca = GetHandlowiecColor(d.Handlowiec);
                     var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
-                    sp.Children.Add(new TextBlock { Text = $"{idx}. ", Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 107, 107)), FontWeight = FontWeights.Bold, Width = 18, FontSize = 11 });
+                    sp.Children.Add(new TextBlock { Text = $"{idx}. ", Foreground = new SolidColorBrush(kolorHandlowca), FontWeight = FontWeights.Bold, Width = 18, FontSize = 11 });
                     sp.Children.Add(new TextBlock { Text = d.Kontrahent, Foreground = Brushes.White, Width = 130, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 11 });
-                    sp.Children.Add(new TextBlock { Text = $"{d.Przeterminowane:N0}", Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 107, 107)), FontWeight = FontWeights.Bold, FontSize = 11 });
+                    sp.Children.Add(new TextBlock { Text = $"{d.Przeterminowane:N0}", Foreground = new SolidColorBrush(kolorHandlowca), FontWeight = FontWeights.Bold, FontSize = 11 });
                     panelTopDluznicy.Children.Add(sp);
                     idx++;
                 }
 
-                // Panel top przekroczone limity
+                // Panel top przekroczone limity z kolorami per handlowiec
                 panelTopPrzekroczone.Children.Clear();
                 var top5Limity = dane.Where(d => d.PrzekroczonyLimit > 0).OrderByDescending(d => d.PrzekroczonyLimit).Take(5).ToList();
                 idx = 1;
                 foreach (var d in top5Limity)
                 {
+                    var kolorHandlowca = GetHandlowiecColor(d.Handlowiec);
                     var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
-                    sp.Children.Add(new TextBlock { Text = $"{idx}. ", Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(244, 162, 97)), FontWeight = FontWeights.Bold, Width = 18, FontSize = 11 });
+                    sp.Children.Add(new TextBlock { Text = $"{idx}. ", Foreground = new SolidColorBrush(kolorHandlowca), FontWeight = FontWeights.Bold, Width = 18, FontSize = 11 });
                     sp.Children.Add(new TextBlock { Text = d.Kontrahent, Foreground = Brushes.White, Width = 115, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 11 });
-                    sp.Children.Add(new TextBlock { Text = $"+{d.PrzekroczonyLimit:N0}", Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(244, 162, 97)), FontWeight = FontWeights.Bold, FontSize = 11 });
+                    sp.Children.Add(new TextBlock { Text = $"+{d.PrzekroczonyLimit:N0}", Foreground = new SolidColorBrush(kolorHandlowca), FontWeight = FontWeights.Bold, FontSize = 11 });
                     sp.Children.Add(new TextBlock { Text = $" ({d.ProcentLimitu:F0}%)", Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(139, 148, 158)), FontSize = 10 });
                     panelTopPrzekroczone.Children.Add(sp);
                     idx++;
