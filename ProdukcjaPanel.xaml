@@ -232,6 +232,8 @@
                     <!-- Legenda ikon -->
                     <Border Grid.Column="3" Background="#2A2A2A" CornerRadius="4" Padding="10,5" Margin="15,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left">
                         <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⚠️" FontSize="13" Foreground="Orange" VerticalAlignment="Center"/>
+                            <TextBlock Text="zmienione" Foreground="Orange" FontSize="11" VerticalAlignment="Center" Margin="3,0,10,0"/>
                             <TextBlock Text="📝" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
                             <TextBlock Text="notatka" Foreground="White" FontSize="11" VerticalAlignment="Center" Margin="3,0,10,0"/>
                             <TextBlock Text="🎞️" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
@@ -411,6 +413,15 @@
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                                 <Setter Property="Margin" Value="0,0,5,0"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Zmiana" Binding="{Binding Zmiana}" Width="*">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                <Setter Property="Foreground" Value="Orange"/>
                                                 <Setter Property="FontWeight" Value="Bold"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>

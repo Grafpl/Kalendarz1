@@ -227,7 +227,8 @@ namespace Kalendarz1
                                   (SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id) AS TotalIlosc,
                                   z.DataUtworzenia, z.TransportKursID, z.DataWydania, ISNULL(z.KtoWydal, '') AS KtoWydal,
                                   CAST(CASE WHEN z.TransportStatus = 'Wlasny' THEN 1 ELSE 0 END AS BIT) AS WlasnyTransport,
-                                  z.DataPrzyjazdu
+                                  z.DataPrzyjazdu,
+                                  z.DataOstatniejModyfikacji, z.DataRealizacji, ISNULL(z.CzyZrealizowane, 0) AS CzyZrealizowane
                                   FROM dbo.ZamowieniaMieso z
                                   WHERE z.DataUboju=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')";
 
@@ -237,6 +238,17 @@ namespace Kalendarz1
                     using var rd = await cmd.ExecuteReaderAsync();
                     while (await rd.ReadAsync())
                     {
+                        var dataOstatniejModyfikacji = rd.IsDBNull(11) ? (DateTime?)null : rd.GetDateTime(11);
+                        var dataRealizacji = rd.IsDBNull(12) ? (DateTime?)null : rd.GetDateTime(12);
+                        var czyZrealizowane = rd.GetBoolean(13);
+
+                        // Sprawdź czy zamówienie zostało zmodyfikowane od czasu realizacji
+                        bool czyZmodyfikowane = false;
+                        if (dataRealizacji.HasValue && dataOstatniejModyfikacji.HasValue)
+                        {
+                            czyZmodyfikowane = dataOstatniejModyfikacji.Value > dataRealizacji.Value;
+                        }
+
                         var info = new ZamowienieInfo
                         {
                             Id = rd.GetInt32(0),
@@ -249,7 +261,12 @@ namespace Kalendarz1
                             DataWydania = rd.IsDBNull(7) ? null : rd.GetDateTime(7),
                             KtoWydal = rd.GetString(8),
                             WlasnyTransport = rd.GetBoolean(9),
-                            DataPrzyjazdu = rd.IsDBNull(10) ? null : rd.GetDateTime(10)
+                            DataPrzyjazdu = rd.IsDBNull(10) ? null : rd.GetDateTime(10),
+                            // Nowe pola do wykrywania zmian
+                            DataOstatniejModyfikacji = dataOstatniejModyfikacji,
+                            DataRealizacji = dataRealizacji,
+                            CzyZrealizowane = czyZrealizowane,
+                            CzyZmodyfikowaneOdRealizacji = czyZmodyfikowane
                         };
 
                         _zamowienia[info.Id] = info;
@@ -524,8 +541,11 @@ namespace Kalendarz1
             // Pobierz wydania dla klienta - DOKŁADNIE JAK W PRODUKCJAPANEL
             var shipments = await GetShipmentsForClientAsync(info.KlientId);
 
+            // Pobierz snapshot (jeśli zamówienie było realizowane)
+            var snapshot = info.CzyZrealizowane ? await GetOrderSnapshotAsync(info.Id, "Realizacja") : new Dictionary<int, decimal>();
+
             // Połącz wszystkie ID towarów
-            var ids = orderPositions.Select(p => p.TowarId).Union(shipments.Keys).Where(i => i > 0).Distinct().ToList();
+            var ids = orderPositions.Select(p => p.TowarId).Union(shipments.Keys).Union(snapshot.Keys).Where(i => i > 0).Distinct().ToList();
 
             // Pobierz nazwy towarów - DOKŁADNIE JAK W PRODUKCJAPANEL
             var towary = await LoadTowaryAsync(ids);
@@ -536,17 +556,81 @@ namespace Kalendarz1
             dt.Columns.Add("Zamówiono (kg)", typeof(decimal));
             dt.Columns.Add("Wydano (kg)", typeof(decimal));
             dt.Columns.Add("Różnica (kg)", typeof(decimal));
+            // Kolumna zmian - pokazuje różnicę między aktualnym stanem a snapshotem
+            dt.Columns.Add("Zmiana", typeof(string));
 
-            foreach (var pos in orderPositions)
+            var mapOrd = orderPositions.ToDictionary(p => p.TowarId, p => p.Ilosc);
+
+            foreach (var id in ids.Where(i => mapOrd.ContainsKey(i) || !snapshot.ContainsKey(i)))
             {
-                string produktNazwa = towary.ContainsKey(pos.TowarId) ? towary[pos.TowarId].Kod : $"Towar {pos.TowarId}";
-                decimal wydano = shipments.ContainsKey(pos.TowarId) ? shipments[pos.TowarId] : 0;
-                decimal roznica = pos.Ilosc - wydano;
+                mapOrd.TryGetValue(id, out var ord);
+                shipments.TryGetValue(id, out var wyd);
+                snapshot.TryGetValue(id, out var snap);
 
-                dt.Rows.Add(produktNazwa, pos.Ilosc, wydano, roznica);
+                string produktNazwa = towary.ContainsKey(id) ? towary[id].Kod : $"Towar {id}";
+
+                // Oblicz zmianę od snapshotu
+                string zmiana = "";
+                if (info.CzyZrealizowane && snapshot.Count > 0)
+                {
+                    if (!snapshot.ContainsKey(id))
+                    {
+                        // Nowa pozycja dodana po realizacji
+                        zmiana = "🆕 NOWE";
+                        produktNazwa = "🆕 " + produktNazwa;
+                    }
+                    else if (ord != snap)
+                    {
+                        // Zmieniona ilość
+                        decimal diff = ord - snap;
+                        zmiana = diff > 0 ? $"+{diff:N0} kg" : $"{diff:N0} kg";
+                    }
+                }
+
+                dt.Rows.Add(produktNazwa, ord, wyd, ord - wyd, zmiana);
+            }
+
+            // Sprawdź czy są pozycje usunięte (były w snapshocie, ale nie ma w aktualnym zamówieniu)
+            if (info.CzyZrealizowane && snapshot.Count > 0)
+            {
+                foreach (var snapItem in snapshot.Where(s => !mapOrd.ContainsKey(s.Key)))
+                {
+                    string produktNazwa = towary.ContainsKey(snapItem.Key) ? towary[snapItem.Key].Kod : $"Towar {snapItem.Key}";
+                    produktNazwa = "❌ " + produktNazwa;
+                    dt.Rows.Add(produktNazwa, 0, 0, 0, $"USUNIĘTO ({snapItem.Value:N0} kg)");
+                }
             }
 
             dgvPozycje.ItemsSource = dt.DefaultView;
+        }
+
+        private async Task<Dictionary<int, decimal>> GetOrderSnapshotAsync(int zamowienieId, string typSnapshotu)
+        {
+            var snapshot = new Dictionary<int, decimal>();
+            try
+            {
+                using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Sprawdź czy tabela snapshotów istnieje
+                var checkCmd = new SqlCommand("SELECT COUNT(*) FROM sys.objects WHERE name='ZamowieniaMiesoSnapshot' AND type='U'", cn);
+                if ((int)await checkCmd.ExecuteScalarAsync() == 0)
+                    return snapshot;
+
+                var cmd = new SqlCommand(@"SELECT KodTowaru, Ilosc
+                                           FROM dbo.ZamowieniaMiesoSnapshot
+                                           WHERE ZamowienieId = @ZamId AND TypSnapshotu = @Typ", cn);
+                cmd.Parameters.AddWithValue("@ZamId", zamowienieId);
+                cmd.Parameters.AddWithValue("@Typ", typSnapshotu);
+
+                using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    snapshot[rd.GetInt32(0)] = rd.GetDecimal(1);
+                }
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Błąd pobierania snapshotu: {ex.Message}"); }
+            return snapshot;
         }
 
         private async Task<Dictionary<int, TowarInfo>> LoadTowaryAsync(List<int> ids)
@@ -655,6 +739,11 @@ namespace Kalendarz1
             public string KtoWydalNazwa { get; set; } = ""; // Pełna nazwa użytkownika
             public bool WlasnyTransport { get; set; } // Własny transport
             public DateTime? DataPrzyjazdu { get; set; } // Godzina odbioru dla własnego transportu
+            // Nowe pola do wykrywania zmian
+            public DateTime? DataOstatniejModyfikacji { get; set; }
+            public DateTime? DataRealizacji { get; set; }
+            public bool CzyZrealizowane { get; set; }
+            public bool CzyZmodyfikowaneOdRealizacji { get; set; }
         }
 
         public class ContractorInfo
@@ -676,7 +765,8 @@ namespace Kalendarz1
             public ZamowienieViewModel(ZamowienieInfo info) { Info = info; }
 
             // Klient z ikoną ciężarówki dla własnego transportu
-            public string Klient => Info.WlasnyTransport ? $"🚚 {Info.Klient}" : Info.Klient;
+            // ⚠️ pokazuje się gdy zamówienie zostało zmodyfikowane od czasu realizacji
+            public string Klient => $"{(Info.CzyZmodyfikowaneOdRealizacji ? "⚠️ " : "")}{(Info.WlasnyTransport ? "🚚 " : "")}{Info.Klient}";
             public decimal TotalIlosc => Info.TotalIlosc;
             public string Handlowiec => Info.Handlowiec;
             public string Status => Info.Status;
