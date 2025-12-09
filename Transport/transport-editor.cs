@@ -1085,8 +1085,18 @@ namespace Kalendarz1.Transport.Formularze
                 _kierowcy = await _repozytorium.PobierzKierowcowAsync(true);
                 _pojazdy = await _repozytorium.PobierzPojazdyAsync(true);
 
-                cboKierowca.DataSource = _kierowcy;
-                cboPojazd.DataSource = _pojazdy;
+                // Używamy BindingSource z możliwością pustego wyboru
+                var kierowcySource = new BindingSource();
+                kierowcySource.DataSource = _kierowcy;
+                cboKierowca.DataSource = kierowcySource;
+
+                var pojazdySource = new BindingSource();
+                pojazdySource.DataSource = _pojazdy;
+                cboPojazd.DataSource = pojazdySource;
+
+                // Domyślnie brak wyboru - pozwala na zapis kursu bez przypisania
+                cboKierowca.SelectedIndex = -1;
+                cboPojazd.SelectedIndex = -1;
 
                 await LoadKontrahenciAsync();
                 await LoadWolneZamowienia();
@@ -1227,8 +1237,25 @@ namespace Kalendarz1.Transport.Formularze
             }
 
             dtpData.Value = _kurs.DataKursu;
-            cboKierowca.SelectedItem = _kierowcy.FirstOrDefault(k => k.KierowcaID == _kurs.KierowcaID);
-            cboPojazd.SelectedItem = _pojazdy.FirstOrDefault(p => p.PojazdID == _kurs.PojazdID);
+
+            // Obsługa nullable kierowcy i pojazdu
+            if (_kurs.KierowcaID.HasValue)
+            {
+                cboKierowca.SelectedItem = _kierowcy.FirstOrDefault(k => k.KierowcaID == _kurs.KierowcaID.Value);
+            }
+            else
+            {
+                cboKierowca.SelectedIndex = -1;
+            }
+
+            if (_kurs.PojazdID.HasValue)
+            {
+                cboPojazd.SelectedItem = _pojazdy.FirstOrDefault(p => p.PojazdID == _kurs.PojazdID.Value);
+            }
+            else
+            {
+                cboPojazd.SelectedIndex = -1;
+            }
 
             if (_kurs.GodzWyjazdu.HasValue)
                 txtGodzWyjazdu.Text = _kurs.GodzWyjazdu.Value.ToString(@"hh\:mm");
@@ -2439,18 +2466,27 @@ Adres: {zamowienie.Adres}";
 
         private async void BtnZapisz_Click(object sender, EventArgs e)
         {
-            if (cboKierowca.SelectedItem == null)
-            {
-                MessageBox.Show("Wybierz kierowcę.", "Brak danych",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+            // Kierowca i pojazd są teraz opcjonalne - można przypisać później
+            // Pokazujemy ostrzeżenie, ale pozwalamy zapisać
+            var kierowca = cboKierowca.SelectedItem as Kierowca;
+            var pojazd = cboPojazd.SelectedItem as Pojazd;
 
-            if (cboPojazd.SelectedItem == null)
+            if (kierowca == null || pojazd == null)
             {
-                MessageBox.Show("Wybierz pojazd.", "Brak danych",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
+                var brakujace = new List<string>();
+                if (kierowca == null) brakujace.Add("kierowca");
+                if (pojazd == null) brakujace.Add("pojazd");
+
+                var wynik = MessageBox.Show(
+                    $"Nie przypisano: {string.Join(", ", brakujace)}.\n\n" +
+                    "Kurs zostanie zapisany jako 'Do przydzielenia'.\n" +
+                    "Czy kontynuować?",
+                    "Brak przypisania zasobów",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (wynik != DialogResult.Yes)
+                    return;
             }
 
             try
@@ -2503,16 +2539,20 @@ Adres: {zamowienie.Adres}";
             if (TimeSpan.TryParse(txtGodzPowrotu.Text, out var gp))
                 godzPowrotu = gp;
 
+            // Ustaw status na "Do przydzielenia" jeśli brak kierowcy lub pojazdu
+            var status = (kierowca == null || pojazd == null) ? "Do przydzielenia" : "Planowany";
+
             var kurs = new Kurs
             {
                 KursID = _kursId ?? 0,
                 DataKursu = dtpData.Value.Date,
-                KierowcaID = kierowca.KierowcaID,
-                PojazdID = pojazd.PojazdID,
+                // Kierowca i pojazd mogą być null - zostanie przypisane później
+                KierowcaID = kierowca?.KierowcaID,
+                PojazdID = pojazd?.PojazdID,
                 Trasa = string.IsNullOrWhiteSpace(txtTrasa.Text) ? null : txtTrasa.Text.Trim(),
                 GodzWyjazdu = godzWyjazdu,
                 GodzPowrotu = godzPowrotu,
-                Status = "Planowany",
+                Status = status,
                 PlanE2NaPalete = 36
             };
 
