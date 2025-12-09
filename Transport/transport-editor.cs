@@ -2479,7 +2479,7 @@ Adres: {zamowienie.Adres}";
 
                 var wynik = MessageBox.Show(
                     $"Nie przypisano: {string.Join(", ", brakujace)}.\n\n" +
-                    "Kurs zostanie zapisany jako 'Do przydzielenia'.\n" +
+                    "Kurs zostanie zapisany ze statusem 'Planowany' - będzie oznaczony wizualnie do przydzielenia.\n" +
                     "Czy kontynuować?",
                     "Brak przypisania zasobów",
                     MessageBoxButtons.YesNo,
@@ -2539,8 +2539,8 @@ Adres: {zamowienie.Adres}";
             if (TimeSpan.TryParse(txtGodzPowrotu.Text, out var gp))
                 godzPowrotu = gp;
 
-            // Ustaw status na "Do przydzielenia" jeśli brak kierowcy lub pojazdu
-            var status = (kierowca == null || pojazd == null) ? "Do przydzielenia" : "Planowany";
+            // Status zawsze "Planowany" - brak przypisania jest wizualnie oznaczony w UI
+            var status = "Planowany";
 
             var kurs = new Kurs
             {

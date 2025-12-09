@@ -732,8 +732,8 @@ namespace Kalendarz1.Transport.Formularze
                             ? "⚠ DO PRZYDZIELENIA"
                             : kurs.PojazdRejestracja;
 
-                        // Status automatycznie "Do przydzielenia" jeśli brak zasobów
-                        var status = wymagaPrzydzialu ? "Do przydzielenia" : (kurs.Status ?? "Planowany");
+                        // Status z bazy lub "Planowany" jako domyślny - brak zasobów oznaczony wizualnie
+                        var status = kurs.Status ?? "Planowany";
 
                         dt.Rows.Add(
                             kurs.KursID,
@@ -1020,10 +1020,6 @@ namespace Kalendarz1.Transport.Formularze
                     case "Anulowany":
                         e.CellStyle.ForeColor = Color.FromArgb(231, 76, 60);
                         row.DefaultCellStyle.BackColor = Color.FromArgb(254, 245, 245);
-                        break;
-                    case "Do przydzielenia":
-                        e.CellStyle.ForeColor = Color.FromArgb(230, 126, 34); // Pomarańczowy
-                        e.CellStyle.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
                         break;
                     default:
                         e.CellStyle.ForeColor = Color.FromArgb(127, 140, 141);
@@ -1735,7 +1731,7 @@ namespace Kalendarz1.Transport.Formularze
                 // Zaktualizuj kurs z nowymi wartościami
                 _kurs.KierowcaID = kierowca.KierowcaID;
                 _kurs.PojazdID = pojazd.PojazdID;
-                _kurs.Status = "Planowany"; // Zmień status z "Do przydzielenia" na "Planowany"
+                _kurs.Status = "Planowany"; // Zachowaj status "Planowany"
 
                 await _repozytorium.AktualizujNaglowekKursuAsync(_kurs, Environment.UserName);
 
