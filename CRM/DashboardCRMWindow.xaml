@@ -56,7 +56,7 @@
 
         <!-- HEADER z animowanym tytułem -->
         <Grid Grid.Row="0" Margin="0,0,0,24">
-            <Border Background="Linear Gradient" CornerRadius="20" Padding="28,20">
+            <Border CornerRadius="20" Padding="28,20">
                 <Border.Background>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                         <GradientStop Color="#16A34A" Offset="0"/>
