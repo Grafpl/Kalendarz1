@@ -1,5 +1,4 @@
 using Microsoft.Data.SqlClient;
-using Microsoft.Web.WebView2.Core;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -56,6 +55,34 @@ namespace Kalendarz1.CRM
             {
                 txtLoadingStatus.Text = "Inicjalizacja mapy...";
                 await webView.EnsureCoreWebView2Async();
+                webView.CoreWebView2.WebMessageReceived += (s, e) =>
+                {
+                    try
+                    {
+                        var json = e.WebMessageAsJson;
+                        using (var doc = JsonDocument.Parse(json))
+                        {
+                            var root = doc.RootElement;
+                            string action = root.GetProperty("action").GetString();
+                            int id = root.GetProperty("id").GetInt32();
+
+                            if (action == "zmienStatus")
+                            {
+                                string nowyStatus = root.GetProperty("status").GetString();
+                                ZmienStatusOdbiorcy(id, nowyStatus);
+                            }
+                            else if (action == "dodajNotatke")
+                            {
+                                string tresc = root.GetProperty("tresc").GetString();
+                                DodajNotatkeOdbiorcy(id, tresc);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"WebMessage error: {ex.Message}");
+                    }
+                };
                 isWebViewReady = true;
                 await Task.Delay(500);
                 await OdswiezMapeAsync();
@@ -142,14 +169,27 @@ namespace Kalendarz1.CRM
                         o.Email,
                         o.Wojewodztwo,
                         o.PKD_Opis,
+                        o.Tagi,
                         ISNULL(o.Status, 'Do zadzwonienia') as Status,
                         CASE WHEN pb.PKD_Opis IS NOT NULL THEN 1 ELSE 0 END as CzyPriorytetowa,
                         kp.Latitude,
                         kp.Longitude,
-                        (SELECT TOP 1 ISNULL(op.Name, n.KtoDodal) FROM NotatkiCRM n LEFT JOIN operators op ON n.KtoDodal = CAST(op.ID AS NVARCHAR) WHERE n.IDOdbiorcy = o.ID ORDER BY n.DataUtworzenia DESC) as Handlowiec
+                        (SELECT TOP 1 ISNULL(op.Name, h.KtoWykonal) FROM HistoriaZmianCRM h LEFT JOIN operators op ON h.KtoWykonal = CAST(op.ID AS NVARCHAR) WHERE h.IDOdbiorcy = o.ID ORDER BY h.DataZmiany DESC) as Handlowiec,
+                        notatki_agg.Notatki,
+                        historia_agg.Historia
                     FROM OdbiorcyCRM o
                     LEFT JOIN PriorytetoweBranzeCRM pb ON o.PKD_Opis = pb.PKD_Opis
                     INNER JOIN KodyPocztowe kp ON REPLACE(o.KOD, '-', '') = REPLACE(kp.Kod, '-', '')
+                    OUTER APPLY (
+                        SELECT STRING_AGG(CONCAT(FORMAT(n.DataDodania, 'dd.MM'), '|', ISNULL(op.Name, 'System'), '|', LEFT(n.Tresc, 100)), ';;;') as Notatki
+                        FROM (SELECT TOP 3 ID, IDOdbiorcy, DataDodania, Tresc, KtoDodal FROM NotatkiCRM WHERE IDOdbiorcy = o.ID ORDER BY DataDodania DESC) n
+                        LEFT JOIN operators op ON n.KtoDodal = CAST(op.ID AS NVARCHAR)
+                    ) notatki_agg
+                    OUTER APPLY (
+                        SELECT STRING_AGG(CONCAT(FORMAT(h.DataZmiany, 'dd.MM HH:mm'), '|', h.TypZmiany, '|', ISNULL(h.WartoscNowa, ''), '|', ISNULL(op.Name, 'System')), ';;;') as Historia
+                        FROM (SELECT TOP 5 ID, IDOdbiorcy, DataZmiany, TypZmiany, WartoscNowa, KtoWykonal FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID ORDER BY DataZmiany DESC) h
+                        LEFT JOIN operators op ON h.KtoWykonal = CAST(op.ID AS NVARCHAR)
+                    ) historia_agg
                     WHERE ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)')
                       AND kp.Latitude IS NOT NULL
                       AND kp.Longitude IS NOT NULL";
@@ -287,6 +327,9 @@ namespace Kalendarz1.CRM
                     Wojewodztwo = row["Wojewodztwo"]?.ToString() ?? "",
                     Branza = branza,
                     Handlowiec = row["Handlowiec"]?.ToString() ?? "",
+                    Tagi = row["Tagi"]?.ToString() ?? "",
+                    Notatki = row["Notatki"]?.ToString() ?? "",
+                    Historia = row["Historia"]?.ToString() ?? "",
                     Status = status,
                     CzyPriorytetowa = czyPriorytetowa,
                     Lat = lat,
@@ -350,10 +393,14 @@ namespace Kalendarz1.CRM
                 k.Ulica,
                 k.Telefon,
                 k.Email,
+                k.Wojewodztwo,
                 k.Status,
                 k.Branza,
                 k.Handlowiec,
                 k.CzyPriorytetowa,
+                Tagi = k.Tagi ?? "",
+                Notatki = k.Notatki ?? "",
+                Historia = k.Historia ?? "",
                 k.KolorHex,
                 k.Lat,
                 k.Lng,
@@ -369,12 +416,80 @@ namespace Kalendarz1.CRM
             sb.AppendLine("<meta name='viewport' content='width=device-width, initial-scale=1.0'/>");
             sb.AppendLine("<style>");
             sb.AppendLine("html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; }");
-            sb.AppendLine(".gm-style-iw { max-width: 300px !important; font-family: 'Segoe UI', sans-serif; }");
-            sb.AppendLine(".p-title { font-weight: 700; font-size: 14px; margin-bottom: 5px; }");
-            sb.AppendLine(".p-info { font-size: 12px; margin: 2px 0; }");
-            sb.AppendLine(".btn-row { display:flex; gap:5px; margin-top:8px; }");
-            sb.AppendLine(".p-btn { flex:1; text-align:center; padding: 6px 4px; color: white; text-decoration: none; border-radius: 4px; margin-top: 4px; font-size: 11px; border:none; cursor:pointer; }");
-            sb.AppendLine(".btn-add { background: #0F172A; } .btn-add:hover { background: #1E293B; }");
+            sb.AppendLine(".gm-style-iw { max-width: 360px !important; font-family: 'Segoe UI', sans-serif; }");
+            sb.AppendLine(".gm-style-iw-d { overflow: hidden !important; }");
+            sb.AppendLine(".popup-card { padding: 4px; }");
+            sb.AppendLine(".p-header { background: linear-gradient(135deg, #16A34A 0%, #22C55E 100%); color: white; padding: 12px 14px; border-radius: 8px 8px 0 0; margin: -12px -12px 12px -12px; position: relative; }");
+            sb.AppendLine(".p-header-top { display: flex; align-items: flex-start; gap: 10px; }");
+            sb.AppendLine(".p-avatar { width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; }");
+            sb.AppendLine(".p-header-info { flex: 1; }");
+            sb.AppendLine(".p-title { font-weight: 700; font-size: 14px; margin: 0; line-height: 1.3; }");
+            sb.AppendLine(".p-subtitle { font-size: 11px; opacity: 0.9; margin-top: 2px; }");
+            sb.AppendLine(".p-badges { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }");
+            sb.AppendLine(".p-badge { font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 700; }");
+            sb.AppendLine(".badge-vip { background: #FEF3C7; color: #92400E; }");
+            sb.AppendLine(".badge-pilne { background: #FEE2E2; color: #991B1B; }");
+            sb.AppendLine(".badge-premium { background: #E0E7FF; color: #3730A3; }");
+            sb.AppendLine(".badge-priorytet { background: #DCFCE7; color: #166534; }");
+            sb.AppendLine(".p-body { padding: 0 2px; }");
+            sb.AppendLine(".p-row { display: flex; align-items: center; padding: 6px 0; border-bottom: 1px solid #F1F5F9; }");
+            sb.AppendLine(".p-row:last-child { border-bottom: none; }");
+            sb.AppendLine(".p-icon { width: 24px; text-align: center; font-size: 14px; }");
+            sb.AppendLine(".p-label { font-size: 10px; color: #64748B; text-transform: uppercase; font-weight: 600; }");
+            sb.AppendLine(".p-value { font-size: 12px; color: #1E293B; font-weight: 500; display: flex; align-items: center; gap: 6px; }");
+            sb.AppendLine(".copy-btn { background: #F1F5F9; border: none; padding: 3px 6px; border-radius: 4px; cursor: pointer; font-size: 10px; transition: all 0.2s; }");
+            sb.AppendLine(".copy-btn:hover { background: #E2E8F0; }");
+            sb.AppendLine(".p-section { margin-top: 10px; padding-top: 10px; border-top: 2px solid #F1F5F9; }");
+            sb.AppendLine(".p-section-title { font-size: 10px; color: #64748B; text-transform: uppercase; font-weight: 700; margin-bottom: 8px; letter-spacing: 0.5px; }");
+            sb.AppendLine(".status-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }");
+            sb.AppendLine(".s-btn { padding: 8px 4px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 2px; }");
+            sb.AppendLine(".s-btn:hover { transform: scale(1.05); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }");
+            sb.AppendLine(".s-btn span { font-size: 8px; font-weight: 600; }");
+            sb.AppendLine(".quick-note { display: flex; gap: 6px; margin-top: 8px; }");
+            sb.AppendLine(".quick-note input { flex: 1; border: 1px solid #E2E8F0; border-radius: 6px; padding: 8px 10px; font-size: 11px; }");
+            sb.AppendLine(".quick-note button { background: #16A34A; color: white; border: none; border-radius: 6px; padding: 8px 12px; cursor: pointer; font-size: 11px; font-weight: 600; }");
+            // Notes history styles
+            sb.AppendLine(".notes-list { max-height: 120px; overflow-y: auto; margin-top: 6px; }");
+            sb.AppendLine(".note-item { background: #F8FAFC; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; border-left: 3px solid #16A34A; }");
+            sb.AppendLine(".note-header { display: flex; justify-content: space-between; margin-bottom: 4px; }");
+            sb.AppendLine(".note-date { font-size: 9px; color: #64748B; font-weight: 600; }");
+            sb.AppendLine(".note-author { font-size: 9px; color: #6366F1; font-weight: 600; }");
+            sb.AppendLine(".note-text { font-size: 11px; color: #334155; line-height: 1.4; }");
+            // Timeline styles
+            sb.AppendLine(".timeline { max-height: 140px; overflow-y: auto; margin-top: 6px; padding-left: 12px; border-left: 2px solid #E2E8F0; }");
+            sb.AppendLine(".tl-item { position: relative; padding: 6px 0 6px 14px; }");
+            sb.AppendLine(".tl-item::before { content: ''; position: absolute; left: -7px; top: 10px; width: 12px; height: 12px; border-radius: 50%; background: #16A34A; border: 2px solid white; box-shadow: 0 0 0 2px #E2E8F0; }");
+            sb.AppendLine(".tl-item.status::before { background: #3B82F6; }");
+            sb.AppendLine(".tl-item.note::before { background: #F97316; }");
+            sb.AppendLine(".tl-date { font-size: 9px; color: #94A3B8; font-weight: 600; }");
+            sb.AppendLine(".tl-action { font-size: 10px; color: #475569; font-weight: 600; }");
+            sb.AppendLine(".tl-value { font-size: 11px; color: #1E293B; }");
+            sb.AppendLine(".tl-author { font-size: 9px; color: #6366F1; margin-top: 2px; }");
+            // Quick actions toolbar
+            sb.AppendLine("#quick-toolbar { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: white; padding: 8px 16px; border-radius: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); z-index: 9000; display: none; gap: 8px; align-items: center; }");
+            sb.AppendLine("#quick-toolbar.show { display: flex; }");
+            sb.AppendLine(".qt-btn { width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer; font-size: 16px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }");
+            sb.AppendLine(".qt-btn:hover { transform: scale(1.1); }");
+            sb.AppendLine(".qt-btn.call { background: #DCFCE7; }");
+            sb.AppendLine(".qt-btn.status { background: #DBEAFE; }");
+            sb.AppendLine(".qt-btn.note { background: #FEF3C7; }");
+            sb.AppendLine(".qt-btn.route { background: #F3E8FF; }");
+            sb.AppendLine(".qt-btn.copy { background: #F1F5F9; }");
+            sb.AppendLine("#qt-name { font-size: 12px; font-weight: 600; color: #1E293B; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 8px; }");
+            // Navigation buttons in popup
+            sb.AppendLine(".p-nav { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; }");
+            sb.AppendLine(".nav-btn { width: 24px; height: 24px; border-radius: 50%; background: rgba(255,255,255,0.2); border: none; color: white; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }");
+            sb.AppendLine(".nav-btn:hover { background: rgba(255,255,255,0.4); }");
+            sb.AppendLine(".nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }");
+            sb.AppendLine(".p-counter { font-size: 9px; color: rgba(255,255,255,0.8); margin-right: 6px; }");
+            sb.AppendLine(".btn-row { display: flex; gap: 8px; margin-top: 12px; }");
+            sb.AppendLine(".p-btn { flex: 1; text-align: center; padding: 10px 8px; color: white; text-decoration: none; border-radius: 6px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; }");
+            sb.AppendLine(".p-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }");
+            sb.AppendLine(".btn-route { background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%); }");
+            sb.AppendLine(".btn-call { background: linear-gradient(135deg, #16A34A 0%, #22C55E 100%); }");
+            sb.AppendLine("#map-toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px); background: #1F2937; color: white; padding: 12px 20px; border-radius: 30px; font-size: 13px; font-weight: 600; z-index: 9999; transition: transform 0.3s ease; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }");
+            sb.AppendLine("#map-toast.show { transform: translateX(-50%) translateY(0); }");
+            sb.AppendLine("#map-toast .undo-btn { background: #16A34A; border: none; color: white; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; }");
             sb.AppendLine("#route-panel { position: absolute; right: 0; top: 0; bottom: 0; width: 320px; background: white; box-shadow: -2px 0 10px rgba(0,0,0,0.1); z-index: 1000; transform: translateX(320px); transition: transform 0.3s ease; display: flex; flex-direction: column; }");
             sb.AppendLine("#route-panel.open { transform: translateX(0); }");
             sb.AppendLine(".rp-header { background: #16A34A; color: white; padding: 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }");
@@ -386,10 +501,42 @@ namespace Kalendarz1.CRM
             sb.AppendLine(".btn-calc:hover { background: #1D4ED8; }");
             sb.AppendLine("#toggle-panel { position: absolute; right: 20px; top: 20px; z-index: 900; background: white; padding: 10px 15px; border-radius: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; font-weight: bold; color: #16A34A; }");
             sb.AppendLine("#route-summary { margin-top: 10px; font-size: 13px; font-weight: bold; color: #16A34A; text-align: center; display: none; }");
+            // Leaderboard CSS - większy i bardziej kompaktowy
+            sb.AppendLine("#toggle-leaderboard { position: absolute; left: 20px; top: 20px; z-index: 900; background: white; padding: 8px 14px; border-radius: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; font-weight: bold; color: #6366F1; font-size: 12px; }");
+            sb.AppendLine("#leaderboard-panel { position: absolute; left: 0; top: 0; bottom: 0; width: 320px; background: white; box-shadow: 2px 0 10px rgba(0,0,0,0.1); z-index: 1000; transform: translateX(-320px); transition: transform 0.3s ease; display: flex; flex-direction: column; }");
+            sb.AppendLine("#leaderboard-panel.open { transform: translateX(0); }");
+            sb.AppendLine(".lb-header { background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%); color: white; padding: 12px 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }");
+            sb.AppendLine(".lb-content { flex: 1; overflow-y: auto; padding: 8px; }");
+            sb.AppendLine(".lb-item { display: flex; align-items: center; padding: 6px 8px; margin-bottom: 4px; background: #F8FAFC; border-radius: 6px; transition: all 0.2s; }");
+            sb.AppendLine(".lb-item:hover { background: #EEF2FF; }");
+            sb.AppendLine(".lb-rank { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 10px; margin-right: 8px; flex-shrink: 0; }");
+            sb.AppendLine(".lb-rank.gold { background: #FEF3C7; color: #92400E; }");
+            sb.AppendLine(".lb-rank.silver { background: #E5E7EB; color: #374151; }");
+            sb.AppendLine(".lb-rank.bronze { background: #FFEDD5; color: #9A3412; }");
+            sb.AppendLine(".lb-rank.normal { background: #F1F5F9; color: #64748B; }");
+            sb.AppendLine(".lb-info { flex: 1; min-width: 0; }");
+            sb.AppendLine(".lb-name { font-weight: 600; font-size: 11px; color: #1E293B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }");
+            sb.AppendLine(".lb-stats { font-size: 9px; color: #64748B; margin-top: 1px; }");
+            sb.AppendLine(".lb-score { font-weight: bold; font-size: 13px; color: #4F46E5; margin-left: 8px; flex-shrink: 0; }");
+            // Konfetti CSS
+            sb.AppendLine("#confetti-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 99999; overflow: hidden; }");
+            sb.AppendLine(".confetti { position: absolute; width: 10px; height: 10px; opacity: 0; animation: confetti-fall 3s ease-out forwards; }");
+            sb.AppendLine("@keyframes confetti-fall { 0% { transform: translateY(-100px) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }");
+            // Cluster info tooltip
+            sb.AppendLine("#cluster-tooltip { position: fixed; background: white; padding: 12px 16px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); z-index: 10000; pointer-events: none; display: none; font-size: 12px; min-width: 180px; }");
+            sb.AppendLine("#cluster-tooltip .ct-title { font-weight: 700; color: #16A34A; margin-bottom: 8px; font-size: 13px; }");
+            sb.AppendLine("#cluster-tooltip .ct-row { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #F1F5F9; }");
+            sb.AppendLine("#cluster-tooltip .ct-row:last-child { border-bottom: none; }");
+            sb.AppendLine("#cluster-tooltip .ct-label { color: #64748B; }");
+            sb.AppendLine("#cluster-tooltip .ct-value { font-weight: 600; color: #1E293B; }");
             sb.AppendLine("</style>");
             sb.AppendLine("</head>");
             sb.AppendLine("<body>");
             sb.AppendLine("<div id='map'></div>");
+            sb.AppendLine("<div id='confetti-container'></div>");
+            sb.AppendLine("<div id='cluster-tooltip'></div>");
+            sb.AppendLine("<div id='quick-toolbar'><span id='qt-name'></span><button class='qt-btn call' onclick='qtCall()' title='Zadzwoń'>📞</button><button class='qt-btn status' onclick='qtStatus()' title='Zmień status'>📊</button><button class='qt-btn note' onclick='qtNote()' title='Notatka'>📝</button><button class='qt-btn route' onclick='qtRoute()' title='Do trasy'>🗺️</button><button class='qt-btn copy' onclick='qtCopy()' title='Kopiuj'>📋</button></div>");
+            sb.AppendLine("<div id='map-toast'><span id='toast-msg'></span><button class='undo-btn' onclick='cofnijStatus()'>Cofnij</button></div>");
             sb.AppendLine("<div id='toggle-panel' onclick='togglePanel()'>📋 Twoja trasa (<span id='count-badge'>0</span>)</div>");
             sb.AppendLine("<div id='route-panel'>");
             sb.AppendLine("  <div class='rp-header'><span>PLANOWANIE TRASY</span><span style='cursor:pointer' onclick='togglePanel()'>✕</span></div>");
@@ -399,6 +546,11 @@ namespace Kalendarz1.CRM
             sb.AppendLine("    <div id='route-summary'></div>");
             sb.AppendLine("    <div style='text-align:center; margin-top:10px;'><a href='#' onclick='clearRoute()' style='color:#666;font-size:11px;'>Wyczyść trasę</a></div>");
             sb.AppendLine("  </div>");
+            sb.AppendLine("</div>");
+            sb.AppendLine("<div id='toggle-leaderboard' onclick='toggleLeaderboard()'>🏆 Ranking</div>");
+            sb.AppendLine("<div id='leaderboard-panel'>");
+            sb.AppendLine("  <div class='lb-header'><span>🏆 RANKING HANDLOWCÓW</span><span style='cursor:pointer' onclick='toggleLeaderboard()'>✕</span></div>");
+            sb.AppendLine("  <div class='lb-content' id='leaderboard-list'></div>");
             sb.AppendLine("</div>");
             sb.AppendLine("<script>");
             sb.Append("var data = ");
@@ -413,6 +565,8 @@ namespace Kalendarz1.CRM
             sb.AppendLine("  var centerPos = data.length > 0 ? { lat: data[0].Lat, lng: data[0].Lng } : startPos;");
             sb.AppendLine("  map = new google.maps.Map(document.getElementById('map'), { center: centerPos, zoom: 6, fullscreenControl: true, streetViewControl: false, mapTypeControl: false });");
             sb.AppendLine("  infoWindow = new google.maps.InfoWindow();");
+            sb.AppendLine("  infoWindow.addListener('closeclick', function() { hideQuickToolbar(); });");
+            sb.AppendLine("  map.addListener('click', function() { hideQuickToolbar(); infoWindow.close(); });");
             sb.AppendLine("  directionsService = new google.maps.DirectionsService();");
             sb.AppendLine("  directionsRenderer = new google.maps.DirectionsRenderer({ map: map, suppressMarkers: false });");
             sb.AppendLine("  new google.maps.Marker({ position: startPos, map: map, label: '🏠', title: 'BAZA: Koziołki 40' });");
@@ -426,26 +580,123 @@ namespace Kalendarz1.CRM
             sb.Append("    var svgIcon = { url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent('<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"' + sz + '\" height=\"' + sz + '\"><circle cx=\"' + (sz/2) + '\" cy=\"' + (sz/2) + '\" r=\"' + ((sz/2)-1) + '\" fill=\"' + p.KolorHex + '\" stroke=\"#fff\" stroke-width=\"1\"/></svg>'), scaledSize: new google.maps.Size(sz, sz), anchor: new google.maps.Point(sz/2, sz/2) };");
             sb.AppendLine("    var marker = new google.maps.Marker({ position: pos, map: map, icon: svgIcon, title: p.Nazwa });");
             sb.AppendLine("    marker.kontakt = p;");
+            sb.AppendLine("    markers.push(marker);");
             sb.AppendLine("    marker.addListener('click', function() {");
             sb.AppendLine("      var k = this.kontakt;");
-            sb.AppendLine("      var branzaHtml = k.Branza ? '<div class=\"p-info\">🏭 ' + k.Branza + '</div>' : '';");
-            sb.AppendLine("      var handlowiecHtml = k.Handlowiec ? '<div class=\"p-info\" style=\"color:#6366F1;font-weight:bold\">👤 ' + k.Handlowiec + '</div>' : '';");
-            sb.AppendLine("      var content = '<div class=\"p-title\">' + k.Nazwa + '</div>' +");
-            sb.AppendLine("                    '<div class=\"p-info\">📍 ' + k.Miasto + ' (' + k.DystansKm + ' km)</div>' +");
-            sb.AppendLine("                    branzaHtml + handlowiecHtml +");
-            sb.AppendLine("                    '<div class=\"p-info\">📞 ' + k.Telefon + '</div>' +");
-            sb.AppendLine("                    '<div class=\"btn-row\">' +");
-            sb.AppendLine("                    '<button class=\"p-btn btn-add\" onclick=\"addToRoute(' + k.ID + ')\">➕ Dodaj do trasy</button>' +");
-            sb.AppendLine("                    '<a class=\"p-btn\" style=\"background:#16A34A\" href=\"tel:' + k.Telefon + '\">📞 Zadzwoń</a>' +");
-            sb.AppendLine("                    '</div>';");
+            sb.AppendLine("      var avatarIcon = k.Branza ? (k.Branza.includes('Produkcja') ? '🏭' : k.Branza.includes('Handel') ? '🏪' : k.Branza.includes('Usługi') ? '🔧' : '🏢') : '🏢';");
+            sb.AppendLine("      var badges = '';");
+            sb.AppendLine("      if(k.Tagi) {");
+            sb.AppendLine("        if(k.Tagi.includes('VIP')) badges += '<span class=\"p-badge badge-vip\">⭐ VIP</span>';");
+            sb.AppendLine("        if(k.Tagi.includes('Pilne')) badges += '<span class=\"p-badge badge-pilne\">🔥 PILNE</span>';");
+            sb.AppendLine("        if(k.Tagi.includes('Premium')) badges += '<span class=\"p-badge badge-premium\">💎 PREMIUM</span>';");
+            sb.AppendLine("      }");
+            sb.AppendLine("      if(k.CzyPriorytetowa) badges += '<span class=\"p-badge badge-priorytet\">✓ PRIORYTET</span>';");
+            sb.AppendLine("      var idx = data.indexOf(k);");
+            sb.AppendLine("      var hasPrev = idx > 0;");
+            sb.AppendLine("      var hasNext = idx < data.length - 1;");
+            sb.AppendLine("      var content = '<div class=\"popup-card\">' +");
+            sb.AppendLine("        '<div class=\"p-header\">' +");
+            sb.AppendLine("          '<div class=\"p-nav\">' +");
+            sb.AppendLine("            '<span class=\"p-counter\">' + (idx+1) + '/' + data.length + '</span>' +");
+            sb.AppendLine("            '<button class=\"nav-btn\" onclick=\"navPrev()\" ' + (hasPrev ? '' : 'disabled') + ' title=\"Poprzedni\">◀</button>' +");
+            sb.AppendLine("            '<button class=\"nav-btn\" onclick=\"navNext()\" ' + (hasNext ? '' : 'disabled') + ' title=\"Następny\">▶</button>' +");
+            sb.AppendLine("          '</div>' +");
+            sb.AppendLine("          '<div class=\"p-header-top\">' +");
+            sb.AppendLine("            '<div class=\"p-avatar\">' + avatarIcon + '</div>' +");
+            sb.AppendLine("            '<div class=\"p-header-info\">' +");
+            sb.AppendLine("              '<div class=\"p-title\">' + k.Nazwa + '</div>' +");
+            sb.AppendLine("              '<div class=\"p-subtitle\">📍 ' + k.Miasto + ' • ' + k.DystansKm + ' km</div>' +");
+            sb.AppendLine("              (badges ? '<div class=\"p-badges\">' + badges + '</div>' : '') +");
+            sb.AppendLine("            '</div>' +");
+            sb.AppendLine("          '</div>' +");
+            sb.AppendLine("        '</div>' +");
+            sb.AppendLine("        '<div class=\"p-body\">' +");
+            sb.AppendLine("          (k.Wojewodztwo ? '<div class=\"p-row\"><span class=\"p-icon\">🗺️</span><div><div class=\"p-label\">Województwo</div><div class=\"p-value\">' + k.Wojewodztwo + '</div></div></div>' : '') +");
+            sb.AppendLine("          (k.Branza ? '<div class=\"p-row\"><span class=\"p-icon\">🏭</span><div><div class=\"p-label\">Branża</div><div class=\"p-value\">' + k.Branza + '</div></div></div>' : '') +");
+            sb.AppendLine("          (k.Handlowiec ? '<div class=\"p-row\"><span class=\"p-icon\">👤</span><div><div class=\"p-label\">Opiekun</div><div class=\"p-value\" style=\"color:#6366F1;font-weight:600\">' + k.Handlowiec + '</div></div></div>' : '') +");
+            sb.AppendLine("          '<div class=\"p-row\"><span class=\"p-icon\">📞</span><div><div class=\"p-label\">Telefon</div><div class=\"p-value\">' + k.Telefon + '<button class=\"copy-btn\" onclick=\"kopiuj(\\x27' + k.Telefon + '\\x27)\">📋</button></div></div></div>' +");
+            sb.AppendLine("          '<div class=\"p-row\"><span class=\"p-icon\">📋</span><div><div class=\"p-label\">Status</div><div class=\"p-value\">' + k.Status + '</div></div></div>' +");
+            // NOTATKI - wyżej
+            sb.AppendLine("          '<div class=\"p-section\">' +");
+            sb.AppendLine("            '<div class=\"p-section-title\">📝 Notatki</div>' +");
+            sb.AppendLine("            '<div class=\"quick-note\">' +");
+            sb.AppendLine("              '<input type=\"text\" id=\"qnote-' + k.ID + '\" placeholder=\"Dodaj nową notatkę...\">' +");
+            sb.AppendLine("              '<button onclick=\"dodajNotatke(' + k.ID + ')\">+</button>' +");
+            sb.AppendLine("            '</div>' +");
+            sb.AppendLine("            (k.Notatki ? '<div class=\"notes-list\">' + renderNotatki(k.Notatki) + '</div>' : '<div style=\"font-size:10px;color:#94A3B8;margin-top:6px;text-align:center\">Brak notatek</div>') +");
+            sb.AppendLine("          '</div>' +");
+            // ZMIEŃ STATUS
+            sb.AppendLine("          '<div class=\"p-section\">' +");
+            sb.AppendLine("            '<div class=\"p-section-title\">Zmień status</div>' +");
+            sb.AppendLine("            '<div class=\"status-grid\">' +");
+            sb.AppendLine("              '<button class=\"s-btn\" style=\"background:#FFEDD5;color:#9A3412\" onclick=\"zmienStatus(' + k.ID + ',\\x27Próba kontaktu\\x27)\" title=\"Próba kontaktu\">⏳<span>Próba</span></button>' +");
+            sb.AppendLine("              '<button class=\"s-btn\" style=\"background:#DCFCE7;color:#166534\" onclick=\"zmienStatus(' + k.ID + ',\\x27Nawiązano kontakt\\x27)\" title=\"Nawiązano kontakt\">✅<span>Kontakt</span></button>' +");
+            sb.AppendLine("              '<button class=\"s-btn\" style=\"background:#CCFBF1;color:#0D9488\" onclick=\"zmienStatus(' + k.ID + ',\\x27Zgoda na dalszy kontakt\\x27)\" title=\"Zgoda na dalszy kontakt\">🤝<span>Zgoda</span></button>' +");
+            sb.AppendLine("              '<button class=\"s-btn\" style=\"background:#DBEAFE;color:#1E40AF\" onclick=\"zmienStatus(' + k.ID + ',\\x27Do wysłania oferta\\x27)\" title=\"Do wysłania oferta\">📄<span>Oferta</span></button>' +");
+            sb.AppendLine("              '<button class=\"s-btn\" style=\"background:#FEE2E2;color:#991B1B\" onclick=\"zmienStatus(' + k.ID + ',\\x27Nie zainteresowany\\x27)\" title=\"Nie zainteresowany\">❌<span>Odmowa</span></button>' +");
+            sb.AppendLine("            '</div>' +");
+            sb.AppendLine("          '</div>' +");
+            // HISTORIA
+            sb.AppendLine("          '<div class=\"p-section\">' +");
+            sb.AppendLine("            '<div class=\"p-section-title\">📅 Historia działań</div>' +");
+            sb.AppendLine("            (k.Historia ? '<div class=\"timeline\">' + renderHistoria(k.Historia) + '</div>' : '<div style=\"font-size:10px;color:#94A3B8;text-align:center\">Brak historii</div>') +");
+            sb.AppendLine("          '</div>' +");
+            sb.AppendLine("          '<div class=\"btn-row\">' +");
+            sb.AppendLine("            '<button class=\"p-btn btn-route\" onclick=\"addToRoute(' + k.ID + ')\">🗺️ Do trasy</button>' +");
+            sb.AppendLine("            '<a class=\"p-btn btn-call\" href=\"tel:' + k.Telefon + '\">📞 Zadzwoń</a>' +");
+            sb.AppendLine("          '</div>' +");
+            sb.AppendLine("        '</div>' +");
+            sb.AppendLine("      '</div>';");
             sb.AppendLine("      infoWindow.setContent(content);");
             sb.AppendLine("      infoWindow.open(map, this);");
+            sb.AppendLine("      showQuickToolbar(k);");
             sb.AppendLine("    });");
             sb.AppendLine("  }");
             sb.AppendLine("  if (data.length > 0) map.fitBounds(bounds);");
             sb.AppendLine("  var script = document.createElement('script');");
             sb.AppendLine("  script.src = 'https://unpkg.com/@googlemaps/markerclusterer@2.5.3/dist/index.min.js';");
-            sb.AppendLine("  script.onload = function() { try { new markerClusterer.MarkerClusterer({ map: map, markers: markerObjects }); } catch(e){} };");
+            sb.AppendLine("  script.onload = function() {");
+            sb.AppendLine("    try {");
+            sb.AppendLine("      var cluster = new markerClusterer.MarkerClusterer({ map: map, markers: markers });");
+            sb.AppendLine("      cluster.addListener('clusteringend', function() {");
+            sb.AppendLine("        cluster.clusters.forEach(function(c) {");
+            sb.AppendLine("          var clusterMarker = c.marker;");
+            sb.AppendLine("          if(!clusterMarker._hoverAdded) {");
+            sb.AppendLine("            clusterMarker._hoverAdded = true;");
+            sb.AppendLine("            clusterMarker.addListener('mouseover', function(e) {");
+            sb.AppendLine("              var pts = c.markers.map(m => m.kontakt).filter(k => k);");
+            sb.AppendLine("              if(pts.length === 0) return;");
+            sb.AppendLine("              var stats = { total: pts.length, doZadzw: 0, proba: 0, kontakt: 0, zgoda: 0, oferta: 0, nie: 0, priorytet: 0 };");
+            sb.AppendLine("              pts.forEach(function(p) {");
+            sb.AppendLine("                if(p.Status === 'Do zadzwonienia') stats.doZadzw++;");
+            sb.AppendLine("                else if(p.Status === 'Próba kontaktu') stats.proba++;");
+            sb.AppendLine("                else if(p.Status === 'Nawiązano kontakt') stats.kontakt++;");
+            sb.AppendLine("                else if(p.Status === 'Zgoda na dalszy kontakt') stats.zgoda++;");
+            sb.AppendLine("                else if(p.Status === 'Do wysłania oferta') stats.oferta++;");
+            sb.AppendLine("                else if(p.Status === 'Nie zainteresowany') stats.nie++;");
+            sb.AppendLine("                if(p.CzyPriorytetowa) stats.priorytet++;");
+            sb.AppendLine("              });");
+            sb.AppendLine("              var html = '<div class=\"ct-title\">📍 ' + stats.total + ' kontaktów</div>';");
+            sb.AppendLine("              html += '<div class=\"ct-row\"><span class=\"ct-label\">📞 Do zadzwonienia</span><span class=\"ct-value\">' + stats.doZadzw + '</span></div>';");
+            sb.AppendLine("              html += '<div class=\"ct-row\"><span class=\"ct-label\">⏳ Próba kontaktu</span><span class=\"ct-value\">' + stats.proba + '</span></div>';");
+            sb.AppendLine("              html += '<div class=\"ct-row\"><span class=\"ct-label\">✅ Nawiązano</span><span class=\"ct-value\">' + stats.kontakt + '</span></div>';");
+            sb.AppendLine("              html += '<div class=\"ct-row\"><span class=\"ct-label\">🤝 Zgoda</span><span class=\"ct-value\">' + stats.zgoda + '</span></div>';");
+            sb.AppendLine("              html += '<div class=\"ct-row\"><span class=\"ct-label\">📄 Do oferty</span><span class=\"ct-value\">' + stats.oferta + '</span></div>';");
+            sb.AppendLine("              html += '<div class=\"ct-row\"><span class=\"ct-label\">⭐ Priorytet</span><span class=\"ct-value\" style=\"color:#DC2626\">' + stats.priorytet + '</span></div>';");
+            sb.AppendLine("              var tooltip = document.getElementById('cluster-tooltip');");
+            sb.AppendLine("              tooltip.innerHTML = html;");
+            sb.AppendLine("              tooltip.style.display = 'block';");
+            sb.AppendLine("              tooltip.style.left = (e.domEvent.clientX + 15) + 'px';");
+            sb.AppendLine("              tooltip.style.top = (e.domEvent.clientY + 15) + 'px';");
+            sb.AppendLine("            });");
+            sb.AppendLine("            clusterMarker.addListener('mouseout', function() {");
+            sb.AppendLine("              document.getElementById('cluster-tooltip').style.display = 'none';");
+            sb.AppendLine("            });");
+            sb.AppendLine("          }");
+            sb.AppendLine("        });");
+            sb.AppendLine("      });");
+            sb.AppendLine("    } catch(e) { console.log('Cluster error:', e); }");
+            sb.AppendLine("  };");
             sb.AppendLine("  document.head.appendChild(script);");
             sb.AppendLine("}");
             sb.AppendLine("function addToRoute(id) {");
@@ -515,6 +766,167 @@ namespace Kalendarz1.CRM
             sb.AppendLine("  document.getElementById('route-summary').style.display = 'none';");
             sb.AppendLine("}");
             sb.AppendLine("window.setView = function(lat, lng, z) { if(map) { map.setCenter({ lat: lat, lng: lng }); map.setZoom(z||15); } };");
+            sb.AppendLine("var lastStatusChange = null;");
+            sb.AppendLine("function zmienStatus(id, nowyStatus) {");
+            sb.AppendLine("  var k = data.find(x => x.ID == id);");
+            sb.AppendLine("  if(k) { lastStatusChange = { id: id, oldStatus: k.Status, newStatus: nowyStatus }; k.Status = nowyStatus; }");
+            sb.AppendLine("  window.chrome.webview.postMessage(JSON.stringify({ action: 'zmienStatus', id: id, status: nowyStatus }));");
+            sb.AppendLine("  infoWindow.close();");
+            sb.AppendLine("  showToast('✅ Status: ' + nowyStatus);");
+            sb.AppendLine("  if(nowyStatus === 'Nawiązano kontakt' || nowyStatus === 'Zgoda na dalszy kontakt') { showConfetti(); playSound('success'); }");
+            sb.AppendLine("  else { playSound('click'); }");
+            sb.AppendLine("}");
+            sb.AppendLine("function cofnijStatus() {");
+            sb.AppendLine("  if(!lastStatusChange) return;");
+            sb.AppendLine("  var k = data.find(x => x.ID == lastStatusChange.id);");
+            sb.AppendLine("  if(k) k.Status = lastStatusChange.oldStatus;");
+            sb.AppendLine("  window.chrome.webview.postMessage(JSON.stringify({ action: 'zmienStatus', id: lastStatusChange.id, status: lastStatusChange.oldStatus }));");
+            sb.AppendLine("  hideToast();");
+            sb.AppendLine("  lastStatusChange = null;");
+            sb.AppendLine("}");
+            sb.AppendLine("function showToast(msg) {");
+            sb.AppendLine("  document.getElementById('toast-msg').innerText = msg;");
+            sb.AppendLine("  document.getElementById('map-toast').classList.add('show');");
+            sb.AppendLine("  setTimeout(function() { hideToast(); }, 5000);");
+            sb.AppendLine("}");
+            sb.AppendLine("function hideToast() { document.getElementById('map-toast').classList.remove('show'); }");
+            sb.AppendLine("function renderNotatki(notatkiStr) {");
+            sb.AppendLine("  if(!notatkiStr) return '';");
+            sb.AppendLine("  var html = '';");
+            sb.AppendLine("  var notatki = notatkiStr.split(';;;');");
+            sb.AppendLine("  for(var i = 0; i < notatki.length; i++) {");
+            sb.AppendLine("    var parts = notatki[i].split('|');");
+            sb.AppendLine("    if(parts.length >= 3) {");
+            sb.AppendLine("      html += '<div class=\"note-item\">';");
+            sb.AppendLine("      html += '<div class=\"note-header\"><span class=\"note-date\">📅 ' + parts[0] + '</span><span class=\"note-author\">👤 ' + parts[1] + '</span></div>';");
+            sb.AppendLine("      html += '<div class=\"note-text\">' + parts[2] + '</div>';");
+            sb.AppendLine("      html += '</div>';");
+            sb.AppendLine("    }");
+            sb.AppendLine("  }");
+            sb.AppendLine("  return html;");
+            sb.AppendLine("}");
+            sb.AppendLine("function renderHistoria(historiaStr) {");
+            sb.AppendLine("  if(!historiaStr) return '';");
+            sb.AppendLine("  var html = '';");
+            sb.AppendLine("  var items = historiaStr.split(';;;');");
+            sb.AppendLine("  for(var i = 0; i < items.length; i++) {");
+            sb.AppendLine("    var parts = items[i].split('|');");
+            sb.AppendLine("    if(parts.length >= 4) {");
+            sb.AppendLine("      var typ = parts[1].includes('status') ? 'status' : 'note';");
+            sb.AppendLine("      html += '<div class=\"tl-item ' + typ + '\">';");
+            sb.AppendLine("      html += '<div class=\"tl-date\">' + parts[0] + '</div>';");
+            sb.AppendLine("      html += '<div class=\"tl-action\">' + parts[1] + '</div>';");
+            sb.AppendLine("      if(parts[2]) html += '<div class=\"tl-value\">' + parts[2] + '</div>';");
+            sb.AppendLine("      html += '<div class=\"tl-author\">👤 ' + parts[3] + '</div>';");
+            sb.AppendLine("      html += '</div>';");
+            sb.AppendLine("    }");
+            sb.AppendLine("  }");
+            sb.AppendLine("  return html;");
+            sb.AppendLine("}");
+            // Quick toolbar
+            sb.AppendLine("var selectedKontakt = null;");
+            sb.AppendLine("function showQuickToolbar(k) {");
+            sb.AppendLine("  selectedKontakt = k;");
+            sb.AppendLine("  currentIndex = data.indexOf(k);");
+            sb.AppendLine("  document.getElementById('qt-name').innerText = k.Nazwa;");
+            sb.AppendLine("  document.getElementById('quick-toolbar').classList.add('show');");
+            sb.AppendLine("}");
+            sb.AppendLine("function hideQuickToolbar() {");
+            sb.AppendLine("  selectedKontakt = null;");
+            sb.AppendLine("  document.getElementById('quick-toolbar').classList.remove('show');");
+            sb.AppendLine("}");
+            sb.AppendLine("function qtCall() { if(selectedKontakt) window.location.href = 'tel:' + selectedKontakt.Telefon; }");
+            sb.AppendLine("function qtStatus() { if(selectedKontakt) { var k = selectedKontakt; zmienStatus(k.ID, 'Nawiązano kontakt'); } }");
+            sb.AppendLine("function qtNote() { if(selectedKontakt) { var note = prompt('Dodaj notatkę:'); if(note) { window.chrome.webview.postMessage(JSON.stringify({ action: 'dodajNotatke', id: selectedKontakt.ID, tresc: note })); showToast('📝 Notatka dodana!'); playSound('note'); } } }");
+            sb.AppendLine("function qtRoute() { if(selectedKontakt) addToRoute(selectedKontakt.ID); }");
+            sb.AppendLine("function qtCopy() { if(selectedKontakt) kopiuj(selectedKontakt.Telefon); }");
+            // Navigation between contacts
+            sb.AppendLine("var currentIndex = 0;");
+            sb.AppendLine("function navPrev() { if(currentIndex > 0) { currentIndex--; openKontaktPopup(data[currentIndex]); } }");
+            sb.AppendLine("function navNext() { if(currentIndex < data.length - 1) { currentIndex++; openKontaktPopup(data[currentIndex]); } }");
+            sb.AppendLine("function openKontaktPopup(k) {");
+            sb.AppendLine("  var marker = markers.find(m => m.kontakt && m.kontakt.ID === k.ID);");
+            sb.AppendLine("  if(marker) { google.maps.event.trigger(marker, 'click'); map.panTo(marker.getPosition()); }");
+            sb.AppendLine("}");
+            sb.AppendLine("function kopiuj(tekst) {");
+            sb.AppendLine("  navigator.clipboard.writeText(tekst).then(function() { showToast('📋 Skopiowano: ' + tekst); });");
+            sb.AppendLine("}");
+            sb.AppendLine("function dodajNotatke(id) {");
+            sb.AppendLine("  var input = document.getElementById('qnote-' + id);");
+            sb.AppendLine("  if(!input || !input.value.trim()) return;");
+            sb.AppendLine("  window.chrome.webview.postMessage(JSON.stringify({ action: 'dodajNotatke', id: id, tresc: input.value.trim() }));");
+            sb.AppendLine("  input.value = '';");
+            sb.AppendLine("  showToast('📝 Notatka dodana!');");
+            sb.AppendLine("  playSound('note');");
+            sb.AppendLine("  infoWindow.close();");
+            sb.AppendLine("}");
+            // Sound effects
+            sb.AppendLine("var audioCtx = null;");
+            sb.AppendLine("function playSound(type) {");
+            sb.AppendLine("  try {");
+            sb.AppendLine("    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();");
+            sb.AppendLine("    var osc = audioCtx.createOscillator();");
+            sb.AppendLine("    var gain = audioCtx.createGain();");
+            sb.AppendLine("    osc.connect(gain);");
+            sb.AppendLine("    gain.connect(audioCtx.destination);");
+            sb.AppendLine("    gain.gain.value = 0.1;");
+            sb.AppendLine("    if(type === 'success') { osc.frequency.value = 880; osc.type = 'sine'; }");
+            sb.AppendLine("    else if(type === 'click') { osc.frequency.value = 600; osc.type = 'square'; gain.gain.value = 0.05; }");
+            sb.AppendLine("    else if(type === 'note') { osc.frequency.value = 523; osc.type = 'triangle'; }");
+            sb.AppendLine("    else if(type === 'error') { osc.frequency.value = 200; osc.type = 'sawtooth'; }");
+            sb.AppendLine("    else { osc.frequency.value = 440; osc.type = 'sine'; }");
+            sb.AppendLine("    osc.start();");
+            sb.AppendLine("    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);");
+            sb.AppendLine("    osc.stop(audioCtx.currentTime + 0.15);");
+            sb.AppendLine("  } catch(e) {}");
+            sb.AppendLine("}");
+            // Confetti
+            sb.AppendLine("function showConfetti() {");
+            sb.AppendLine("  var container = document.getElementById('confetti-container');");
+            sb.AppendLine("  var colors = ['#22C55E', '#16A34A', '#FCD34D', '#F97316', '#3B82F6', '#8B5CF6', '#EC4899'];");
+            sb.AppendLine("  for(var i = 0; i < 80; i++) {");
+            sb.AppendLine("    var confetti = document.createElement('div');");
+            sb.AppendLine("    confetti.className = 'confetti';");
+            sb.AppendLine("    confetti.style.left = Math.random() * 100 + '%';");
+            sb.AppendLine("    confetti.style.background = colors[Math.floor(Math.random() * colors.length)];");
+            sb.AppendLine("    confetti.style.animationDelay = Math.random() * 0.5 + 's';");
+            sb.AppendLine("    confetti.style.animationDuration = (2 + Math.random() * 2) + 's';");
+            sb.AppendLine("    var size = 5 + Math.random() * 10;");
+            sb.AppendLine("    confetti.style.width = size + 'px';");
+            sb.AppendLine("    confetti.style.height = size + 'px';");
+            sb.AppendLine("    confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';");
+            sb.AppendLine("    container.appendChild(confetti);");
+            sb.AppendLine("  }");
+            sb.AppendLine("  setTimeout(function() { container.innerHTML = ''; }, 3500);");
+            sb.AppendLine("}");
+            // Leaderboard functions
+            sb.AppendLine("function toggleLeaderboard() { document.getElementById('leaderboard-panel').classList.toggle('open'); renderLeaderboard(); }");
+            sb.AppendLine("function renderLeaderboard() {");
+            sb.AppendLine("  var stats = {};");
+            sb.AppendLine("  data.forEach(function(k) {");
+            sb.AppendLine("    var h = k.Handlowiec || 'Nieprzypisany';");
+            sb.AppendLine("    if(!stats[h]) stats[h] = { name: h, total: 0, kontakt: 0, zgoda: 0, oferta: 0 };");
+            sb.AppendLine("    stats[h].total++;");
+            sb.AppendLine("    if(k.Status === 'Nawiązano kontakt') stats[h].kontakt++;");
+            sb.AppendLine("    if(k.Status === 'Zgoda na dalszy kontakt') stats[h].zgoda++;");
+            sb.AppendLine("    if(k.Status === 'Do wysłania oferta') stats[h].oferta++;");
+            sb.AppendLine("  });");
+            sb.AppendLine("  var arr = Object.values(stats).map(function(s) { s.score = s.kontakt * 2 + s.zgoda * 3 + s.oferta * 5; return s; });");
+            sb.AppendLine("  arr.sort(function(a, b) { return b.score - a.score; });");
+            sb.AppendLine("  var html = '';");
+            sb.AppendLine("  for(var i = 0; i < arr.length; i++) {");
+            sb.AppendLine("    var s = arr[i];");
+            sb.AppendLine("    var rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : 'normal';");
+            sb.AppendLine("    var medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1);");
+            sb.AppendLine("    html += '<div class=\"lb-item\">';");
+            sb.AppendLine("    html += '<div class=\"lb-rank ' + rankClass + '\">' + medal + '</div>';");
+            sb.AppendLine("    html += '<div class=\"lb-info\"><div class=\"lb-name\">' + s.name + '</div>';");
+            sb.AppendLine("    html += '<div class=\"lb-stats\">📊 ' + s.total + ' • ✅ ' + s.kontakt + ' • 🤝 ' + s.zgoda + ' • 📄 ' + s.oferta + '</div></div>';");
+            sb.AppendLine("    html += '<div class=\"lb-score\">' + s.score + '</div>';");
+            sb.AppendLine("    html += '</div>';");
+            sb.AppendLine("  }");
+            sb.AppendLine("  document.getElementById('leaderboard-list').innerHTML = html || '<div style=\"text-align:center;color:#999;padding:20px\">Brak danych</div>';");
+            sb.AppendLine("}");
             sb.AppendLine("</script>");
 
             sb.Append("<script async defer src=\"https://maps.googleapis.com/maps/api/js?key=");
@@ -622,6 +1034,59 @@ namespace Kalendarz1.CRM
             if (sender is FrameworkElement el && el.DataContext is MapKontakt k && isWebViewReady)
                 await webView.ExecuteScriptAsync($"setView({k.Lat.ToString(CultureInfo.InvariantCulture)}, {k.Lng.ToString(CultureInfo.InvariantCulture)}, 15);");
         }
+
+        private void DodajNotatkeOdbiorcy(int id, string tresc)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    var cmd = new SqlCommand("INSERT INTO NotatkiCRM (IDOdbiorcy, Tresc, KtoDodal) VALUES (@id, @tresc, @op)", conn);
+                    cmd.Parameters.AddWithValue("@id", id);
+                    cmd.Parameters.AddWithValue("@tresc", tresc);
+                    cmd.Parameters.AddWithValue("@op", operatorID);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Błąd dodawania notatki: {ex.Message}");
+            }
+        }
+
+        private void ZmienStatusOdbiorcy(int id, string nowyStatus)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    var cmdUpdate = new SqlCommand("UPDATE OdbiorcyCRM SET Status = @status WHERE ID = @id", conn);
+                    cmdUpdate.Parameters.AddWithValue("@status", nowyStatus);
+                    cmdUpdate.Parameters.AddWithValue("@id", id);
+                    cmdUpdate.ExecuteNonQuery();
+
+                    var cmdLog = new SqlCommand("INSERT INTO HistoriaZmianCRM (IDOdbiorcy, TypZmiany, WartoscNowa, KtoWykonal, DataZmiany) VALUES (@id, 'Zmiana statusu', @val, @op, GETDATE())", conn);
+                    cmdLog.Parameters.AddWithValue("@id", id);
+                    cmdLog.Parameters.AddWithValue("@val", nowyStatus);
+                    cmdLog.Parameters.AddWithValue("@op", operatorID);
+                    cmdLog.ExecuteNonQuery();
+                }
+
+                // Aktualizuj lokalną listę
+                var kontakt = kontaktyNaMapie.FirstOrDefault(k => k.ID == id);
+                if (kontakt != null)
+                {
+                    kontakt.Status = nowyStatus;
+                    UstawKoloryStatusu(kontakt);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd zmiany statusu: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
     }
 
     public class MapKontakt
@@ -635,6 +1100,9 @@ namespace Kalendarz1.CRM
         public string Wojewodztwo { get; set; } = "";
         public string Branza { get; set; } = "";
         public string Handlowiec { get; set; } = "";
+        public string Tagi { get; set; } = "";
+        public string Notatki { get; set; } = "";
+        public string Historia { get; set; } = "";
         public string Status { get; set; } = "";
         public bool CzyPriorytetowa { get; set; }
         public double Lat { get; set; }

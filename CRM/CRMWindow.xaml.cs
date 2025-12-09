@@ -84,10 +84,18 @@ namespace Kalendarz1.CRM
 
         private void WczytajKontakty()
         {
+            bool tylkoMoje = chkTylkoMoje?.IsChecked == true;
+
             using (var conn = new SqlConnection(connectionString))
             {
                 conn.Open();
-                var cmd = new SqlCommand(@"
+
+                // Różne zapytanie w zależności od filtra "Tylko moi"
+                string whereClause = tylkoMoje
+                    ? "WHERE w.OperatorID = @OperatorID AND ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)')"
+                    : "WHERE (w.OperatorID = @OperatorID OR w.OperatorID IS NULL) AND ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)')";
+
+                var cmd = new SqlCommand($@"
                     SELECT o.ID, o.Nazwa as NAZWA, o.KOD, o.MIASTO, o.ULICA, o.Telefon_K as TELEFON_K, o.Email,
                         o.Wojewodztwo, o.PKD_Opis, o.Tagi, ISNULL(o.Status, 'Do zadzwonienia') as Status, o.DataNastepnegoKontaktu,
                         (SELECT TOP 1 DataZmiany FROM HistoriaZmianCRM WHERE IDOdbiorcy = o.ID ORDER BY DataZmiany DESC) as OstatniaZmiana,
@@ -96,7 +104,7 @@ namespace Kalendarz1.CRM
                     FROM OdbiorcyCRM o
                     LEFT JOIN WlascicieleOdbiorcow w ON o.ID = w.IDOdbiorcy
                     LEFT JOIN KodyPocztowe kp ON o.KOD = kp.Kod
-                    WHERE (w.OperatorID = @OperatorID OR w.OperatorID IS NULL) AND ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)')
+                    {whereClause}
                     ORDER BY CASE WHEN o.DataNastepnegoKontaktu IS NULL THEN 1 ELSE 0 END, o.DataNastepnegoKontaktu ASC", conn);
 
                 cmd.Parameters.AddWithValue("@OperatorID", operatorID);
@@ -475,16 +483,99 @@ namespace Kalendarz1.CRM
             if (cmbStatus.SelectedIndex > 0) filter += $" AND Status = '{(cmbStatus.SelectedItem as ComboBoxItem).Content}'";
             if (cmbWojewodztwo.SelectedIndex > 0) filter += $" AND Wojewodztwo = '{(cmbWojewodztwo.SelectedItem as ComboBoxItem).Content}'";
             if (cmbBranza.SelectedIndex > 0) filter += $" AND PKD_Opis = '{(cmbBranza.SelectedItem as ComboBoxItem).Content}'";
+
+            // Quick filter chips
+            if (!string.IsNullOrEmpty(aktywnyChip))
+            {
+                if (aktywnyChip == "Zaległe")
+                    filter += " AND DataNastepnegoKontaktu < #" + DateTime.Today.ToString("yyyy-MM-dd") + "#";
+                else
+                    filter += $" AND Tagi LIKE '%{aktywnyChip}%'";
+            }
+
             dtKontakty.DefaultView.RowFilter = filter;
             if (txtLiczbaWynikow != null) txtLiczbaWynikow.Text = $"{dtKontakty.DefaultView.Count} klientów";
         }
 
         private void BtnKanban_Click(object sender, RoutedEventArgs e) { new KanbanWindow(connectionString, operatorID).Show(); }
+        private void BtnDashboard_Click(object sender, RoutedEventArgs e) { new DashboardCRMWindow(connectionString).Show(); }
         private void BtnManager_Click(object sender, RoutedEventArgs e) { new PanelManageraWindow(connectionString).Show(); }
         private void BtnMapa_Click(object sender, RoutedEventArgs e) { new MapaCRMWindow(connectionString, operatorID).Show(); }
-        private void BtnDodaj_Click(object sender, RoutedEventArgs e) { if (new FormDodajOdbiorce(connectionString, operatorID).ShowDialog() == System.Windows.Forms.DialogResult.OK) WczytajDane(); }
+        private void BtnDodaj_Click(object sender, RoutedEventArgs e)
+        {
+            var form = new FormDodajOdbiorce(connectionString, operatorID);
+            if (form.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                // Jeśli użytkownik wybrał "Tylko moi", włącz ten filtr
+                if (form.FiltrujTylkoMoje && chkTylkoMoje != null)
+                {
+                    chkTylkoMoje.IsChecked = true;
+                }
+                WczytajDane();
+            }
+        }
         private void BtnOdswiez_Click(object sender, RoutedEventArgs e) => WczytajDane();
+        private void ChkTylkoMoje_Changed(object sender, RoutedEventArgs e) => WczytajDane();
         private void BtnAdmin_Click(object sender, RoutedEventArgs e) { }
+
+        private string aktywnyChip = "";
+
+        private void Chip_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is Border chip && chip.Tag != null)
+            {
+                string tag = chip.Tag.ToString();
+                if (aktywnyChip == tag)
+                {
+                    // Odznacz chip
+                    aktywnyChip = "";
+                    chip.BorderThickness = new Thickness(0);
+                    chip.BorderBrush = null;
+                }
+                else
+                {
+                    // Zresetuj poprzedni chip
+                    ResetujChipsy();
+                    aktywnyChip = tag;
+                    chip.BorderThickness = new Thickness(2);
+                    chip.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0F172A"));
+                }
+                Filtruj();
+            }
+        }
+
+        private void ChipZalegle_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is Border chip)
+            {
+                if (aktywnyChip == "Zaległe")
+                {
+                    aktywnyChip = "";
+                    chip.BorderThickness = new Thickness(0);
+                }
+                else
+                {
+                    ResetujChipsy();
+                    aktywnyChip = "Zaległe";
+                    chip.BorderThickness = new Thickness(2);
+                    chip.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0F172A"));
+                }
+                Filtruj();
+            }
+        }
+
+        private void ResetujChipsy()
+        {
+            chipVIP.BorderThickness = new Thickness(0);
+            chipPilne.BorderThickness = new Thickness(0);
+            chipPremium.BorderThickness = new Thickness(0);
+            chipZalegle.BorderThickness = new Thickness(0);
+        }
+
+        private void FabButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn) btn.ContextMenu.IsOpen = true;
+        }
 
         private void BtnKlientZadzwon_Click(object sender, RoutedEventArgs e)
         {

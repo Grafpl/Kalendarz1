@@ -179,42 +179,43 @@
             </Grid>
         </Border>
 
-        <Border Grid.Row="1" Background="White" Padding="16,12" BorderBrush="{StaticResource ColorBorder}" BorderThickness="0,0,0,1">
+        <Border Grid.Row="1" Background="White" Padding="16,10" BorderBrush="{StaticResource ColorBorder}" BorderThickness="0,0,0,1">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
+                <!-- LEWA STRONA: Filtry i ComboBox -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="Statusy:" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource ColorTextMuted}" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                    <Border Background="#F8FAF8" CornerRadius="6" Padding="4" BorderBrush="#E5E7EB" BorderThickness="1">
-                        <StackPanel Orientation="Horizontal">
-                            <CheckBox x:Name="chkDoZadzwonienia" Content="Do zadzwonienia" IsChecked="True" Foreground="#475569" FontSize="10" Margin="8,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
-                            <CheckBox x:Name="chkProba" Content="Próba kontaktu" IsChecked="True" Foreground="#EA580C" FontSize="10" Margin="8,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
-                            <CheckBox x:Name="chkNawiazano" Content="Nawiązano" IsChecked="True" Foreground="#16A34A" FontSize="10" Margin="8,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
-                            <CheckBox x:Name="chkZgoda" Content="Zgoda" IsChecked="True" Foreground="#0D9488" FontSize="10" Margin="8,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
-                            <CheckBox x:Name="chkOferta" Content="Do oferty" IsChecked="True" Foreground="#0891B2" FontSize="10" Margin="8,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
-                            <CheckBox x:Name="chkNieZainteresowany" Content="Nie zainter." IsChecked="False" Foreground="#DC2626" FontSize="10" Margin="8,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                     <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Padding="4,2" Margin="0,0,12,0">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="🔍" VerticalAlignment="Center" Margin="4,0" Foreground="#9CA3AF"/>
-                            <TextBox x:Name="txtSzukaj" Width="150" BorderThickness="0" VerticalContentAlignment="Center" 
+                            <TextBox x:Name="txtSzukaj" Width="140" BorderThickness="0" VerticalContentAlignment="Center"
                                      FontSize="12" Background="Transparent" TextChanged="Filtr_Changed"
                                      ToolTip="Szukaj po nazwie, mieście, telefonie..."/>
                         </StackPanel>
                     </Border>
                     <TextBlock Text="Woj:" FontSize="11" Foreground="{StaticResource ColorTextMuted}" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                    <ComboBox x:Name="cmbWojewodztwo" Style="{StaticResource ModernComboBox}" Width="110" SelectionChanged="Filtr_Changed"/>
-                    <TextBlock Text="Branża:" FontSize="11" Foreground="{StaticResource ColorTextMuted}" VerticalAlignment="Center" Margin="12,0,4,0"/>
-                    <ComboBox x:Name="cmbBranza" Style="{StaticResource ModernComboBox}" Width="150" SelectionChanged="Filtr_Changed"/>
-                    <CheckBox x:Name="chkTylkoPriorytetowe" Content="Priorytet" Foreground="#DC2626" FontWeight="SemiBold" FontSize="11" Margin="12,0,0,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
+                    <ComboBox x:Name="cmbWojewodztwo" Style="{StaticResource ModernComboBox}" Width="100" SelectionChanged="Filtr_Changed"/>
+                    <TextBlock Text="Branża:" FontSize="11" Foreground="{StaticResource ColorTextMuted}" VerticalAlignment="Center" Margin="10,0,4,0"/>
+                    <ComboBox x:Name="cmbBranza" Style="{StaticResource ModernComboBox}" Width="140" SelectionChanged="Filtr_Changed"/>
+                    <CheckBox x:Name="chkTylkoPriorytetowe" Content="⭐ Priorytet" Foreground="#DC2626" FontWeight="SemiBold" FontSize="11" Margin="12,0,0,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
+                </StackPanel>
+
+                <!-- PRAWA STRONA: Checkboxy statusów -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <TextBlock Text="Statusy:" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource ColorTextMuted}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <Border Background="#F8FAF8" CornerRadius="6" Padding="4" BorderBrush="#E5E7EB" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal">
+                            <CheckBox x:Name="chkDoZadzwonienia" Content="Do zadzw." IsChecked="True" Foreground="#475569" FontSize="10" Margin="6,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
+                            <CheckBox x:Name="chkProba" Content="Próba" IsChecked="True" Foreground="#EA580C" FontSize="10" Margin="6,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
+                            <CheckBox x:Name="chkNawiazano" Content="Nawiązano" IsChecked="True" Foreground="#16A34A" FontSize="10" Margin="6,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
+                            <CheckBox x:Name="chkZgoda" Content="Zgoda" IsChecked="True" Foreground="#0D9488" FontSize="10" Margin="6,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
+                            <CheckBox x:Name="chkOferta" Content="Oferta" IsChecked="True" Foreground="#0891B2" FontSize="10" Margin="6,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
+                            <CheckBox x:Name="chkNieZainteresowany" Content="Nie zaint." IsChecked="False" Foreground="#DC2626" FontSize="10" Margin="6,0" VerticalContentAlignment="Center" Checked="Filtr_Changed" Unchecked="Filtr_Changed"/>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </Grid>
         </Border>

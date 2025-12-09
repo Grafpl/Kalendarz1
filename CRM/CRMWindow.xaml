@@ -175,7 +175,8 @@
                     </StackPanel>
 
                     <Button Content="📊 Kanban" Style="{StaticResource BtnIcon}" Click="BtnKanban_Click"/>
-                    <Button x:Name="btnManager" Content="📈 Szef" Style="{StaticResource BtnIcon}" Click="BtnManager_Click" Foreground="{StaticResource DangerColor}" FontWeight="Bold"/>
+                    <Button Content="📈 Dashboard" Style="{StaticResource BtnIcon}" Click="BtnDashboard_Click" Foreground="#2563EB" FontWeight="SemiBold"/>
+                    <Button x:Name="btnManager" Content="👔 Szef" Style="{StaticResource BtnIcon}" Click="BtnManager_Click" Foreground="{StaticResource DangerColor}" FontWeight="Bold"/>
                     <Button Content="🗺️ Mapa" Style="{StaticResource BtnIcon}" Click="BtnMapa_Click"/>
                     <Button x:Name="btnAdmin" Content="⚙️" Style="{StaticResource BtnIcon}" Click="BtnAdmin_Click" Visibility="Collapsed"/>
 
@@ -186,11 +187,47 @@
 
         <Grid Grid.Row="1" Margin="0,0,0,16">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <StackPanel Orientation="Horizontal">
+            <!-- LEWA STRONA: Filtry i ComboBox -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                <Border x:Name="chipVIP" Background="#FEF3C7" CornerRadius="12" Padding="8,4" Margin="0,0,6,0" Cursor="Hand" MouseLeftButtonDown="Chip_Click" Tag="VIP">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⭐" FontSize="10" VerticalAlignment="Center"/>
+                        <TextBlock Text="VIP" FontSize="9" FontWeight="Bold" Foreground="#92400E" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+                <Border x:Name="chipPilne" Background="#FEE2E2" CornerRadius="12" Padding="8,4" Margin="0,0,6,0" Cursor="Hand" MouseLeftButtonDown="Chip_Click" Tag="Pilne">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="🔥" FontSize="10" VerticalAlignment="Center"/>
+                        <TextBlock Text="Pilne" FontSize="9" FontWeight="Bold" Foreground="#991B1B" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+                <Border x:Name="chipPremium" Background="#E0E7FF" CornerRadius="12" Padding="8,4" Margin="0,0,6,0" Cursor="Hand" MouseLeftButtonDown="Chip_Click" Tag="Premium">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="💎" FontSize="10" VerticalAlignment="Center"/>
+                        <TextBlock Text="Premi" FontSize="9" FontWeight="Bold" Foreground="#3730A3" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+                <Border x:Name="chipZalegle" Background="#FEE2E2" CornerRadius="12" Padding="8,4" Margin="0,0,12,0" Cursor="Hand" MouseLeftButtonDown="ChipZalegle_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⚠️" FontSize="10" VerticalAlignment="Center"/>
+                        <TextBlock Text="Zaleg" FontSize="9" FontWeight="Bold" Foreground="#991B1B" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+                <TextBlock Text="Status:" FontSize="10" Foreground="#6B7280" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <ComboBox x:Name="cmbStatus" Width="120" Margin="0,0,8,0" Padding="4" FontSize="11" SelectionChanged="CmbStatus_SelectionChanged"/>
+                <TextBlock Text="Woj:" FontSize="10" Foreground="#6B7280" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <ComboBox x:Name="cmbWojewodztwo" Width="100" Margin="0,0,8,0" Padding="4" FontSize="11" SelectionChanged="CmbWojewodztwo_SelectionChanged"/>
+                <TextBlock Text="Branża:" FontSize="10" Foreground="#6B7280" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <ComboBox x:Name="cmbBranza" Width="130" Margin="0,0,8,0" Padding="4" FontSize="11" SelectionChanged="CmbBranza_SelectionChanged"/>
+                <CheckBox x:Name="chkTylkoMoje" Content="Tylko moi" FontSize="10" Foreground="#6366F1" FontWeight="SemiBold" VerticalContentAlignment="Center" Margin="4,0,0,0" Checked="ChkTylkoMoje_Changed" Unchecked="ChkTylkoMoje_Changed"/>
+            </StackPanel>
+
+            <!-- PRAWA STRONA: KPI -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                 <Border Style="{StaticResource KpiCard}">
                     <StackPanel>
                         <TextBlock Text="DO ZADZWONIENIA" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextGray}"/>
@@ -218,12 +255,6 @@
                         </Grid>
                     </StackPanel>
                 </Border>
-            </StackPanel>
-
-            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                <ComboBox x:Name="cmbStatus" Width="150" Margin="5,0" Padding="6" SelectionChanged="CmbStatus_SelectionChanged"/>
-                <ComboBox x:Name="cmbWojewodztwo" Width="130" Margin="5,0" Padding="6" SelectionChanged="CmbWojewodztwo_SelectionChanged"/>
-                <ComboBox x:Name="cmbBranza" Width="160" Margin="5,0" Padding="6" SelectionChanged="CmbBranza_SelectionChanged"/>
             </StackPanel>
         </Grid>
 
@@ -497,15 +528,15 @@
                 <ScrollViewer VerticalScrollBarVisibility="Hidden">
                     <StackPanel>
 
-                        <Border Style="{StaticResource CardStyle}" Padding="20" Margin="0,0,0,16">
+                        <Border Style="{StaticResource CardStyle}" Padding="12,10" Margin="0,0,0,10">
                             <StackPanel>
-                                <TextBlock Text="NOTATKI / HISTORIA" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextGray}" Margin="0,0,0,12"/>
-                                <Border Background="#F9FAFB" CornerRadius="8" Height="250" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" Padding="5">
+                                <TextBlock Text="NOTATKI / HISTORIA" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextGray}" Margin="0,0,0,8"/>
+                                <Border Background="#F9FAFB" CornerRadius="6" Height="180" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" Padding="4">
                                     <ScrollViewer>
                                         <ItemsControl x:Name="listaNotatek">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Border Background="White" CornerRadius="6" Padding="10" Margin="5" BorderBrush="{StaticResource BorderColor}" BorderThickness="1">
+                                                    <Border Background="White" CornerRadius="4" Padding="6,4" Margin="2" BorderBrush="{StaticResource BorderColor}" BorderThickness="1">
                                                         <Grid>
                                                             <Grid.ColumnDefinitions>
                                                                 <ColumnDefinition Width="*"/>
@@ -513,13 +544,13 @@
                                                             </Grid.ColumnDefinitions>
                                                             <StackPanel>
                                                                 <StackPanel Orientation="Horizontal">
-                                                                    <TextBlock Text="{Binding Typ}" FontSize="14" Margin="0,0,8,0"/>
-                                                                    <TextBlock Text="{Binding Tresc}" TextWrapping="Wrap" FontSize="13" Foreground="{StaticResource TextDark}"/>
+                                                                    <TextBlock Text="{Binding Typ}" FontSize="11" Margin="0,0,5,0"/>
+                                                                    <TextBlock Text="{Binding Tresc}" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextDark}"/>
                                                                 </StackPanel>
-                                                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                                                    <TextBlock Text="{Binding Operator}" FontSize="10" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}"/>
-                                                                    <TextBlock Text=" • " FontSize="10" Foreground="{StaticResource TextGray}"/>
-                                                                    <TextBlock Text="{Binding DataUtworzenia, StringFormat='dd.MM.yyyy HH:mm'}" FontSize="10" Foreground="{StaticResource TextGray}"/>
+                                                                <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                                    <TextBlock Text="{Binding Operator}" FontSize="9" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}"/>
+                                                                    <TextBlock Text=" • " FontSize="9" Foreground="{StaticResource TextGray}"/>
+                                                                    <TextBlock Text="{Binding DataUtworzenia, StringFormat='dd.MM HH:mm'}" FontSize="9" Foreground="{StaticResource TextGray}"/>
                                                                 </StackPanel>
                                                             </StackPanel>
                                                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top"
@@ -538,137 +569,102 @@
                                         </ItemsControl>
                                     </ScrollViewer>
                                 </Border>
-                                <Grid Margin="0,12,0,0">
+                                <Grid Margin="0,8,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBox x:Name="txtNowaNotatka" Background="#F3F4F6" BorderThickness="0" Padding="10" VerticalContentAlignment="Center" FontSize="13" Tag="Wpisz notatkę..."/>
-                                    <Button x:Name="btnDodajNotatke" Grid.Column="1" Content="Dodaj" Style="{StaticResource BtnPrimary}" Margin="10,0,0,0" Click="BtnDodajNotatke_Click"/>
+                                    <TextBox x:Name="txtNowaNotatka" Background="#F3F4F6" BorderThickness="0" Padding="6" VerticalContentAlignment="Center" FontSize="11" Tag="Wpisz notatkę..."/>
+                                    <Button x:Name="btnDodajNotatke" Grid.Column="1" Content="+" Style="{StaticResource BtnPrimary}" Margin="6,0,0,0" Padding="10,4" Click="BtnDodajNotatke_Click"/>
                                 </Grid>
                             </StackPanel>
                         </Border>
 
-                        <Border Style="{StaticResource CardStyle}" Padding="20">
-                            <StackPanel>
-                                <Grid Margin="0,0,0,4">
-                                    <TextBlock x:Name="txtRankingTytul" Text="RANKING AKTYWNOŚCI (Ostatnie 30 dni)" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextGray}" VerticalAlignment="Center"/>
+                        <Border Style="{StaticResource CardStyle}" Padding="12,10">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Nagłówek kompaktowy -->
+                                <Grid Margin="0,0,0,6">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock x:Name="txtRankingTytul" Text="RANKING" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextGray}" VerticalAlignment="Center"/>
+                                        <TextBlock Text=" (30 dni)" FontSize="9" Foreground="#9CA3AF" VerticalAlignment="Center"/>
+                                    </StackPanel>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <RadioButton x:Name="rb30Dni" Content="30 dni" IsChecked="True" GroupName="OkresRankingu" Margin="0,0,10,0" FontSize="10" Checked="RbOkresRankingu_Checked"/>
-                                        <RadioButton x:Name="rbWszystkie" Content="Wszystkie" GroupName="OkresRankingu" FontSize="10" Checked="RbOkresRankingu_Checked"/>
+                                        <RadioButton x:Name="rb30Dni" Content="30d" IsChecked="True" GroupName="OkresRankingu" Margin="0,0,6,0" FontSize="9" Checked="RbOkresRankingu_Checked"/>
+                                        <RadioButton x:Name="rbWszystkie" Content="Wszystko" GroupName="OkresRankingu" FontSize="9" Checked="RbOkresRankingu_Checked"/>
                                     </StackPanel>
                                 </Grid>
 
-                                <!-- Legenda z opisami -->
-                                <Border Background="#F9FAFB" CornerRadius="6" Padding="10,8" Margin="0,0,0,12">
-                                    <WrapPanel HorizontalAlignment="Center">
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,12,2">
-                                            <TextBlock Text="📞" FontSize="10" VerticalAlignment="Center"/>
-                                            <TextBlock Text="Do zadz." FontSize="9" Foreground="#64748B" Margin="3,0,0,0" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,12,2">
-                                            <TextBlock Text="⏳" FontSize="10" VerticalAlignment="Center"/>
-                                            <TextBlock Text="Próba" FontSize="9" Foreground="#9A3412" Margin="3,0,0,0" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,12,2">
-                                            <TextBlock Text="✅" FontSize="10" VerticalAlignment="Center"/>
-                                            <TextBlock Text="Nawiązano" FontSize="9" Foreground="#166534" Margin="3,0,0,0" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,12,2">
-                                            <TextBlock Text="🤝" FontSize="10" VerticalAlignment="Center"/>
-                                            <TextBlock Text="Zgoda" FontSize="9" Foreground="#0D9488" Margin="3,0,0,0" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,12,2">
-                                            <TextBlock Text="📄" FontSize="10" VerticalAlignment="Center"/>
-                                            <TextBlock Text="Oferta" FontSize="9" Foreground="#1E40AF" Margin="3,0,0,0" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
-                                            <TextBlock Text="❌" FontSize="10" VerticalAlignment="Center"/>
-                                            <TextBlock Text="Odmowa" FontSize="9" Foreground="#991B1B" Margin="3,0,0,0" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </WrapPanel>
-                                </Border>
-
-                                <TextBlock Text="Kliknij 2x aby zobaczyć szczegóły" FontSize="9" Foreground="{StaticResource TextGray}" HorizontalAlignment="Center" Margin="0,0,0,8" FontStyle="Italic"/>
-
-                                <ListBox x:Name="listaRanking" BorderThickness="0" Background="Transparent" MouseDoubleClick="ListaRanking_MouseDoubleClick">
+                                <!-- Lista rankingu - kompaktowa -->
+                                <ListBox x:Name="listaRanking" Grid.Row="1" BorderThickness="0" Background="Transparent"
+                                         MouseDoubleClick="ListaRanking_MouseDoubleClick"
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Background="#FAFAFA" CornerRadius="8" Padding="10" Margin="0,0,0,8" BorderBrush="#E5E7EB" BorderThickness="1">
+                                            <Border Background="#FAFAFA" CornerRadius="6" Padding="6,5" Margin="0,0,0,4" BorderBrush="#E5E7EB" BorderThickness="1">
                                                 <Grid>
-                                                    <Grid.RowDefinitions>
-                                                        <RowDefinition Height="Auto"/>
-                                                        <RowDefinition Height="Auto"/>
-                                                    </Grid.RowDefinitions>
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="28"/>
+                                                        <ColumnDefinition Width="22"/>
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
 
                                                     <!-- Pozycja -->
-                                                    <Border Grid.RowSpan="2" Background="{StaticResource PrimaryLight}" Width="24" Height="24" CornerRadius="12" VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding Pozycja}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}"/>
+                                                    <Border Background="{StaticResource PrimaryLight}" Width="18" Height="18" CornerRadius="9" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Pozycja}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="9" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}"/>
                                                     </Border>
 
-                                                    <!-- Nazwa handlowca -->
-                                                    <TextBlock Grid.Column="1" Text="{Binding Operator}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextDark}" Margin="6,0,0,4"/>
-
-                                                    <!-- Suma -->
-                                                    <StackPanel Grid.Column="2" Grid.RowSpan="2" VerticalAlignment="Center" Margin="10,0,0,0">
-                                                        <TextBlock Text="{Binding Suma}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}" HorizontalAlignment="Center"/>
-                                                        <TextBlock Text="SUMA" FontSize="8" Foreground="{StaticResource TextGray}" HorizontalAlignment="Center" FontWeight="Bold"/>
+                                                    <!-- Nazwa i statystyki w jednym wierszu -->
+                                                    <StackPanel Grid.Column="1" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Operator}" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextDark}" TextTrimming="CharacterEllipsis"/>
+                                                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                            <Border Background="#F1F5F9" CornerRadius="3" Padding="3,1" Margin="0,0,2,0" ToolTip="Do zadzwonienia">
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <TextBlock Text="📞" FontSize="8"/>
+                                                                    <TextBlock Text="{Binding DoZadzwonienia}" FontSize="8" FontWeight="Bold" Foreground="#64748B" Margin="2,0,0,0"/>
+                                                                </StackPanel>
+                                                            </Border>
+                                                            <Border Background="#FFEDD5" CornerRadius="3" Padding="3,1" Margin="0,0,2,0" ToolTip="Próba">
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <TextBlock Text="⏳" FontSize="8"/>
+                                                                    <TextBlock Text="{Binding Proby}" FontSize="8" FontWeight="Bold" Foreground="#9A3412" Margin="2,0,0,0"/>
+                                                                </StackPanel>
+                                                            </Border>
+                                                            <Border Background="#DCFCE7" CornerRadius="3" Padding="3,1" Margin="0,0,2,0" ToolTip="Nawiązano">
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <TextBlock Text="✅" FontSize="8"/>
+                                                                    <TextBlock Text="{Binding Nawiazano}" FontSize="8" FontWeight="Bold" Foreground="#166534" Margin="2,0,0,0"/>
+                                                                </StackPanel>
+                                                            </Border>
+                                                            <Border Background="#CCFBF1" CornerRadius="3" Padding="3,1" Margin="0,0,2,0" ToolTip="Zgoda">
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <TextBlock Text="🤝" FontSize="8"/>
+                                                                    <TextBlock Text="{Binding Zgoda}" FontSize="8" FontWeight="Bold" Foreground="#0D9488" Margin="2,0,0,0"/>
+                                                                </StackPanel>
+                                                            </Border>
+                                                            <Border Background="#DBEAFE" CornerRadius="3" Padding="3,1" Margin="0,0,2,0" ToolTip="Oferta">
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <TextBlock Text="📄" FontSize="8"/>
+                                                                    <TextBlock Text="{Binding Oferty}" FontSize="8" FontWeight="Bold" Foreground="#1E40AF" Margin="2,0,0,0"/>
+                                                                </StackPanel>
+                                                            </Border>
+                                                            <Border Background="#FEE2E2" CornerRadius="3" Padding="3,1" ToolTip="Odmowa">
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <TextBlock Text="❌" FontSize="8"/>
+                                                                    <TextBlock Text="{Binding NieZainteresowany}" FontSize="8" FontWeight="Bold" Foreground="#991B1B" Margin="2,0,0,0"/>
+                                                                </StackPanel>
+                                                            </Border>
+                                                        </StackPanel>
                                                     </StackPanel>
 
-                                                    <!-- Statystyki statusów -->
-                                                    <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="6,2,0,0">
-                                                        <!-- Do zadzwonienia -->
-                                                        <Border Background="#F1F5F9" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Do zadzwonienia">
-                                                            <StackPanel Orientation="Horizontal">
-                                                                <TextBlock Text="📞" FontSize="9" VerticalAlignment="Center"/>
-                                                                <TextBlock Text="{Binding DoZadzwonienia}" FontSize="10" FontWeight="Bold" Foreground="#64748B" Margin="3,0,0,0" VerticalAlignment="Center"/>
-                                                            </StackPanel>
-                                                        </Border>
-
-                                                        <!-- Próba kontaktu -->
-                                                        <Border Background="#FFEDD5" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Próba kontaktu">
-                                                            <StackPanel Orientation="Horizontal">
-                                                                <TextBlock Text="⏳" FontSize="9" VerticalAlignment="Center"/>
-                                                                <TextBlock Text="{Binding Proby}" FontSize="10" FontWeight="Bold" Foreground="#9A3412" Margin="3,0,0,0" VerticalAlignment="Center"/>
-                                                            </StackPanel>
-                                                        </Border>
-
-                                                        <!-- Nawiązano kontakt -->
-                                                        <Border Background="#DCFCE7" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Nawiązano kontakt">
-                                                            <StackPanel Orientation="Horizontal">
-                                                                <TextBlock Text="✅" FontSize="9" VerticalAlignment="Center"/>
-                                                                <TextBlock Text="{Binding Nawiazano}" FontSize="10" FontWeight="Bold" Foreground="#166534" Margin="3,0,0,0" VerticalAlignment="Center"/>
-                                                            </StackPanel>
-                                                        </Border>
-
-                                                        <!-- Zgoda na dalszy kontakt -->
-                                                        <Border Background="#CCFBF1" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Zgoda na dalszy kontakt">
-                                                            <StackPanel Orientation="Horizontal">
-                                                                <TextBlock Text="🤝" FontSize="9" VerticalAlignment="Center"/>
-                                                                <TextBlock Text="{Binding Zgoda}" FontSize="10" FontWeight="Bold" Foreground="#0D9488" Margin="3,0,0,0" VerticalAlignment="Center"/>
-                                                            </StackPanel>
-                                                        </Border>
-
-                                                        <!-- Do wysłania oferta -->
-                                                        <Border Background="#DBEAFE" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Do wysłania oferta">
-                                                            <StackPanel Orientation="Horizontal">
-                                                                <TextBlock Text="📄" FontSize="9" VerticalAlignment="Center"/>
-                                                                <TextBlock Text="{Binding Oferty}" FontSize="10" FontWeight="Bold" Foreground="#1E40AF" Margin="3,0,0,0" VerticalAlignment="Center"/>
-                                                            </StackPanel>
-                                                        </Border>
-
-                                                        <!-- Nie zainteresowany -->
-                                                        <Border Background="#FEE2E2" CornerRadius="4" Padding="5,2" ToolTip="Nie zainteresowany">
-                                                            <StackPanel Orientation="Horizontal">
-                                                                <TextBlock Text="❌" FontSize="9" VerticalAlignment="Center"/>
-                                                                <TextBlock Text="{Binding NieZainteresowany}" FontSize="10" FontWeight="Bold" Foreground="#991B1B" Margin="3,0,0,0" VerticalAlignment="Center"/>
-                                                            </StackPanel>
-                                                        </Border>
+                                                    <!-- Suma -->
+                                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="6,0,0,0">
+                                                        <TextBlock Text="{Binding Suma}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}" HorizontalAlignment="Center"/>
+                                                        <TextBlock Text="SUMA" FontSize="7" Foreground="{StaticResource TextGray}" HorizontalAlignment="Center" FontWeight="Bold"/>
                                                     </StackPanel>
                                                 </Grid>
                                             </Border>
@@ -690,7 +686,7 @@
                                         </Style>
                                     </ListBox.ItemContainerStyle>
                                 </ListBox>
-                            </StackPanel>
+                            </Grid>
                         </Border>
 
                     </StackPanel>
@@ -708,6 +704,45 @@
                 <TextBlock x:Name="toastText" Text="Wykonano" Foreground="White" FontWeight="SemiBold" FontSize="14"/>
             </StackPanel>
         </Border>
+
+        <!-- Floating Action Button -->
+        <Button x:Name="fabButton" Grid.Row="2"
+                Width="56" Height="56"
+                VerticalAlignment="Bottom" HorizontalAlignment="Right"
+                Margin="0,0,30,30"
+                Click="FabButton_Click"
+                Cursor="Hand">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Ellipse x:Name="ellipse" Fill="{StaticResource PrimaryColor}">
+                            <Ellipse.Effect>
+                                <DropShadowEffect Color="Black" Opacity="0.3" BlurRadius="15" ShadowDepth="3"/>
+                            </Ellipse.Effect>
+                        </Ellipse>
+                        <TextBlock Text="+" FontSize="28" FontWeight="Light" Foreground="White"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ellipse" Property="Fill" Value="#15803D"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="ellipse" Property="Fill" Value="#166534"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Button.Template>
+            <Button.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="📞 Nowy kontakt" Click="BtnDodaj_Click"/>
+                    <MenuItem Header="🗺️ Mapa" Click="BtnMapa_Click"/>
+                    <MenuItem Header="📊 Kanban" Click="BtnKanban_Click"/>
+                    <Separator/>
+                    <MenuItem Header="🔄 Odśwież" Click="BtnOdswiez_Click"/>
+                </ContextMenu>
+            </Button.ContextMenu>
+        </Button>
 
         <Border x:Name="loadingOverlay" Grid.RowSpan="3" Background="#95FFFFFF" Visibility="Collapsed">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
