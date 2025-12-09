@@ -200,13 +200,20 @@ namespace Kalendarz1.CRM
                         int liczba = reader.GetInt32(1);
                         suma += liczba;
 
-                        var def = definicje.ContainsKey(status) ? definicje[status] : ("📋", "#94A3B8");
+                        string ikona = "📋";
+                        string kolor = "#94A3B8";
+                        if (definicje.ContainsKey(status))
+                        {
+                            ikona = definicje[status].Item1;
+                            kolor = definicje[status].Item2;
+                        }
+
                         statusy.Add(new StatusInfo
                         {
                             Nazwa = status,
-                            Ikona = def.ikona,
+                            Ikona = ikona,
                             Liczba = liczba,
-                            KolorPaska = new SolidColorBrush((Color)ColorConverter.ConvertFromString(def.kolor))
+                            KolorPaska = new SolidColorBrush((Color)ColorConverter.ConvertFromString(kolor))
                         });
                     }
                 }
