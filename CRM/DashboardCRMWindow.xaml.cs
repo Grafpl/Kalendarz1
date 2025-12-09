@@ -1,7 +1,7 @@
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
-using System.Data;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -12,29 +12,68 @@ namespace Kalendarz1.CRM
     public partial class DashboardCRMWindow : Window
     {
         private readonly string connectionString;
-        private int okresDni = 7;
+        private int okresDni = 0; // 0 = dzisiaj
+        private DateTime dataOd;
+        private DateTime dataDo;
         private bool isLoaded = false;
 
         public DashboardCRMWindow(string connString)
         {
             connectionString = connString;
             InitializeComponent();
-            Loaded += (s, e) => { isLoaded = true; WczytajDane(); };
+            Loaded += (s, e) => { isLoaded = true; UstawOkres(); WczytajDane(); };
         }
 
         private void CmbOkres_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (!isLoaded || cmbOkres == null || cmbOkres.SelectedIndex < 0) return;
+            UstawOkres();
+            WczytajDane();
+        }
+
+        private void UstawOkres()
+        {
+            dataDo = DateTime.Today.AddDays(1); // Do jutra (włącznie z dzisiejszym dniem)
+            string okresNazwa = "Dzisiaj";
 
             switch (cmbOkres.SelectedIndex)
             {
-                case 0: okresDni = 7; break;
-                case 1: okresDni = 14; break;
-                case 2: okresDni = 30; break;
-                case 3: okresDni = DateTime.Now.Day; break; // Ten miesiąc
-                case 4: okresDni = DateTime.DaysInMonth(DateTime.Now.Year, DateTime.Now.Month - 1); break; // Poprzedni
+                case 0: // Dzisiaj
+                    dataOd = DateTime.Today;
+                    okresDni = 1;
+                    okresNazwa = "Dzisiaj";
+                    break;
+                case 1: // 7 dni
+                    dataOd = DateTime.Today.AddDays(-6);
+                    okresDni = 7;
+                    okresNazwa = "Ostatnie 7 dni";
+                    break;
+                case 2: // 14 dni
+                    dataOd = DateTime.Today.AddDays(-13);
+                    okresDni = 14;
+                    okresNazwa = "Ostatnie 14 dni";
+                    break;
+                case 3: // 30 dni
+                    dataOd = DateTime.Today.AddDays(-29);
+                    okresDni = 30;
+                    okresNazwa = "Ostatnie 30 dni";
+                    break;
+                case 4: // Ten miesiąc
+                    dataOd = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+                    okresDni = DateTime.Today.Day;
+                    okresNazwa = "Ten miesiąc";
+                    break;
+                case 5: // Poprzedni miesiąc
+                    var prev = DateTime.Today.AddMonths(-1);
+                    dataOd = new DateTime(prev.Year, prev.Month, 1);
+                    dataDo = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+                    okresDni = DateTime.DaysInMonth(prev.Year, prev.Month);
+                    okresNazwa = "Poprzedni miesiąc";
+                    break;
             }
-            WczytajDane();
+
+            if (txtWykresOkres != null)
+                txtWykresOkres.Text = $" ({okresNazwa})";
         }
 
         private void BtnOdswiez_Click(object sender, RoutedEventArgs e) => WczytajDane();
@@ -43,11 +82,10 @@ namespace Kalendarz1.CRM
         {
             try
             {
-                WczytajKPI();
-                WczytajWykresAktywnosci();
-                WczytajRozkladStatusow();
-                WczytajPorownanieMiesiecy();
-                WczytajTopHandlowcow();
+                WczytajStatystykiGlobalne();
+                WczytajWykresHandlowcow();
+                WczytajAktywnoscPoDniach();
+                WczytajTopDnia();
             }
             catch (Exception ex)
             {
@@ -55,312 +93,373 @@ namespace Kalendarz1.CRM
             }
         }
 
-        private void WczytajKPI()
+        private void WczytajStatystykiGlobalne()
         {
-            if (txtKpiWszystkie == null) return; // Kontrolki nie są jeszcze gotowe
+            if (txtTelefonyTotal == null) return;
 
             using (var conn = new SqlConnection(connectionString))
             {
                 conn.Open();
 
-                // Wszystkie kontakty
-                var cmdAll = new SqlCommand("SELECT COUNT(*) FROM OdbiorcyCRM WHERE ISNULL(Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)')", conn);
-                int wszystkie = (int)cmdAll.ExecuteScalar();
-                txtKpiWszystkie.Text = wszystkie.ToString("N0");
+                // Telefony = zmiany statusu na 'Próba kontaktu' lub 'Nawiązano kontakt'
+                var cmdTelefony = new SqlCommand(@"
+                    SELECT COUNT(*) FROM HistoriaZmianCRM
+                    WHERE TypZmiany = 'Zmiana statusu'
+                    AND WartoscNowa IN ('Próba kontaktu', 'Nawiązano kontakt')
+                    AND DataZmiany >= @dataOd AND DataZmiany < @dataDo", conn);
+                cmdTelefony.Parameters.AddWithValue("@dataOd", dataOd);
+                cmdTelefony.Parameters.AddWithValue("@dataDo", dataDo);
+                int telefony = (int)cmdTelefony.ExecuteScalar();
+                txtTelefonyTotal.Text = telefony.ToString();
+                if (txtTelefonyInfo != null)
+                    txtTelefonyInfo.Text = okresDni == 1 ? "wykonanych połączeń" : $"śr. {(telefony / (double)okresDni):F1}/dzień";
 
-                // Nowe w okresie
-                var cmdNowe = new SqlCommand($@"SELECT COUNT(*) FROM HistoriaZmianCRM
-                    WHERE TypZmiany = 'Utworzenie kontaktu' AND DataZmiany > DATEADD(day, -{okresDni}, GETDATE())", conn);
-                int nowe = (int)cmdNowe.ExecuteScalar();
-                if (txtKpiWszystkieTrend != null) txtKpiWszystkieTrend.Text = $"+{nowe} w tym okresie";
+                // Zmiany statusów (wszystkie oprócz telefonów)
+                var cmdStatusy = new SqlCommand(@"
+                    SELECT COUNT(*) FROM HistoriaZmianCRM
+                    WHERE TypZmiany = 'Zmiana statusu'
+                    AND WartoscNowa NOT IN ('Próba kontaktu', 'Nawiązano kontakt', 'Do zadzwonienia')
+                    AND DataZmiany >= @dataOd AND DataZmiany < @dataDo", conn);
+                cmdStatusy.Parameters.AddWithValue("@dataOd", dataOd);
+                cmdStatusy.Parameters.AddWithValue("@dataDo", dataDo);
+                int statusy = (int)cmdStatusy.ExecuteScalar();
+                if (txtStatusyTotal != null) txtStatusyTotal.Text = statusy.ToString();
+                if (txtStatusyInfo != null)
+                    txtStatusyInfo.Text = okresDni == 1 ? "zmian statusów" : $"śr. {(statusy / (double)okresDni):F1}/dzień";
 
-                // Wykonane akcje w okresie
-                var cmdAkcje = new SqlCommand($@"SELECT COUNT(*) FROM HistoriaZmianCRM
-                    WHERE DataZmiany > DATEADD(day, -{okresDni}, GETDATE())", conn);
-                int akcje = (int)cmdAkcje.ExecuteScalar();
-                if (txtKpiAkcje != null) txtKpiAkcje.Text = akcje.ToString("N0");
-                double srednia = okresDni > 0 ? (double)akcje / okresDni : 0;
-                if (txtKpiAkcjeSrednia != null) txtKpiAkcjeSrednia.Text = $"śr. {srednia:F1}/dzień";
+                // Notatki
+                var cmdNotatki = new SqlCommand(@"
+                    SELECT COUNT(*) FROM NotatkiCRM
+                    WHERE DataUtworzenia >= @dataOd AND DataUtworzenia < @dataDo", conn);
+                cmdNotatki.Parameters.AddWithValue("@dataOd", dataOd);
+                cmdNotatki.Parameters.AddWithValue("@dataDo", dataDo);
+                int notatki = (int)cmdNotatki.ExecuteScalar();
+                if (txtNotatkiTotal != null) txtNotatkiTotal.Text = notatki.ToString();
+                if (txtNotatkiInfo != null)
+                    txtNotatkiInfo.Text = okresDni == 1 ? "dodanych notatek" : $"śr. {(notatki / (double)okresDni):F1}/dzień";
 
-                // Skuteczność (pozytywne statusy / wszystkie zmiany statusów)
-                var cmdSkut = new SqlCommand($@"
+                // Suma
+                int suma = telefony + statusy + notatki;
+                if (txtAktywnoscTotal != null) txtAktywnoscTotal.Text = suma.ToString();
+                if (txtAktywnoscInfo != null)
+                    txtAktywnoscInfo.Text = okresDni == 1 ? "wszystkich akcji" : $"śr. {(suma / (double)okresDni):F1}/dzień";
+            }
+        }
+
+        private void WczytajWykresHandlowcow()
+        {
+            var handlowcy = new List<HandlowiecWykres>();
+            int maxSuma = 1;
+
+            using (var conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+
+                // Pobierz dane per handlowiec
+                var cmd = new SqlCommand(@"
                     SELECT
-                        SUM(CASE WHEN WartoscNowa IN ('Nawiązano kontakt', 'Zgoda na dalszy kontakt', 'Do wysłania oferta') THEN 1 ELSE 0 END) as Pozytywne,
-                        COUNT(*) as Wszystkie
-                    FROM HistoriaZmianCRM
-                    WHERE TypZmiany = 'Zmiana statusu' AND DataZmiany > DATEADD(day, -{okresDni}, GETDATE())", conn);
-                using (var reader = cmdSkut.ExecuteReader())
-                {
-                    if (reader.Read())
-                    {
-                        int pozytywne = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
-                        int wszystkieZmiany = reader.IsDBNull(1) ? 0 : reader.GetInt32(1);
-                        double skutecznosc = wszystkieZmiany > 0 ? (double)pozytywne / wszystkieZmiany * 100 : 0;
-                        if (txtKpiSkutecznosc != null) txtKpiSkutecznosc.Text = $"{skutecznosc:F0}%";
-                    }
-                }
-
-                // Otwarte oferty
-                var cmdOferty = new SqlCommand("SELECT COUNT(*) FROM OdbiorcyCRM WHERE Status = 'Do wysłania oferta'", conn);
-                int oferty = (int)cmdOferty.ExecuteScalar();
-                if (txtKpiOferty != null) txtKpiOferty.Text = oferty.ToString();
-
-                // Zaniedbane (>30 dni bez aktywności)
-                var cmdZaniedbane = new SqlCommand(@"
-                    SELECT COUNT(*) FROM OdbiorcyCRM o
-                    WHERE ISNULL(o.Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)', 'Nie zainteresowany')
-                    AND NOT EXISTS (
-                        SELECT 1 FROM HistoriaZmianCRM h
-                        WHERE h.IDOdbiorcy = o.ID AND h.DataZmiany > DATEADD(day, -30, GETDATE())
-                    )", conn);
-                int zaniedbane = (int)cmdZaniedbane.ExecuteScalar();
-                if (txtKpiZaniedbane != null) txtKpiZaniedbane.Text = zaniedbane.ToString();
-            }
-        }
-
-        private void WczytajWykresAktywnosci()
-        {
-            var dane = new List<DzienAktywnosci>();
-            double maxWartosc = 1;
-
-            using (var conn = new SqlConnection(connectionString))
-            {
-                conn.Open();
-                var cmd = new SqlCommand($@"
-                    SELECT CAST(DataZmiany AS DATE) as Dzien, COUNT(*) as Liczba
-                    FROM HistoriaZmianCRM
-                    WHERE DataZmiany > DATEADD(day, -{okresDni}, GETDATE())
-                    GROUP BY CAST(DataZmiany AS DATE)
-                    ORDER BY Dzien", conn);
-
-                var wyniki = new Dictionary<DateTime, int>();
-                using (var reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        wyniki[reader.GetDateTime(0)] = reader.GetInt32(1);
-                    }
-                }
-
-                // Uzupełnij wszystkie dni
-                for (int i = okresDni - 1; i >= 0; i--)
-                {
-                    var dzien = DateTime.Today.AddDays(-i);
-                    int wartosc = wyniki.ContainsKey(dzien) ? wyniki[dzien] : 0;
-                    if (wartosc > maxWartosc) maxWartosc = wartosc;
-                    dane.Add(new DzienAktywnosci
-                    {
-                        Data = dzien.ToString("dd.MM"),
-                        Etykieta = dzien.ToString("ddd").Substring(0, 2),
-                        Wartosc = wartosc,
-                        Tooltip = $"Akcji: {wartosc}"
-                    });
-                }
-            }
-
-            // Oblicz wysokości słupków (max 150px)
-            foreach (var d in dane)
-            {
-                d.Wysokosc = maxWartosc > 0 ? (d.Wartosc / maxWartosc) * 150 : 0;
-                d.Kolor = d.Wartosc > 0
-                    ? new SolidColorBrush(Color.FromRgb(22, 163, 74))
-                    : new SolidColorBrush(Color.FromRgb(226, 232, 240));
-            }
-
-            wykresAktywnosci.ItemsSource = dane;
-        }
-
-        private void WczytajRozkladStatusow()
-        {
-            var statusy = new List<StatusInfo>();
-            int suma = 0;
-
-            var definicje = new Dictionary<string, (string ikona, string kolor)>
-            {
-                { "Do zadzwonienia", ("📞", "#64748B") },
-                { "Próba kontaktu", ("⏳", "#F97316") },
-                { "Nawiązano kontakt", ("✅", "#16A34A") },
-                { "Zgoda na dalszy kontakt", ("🤝", "#14B8A6") },
-                { "Do wysłania oferta", ("📄", "#2563EB") },
-                { "Nie zainteresowany", ("❌", "#DC2626") }
-            };
-
-            using (var conn = new SqlConnection(connectionString))
-            {
-                conn.Open();
-                var cmd = new SqlCommand(@"
-                    SELECT ISNULL(Status, 'Do zadzwonienia') as Status, COUNT(*) as Liczba
-                    FROM OdbiorcyCRM
-                    WHERE ISNULL(Status, '') NOT IN ('Poprosił o usunięcie', 'Błędny rekord (do raportu)')
-                    GROUP BY Status
-                    ORDER BY COUNT(*) DESC", conn);
-
-                using (var reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        string status = reader.GetString(0);
-                        int liczba = reader.GetInt32(1);
-                        suma += liczba;
-
-                        string ikona = "📋";
-                        string kolor = "#94A3B8";
-                        if (definicje.ContainsKey(status))
-                        {
-                            ikona = definicje[status].Item1;
-                            kolor = definicje[status].Item2;
-                        }
-
-                        statusy.Add(new StatusInfo
-                        {
-                            Nazwa = status,
-                            Ikona = ikona,
-                            Liczba = liczba,
-                            KolorPaska = new SolidColorBrush((Color)ColorConverter.ConvertFromString(kolor))
-                        });
-                    }
-                }
-            }
-
-            // Oblicz procenty i szerokości
-            foreach (var s in statusy)
-            {
-                s.Procent = suma > 0 ? (int)Math.Round((double)s.Liczba / suma * 100) : 0;
-                s.SzerokoscPaska = suma > 0 ? (double)s.Liczba / suma * 200 : 0; // max 200px
-            }
-
-            listaStatusow.ItemsSource = statusy;
-        }
-
-        private void WczytajPorownanieMiesiecy()
-        {
-            var miesiace = new List<MiesiacInfo>();
-            int poprzednia = 0;
-
-            using (var conn = new SqlConnection(connectionString))
-            {
-                conn.Open();
-                var cmd = new SqlCommand(@"
-                    SELECT YEAR(DataZmiany) as Rok, MONTH(DataZmiany) as Miesiac, COUNT(*) as Liczba
-                    FROM HistoriaZmianCRM
-                    WHERE DataZmiany > DATEADD(month, -6, GETDATE())
-                    GROUP BY YEAR(DataZmiany), MONTH(DataZmiany)
-                    ORDER BY Rok, Miesiac", conn);
-
-                using (var reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        int rok = reader.GetInt32(0);
-                        int miesiac = reader.GetInt32(1);
-                        int liczba = reader.GetInt32(2);
-
-                        int zmiana = poprzednia > 0 ? (int)Math.Round((double)(liczba - poprzednia) / poprzednia * 100) : 0;
-                        string trend = zmiana >= 0 ? $"+{zmiana}%" : $"{zmiana}%";
-
-                        miesiace.Add(new MiesiacInfo
-                        {
-                            NazwaMiesiaca = new DateTime(rok, miesiac, 1).ToString("MMM"),
-                            LiczbaAkcji = liczba,
-                            Trend = poprzednia == 0 ? "-" : trend,
-                            KolorTrendu = zmiana >= 0
-                                ? new SolidColorBrush(Color.FromRgb(22, 163, 74))
-                                : new SolidColorBrush(Color.FromRgb(220, 38, 38)),
-                            TloKarty = DateTime.Now.Month == miesiac && DateTime.Now.Year == rok
-                                ? new SolidColorBrush(Color.FromRgb(220, 252, 231))
-                                : new SolidColorBrush(Color.FromRgb(248, 250, 252))
-                        });
-
-                        poprzednia = liczba;
-                    }
-                }
-            }
-
-            listaMiesiace.ItemsSource = miesiace;
-        }
-
-        private void WczytajTopHandlowcow()
-        {
-            var handlowcy = new List<HandlowiecInfo>();
-            var koloryPozycji = new[] { "#FFD700", "#C0C0C0", "#CD7F32", "#16A34A", "#16A34A" };
-
-            using (var conn = new SqlConnection(connectionString))
-            {
-                conn.Open();
-                var cmd = new SqlCommand($@"
-                    SELECT TOP 5
                         ISNULL(o.Name, h.KtoWykonal) as Handlowiec,
-                        COUNT(*) as LiczbaAkcji,
-                        SUM(CASE WHEN WartoscNowa IN ('Nawiązano kontakt', 'Zgoda na dalszy kontakt', 'Do wysłania oferta') THEN 1 ELSE 0 END) as Pozytywne
+                        SUM(CASE WHEN h.WartoscNowa IN ('Próba kontaktu', 'Nawiązano kontakt') THEN 1 ELSE 0 END) as Telefony,
+                        SUM(CASE WHEN h.WartoscNowa NOT IN ('Próba kontaktu', 'Nawiązano kontakt', 'Do zadzwonienia') THEN 1 ELSE 0 END) as Statusy
                     FROM HistoriaZmianCRM h
                     LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
-                    WHERE h.DataZmiany > DATEADD(day, -{okresDni}, GETDATE())
+                    WHERE h.TypZmiany = 'Zmiana statusu'
+                    AND h.DataZmiany >= @dataOd AND h.DataZmiany < @dataDo
                     GROUP BY h.KtoWykonal, o.Name
-                    ORDER BY COUNT(*) DESC", conn);
+                    ORDER BY SUM(CASE WHEN h.WartoscNowa IN ('Próba kontaktu', 'Nawiązano kontakt') THEN 1 ELSE 0 END) +
+                             SUM(CASE WHEN h.WartoscNowa NOT IN ('Próba kontaktu', 'Nawiązano kontakt', 'Do zadzwonienia') THEN 1 ELSE 0 END) DESC", conn);
+                cmd.Parameters.AddWithValue("@dataOd", dataOd);
+                cmd.Parameters.AddWithValue("@dataDo", dataDo);
 
-                int pozycja = 1;
+                var daneHistoria = new Dictionary<string, (int telefony, int statusy)>();
                 using (var reader = cmd.ExecuteReader())
                 {
                     while (reader.Read())
                     {
                         string nazwa = reader.IsDBNull(0) ? "Nieznany" : reader.GetString(0);
-                        int akcje = reader.GetInt32(1);
-                        int pozytywne = reader.GetInt32(2);
-                        int skutecznosc = akcje > 0 ? (int)Math.Round((double)pozytywne / akcje * 100) : 0;
+                        int tel = reader.GetInt32(1);
+                        int stat = reader.GetInt32(2);
+                        daneHistoria[nazwa] = (tel, stat);
+                    }
+                }
 
-                        handlowcy.Add(new HandlowiecInfo
+                // Pobierz notatki per handlowiec
+                var cmdNotatki = new SqlCommand(@"
+                    SELECT
+                        ISNULL(o.Name, n.KtoDodal) as Handlowiec,
+                        COUNT(*) as Notatki
+                    FROM NotatkiCRM n
+                    LEFT JOIN operators o ON n.KtoDodal = CAST(o.ID AS NVARCHAR)
+                    WHERE n.DataUtworzenia >= @dataOd AND n.DataUtworzenia < @dataDo
+                    GROUP BY n.KtoDodal, o.Name", conn);
+                cmdNotatki.Parameters.AddWithValue("@dataOd", dataOd);
+                cmdNotatki.Parameters.AddWithValue("@dataDo", dataDo);
+
+                var daneNotatki = new Dictionary<string, int>();
+                using (var reader = cmdNotatki.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        string nazwa = reader.IsDBNull(0) ? "Nieznany" : reader.GetString(0);
+                        int notatki = reader.GetInt32(1);
+                        daneNotatki[nazwa] = notatki;
+                    }
+                }
+
+                // Połącz dane
+                var wszystkieNazwy = daneHistoria.Keys.Union(daneNotatki.Keys).Distinct();
+                foreach (var nazwa in wszystkieNazwy)
+                {
+                    int tel = daneHistoria.ContainsKey(nazwa) ? daneHistoria[nazwa].telefony : 0;
+                    int stat = daneHistoria.ContainsKey(nazwa) ? daneHistoria[nazwa].statusy : 0;
+                    int not = daneNotatki.ContainsKey(nazwa) ? daneNotatki[nazwa] : 0;
+                    int suma = tel + stat + not;
+
+                    if (suma > 0)
+                    {
+                        handlowcy.Add(new HandlowiecWykres
                         {
-                            Pozycja = pozycja,
                             Nazwa = nazwa,
-                            LiczbaAkcji = akcje,
-                            Skutecznosc = skutecznosc,
-                            KolorPozycji = new SolidColorBrush((Color)ColorConverter.ConvertFromString(koloryPozycji[Math.Min(pozycja - 1, 4)]))
+                            Telefony = tel,
+                            Statusy = stat,
+                            Notatki = not,
+                            Suma = suma
                         });
-                        pozycja++;
+                        if (suma > maxSuma) maxSuma = suma;
                     }
                 }
             }
 
-            listaTopHandlowcy.ItemsSource = handlowcy;
+            // Posortuj i dodaj pozycje
+            handlowcy = handlowcy.OrderByDescending(h => h.Suma).ToList();
+            var koloryPozycji = new[] { "#FFD700", "#C0C0C0", "#CD7F32", "#16A34A", "#16A34A", "#64748B", "#64748B", "#64748B", "#64748B", "#64748B" };
+
+            for (int i = 0; i < handlowcy.Count; i++)
+            {
+                var h = handlowcy[i];
+                h.Pozycja = i + 1;
+                h.KolorPozycji = new SolidColorBrush((Color)ColorConverter.ConvertFromString(koloryPozycji[Math.Min(i, koloryPozycji.Length - 1)]));
+
+                // Oblicz szerokości słupków (max 400px łącznie)
+                double skala = 400.0 / maxSuma;
+                h.SzerokoscTelefony = Math.Max(h.Telefony * skala, h.Telefony > 0 ? 3 : 0);
+                h.SzerokoscStatusy = Math.Max(h.Statusy * skala, h.Statusy > 0 ? 3 : 0);
+                h.SzerokoscNotatki = Math.Max(h.Notatki * skala, h.Notatki > 0 ? 3 : 0);
+
+                h.TooltipTelefony = $"📞 Telefony: {h.Telefony}";
+                h.TooltipStatusy = $"🔄 Zmiany statusów: {h.Statusy}";
+                h.TooltipNotatki = $"📝 Notatki: {h.Notatki}";
+            }
+
+            listaHandlowcyWykres.ItemsSource = handlowcy;
+        }
+
+        private void WczytajAktywnoscPoDniach()
+        {
+            var dni = new List<DzienAktywnosc>();
+
+            using (var conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+
+                // Telefony i statusy po dniach
+                var cmdHistoria = new SqlCommand(@"
+                    SELECT
+                        CAST(DataZmiany AS DATE) as Dzien,
+                        SUM(CASE WHEN WartoscNowa IN ('Próba kontaktu', 'Nawiązano kontakt') THEN 1 ELSE 0 END) as Telefony,
+                        SUM(CASE WHEN WartoscNowa NOT IN ('Próba kontaktu', 'Nawiązano kontakt', 'Do zadzwonienia') THEN 1 ELSE 0 END) as Statusy
+                    FROM HistoriaZmianCRM
+                    WHERE TypZmiany = 'Zmiana statusu'
+                    AND DataZmiany >= @dataOd AND DataZmiany < @dataDo
+                    GROUP BY CAST(DataZmiany AS DATE)", conn);
+                cmdHistoria.Parameters.AddWithValue("@dataOd", dataOd);
+                cmdHistoria.Parameters.AddWithValue("@dataDo", dataDo);
+
+                var daneHistoria = new Dictionary<DateTime, (int tel, int stat)>();
+                using (var reader = cmdHistoria.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        var dzien = reader.GetDateTime(0);
+                        daneHistoria[dzien] = (reader.GetInt32(1), reader.GetInt32(2));
+                    }
+                }
+
+                // Notatki po dniach
+                var cmdNotatki = new SqlCommand(@"
+                    SELECT CAST(DataUtworzenia AS DATE) as Dzien, COUNT(*) as Notatki
+                    FROM NotatkiCRM
+                    WHERE DataUtworzenia >= @dataOd AND DataUtworzenia < @dataDo
+                    GROUP BY CAST(DataUtworzenia AS DATE)", conn);
+                cmdNotatki.Parameters.AddWithValue("@dataOd", dataOd);
+                cmdNotatki.Parameters.AddWithValue("@dataDo", dataDo);
+
+                var daneNotatki = new Dictionary<DateTime, int>();
+                using (var reader = cmdNotatki.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        var dzien = reader.GetDateTime(0);
+                        daneNotatki[dzien] = reader.GetInt32(1);
+                    }
+                }
+
+                // Uzupełnij wszystkie dni w okresie
+                var culture = new CultureInfo("pl-PL");
+                for (var dzien = dataOd; dzien < dataDo; dzien = dzien.AddDays(1))
+                {
+                    int tel = daneHistoria.ContainsKey(dzien) ? daneHistoria[dzien].tel : 0;
+                    int stat = daneHistoria.ContainsKey(dzien) ? daneHistoria[dzien].stat : 0;
+                    int not = daneNotatki.ContainsKey(dzien) ? daneNotatki[dzien] : 0;
+
+                    bool czyDzisiaj = dzien == DateTime.Today;
+
+                    dni.Add(new DzienAktywnosc
+                    {
+                        DzienNazwa = culture.DateTimeFormat.GetDayName(dzien.DayOfWeek),
+                        Data = dzien.ToString("dd.MM.yyyy"),
+                        Telefony = tel,
+                        Statusy = stat,
+                        Notatki = not,
+                        TloKarty = czyDzisiaj
+                            ? new SolidColorBrush(Color.FromRgb(220, 252, 231))
+                            : new SolidColorBrush(Color.FromRgb(248, 250, 252))
+                    });
+                }
+            }
+
+            // Odwróć kolejność - najnowsze na górze
+            dni.Reverse();
+            listaAktywnoscDni.ItemsSource = dni;
+        }
+
+        private void WczytajTopDnia()
+        {
+            var top = new List<TopHandlowiec>();
+
+            using (var conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+
+                // Tylko dzisiejsze dane dla podium
+                var dzisiajOd = DateTime.Today;
+                var dzisiajDo = DateTime.Today.AddDays(1);
+
+                var cmd = new SqlCommand(@"
+                    SELECT TOP 3
+                        ISNULL(o.Name, h.KtoWykonal) as Handlowiec,
+                        SUM(CASE WHEN h.WartoscNowa IN ('Próba kontaktu', 'Nawiązano kontakt') THEN 1 ELSE 0 END) as Telefony,
+                        SUM(CASE WHEN h.WartoscNowa NOT IN ('Próba kontaktu', 'Nawiązano kontakt', 'Do zadzwonienia') THEN 1 ELSE 0 END) as Statusy
+                    FROM HistoriaZmianCRM h
+                    LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
+                    WHERE h.TypZmiany = 'Zmiana statusu'
+                    AND h.DataZmiany >= @dataOd AND h.DataZmiany < @dataDo
+                    GROUP BY h.KtoWykonal, o.Name
+                    ORDER BY SUM(CASE WHEN h.WartoscNowa IN ('Próba kontaktu', 'Nawiązano kontakt') THEN 1 ELSE 0 END) +
+                             SUM(CASE WHEN h.WartoscNowa NOT IN ('Próba kontaktu', 'Nawiązano kontakt', 'Do zadzwonienia') THEN 1 ELSE 0 END) DESC", conn);
+                cmd.Parameters.AddWithValue("@dataOd", dzisiajOd);
+                cmd.Parameters.AddWithValue("@dataDo", dzisiajDo);
+
+                var daneHistoria = new Dictionary<string, (int tel, int stat)>();
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        string nazwa = reader.IsDBNull(0) ? "Nieznany" : reader.GetString(0);
+                        daneHistoria[nazwa] = (reader.GetInt32(1), reader.GetInt32(2));
+                    }
+                }
+
+                // Notatki dzisiaj
+                var cmdNotatki = new SqlCommand(@"
+                    SELECT ISNULL(o.Name, n.KtoDodal) as Handlowiec, COUNT(*) as Notatki
+                    FROM NotatkiCRM n
+                    LEFT JOIN operators o ON n.KtoDodal = CAST(o.ID AS NVARCHAR)
+                    WHERE n.DataUtworzenia >= @dataOd AND n.DataUtworzenia < @dataDo
+                    GROUP BY n.KtoDodal, o.Name", conn);
+                cmdNotatki.Parameters.AddWithValue("@dataOd", dzisiajOd);
+                cmdNotatki.Parameters.AddWithValue("@dataDo", dzisiajDo);
+
+                var daneNotatki = new Dictionary<string, int>();
+                using (var reader = cmdNotatki.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        string nazwa = reader.IsDBNull(0) ? "Nieznany" : reader.GetString(0);
+                        daneNotatki[nazwa] = reader.GetInt32(1);
+                    }
+                }
+
+                // Połącz i posortuj
+                var wszystkie = new List<TopHandlowiec>();
+                var nazwy = daneHistoria.Keys.Union(daneNotatki.Keys).Distinct();
+                foreach (var nazwa in nazwy)
+                {
+                    int tel = daneHistoria.ContainsKey(nazwa) ? daneHistoria[nazwa].tel : 0;
+                    int stat = daneHistoria.ContainsKey(nazwa) ? daneHistoria[nazwa].stat : 0;
+                    int not = daneNotatki.ContainsKey(nazwa) ? daneNotatki[nazwa] : 0;
+
+                    wszystkie.Add(new TopHandlowiec
+                    {
+                        Nazwa = nazwa,
+                        Telefony = tel,
+                        Statusy = stat,
+                        Notatki = not,
+                        Suma = tel + stat + not
+                    });
+                }
+
+                var medale = new[] { "🥇", "🥈", "🥉" };
+                var koloryTla = new[] { "#FEF3C7", "#F1F5F9", "#FFEDD5" };
+
+                top = wszystkie.OrderByDescending(t => t.Suma).Take(3).ToList();
+                for (int i = 0; i < top.Count; i++)
+                {
+                    top[i].Medal = medale[i];
+                    top[i].TloPozycji = new SolidColorBrush((Color)ColorConverter.ConvertFromString(koloryTla[i]));
+                }
+            }
+
+            listaTopDnia.ItemsSource = top;
         }
     }
 
     // Klasy pomocnicze
-    public class DzienAktywnosci
-    {
-        public string Data { get; set; }
-        public string Etykieta { get; set; }
-        public int Wartosc { get; set; }
-        public double Wysokosc { get; set; }
-        public string Tooltip { get; set; }
-        public SolidColorBrush Kolor { get; set; }
-    }
-
-    public class StatusInfo
-    {
-        public string Nazwa { get; set; }
-        public string Ikona { get; set; }
-        public int Liczba { get; set; }
-        public int Procent { get; set; }
-        public double SzerokoscPaska { get; set; }
-        public SolidColorBrush KolorPaska { get; set; }
-    }
-
-    public class MiesiacInfo
-    {
-        public string NazwaMiesiaca { get; set; }
-        public int LiczbaAkcji { get; set; }
-        public string Trend { get; set; }
-        public SolidColorBrush KolorTrendu { get; set; }
-        public SolidColorBrush TloKarty { get; set; }
-    }
-
-    public class HandlowiecInfo
+    public class HandlowiecWykres
     {
         public int Pozycja { get; set; }
         public string Nazwa { get; set; }
-        public int LiczbaAkcji { get; set; }
-        public int Skutecznosc { get; set; }
+        public int Telefony { get; set; }
+        public int Statusy { get; set; }
+        public int Notatki { get; set; }
+        public int Suma { get; set; }
+        public double SzerokoscTelefony { get; set; }
+        public double SzerokoscStatusy { get; set; }
+        public double SzerokoscNotatki { get; set; }
+        public string TooltipTelefony { get; set; }
+        public string TooltipStatusy { get; set; }
+        public string TooltipNotatki { get; set; }
         public SolidColorBrush KolorPozycji { get; set; }
+    }
+
+    public class DzienAktywnosc
+    {
+        public string DzienNazwa { get; set; }
+        public string Data { get; set; }
+        public int Telefony { get; set; }
+        public int Statusy { get; set; }
+        public int Notatki { get; set; }
+        public SolidColorBrush TloKarty { get; set; }
+    }
+
+    public class TopHandlowiec
+    {
+        public string Medal { get; set; }
+        public string Nazwa { get; set; }
+        public int Telefony { get; set; }
+        public int Statusy { get; set; }
+        public int Notatki { get; set; }
+        public int Suma { get; set; }
+        public SolidColorBrush TloPozycji { get; set; }
     }
 }
