@@ -17,6 +17,7 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Kalendarz1;
 using Kalendarz1.Services;
 
 
@@ -56,6 +57,7 @@ namespace Kalendarz1.WPF
         private readonly Dictionary<int, string> _productCatalogCache = new();
         private readonly Dictionary<int, string> _productCatalogSwieze = new();
         private readonly Dictionary<int, string> _productCatalogMrozone = new();
+        private Dictionary<int, string> _mapowanieScalowania = new(); // TowarIdtw -> NazwaGrupy
         private int? _selectedProductId = null;
         private readonly Dictionary<string, string> _userCache = new();
         private readonly List<string> _salesmenCache = new();
@@ -461,6 +463,8 @@ namespace Kalendarz1.WPF
             chkShowAnulowane.IsChecked = false;
 
             await LoadInitialDataAsync();
+            await ZaladujMapowanieScalowaniaAsync();
+            InicjalizujMenuKontekstoweBilansu();
 
             _selectedDate = ValidateSqlDate(DateTime.Today);
             UpdateDayButtonDates();
@@ -4588,50 +4592,91 @@ ORDER BY zm.Id";
             }
             catch { }
 
-            // Dodaj produkty do tabeli
+            // Dodaj produkty do tabeli z uwzględnieniem scalania
             decimal totalZamowienia = 0m;
             decimal totalWydania = 0m;
             decimal totalPlan = 0m;
 
+            // Agregacja produktów z uwzględnieniem scalania
+            var agregowane = new Dictionary<string, (decimal plan, decimal fakt, decimal stan, decimal zam)>(StringComparer.OrdinalIgnoreCase);
+            var towaryWGrupach = new HashSet<int>();
+
+            // Najpierw zbierz towary w grupach scalania
             foreach (var product in _productCatalogCache)
             {
                 int productId = product.Key;
                 string productName = product.Value;
 
+                if (_mapowanieScalowania.TryGetValue(productId, out var nazwaGrupy))
+                {
+                    towaryWGrupach.Add(productId);
+
+                    // Oblicz plan
+                    decimal plan = 0m;
+                    if (konfiguracjaProduktow.TryGetValue(productId, out decimal procentUdzialu))
+                        plan = pulaTuszkiB * (procentUdzialu / 100m);
+                    else if (productName.Contains("Kurczak A", StringComparison.OrdinalIgnoreCase) ||
+                             productName.Contains("Tuszka A", StringComparison.OrdinalIgnoreCase))
+                        plan = pulaTuszkiA;
+                    else if (productName.Contains("Kurczak B", StringComparison.OrdinalIgnoreCase) ||
+                             productName.Contains("Tuszka B", StringComparison.OrdinalIgnoreCase))
+                        plan = pulaTuszkiB;
+
+                    decimal fakt = actualIncome.TryGetValue(productId, out var f) ? f : 0m;
+                    decimal stan = stanyMagazynowe.TryGetValue(productId, out var s) ? s : 0m;
+                    decimal zam = orderSum.TryGetValue(productId, out var z) ? z : 0m;
+
+                    if (agregowane.ContainsKey(nazwaGrupy))
+                    {
+                        var existing = agregowane[nazwaGrupy];
+                        agregowane[nazwaGrupy] = (existing.plan + plan, existing.fakt + fakt, existing.stan + stan, existing.zam + zam);
+                    }
+                    else
+                    {
+                        agregowane[nazwaGrupy] = (plan, fakt, stan, zam);
+                    }
+                }
+            }
+
+            // Dodaj towary niescalone
+            foreach (var product in _productCatalogCache)
+            {
+                int productId = product.Key;
+                if (towaryWGrupach.Contains(productId)) continue;
+
+                string productName = product.Value;
+
                 // Oblicz plan na podstawie konfiguracji wydajności
                 decimal plan = 0m;
-
-                // Sprawdź czy produkt ma skonfigurowany procent udziału
                 if (konfiguracjaProduktow.TryGetValue(productId, out decimal procentUdzialu))
-                {
-                    // Produkty z konfiguracji są liczone jako % z TuszkiB
                     plan = pulaTuszkiB * (procentUdzialu / 100m);
-                }
-                // Fallback na nazwy produktów dla tuszek
                 else if (productName.Contains("Kurczak A", StringComparison.OrdinalIgnoreCase) ||
                          productName.Contains("Tuszka A", StringComparison.OrdinalIgnoreCase))
-                {
                     plan = pulaTuszkiA;
-                }
                 else if (productName.Contains("Kurczak B", StringComparison.OrdinalIgnoreCase) ||
                          productName.Contains("Tuszka B", StringComparison.OrdinalIgnoreCase))
-                {
                     plan = pulaTuszkiB;
-                }
 
                 decimal fakt = actualIncome.TryGetValue(productId, out var f) ? f : 0m;
                 decimal stan = stanyMagazynowe.TryGetValue(productId, out var s) ? s : 0m;
-                decimal zamowienia = orderSum.TryGetValue(productId, out var z) ? z : 0m;
+                decimal zam = orderSum.TryGetValue(productId, out var z) ? z : 0m;
+
+                agregowane[productName] = (plan, fakt, stan, zam);
+            }
+
+            // Dodaj do tabeli
+            foreach (var kv in agregowane.OrderBy(x => x.Key))
+            {
+                var (plan, fakt, stan, zamowienia) = kv.Value;
 
                 // Pokaż produkt jeśli ma jakiekolwiek dane lub ma plan
                 if (zamowienia == 0 && fakt == 0 && stan == 0 && plan == 0) continue;
 
                 // Bilans = dostępne (fakt lub plan) + stan - zamówienia
                 decimal bilans = (fakt > 0 ? fakt : plan) + stan - zamowienia;
-
                 string status = bilans > 0 ? "✅" : (bilans == 0 ? "⚠️" : "❌");
 
-                _dtDashboard.Rows.Add(productName, plan, fakt, stan, zamowienia, bilans, status);
+                _dtDashboard.Rows.Add(kv.Key, plan, fakt, stan, zamowienia, bilans, status);
 
                 totalZamowienia += zamowienia;
                 totalWydania += fakt;
@@ -5145,6 +5190,56 @@ ORDER BY zm.Id";
             }
         }
 
+        #endregion
+
+        #region Scalowanie towarów
+        private void InicjalizujMenuKontekstoweBilansu()
+        {
+            var contextMenu = new System.Windows.Controls.ContextMenu();
+
+            var menuScalowanie = new System.Windows.Controls.MenuItem
+            {
+                Header = "Konfiguruj scalowanie towarów"
+            };
+            menuScalowanie.Click += async (s, e) =>
+            {
+                // Otwórz dialog konfiguracji scalowania (WinForms)
+                using var dialog = new ScalowanieTowarowDialog(_connLibra, _productCatalogCache);
+                dialog.ShowDialog();
+
+                // Po zamknięciu dialogu odśwież mapowanie i dane
+                await ZaladujMapowanieScalowaniaAsync();
+                await RefreshAllDataAsync();
+            };
+
+            var menuOdswiez = new System.Windows.Controls.MenuItem
+            {
+                Header = "Odśwież bilans"
+            };
+            menuOdswiez.Click += async (s, e) =>
+            {
+                await ZaladujMapowanieScalowaniaAsync();
+                await RefreshAllDataAsync();
+            };
+
+            contextMenu.Items.Add(menuScalowanie);
+            contextMenu.Items.Add(new System.Windows.Controls.Separator());
+            contextMenu.Items.Add(menuOdswiez);
+
+            dgDashboardProdukty.ContextMenu = contextMenu;
+        }
+
+        private async Task ZaladujMapowanieScalowaniaAsync()
+        {
+            try
+            {
+                _mapowanieScalowania = await ScalowanieTowarowManager.PobierzMapowanieTowarowAsync(_connLibra);
+            }
+            catch
+            {
+                _mapowanieScalowania = new Dictionary<int, string>();
+            }
+        }
         #endregion
     }
 }
