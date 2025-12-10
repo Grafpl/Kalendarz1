@@ -445,6 +445,8 @@ namespace Kalendarz1
         private int? _aktualneIdZamowienia;
         private readonly List<Button> _dayButtons = new();
         private Button btnDodajNotatke;
+        private Button? btnScalowanieTw;
+        private Dictionary<int, string> _mapowanieScalowania = new(); // TowarIdtw -> NazwaGrupy
         private bool _pokazujPoDatachUboju = true;
         private bool _dataUbojuKolumnaIstnieje = true;
         private bool _isInitialized = false;
@@ -699,12 +701,16 @@ namespace Kalendarz1
             SzybkiGrid(dgvSzczegoly);
             SzybkiGrid(dgvAgregacja);
 
+            // Przycisk konfiguracji scalania towarów
+            InicjalizujPrzyciskScalowania();
+
             AttachGridEventHandlers();
 
             btnUsun.Visible = (UserID == "11111");
             btnCykliczne.Visible = true;
 
             await ZaladujDanePoczatkoweAsync();
+            await ZaladujMapowanieScalowaniaAsync();
 
             _selectedDate = DateTime.Today;
             AktualizujDatyPrzyciskow();
@@ -2006,6 +2012,76 @@ namespace Kalendarz1
             return stany;
         }
 
+        #region Scalowanie towarów
+        private void InicjalizujPrzyciskScalowania()
+        {
+            btnScalowanieTw = new Button
+            {
+                Text = "Scalowanie",
+                Size = new Size(90, 24),
+                Font = new Font("Segoe UI", 8F),
+                BackColor = Color.FromArgb(70, 130, 180),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            btnScalowanieTw.FlatAppearance.BorderSize = 0;
+            btnScalowanieTw.Click += btnScalowanieTw_Click;
+
+            // Dodaj przycisk do panelu z label2 (nad dgvAgregacja)
+            // Zmień label2 na panel z labelem i przyciskiem
+            var parent = label2.Parent;
+            if (parent != null)
+            {
+                var panelHeader = new Panel
+                {
+                    Dock = DockStyle.Fill,
+                    Height = label2.Height
+                };
+
+                label2.Dock = DockStyle.Left;
+                label2.AutoSize = false;
+                label2.Width = parent.Width - 100;
+
+                btnScalowanieTw.Dock = DockStyle.Right;
+
+                panelHeader.Controls.Add(label2);
+                panelHeader.Controls.Add(btnScalowanieTw);
+
+                // Znajdź indeks label2 w parent i podmień
+                var parentTable = parent as TableLayoutPanel;
+                if (parentTable != null)
+                {
+                    var pos = parentTable.GetPositionFromControl(label2);
+                    parentTable.Controls.Remove(label2);
+                    parentTable.Controls.Add(panelHeader, pos.Column, pos.Row);
+                }
+            }
+        }
+
+        private async void btnScalowanieTw_Click(object? sender, EventArgs e)
+        {
+            using var dialog = new ScalowanieTowarowDialog(_connLibra, _twKatalogCache);
+            dialog.ShowDialog(this);
+
+            // Po zamknięciu dialogu odśwież mapowanie
+            await ZaladujMapowanieScalowaniaAsync();
+            await WyswietlAgregacjeProduktowAsync(_selectedDate);
+        }
+
+        private async Task ZaladujMapowanieScalowaniaAsync()
+        {
+            try
+            {
+                _mapowanieScalowania = await ScalowanieTowarowManager.PobierzMapowanieTowarowAsync(_connLibra);
+            }
+            catch
+            {
+                _mapowanieScalowania = new Dictionary<int, string>();
+            }
+        }
+        #endregion
+
         private async Task WyswietlAgregacjeProduktowAsync(DateTime dzien)
         {
             var dtAg = new DataTable();
@@ -2035,17 +2111,54 @@ namespace Kalendarz1
                     sumaZamowien[reader.GetInt32(0)] = ReadDecimal(reader, 1);
             }
 
+            // Agregacja z uwzględnieniem scalania towarów
+            // Słownik: nazwa produktu (lub grupa) -> (plan, fakt, zam)
+            var agregowane = new Dictionary<string, (decimal plan, decimal fakt, decimal zam)>(StringComparer.OrdinalIgnoreCase);
+            var towaryWGrupach = new HashSet<int>(); // idtw towarów już scalonych
+
+            // Najpierw zbierz towary w grupach scalania
+            foreach (var towar in _twKatalogCache)
+            {
+                if (_mapowanieScalowania.TryGetValue(towar.Key, out var nazwaGrupy))
+                {
+                    towaryWGrupach.Add(towar.Key);
+
+                    var plan = planPrzychodu.TryGetValue(towar.Key, out var p) ? p : 0m;
+                    var fakt = faktPrzychodu.TryGetValue(towar.Key, out var f) ? f : 0m;
+                    var zam = sumaZamowien.TryGetValue(towar.Key, out var z) ? z : 0m;
+
+                    if (agregowane.ContainsKey(nazwaGrupy))
+                    {
+                        var existing = agregowane[nazwaGrupy];
+                        agregowane[nazwaGrupy] = (existing.plan + plan, existing.fakt + fakt, existing.zam + zam);
+                    }
+                    else
+                    {
+                        agregowane[nazwaGrupy] = (plan, fakt, zam);
+                    }
+                }
+            }
+
+            // Dodaj towary niescalone
             foreach (var towar in _twKatalogCache.OrderBy(kvp => kvp.Value))
             {
+                if (towaryWGrupach.Contains(towar.Key)) continue;
+
                 var kod = towar.Value;
                 if (IsKurczakB(kod)) continue;
 
                 var plan = planPrzychodu.TryGetValue(towar.Key, out var p) ? p : 0m;
                 var fakt = faktPrzychodu.TryGetValue(towar.Key, out var f) ? f : 0m;
                 var zam = sumaZamowien.TryGetValue(towar.Key, out var z) ? z : 0m;
-                var bilans = fakt - zam;
 
-                dtAg.Rows.Add(kod, plan, fakt, zam, bilans);
+                agregowane[kod] = (plan, fakt, zam);
+            }
+
+            // Dodaj do DataTable
+            foreach (var kv in agregowane.OrderBy(x => x.Key))
+            {
+                var bilans = kv.Value.fakt - kv.Value.zam;
+                dtAg.Rows.Add(kv.Key, kv.Value.plan, kv.Value.fakt, kv.Value.zam, bilans);
             }
 
             dgvAgregacja.DataSource = dtAg;
