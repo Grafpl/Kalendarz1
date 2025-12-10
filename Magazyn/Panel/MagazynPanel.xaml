@@ -128,11 +128,28 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
+        <!-- PRZYCISKI TOWARÓW - NAJWYŻSZY RZĄD -->
+        <Border Grid.Row="0" Background="#1A3A5A" Padding="8">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <WrapPanel x:Name="pnlProductButtons" Orientation="Horizontal">
+                    <!-- Przyciski towarów zostaną dodane dynamicznie -->
+                </WrapPanel>
+                <Border Background="#2A5A8A" CornerRadius="5" Padding="15,8" Margin="20,0,0,0" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Suma: " Foreground="White" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="lblFilteredSum" Text="0" Foreground="#FFD700" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <TextBlock Text=" kg" Foreground="White" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Border>
+
         <!-- TOP BAR -->
-        <Border Grid.Row="0" Background="#24262F" Padding="10">
+        <Border Grid.Row="1" Background="#24262F" Padding="10">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -141,27 +158,27 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- Data po lewej stronie -->
-                <TextBlock x:Name="lblData" Grid.Column="0" Text="2025-10-23 Środa" 
-                           Foreground="White" FontSize="32" FontWeight="Bold" 
+                <TextBlock x:Name="lblData" Grid.Column="0" Text="2025-10-23 Środa"
+                           Foreground="White" FontSize="32" FontWeight="Bold"
                            VerticalAlignment="Center" Margin="0,0,40,0"/>
 
                 <!-- Navigation buttons w środku -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
-                    <Button x:Name="btnPrev" Content="◀ Wczoraj" Style="{StaticResource TopButtonStyle}" 
+                    <Button x:Name="btnPrev" Content="◀ Wczoraj" Style="{StaticResource TopButtonStyle}"
                             Background="#3A5A7A" Click="btnPrev_Click" Margin="0,0,10,0"/>
-                    <Button x:Name="btnToday" Content="📅 Dziś" Style="{StaticResource TopButtonStyle}" 
+                    <Button x:Name="btnToday" Content="📅 Dziś" Style="{StaticResource TopButtonStyle}"
                             Background="#4A7A5A" Click="btnToday_Click" Margin="0,0,10,0"/>
-                    <Button x:Name="btnNext" Content="Jutro ▶" Style="{StaticResource TopButtonStyle}" 
+                    <Button x:Name="btnNext" Content="Jutro ▶" Style="{StaticResource TopButtonStyle}"
                             Background="#3A5A7A" Click="btnNext_Click" Margin="0,0,10,0"/>
-                    <Button x:Name="btnRefresh" Content="🔄 Odśwież" Style="{StaticResource TopButtonStyle}" 
+                    <Button x:Name="btnRefresh" Content="🔄 Odśwież" Style="{StaticResource TopButtonStyle}"
                             Background="#5A6A7A" Click="btnRefresh_Click" Margin="20,0,0,0"/>
                 </StackPanel>
 
                 <!-- Checkbox i przycisk zamknij po prawej -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <CheckBox x:Name="chkShowShipmentsOnly" 
-                              Content="Pokaż wydania bez zamówień" 
-                              Foreground="White" 
+                    <CheckBox x:Name="chkShowShipmentsOnly"
+                              Content="Pokaż wydania bez zamówień"
+                              Foreground="White"
                               FontSize="16"
                               FontWeight="SemiBold"
                               VerticalAlignment="Center"
@@ -169,14 +186,14 @@
                               Checked="chkShowShipmentsOnly_CheckedChanged"
                               Unchecked="chkShowShipmentsOnly_CheckedChanged"/>
 
-                    <Button x:Name="btnClose" Content="❌ Zamknij" Style="{StaticResource TopButtonStyle}" 
+                    <Button x:Name="btnClose" Content="❌ Zamknij" Style="{StaticResource TopButtonStyle}"
                             Background="#8A3A3A" Click="btnClose_Click"/>
                 </StackPanel>
             </Grid>
         </Border>
 
         <!-- MAIN CONTENT AREA -->
-        <TabControl Grid.Row="1" Background="#1C1E26" BorderThickness="0">
+        <TabControl Grid.Row="2" Background="#1C1E26" BorderThickness="0">
             <!-- TAB 1: ZAMÓWIENIA DO WYDANIA -->
             <TabItem Header="📦 Zamówienia">
                 <Grid Background="#1C1E26">
@@ -206,7 +223,13 @@
                                 </Style>
                             </DataGrid.RowStyle>
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Klient" Binding="{Binding Klient}" Width="1.8*"/>
+                                <DataGridTemplateColumn Header="Klient" Width="2*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Klient}" Foreground="{Binding KlientColor}" FontWeight="SemiBold"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                                 <DataGridTextColumn Header="Kg" Binding="{Binding TotalIlosc, StringFormat=N0}" Width="0.6*">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
@@ -223,7 +246,7 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Pojazd" Binding="{Binding PojazdDisplay}" Width="1*">
+                                <DataGridTextColumn Header="Pojazd" Binding="{Binding PojazdDisplay}" Width="0.9*">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Foreground" Value="LightSkyBlue"/>
@@ -231,10 +254,10 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Ost. zmiana" Binding="{Binding OstatniaZmianaDisplay}" Width="0.9*">
+                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="1.1*">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="{Binding ZmianaColor}"/>
+                                            <Setter Property="Foreground" Value="{Binding StatusColor}"/>
                                             <Setter Property="FontWeight" Value="Bold"/>
                                             <Setter Property="FontSize" Value="12"/>
                                         </Style>
@@ -264,7 +287,13 @@
                                 </Style>
                             </DataGrid.RowStyle>
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Klient" Binding="{Binding Klient}" Width="1.8*"/>
+                                <DataGridTemplateColumn Header="Klient" Width="2*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Klient}" Foreground="{Binding KlientColor}" FontWeight="SemiBold"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                                 <DataGridTextColumn Header="Kg" Binding="{Binding TotalIlosc, StringFormat=N0}" Width="0.6*">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
@@ -281,7 +310,7 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Pojazd" Binding="{Binding PojazdDisplay}" Width="1*">
+                                <DataGridTextColumn Header="Pojazd" Binding="{Binding PojazdDisplay}" Width="0.9*">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Foreground" Value="LightSkyBlue"/>
@@ -289,10 +318,10 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Ost. zmiana" Binding="{Binding OstatniaZmianaDisplay}" Width="0.9*">
+                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="1.1*">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="{Binding ZmianaColor}"/>
+                                            <Setter Property="Foreground" Value="{Binding StatusColor}"/>
                                             <Setter Property="FontWeight" Value="Bold"/>
                                             <Setter Property="FontSize" Value="12"/>
                                         </Style>

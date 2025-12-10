@@ -30,6 +30,7 @@ namespace Kalendarz1
         private bool _notesTableEnsured = false;
         private int? _filteredProductId = null;
         private Dictionary<int, string> _produktLookup = new();
+        private Button _selectedProductButton = null;
         private DispatcherTimer refreshTimer;
 
         public ObservableCollection<ZamowienieViewModel> ZamowieniaList1 { get; set; } = new();
@@ -230,30 +231,74 @@ namespace Kalendarz1
                 await LoadProductLookupAsync(ids);
             }
 
-            var items = new List<ComboItem> { new ComboItem(0, "— Wszystkie —") };
-            items.AddRange(_produktLookup.OrderBy(k => k.Value).Select(k => new ComboItem(k.Key, k.Value)));
+            // Utwórz przyciski towarów
+            pnlProductButtons.Children.Clear();
 
-            var prevSelectedValue = cbFiltrProdukt.SelectedValue;
-            cbFiltrProdukt.ItemsSource = items;
-            cbFiltrProdukt.DisplayMemberPath = "Text";
-            cbFiltrProdukt.SelectedValuePath = "Value";
-
-            if (prevSelectedValue != null && items.Any(i => i.Value.Equals(prevSelectedValue)))
-                cbFiltrProdukt.SelectedValue = prevSelectedValue;
-            else
-                cbFiltrProdukt.SelectedIndex = 0;
-
-            if (cbFiltrProdukt.Tag == null)
+            // Przycisk "Wszystkie"
+            var btnAll = CreateProductButton(0, "Wszystkie");
+            pnlProductButtons.Children.Add(btnAll);
+            if (!_filteredProductId.HasValue)
             {
-                cbFiltrProdukt.SelectionChanged += async (s, e) =>
+                SetProductButtonSelected(btnAll);
+            }
+
+            // Przyciski dla poszczególnych towarów
+            foreach (var product in _produktLookup.OrderBy(k => k.Value))
+            {
+                var btn = CreateProductButton(product.Key, product.Value);
+                pnlProductButtons.Children.Add(btn);
+                if (_filteredProductId == product.Key)
                 {
-                    if (cbFiltrProdukt.SelectedItem is ComboItem item)
-                    {
-                        _filteredProductId = item.Value == 0 ? null : item.Value;
-                        await LoadOrdersAsync();
-                    }
-                };
-                cbFiltrProdukt.Tag = "Initialized";
+                    SetProductButtonSelected(btn);
+                }
+            }
+        }
+
+        private Button CreateProductButton(int productId, string productName)
+        {
+            var btn = new Button
+            {
+                Content = productName,
+                Tag = productId,
+                Height = 32,
+                MinWidth = 70,
+                Padding = new Thickness(10, 3, 10, 3),
+                Margin = new Thickness(2),
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White,
+                Background = new SolidColorBrush(Color.FromRgb(0x3A, 0x3C, 0x48)),
+                BorderThickness = new Thickness(1),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55)),
+                Cursor = Cursors.Hand
+            };
+
+            btn.Click += ProductButton_Click;
+            return btn;
+        }
+
+        private void SetProductButtonSelected(Button btn)
+        {
+            // Reset poprzednio zaznaczonego przycisku
+            if (_selectedProductButton != null)
+            {
+                _selectedProductButton.Background = new SolidColorBrush(Color.FromRgb(0x3A, 0x3C, 0x48));
+                _selectedProductButton.BorderBrush = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55));
+            }
+
+            // Zaznacz nowy przycisk
+            _selectedProductButton = btn;
+            btn.Background = new SolidColorBrush(Color.FromRgb(0x3C, 0x46, 0x8E));
+            btn.BorderBrush = new SolidColorBrush(Color.FromRgb(0x5A, 0x6A, 0xDE));
+        }
+
+        private async void ProductButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is int productId)
+            {
+                _filteredProductId = productId == 0 ? null : productId;
+                SetProductButtonSelected(btn);
+                await LoadOrdersAsync();
             }
         }
 
@@ -461,6 +506,13 @@ namespace Kalendarz1
 
             UpdateAllRowColors();
             UpdateProgressInfo();
+            UpdateFilteredSum();
+        }
+
+        private void UpdateFilteredSum()
+        {
+            decimal totalSum = ZamowieniaList1.Sum(z => z.TotalIlosc) + ZamowieniaList2.Sum(z => z.TotalIlosc);
+            lblFilteredSum.Text = totalSum.ToString("N0");
         }
 
         private async Task LoadTransportInfoAsync()
@@ -470,17 +522,24 @@ namespace Kalendarz1
                 using var cn = new SqlConnection(_connTransport);
                 await cn.OpenAsync();
 
-                // Pobierz wszystkie kursy do słownika
-                var kursyInfo = new Dictionary<long, (TimeSpan? CzasWyjazdu, DateTime DataKursu)>();
-                using (var cmd = new SqlCommand("SELECT KursID, GodzWyjazdu, Status, DataKursu FROM dbo.Kurs", cn))
+                // Pobierz wszystkie kursy do słownika (wraz z kierowcą)
+                var kursyInfo = new Dictionary<long, (TimeSpan? CzasWyjazdu, DateTime DataKursu, string Kierowca)>();
+                string sqlKursy = @"
+                    SELECT k.KursID, k.GodzWyjazdu, k.DataKursu,
+                           ISNULL(kie.Imie + ' ' + kie.Nazwisko, 'Nie przypisano') as Kierowca
+                    FROM dbo.Kurs k
+                    LEFT JOIN dbo.Kierowca kie ON k.KierowcaID = kie.KierowcaID";
+
+                using (var cmd = new SqlCommand(sqlKursy, cn))
                 using (var rd = await cmd.ExecuteReaderAsync())
                 {
                     while (await rd.ReadAsync())
                     {
                         var kursId = rd.GetInt64(0);
                         var godzWyjazdu = rd.IsDBNull(1) ? (TimeSpan?)null : rd.GetTimeSpan(1);
-                        var dataKursu = rd.GetDateTime(3);
-                        kursyInfo[kursId] = (godzWyjazdu, dataKursu);
+                        var dataKursu = rd.GetDateTime(2);
+                        var kierowca = rd.GetString(3);
+                        kursyInfo[kursId] = (godzWyjazdu, dataKursu, kierowca);
                     }
                 }
 
@@ -516,6 +575,7 @@ namespace Kalendarz1
                     {
                         order.CzasWyjazdu = info.CzasWyjazdu;
                         order.DataKursu = info.DataKursu;
+                        order.Kierowca = info.Kierowca;
                     }
                 }
             }
@@ -1300,6 +1360,7 @@ namespace Kalendarz1
             public bool MaHalal { get; set; }
             public bool WlasnyTransport { get; set; }
             public DateTime? DataPrzyjazdu { get; set; }
+            public string Kierowca { get; set; } = "";
             // Nowe pola do wykrywania zmian
             public DateTime? DataOstatniejModyfikacji { get; set; }
             public DateTime? DataRealizacji { get; set; }
@@ -1332,9 +1393,15 @@ namespace Kalendarz1
             public ZamowienieInfo Info { get; }
             public ZamowienieViewModel(ZamowienieInfo info) { Info = info; }
 
-            // Własny transport indicator stays at Klient name (🚚 only if own transport)
-            // ⚠️ pokazuje się gdy zamówienie zostało zmodyfikowane od czasu realizacji
-            public string Klient => $"{(Info.CzyZmodyfikowaneOdRealizacji ? "⚠️ " : "")}{(Info.MaNotatke ? "📝 " : "")}{(Info.MaFolie ? "🎞️ " : "")}{(Info.MaHalal ? "🔪 " : "")}{(Info.WlasnyTransport ? "🚚 " : "")}{Info.Klient}";
+            // Ikony przy nazwie klienta (bez ⚠️ - zamiast tego żółta czcionka)
+            public string Klient => $"{(Info.MaNotatke ? "📝 " : "")}{(Info.MaFolie ? "🎞️ " : "")}{(Info.MaHalal ? "🔪 " : "")}{(Info.WlasnyTransport ? "🚚 " : "")}{Info.Klient}";
+
+            // Kolor nazwy klienta - żółty gdy zamówienie zostało zmodyfikowane
+            public Brush KlientColor => Info.CzyZmodyfikowaneOdRealizacji ? Brushes.Yellow : Brushes.White;
+
+            // Wyświetlanie kierowcy
+            public string KierowcaDisplay => Info.WlasnyTransport ? "Własny odbiór" : (string.IsNullOrEmpty(Info.Kierowca) ? "Brak" : Info.Kierowca);
+
             public decimal TotalIlosc => Info.TotalIlosc;
             public string Handlowiec => Info.Handlowiec;
 
@@ -1344,6 +1411,8 @@ namespace Kalendarz1
                 get
                 {
                     if (Info.IsShipmentOnly) return "Symfonia";
+                    // Jeśli jest zmodyfikowane od realizacji - pokaż "Do zaakceptowania"
+                    if (Info.CzyZmodyfikowaneOdRealizacji) return "⚠ Do zaakceptowania";
                     if (Info.CzyWydane && Info.CzyZrealizowane) return "✓ Zreal. + Wydane";
                     if (Info.CzyWydane && !Info.CzyZrealizowane) return "⚠ Tylko wydane";
                     if (Info.CzyZrealizowane) return "✓ Zrealizowane";
@@ -1356,6 +1425,8 @@ namespace Kalendarz1
             {
                 get
                 {
+                    // Żółty dla statusu "Do zaakceptowania"
+                    if (Info.CzyZmodyfikowaneOdRealizacji) return Brushes.Yellow;
                     if (Info.CzyWydane && Info.CzyZrealizowane) return Brushes.LimeGreen;
                     if (Info.CzyWydane && !Info.CzyZrealizowane) return Brushes.Orange;
                     if (Info.CzyZrealizowane) return Brushes.LightGreen;
