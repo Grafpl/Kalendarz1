@@ -445,7 +445,6 @@ namespace Kalendarz1
         private int? _aktualneIdZamowienia;
         private readonly List<Button> _dayButtons = new();
         private Button btnDodajNotatke;
-        private Button? btnScalowanieTw;
         private Dictionary<int, string> _mapowanieScalowania = new(); // TowarIdtw -> NazwaGrupy
         private bool _pokazujPoDatachUboju = true;
         private bool _dataUbojuKolumnaIstnieje = true;
@@ -701,8 +700,8 @@ namespace Kalendarz1
             SzybkiGrid(dgvSzczegoly);
             SzybkiGrid(dgvAgregacja);
 
-            // Przycisk konfiguracji scalania towarów
-            InicjalizujPrzyciskScalowania();
+            // Menu kontekstowe dla podsumowania dnia (prawy przycisk myszy)
+            InicjalizujMenuKontekstoweAgregacji();
 
             AttachGridEventHandlers();
 
@@ -2013,66 +2012,33 @@ namespace Kalendarz1
         }
 
         #region Scalowanie towarów
-        private void InicjalizujPrzyciskScalowania()
+        private void InicjalizujMenuKontekstoweAgregacji()
         {
-            btnScalowanieTw = new Button
+            var menuAgregacja = new ContextMenuStrip();
+
+            var menuScalowanie = new ToolStripMenuItem("Konfiguruj scalowanie towarów");
+            menuScalowanie.Click += async (s, e) =>
             {
-                Text = "Scalowanie",
-                Size = new Size(85, 22),
-                Font = new Font("Segoe UI", 8F),
-                BackColor = Color.FromArgb(70, 130, 180),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand,
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
+                using var dialog = new ScalowanieTowarowDialog(_connLibra, _twKatalogCache);
+                dialog.ShowDialog(this);
+
+                // Po zamknięciu dialogu odśwież mapowanie
+                await ZaladujMapowanieScalowaniaAsync();
+                await WyswietlAgregacjeProduktowAsync(_selectedDate);
             };
-            btnScalowanieTw.FlatAppearance.BorderSize = 0;
-            btnScalowanieTw.Click += btnScalowanieTw_Click;
 
-            // Dodaj przycisk bezpośrednio nad dgvAgregacja
-            // dgvAgregacja jest w panelDetail (TableLayoutPanel) w wierszu 2
-            // Dodamy przycisk do tego samego panelu co label2
-            if (panelDetail != null)
+            var menuOdswiez = new ToolStripMenuItem("Odśwież podsumowanie");
+            menuOdswiez.Click += async (s, e) =>
             {
-                // Zmień label2 żeby nie było AutoSize i dodaj przycisk obok
-                label2.AutoSize = false;
-                label2.Dock = DockStyle.None;
-                label2.Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Bottom;
+                await ZaladujMapowanieScalowaniaAsync();
+                await WyswietlAgregacjeProduktowAsync(_selectedDate);
+            };
 
-                // Utwórz panel-wrapper dla label2 i przycisku
-                var wrapperPanel = new Panel
-                {
-                    Dock = DockStyle.Fill
-                };
+            menuAgregacja.Items.Add(menuScalowanie);
+            menuAgregacja.Items.Add(new ToolStripSeparator());
+            menuAgregacja.Items.Add(menuOdswiez);
 
-                // Pozycjonuj przycisk w prawym górnym rogu wrappera
-                btnScalowanieTw.Location = new Point(wrapperPanel.Width - btnScalowanieTw.Width - 5, 4);
-
-                // Przenieś label2 do wrappera
-                var pos = panelDetail.GetPositionFromControl(label2);
-                if (pos.Row >= 0)
-                {
-                    panelDetail.Controls.Remove(label2);
-
-                    label2.Dock = DockStyle.Fill;
-                    label2.Padding = new Padding(0, 0, 90, 0); // Miejsce na przycisk
-
-                    wrapperPanel.Controls.Add(btnScalowanieTw);
-                    wrapperPanel.Controls.Add(label2);
-
-                    panelDetail.Controls.Add(wrapperPanel, pos.Column, pos.Row);
-                }
-            }
-        }
-
-        private async void btnScalowanieTw_Click(object? sender, EventArgs e)
-        {
-            using var dialog = new ScalowanieTowarowDialog(_connLibra, _twKatalogCache);
-            dialog.ShowDialog(this);
-
-            // Po zamknięciu dialogu odśwież mapowanie
-            await ZaladujMapowanieScalowaniaAsync();
-            await WyswietlAgregacjeProduktowAsync(_selectedDate);
+            dgvAgregacja.ContextMenuStrip = menuAgregacja;
         }
 
         private async Task ZaladujMapowanieScalowaniaAsync()
