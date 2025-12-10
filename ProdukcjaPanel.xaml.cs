@@ -506,6 +506,13 @@ namespace Kalendarz1
 
             UpdateAllRowColors();
             UpdateProgressInfo();
+            UpdateFilteredSum();
+        }
+
+        private void UpdateFilteredSum()
+        {
+            decimal totalSum = ZamowieniaList1.Sum(z => z.TotalIlosc) + ZamowieniaList2.Sum(z => z.TotalIlosc);
+            lblFilteredSum.Text = totalSum.ToString("N0");
         }
 
         private async Task LoadTransportInfoAsync()
@@ -1404,6 +1411,8 @@ namespace Kalendarz1
                 get
                 {
                     if (Info.IsShipmentOnly) return "Symfonia";
+                    // Jeśli jest zmodyfikowane od realizacji - pokaż "Do zaakceptowania"
+                    if (Info.CzyZmodyfikowaneOdRealizacji) return "⚠ Do zaakceptowania";
                     if (Info.CzyWydane && Info.CzyZrealizowane) return "✓ Zreal. + Wydane";
                     if (Info.CzyWydane && !Info.CzyZrealizowane) return "⚠ Tylko wydane";
                     if (Info.CzyZrealizowane) return "✓ Zrealizowane";
@@ -1416,6 +1425,8 @@ namespace Kalendarz1
             {
                 get
                 {
+                    // Żółty dla statusu "Do zaakceptowania"
+                    if (Info.CzyZmodyfikowaneOdRealizacji) return Brushes.Yellow;
                     if (Info.CzyWydane && Info.CzyZrealizowane) return Brushes.LimeGreen;
                     if (Info.CzyWydane && !Info.CzyZrealizowane) return Brushes.Orange;
                     if (Info.CzyZrealizowane) return Brushes.LightGreen;

@@ -589,12 +589,21 @@ namespace Kalendarz1
                 {
                     dgvZamowienia1.SelectedIndex = 0;
                 }
+
+                // Oblicz sumę kg
+                UpdateFilteredSum();
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd podczas ładowania zamówień:\n{ex.Message}",
                     "Błąd krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private void UpdateFilteredSum()
+        {
+            decimal totalSum = ZamowieniaList1.Sum(z => z.TotalIlosc) + ZamowieniaList2.Sum(z => z.TotalIlosc);
+            lblFilteredSum.Text = totalSum.ToString("N0");
         }
 
         private static string Normalize(string s) => string.IsNullOrWhiteSpace(s) ? "" : s.Trim();
@@ -1055,7 +1064,19 @@ namespace Kalendarz1
             public Brush KlientColor => Info.CzyZmodyfikowaneDlaMagazynu ? Brushes.Yellow : Brushes.White;
             public decimal TotalIlosc => Info.TotalIlosc;
             public string Handlowiec => Info.Handlowiec;
-            public string Status => Info.Status;
+
+            // Status z informacją o niezaakceptowanej zmianie
+            public string Status
+            {
+                get
+                {
+                    if (Info.CzyZmodyfikowaneDlaMagazynu) return "⚠ Do zaakceptowania";
+                    return Info.Status;
+                }
+            }
+
+            // Kolor statusu
+            public Brush StatusColor => Info.CzyZmodyfikowaneDlaMagazynu ? Brushes.Yellow : Brushes.White;
             public string NumerRejestracyjny => Info.NumerRejestracyjny ?? "Brak";
             public string Kierowca => Info.Kierowca ?? "Brak";
 
