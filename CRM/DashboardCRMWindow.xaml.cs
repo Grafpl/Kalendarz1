@@ -152,8 +152,8 @@ namespace Kalendarz1.CRM
             {
                 WczytajStatystyki();
                 WczytajRanking();
-                WczytajAktywnoscDni();
                 RysujWykres();
+                WypelnijTabele();
             }
             catch (Exception ex)
             {
@@ -551,83 +551,79 @@ namespace Kalendarz1.CRM
             listaHandlowcy.ItemsSource = lista;
         }
 
-        private void WczytajAktywnoscDni()
+        private void WypelnijTabele()
         {
-            var dni = new List<DzienAktywnosc>();
-            int maxS = 1;
+            if (tabelaDane == null || cmbRok?.SelectedItem == null || cmbMiesiacOd?.SelectedItem == null || cmbMiesiacDo?.SelectedItem == null) return;
 
-            using (var conn = new SqlConnection(connectionString))
+            int rok = int.Parse(((ComboBoxItem)cmbRok.SelectedItem).Tag.ToString());
+            int miesiacOd = int.Parse(((ComboBoxItem)cmbMiesiacOd.SelectedItem).Tag.ToString());
+            int miesiacDo = int.Parse(((ComboBoxItem)cmbMiesiacDo.SelectedItem).Tag.ToString());
+            if (miesiacDo < miesiacOd) miesiacDo = miesiacOd;
+
+            var wykresOd = new DateTime(rok, miesiacOd, 1);
+            var wykresDo = new DateTime(rok, miesiacDo, 1).AddMonths(1);
+            int liczbaMiesiecy = miesiacDo - miesiacOd + 1;
+
+            var daneHandlowcow = PobierzDaneHandlowcowMiesieczne(wykresOd, wykresDo, miesiacOd, liczbaMiesiecy);
+
+            // Dynamicznie generuj kolumny dla miesięcy
+            var nazwyMies = new[] { "Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru" };
+
+            // Usuń stare kolumny (oprócz pierwszej - Handlowiec)
+            while (tabelaDane.Columns.Count > 1)
+                tabelaDane.Columns.RemoveAt(1);
+
+            // Dodaj kolumny dla miesięcy
+            for (int m = 0; m < liczbaMiesiecy; m++)
             {
-                conn.Open();
-                string filtr = string.IsNullOrEmpty(wybranyHandlowiec) ? "" :
-                    " AND (h.KtoWykonal = @handlowiec OR o.Name = @handlowiec)";
-
-                var cmd = new SqlCommand($@"
-                    SELECT CAST(h.DataZmiany AS DATE),
-                        SUM(CASE WHEN h.WartoscNowa IN ('Próba kontaktu', 'Nawiązano kontakt') THEN 1 ELSE 0 END),
-                        SUM(CASE WHEN h.WartoscNowa NOT IN ('Próba kontaktu', 'Nawiązano kontakt', 'Do zadzwonienia') THEN 1 ELSE 0 END)
-                    FROM HistoriaZmianCRM h
-                    LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
-                    WHERE h.TypZmiany = 'Zmiana statusu'
-                    AND h.DataZmiany >= DATEADD(day, -13, GETDATE()) AND h.DataZmiany < DATEADD(day, 1, GETDATE()) {filtr}
-                    GROUP BY CAST(h.DataZmiany AS DATE)", conn);
-                if (!string.IsNullOrEmpty(wybranyHandlowiec))
-                    cmd.Parameters.AddWithValue("@handlowiec", wybranyHandlowiec);
-
-                var hist = new Dictionary<DateTime, (int t, int s)>();
-                using (var r = cmd.ExecuteReader()) { while (r.Read()) hist[r.GetDateTime(0)] = (r.GetInt32(1), r.GetInt32(2)); }
-
-                string filtrN = string.IsNullOrEmpty(wybranyHandlowiec) ? "" :
-                    " AND (n.KtoDodal = @handlowiec OR o.Name = @handlowiec)";
-                var cmdN = new SqlCommand($@"
-                    SELECT CAST(n.DataUtworzenia AS DATE), COUNT(*)
-                    FROM NotatkiCRM n
-                    LEFT JOIN operators o ON n.KtoDodal = CAST(o.ID AS NVARCHAR)
-                    WHERE n.DataUtworzenia >= DATEADD(day, -13, GETDATE()) AND n.DataUtworzenia < DATEADD(day, 1, GETDATE()) {filtrN}
-                    GROUP BY CAST(n.DataUtworzenia AS DATE)", conn);
-                if (!string.IsNullOrEmpty(wybranyHandlowiec))
-                    cmdN.Parameters.AddWithValue("@handlowiec", wybranyHandlowiec);
-
-                var notH = new Dictionary<DateTime, int>();
-                using (var r = cmdN.ExecuteReader()) { while (r.Read()) notH[r.GetDateTime(0)] = r.GetInt32(1); }
-
-                var culture = new CultureInfo("pl-PL");
-                for (int i = 13; i >= 0; i--)
+                int miesiacIndex = miesiacOd + m - 1;
+                var col = new DataGridTextColumn
                 {
-                    var d = DateTime.Today.AddDays(-i);
-                    int t = hist.ContainsKey(d) ? hist[d].t : 0;
-                    int s = hist.ContainsKey(d) ? hist[d].s : 0;
-                    int n = notH.ContainsKey(d) ? notH[d] : 0;
-                    int sum = t + s + n;
-                    if (sum > maxS) maxS = sum;
-
-                    dni.Add(new DzienAktywnosc
-                    {
-                        DzienSkrot = culture.DateTimeFormat.GetAbbreviatedDayName(d.DayOfWeek).Substring(0, 2).ToUpper(),
-                        DataSkrot = d.ToString("dd.MM"),
-                        Telefony = t, Statusy = s, Notatki = n, Suma = sum,
-                        TloKarty = d == DateTime.Today
-                            ? new SolidColorBrush(Color.FromRgb(30, 41, 59))
-                            : new SolidColorBrush(Color.FromRgb(15, 23, 42)),
-                        KolorRamki = d == DateTime.Today
-                            ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981"))
-                            : new SolidColorBrush(Color.FromRgb(51, 65, 85))
-                    });
-                }
+                    Header = nazwyMies[miesiacIndex],
+                    Binding = new System.Windows.Data.Binding($"Miesiace[{m}]"),
+                    Width = 55
+                };
+                tabelaDane.Columns.Add(col);
             }
 
-            foreach (var d in dni)
+            // Dodaj kolumnę SUMA na końcu
+            var colSuma = new DataGridTextColumn
             {
-                d.WysokoscTelefony = maxS > 0 ? Math.Max((d.Telefony / (double)maxS) * 40, d.Telefony > 0 ? 3 : 0) : 0;
-                d.WysokoscStatusy = maxS > 0 ? Math.Max((d.Statusy / (double)maxS) * 40, d.Statusy > 0 ? 3 : 0) : 0;
-                d.WysokoscNotatki = maxS > 0 ? Math.Max((d.Notatki / (double)maxS) * 40, d.Notatki > 0 ? 3 : 0) : 0;
-                d.TooltipTelefony = $"Telefony: {d.Telefony}";
-                d.TooltipStatusy = $"Statusy: {d.Statusy}";
-                d.TooltipNotatki = $"Notatki: {d.Notatki}";
+                Header = "SUMA",
+                Binding = new System.Windows.Data.Binding("Suma"),
+                Width = 60
+            };
+            colSuma.CellStyle = new Style(typeof(DataGridCell))
+            {
+                Setters = {
+                    new Setter(DataGridCell.ForegroundProperty, new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981"))),
+                    new Setter(DataGridCell.FontWeightProperty, FontWeights.Bold)
+                }
+            };
+            tabelaDane.Columns.Add(colSuma);
+
+            // Przygotuj dane
+            var listaWierszy = new List<TabelaWiersz>();
+            foreach (var kv in daneHandlowcow.OrderByDescending(x => x.Value.Sum()))
+            {
+                var wiersz = new TabelaWiersz
+                {
+                    Nazwa = kv.Key,
+                    Miesiace = kv.Value,
+                    Suma = kv.Value.Sum()
+                };
+                listaWierszy.Add(wiersz);
             }
 
-            listaAktywnoscDni.ItemsSource = dni;
+            tabelaDane.ItemsSource = listaWierszy;
         }
+    }
+
+    public class TabelaWiersz
+    {
+        public string Nazwa { get; set; }
+        public int[] Miesiace { get; set; }
+        public int Suma { get; set; }
     }
 
     public class HandlowiecRanking
@@ -644,21 +640,4 @@ namespace Kalendarz1.CRM
         public SolidColorBrush KolorRamki { get; set; }
     }
 
-    public class DzienAktywnosc
-    {
-        public string DzienSkrot { get; set; }
-        public string DataSkrot { get; set; }
-        public int Telefony { get; set; }
-        public int Statusy { get; set; }
-        public int Notatki { get; set; }
-        public int Suma { get; set; }
-        public double WysokoscTelefony { get; set; }
-        public double WysokoscStatusy { get; set; }
-        public double WysokoscNotatki { get; set; }
-        public string TooltipTelefony { get; set; }
-        public string TooltipStatusy { get; set; }
-        public string TooltipNotatki { get; set; }
-        public SolidColorBrush TloKarty { get; set; }
-        public SolidColorBrush KolorRamki { get; set; }
-    }
 }
