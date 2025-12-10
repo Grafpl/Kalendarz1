@@ -28,6 +28,9 @@ namespace Kalendarz1
         private DateTime _selectedDate = DateTime.Today;
         private DispatcherTimer refreshTimer;
         private readonly Dictionary<int, ZamowienieInfo> _zamowienia = new();
+        private int? _filteredProductId = null;
+        private Dictionary<int, string> _produktLookup = new();
+        private Button _selectedProductButton = null;
 
         public ObservableCollection<ZamowienieViewModel> ZamowieniaList1 { get; set; } = new();
         public ObservableCollection<ZamowienieViewModel> ZamowieniaList2 { get; set; } = new();
@@ -208,7 +211,147 @@ namespace Kalendarz1
         private async Task ReloadAllAsync()
         {
             lblData.Text = _selectedDate.ToString("yyyy-MM-dd dddd", new CultureInfo("pl-PL"));
+            await PopulateProductFilterAsync();
             await LoadOrdersAsync();
+        }
+
+        private async Task PopulateProductFilterAsync()
+        {
+            var ids = new HashSet<int>();
+
+            try
+            {
+                using (var cn = new SqlConnection(_connLibra))
+                {
+                    await cn.OpenAsync();
+                    string sql = "SELECT DISTINCT zmt.KodTowaru FROM dbo.ZamowieniaMieso z " +
+                                "JOIN dbo.ZamowieniaMiesoTowar zmt ON z.Id=zmt.ZamowienieId " +
+                                "WHERE z.DataUboju=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')";
+                    var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
+                    using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                        if (!rd.IsDBNull(0)) ids.Add(rd.GetInt32(0));
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd połączenia z bazą LibraNet:\n{ex.Message}", "Błąd krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            _produktLookup.Clear();
+            if (ids.Count > 0)
+            {
+                await LoadProductLookupAsync(ids);
+            }
+
+            // Utwórz przyciski towarów
+            pnlProductButtons.Children.Clear();
+
+            // Przycisk "Wszystkie"
+            var btnAll = CreateProductButton(0, "Wszystkie");
+            pnlProductButtons.Children.Add(btnAll);
+            if (!_filteredProductId.HasValue)
+            {
+                SetProductButtonSelected(btnAll);
+            }
+
+            // Przyciski dla poszczególnych towarów
+            foreach (var product in _produktLookup.OrderBy(k => k.Value))
+            {
+                var btn = CreateProductButton(product.Key, product.Value);
+                pnlProductButtons.Children.Add(btn);
+                if (_filteredProductId == product.Key)
+                {
+                    SetProductButtonSelected(btn);
+                }
+            }
+        }
+
+        private Button CreateProductButton(int productId, string productName)
+        {
+            var btn = new Button
+            {
+                Content = productName,
+                Tag = productId,
+                Height = 40,
+                MinWidth = 80,
+                Padding = new Thickness(12, 5, 12, 5),
+                Margin = new Thickness(3),
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White,
+                Background = new SolidColorBrush(Color.FromRgb(0x3A, 0x3C, 0x48)),
+                BorderThickness = new Thickness(1),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55)),
+                Cursor = Cursors.Hand
+            };
+
+            btn.Click += ProductButton_Click;
+            return btn;
+        }
+
+        private void SetProductButtonSelected(Button btn)
+        {
+            // Reset poprzednio zaznaczonego przycisku
+            if (_selectedProductButton != null)
+            {
+                _selectedProductButton.Background = new SolidColorBrush(Color.FromRgb(0x3A, 0x3C, 0x48));
+                _selectedProductButton.BorderBrush = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55));
+            }
+
+            // Zaznacz nowy przycisk
+            _selectedProductButton = btn;
+            btn.Background = new SolidColorBrush(Color.FromRgb(0x4A, 0x7A, 0x5A));
+            btn.BorderBrush = Brushes.LimeGreen;
+        }
+
+        private async void ProductButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is int productId)
+            {
+                _filteredProductId = productId == 0 ? null : productId;
+                SetProductButtonSelected(btn);
+                await LoadOrdersAsync();
+            }
+        }
+
+        private async Task LoadProductLookupAsync(HashSet<int> ids)
+        {
+            var list = ids.ToList();
+            const int batch = 400;
+
+            for (int i = 0; i < list.Count; i += batch)
+            {
+                try
+                {
+                    using var cn = new SqlConnection(_connHandel);
+                    await cn.OpenAsync();
+                    var slice = list.Skip(i).Take(batch).ToList();
+                    var cmd = cn.CreateCommand();
+                    var paramNames = new List<string>();
+
+                    for (int k = 0; k < slice.Count; k++)
+                    {
+                        var pn = "@p" + k;
+                        cmd.Parameters.AddWithValue(pn, slice[k]);
+                        paramNames.Add(pn);
+                    }
+
+                    cmd.CommandText = $"SELECT Id, SKROT FROM TOWARY WHERE Id IN ({string.Join(",", paramNames)})";
+                    using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        _produktLookup[rd.GetInt32(0)] = rd.GetString(1);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd połączenia z bazą Handel podczas pobierania produktów:\n{ex.Message}", "Błąd krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+            }
         }
 
         private async Task<bool> CheckDataAkceptacjiMagazynColumnExistsAsync(SqlConnection cn)
@@ -242,18 +385,25 @@ namespace Kalendarz1
 
                     string akceptacjaColumn = hasAkceptacjaColumn ? "z.DataAkceptacjiMagazyn" : "NULL AS DataAkceptacjiMagazyn";
 
-                    string sql = $@"SELECT z.Id, z.KlientId, ISNULL(z.Uwagi,'') AS Uwagi, ISNULL(z.Status,'Nowe') AS Status,
-                                  (SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id) AS TotalIlosc,
+                    // Buduj zapytanie z filtrem towaru
+                    var sqlBuilder = new System.Text.StringBuilder();
+                    sqlBuilder.Append($@"SELECT z.Id, z.KlientId, ISNULL(z.Uwagi,'') AS Uwagi, ISNULL(z.Status,'Nowe') AS Status,
+                                  (SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id");
+                    if (_filteredProductId.HasValue) sqlBuilder.Append(" AND t.KodTowaru=@P");
+                    sqlBuilder.Append(@") AS TotalIlosc,
                                   z.DataUtworzenia, z.TransportKursID, z.DataWydania, ISNULL(z.KtoWydal, '') AS KtoWydal,
                                   CAST(CASE WHEN z.TransportStatus = 'Wlasny' THEN 1 ELSE 0 END AS BIT) AS WlasnyTransport,
                                   z.DataPrzyjazdu,
                                   z.DataOstatniejModyfikacji, z.DataRealizacji, ISNULL(z.CzyZrealizowane, 0) AS CzyZrealizowane,
-                                  {akceptacjaColumn}
-                                  FROM dbo.ZamowieniaMieso z
-                                  WHERE z.DataUboju=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')";
+                                  ");
+                    sqlBuilder.Append(akceptacjaColumn);
+                    sqlBuilder.Append(" FROM dbo.ZamowieniaMieso z WHERE z.DataUboju=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')");
+                    if (_filteredProductId.HasValue)
+                        sqlBuilder.Append(" AND EXISTS (SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId=z.Id AND t.KodTowaru=@P)");
 
-                    var cmd = new SqlCommand(sql, cn);
+                    var cmd = new SqlCommand(sqlBuilder.ToString(), cn);
                     cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
+                    if (_filteredProductId.HasValue) cmd.Parameters.AddWithValue("@P", _filteredProductId.Value);
 
                     using var rd = await cmd.ExecuteReaderAsync();
                     while (await rd.ReadAsync())
@@ -899,8 +1049,10 @@ namespace Kalendarz1
             public ZamowienieViewModel(ZamowienieInfo info) { Info = info; }
 
             // Klient z ikoną ciężarówki dla własnego transportu
-            // ⚠️ pokazuje się gdy zamówienie zostało zmodyfikowane (dla magazynu - osobna flaga)
-            public string Klient => $"{(Info.CzyZmodyfikowaneDlaMagazynu ? "⚠️ " : "")}{(Info.WlasnyTransport ? "🚚 " : "")}{Info.Klient}";
+            public string Klient => $"{(Info.WlasnyTransport ? "🚚 " : "")}{Info.Klient}";
+
+            // Kolor nazwy klienta - żółty gdy zamówienie zostało zmodyfikowane
+            public Brush KlientColor => Info.CzyZmodyfikowaneDlaMagazynu ? Brushes.Yellow : Brushes.White;
             public decimal TotalIlosc => Info.TotalIlosc;
             public string Handlowiec => Info.Handlowiec;
             public string Status => Info.Status;
