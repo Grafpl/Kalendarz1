@@ -437,6 +437,9 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             decimal sumaKg = 0;
             decimal sumaWartosc = 0;
 
+            // Lista danych do odwrocenia (najwyzszy na gorze)
+            var daneTop10 = new List<(string Kontrahent, string Handlowiec, decimal Kg, decimal Wartosc)>();
+
             try
             {
                 await using var cn = new SqlConnection(_connectionStringHandel);
@@ -460,7 +463,6 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 cmd.Parameters.AddWithValue("@Miesiac", miesiac);
                 cmd.Parameters.AddWithValue("@TowarID", (object)towarId ?? DBNull.Value);
 
-                var wartosci = new ChartValues<decimal>();
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
@@ -469,21 +471,29 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     var kg = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
                     var wartosc = reader.IsDBNull(3) ? 0m : Convert.ToDecimal(reader.GetValue(3));
 
-                    labels.Add($"{kontrahent} ({handlowiec})");
-                    wartosci.Add(wartosc);
+                    daneTop10.Add((kontrahent, handlowiec, kg, wartosc));
                     sumaKg += kg;
                     sumaWartosc += wartosc;
                 }
 
-                series.Add(new RowSeries
+                // Odwroc kolejnosc dla wyswietlania (najwyzszy na gorze = ostatni w liscie)
+                for (int i = daneTop10.Count - 1; i >= 0; i--)
                 {
-                    Title = "Wartosc",
-                    Values = wartosci,
-                    Fill = new SolidColorBrush(_kolory[1]),
-                    DataLabels = true,
-                    LabelPoint = p => $"{p.X:N0} zl",
-                    Foreground = Brushes.White
-                });
+                    var d = daneTop10[i];
+                    var labelTekst = d.Kontrahent.Length > 18 ? d.Kontrahent.Substring(0, 18) + ".." : d.Kontrahent;
+                    labels.Add(labelTekst);
+
+                    // Kazdy slupek jako osobna seria z kolorem handlowca
+                    series.Add(new RowSeries
+                    {
+                        Title = d.Handlowiec,
+                        Values = new ChartValues<double> { (double)d.Wartosc },
+                        Fill = new SolidColorBrush(GetHandlowiecColor(d.Handlowiec)),
+                        DataLabels = true,
+                        LabelPoint = p => $"{p.X:N0} zl | {d.Handlowiec}",
+                        Foreground = Brushes.White
+                    });
+                }
 
                 // Oblicz srednia cene
                 decimal sredniaCena = sumaKg > 0 ? sumaWartosc / sumaKg : 0;
@@ -1772,13 +1782,23 @@ FROM FakturyPrzeterminowane";
         public int LiczbaFakturPrzeterminowanych { get; set; }
         public decimal ProcentLimitu { get; set; }
 
+        // Status wierszy - kolor tla
+        public bool IsGreenRow => Przeterminowane == 0 && PrzekroczonyLimit <= 0;
+        public bool IsRedRow => DniPrzeterminowania.HasValue && DniPrzeterminowania.Value > 30;
+        public bool IsOrangeRow => DniPrzeterminowania.HasValue && DniPrzeterminowania.Value > 0 && DniPrzeterminowania.Value <= 30;
+
         // Formatowane teksty do bindowania
-        public string LimitKredytuTekst => LimitKredytu > 0 ? $"{LimitKredytu:N0}" : "-";
-        public string DoZaplatyTekst => $"{DoZaplaty:N0}";
-        public string TerminoweTekst => $"{Terminowe:N0}";
-        public string PrzeterminowaneTekst => Przeterminowane > 0 ? $"{Przeterminowane:N0}" : "-";
-        public string PrzekroczonyLimitTekst => PrzekroczonyLimit > 0 ? $"{PrzekroczonyLimit:N0}" : "-";
+        public string LimitKredytuTekst => LimitKredytu > 0 ? $"{LimitKredytu:N2} zl" : "-";
+        public string DoZaplatyTekst => $"{DoZaplaty:N2} zl";
+        public string TerminoweTekst => Terminowe > 0 ? $"{Terminowe:N2} zl" : "0,00 zl";
+        public string PrzeterminowaneTekst => Przeterminowane > 0 ? $"{Przeterminowane:N2} zl" : "-";
+        public string PrzekroczonyLimitTekst => PrzekroczonyLimit != 0 ? $"{PrzekroczonyLimit:N2} zl" : "-";
         public string ProcentLimituTekst => LimitKredytu > 0 ? $"{ProcentLimitu:F0}%" : "-";
+
+        // Tekst najpozniejszej platnosci w stylu "X dni po terminie"
+        public string NajpozniejszaPlatnoscTekst => DniPrzeterminowania.HasValue && DniPrzeterminowania.Value > 0
+            ? $"{DniPrzeterminowania.Value} dni po terminie"
+            : "";
     }
 
     // Klasa do przechowywania danych aging per faktura
