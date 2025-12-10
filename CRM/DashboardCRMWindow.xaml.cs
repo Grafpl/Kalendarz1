@@ -128,6 +128,14 @@ namespace Kalendarz1.CRM
         {
             if (!isLoaded) return;
             RysujWykres();
+            WypelnijTabele();
+        }
+
+        private void RbWidok_Checked(object sender, RoutedEventArgs e)
+        {
+            if (!isLoaded) return;
+            RysujWykres();
+            WypelnijTabele();
         }
 
         private void UstawOkres()
@@ -219,6 +227,8 @@ namespace Kalendarz1.CRM
             }
         }
 
+        private bool TrybTygodniowy => rbTygodnie?.IsChecked == true;
+
         private void RysujWykres()
         {
             if (canvasWykres == null || canvasWykres.ActualWidth <= 0) return;
@@ -235,26 +245,43 @@ namespace Kalendarz1.CRM
 
             if (miesiacDo < miesiacOd) miesiacDo = miesiacOd;
 
-            int liczbaMiesiecy = miesiacDo - miesiacOd + 1;
             var wykresOd = new DateTime(rok, miesiacOd, 1);
             var wykresDo = new DateTime(rok, miesiacDo, 1).AddMonths(1);
 
-            var daneHandlowcow = PobierzDaneHandlowcowMiesieczne(wykresOd, wykresDo, miesiacOd, liczbaMiesiecy);
-            RysujLinie(daneHandlowcow, liczbaMiesiecy, miesiacOd, rok);
+            if (TrybTygodniowy)
+            {
+                var (dane, etykiety) = PobierzDaneHandlowcowTygodniowe(wykresOd, wykresDo);
+                RysujLinieUniwersalne(dane, etykiety);
+            }
+            else
+            {
+                int liczbaMiesiecy = miesiacDo - miesiacOd + 1;
+                var dane = PobierzDaneHandlowcowMiesieczne(wykresOd, wykresDo, miesiacOd, liczbaMiesiecy);
+                var nazwyMies = new[] { "Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru" };
+                var etykiety = new List<string>();
+                for (int m = 0; m < liczbaMiesiecy; m++)
+                    etykiety.Add(nazwyMies[miesiacOd + m - 1]);
+                RysujLinieUniwersalne(dane, etykiety);
+            }
         }
 
-        private void RysujLinie(Dictionary<string, int[]> daneHandlowcow, int punkty, int miesiacStart, int rok)
+        private void RysujLinieUniwersalne(Dictionary<string, int[]> daneHandlowcow, List<string> etykietyX)
         {
-            if (daneHandlowcow.Count == 0) return;
+            // Filtruj handlowców z zerową aktywnością
+            var aktywniHandlowcy = daneHandlowcow.Where(x => x.Value.Sum() > 0)
+                                                  .ToDictionary(x => x.Key, x => x.Value);
 
+            if (aktywniHandlowcy.Count == 0 || etykietyX.Count == 0) return;
+
+            int punkty = etykietyX.Count;
             double w = canvasWykres.ActualWidth;
             double h = canvasWykres.ActualHeight;
-            double ml = 10, mr = 100, mt = 15, mb = 10;
+            double ml = 10, mr = 120, mt = 15, mb = 10;
             double cw = w - ml - mr;
             double ch = h - mt - mb;
 
             int maxVal = 1;
-            foreach (var hd in daneHandlowcow.Values)
+            foreach (var hd in aktywniHandlowcy.Values)
             {
                 int m = hd.Max();
                 if (m > maxVal) maxVal = m;
@@ -262,7 +289,7 @@ namespace Kalendarz1.CRM
             maxVal = (int)(Math.Ceiling(maxVal / 5.0) * 5);
             if (maxVal == 0) maxVal = 5;
 
-            // Siatka - zielone przebicia
+            // Siatka pozioma
             for (int i = 0; i <= 5; i++)
             {
                 double y = mt + (ch * i / 5);
@@ -298,9 +325,9 @@ namespace Kalendarz1.CRM
 
             // Rysuj linie handlowców
             int kolorIndex = 0;
-            var nazwyMies = new[] { "Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru" };
+            var posortowani = aktywniHandlowcy.OrderByDescending(x => x.Value.Sum()).ToList();
 
-            foreach (var kv in daneHandlowcow.OrderByDescending(x => x.Value.Sum()))
+            foreach (var kv in posortowani)
             {
                 string nazwa = kv.Key;
                 int[] dane = kv.Value;
@@ -308,12 +335,14 @@ namespace Kalendarz1.CRM
                 Color kolor = (Color)ColorConverter.ConvertFromString(kolorHex);
 
                 var points = new PointCollection();
-                for (int i = 0; i < dane.Length; i++)
+                for (int i = 0; i < Math.Min(dane.Length, punkty); i++)
                 {
                     double x = ml + (i + 0.5) * stepX;
                     double y = mt + ch - (dane[i] / (double)maxVal * ch);
                     points.Add(new Point(x, y));
                 }
+
+                if (points.Count == 0) continue;
 
                 // Glow pod linią (dla zielonych)
                 if (kolorHex.Contains("B981") || kolorHex.Contains("D399") || kolorHex.Contains("E7B7") || kolorHex.Contains("DE80"))
@@ -321,8 +350,8 @@ namespace Kalendarz1.CRM
                     canvasWykres.Children.Add(new Polyline
                     {
                         Points = points,
-                        Stroke = new SolidColorBrush(Color.FromArgb(40, kolor.R, kolor.G, kolor.B)),
-                        StrokeThickness = 8,
+                        Stroke = new SolidColorBrush(Color.FromArgb(50, kolor.R, kolor.G, kolor.B)),
+                        StrokeThickness = 10,
                         StrokeLineJoin = PenLineJoin.Round
                     });
                 }
@@ -337,13 +366,11 @@ namespace Kalendarz1.CRM
                 });
 
                 // Punkty
-                for (int i = 0; i < dane.Length; i++)
+                for (int i = 0; i < Math.Min(dane.Length, punkty); i++)
                 {
                     if (dane[i] > 0)
                     {
-                        int miesiacIndex = miesiacStart + i - 1;
-                        string tooltip = $"{nazwa}\n{nazwyMies[miesiacIndex]} {rok}: {dane[i]}";
-
+                        string tooltip = $"{nazwa}\n{etykietyX[i]}: {dane[i]}";
                         var el = new Ellipse
                         {
                             Width = 12, Height = 12,
@@ -358,25 +385,51 @@ namespace Kalendarz1.CRM
                     }
                 }
 
-                // Podpis przy ostatnim punkcie
+                kolorIndex++;
+            }
+
+            // Podpisy z tłem - rysuj na końcu (na wierzchu)
+            kolorIndex = 0;
+            double offsetY = 0;
+            foreach (var kv in posortowani)
+            {
+                string nazwa = kv.Key;
+                int[] dane = kv.Value;
+                string kolorHex = koloryHandlowcow[kolorIndex % koloryHandlowcow.Length];
+                Color kolor = (Color)ColorConverter.ConvertFromString(kolorHex);
+
                 int ostatniIndex = -1;
-                for (int i = dane.Length - 1; i >= 0; i--)
+                for (int i = Math.Min(dane.Length, punkty) - 1; i >= 0; i--)
                 {
                     if (dane[i] > 0) { ostatniIndex = i; break; }
                 }
 
                 if (ostatniIndex >= 0)
                 {
-                    var label = new TextBlock
+                    double x = ml + (ostatniIndex + 0.5) * stepX;
+                    double y = mt + ch - (dane[ostatniIndex] / (double)maxVal * ch);
+
+                    // Tło podpisu
+                    var bg = new Border
                     {
-                        Text = nazwa.Length > 10 ? nazwa.Substring(0, 8) + ".." : nazwa,
-                        FontSize = 10,
-                        FontWeight = FontWeights.Bold,
-                        Foreground = new SolidColorBrush(kolor)
+                        Background = new SolidColorBrush(Color.FromArgb(220, 15, 23, 42)),
+                        CornerRadius = new CornerRadius(3),
+                        Padding = new Thickness(4, 2, 4, 2),
+                        BorderBrush = new SolidColorBrush(kolor),
+                        BorderThickness = new Thickness(1),
+                        Child = new TextBlock
+                        {
+                            Text = nazwa.Length > 12 ? nazwa.Substring(0, 10) + ".." : nazwa,
+                            FontSize = 10,
+                            FontWeight = FontWeights.Bold,
+                            Foreground = new SolidColorBrush(kolor)
+                        }
                     };
-                    Canvas.SetLeft(label, points[ostatniIndex].X + 10);
-                    Canvas.SetTop(label, points[ostatniIndex].Y - 7);
-                    canvasWykres.Children.Add(label);
+                    Canvas.SetLeft(bg, x + 12);
+                    Canvas.SetTop(bg, y - 10 + offsetY);
+                    canvasWykres.Children.Add(bg);
+
+                    offsetY = (offsetY + 16) % 48; // Rozłóż podpisy żeby się nie nakładały
                 }
 
                 // Legenda
@@ -401,19 +454,99 @@ namespace Kalendarz1.CRM
                 kolorIndex++;
             }
 
-            // Etykiety osi X - miesiące
+            // Etykiety osi X
             for (int m = 0; m < punkty; m++)
             {
-                int miesiacIndex = miesiacStart + m - 1;
                 panelOsX.Children.Add(new TextBlock
                 {
-                    Text = nazwyMies[miesiacIndex],
-                    FontSize = 10,
+                    Text = etykietyX[m],
+                    FontSize = TrybTygodniowy ? 8 : 10,
                     FontWeight = FontWeights.SemiBold,
                     Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)),
-                    Margin = new Thickness(ml + (m + 0.5) * stepX - 14, 0, 0, 0)
+                    Margin = new Thickness(ml + (m + 0.5) * stepX - (TrybTygodniowy ? 20 : 14), 0, 0, 0)
                 });
             }
+        }
+
+        private (Dictionary<string, int[]>, List<string>) PobierzDaneHandlowcowTygodniowe(DateTime od, DateTime doo)
+        {
+            var wynik = new Dictionary<string, int[]>();
+            var etykiety = new List<string>();
+
+            // Oblicz liczbę tygodni
+            var start = od;
+            while (start.DayOfWeek != DayOfWeek.Monday) start = start.AddDays(-1);
+            var koniec = doo;
+            while (koniec.DayOfWeek != DayOfWeek.Sunday) koniec = koniec.AddDays(1);
+
+            int liczbaTygodni = (int)Math.Ceiling((koniec - start).TotalDays / 7);
+            if (liczbaTygodni <= 0) liczbaTygodni = 1;
+
+            // Generuj etykiety tygodni
+            for (int i = 0; i < liczbaTygodni; i++)
+            {
+                var tydzienStart = start.AddDays(i * 7);
+                etykiety.Add($"{tydzienStart:dd.MM}");
+            }
+
+            using (var conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+
+                var cmd = new SqlCommand(@"
+                    SELECT ISNULL(o.Name, h.KtoWykonal), CAST(h.DataZmiany AS DATE), COUNT(*)
+                    FROM HistoriaZmianCRM h
+                    LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
+                    WHERE h.TypZmiany = 'Zmiana statusu'
+                    AND h.DataZmiany >= @od AND h.DataZmiany < @do
+                    GROUP BY ISNULL(o.Name, h.KtoWykonal), CAST(h.DataZmiany AS DATE)", conn);
+                cmd.Parameters.AddWithValue("@od", od);
+                cmd.Parameters.AddWithValue("@do", doo);
+
+                using (var r = cmd.ExecuteReader())
+                {
+                    while (r.Read())
+                    {
+                        string h = r.IsDBNull(0) ? "?" : r.GetString(0);
+                        DateTime data = r.GetDateTime(1);
+                        int cnt = r.GetInt32(2);
+
+                        int tydzien = (int)((data - start).TotalDays / 7);
+                        if (tydzien < 0) tydzien = 0;
+                        if (tydzien >= liczbaTygodni) tydzien = liczbaTygodni - 1;
+
+                        if (!wynik.ContainsKey(h)) wynik[h] = new int[liczbaTygodni];
+                        wynik[h][tydzien] += cnt;
+                    }
+                }
+
+                var cmdN = new SqlCommand(@"
+                    SELECT ISNULL(o.Name, n.KtoDodal), CAST(n.DataUtworzenia AS DATE), COUNT(*)
+                    FROM NotatkiCRM n
+                    LEFT JOIN operators o ON n.KtoDodal = CAST(o.ID AS NVARCHAR)
+                    WHERE n.DataUtworzenia >= @od AND n.DataUtworzenia < @do
+                    GROUP BY ISNULL(o.Name, n.KtoDodal), CAST(n.DataUtworzenia AS DATE)", conn);
+                cmdN.Parameters.AddWithValue("@od", od);
+                cmdN.Parameters.AddWithValue("@do", doo);
+
+                using (var r = cmdN.ExecuteReader())
+                {
+                    while (r.Read())
+                    {
+                        string h = r.IsDBNull(0) ? "?" : r.GetString(0);
+                        DateTime data = r.GetDateTime(1);
+                        int cnt = r.GetInt32(2);
+
+                        int tydzien = (int)((data - start).TotalDays / 7);
+                        if (tydzien < 0) tydzien = 0;
+                        if (tydzien >= liczbaTygodni) tydzien = liczbaTygodni - 1;
+
+                        if (!wynik.ContainsKey(h)) wynik[h] = new int[liczbaTygodni];
+                        wynik[h][tydzien] += cnt;
+                    }
+                }
+            }
+            return (wynik, etykiety);
         }
 
         private Dictionary<string, int[]> PobierzDaneHandlowcowMiesieczne(DateTime od, DateTime doo, int miesiacStart, int liczbaMiesiecy)
@@ -562,26 +695,42 @@ namespace Kalendarz1.CRM
 
             var wykresOd = new DateTime(rok, miesiacOd, 1);
             var wykresDo = new DateTime(rok, miesiacDo, 1).AddMonths(1);
-            int liczbaMiesiecy = miesiacDo - miesiacOd + 1;
 
-            var daneHandlowcow = PobierzDaneHandlowcowMiesieczne(wykresOd, wykresDo, miesiacOd, liczbaMiesiecy);
+            Dictionary<string, int[]> daneHandlowcow;
+            List<string> etykiety;
 
-            // Dynamicznie generuj kolumny dla miesięcy
-            var nazwyMies = new[] { "Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru" };
+            if (TrybTygodniowy)
+            {
+                var result = PobierzDaneHandlowcowTygodniowe(wykresOd, wykresDo);
+                daneHandlowcow = result.Item1;
+                etykiety = result.Item2;
+            }
+            else
+            {
+                int liczbaMiesiecy = miesiacDo - miesiacOd + 1;
+                daneHandlowcow = PobierzDaneHandlowcowMiesieczne(wykresOd, wykresDo, miesiacOd, liczbaMiesiecy);
+                var nazwyMies = new[] { "Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru" };
+                etykiety = new List<string>();
+                for (int m = 0; m < liczbaMiesiecy; m++)
+                    etykiety.Add(nazwyMies[miesiacOd + m - 1]);
+            }
+
+            // Filtruj handlowców z zerową aktywnością
+            var aktywniHandlowcy = daneHandlowcow.Where(x => x.Value.Sum() > 0)
+                                                  .ToDictionary(x => x.Key, x => x.Value);
 
             // Usuń stare kolumny (oprócz pierwszej - Handlowiec)
             while (tabelaDane.Columns.Count > 1)
                 tabelaDane.Columns.RemoveAt(1);
 
-            // Dodaj kolumny dla miesięcy
-            for (int m = 0; m < liczbaMiesiecy; m++)
+            // Dodaj kolumny dla okresów
+            for (int m = 0; m < etykiety.Count; m++)
             {
-                int miesiacIndex = miesiacOd + m - 1;
                 var col = new DataGridTextColumn
                 {
-                    Header = nazwyMies[miesiacIndex],
-                    Binding = new System.Windows.Data.Binding($"Miesiace[{m}]"),
-                    Width = 55
+                    Header = etykiety[m],
+                    Binding = new System.Windows.Data.Binding($"Okresy[{m}]"),
+                    Width = TrybTygodniowy ? 50 : 55
                 };
                 tabelaDane.Columns.Add(col);
             }
@@ -604,12 +753,12 @@ namespace Kalendarz1.CRM
 
             // Przygotuj dane
             var listaWierszy = new List<TabelaWiersz>();
-            foreach (var kv in daneHandlowcow.OrderByDescending(x => x.Value.Sum()))
+            foreach (var kv in aktywniHandlowcy.OrderByDescending(x => x.Value.Sum()))
             {
                 var wiersz = new TabelaWiersz
                 {
                     Nazwa = kv.Key,
-                    Miesiace = kv.Value,
+                    Okresy = kv.Value,
                     Suma = kv.Value.Sum()
                 };
                 listaWierszy.Add(wiersz);
@@ -622,7 +771,7 @@ namespace Kalendarz1.CRM
     public class TabelaWiersz
     {
         public string Nazwa { get; set; }
-        public int[] Miesiace { get; set; }
+        public int[] Okresy { get; set; }
         public int Suma { get; set; }
     }
 

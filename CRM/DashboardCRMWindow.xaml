@@ -285,6 +285,18 @@
                             </StackPanel>
 
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <!-- WIDOK: MIESIĄCE / TYGODNIE -->
+                                <Border Background="#334155" CornerRadius="6" Padding="4" Margin="0,0,10,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <RadioButton x:Name="rbMiesiace" Content="Miesiące" GroupName="WidokWykresu" IsChecked="True"
+                                                     Foreground="#F1F5F9" FontSize="10" Margin="6,0" VerticalContentAlignment="Center"
+                                                     Checked="RbWidok_Checked"/>
+                                        <RadioButton x:Name="rbTygodnie" Content="Tygodnie" GroupName="WidokWykresu"
+                                                     Foreground="#F1F5F9" FontSize="10" Margin="6,0" VerticalContentAlignment="Center"
+                                                     Checked="RbWidok_Checked"/>
+                                    </StackPanel>
+                                </Border>
+
                                 <!-- OD -->
                                 <Border Background="#334155" CornerRadius="6" Padding="8,4" Margin="0,0,6,0">
                                     <StackPanel Orientation="Horizontal">
