@@ -3960,9 +3960,80 @@ ORDER BY zm.Id";
 
             var produktyB = new List<(string nazwa, decimal plan, decimal fakt, decimal zam, string stan, decimal stanDec, decimal bilans)>();
 
+            // Agregacja z uwzględnieniem scalania towarów
+            var agregowaneGrupy = new Dictionary<string, (decimal plan, decimal fakt, decimal zam, decimal stan, decimal procent)>(StringComparer.OrdinalIgnoreCase);
+            var towaryWGrupach = new HashSet<int>();
+
+            // Najpierw zbierz towary w grupach scalania
+            foreach (var produktKonfig in konfiguracjaProduktow)
+            {
+                int produktId = produktKonfig.Key;
+                decimal procentUdzialu = produktKonfig.Value;
+
+                if (!_productCatalogCache.ContainsKey(produktId))
+                    continue;
+
+                string nazwaProdukt = _productCatalogCache[produktId];
+                if (nazwaProdukt.Contains("Kurczak B", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (_mapowanieScalowania.TryGetValue(produktId, out var nazwaGrupy))
+                {
+                    towaryWGrupach.Add(produktId);
+
+                    decimal plannedForProduct = pulaTuszkiB * (procentUdzialu / 100m);
+                    var actual = actualIncomeElementy.TryGetValue(produktId, out var a) ? a : 0m;
+                    var orders = orderSum.TryGetValue(produktId, out var z) ? z : 0m;
+                    decimal stanMag = stanyMagazynowe.TryGetValue(produktId, out var sm) ? sm : 0m;
+
+                    if (agregowaneGrupy.ContainsKey(nazwaGrupy))
+                    {
+                        var existing = agregowaneGrupy[nazwaGrupy];
+                        agregowaneGrupy[nazwaGrupy] = (existing.plan + plannedForProduct, existing.fakt + actual, existing.zam + orders, existing.stan + stanMag, existing.procent + procentUdzialu);
+                    }
+                    else
+                    {
+                        agregowaneGrupy[nazwaGrupy] = (plannedForProduct, actual, orders, stanMag, procentUdzialu);
+                    }
+                }
+            }
+
+            // Dodaj scalone grupy
+            foreach (var grupa in agregowaneGrupy.OrderByDescending(g => g.Value.procent))
+            {
+                string ikona = "";
+                if (grupa.Key.Contains("Skrzydło", StringComparison.OrdinalIgnoreCase))
+                    ikona = "🍗";
+                else if (grupa.Key.Contains("Korpus", StringComparison.OrdinalIgnoreCase))
+                    ikona = "🍖";
+                else if (grupa.Key.Contains("Ćwiartka", StringComparison.OrdinalIgnoreCase) || grupa.Key.Contains("Noga", StringComparison.OrdinalIgnoreCase))
+                    ikona = "🍗";
+                else if (grupa.Key.Contains("Filet", StringComparison.OrdinalIgnoreCase))
+                    ikona = "🥩";
+
+                var (plan, fakt, zam, stan, procent) = grupa.Value;
+                string stanText = stan > 0 ? stan.ToString("N0") : "";
+
+                decimal balance = (fakt > 0 ? fakt : plan) + stan - zam;
+
+                string nazwaZIkonka = string.IsNullOrEmpty(ikona)
+                    ? $"  └ {grupa.Key} ({procent:F1}%)"
+                    : $"  └ {ikona} {grupa.Key} ({procent:F1}%)";
+
+                produktyB.Add((nazwaZIkonka, plan, fakt, zam, stanText, stan, balance));
+
+                sumaPlanB += plan;
+                sumaFaktB += fakt;
+                sumaZamB += zam;
+                sumaStanB += stan;
+            }
+
+            // Dodaj towary niescalone
             foreach (var produktKonfig in konfiguracjaProduktow.OrderByDescending(p => p.Value))
             {
                 int produktId = produktKonfig.Key;
+                if (towaryWGrupach.Contains(produktId)) continue;
+
                 decimal procentUdzialu = produktKonfig.Value;
 
                 if (!_productCatalogCache.ContainsKey(produktId))
@@ -5226,7 +5297,7 @@ ORDER BY zm.Id";
             contextMenu.Items.Add(new System.Windows.Controls.Separator());
             contextMenu.Items.Add(menuOdswiez);
 
-            dgDashboardProdukty.ContextMenu = contextMenu;
+            dgAggregation.ContextMenu = contextMenu;
         }
 
         private async Task ZaladujMapowanieScalowaniaAsync()
