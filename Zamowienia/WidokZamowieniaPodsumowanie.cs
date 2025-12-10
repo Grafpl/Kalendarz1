@@ -2018,43 +2018,49 @@ namespace Kalendarz1
             btnScalowanieTw = new Button
             {
                 Text = "Scalowanie",
-                Size = new Size(90, 24),
+                Size = new Size(85, 22),
                 Font = new Font("Segoe UI", 8F),
                 BackColor = Color.FromArgb(70, 130, 180),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand
+                Cursor = Cursors.Hand,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
             btnScalowanieTw.FlatAppearance.BorderSize = 0;
             btnScalowanieTw.Click += btnScalowanieTw_Click;
 
-            // Dodaj przycisk do panelu z label2 (nad dgvAgregacja)
-            // Zmień label2 na panel z labelem i przyciskiem
-            var parent = label2.Parent;
-            if (parent != null)
+            // Dodaj przycisk bezpośrednio nad dgvAgregacja
+            // dgvAgregacja jest w panelDetail (TableLayoutPanel) w wierszu 2
+            // Dodamy przycisk do tego samego panelu co label2
+            if (panelDetail != null)
             {
-                var panelHeader = new Panel
+                // Zmień label2 żeby nie było AutoSize i dodaj przycisk obok
+                label2.AutoSize = false;
+                label2.Dock = DockStyle.None;
+                label2.Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Bottom;
+
+                // Utwórz panel-wrapper dla label2 i przycisku
+                var wrapperPanel = new Panel
                 {
-                    Dock = DockStyle.Fill,
-                    Height = label2.Height
+                    Dock = DockStyle.Fill
                 };
 
-                label2.Dock = DockStyle.Left;
-                label2.AutoSize = false;
-                label2.Width = parent.Width - 100;
+                // Pozycjonuj przycisk w prawym górnym rogu wrappera
+                btnScalowanieTw.Location = new Point(wrapperPanel.Width - btnScalowanieTw.Width - 5, 4);
 
-                btnScalowanieTw.Dock = DockStyle.Right;
-
-                panelHeader.Controls.Add(label2);
-                panelHeader.Controls.Add(btnScalowanieTw);
-
-                // Znajdź indeks label2 w parent i podmień
-                var parentTable = parent as TableLayoutPanel;
-                if (parentTable != null)
+                // Przenieś label2 do wrappera
+                var pos = panelDetail.GetPositionFromControl(label2);
+                if (pos.Row >= 0)
                 {
-                    var pos = parentTable.GetPositionFromControl(label2);
-                    parentTable.Controls.Remove(label2);
-                    parentTable.Controls.Add(panelHeader, pos.Column, pos.Row);
+                    panelDetail.Controls.Remove(label2);
+
+                    label2.Dock = DockStyle.Fill;
+                    label2.Padding = new Padding(0, 0, 90, 0); // Miejsce na przycisk
+
+                    wrapperPanel.Controls.Add(btnScalowanieTw);
+                    wrapperPanel.Controls.Add(label2);
+
+                    panelDetail.Controls.Add(wrapperPanel, pos.Column, pos.Row);
                 }
             }
         }
