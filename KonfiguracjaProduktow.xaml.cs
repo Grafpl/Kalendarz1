@@ -381,6 +381,18 @@ namespace Kalendarz1
                         {
                             DateTime dataOd = dpDataOd.SelectedDate.Value.Date;
 
+                            // Sprawdź i dodaj kolumnę GrupaScalowania jeśli nie istnieje
+                            string checkColumnQuery = @"
+                                IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+                                               WHERE TABLE_NAME = 'KonfiguracjaProduktow' AND COLUMN_NAME = 'GrupaScalowania')
+                                BEGIN
+                                    ALTER TABLE KonfiguracjaProduktow ADD GrupaScalowania NVARCHAR(100) NULL
+                                END";
+                            using (SqlCommand cmd = new SqlCommand(checkColumnQuery, conn, trans))
+                            {
+                                cmd.ExecuteNonQuery();
+                            }
+
                             // Dezaktywuj konfiguracje dla tej samej daty
                             string deactivateQuery = "UPDATE KonfiguracjaProduktow SET Aktywny = 0 WHERE DataOd = @DataOd";
                             using (SqlCommand cmd = new SqlCommand(deactivateQuery, conn, trans))
@@ -393,9 +405,9 @@ namespace Kalendarz1
                             foreach (var produkt in produktySzczegoly)
                             {
                                 string query = @"
-                                    INSERT INTO KonfiguracjaProduktow 
-                                        (TowarID, NazwaTowaru, ProcentUdzialu, DataOd, Aktywny, ModyfikowalPrzez, DataModyfikacji)
-                                    VALUES (@TowarID, @Nazwa, @Procent, @DataOd, 1, @User, GETDATE())";
+                                    INSERT INTO KonfiguracjaProduktow
+                                        (TowarID, NazwaTowaru, ProcentUdzialu, DataOd, Aktywny, ModyfikowalPrzez, DataModyfikacji, GrupaScalowania)
+                                    VALUES (@TowarID, @Nazwa, @Procent, @DataOd, 1, @User, GETDATE(), @GrupaScalowania)";
 
                                 using (SqlCommand cmd = new SqlCommand(query, conn, trans))
                                 {
@@ -404,6 +416,7 @@ namespace Kalendarz1
                                     cmd.Parameters.AddWithValue("@Procent", produkt.Procent);
                                     cmd.Parameters.AddWithValue("@DataOd", dataOd);
                                     cmd.Parameters.AddWithValue("@User", Environment.UserName);
+                                    cmd.Parameters.AddWithValue("@GrupaScalowania", string.IsNullOrWhiteSpace(produkt.GrupaScalowania) ? (object)DBNull.Value : produkt.GrupaScalowania);
                                     cmd.ExecuteNonQuery();
                                 }
                             }
@@ -536,6 +549,20 @@ namespace Kalendarz1
                 {
                     _procent = value;
                     OnPropertyChanged(nameof(Procent));
+                }
+            }
+        }
+
+        private string _grupaScalowania = "";
+        public string GrupaScalowania
+        {
+            get => _grupaScalowania;
+            set
+            {
+                if (_grupaScalowania != value)
+                {
+                    _grupaScalowania = value ?? "";
+                    OnPropertyChanged(nameof(GrupaScalowania));
                 }
             }
         }

@@ -463,7 +463,6 @@ namespace Kalendarz1.WPF
             chkShowAnulowane.IsChecked = false;
 
             await LoadInitialDataAsync();
-            await ZaladujMapowanieScalowaniaAsync();
             InicjalizujMenuKontekstoweBilansu();
 
             _selectedDate = ValidateSqlDate(DateTime.Today);
@@ -533,21 +532,39 @@ namespace Kalendarz1.WPF
         private async Task<Dictionary<int, decimal>> GetKonfiguracjaProduktowAsync(DateTime data)
         {
             var result = new Dictionary<int, decimal>();
+            _mapowanieScalowania.Clear(); // Odśwież mapowanie scalowania
 
             try
             {
                 await using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
 
-                const string query = @"
-                    SELECT kp.TowarID, kp.ProcentUdzialu
-                    FROM KonfiguracjaProduktow kp
-                    INNER JOIN (
-                        SELECT MAX(DataOd) as MaxData
-                        FROM KonfiguracjaProduktow
-                        WHERE DataOd <= @Data AND Aktywny = 1
-                    ) sub ON kp.DataOd = sub.MaxData
-                    WHERE kp.Aktywny = 1";
+                // Sprawdź czy kolumna GrupaScalowania istnieje
+                bool hasGrupaColumn = false;
+                const string checkQuery = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                                            WHERE TABLE_NAME = 'KonfiguracjaProduktow' AND COLUMN_NAME = 'GrupaScalowania'";
+                await using (var checkCmd = new SqlCommand(checkQuery, cn))
+                {
+                    hasGrupaColumn = (int)await checkCmd.ExecuteScalarAsync() > 0;
+                }
+
+                string query = hasGrupaColumn
+                    ? @"SELECT kp.TowarID, kp.ProcentUdzialu, kp.GrupaScalowania
+                        FROM KonfiguracjaProduktow kp
+                        INNER JOIN (
+                            SELECT MAX(DataOd) as MaxData
+                            FROM KonfiguracjaProduktow
+                            WHERE DataOd <= @Data AND Aktywny = 1
+                        ) sub ON kp.DataOd = sub.MaxData
+                        WHERE kp.Aktywny = 1"
+                    : @"SELECT kp.TowarID, kp.ProcentUdzialu
+                        FROM KonfiguracjaProduktow kp
+                        INNER JOIN (
+                            SELECT MAX(DataOd) as MaxData
+                            FROM KonfiguracjaProduktow
+                            WHERE DataOd <= @Data AND Aktywny = 1
+                        ) sub ON kp.DataOd = sub.MaxData
+                        WHERE kp.Aktywny = 1";
 
                 await using var cmd = new SqlCommand(query, cn);
                 cmd.Parameters.AddWithValue("@Data", data.Date);
@@ -559,6 +576,20 @@ namespace Kalendarz1.WPF
                     int towarId = Convert.ToInt32(reader["TowarID"]);
                     decimal procent = Convert.ToDecimal(reader["ProcentUdzialu"]);
                     result[towarId] = procent;
+
+                    // Pobierz grupę scalania jeśli istnieje
+                    if (hasGrupaColumn)
+                    {
+                        var grupaOrdinal = reader.GetOrdinal("GrupaScalowania");
+                        if (!reader.IsDBNull(grupaOrdinal))
+                        {
+                            string grupa = reader.GetString(grupaOrdinal);
+                            if (!string.IsNullOrWhiteSpace(grupa))
+                            {
+                                _mapowanieScalowania[towarId] = grupa;
+                            }
+                        }
+                    }
                 }
 
                 return result;
@@ -5268,48 +5299,35 @@ ORDER BY zm.Id";
         {
             var contextMenu = new System.Windows.Controls.ContextMenu();
 
-            var menuScalowanie = new System.Windows.Controls.MenuItem
+            var menuKonfiguracja = new System.Windows.Controls.MenuItem
             {
-                Header = "Konfiguruj scalowanie towarów"
+                Header = "Konfiguruj produkty i scalowanie"
             };
-            menuScalowanie.Click += async (s, e) =>
+            menuKonfiguracja.Click += async (s, e) =>
             {
-                // Otwórz dialog konfiguracji scalowania (WinForms)
-                using var dialog = new ScalowanieTowarowDialog(_connLibra, _productCatalogCache);
+                // Otwórz okno konfiguracji produktów (zawiera też scalowanie)
+                var konfig = new Dictionary<string, decimal>();
+                var dialog = new KonfiguracjaProduktow(_connLibra, _connHandel, konfig);
                 dialog.ShowDialog();
 
-                // Po zamknięciu dialogu odśwież mapowanie i dane
-                await ZaladujMapowanieScalowaniaAsync();
+                // Po zamknięciu dialogu odśwież dane
                 await RefreshAllDataAsync();
             };
 
             var menuOdswiez = new System.Windows.Controls.MenuItem
             {
-                Header = "Odśwież bilans"
+                Header = "Odśwież podsumowanie"
             };
             menuOdswiez.Click += async (s, e) =>
             {
-                await ZaladujMapowanieScalowaniaAsync();
                 await RefreshAllDataAsync();
             };
 
-            contextMenu.Items.Add(menuScalowanie);
+            contextMenu.Items.Add(menuKonfiguracja);
             contextMenu.Items.Add(new System.Windows.Controls.Separator());
             contextMenu.Items.Add(menuOdswiez);
 
             dgAggregation.ContextMenu = contextMenu;
-        }
-
-        private async Task ZaladujMapowanieScalowaniaAsync()
-        {
-            try
-            {
-                _mapowanieScalowania = await ScalowanieTowarowManager.PobierzMapowanieTowarowAsync(_connLibra);
-            }
-            catch
-            {
-                _mapowanieScalowania = new Dictionary<int, string>();
-            }
         }
         #endregion
     }
