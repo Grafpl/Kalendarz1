@@ -1088,21 +1088,20 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
             if (cmbHandlowiecOpak.SelectedItem is ComboItem item && item.Value > 0)
                 wybranyHandlowiec = item.Text;
 
-            // Pobierz zakres dat z date pickerow
-            DateTime dataOd = dpOpakOd.SelectedDate ?? DateTime.Today.AddDays(-42);
-            DateTime dataDo = dpOpakDo.SelectedDate ?? DateTime.Today;
+            // Pobierz daty z DatePickers - porownanie sald na dwie daty
+            DateTime data1 = dpOpakOd.SelectedDate ?? DateTime.Today.AddDays(-7);
+            DateTime data2 = dpOpakDo.SelectedDate ?? DateTime.Today;
+
+            // Slowniki do przechowywania sald na dwie daty
+            var saldoNaData1 = new Dictionary<string, (string Handlowiec, decimal E2, decimal H1)>();
+            var saldoNaData2 = new Dictionary<string, (string Handlowiec, decimal E2, decimal H1)>();
 
             _opakowaniaData = new List<OpakowanieRow>();
 
             try
             {
-                // Pierwsza polaczenie - dane kontrahentow
-                await using (var cn = new SqlConnection(_connectionStringHandel))
-                {
-                    await cn.OpenAsync();
-
-                    // Dane per kontrahent - filtruj po zakresie dat
-                    var sqlKontrahenci = @"
+                // SQL - saldo od poczatku do wybranej daty
+                var sqlSaldo = @"
 SELECT
     C.shortcut AS Kontrahent,
     ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
@@ -1113,30 +1112,79 @@ INNER JOIN [HANDEL].[HM].[TW] TW ON MZ.idtw = TW.id
 INNER JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id
 INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON MG.khid = C.id
 LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON C.Id = WYM.ElementId
-WHERE MZ.data >= @DataOd AND MZ.data <= @DataDo AND MG.anulowany = 0
+WHERE MZ.data <= @DataDo AND MG.anulowany = 0
   AND TW.nazwa IN ('Pojemnik Drobiowy E2', 'Paleta H1')
   AND (@Handlowiec IS NULL OR WYM.CDim_Handlowiec_Val = @Handlowiec)
 GROUP BY C.shortcut, ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany')
-HAVING ISNULL(SUM(MZ.Ilosc), 0) <> 0
-ORDER BY ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc ELSE 0 END), 0) DESC";
+HAVING ISNULL(SUM(MZ.Ilosc), 0) <> 0";
 
-                    await using var cmdK = new SqlCommand(sqlKontrahenci, cn);
-                    cmdK.Parameters.AddWithValue("@Handlowiec", (object)wybranyHandlowiec ?? DBNull.Value);
-                    cmdK.Parameters.AddWithValue("@DataOd", dataOd);
-                    cmdK.Parameters.AddWithValue("@DataDo", dataDo);
+                // Pobierz saldo na date 1
+                await using (var cn = new SqlConnection(_connectionStringHandel))
+                {
+                    await cn.OpenAsync();
+                    await using var cmd1 = new SqlCommand(sqlSaldo, cn);
+                    cmd1.Parameters.AddWithValue("@Handlowiec", (object)wybranyHandlowiec ?? DBNull.Value);
+                    cmd1.Parameters.AddWithValue("@DataDo", data1);
 
-                    await using var readerK = await cmdK.ExecuteReaderAsync();
-                    while (await readerK.ReadAsync())
+                    await using var reader1 = await cmd1.ExecuteReaderAsync();
+                    while (await reader1.ReadAsync())
                     {
-                        _opakowaniaData.Add(new OpakowanieRow
-                        {
-                            Kontrahent = readerK.GetString(0),
-                            Handlowiec = readerK.GetString(1),
-                            PojemnikiE2 = readerK.IsDBNull(2) ? 0m : Convert.ToDecimal(readerK.GetValue(2)),
-                            PaletaH1 = readerK.IsDBNull(3) ? 0m : Convert.ToDecimal(readerK.GetValue(3)),
-                        });
+                        var kontrahent = reader1.GetString(0);
+                        var handlowiec = reader1.GetString(1);
+                        var e2 = reader1.IsDBNull(2) ? 0m : Convert.ToDecimal(reader1.GetValue(2));
+                        var h1 = reader1.IsDBNull(3) ? 0m : Convert.ToDecimal(reader1.GetValue(3));
+                        saldoNaData1[kontrahent] = (handlowiec, e2, h1);
                     }
                 }
+
+                // Pobierz saldo na date 2
+                await using (var cn = new SqlConnection(_connectionStringHandel))
+                {
+                    await cn.OpenAsync();
+                    await using var cmd2 = new SqlCommand(sqlSaldo, cn);
+                    cmd2.Parameters.AddWithValue("@Handlowiec", (object)wybranyHandlowiec ?? DBNull.Value);
+                    cmd2.Parameters.AddWithValue("@DataDo", data2);
+
+                    await using var reader2 = await cmd2.ExecuteReaderAsync();
+                    while (await reader2.ReadAsync())
+                    {
+                        var kontrahent = reader2.GetString(0);
+                        var handlowiec = reader2.GetString(1);
+                        var e2 = reader2.IsDBNull(2) ? 0m : Convert.ToDecimal(reader2.GetValue(2));
+                        var h1 = reader2.IsDBNull(3) ? 0m : Convert.ToDecimal(reader2.GetValue(3));
+                        saldoNaData2[kontrahent] = (handlowiec, e2, h1);
+                    }
+                }
+
+                // Polacz wyniki - wszystkie kontrahenci z obu dat
+                var wszystkieKontrahenty = saldoNaData1.Keys.Union(saldoNaData2.Keys).ToList();
+                foreach (var kontrahent in wszystkieKontrahenty)
+                {
+                    var d1 = saldoNaData1.GetValueOrDefault(kontrahent, ("Nieprzypisany", 0, 0));
+                    var d2 = saldoNaData2.GetValueOrDefault(kontrahent, ("Nieprzypisany", 0, 0));
+                    var handlowiec = d2.Handlowiec != "Nieprzypisany" ? d2.Handlowiec : d1.Handlowiec;
+
+                    _opakowaniaData.Add(new OpakowanieRow
+                    {
+                        Kontrahent = kontrahent,
+                        Handlowiec = handlowiec,
+                        PojemnikiE2 = d2.E2,
+                        PaletaH1 = d2.H1,
+                        E2Zmiana = d2.E2 - d1.E2,
+                        H1Zmiana = d2.H1 - d1.H1
+                    });
+                }
+
+                // Aktualizacja wyswietlania zmiany
+                var sumaE2Data1 = saldoNaData1.Values.Sum(v => v.E2);
+                var sumaE2Data2 = saldoNaData2.Values.Sum(v => v.E2);
+                var sumaH1Data1 = saldoNaData1.Values.Sum(v => v.H1);
+                var sumaH1Data2 = saldoNaData2.Values.Sum(v => v.H1);
+                var zmianaE2 = sumaE2Data2 - sumaE2Data1;
+                var zmianaH1 = sumaH1Data2 - sumaH1Data1;
+                var signE2 = zmianaE2 >= 0 ? "+" : "";
+                var signH1 = zmianaH1 >= 0 ? "+" : "";
+                txtOpakZmiana.Text = $"Zmiana E2: {signE2}{zmianaE2:N0} | H1: {signH1}{zmianaH1:N0}";
 
                 // Wykres slupkowy poziomy E2 - Top 16 (najwyzszy na gorze)
                 var top16E2 = _opakowaniaData.Where(d => d.PojemnikiE2 > 0).OrderByDescending(d => d.PojemnikiE2).Take(16).ToList();
@@ -1145,7 +1193,13 @@ ORDER BY ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc EL
                 top16E2.Reverse();
 
                 var valuesE2 = new ChartValues<double>(top16E2.Select(d => (double)d.PojemnikiE2));
-                var labelsE2 = top16E2.Select(d => d.Kontrahent.Length > 18 ? d.Kontrahent.Substring(0, 18) + ".." : d.Kontrahent).ToList();
+                // Etykiety z wartoscia, zmiana i nazwa kontrahenta
+                var labelsE2 = top16E2.Select(d => {
+                    var zmiana = d.E2Zmiana;
+                    var sign = zmiana >= 0 ? "+" : "";
+                    var nazwa = d.Kontrahent.Length > 12 ? d.Kontrahent.Substring(0, 12) + ".." : d.Kontrahent;
+                    return $"{d.PojemnikiE2:N0} ({sign}{zmiana:N0}) | {nazwa}";
+                }).ToList();
 
                 // Przygotuj dane dla etykiet z nazwami
                 var top16E2Data = top16E2.ToList();
@@ -1157,20 +1211,13 @@ ORDER BY ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc EL
                         Title = "E2",
                         Values = valuesE2,
                         Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(78, 205, 196)),
-                        DataLabels = true,
-                        LabelPoint = p => {
-                            var idx = (int)p.Y;
-                            if (idx >= 0 && idx < top16E2Data.Count)
-                                return $"{p.X:N0} | {top16E2Data[idx].Handlowiec}";
-                            return $"{p.X:N0}";
-                        },
+                        DataLabels = false,
                         Foreground = Brushes.White
                     }
                 };
                 axisYOpakE2.Labels = labelsE2;
 
-                var sumaE2 = _opakowaniaData.Where(d => d.PojemnikiE2 > 0).Sum(d => d.PojemnikiE2);
-                txtOpakE2Suma.Text = $"Razem: {sumaE2:N0}";
+                txtOpakE2Suma.Text = $"Razem: {sumaE2Data2:N0} (zmiana: {signE2}{zmianaE2:N0})";
 
                 // Wykres slupkowy poziomy H1 - Top 16 (najwyzszy na gorze)
                 var top16H1 = _opakowaniaData.Where(d => d.PaletaH1 > 0).OrderByDescending(d => d.PaletaH1).Take(16).ToList();
@@ -1179,7 +1226,13 @@ ORDER BY ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc EL
                 top16H1.Reverse();
 
                 var valuesH1 = new ChartValues<double>(top16H1.Select(d => (double)d.PaletaH1));
-                var labelsH1 = top16H1.Select(d => d.Kontrahent.Length > 18 ? d.Kontrahent.Substring(0, 18) + ".." : d.Kontrahent).ToList();
+                // Etykiety z wartoscia, zmiana i nazwa kontrahenta
+                var labelsH1 = top16H1.Select(d => {
+                    var zmiana = d.H1Zmiana;
+                    var sign = zmiana >= 0 ? "+" : "";
+                    var nazwa = d.Kontrahent.Length > 12 ? d.Kontrahent.Substring(0, 12) + ".." : d.Kontrahent;
+                    return $"{d.PaletaH1:N0} ({sign}{zmiana:N0}) | {nazwa}";
+                }).ToList();
 
                 // Przygotuj dane dla etykiet z nazwami
                 var top16H1Data = top16H1.ToList();
@@ -1191,20 +1244,13 @@ ORDER BY ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc EL
                         Title = "H1",
                         Values = valuesH1,
                         Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(244, 162, 97)),
-                        DataLabels = true,
-                        LabelPoint = p => {
-                            var idx = (int)p.Y;
-                            if (idx >= 0 && idx < top16H1Data.Count)
-                                return $"{p.X:N0} | {top16H1Data[idx].Handlowiec}";
-                            return $"{p.X:N0}";
-                        },
+                        DataLabels = false,
                         Foreground = Brushes.White
                     }
                 };
                 axisYOpakH1.Labels = labelsH1;
 
-                var sumaH1 = _opakowaniaData.Where(d => d.PaletaH1 > 0).Sum(d => d.PaletaH1);
-                txtOpakH1Suma.Text = $"Razem: {sumaH1:N0}";
+                txtOpakH1Suma.Text = $"Razem: {sumaH1Data2:N0} (zmiana: {signH1}{zmianaH1:N0})";
 
                 // Wykresy trendow - uzywaja osobnych polaczen
                 if (string.IsNullOrEmpty(_wybranyKontrahentOpak))
@@ -1679,6 +1725,8 @@ FROM FakturyPrzeterminowane";
         public decimal Razem { get; set; }
         public decimal ZmianaE2Tydzien { get; set; }
         public decimal ZmianaH1Tydzien { get; set; }
+        public decimal E2Zmiana { get; set; }
+        public decimal H1Zmiana { get; set; }
         public decimal ZmianaRazem => ZmianaE2Tydzien + ZmianaH1Tydzien;
         public bool ZmianaE2TydzienAlert { get; set; }
         public bool ZmianaE2TydzienGood { get; set; }

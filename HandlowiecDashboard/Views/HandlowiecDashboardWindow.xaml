@@ -596,10 +596,11 @@
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="Handlowiec:" Style="{StaticResource FilterLabelStyle}"/>
                                     <ComboBox x:Name="cmbHandlowiecOpak" Style="{StaticResource DarkComboBoxStyle}" Width="150" SelectionChanged="CmbOpakowania_SelectionChanged"/>
-                                    <TextBlock Text="Od:" Style="{StaticResource FilterLabelStyle}" Margin="20,0,8,0"/>
+                                    <TextBlock Text="Saldo na:" Style="{StaticResource FilterLabelStyle}" Margin="20,0,8,0"/>
                                     <DatePicker x:Name="dpOpakOd" Width="110" SelectedDateChanged="DpOpakowania_SelectedDateChanged"/>
-                                    <TextBlock Text="Do:" Style="{StaticResource FilterLabelStyle}" Margin="10,0,8,0"/>
+                                    <TextBlock Text="vs" Style="{StaticResource FilterLabelStyle}" Margin="10,0,8,0" FontWeight="Bold" Foreground="#4ECDC4"/>
                                     <DatePicker x:Name="dpOpakDo" Width="110" SelectedDateChanged="DpOpakowania_SelectedDateChanged"/>
+                                    <TextBlock x:Name="txtOpakZmiana" Text="" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Margin="15,0,0,0"/>
                                     <TextBlock x:Name="txtOpakWybranyKontrahent" Text="" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentOrangeBrush}" VerticalAlignment="Center" Margin="20,0,0,0"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
@@ -665,8 +666,8 @@
                                             </lvc:Axis>
                                         </lvc:CartesianChart.AxisX>
                                         <lvc:CartesianChart.AxisY>
-                                            <lvc:Axis x:Name="axisYOpakE2" ShowLabels="True" FontSize="10" Foreground="#FFFFFF">
-                                                <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
+                                            <lvc:Axis x:Name="axisYOpakE2" ShowLabels="True" FontSize="9" Foreground="#FFFFFF" IsMerged="False">
+                                                <lvc:Axis.Separator><lvc:Separator StrokeThickness="0" Step="1"/></lvc:Axis.Separator>
                                             </lvc:Axis>
                                         </lvc:CartesianChart.AxisY>
                                     </lvc:CartesianChart>
@@ -714,8 +715,8 @@
                                             </lvc:Axis>
                                         </lvc:CartesianChart.AxisX>
                                         <lvc:CartesianChart.AxisY>
-                                            <lvc:Axis x:Name="axisYOpakH1" ShowLabels="True" FontSize="10" Foreground="#FFFFFF">
-                                                <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
+                                            <lvc:Axis x:Name="axisYOpakH1" ShowLabels="True" FontSize="9" Foreground="#FFFFFF" IsMerged="False">
+                                                <lvc:Axis.Separator><lvc:Separator StrokeThickness="0" Step="1"/></lvc:Axis.Separator>
                                             </lvc:Axis>
                                         </lvc:CartesianChart.AxisY>
                                     </lvc:CartesianChart>
