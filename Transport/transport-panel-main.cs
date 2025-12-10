@@ -46,6 +46,18 @@ namespace Kalendarz1.Transport.Formularze
         private Button btnPojazdy;
         private Button btnPrzydziel; // Szybkie przypisanie kierowcy/pojazdu
 
+        // Filtry
+        private Panel panelFilters;
+        private ComboBox cboFiltrKierowca;
+        private ComboBox cboFiltrPojazd;
+        private ComboBox cboFiltrStatus;
+        private Button btnWyczyscFiltry;
+        private List<Kierowca> _wszyscyKierowcy;
+        private List<Pojazd> _wszystkiePojazdy;
+
+        // Menu kontekstowe
+        private ContextMenuStrip contextMenuKurs;
+
         // Podsumowanie
         private Label lblSummaryKursy;
         private Label lblSummaryPojemniki;
@@ -87,8 +99,14 @@ namespace Kalendarz1.Transport.Formularze
             // ========== HEADER ==========
             CreateHeader();
 
+            // ========== FILTERS ==========
+            CreateFilters();
+
             // ========== CONTENT ==========
             CreateContent();
+
+            // ========== CONTEXT MENU ==========
+            CreateContextMenu();
 
             // ========== SUMMARY ==========
             CreateSummary();
@@ -98,18 +116,20 @@ namespace Kalendarz1.Transport.Formularze
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
-                RowCount = 3,
+                RowCount = 4,
                 Margin = new Padding(0),
                 Padding = new Padding(0)
             };
 
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 80));
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 100));
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 80));  // Header
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));  // Filters
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Content
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 100)); // Summary
 
             mainLayout.Controls.Add(panelHeader, 0, 0);
-            mainLayout.Controls.Add(panelContent, 0, 1);
-            mainLayout.Controls.Add(panelSummary, 0, 2);
+            mainLayout.Controls.Add(panelFilters, 0, 1);
+            mainLayout.Controls.Add(panelContent, 0, 2);
+            mainLayout.Controls.Add(panelSummary, 0, 3);
 
             Controls.Add(mainLayout);
         }
@@ -380,6 +400,137 @@ namespace Kalendarz1.Transport.Formularze
             return btn;
         }
 
+        private void CreateFilters()
+        {
+            panelFilters = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(248, 249, 252),
+                Padding = new Padding(20, 8, 20, 8)
+            };
+
+            var flowLayout = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                BackColor = Color.Transparent
+            };
+
+            // Label filtry
+            var lblFiltry = new Label
+            {
+                Text = "🔍 FILTRY:",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 73, 94),
+                AutoSize = true,
+                Margin = new Padding(0, 8, 15, 0)
+            };
+
+            // Filtr kierowcy
+            var lblKierowca = new Label
+            {
+                Text = "Kierowca:",
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(52, 73, 94),
+                AutoSize = true,
+                Margin = new Padding(0, 10, 5, 0)
+            };
+
+            cboFiltrKierowca = new ComboBox
+            {
+                Width = 180,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 9F),
+                Margin = new Padding(0, 5, 15, 0)
+            };
+            cboFiltrKierowca.SelectedIndexChanged += FiltrChanged;
+
+            // Filtr pojazdu
+            var lblPojazd = new Label
+            {
+                Text = "Pojazd:",
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(52, 73, 94),
+                AutoSize = true,
+                Margin = new Padding(0, 10, 5, 0)
+            };
+
+            cboFiltrPojazd = new ComboBox
+            {
+                Width = 150,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 9F),
+                Margin = new Padding(0, 5, 15, 0)
+            };
+            cboFiltrPojazd.SelectedIndexChanged += FiltrChanged;
+
+            // Filtr statusu
+            var lblStatus = new Label
+            {
+                Text = "Status:",
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(52, 73, 94),
+                AutoSize = true,
+                Margin = new Padding(0, 10, 5, 0)
+            };
+
+            cboFiltrStatus = new ComboBox
+            {
+                Width = 130,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 9F),
+                Margin = new Padding(0, 5, 15, 0)
+            };
+            cboFiltrStatus.Items.AddRange(new object[] {
+                "Wszystkie",
+                "Planowany",
+                "W realizacji",
+                "Zakończony",
+                "Anulowany"
+            });
+            cboFiltrStatus.SelectedIndex = 0;
+            cboFiltrStatus.SelectedIndexChanged += FiltrChanged;
+
+            // Przycisk wyczyść filtry
+            btnWyczyscFiltry = new Button
+            {
+                Text = "✕ Wyczyść",
+                Size = new Size(90, 28),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(108, 117, 125),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9F),
+                Cursor = Cursors.Hand,
+                Margin = new Padding(10, 5, 0, 0)
+            };
+            btnWyczyscFiltry.FlatAppearance.BorderSize = 0;
+            btnWyczyscFiltry.Click += BtnWyczyscFiltry_Click;
+
+            flowLayout.Controls.AddRange(new Control[] {
+                lblFiltry, lblKierowca, cboFiltrKierowca, lblPojazd, cboFiltrPojazd,
+                lblStatus, cboFiltrStatus, btnWyczyscFiltry
+            });
+
+            panelFilters.Controls.Add(flowLayout);
+        }
+
+        private void CreateContextMenu()
+        {
+            contextMenuKurs = new ContextMenuStrip();
+            contextMenuKurs.Font = new Font("Segoe UI", 10F);
+
+            var menuPodglad = new ToolStripMenuItem("📦 Podgląd ładunków", null, MenuPodgladLadunkow_Click);
+            var menuHistoria = new ToolStripMenuItem("📋 Historia zmian", null, MenuHistoriaZmian_Click);
+            var menuSeparator = new ToolStripSeparator();
+            var menuEdytuj = new ToolStripMenuItem("✏️ Edytuj kurs", null, (s, e) => BtnEdytujKurs_Click(s, e));
+            var menuUsun = new ToolStripMenuItem("🗑️ Usuń kurs", null, (s, e) => BtnUsunKurs_Click(s, e));
+
+            contextMenuKurs.Items.AddRange(new ToolStripItem[] {
+                menuPodglad, menuHistoria, menuSeparator, menuEdytuj, menuUsun
+            });
+        }
+
         private void CreateContent()
         {
             panelContent = new Panel
@@ -424,8 +575,24 @@ namespace Kalendarz1.Transport.Formularze
             dgvKursy.CellFormatting += DgvKursy_CellFormatting;
             dgvKursy.CellDoubleClick += (s, e) => BtnEdytujKurs_Click(s, e);
             dgvKursy.SelectionChanged += DgvKursy_SelectionChanged;
+            dgvKursy.MouseClick += DgvKursy_MouseClick;
 
             panelContent.Controls.Add(dgvKursy);
+        }
+
+        private void DgvKursy_MouseClick(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right)
+            {
+                var hitTest = dgvKursy.HitTest(e.X, e.Y);
+                if (hitTest.RowIndex >= 0)
+                {
+                    dgvKursy.ClearSelection();
+                    dgvKursy.Rows[hitTest.RowIndex].Selected = true;
+                    dgvKursy.CurrentCell = dgvKursy.Rows[hitTest.RowIndex].Cells[0];
+                    contextMenuKurs.Show(dgvKursy, e.Location);
+                }
+            }
         }
 
         private void CreateSummary()
@@ -625,6 +792,9 @@ namespace Kalendarz1.Transport.Formularze
                 // Ustaw nazwę dnia tygodnia
                 lblDayName.Text = _selectedDate.ToString("dddd", new System.Globalization.CultureInfo("pl-PL"));
 
+                // Załaduj dane do filtrów
+                await LoadFilterDataAsync();
+
                 // Załaduj kursy - to automatycznie wywoła UpdateSummary
                 await LoadKursyAsync();
 
@@ -709,17 +879,34 @@ namespace Kalendarz1.Transport.Formularze
                 dt.Columns.Add("KursID", typeof(long));
                 dt.Columns.Add("Godzina", typeof(string));
                 dt.Columns.Add("Kierowca", typeof(string));
+                dt.Columns.Add("KierowcaID", typeof(int)); // Ukryta - do filtrowania
                 dt.Columns.Add("Pojazd", typeof(string));
+                dt.Columns.Add("PojazdID", typeof(int)); // Ukryta - do filtrowania
                 dt.Columns.Add("Trasa", typeof(string));
                 dt.Columns.Add("Pojemniki", typeof(int));
                 dt.Columns.Add("Wypełnienie", typeof(decimal));
                 dt.Columns.Add("Status", typeof(string));
+                dt.Columns.Add("Zmieniono", typeof(string)); // Historia zmian
                 dt.Columns.Add("WymagaPrzydzialu", typeof(bool)); // Ukryta kolumna do formatowania
+
+                // Pobierz aktywne filtry
+                var filtrKierowcaId = (cboFiltrKierowca?.SelectedItem as Kierowca)?.KierowcaID;
+                var filtrPojazdId = (cboFiltrPojazd?.SelectedItem as Pojazd)?.PojazdID;
+                var filtrStatus = cboFiltrStatus?.SelectedItem?.ToString();
+                if (filtrStatus == "Wszystkie") filtrStatus = null;
 
                 if (_kursy != null)
                 {
                     foreach (var kurs in _kursy.OrderBy(k => k.GodzWyjazdu))
                     {
+                        // Zastosuj filtry
+                        if (filtrKierowcaId.HasValue && kurs.KierowcaID != filtrKierowcaId.Value)
+                            continue;
+                        if (filtrPojazdId.HasValue && kurs.PojazdID != filtrPojazdId.Value)
+                            continue;
+                        if (!string.IsNullOrEmpty(filtrStatus) && kurs.Status != filtrStatus)
+                            continue;
+
                         var wyp = _wypelnienia.ContainsKey(kurs.KursID) ? _wypelnienia[kurs.KursID] : null;
                         var wymagaPrzydzialu = kurs.WymagaPrzydzialu;
 
@@ -732,18 +919,32 @@ namespace Kalendarz1.Transport.Formularze
                             ? "⚠ DO PRZYDZIELENIA"
                             : kurs.PojazdRejestracja;
 
-                        // Status z bazy lub "Planowany" jako domyślny - brak zasobów oznaczony wizualnie
+                        // Status z bazy lub "Planowany" jako domyślny
                         var status = kurs.Status ?? "Planowany";
+
+                        // Historia zmian - formatowanie
+                        var zmieniono = "";
+                        if (kurs.ZmienionoUTC.HasValue && !string.IsNullOrEmpty(kurs.Zmienil))
+                        {
+                            zmieniono = $"{kurs.Zmienil} ({kurs.ZmienionoUTC.Value.ToLocalTime():dd.MM HH:mm})";
+                        }
+                        else if (!string.IsNullOrEmpty(kurs.Utworzyl))
+                        {
+                            zmieniono = $"{kurs.Utworzyl} ({kurs.UtworzonoUTC.ToLocalTime():dd.MM HH:mm})";
+                        }
 
                         dt.Rows.Add(
                             kurs.KursID,
                             kurs.GodzWyjazdu?.ToString(@"hh\:mm") ?? "--:--",
                             kierowcaTekst,
+                            kurs.KierowcaID ?? 0,
                             pojazdTekst,
+                            kurs.PojazdID ?? 0,
                             kurs.Trasa ?? "",
                             wyp?.SumaE2 ?? 0,
                             wyp?.ProcNominal ?? 0,
                             status,
+                            zmieniono,
                             wymagaPrzydzialu
                         );
                     }
@@ -755,9 +956,13 @@ namespace Kalendarz1.Transport.Formularze
                 if (dgvKursy.Columns["KursID"] != null)
                     dgvKursy.Columns["KursID"].Visible = false;
 
-                // Ukryj kolumnę pomocniczą
+                // Ukryj kolumny pomocnicze
                 if (dgvKursy.Columns["WymagaPrzydzialu"] != null)
                     dgvKursy.Columns["WymagaPrzydzialu"].Visible = false;
+                if (dgvKursy.Columns["KierowcaID"] != null)
+                    dgvKursy.Columns["KierowcaID"].Visible = false;
+                if (dgvKursy.Columns["PojazdID"] != null)
+                    dgvKursy.Columns["PojazdID"].Visible = false;
 
                 if (dgvKursy.Columns["Godzina"] != null)
                 {
@@ -767,18 +972,24 @@ namespace Kalendarz1.Transport.Formularze
 
                 if (dgvKursy.Columns["Kierowca"] != null)
                 {
-                    dgvKursy.Columns["Kierowca"].Width = 180;
+                    dgvKursy.Columns["Kierowca"].Width = 160;
                 }
 
                 if (dgvKursy.Columns["Pojazd"] != null)
                 {
-                    dgvKursy.Columns["Pojazd"].Width = 150;
+                    dgvKursy.Columns["Pojazd"].Width = 120;
                 }
 
                 if (dgvKursy.Columns["Wypełnienie"] != null)
                 {
-                    dgvKursy.Columns["Wypełnienie"].Width = 120;
+                    dgvKursy.Columns["Wypełnienie"].Width = 100;
                     dgvKursy.Columns["Wypełnienie"].HeaderText = "Wypełnienie";
+                }
+
+                if (dgvKursy.Columns["Zmieniono"] != null)
+                {
+                    dgvKursy.Columns["Zmieniono"].Width = 160;
+                    dgvKursy.Columns["Zmieniono"].HeaderText = "Ostatnia zmiana";
                 }
                 System.Diagnostics.Debug.WriteLine("Calling UpdateSummary...");
                 UpdateSummary();
@@ -1548,6 +1759,118 @@ namespace Kalendarz1.Transport.Formularze
         }
 
         #endregion
+
+        #region Filtry i menu kontekstowe
+
+        private async Task LoadFilterDataAsync()
+        {
+            try
+            {
+                // Załaduj kierowców
+                _wszyscyKierowcy = await _repozytorium.PobierzKierowcowAsync(true);
+                cboFiltrKierowca.Items.Clear();
+                cboFiltrKierowca.Items.Add("Wszyscy");
+                foreach (var k in _wszyscyKierowcy)
+                    cboFiltrKierowca.Items.Add(k);
+                cboFiltrKierowca.SelectedIndex = 0;
+
+                // Załaduj pojazdy
+                _wszystkiePojazdy = await _repozytorium.PobierzPojazdyAsync(true);
+                cboFiltrPojazd.Items.Clear();
+                cboFiltrPojazd.Items.Add("Wszystkie");
+                foreach (var p in _wszystkiePojazdy)
+                    cboFiltrPojazd.Items.Add(p);
+                cboFiltrPojazd.SelectedIndex = 0;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error loading filter data: {ex.Message}");
+            }
+        }
+
+        private async void FiltrChanged(object sender, EventArgs e)
+        {
+            await LoadKursyAsync();
+        }
+
+        private async void BtnWyczyscFiltry_Click(object sender, EventArgs e)
+        {
+            cboFiltrKierowca.SelectedIndex = 0;
+            cboFiltrPojazd.SelectedIndex = 0;
+            cboFiltrStatus.SelectedIndex = 0;
+            await LoadKursyAsync();
+        }
+
+        private async void MenuPodgladLadunkow_Click(object sender, EventArgs e)
+        {
+            if (dgvKursy.CurrentRow == null) return;
+
+            try
+            {
+                var kursId = Convert.ToInt64(dgvKursy.CurrentRow.Cells["KursID"].Value);
+                var kurs = _kursy.FirstOrDefault(k => k.KursID == kursId);
+                if (kurs == null) return;
+
+                var ladunki = await _repozytorium.PobierzLadunkiAsync(kursId);
+
+                using var dlg = new PodgladLadunkowDialog(kurs, ladunki);
+                dlg.ShowDialog(this);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas pobierania ładunków: {ex.Message}",
+                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void MenuHistoriaZmian_Click(object sender, EventArgs e)
+        {
+            if (dgvKursy.CurrentRow == null) return;
+
+            try
+            {
+                var kursId = Convert.ToInt64(dgvKursy.CurrentRow.Cells["KursID"].Value);
+                var kurs = _kursy.FirstOrDefault(k => k.KursID == kursId);
+                if (kurs == null) return;
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"📋 HISTORIA ZMIAN KURSU #{kursId}");
+                sb.AppendLine(new string('─', 40));
+                sb.AppendLine();
+
+                sb.AppendLine("📅 UTWORZONO:");
+                sb.AppendLine($"   Data: {kurs.UtworzonoUTC.ToLocalTime():dd.MM.yyyy HH:mm:ss}");
+                sb.AppendLine($"   Przez: {kurs.Utworzyl ?? "Nieznany"}");
+                sb.AppendLine();
+
+                if (kurs.ZmienionoUTC.HasValue)
+                {
+                    sb.AppendLine("✏️ OSTATNIA ZMIANA:");
+                    sb.AppendLine($"   Data: {kurs.ZmienionoUTC.Value.ToLocalTime():dd.MM.yyyy HH:mm:ss}");
+                    sb.AppendLine($"   Przez: {kurs.Zmienil ?? "Nieznany"}");
+                }
+                else
+                {
+                    sb.AppendLine("✏️ Kurs nie był jeszcze modyfikowany.");
+                }
+
+                sb.AppendLine();
+                sb.AppendLine(new string('─', 40));
+                sb.AppendLine($"Status: {kurs.Status}");
+                sb.AppendLine($"Trasa: {kurs.Trasa ?? "Brak"}");
+                sb.AppendLine($"Kierowca: {kurs.KierowcaNazwa ?? "Nieprzypisany"}");
+                sb.AppendLine($"Pojazd: {kurs.PojazdRejestracja ?? "Nieprzypisany"}");
+
+                MessageBox.Show(sb.ToString(), "Historia zmian kursu",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        #endregion
     }
 
     /// <summary>
@@ -1747,6 +2070,157 @@ namespace Kalendarz1.Transport.Formularze
             {
                 Cursor = Cursors.Default;
             }
+        }
+    }
+
+    /// <summary>
+    /// Dialog do szybkiego podglądu ładunków bez otwierania edytora
+    /// </summary>
+    public class PodgladLadunkowDialog : Form
+    {
+        private readonly Kurs _kurs;
+        private readonly List<Ladunek> _ladunki;
+        private DataGridView dgvLadunki;
+
+        public PodgladLadunkowDialog(Kurs kurs, List<Ladunek> ladunki)
+        {
+            _kurs = kurs;
+            _ladunki = ladunki;
+            InitializeComponent();
+            LoadData();
+        }
+
+        private void InitializeComponent()
+        {
+            Text = $"📦 Podgląd ładunków - Kurs #{_kurs.KursID}";
+            Size = new Size(700, 450);
+            StartPosition = FormStartPosition.CenterParent;
+            Font = new Font("Segoe UI", 10F);
+            BackColor = Color.FromArgb(240, 242, 247);
+
+            // Panel nagłówka
+            var panelHeader = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 80,
+                BackColor = Color.FromArgb(41, 44, 51),
+                Padding = new Padding(15)
+            };
+
+            var lblTytul = new Label
+            {
+                Text = $"🚚 {_kurs.KierowcaNazwa ?? "Brak kierowcy"} | {_kurs.PojazdRejestracja ?? "Brak pojazdu"}",
+                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                ForeColor = Color.White,
+                AutoSize = true,
+                Location = new Point(15, 10)
+            };
+
+            var lblTrasa = new Label
+            {
+                Text = $"📍 {_kurs.Trasa ?? "Brak trasy"}",
+                Font = new Font("Segoe UI", 10F),
+                ForeColor = Color.FromArgb(173, 181, 189),
+                AutoSize = true,
+                Location = new Point(15, 45)
+            };
+
+            panelHeader.Controls.AddRange(new Control[] { lblTytul, lblTrasa });
+
+            // Grid ładunków
+            dgvLadunki = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                ReadOnly = true,
+                BackgroundColor = Color.White,
+                BorderStyle = BorderStyle.None,
+                RowHeadersVisible = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect
+            };
+
+            dgvLadunki.EnableHeadersVisualStyles = false;
+            dgvLadunki.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 252);
+            dgvLadunki.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(52, 73, 94);
+            dgvLadunki.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            dgvLadunki.ColumnHeadersHeight = 40;
+            dgvLadunki.DefaultCellStyle.Font = new Font("Segoe UI", 9.5F);
+            dgvLadunki.RowTemplate.Height = 35;
+            dgvLadunki.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 252);
+
+            // Panel podsumowania
+            var panelFooter = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 60,
+                BackColor = Color.FromArgb(248, 249, 252),
+                Padding = new Padding(15, 10, 15, 10)
+            };
+
+            var sumaE2 = _ladunki.Sum(l => l.PojemnikiE2);
+            var lblSuma = new Label
+            {
+                Text = $"📊 Razem: {_ladunki.Count} pozycji | {sumaE2} pojemników E2",
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 73, 94),
+                AutoSize = true,
+                Location = new Point(15, 15)
+            };
+
+            var btnZamknij = new Button
+            {
+                Text = "Zamknij",
+                Size = new Size(100, 35),
+                Location = new Point(550, 10),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(108, 117, 125),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10F),
+                Cursor = Cursors.Hand,
+                Anchor = AnchorStyles.Right | AnchorStyles.Top
+            };
+            btnZamknij.FlatAppearance.BorderSize = 0;
+            btnZamknij.Click += (s, e) => Close();
+
+            panelFooter.Controls.AddRange(new Control[] { lblSuma, btnZamknij });
+
+            Controls.Add(dgvLadunki);
+            Controls.Add(panelHeader);
+            Controls.Add(panelFooter);
+        }
+
+        private void LoadData()
+        {
+            var dt = new System.Data.DataTable();
+            dt.Columns.Add("Lp", typeof(int));
+            dt.Columns.Add("Klient", typeof(string));
+            dt.Columns.Add("Pojemniki E2", typeof(int));
+            dt.Columns.Add("Palety", typeof(string));
+            dt.Columns.Add("Uwagi", typeof(string));
+
+            int lp = 1;
+            foreach (var ladunek in _ladunki.OrderBy(l => l.Kolejnosc))
+            {
+                var paletyTekst = ladunek.PaletyH1.HasValue ? ladunek.PaletyH1.Value.ToString() : "-";
+                dt.Rows.Add(
+                    lp++,
+                    ladunek.KodKlienta ?? "-",
+                    ladunek.PojemnikiE2,
+                    paletyTekst,
+                    ladunek.Uwagi ?? ""
+                );
+            }
+
+            dgvLadunki.DataSource = dt;
+
+            if (dgvLadunki.Columns["Lp"] != null)
+                dgvLadunki.Columns["Lp"].Width = 50;
+            if (dgvLadunki.Columns["Pojemniki E2"] != null)
+                dgvLadunki.Columns["Pojemniki E2"].Width = 100;
+            if (dgvLadunki.Columns["Palety"] != null)
+                dgvLadunki.Columns["Palety"].Width = 80;
         }
     }
 }
