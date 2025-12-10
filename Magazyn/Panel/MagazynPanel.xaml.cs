@@ -339,7 +339,7 @@ namespace Kalendarz1
                         paramNames.Add(pn);
                     }
 
-                    cmd.CommandText = $"SELECT Id, SKROT FROM TOWARY WHERE Id IN ({string.Join(",", paramNames)})";
+                    cmd.CommandText = $"SELECT ID, kod FROM HM.TW WHERE ID IN ({string.Join(",", paramNames)}) AND katalog=67095";
                     using var rd = await cmd.ExecuteReaderAsync();
                     while (await rd.ReadAsync())
                     {
