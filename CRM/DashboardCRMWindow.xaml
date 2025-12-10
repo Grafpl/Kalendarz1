@@ -5,21 +5,33 @@
         Width="1400" Height="850"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
-        Background="#F8FAFC"
+        Background="#0F172A"
         FontFamily="Segoe UI">
 
     <Window.Resources>
-        <SolidColorBrush x:Key="PrimaryBlue" Color="#2563EB"/>
-        <SolidColorBrush x:Key="TextDark" Color="#1E293B"/>
-        <SolidColorBrush x:Key="TextGray" Color="#64748B"/>
-        <SolidColorBrush x:Key="BorderColor" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="BgDark" Color="#0F172A"/>
+        <SolidColorBrush x:Key="BgCard" Color="#1E293B"/>
+        <SolidColorBrush x:Key="BgCardLight" Color="#334155"/>
+        <SolidColorBrush x:Key="AccentGreen" Color="#10B981"/>
+        <SolidColorBrush x:Key="AccentGreenLight" Color="#34D399"/>
+        <SolidColorBrush x:Key="TextLight" Color="#F1F5F9"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#94A3B8"/>
+        <SolidColorBrush x:Key="BorderDark" Color="#334155"/>
 
         <Style x:Key="CardStyle" TargetType="Border">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Background" Value="#1E293B"/>
+            <Setter Property="CornerRadius" Value="10"/>
             <Setter Property="Padding" Value="16"/>
-            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+            <Setter Property="BorderBrush" Value="#334155"/>
             <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <Style x:Key="ComboBoxDark" TargetType="ComboBox">
+            <Setter Property="Background" Value="#334155"/>
+            <Setter Property="Foreground" Value="#F1F5F9"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="FontSize" Value="11"/>
         </Style>
     </Window.Resources>
 
@@ -29,29 +41,35 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- HEADER - CZYSTY, BEZ GRADIENTU -->
-        <Border Grid.Row="0" Background="#1E293B" CornerRadius="8" Padding="20,14" Margin="0,0,0,16">
+        <!-- HEADER -->
+        <Border Grid.Row="0" Background="#1E293B" CornerRadius="10" Padding="20,14" Margin="0,0,0,16" BorderBrush="#334155" BorderThickness="1">
             <Grid>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="DASHBOARD CRM" FontSize="22" FontWeight="Bold" Foreground="White"/>
+                    <Border Width="36" Height="36" CornerRadius="8" Background="#10B981" Margin="0,0,12,0">
+                        <TextBlock Text="📊" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel>
+                        <TextBlock Text="DASHBOARD CRM" FontSize="20" FontWeight="Bold" Foreground="#F1F5F9"/>
+                        <TextBlock Text="Aktywność handlowców" FontSize="11" Foreground="#64748B"/>
+                    </StackPanel>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                     <!-- FILTR HANDLOWCA -->
-                    <Border Background="#334155" CornerRadius="6" Padding="10,5" Margin="0,0,10,0">
+                    <Border Background="#334155" CornerRadius="6" Padding="10,6" Margin="0,0,10,0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Handlowiec:" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <ComboBox x:Name="cmbHandlowiec" Width="140" Padding="6,3" FontSize="11" BorderThickness="0" Background="White" SelectionChanged="CmbHandlowiec_SelectionChanged">
+                            <TextBlock Text="👤" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <ComboBox x:Name="cmbHandlowiec" Width="130" Style="{StaticResource ComboBoxDark}" SelectionChanged="CmbHandlowiec_SelectionChanged">
                                 <ComboBoxItem Content="Wszyscy" Tag="" IsSelected="True"/>
                             </ComboBox>
                         </StackPanel>
                     </Border>
 
-                    <!-- WYBÓR OKRESU -->
-                    <Border Background="#334155" CornerRadius="6" Padding="10,5">
+                    <!-- WYBÓR OKRESU KPI -->
+                    <Border Background="#334155" CornerRadius="6" Padding="10,6">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Okres:" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <ComboBox x:Name="cmbOkres" Width="110" Padding="6,3" FontSize="11" BorderThickness="0" Background="White" SelectionChanged="CmbOkres_SelectionChanged">
+                            <TextBlock Text="📅" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <ComboBox x:Name="cmbOkres" Width="100" Style="{StaticResource ComboBoxDark}" SelectionChanged="CmbOkres_SelectionChanged">
                                 <ComboBoxItem Content="Dzisiaj" IsSelected="True"/>
                                 <ComboBoxItem Content="7 dni"/>
                                 <ComboBoxItem Content="14 dni"/>
@@ -67,7 +85,7 @@
         <!-- GŁÓWNA ZAWARTOŚĆ -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="280"/>
+                <ColumnDefinition Width="260"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
@@ -92,31 +110,37 @@
                     <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource CardStyle}" Margin="0,0,6,6">
                         <StackPanel>
                             <TextBlock Text="TELEFONY" FontSize="9" FontWeight="Bold" Foreground="#64748B"/>
-                            <TextBlock x:Name="txtTelefonyTotal" Text="0" FontSize="28" FontWeight="Bold" Foreground="#0EA5E9" Margin="0,4,0,0"/>
-                            <TextBlock x:Name="txtTelefonyInfo" Text="połączeń" FontSize="9" Foreground="#94A3B8"/>
+                            <TextBlock x:Name="txtTelefonyTotal" Text="0" FontSize="26" FontWeight="Bold" Foreground="#38BDF8" Margin="0,4,0,0"/>
+                            <TextBlock x:Name="txtTelefonyInfo" Text="połączeń" FontSize="9" Foreground="#64748B"/>
                         </StackPanel>
                     </Border>
 
                     <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource CardStyle}" Margin="6,0,0,6">
                         <StackPanel>
                             <TextBlock Text="STATUSY" FontSize="9" FontWeight="Bold" Foreground="#64748B"/>
-                            <TextBlock x:Name="txtStatusyTotal" Text="0" FontSize="28" FontWeight="Bold" Foreground="#10B981" Margin="0,4,0,0"/>
-                            <TextBlock x:Name="txtStatusyInfo" Text="zmian" FontSize="9" Foreground="#94A3B8"/>
+                            <TextBlock x:Name="txtStatusyTotal" Text="0" FontSize="26" FontWeight="Bold" Foreground="#10B981" Margin="0,4,0,0"/>
+                            <TextBlock x:Name="txtStatusyInfo" Text="zmian" FontSize="9" Foreground="#64748B"/>
                         </StackPanel>
                     </Border>
 
                     <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource CardStyle}" Margin="0,6,6,0">
                         <StackPanel>
                             <TextBlock Text="NOTATKI" FontSize="9" FontWeight="Bold" Foreground="#64748B"/>
-                            <TextBlock x:Name="txtNotatkiTotal" Text="0" FontSize="28" FontWeight="Bold" Foreground="#F59E0B" Margin="0,4,0,0"/>
-                            <TextBlock x:Name="txtNotatkiInfo" Text="dodanych" FontSize="9" Foreground="#94A3B8"/>
+                            <TextBlock x:Name="txtNotatkiTotal" Text="0" FontSize="26" FontWeight="Bold" Foreground="#F59E0B" Margin="0,4,0,0"/>
+                            <TextBlock x:Name="txtNotatkiInfo" Text="dodanych" FontSize="9" Foreground="#64748B"/>
                         </StackPanel>
                     </Border>
 
-                    <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource CardStyle}" Margin="6,6,0,0" Background="#1E293B">
+                    <Border Grid.Row="1" Grid.Column="1" CornerRadius="10" Padding="16" Margin="6,6,0,0" BorderBrush="#10B981" BorderThickness="1">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                <GradientStop Color="#064E3B" Offset="0"/>
+                                <GradientStop Color="#1E293B" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
                         <StackPanel>
-                            <TextBlock Text="RAZEM" FontSize="9" FontWeight="Bold" Foreground="#94A3B8"/>
-                            <TextBlock x:Name="txtAktywnoscTotal" Text="0" FontSize="28" FontWeight="Bold" Foreground="White" Margin="0,4,0,0"/>
+                            <TextBlock Text="RAZEM" FontSize="9" FontWeight="Bold" Foreground="#10B981"/>
+                            <TextBlock x:Name="txtAktywnoscTotal" Text="0" FontSize="26" FontWeight="Bold" Foreground="#10B981" Margin="0,4,0,0"/>
                             <TextBlock x:Name="txtAktywnoscInfo" Text="akcji" FontSize="9" Foreground="#64748B"/>
                         </StackPanel>
                     </Border>
@@ -130,34 +154,37 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Text="RANKING HANDLOWCÓW" FontSize="11" FontWeight="Bold" Foreground="#64748B" Margin="0,0,0,10"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <TextBlock Text="🏆" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="RANKING" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
+                        </StackPanel>
 
                         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                             <ItemsControl x:Name="listaHandlowcy">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Background="{Binding TloKarty}" CornerRadius="6" Padding="10,8" Margin="0,0,0,6"
+                                        <Border Background="{Binding TloKarty}" CornerRadius="6" Padding="10,8" Margin="0,0,0,5"
                                                 Cursor="Hand" MouseLeftButtonUp="Handlowiec_Click" Tag="{Binding Nazwa}"
-                                                BorderBrush="{Binding KolorRamki}" BorderThickness="2">
+                                                BorderBrush="{Binding KolorRamki}" BorderThickness="1">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="26"/>
+                                                    <ColumnDefinition Width="24"/>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
 
-                                                <Border Background="{Binding KolorPozycji}" Width="22" Height="22" CornerRadius="11">
-                                                    <TextBlock Text="{Binding Pozycja}" FontSize="10" FontWeight="Bold" Foreground="White"
+                                                <Border Background="{Binding KolorPozycji}" Width="20" Height="20" CornerRadius="10">
+                                                    <TextBlock Text="{Binding Pozycja}" FontSize="9" FontWeight="Bold" Foreground="#0F172A"
                                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                 </Border>
 
                                                 <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding Nazwa}" FontSize="12" FontWeight="SemiBold"
-                                                               Foreground="#1E293B" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Text="{Binding StatsTekst}" FontSize="9" Foreground="#64748B" Margin="0,2,0,0"/>
+                                                    <TextBlock Text="{Binding Nazwa}" FontSize="11" FontWeight="SemiBold"
+                                                               Foreground="#F1F5F9" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding StatsTekst}" FontSize="8" Foreground="#64748B" Margin="0,1,0,0"/>
                                                 </StackPanel>
 
-                                                <TextBlock Grid.Column="2" Text="{Binding Suma}" FontSize="18" FontWeight="Bold"
+                                                <TextBlock Grid.Column="2" Text="{Binding Suma}" FontSize="16" FontWeight="Bold"
                                                            Foreground="{Binding KolorPozycji}" VerticalAlignment="Center"/>
                                             </Grid>
                                         </Border>
@@ -173,10 +200,10 @@
             <Grid Grid.Column="1">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*"/>
-                    <RowDefinition Height="180"/>
+                    <RowDefinition Height="160"/>
                 </Grid.RowDefinitions>
 
-                <!-- WYKRES -->
+                <!-- WYKRES DARK -->
                 <Border Grid.Row="0" Style="{StaticResource CardStyle}" Margin="0,0,0,16">
                     <Grid>
                         <Grid.RowDefinitions>
@@ -185,61 +212,77 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
+                        <!-- HEADER WYKRESU Z ZAKRESEM DAT -->
                         <Grid Grid.Row="0" Margin="0,0,0,12">
-                            <TextBlock Text="AKTYWNOŚĆ W CZASIE" FontSize="12" FontWeight="Bold" Foreground="#64748B"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="📈" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="WYKRES AKTYWNOŚCI" FontSize="12" FontWeight="Bold" Foreground="#94A3B8"/>
+                            </StackPanel>
 
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                <!-- WIDOK: DNI / MIESIĄCE -->
-                                <Border Background="#F1F5F9" CornerRadius="6" Padding="8,4" Margin="0,0,10,0">
+                                <!-- OD -->
+                                <Border Background="#334155" CornerRadius="6" Padding="8,4" Margin="0,0,6,0">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="Widok:" FontSize="10" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                        <ComboBox x:Name="cmbWidokWykresu" Width="80" Padding="4,2" FontSize="10" BorderThickness="0" SelectionChanged="CmbWidokWykresu_SelectionChanged">
-                                            <ComboBoxItem Content="Dni" IsSelected="True" Tag="dni"/>
-                                            <ComboBoxItem Content="Miesiące" Tag="miesiace"/>
+                                        <TextBlock Text="Od:" FontSize="10" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                        <ComboBox x:Name="cmbMiesiacOd" Width="75" Style="{StaticResource ComboBoxDark}" SelectionChanged="CmbZakres_SelectionChanged">
+                                            <ComboBoxItem Content="Sty" Tag="1"/>
+                                            <ComboBoxItem Content="Lut" Tag="2"/>
+                                            <ComboBoxItem Content="Mar" Tag="3"/>
+                                            <ComboBoxItem Content="Kwi" Tag="4"/>
+                                            <ComboBoxItem Content="Maj" Tag="5"/>
+                                            <ComboBoxItem Content="Cze" Tag="6"/>
+                                            <ComboBoxItem Content="Lip" Tag="7"/>
+                                            <ComboBoxItem Content="Sie" Tag="8"/>
+                                            <ComboBoxItem Content="Wrz" Tag="9"/>
+                                            <ComboBoxItem Content="Paź" Tag="10"/>
+                                            <ComboBoxItem Content="Lis" Tag="11"/>
+                                            <ComboBoxItem Content="Gru" Tag="12"/>
                                         </ComboBox>
                                     </StackPanel>
                                 </Border>
 
-                                <!-- MIESIĄC (dla widoku dni) -->
-                                <Border x:Name="panelMiesiac" Background="#F1F5F9" CornerRadius="6" Padding="8,4" Margin="0,0,10,0">
+                                <!-- DO -->
+                                <Border Background="#334155" CornerRadius="6" Padding="8,4" Margin="0,0,6,0">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="Miesiąc:" FontSize="10" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                        <ComboBox x:Name="cmbMiesiac" Width="90" Padding="4,2" FontSize="10" BorderThickness="0" SelectionChanged="CmbWykresOkres_SelectionChanged">
-                                            <ComboBoxItem Content="Styczeń" Tag="1"/>
-                                            <ComboBoxItem Content="Luty" Tag="2"/>
-                                            <ComboBoxItem Content="Marzec" Tag="3"/>
-                                            <ComboBoxItem Content="Kwiecień" Tag="4"/>
+                                        <TextBlock Text="Do:" FontSize="10" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                        <ComboBox x:Name="cmbMiesiacDo" Width="75" Style="{StaticResource ComboBoxDark}" SelectionChanged="CmbZakres_SelectionChanged">
+                                            <ComboBoxItem Content="Sty" Tag="1"/>
+                                            <ComboBoxItem Content="Lut" Tag="2"/>
+                                            <ComboBoxItem Content="Mar" Tag="3"/>
+                                            <ComboBoxItem Content="Kwi" Tag="4"/>
                                             <ComboBoxItem Content="Maj" Tag="5"/>
-                                            <ComboBoxItem Content="Czerwiec" Tag="6"/>
-                                            <ComboBoxItem Content="Lipiec" Tag="7"/>
-                                            <ComboBoxItem Content="Sierpień" Tag="8"/>
-                                            <ComboBoxItem Content="Wrzesień" Tag="9"/>
-                                            <ComboBoxItem Content="Październik" Tag="10"/>
-                                            <ComboBoxItem Content="Listopad" Tag="11"/>
-                                            <ComboBoxItem Content="Grudzień" Tag="12"/>
+                                            <ComboBoxItem Content="Cze" Tag="6"/>
+                                            <ComboBoxItem Content="Lip" Tag="7"/>
+                                            <ComboBoxItem Content="Sie" Tag="8"/>
+                                            <ComboBoxItem Content="Wrz" Tag="9"/>
+                                            <ComboBoxItem Content="Paź" Tag="10"/>
+                                            <ComboBoxItem Content="Lis" Tag="11"/>
+                                            <ComboBoxItem Content="Gru" Tag="12"/>
                                         </ComboBox>
                                     </StackPanel>
                                 </Border>
 
                                 <!-- ROK -->
-                                <Border Background="#F1F5F9" CornerRadius="6" Padding="8,4">
+                                <Border Background="#334155" CornerRadius="6" Padding="8,4">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="Rok:" FontSize="10" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                        <ComboBox x:Name="cmbRok" Width="60" Padding="4,2" FontSize="10" BorderThickness="0" SelectionChanged="CmbWykresOkres_SelectionChanged"/>
+                                        <TextBlock Text="Rok:" FontSize="10" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                        <ComboBox x:Name="cmbRok" Width="60" Style="{StaticResource ComboBoxDark}" SelectionChanged="CmbZakres_SelectionChanged"/>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
                         </Grid>
 
-                        <!-- Canvas wykresu -->
-                        <Grid Grid.Row="1" Margin="50,10,20,40">
-                            <Canvas x:Name="canvasWykres" Background="Transparent" ClipToBounds="True"/>
-                            <StackPanel x:Name="panelOsY" Orientation="Vertical" HorizontalAlignment="Left" Margin="-45,0,0,0"/>
-                            <StackPanel x:Name="panelOsX" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,-35"/>
-                        </Grid>
+                        <!-- Canvas wykresu - DARK -->
+                        <Border Grid.Row="1" Background="#0F172A" CornerRadius="8" Padding="0" Margin="0,0,0,10">
+                            <Grid Margin="50,15,25,40">
+                                <Canvas x:Name="canvasWykres" Background="Transparent" ClipToBounds="True"/>
+                                <StackPanel x:Name="panelOsY" Orientation="Vertical" HorizontalAlignment="Left" Margin="-42,0,0,0"/>
+                                <StackPanel x:Name="panelOsX" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,-32"/>
+                            </Grid>
+                        </Border>
 
                         <!-- Legenda -->
-                        <Border Grid.Row="2" Background="#F8FAFC" CornerRadius="6" Padding="10,6">
+                        <Border Grid.Row="2" Background="#0F172A" CornerRadius="6" Padding="10,6">
                             <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                                 <WrapPanel x:Name="panelLegenda" Orientation="Horizontal"/>
                             </ScrollViewer>
@@ -265,22 +308,22 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Background="{Binding TloKarty}" CornerRadius="4" Padding="3,6" Margin="1,0"
+                                    <Border Background="{Binding TloKarty}" CornerRadius="4" Padding="2,5" Margin="1,0"
                                             BorderBrush="{Binding KolorRamki}" BorderThickness="1">
                                         <StackPanel HorizontalAlignment="Center">
-                                            <TextBlock Text="{Binding DzienSkrot}" FontSize="8" FontWeight="Bold" Foreground="#94A3B8" HorizontalAlignment="Center"/>
-                                            <TextBlock Text="{Binding DataSkrot}" FontSize="7" Foreground="#CBD5E1" HorizontalAlignment="Center"/>
-                                            <Grid Height="60" Width="30" Margin="0,3,0,3">
+                                            <TextBlock Text="{Binding DzienSkrot}" FontSize="8" FontWeight="Bold" Foreground="#64748B" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="{Binding DataSkrot}" FontSize="7" Foreground="#475569" HorizontalAlignment="Center"/>
+                                            <Grid Height="50" Width="24" Margin="0,3,0,3">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
-                                                <Border Grid.Column="0" Background="#0EA5E9" CornerRadius="2,2,0,0" Height="{Binding WysokoscTelefony}" VerticalAlignment="Bottom" Margin="0,0,1,0" ToolTip="{Binding TooltipTelefony}"/>
+                                                <Border Grid.Column="0" Background="#38BDF8" CornerRadius="2,2,0,0" Height="{Binding WysokoscTelefony}" VerticalAlignment="Bottom" Margin="0,0,1,0" ToolTip="{Binding TooltipTelefony}"/>
                                                 <Border Grid.Column="1" Background="#10B981" CornerRadius="2,2,0,0" Height="{Binding WysokoscStatusy}" VerticalAlignment="Bottom" Margin="0,0,1,0" ToolTip="{Binding TooltipStatusy}"/>
                                                 <Border Grid.Column="2" Background="#F59E0B" CornerRadius="2,2,0,0" Height="{Binding WysokoscNotatki}" VerticalAlignment="Bottom" ToolTip="{Binding TooltipNotatki}"/>
                                             </Grid>
-                                            <TextBlock Text="{Binding Suma}" FontSize="11" FontWeight="Bold" Foreground="#1E293B" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="{Binding Suma}" FontSize="10" FontWeight="Bold" Foreground="#10B981" HorizontalAlignment="Center"/>
                                         </StackPanel>
                                     </Border>
                                 </DataTemplate>

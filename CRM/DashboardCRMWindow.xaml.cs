@@ -19,27 +19,26 @@ namespace Kalendarz1.CRM
         private DateTime dataDo;
         private bool isLoaded = false;
         private string wybranyHandlowiec = "";
-        private bool widokMiesieczny = false;
 
-        // BARDZO ZRÓŻNICOWANE KOLORY - łatwe do odróżnienia
+        // Kolory - zróżnicowane, niektóre zielone "przebijają"
         private readonly string[] koloryHandlowcow = new[]
         {
-            "#E11D48", // różowy
-            "#2563EB", // niebieski
-            "#16A34A", // zielony
+            "#10B981", // zielony główny
+            "#38BDF8", // niebieski
             "#F59E0B", // pomarańczowy
-            "#7C3AED", // fioletowy
-            "#0891B2", // cyjan
-            "#DC2626", // czerwony
-            "#4F46E5", // indygo
-            "#059669", // szmaragd
-            "#D97706", // bursztyn
-            "#9333EA", // purpura
-            "#0D9488", // teal
-            "#BE123C", // róż ciemny
-            "#1D4ED8", // niebieski ciemny
-            "#15803D", // zielony ciemny
-            "#EA580C"  // pomarańcz ciemny
+            "#A78BFA", // fioletowy
+            "#34D399", // zielony jasny
+            "#FB7185", // różowy
+            "#22D3EE", // cyjan
+            "#FBBF24", // żółty
+            "#6EE7B7", // zielony miętowy
+            "#F472B6", // magenta
+            "#2DD4BF", // teal
+            "#E879F9", // purpura
+            "#4ADE80", // zielony lime
+            "#60A5FA", // niebieski jasny
+            "#FCD34D", // złoty
+            "#A3E635"  // limonka
         };
 
         public DashboardCRMWindow(string connString)
@@ -57,7 +56,11 @@ namespace Kalendarz1.CRM
             for (int y = currentYear; y >= currentYear - 3; y--)
                 cmbRok.Items.Add(new ComboBoxItem { Content = y.ToString(), Tag = y });
             cmbRok.SelectedIndex = 0;
-            cmbMiesiac.SelectedIndex = DateTime.Today.Month - 1;
+
+            // Ustaw zakres od początku roku do obecnego miesiąca
+            cmbMiesiacOd.SelectedIndex = 0; // Styczeń
+            cmbMiesiacDo.SelectedIndex = DateTime.Today.Month - 1; // Obecny miesiąc
+
             WczytajListeHandlowcow();
         }
 
@@ -121,21 +124,9 @@ namespace Kalendarz1.CRM
             WczytajDane();
         }
 
-        private void CmbWykresOkres_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void CmbZakres_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (!isLoaded) return;
-            RysujWykres();
-        }
-
-        private void CmbWidokWykresu_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (!isLoaded || cmbWidokWykresu.SelectedItem == null) return;
-            var item = (ComboBoxItem)cmbWidokWykresu.SelectedItem;
-            widokMiesieczny = item.Tag?.ToString() == "miesiace";
-
-            // Pokaż/ukryj wybór miesiąca
-            panelMiesiac.Visibility = widokMiesieczny ? Visibility.Collapsed : Visibility.Visible;
-
             RysujWykres();
         }
 
@@ -231,7 +222,7 @@ namespace Kalendarz1.CRM
         private void RysujWykres()
         {
             if (canvasWykres == null || canvasWykres.ActualWidth <= 0) return;
-            if (cmbRok?.SelectedItem == null) return;
+            if (cmbRok?.SelectedItem == null || cmbMiesiacOd?.SelectedItem == null || cmbMiesiacDo?.SelectedItem == null) return;
 
             canvasWykres.Children.Clear();
             panelOsX.Children.Clear();
@@ -239,43 +230,26 @@ namespace Kalendarz1.CRM
             panelLegenda.Children.Clear();
 
             int rok = int.Parse(((ComboBoxItem)cmbRok.SelectedItem).Tag.ToString());
+            int miesiacOd = int.Parse(((ComboBoxItem)cmbMiesiacOd.SelectedItem).Tag.ToString());
+            int miesiacDo = int.Parse(((ComboBoxItem)cmbMiesiacDo.SelectedItem).Tag.ToString());
 
-            if (widokMiesieczny)
-                RysujWykresMiesieczny(rok);
-            else
-                RysujWykresDzienny(rok);
+            if (miesiacDo < miesiacOd) miesiacDo = miesiacOd;
+
+            int liczbaMiesiecy = miesiacDo - miesiacOd + 1;
+            var wykresOd = new DateTime(rok, miesiacOd, 1);
+            var wykresDo = new DateTime(rok, miesiacDo, 1).AddMonths(1);
+
+            var daneHandlowcow = PobierzDaneHandlowcowMiesieczne(wykresOd, wykresDo, miesiacOd, liczbaMiesiecy);
+            RysujLinie(daneHandlowcow, liczbaMiesiecy, miesiacOd, rok);
         }
 
-        private void RysujWykresDzienny(int rok)
-        {
-            if (cmbMiesiac?.SelectedItem == null) return;
-
-            int miesiac = int.Parse(((ComboBoxItem)cmbMiesiac.SelectedItem).Tag.ToString());
-            int liczbaDni = DateTime.DaysInMonth(rok, miesiac);
-
-            var wykresOd = new DateTime(rok, miesiac, 1);
-            var wykresDo = wykresOd.AddMonths(1);
-
-            var daneHandlowcow = PobierzDaneHandlowcowDzienne(wykresOd, wykresDo, liczbaDni);
-            RysujLinie(daneHandlowcow, liczbaDni, rok, miesiac, false);
-        }
-
-        private void RysujWykresMiesieczny(int rok)
-        {
-            var wykresOd = new DateTime(rok, 1, 1);
-            var wykresDo = new DateTime(rok + 1, 1, 1);
-
-            var daneHandlowcow = PobierzDaneHandlowcowMiesieczne(wykresOd, wykresDo);
-            RysujLinie(daneHandlowcow, 12, rok, 0, true);
-        }
-
-        private void RysujLinie(Dictionary<string, int[]> daneHandlowcow, int punkty, int rok, int miesiac, bool czyMiesiace)
+        private void RysujLinie(Dictionary<string, int[]> daneHandlowcow, int punkty, int miesiacStart, int rok)
         {
             if (daneHandlowcow.Count == 0) return;
 
             double w = canvasWykres.ActualWidth;
             double h = canvasWykres.ActualHeight;
-            double ml = 10, mr = 80, mt = 15, mb = 10;
+            double ml = 10, mr = 100, mt = 15, mb = 10;
             double cw = w - ml - mr;
             double ch = h - mt - mb;
 
@@ -288,27 +262,43 @@ namespace Kalendarz1.CRM
             maxVal = (int)(Math.Ceiling(maxVal / 5.0) * 5);
             if (maxVal == 0) maxVal = 5;
 
-            // Siatka
-            for (int i = 0; i <= 4; i++)
+            // Siatka - zielone przebicia
+            for (int i = 0; i <= 5; i++)
             {
-                double y = mt + (ch * i / 4);
+                double y = mt + (ch * i / 5);
                 canvasWykres.Children.Add(new Line
                 {
                     X1 = ml, Y1 = y, X2 = w - mr, Y2 = y,
-                    Stroke = new SolidColorBrush(Color.FromRgb(241, 245, 249)),
-                    StrokeThickness = 1
+                    Stroke = new SolidColorBrush(i == 0 ? Color.FromArgb(60, 16, 185, 129) : Color.FromRgb(30, 41, 59)),
+                    StrokeThickness = i == 0 ? 2 : 1,
+                    StrokeDashArray = i > 0 ? new DoubleCollection { 4, 4 } : null
                 });
                 panelOsY.Children.Add(new TextBlock
                 {
-                    Text = (maxVal - maxVal * i / 4).ToString(),
-                    FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)),
+                    Text = (maxVal - maxVal * i / 5).ToString(),
+                    FontSize = 9,
+                    Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)),
                     Margin = new Thickness(0, y - 6, 0, 0)
                 });
             }
 
-            // Rysuj linie
-            int kolorIndex = 0;
+            // Pionowe linie siatki
             double stepX = cw / punkty;
+            for (int i = 0; i <= punkty; i++)
+            {
+                double x = ml + i * stepX;
+                canvasWykres.Children.Add(new Line
+                {
+                    X1 = x, Y1 = mt, X2 = x, Y2 = mt + ch,
+                    Stroke = new SolidColorBrush(Color.FromRgb(30, 41, 59)),
+                    StrokeThickness = 1,
+                    StrokeDashArray = new DoubleCollection { 4, 4 }
+                });
+            }
+
+            // Rysuj linie handlowców
+            int kolorIndex = 0;
+            var nazwyMies = new[] { "Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru" };
 
             foreach (var kv in daneHandlowcow.OrderByDescending(x => x.Value.Sum()))
             {
@@ -325,7 +315,19 @@ namespace Kalendarz1.CRM
                     points.Add(new Point(x, y));
                 }
 
-                // Linia
+                // Glow pod linią (dla zielonych)
+                if (kolorHex.Contains("B981") || kolorHex.Contains("D399") || kolorHex.Contains("E7B7") || kolorHex.Contains("DE80"))
+                {
+                    canvasWykres.Children.Add(new Polyline
+                    {
+                        Points = points,
+                        Stroke = new SolidColorBrush(Color.FromArgb(40, kolor.R, kolor.G, kolor.B)),
+                        StrokeThickness = 8,
+                        StrokeLineJoin = PenLineJoin.Round
+                    });
+                }
+
+                // Główna linia
                 canvasWykres.Children.Add(new Polyline
                 {
                     Points = points,
@@ -339,31 +341,24 @@ namespace Kalendarz1.CRM
                 {
                     if (dane[i] > 0)
                     {
-                        string tooltip;
-                        if (czyMiesiace)
-                        {
-                            var nazwyMies = new[] { "Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru" };
-                            tooltip = $"{nazwa}\n{nazwyMies[i]} {rok}: {dane[i]}";
-                        }
-                        else
-                        {
-                            tooltip = $"{nazwa}\n{i + 1:00}.{miesiac:00}.{rok}: {dane[i]}";
-                        }
+                        int miesiacIndex = miesiacStart + i - 1;
+                        string tooltip = $"{nazwa}\n{nazwyMies[miesiacIndex]} {rok}: {dane[i]}";
 
                         var el = new Ellipse
                         {
-                            Width = 10, Height = 10,
+                            Width = 12, Height = 12,
                             Fill = new SolidColorBrush(kolor),
-                            Stroke = Brushes.White, StrokeThickness = 2,
+                            Stroke = new SolidColorBrush(Color.FromRgb(15, 23, 42)),
+                            StrokeThickness = 2,
                             ToolTip = tooltip
                         };
-                        Canvas.SetLeft(el, points[i].X - 5);
-                        Canvas.SetTop(el, points[i].Y - 5);
+                        Canvas.SetLeft(el, points[i].X - 6);
+                        Canvas.SetTop(el, points[i].Y - 6);
                         canvasWykres.Children.Add(el);
                     }
                 }
 
-                // Podpis na końcu linii
+                // Podpis przy ostatnim punkcie
                 int ostatniIndex = -1;
                 for (int i = dane.Length - 1; i >= 0; i--)
                 {
@@ -374,25 +369,31 @@ namespace Kalendarz1.CRM
                 {
                     var label = new TextBlock
                     {
-                        Text = nazwa.Length > 12 ? nazwa.Substring(0, 10) + ".." : nazwa,
+                        Text = nazwa.Length > 10 ? nazwa.Substring(0, 8) + ".." : nazwa,
                         FontSize = 10,
-                        FontWeight = FontWeights.SemiBold,
+                        FontWeight = FontWeights.Bold,
                         Foreground = new SolidColorBrush(kolor)
                     };
-                    Canvas.SetLeft(label, points[ostatniIndex].X + 8);
+                    Canvas.SetLeft(label, points[ostatniIndex].X + 10);
                     Canvas.SetTop(label, points[ostatniIndex].Y - 7);
                     canvasWykres.Children.Add(label);
                 }
 
                 // Legenda
-                var legendaItem = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 14, 3) };
-                legendaItem.Children.Add(new Rectangle { Fill = new SolidColorBrush(kolor), Width = 14, Height = 4, RadiusX = 2, RadiusY = 2, VerticalAlignment = VerticalAlignment.Center });
+                var legendaItem = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 16, 4) };
+                legendaItem.Children.Add(new Rectangle
+                {
+                    Fill = new SolidColorBrush(kolor),
+                    Width = 16, Height = 4,
+                    RadiusX = 2, RadiusY = 2,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
                 legendaItem.Children.Add(new TextBlock
                 {
                     Text = $"{nazwa} ({dane.Sum()})",
                     FontSize = 10,
-                    Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105)),
-                    Margin = new Thickness(5, 0, 0, 0),
+                    Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)),
+                    Margin = new Thickness(6, 0, 0, 0),
                     VerticalAlignment = VerticalAlignment.Center
                 });
                 panelLegenda.Children.Add(legendaItem);
@@ -400,94 +401,22 @@ namespace Kalendarz1.CRM
                 kolorIndex++;
             }
 
-            // Etykiety X
-            if (czyMiesiace)
+            // Etykiety osi X - miesiące
+            for (int m = 0; m < punkty; m++)
             {
-                var nazwyMies = new[] { "Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru" };
-                for (int m = 0; m < 12; m++)
+                int miesiacIndex = miesiacStart + m - 1;
+                panelOsX.Children.Add(new TextBlock
                 {
-                    panelOsX.Children.Add(new TextBlock
-                    {
-                        Text = nazwyMies[m],
-                        FontSize = 9,
-                        Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)),
-                        Margin = new Thickness(ml + (m + 0.5) * stepX - 12, 0, 0, 0)
-                    });
-                }
-            }
-            else
-            {
-                int krok = punkty > 20 ? 5 : (punkty > 10 ? 3 : 2);
-                for (int d = 1; d <= punkty; d += krok)
-                {
-                    panelOsX.Children.Add(new TextBlock
-                    {
-                        Text = $"{d:00}.{miesiac:00}",
-                        FontSize = 9,
-                        Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)),
-                        Margin = new Thickness(ml + (d - 0.5) * stepX - 14, 0, 0, 0)
-                    });
-                }
+                    Text = nazwyMies[miesiacIndex],
+                    FontSize = 10,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)),
+                    Margin = new Thickness(ml + (m + 0.5) * stepX - 14, 0, 0, 0)
+                });
             }
         }
 
-        private Dictionary<string, int[]> PobierzDaneHandlowcowDzienne(DateTime od, DateTime doo, int dni)
-        {
-            var wynik = new Dictionary<string, int[]>();
-
-            using (var conn = new SqlConnection(connectionString))
-            {
-                conn.Open();
-
-                var cmd = new SqlCommand(@"
-                    SELECT ISNULL(o.Name, h.KtoWykonal), DAY(h.DataZmiany), COUNT(*)
-                    FROM HistoriaZmianCRM h
-                    LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
-                    WHERE h.TypZmiany = 'Zmiana statusu'
-                    AND h.DataZmiany >= @od AND h.DataZmiany < @do
-                    GROUP BY ISNULL(o.Name, h.KtoWykonal), DAY(h.DataZmiany)", conn);
-                cmd.Parameters.AddWithValue("@od", od);
-                cmd.Parameters.AddWithValue("@do", doo);
-
-                using (var r = cmd.ExecuteReader())
-                {
-                    while (r.Read())
-                    {
-                        string h = r.IsDBNull(0) ? "?" : r.GetString(0);
-                        int d = r.GetInt32(1) - 1;
-                        int cnt = r.GetInt32(2);
-
-                        if (!wynik.ContainsKey(h)) wynik[h] = new int[dni];
-                        if (d >= 0 && d < dni) wynik[h][d] += cnt;
-                    }
-                }
-
-                var cmdN = new SqlCommand(@"
-                    SELECT ISNULL(o.Name, n.KtoDodal), DAY(n.DataUtworzenia), COUNT(*)
-                    FROM NotatkiCRM n
-                    LEFT JOIN operators o ON n.KtoDodal = CAST(o.ID AS NVARCHAR)
-                    WHERE n.DataUtworzenia >= @od AND n.DataUtworzenia < @do
-                    GROUP BY ISNULL(o.Name, n.KtoDodal), DAY(n.DataUtworzenia)", conn);
-                cmdN.Parameters.AddWithValue("@od", od);
-                cmdN.Parameters.AddWithValue("@do", doo);
-
-                using (var r = cmdN.ExecuteReader())
-                {
-                    while (r.Read())
-                    {
-                        string h = r.IsDBNull(0) ? "?" : r.GetString(0);
-                        int d = r.GetInt32(1) - 1;
-                        int cnt = r.GetInt32(2);
-
-                        if (!wynik.ContainsKey(h)) wynik[h] = new int[dni];
-                        if (d >= 0 && d < dni) wynik[h][d] += cnt;
-                    }
-                }
-            }
-            return wynik;
-        }
-
-        private Dictionary<string, int[]> PobierzDaneHandlowcowMiesieczne(DateTime od, DateTime doo)
+        private Dictionary<string, int[]> PobierzDaneHandlowcowMiesieczne(DateTime od, DateTime doo, int miesiacStart, int liczbaMiesiecy)
         {
             var wynik = new Dictionary<string, int[]>();
 
@@ -510,11 +439,11 @@ namespace Kalendarz1.CRM
                     while (r.Read())
                     {
                         string h = r.IsDBNull(0) ? "?" : r.GetString(0);
-                        int m = r.GetInt32(1) - 1;
+                        int m = r.GetInt32(1) - miesiacStart;
                         int cnt = r.GetInt32(2);
 
-                        if (!wynik.ContainsKey(h)) wynik[h] = new int[12];
-                        if (m >= 0 && m < 12) wynik[h][m] += cnt;
+                        if (!wynik.ContainsKey(h)) wynik[h] = new int[liczbaMiesiecy];
+                        if (m >= 0 && m < liczbaMiesiecy) wynik[h][m] += cnt;
                     }
                 }
 
@@ -532,11 +461,11 @@ namespace Kalendarz1.CRM
                     while (r.Read())
                     {
                         string h = r.IsDBNull(0) ? "?" : r.GetString(0);
-                        int m = r.GetInt32(1) - 1;
+                        int m = r.GetInt32(1) - miesiacStart;
                         int cnt = r.GetInt32(2);
 
-                        if (!wynik.ContainsKey(h)) wynik[h] = new int[12];
-                        if (m >= 0 && m < 12) wynik[h][m] += cnt;
+                        if (!wynik.ContainsKey(h)) wynik[h] = new int[liczbaMiesiecy];
+                        if (m >= 0 && m < liczbaMiesiecy) wynik[h][m] += cnt;
                     }
                 }
             }
@@ -602,7 +531,8 @@ namespace Kalendarz1.CRM
 
             lista = lista.OrderByDescending(x => x.Suma).ToList();
 
-            var koloryPoz = new[] { "#E11D48", "#2563EB", "#16A34A", "#64748B" };
+            // Kolory pozycji - zielone akcenty
+            var koloryPoz = new[] { "#10B981", "#34D399", "#6EE7B7", "#94A3B8" };
 
             for (int i = 0; i < lista.Count; i++)
             {
@@ -610,12 +540,12 @@ namespace Kalendarz1.CRM
                 h.Pozycja = i + 1;
                 h.KolorPozycji = new SolidColorBrush((Color)ColorConverter.ConvertFromString(koloryPoz[Math.Min(i, koloryPoz.Length - 1)]));
                 h.TloKarty = h.Nazwa == wybranyHandlowiec
-                    ? new SolidColorBrush(Color.FromRgb(241, 245, 249))
-                    : new SolidColorBrush(Color.FromRgb(250, 250, 250));
+                    ? new SolidColorBrush(Color.FromRgb(30, 41, 59))
+                    : new SolidColorBrush(Color.FromRgb(15, 23, 42));
                 h.KolorRamki = h.Nazwa == wybranyHandlowiec
-                    ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2563EB"))
-                    : new SolidColorBrush(Colors.Transparent);
-                h.StatsTekst = $"Tel: {h.Telefony} | Stat: {h.Statusy} | Not: {h.Notatki}";
+                    ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981"))
+                    : new SolidColorBrush(Color.FromRgb(51, 65, 85));
+                h.StatsTekst = $"T:{h.Telefony} S:{h.Statusy} N:{h.Notatki}";
             }
 
             listaHandlowcy.ItemsSource = lista;
@@ -677,20 +607,20 @@ namespace Kalendarz1.CRM
                         DataSkrot = d.ToString("dd.MM"),
                         Telefony = t, Statusy = s, Notatki = n, Suma = sum,
                         TloKarty = d == DateTime.Today
-                            ? new SolidColorBrush(Color.FromRgb(241, 245, 249))
-                            : new SolidColorBrush(Color.FromRgb(250, 250, 250)),
+                            ? new SolidColorBrush(Color.FromRgb(30, 41, 59))
+                            : new SolidColorBrush(Color.FromRgb(15, 23, 42)),
                         KolorRamki = d == DateTime.Today
-                            ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2563EB"))
-                            : new SolidColorBrush(Color.FromRgb(226, 232, 240))
+                            ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981"))
+                            : new SolidColorBrush(Color.FromRgb(51, 65, 85))
                     });
                 }
             }
 
             foreach (var d in dni)
             {
-                d.WysokoscTelefony = maxS > 0 ? Math.Max((d.Telefony / (double)maxS) * 50, d.Telefony > 0 ? 3 : 0) : 0;
-                d.WysokoscStatusy = maxS > 0 ? Math.Max((d.Statusy / (double)maxS) * 50, d.Statusy > 0 ? 3 : 0) : 0;
-                d.WysokoscNotatki = maxS > 0 ? Math.Max((d.Notatki / (double)maxS) * 50, d.Notatki > 0 ? 3 : 0) : 0;
+                d.WysokoscTelefony = maxS > 0 ? Math.Max((d.Telefony / (double)maxS) * 40, d.Telefony > 0 ? 3 : 0) : 0;
+                d.WysokoscStatusy = maxS > 0 ? Math.Max((d.Statusy / (double)maxS) * 40, d.Statusy > 0 ? 3 : 0) : 0;
+                d.WysokoscNotatki = maxS > 0 ? Math.Max((d.Notatki / (double)maxS) * 40, d.Notatki > 0 ? 3 : 0) : 0;
                 d.TooltipTelefony = $"Telefony: {d.Telefony}";
                 d.TooltipStatusy = $"Statusy: {d.Statusy}";
                 d.TooltipNotatki = $"Notatki: {d.Notatki}";
