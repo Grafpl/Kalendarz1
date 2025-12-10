@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 
@@ -17,33 +18,83 @@ namespace Kalendarz1.CRM
         private DateTime dataOd;
         private DateTime dataDo;
         private bool isLoaded = false;
-
-        // Kolory dla handlowców na wykresie
-        private static readonly string[] KoloryHandlowcow = new[]
-        {
-            "#3B82F6", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6",
-            "#EC4899", "#06B6D4", "#84CC16", "#F97316", "#6366F1",
-            "#14B8A6", "#E11D48", "#0EA5E9", "#A855F7", "#22C55E"
-        };
+        private string wybranyHandlowiec = ""; // pusty = wszyscy
 
         public DashboardCRMWindow(string connString)
         {
             connectionString = connString;
             InitializeComponent();
-            InicjalizujKomboRok();
+            InicjalizujKombo();
             Loaded += (s, e) => { isLoaded = true; UstawOkres(); WczytajDane(); };
-            SizeChanged += (s, e) => { if (isLoaded) RysujWykresHandlowcow(); };
+            SizeChanged += (s, e) => { if (isLoaded) RysujWykres(); };
         }
 
-        private void InicjalizujKomboRok()
+        private void InicjalizujKombo()
         {
+            // Lata
             int currentYear = DateTime.Today.Year;
             for (int y = currentYear; y >= currentYear - 3; y--)
-            {
                 cmbRok.Items.Add(new ComboBoxItem { Content = y.ToString(), Tag = y });
-            }
             cmbRok.SelectedIndex = 0;
             cmbMiesiac.SelectedIndex = DateTime.Today.Month - 1;
+
+            // Handlowcy
+            WczytajListeHandlowcow();
+        }
+
+        private void WczytajListeHandlowcow()
+        {
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    var cmd = new SqlCommand(@"
+                        SELECT DISTINCT ISNULL(o.Name, h.KtoWykonal) as Handlowiec
+                        FROM HistoriaZmianCRM h
+                        LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
+                        WHERE h.KtoWykonal IS NOT NULL AND h.KtoWykonal != ''
+                        ORDER BY Handlowiec", conn);
+
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            string nazwa = reader.IsDBNull(0) ? "" : reader.GetString(0);
+                            if (!string.IsNullOrWhiteSpace(nazwa))
+                                cmbHandlowiec.Items.Add(new ComboBoxItem { Content = nazwa, Tag = nazwa });
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private void CmbHandlowiec_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!isLoaded || cmbHandlowiec.SelectedItem == null) return;
+            var item = (ComboBoxItem)cmbHandlowiec.SelectedItem;
+            wybranyHandlowiec = item.Tag?.ToString() ?? "";
+            txtWykresHandlowiec.Text = string.IsNullOrEmpty(wybranyHandlowiec) ? "" : $"- {wybranyHandlowiec}";
+            WczytajDane();
+        }
+
+        private void Handlowiec_Click(object sender, MouseButtonEventArgs e)
+        {
+            var border = sender as Border;
+            if (border?.Tag == null) return;
+            string nazwa = border.Tag.ToString();
+
+            // Znajdź w combobox i wybierz
+            for (int i = 0; i < cmbHandlowiec.Items.Count; i++)
+            {
+                var item = cmbHandlowiec.Items[i] as ComboBoxItem;
+                if (item?.Tag?.ToString() == nazwa)
+                {
+                    cmbHandlowiec.SelectedIndex = i;
+                    break;
+                }
+            }
         }
 
         private void CmbOkres_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -55,14 +106,13 @@ namespace Kalendarz1.CRM
 
         private void CmbWykresOkres_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (!isLoaded || cmbMiesiac == null || cmbRok == null) return;
-            RysujWykresHandlowcow();
+            if (!isLoaded) return;
+            RysujWykres();
         }
 
         private void UstawOkres()
         {
             dataDo = DateTime.Today.AddDays(1);
-
             switch (cmbOkres.SelectedIndex)
             {
                 case 0: dataOd = DateTime.Today; okresDni = 1; break;
@@ -73,12 +123,6 @@ namespace Kalendarz1.CRM
                     dataOd = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
                     okresDni = DateTime.Today.Day;
                     break;
-                case 5:
-                    var prev = DateTime.Today.AddMonths(-1);
-                    dataOd = new DateTime(prev.Year, prev.Month, 1);
-                    dataDo = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
-                    okresDni = DateTime.DaysInMonth(prev.Year, prev.Month);
-                    break;
             }
         }
 
@@ -88,430 +132,376 @@ namespace Kalendarz1.CRM
         {
             try
             {
-                WczytajStatystykiGlobalne();
-                WczytajRankingHandlowcow();
+                WczytajStatystyki();
+                WczytajRanking();
                 WczytajAktywnoscDni();
-                RysujWykresHandlowcow();
+                RysujWykres();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd ładowania danych: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        private void WczytajStatystykiGlobalne()
+        private void WczytajStatystyki()
         {
             if (txtTelefonyTotal == null) return;
 
             using (var conn = new SqlConnection(connectionString))
             {
                 conn.Open();
+                string filtrHandlowca = string.IsNullOrEmpty(wybranyHandlowiec) ? "" :
+                    " AND (h.KtoWykonal = @handlowiec OR o.Name = @handlowiec)";
 
                 // Telefony
-                var cmdTelefony = new SqlCommand(@"
-                    SELECT COUNT(*) FROM HistoriaZmianCRM
-                    WHERE TypZmiany = 'Zmiana statusu'
-                    AND WartoscNowa IN ('Próba kontaktu', 'Nawiązano kontakt')
-                    AND DataZmiany >= @dataOd AND DataZmiany < @dataDo", conn);
-                cmdTelefony.Parameters.AddWithValue("@dataOd", dataOd);
-                cmdTelefony.Parameters.AddWithValue("@dataDo", dataDo);
-                int telefony = (int)cmdTelefony.ExecuteScalar();
-                txtTelefonyTotal.Text = telefony.ToString();
-                if (txtTelefonyInfo != null)
-                    txtTelefonyInfo.Text = okresDni == 1 ? "wykonanych połączeń" : $"śr. {(telefony / (double)okresDni):F1}/dzień";
+                var cmdTel = new SqlCommand($@"
+                    SELECT COUNT(*) FROM HistoriaZmianCRM h
+                    LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
+                    WHERE h.TypZmiany = 'Zmiana statusu'
+                    AND h.WartoscNowa IN ('Próba kontaktu', 'Nawiązano kontakt')
+                    AND h.DataZmiany >= @dataOd AND h.DataZmiany < @dataDo {filtrHandlowca}", conn);
+                cmdTel.Parameters.AddWithValue("@dataOd", dataOd);
+                cmdTel.Parameters.AddWithValue("@dataDo", dataDo);
+                if (!string.IsNullOrEmpty(wybranyHandlowiec))
+                    cmdTel.Parameters.AddWithValue("@handlowiec", wybranyHandlowiec);
+                int tel = (int)cmdTel.ExecuteScalar();
+                txtTelefonyTotal.Text = tel.ToString();
+                txtTelefonyInfo.Text = okresDni > 1 ? $"śr. {(tel / (double)okresDni):F1}/dzień" : "połączeń";
 
                 // Statusy
-                var cmdStatusy = new SqlCommand(@"
-                    SELECT COUNT(*) FROM HistoriaZmianCRM
-                    WHERE TypZmiany = 'Zmiana statusu'
-                    AND WartoscNowa NOT IN ('Próba kontaktu', 'Nawiązano kontakt', 'Do zadzwonienia')
-                    AND DataZmiany >= @dataOd AND DataZmiany < @dataDo", conn);
-                cmdStatusy.Parameters.AddWithValue("@dataOd", dataOd);
-                cmdStatusy.Parameters.AddWithValue("@dataDo", dataDo);
-                int statusy = (int)cmdStatusy.ExecuteScalar();
-                if (txtStatusyTotal != null) txtStatusyTotal.Text = statusy.ToString();
-                if (txtStatusyInfo != null)
-                    txtStatusyInfo.Text = okresDni == 1 ? "zmian statusów" : $"śr. {(statusy / (double)okresDni):F1}/dzień";
+                var cmdStat = new SqlCommand($@"
+                    SELECT COUNT(*) FROM HistoriaZmianCRM h
+                    LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
+                    WHERE h.TypZmiany = 'Zmiana statusu'
+                    AND h.WartoscNowa NOT IN ('Próba kontaktu', 'Nawiązano kontakt', 'Do zadzwonienia')
+                    AND h.DataZmiany >= @dataOd AND h.DataZmiany < @dataDo {filtrHandlowca}", conn);
+                cmdStat.Parameters.AddWithValue("@dataOd", dataOd);
+                cmdStat.Parameters.AddWithValue("@dataDo", dataDo);
+                if (!string.IsNullOrEmpty(wybranyHandlowiec))
+                    cmdStat.Parameters.AddWithValue("@handlowiec", wybranyHandlowiec);
+                int stat = (int)cmdStat.ExecuteScalar();
+                txtStatusyTotal.Text = stat.ToString();
+                txtStatusyInfo.Text = okresDni > 1 ? $"śr. {(stat / (double)okresDni):F1}/dzień" : "zmian";
 
                 // Notatki
-                var cmdNotatki = new SqlCommand(@"
-                    SELECT COUNT(*) FROM NotatkiCRM
-                    WHERE DataUtworzenia >= @dataOd AND DataUtworzenia < @dataDo", conn);
-                cmdNotatki.Parameters.AddWithValue("@dataOd", dataOd);
-                cmdNotatki.Parameters.AddWithValue("@dataDo", dataDo);
-                int notatki = (int)cmdNotatki.ExecuteScalar();
-                if (txtNotatkiTotal != null) txtNotatkiTotal.Text = notatki.ToString();
-                if (txtNotatkiInfo != null)
-                    txtNotatkiInfo.Text = okresDni == 1 ? "dodanych notatek" : $"śr. {(notatki / (double)okresDni):F1}/dzień";
+                string filtrNotatki = string.IsNullOrEmpty(wybranyHandlowiec) ? "" :
+                    " AND (n.KtoDodal = @handlowiec OR o.Name = @handlowiec)";
+                var cmdNot = new SqlCommand($@"
+                    SELECT COUNT(*) FROM NotatkiCRM n
+                    LEFT JOIN operators o ON n.KtoDodal = CAST(o.ID AS NVARCHAR)
+                    WHERE n.DataUtworzenia >= @dataOd AND n.DataUtworzenia < @dataDo {filtrNotatki}", conn);
+                cmdNot.Parameters.AddWithValue("@dataOd", dataOd);
+                cmdNot.Parameters.AddWithValue("@dataDo", dataDo);
+                if (!string.IsNullOrEmpty(wybranyHandlowiec))
+                    cmdNot.Parameters.AddWithValue("@handlowiec", wybranyHandlowiec);
+                int not = (int)cmdNot.ExecuteScalar();
+                txtNotatkiTotal.Text = not.ToString();
+                txtNotatkiInfo.Text = okresDni > 1 ? $"śr. {(not / (double)okresDni):F1}/dzień" : "dodanych";
 
                 // Suma
-                int suma = telefony + statusy + notatki;
-                if (txtAktywnoscTotal != null) txtAktywnoscTotal.Text = suma.ToString();
-                if (txtAktywnoscInfo != null)
-                    txtAktywnoscInfo.Text = okresDni == 1 ? "wszystkich akcji" : $"śr. {(suma / (double)okresDni):F1}/dzień";
+                int suma = tel + stat + not;
+                txtAktywnoscTotal.Text = suma.ToString();
+                txtAktywnoscInfo.Text = okresDni > 1 ? $"śr. {(suma / (double)okresDni):F1}/dzień" : "akcji";
             }
         }
 
-        private void RysujWykresHandlowcow()
+        private void RysujWykres()
         {
-            if (canvasWykres == null || canvasWykres.ActualWidth <= 0 || canvasWykres.ActualHeight <= 0) return;
+            if (canvasWykres == null || canvasWykres.ActualWidth <= 0) return;
             if (cmbMiesiac?.SelectedItem == null || cmbRok?.SelectedItem == null) return;
 
             canvasWykres.Children.Clear();
             panelOsX.Children.Clear();
             panelOsY.Children.Clear();
 
-            // Pobierz wybrany miesiąc i rok
             int miesiac = int.Parse(((ComboBoxItem)cmbMiesiac.SelectedItem).Tag.ToString());
             int rok = int.Parse(((ComboBoxItem)cmbRok.SelectedItem).Tag.ToString());
             int liczbaDni = DateTime.DaysInMonth(rok, miesiac);
 
-            var wykresDataOd = new DateTime(rok, miesiac, 1);
-            var wykresDataDo = wykresDataOd.AddMonths(1);
+            var wykresOd = new DateTime(rok, miesiac, 1);
+            var wykresDo = wykresOd.AddMonths(1);
 
-            // Pobierz dane handlowców
-            var daneHandlowcow = PobierzDaneHandlowcowNaMiesiac(wykresDataOd, wykresDataDo, liczbaDni);
-            if (daneHandlowcow.Count == 0)
+            // Pobierz dane
+            var dane = PobierzDaneDzienne(wykresOd, wykresDo, liczbaDni);
+
+            double w = canvasWykres.ActualWidth;
+            double h = canvasWykres.ActualHeight;
+            double ml = 10, mr = 20, mt = 15, mb = 10;
+            double cw = w - ml - mr;
+            double ch = h - mt - mb;
+
+            int maxVal = Math.Max(1, Math.Max(dane.telefony.Max(), Math.Max(dane.statusy.Max(), dane.notatki.Max())));
+            maxVal = (int)(Math.Ceiling(maxVal / 5.0) * 5);
+            if (maxVal == 0) maxVal = 5;
+
+            // Siatka
+            for (int i = 0; i <= 4; i++)
             {
-                listaLegendaHandlowcy.ItemsSource = null;
-                return;
-            }
-
-            double width = canvasWykres.ActualWidth;
-            double height = canvasWykres.ActualHeight;
-            double marginLeft = 10;
-            double marginRight = 20;
-            double marginTop = 20;
-            double marginBottom = 10;
-
-            double chartWidth = width - marginLeft - marginRight;
-            double chartHeight = height - marginTop - marginBottom;
-
-            int maxValue = Math.Max(1, daneHandlowcow.Max(h => h.Value.Max()));
-            maxValue = (int)(Math.Ceiling(maxValue / 5.0) * 5);
-            if (maxValue == 0) maxValue = 5;
-
-            // Rysuj siatkę
-            for (int i = 0; i <= 5; i++)
-            {
-                double y = marginTop + (chartHeight * i / 5);
-                var line = new Line
+                double y = mt + (ch * i / 4);
+                canvasWykres.Children.Add(new Line
                 {
-                    X1 = marginLeft, Y1 = y,
-                    X2 = width - marginRight, Y2 = y,
-                    Stroke = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
+                    X1 = ml, Y1 = y, X2 = w - mr, Y2 = y,
+                    Stroke = new SolidColorBrush(Color.FromRgb(241, 245, 249)),
                     StrokeThickness = 1
-                };
-                canvasWykres.Children.Add(line);
-
-                int val = maxValue - (maxValue * i / 5);
-                var labelY = new TextBlock
-                {
-                    Text = val.ToString(),
-                    FontSize = 10,
-                    Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)),
-                    Margin = new Thickness(0, y - 8, 0, 0)
-                };
-                panelOsY.Children.Add(labelY);
-            }
-
-            // Rysuj linie dla każdego handlowca
-            var legenda = new List<LegendaItem>();
-            int kolorIndex = 0;
-            foreach (var handlowiec in daneHandlowcow)
-            {
-                var kolor = (Color)ColorConverter.ConvertFromString(KoloryHandlowcow[kolorIndex % KoloryHandlowcow.Length]);
-                RysujLinieHandlowca(handlowiec.Value, kolor, maxValue, chartWidth, chartHeight, marginLeft, marginTop, liczbaDni, handlowiec.Key);
-
-                legenda.Add(new LegendaItem
-                {
-                    Nazwa = handlowiec.Key,
-                    Kolor = new SolidColorBrush(kolor)
                 });
-                kolorIndex++;
+                panelOsY.Children.Add(new TextBlock
+                {
+                    Text = (maxVal - maxVal * i / 4).ToString(),
+                    FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)),
+                    Margin = new Thickness(0, y - 6, 0, 0)
+                });
             }
 
-            listaLegendaHandlowcy.ItemsSource = legenda;
+            // Rysuj linie
+            RysujLinie(dane.telefony, Color.FromRgb(59, 130, 246), maxVal, cw, ch, ml, mt, liczbaDni);
+            RysujLinie(dane.statusy, Color.FromRgb(139, 92, 246), maxVal, cw, ch, ml, mt, liczbaDni);
+            RysujLinie(dane.notatki, Color.FromRgb(245, 158, 11), maxVal, cw, ch, ml, mt, liczbaDni);
 
-            // Etykiety osi X (dni miesiąca)
-            for (int d = 1; d <= liczbaDni; d++)
+            // Etykiety X
+            for (int d = 1; d <= liczbaDni; d += (liczbaDni > 20 ? 5 : 3))
             {
-                // Pokaż co kilka dni
-                if (liczbaDni > 20 && d % 5 != 1 && d != liczbaDni) continue;
-                if (liczbaDni <= 20 && d % 2 == 0 && d != liczbaDni) continue;
-
-                double stepX = chartWidth / liczbaDni;
-                var labelX = new TextBlock
+                double stepX = cw / liczbaDni;
+                panelOsX.Children.Add(new TextBlock
                 {
                     Text = d.ToString(),
-                    FontSize = 10,
-                    Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)),
-                    Margin = new Thickness(marginLeft + (d - 0.5) * stepX - 5, 0, 0, 0)
-                };
-                panelOsX.Children.Add(labelX);
+                    FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)),
+                    Margin = new Thickness(ml + (d - 0.5) * stepX - 5, 0, 0, 0)
+                });
             }
         }
 
-        private void RysujLinieHandlowca(int[] values, Color color, int maxValue, double chartWidth, double chartHeight, double marginLeft, double marginTop, int liczbaDni, string nazwaHandlowca)
+        private void RysujLinie(int[] values, Color color, int maxVal, double cw, double ch, double ml, double mt, int dni)
         {
             var points = new PointCollection();
-            double stepX = chartWidth / liczbaDni;
+            double stepX = cw / dni;
 
             for (int i = 0; i < values.Length; i++)
             {
-                double x = marginLeft + (i + 0.5) * stepX;
-                double y = marginTop + chartHeight - (values[i] / (double)maxValue * chartHeight);
+                double x = ml + (i + 0.5) * stepX;
+                double y = mt + ch - (values[i] / (double)maxVal * ch);
                 points.Add(new Point(x, y));
             }
 
             // Linia
-            var polyline = new Polyline
+            canvasWykres.Children.Add(new Polyline
             {
                 Points = points,
                 Stroke = new SolidColorBrush(color),
                 StrokeThickness = 2,
                 StrokeLineJoin = PenLineJoin.Round
-            };
-            canvasWykres.Children.Add(polyline);
+            });
 
-            // Punkty tylko dla niezerowych wartości
+            // Punkty
             for (int i = 0; i < values.Length; i++)
             {
                 if (values[i] > 0)
                 {
-                    var ellipse = new Ellipse
+                    var el = new Ellipse
                     {
-                        Width = 8,
-                        Height = 8,
+                        Width = 6, Height = 6,
                         Fill = new SolidColorBrush(color),
-                        Stroke = Brushes.White,
-                        StrokeThickness = 1.5,
-                        ToolTip = $"{nazwaHandlowca}\nDzień {i + 1}: {values[i]} akcji"
+                        Stroke = Brushes.White, StrokeThickness = 1,
+                        ToolTip = $"Dzień {i + 1}: {values[i]}"
                     };
-                    Canvas.SetLeft(ellipse, points[i].X - 4);
-                    Canvas.SetTop(ellipse, points[i].Y - 4);
-                    canvasWykres.Children.Add(ellipse);
+                    Canvas.SetLeft(el, points[i].X - 3);
+                    Canvas.SetTop(el, points[i].Y - 3);
+                    canvasWykres.Children.Add(el);
                 }
             }
         }
 
-        private Dictionary<string, int[]> PobierzDaneHandlowcowNaMiesiac(DateTime dataOd, DateTime dataDo, int liczbaDni)
+        private (int[] telefony, int[] statusy, int[] notatki) PobierzDaneDzienne(DateTime od, DateTime doo, int dni)
         {
-            var dane = new Dictionary<string, int[]>();
+            var tel = new int[dni];
+            var stat = new int[dni];
+            var not = new int[dni];
 
             using (var conn = new SqlConnection(connectionString))
             {
                 conn.Open();
+                string filtr = string.IsNullOrEmpty(wybranyHandlowiec) ? "" :
+                    " AND (h.KtoWykonal = @handlowiec OR o.Name = @handlowiec)";
 
-                // Pobierz aktywność per handlowiec per dzień
-                var cmd = new SqlCommand(@"
-                    SELECT
-                        ISNULL(o.Name, h.KtoWykonal) as Handlowiec,
-                        DAY(h.DataZmiany) as Dzien,
-                        COUNT(*) as Akcje
+                var cmd = new SqlCommand($@"
+                    SELECT DAY(h.DataZmiany) as D,
+                        SUM(CASE WHEN h.WartoscNowa IN ('Próba kontaktu', 'Nawiązano kontakt') THEN 1 ELSE 0 END) as Tel,
+                        SUM(CASE WHEN h.WartoscNowa NOT IN ('Próba kontaktu', 'Nawiązano kontakt', 'Do zadzwonienia') THEN 1 ELSE 0 END) as Stat
                     FROM HistoriaZmianCRM h
                     LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
                     WHERE h.TypZmiany = 'Zmiana statusu'
-                    AND h.DataZmiany >= @dataOd AND h.DataZmiany < @dataDo
-                    GROUP BY h.KtoWykonal, o.Name, DAY(h.DataZmiany)
+                    AND h.DataZmiany >= @od AND h.DataZmiany < @do {filtr}
+                    GROUP BY DAY(h.DataZmiany)", conn);
+                cmd.Parameters.AddWithValue("@od", od);
+                cmd.Parameters.AddWithValue("@do", doo);
+                if (!string.IsNullOrEmpty(wybranyHandlowiec))
+                    cmd.Parameters.AddWithValue("@handlowiec", wybranyHandlowiec);
 
-                    UNION ALL
+                using (var r = cmd.ExecuteReader())
+                {
+                    while (r.Read())
+                    {
+                        int d = r.GetInt32(0) - 1;
+                        if (d >= 0 && d < dni) { tel[d] = r.GetInt32(1); stat[d] = r.GetInt32(2); }
+                    }
+                }
 
-                    SELECT
-                        ISNULL(o.Name, n.KtoDodal) as Handlowiec,
-                        DAY(n.DataUtworzenia) as Dzien,
-                        COUNT(*) as Akcje
+                string filtrN = string.IsNullOrEmpty(wybranyHandlowiec) ? "" :
+                    " AND (n.KtoDodal = @handlowiec OR o.Name = @handlowiec)";
+                var cmdN = new SqlCommand($@"
+                    SELECT DAY(n.DataUtworzenia) as D, COUNT(*) as N
                     FROM NotatkiCRM n
                     LEFT JOIN operators o ON n.KtoDodal = CAST(o.ID AS NVARCHAR)
-                    WHERE n.DataUtworzenia >= @dataOd AND n.DataUtworzenia < @dataDo
-                    GROUP BY n.KtoDodal, o.Name, DAY(n.DataUtworzenia)", conn);
-                cmd.Parameters.AddWithValue("@dataOd", dataOd);
-                cmd.Parameters.AddWithValue("@dataDo", dataDo);
+                    WHERE n.DataUtworzenia >= @od AND n.DataUtworzenia < @do {filtrN}
+                    GROUP BY DAY(n.DataUtworzenia)", conn);
+                cmdN.Parameters.AddWithValue("@od", od);
+                cmdN.Parameters.AddWithValue("@do", doo);
+                if (!string.IsNullOrEmpty(wybranyHandlowiec))
+                    cmdN.Parameters.AddWithValue("@handlowiec", wybranyHandlowiec);
 
-                using (var reader = cmd.ExecuteReader())
+                using (var r = cmdN.ExecuteReader())
                 {
-                    while (reader.Read())
+                    while (r.Read())
                     {
-                        string handlowiec = reader.IsDBNull(0) ? "Nieznany" : reader.GetString(0);
-                        int dzien = reader.GetInt32(1);
-                        int akcje = reader.GetInt32(2);
-
-                        if (!dane.ContainsKey(handlowiec))
-                            dane[handlowiec] = new int[liczbaDni];
-
-                        if (dzien >= 1 && dzien <= liczbaDni)
-                            dane[handlowiec][dzien - 1] += akcje;
+                        int d = r.GetInt32(0) - 1;
+                        if (d >= 0 && d < dni) not[d] = r.GetInt32(1);
                     }
                 }
             }
-
-            // Sortuj po sumie akcji (najbardziej aktywni na górze), max 10 handlowców
-            return dane.OrderByDescending(d => d.Value.Sum()).Take(10).ToDictionary(d => d.Key, d => d.Value);
+            return (tel, stat, not);
         }
 
-        private void WczytajRankingHandlowcow()
+        private void WczytajRanking()
         {
-            var handlowcy = new List<HandlowiecRanking>();
+            var lista = new List<HandlowiecRanking>();
 
             using (var conn = new SqlConnection(connectionString))
             {
                 conn.Open();
-
                 var cmd = new SqlCommand(@"
-                    SELECT
-                        ISNULL(o.Name, h.KtoWykonal) as Handlowiec,
-                        SUM(CASE WHEN h.WartoscNowa IN ('Próba kontaktu', 'Nawiązano kontakt') THEN 1 ELSE 0 END) as Telefony,
-                        SUM(CASE WHEN h.WartoscNowa NOT IN ('Próba kontaktu', 'Nawiązano kontakt', 'Do zadzwonienia') THEN 1 ELSE 0 END) as Statusy
+                    SELECT ISNULL(o.Name, h.KtoWykonal) as H,
+                        SUM(CASE WHEN h.WartoscNowa IN ('Próba kontaktu', 'Nawiązano kontakt') THEN 1 ELSE 0 END) as T,
+                        SUM(CASE WHEN h.WartoscNowa NOT IN ('Próba kontaktu', 'Nawiązano kontakt', 'Do zadzwonienia') THEN 1 ELSE 0 END) as S
                     FROM HistoriaZmianCRM h
                     LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
-                    WHERE h.TypZmiany = 'Zmiana statusu'
-                    AND h.DataZmiany >= @dataOd AND h.DataZmiany < @dataDo
+                    WHERE h.TypZmiany = 'Zmiana statusu' AND h.DataZmiany >= @od AND h.DataZmiany < @do
                     GROUP BY h.KtoWykonal, o.Name", conn);
-                cmd.Parameters.AddWithValue("@dataOd", dataOd);
-                cmd.Parameters.AddWithValue("@dataDo", dataDo);
+                cmd.Parameters.AddWithValue("@od", dataOd);
+                cmd.Parameters.AddWithValue("@do", dataDo);
 
-                var daneHistoria = new Dictionary<string, (int tel, int stat)>();
-                using (var reader = cmd.ExecuteReader())
+                var dane = new Dictionary<string, (int t, int s)>();
+                using (var r = cmd.ExecuteReader())
                 {
-                    while (reader.Read())
+                    while (r.Read())
                     {
-                        string nazwa = reader.IsDBNull(0) ? "Nieznany" : reader.GetString(0);
-                        daneHistoria[nazwa] = (reader.GetInt32(1), reader.GetInt32(2));
+                        string n = r.IsDBNull(0) ? "?" : r.GetString(0);
+                        dane[n] = (r.GetInt32(1), r.GetInt32(2));
                     }
                 }
 
-                var cmdNotatki = new SqlCommand(@"
-                    SELECT ISNULL(o.Name, n.KtoDodal) as Handlowiec, COUNT(*) as Notatki
+                var cmdN = new SqlCommand(@"
+                    SELECT ISNULL(o.Name, n.KtoDodal), COUNT(*)
                     FROM NotatkiCRM n
                     LEFT JOIN operators o ON n.KtoDodal = CAST(o.ID AS NVARCHAR)
-                    WHERE n.DataUtworzenia >= @dataOd AND n.DataUtworzenia < @dataDo
+                    WHERE n.DataUtworzenia >= @od AND n.DataUtworzenia < @do
                     GROUP BY n.KtoDodal, o.Name", conn);
-                cmdNotatki.Parameters.AddWithValue("@dataOd", dataOd);
-                cmdNotatki.Parameters.AddWithValue("@dataDo", dataDo);
+                cmdN.Parameters.AddWithValue("@od", dataOd);
+                cmdN.Parameters.AddWithValue("@do", dataDo);
 
-                var daneNotatki = new Dictionary<string, int>();
-                using (var reader = cmdNotatki.ExecuteReader())
+                var notatki = new Dictionary<string, int>();
+                using (var r = cmdN.ExecuteReader())
                 {
-                    while (reader.Read())
+                    while (r.Read())
                     {
-                        string nazwa = reader.IsDBNull(0) ? "Nieznany" : reader.GetString(0);
-                        daneNotatki[nazwa] = reader.GetInt32(1);
+                        string n = r.IsDBNull(0) ? "?" : r.GetString(0);
+                        notatki[n] = r.GetInt32(1);
                     }
                 }
 
-                var nazwy = daneHistoria.Keys.Union(daneNotatki.Keys).Distinct();
-                foreach (var nazwa in nazwy)
+                foreach (var n in dane.Keys.Union(notatki.Keys).Distinct())
                 {
-                    int tel = daneHistoria.ContainsKey(nazwa) ? daneHistoria[nazwa].tel : 0;
-                    int stat = daneHistoria.ContainsKey(nazwa) ? daneHistoria[nazwa].stat : 0;
-                    int not = daneNotatki.ContainsKey(nazwa) ? daneNotatki[nazwa] : 0;
-                    int suma = tel + stat + not;
-
-                    if (suma > 0)
-                    {
-                        handlowcy.Add(new HandlowiecRanking
-                        {
-                            Nazwa = nazwa,
-                            Telefony = tel,
-                            Statusy = stat,
-                            Notatki = not,
-                            Suma = suma
-                        });
-                    }
+                    int t = dane.ContainsKey(n) ? dane[n].t : 0;
+                    int s = dane.ContainsKey(n) ? dane[n].s : 0;
+                    int no = notatki.ContainsKey(n) ? notatki[n] : 0;
+                    if (t + s + no > 0)
+                        lista.Add(new HandlowiecRanking { Nazwa = n, Telefony = t, Statusy = s, Notatki = no, Suma = t + s + no });
                 }
             }
 
-            handlowcy = handlowcy.OrderByDescending(h => h.Suma).ToList();
+            lista = lista.OrderByDescending(x => x.Suma).ToList();
+            var kolory = new[] { "#FFD700", "#C0C0C0", "#CD7F32", "#2563EB", "#3B82F6", "#60A5FA", "#93C5FD" };
 
-            if (handlowcy.Count > 0) { txtTop1Nazwa.Text = handlowcy[0].Nazwa; txtTop1Punkty.Text = handlowcy[0].Suma + " pkt"; }
-            else { txtTop1Nazwa.Text = "-"; txtTop1Punkty.Text = "0"; }
-
-            if (handlowcy.Count > 1) { txtTop2Nazwa.Text = handlowcy[1].Nazwa; txtTop2Punkty.Text = handlowcy[1].Suma + " pkt"; }
-            else { txtTop2Nazwa.Text = "-"; txtTop2Punkty.Text = "0"; }
-
-            if (handlowcy.Count > 2) { txtTop3Nazwa.Text = handlowcy[2].Nazwa; txtTop3Punkty.Text = handlowcy[2].Suma + " pkt"; }
-            else { txtTop3Nazwa.Text = "-"; txtTop3Punkty.Text = "0"; }
-
-            var pozostali = handlowcy.Skip(3).ToList();
-            var kolory = new[] { "#16A34A", "#22C55E", "#4ADE80", "#86EFAC" };
-
-            for (int i = 0; i < pozostali.Count; i++)
+            for (int i = 0; i < lista.Count; i++)
             {
-                var h = pozostali[i];
-                h.Pozycja = i + 4;
+                var h = lista[i];
+                h.Pozycja = i + 1;
                 h.KolorPozycji = new SolidColorBrush((Color)ColorConverter.ConvertFromString(kolory[Math.Min(i, kolory.Length - 1)]));
-                h.TloKarty = new SolidColorBrush(Color.FromRgb(248, 250, 252));
-                h.TelefonyTekst = $"📞 {h.Telefony}";
-                h.StatusyTekst = $"🔄 {h.Statusy}";
-                h.NotatkiTekst = $"📝 {h.Notatki}";
+                h.TloKarty = h.Nazwa == wybranyHandlowiec
+                    ? new SolidColorBrush(Color.FromRgb(219, 234, 254))
+                    : new SolidColorBrush(Color.FromRgb(248, 250, 252));
+                h.TelefonyTekst = $"T:{h.Telefony}";
+                h.StatusyTekst = $"S:{h.Statusy}";
+                h.NotatkiTekst = $"N:{h.Notatki}";
             }
 
-            listaHandlowcy.ItemsSource = pozostali;
+            listaHandlowcy.ItemsSource = lista;
         }
 
         private void WczytajAktywnoscDni()
         {
             var dni = new List<DzienAktywnosc>();
-            int maxSuma = 1;
+            int maxS = 1;
 
             using (var conn = new SqlConnection(connectionString))
             {
                 conn.Open();
+                string filtr = string.IsNullOrEmpty(wybranyHandlowiec) ? "" :
+                    " AND (h.KtoWykonal = @handlowiec OR o.Name = @handlowiec)";
 
-                var cmdHistoria = new SqlCommand(@"
-                    SELECT CAST(DataZmiany AS DATE) as Dzien,
-                        SUM(CASE WHEN WartoscNowa IN ('Próba kontaktu', 'Nawiązano kontakt') THEN 1 ELSE 0 END) as Telefony,
-                        SUM(CASE WHEN WartoscNowa NOT IN ('Próba kontaktu', 'Nawiązano kontakt', 'Do zadzwonienia') THEN 1 ELSE 0 END) as Statusy
-                    FROM HistoriaZmianCRM
-                    WHERE TypZmiany = 'Zmiana statusu'
-                    AND DataZmiany >= DATEADD(day, -13, GETDATE()) AND DataZmiany < DATEADD(day, 1, GETDATE())
-                    GROUP BY CAST(DataZmiany AS DATE)", conn);
+                var cmd = new SqlCommand($@"
+                    SELECT CAST(h.DataZmiany AS DATE) as D,
+                        SUM(CASE WHEN h.WartoscNowa IN ('Próba kontaktu', 'Nawiązano kontakt') THEN 1 ELSE 0 END),
+                        SUM(CASE WHEN h.WartoscNowa NOT IN ('Próba kontaktu', 'Nawiązano kontakt', 'Do zadzwonienia') THEN 1 ELSE 0 END)
+                    FROM HistoriaZmianCRM h
+                    LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
+                    WHERE h.TypZmiany = 'Zmiana statusu'
+                    AND h.DataZmiany >= DATEADD(day, -13, GETDATE()) AND h.DataZmiany < DATEADD(day, 1, GETDATE()) {filtr}
+                    GROUP BY CAST(h.DataZmiany AS DATE)", conn);
+                if (!string.IsNullOrEmpty(wybranyHandlowiec))
+                    cmd.Parameters.AddWithValue("@handlowiec", wybranyHandlowiec);
 
-                var daneHistoria = new Dictionary<DateTime, (int tel, int stat)>();
-                using (var reader = cmdHistoria.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        daneHistoria[reader.GetDateTime(0)] = (reader.GetInt32(1), reader.GetInt32(2));
-                    }
-                }
+                var hist = new Dictionary<DateTime, (int t, int s)>();
+                using (var r = cmd.ExecuteReader()) { while (r.Read()) hist[r.GetDateTime(0)] = (r.GetInt32(1), r.GetInt32(2)); }
 
-                var cmdNotatki = new SqlCommand(@"
-                    SELECT CAST(DataUtworzenia AS DATE) as Dzien, COUNT(*) as Notatki
-                    FROM NotatkiCRM
-                    WHERE DataUtworzenia >= DATEADD(day, -13, GETDATE()) AND DataUtworzenia < DATEADD(day, 1, GETDATE())
-                    GROUP BY CAST(DataUtworzenia AS DATE)", conn);
+                string filtrN = string.IsNullOrEmpty(wybranyHandlowiec) ? "" :
+                    " AND (n.KtoDodal = @handlowiec OR o.Name = @handlowiec)";
+                var cmdN = new SqlCommand($@"
+                    SELECT CAST(n.DataUtworzenia AS DATE), COUNT(*)
+                    FROM NotatkiCRM n
+                    LEFT JOIN operators o ON n.KtoDodal = CAST(o.ID AS NVARCHAR)
+                    WHERE n.DataUtworzenia >= DATEADD(day, -13, GETDATE()) AND n.DataUtworzenia < DATEADD(day, 1, GETDATE()) {filtrN}
+                    GROUP BY CAST(n.DataUtworzenia AS DATE)", conn);
+                if (!string.IsNullOrEmpty(wybranyHandlowiec))
+                    cmdN.Parameters.AddWithValue("@handlowiec", wybranyHandlowiec);
 
-                var daneNotatki = new Dictionary<DateTime, int>();
-                using (var reader = cmdNotatki.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        daneNotatki[reader.GetDateTime(0)] = reader.GetInt32(1);
-                    }
-                }
+                var notH = new Dictionary<DateTime, int>();
+                using (var r = cmdN.ExecuteReader()) { while (r.Read()) notH[r.GetDateTime(0)] = r.GetInt32(1); }
 
                 var culture = new CultureInfo("pl-PL");
                 for (int i = 13; i >= 0; i--)
                 {
-                    var dzien = DateTime.Today.AddDays(-i);
-                    int tel = daneHistoria.ContainsKey(dzien) ? daneHistoria[dzien].tel : 0;
-                    int stat = daneHistoria.ContainsKey(dzien) ? daneHistoria[dzien].stat : 0;
-                    int not = daneNotatki.ContainsKey(dzien) ? daneNotatki[dzien] : 0;
-                    int suma = tel + stat + not;
-
-                    if (suma > maxSuma) maxSuma = suma;
+                    var d = DateTime.Today.AddDays(-i);
+                    int t = hist.ContainsKey(d) ? hist[d].t : 0;
+                    int s = hist.ContainsKey(d) ? hist[d].s : 0;
+                    int n = notH.ContainsKey(d) ? notH[d] : 0;
+                    int sum = t + s + n;
+                    if (sum > maxS) maxS = sum;
 
                     dni.Add(new DzienAktywnosc
                     {
-                        DzienSkrot = culture.DateTimeFormat.GetAbbreviatedDayName(dzien.DayOfWeek).ToUpper(),
-                        Data = dzien.ToString("dd.MM"),
-                        Telefony = tel,
-                        Statusy = stat,
-                        Notatki = not,
-                        Suma = suma,
-                        TloKarty = dzien == DateTime.Today
-                            ? new SolidColorBrush(Color.FromRgb(220, 252, 231))
+                        DzienSkrot = culture.DateTimeFormat.GetAbbreviatedDayName(d.DayOfWeek).Substring(0, 2).ToUpper(),
+                        Telefony = t, Statusy = s, Notatki = n, Suma = sum,
+                        TloKarty = d == DateTime.Today
+                            ? new SolidColorBrush(Color.FromRgb(219, 234, 254))
                             : new SolidColorBrush(Color.FromRgb(248, 250, 252))
                     });
                 }
@@ -519,23 +509,16 @@ namespace Kalendarz1.CRM
 
             foreach (var d in dni)
             {
-                d.WysokoscTelefony = maxSuma > 0 ? Math.Max((d.Telefony / (double)maxSuma) * 70, d.Telefony > 0 ? 4 : 0) : 0;
-                d.WysokoscStatusy = maxSuma > 0 ? Math.Max((d.Statusy / (double)maxSuma) * 70, d.Statusy > 0 ? 4 : 0) : 0;
-                d.WysokoscNotatki = maxSuma > 0 ? Math.Max((d.Notatki / (double)maxSuma) * 70, d.Notatki > 0 ? 4 : 0) : 0;
-                d.TooltipTelefony = $"📞 Telefony: {d.Telefony}";
-                d.TooltipStatusy = $"🔄 Statusy: {d.Statusy}";
-                d.TooltipNotatki = $"📝 Notatki: {d.Notatki}";
+                d.WysokoscTelefony = maxS > 0 ? Math.Max((d.Telefony / (double)maxS) * 50, d.Telefony > 0 ? 3 : 0) : 0;
+                d.WysokoscStatusy = maxS > 0 ? Math.Max((d.Statusy / (double)maxS) * 50, d.Statusy > 0 ? 3 : 0) : 0;
+                d.WysokoscNotatki = maxS > 0 ? Math.Max((d.Notatki / (double)maxS) * 50, d.Notatki > 0 ? 3 : 0) : 0;
+                d.TooltipTelefony = $"Tel: {d.Telefony}";
+                d.TooltipStatusy = $"Stat: {d.Statusy}";
+                d.TooltipNotatki = $"Not: {d.Notatki}";
             }
 
             listaAktywnoscDni.ItemsSource = dni;
         }
-    }
-
-    // Klasy pomocnicze
-    public class LegendaItem
-    {
-        public string Nazwa { get; set; }
-        public SolidColorBrush Kolor { get; set; }
     }
 
     public class HandlowiecRanking
@@ -556,7 +539,6 @@ namespace Kalendarz1.CRM
     public class DzienAktywnosc
     {
         public string DzienSkrot { get; set; }
-        public string Data { get; set; }
         public int Telefony { get; set; }
         public int Statusy { get; set; }
         public int Notatki { get; set; }
