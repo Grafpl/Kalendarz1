@@ -18,12 +18,32 @@ namespace Kalendarz1.CRM
         private DateTime dataDo;
         private bool isLoaded = false;
 
+        // Kolory dla handlowców na wykresie
+        private static readonly string[] KoloryHandlowcow = new[]
+        {
+            "#3B82F6", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6",
+            "#EC4899", "#06B6D4", "#84CC16", "#F97316", "#6366F1",
+            "#14B8A6", "#E11D48", "#0EA5E9", "#A855F7", "#22C55E"
+        };
+
         public DashboardCRMWindow(string connString)
         {
             connectionString = connString;
             InitializeComponent();
+            InicjalizujKomboRok();
             Loaded += (s, e) => { isLoaded = true; UstawOkres(); WczytajDane(); };
-            SizeChanged += (s, e) => { if (isLoaded) RysujWykresLiniowy(); };
+            SizeChanged += (s, e) => { if (isLoaded) RysujWykresHandlowcow(); };
+        }
+
+        private void InicjalizujKomboRok()
+        {
+            int currentYear = DateTime.Today.Year;
+            for (int y = currentYear; y >= currentYear - 3; y--)
+            {
+                cmbRok.Items.Add(new ComboBoxItem { Content = y.ToString(), Tag = y });
+            }
+            cmbRok.SelectedIndex = 0;
+            cmbMiesiac.SelectedIndex = DateTime.Today.Month - 1;
         }
 
         private void CmbOkres_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -31,6 +51,12 @@ namespace Kalendarz1.CRM
             if (!isLoaded || cmbOkres == null || cmbOkres.SelectedIndex < 0) return;
             UstawOkres();
             WczytajDane();
+        }
+
+        private void CmbWykresOkres_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!isLoaded || cmbMiesiac == null || cmbRok == null) return;
+            RysujWykresHandlowcow();
         }
 
         private void UstawOkres()
@@ -65,7 +91,7 @@ namespace Kalendarz1.CRM
                 WczytajStatystykiGlobalne();
                 WczytajRankingHandlowcow();
                 WczytajAktywnoscDni();
-                RysujWykresLiniowy();
+                RysujWykresHandlowcow();
             }
             catch (Exception ex)
             {
@@ -126,19 +152,30 @@ namespace Kalendarz1.CRM
             }
         }
 
-        private List<MiesiacDane> daneMiesieczne = new List<MiesiacDane>();
-
-        private void RysujWykresLiniowy()
+        private void RysujWykresHandlowcow()
         {
             if (canvasWykres == null || canvasWykres.ActualWidth <= 0 || canvasWykres.ActualHeight <= 0) return;
+            if (cmbMiesiac?.SelectedItem == null || cmbRok?.SelectedItem == null) return;
 
             canvasWykres.Children.Clear();
             panelOsX.Children.Clear();
             panelOsY.Children.Clear();
 
-            // Pobierz dane miesięczne
-            daneMiesieczne = PobierzDaneMiesieczne();
-            if (daneMiesieczne.Count == 0) return;
+            // Pobierz wybrany miesiąc i rok
+            int miesiac = int.Parse(((ComboBoxItem)cmbMiesiac.SelectedItem).Tag.ToString());
+            int rok = int.Parse(((ComboBoxItem)cmbRok.SelectedItem).Tag.ToString());
+            int liczbaDni = DateTime.DaysInMonth(rok, miesiac);
+
+            var wykresDataOd = new DateTime(rok, miesiac, 1);
+            var wykresDataDo = wykresDataOd.AddMonths(1);
+
+            // Pobierz dane handlowców
+            var daneHandlowcow = PobierzDaneHandlowcowNaMiesiac(wykresDataOd, wykresDataDo, liczbaDni);
+            if (daneHandlowcow.Count == 0)
+            {
+                listaLegendaHandlowcy.ItemsSource = null;
+                return;
+            }
 
             double width = canvasWykres.ActualWidth;
             double height = canvasWykres.ActualHeight;
@@ -150,10 +187,11 @@ namespace Kalendarz1.CRM
             double chartWidth = width - marginLeft - marginRight;
             double chartHeight = height - marginTop - marginBottom;
 
-            int maxValue = Math.Max(1, daneMiesieczne.Max(m => Math.Max(m.Telefony, Math.Max(m.Statusy, m.Notatki))));
-            maxValue = (int)(Math.Ceiling(maxValue / 10.0) * 10); // Zaokrąglij do 10
+            int maxValue = Math.Max(1, daneHandlowcow.Max(h => h.Value.Max()));
+            maxValue = (int)(Math.Ceiling(maxValue / 5.0) * 5);
+            if (maxValue == 0) maxValue = 5;
 
-            // Rysuj siatkę i osie
+            // Rysuj siatkę
             for (int i = 0; i <= 5; i++)
             {
                 double y = marginTop + (chartHeight * i / 5);
@@ -166,7 +204,6 @@ namespace Kalendarz1.CRM
                 };
                 canvasWykres.Children.Add(line);
 
-                // Etykiety osi Y
                 int val = maxValue - (maxValue * i / 5);
                 var labelY = new TextBlock
                 {
@@ -178,41 +215,51 @@ namespace Kalendarz1.CRM
                 panelOsY.Children.Add(labelY);
             }
 
-            // Rysuj linie danych
-            var colorTelefony = Color.FromRgb(59, 130, 246);
-            var colorStatusy = Color.FromRgb(139, 92, 246);
-            var colorNotatki = Color.FromRgb(245, 158, 11);
-
-            RysujLinie(daneMiesieczne.Select(m => m.Telefony).ToList(), colorTelefony, maxValue, chartWidth, chartHeight, marginLeft, marginTop);
-            RysujLinie(daneMiesieczne.Select(m => m.Statusy).ToList(), colorStatusy, maxValue, chartWidth, chartHeight, marginLeft, marginTop);
-            RysujLinie(daneMiesieczne.Select(m => m.Notatki).ToList(), colorNotatki, maxValue, chartWidth, chartHeight, marginLeft, marginTop);
-
-            // Etykiety osi X
-            double stepX = chartWidth / Math.Max(1, daneMiesieczne.Count - 1);
-            for (int i = 0; i < daneMiesieczne.Count; i++)
+            // Rysuj linie dla każdego handlowca
+            var legenda = new List<LegendaItem>();
+            int kolorIndex = 0;
+            foreach (var handlowiec in daneHandlowcow)
             {
+                var kolor = (Color)ColorConverter.ConvertFromString(KoloryHandlowcow[kolorIndex % KoloryHandlowcow.Length]);
+                RysujLinieHandlowca(handlowiec.Value, kolor, maxValue, chartWidth, chartHeight, marginLeft, marginTop, liczbaDni, handlowiec.Key);
+
+                legenda.Add(new LegendaItem
+                {
+                    Nazwa = handlowiec.Key,
+                    Kolor = new SolidColorBrush(kolor)
+                });
+                kolorIndex++;
+            }
+
+            listaLegendaHandlowcy.ItemsSource = legenda;
+
+            // Etykiety osi X (dni miesiąca)
+            for (int d = 1; d <= liczbaDni; d++)
+            {
+                // Pokaż co kilka dni
+                if (liczbaDni > 20 && d % 5 != 1 && d != liczbaDni) continue;
+                if (liczbaDni <= 20 && d % 2 == 0 && d != liczbaDni) continue;
+
+                double stepX = chartWidth / liczbaDni;
                 var labelX = new TextBlock
                 {
-                    Text = daneMiesieczne[i].Nazwa,
+                    Text = d.ToString(),
                     FontSize = 10,
                     Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)),
-                    Width = stepX,
-                    TextAlignment = TextAlignment.Center
+                    Margin = new Thickness(marginLeft + (d - 0.5) * stepX - 5, 0, 0, 0)
                 };
                 panelOsX.Children.Add(labelX);
             }
         }
 
-        private void RysujLinie(List<int> values, Color color, int maxValue, double chartWidth, double chartHeight, double marginLeft, double marginTop)
+        private void RysujLinieHandlowca(int[] values, Color color, int maxValue, double chartWidth, double chartHeight, double marginLeft, double marginTop, int liczbaDni, string nazwaHandlowca)
         {
-            if (values.Count < 2) return;
-
             var points = new PointCollection();
-            double stepX = chartWidth / Math.Max(1, values.Count - 1);
+            double stepX = chartWidth / liczbaDni;
 
-            for (int i = 0; i < values.Count; i++)
+            for (int i = 0; i < values.Length; i++)
             {
-                double x = marginLeft + (i * stepX);
+                double x = marginLeft + (i + 0.5) * stepX;
                 double y = marginTop + chartHeight - (values[i] / (double)maxValue * chartHeight);
                 points.Add(new Point(x, y));
             }
@@ -222,113 +269,84 @@ namespace Kalendarz1.CRM
             {
                 Points = points,
                 Stroke = new SolidColorBrush(color),
-                StrokeThickness = 3,
+                StrokeThickness = 2,
                 StrokeLineJoin = PenLineJoin.Round
             };
             canvasWykres.Children.Add(polyline);
 
-            // Punkty
-            foreach (var p in points)
+            // Punkty tylko dla niezerowych wartości
+            for (int i = 0; i < values.Length; i++)
             {
-                var ellipse = new Ellipse
+                if (values[i] > 0)
                 {
-                    Width = 10,
-                    Height = 10,
-                    Fill = new SolidColorBrush(color),
-                    Stroke = Brushes.White,
-                    StrokeThickness = 2
-                };
-                Canvas.SetLeft(ellipse, p.X - 5);
-                Canvas.SetTop(ellipse, p.Y - 5);
-                canvasWykres.Children.Add(ellipse);
+                    var ellipse = new Ellipse
+                    {
+                        Width = 8,
+                        Height = 8,
+                        Fill = new SolidColorBrush(color),
+                        Stroke = Brushes.White,
+                        StrokeThickness = 1.5,
+                        ToolTip = $"{nazwaHandlowca}\nDzień {i + 1}: {values[i]} akcji"
+                    };
+                    Canvas.SetLeft(ellipse, points[i].X - 4);
+                    Canvas.SetTop(ellipse, points[i].Y - 4);
+                    canvasWykres.Children.Add(ellipse);
+                }
             }
-
-            // Obszar pod linią (gradient)
-            var areaPoints = new PointCollection(points);
-            areaPoints.Add(new Point(points.Last().X, marginTop + chartHeight));
-            areaPoints.Add(new Point(points.First().X, marginTop + chartHeight));
-
-            var polygon = new Polygon
-            {
-                Points = areaPoints,
-                Fill = new LinearGradientBrush(
-                    Color.FromArgb(60, color.R, color.G, color.B),
-                    Color.FromArgb(10, color.R, color.G, color.B),
-                    90)
-            };
-            canvasWykres.Children.Insert(0, polygon);
         }
 
-        private List<MiesiacDane> PobierzDaneMiesieczne()
+        private Dictionary<string, int[]> PobierzDaneHandlowcowNaMiesiac(DateTime dataOd, DateTime dataDo, int liczbaDni)
         {
-            var dane = new List<MiesiacDane>();
-            var culture = new CultureInfo("pl-PL");
+            var dane = new Dictionary<string, int[]>();
 
             using (var conn = new SqlConnection(connectionString))
             {
                 conn.Open();
 
-                // Ostatnie 6 miesięcy
+                // Pobierz aktywność per handlowiec per dzień
                 var cmd = new SqlCommand(@"
                     SELECT
-                        YEAR(DataZmiany) as Rok, MONTH(DataZmiany) as Miesiac,
-                        SUM(CASE WHEN WartoscNowa IN ('Próba kontaktu', 'Nawiązano kontakt') THEN 1 ELSE 0 END) as Telefony,
-                        SUM(CASE WHEN WartoscNowa NOT IN ('Próba kontaktu', 'Nawiązano kontakt', 'Do zadzwonienia') THEN 1 ELSE 0 END) as Statusy
-                    FROM HistoriaZmianCRM
-                    WHERE TypZmiany = 'Zmiana statusu'
-                    AND DataZmiany > DATEADD(month, -6, GETDATE())
-                    GROUP BY YEAR(DataZmiany), MONTH(DataZmiany)
-                    ORDER BY Rok, Miesiac", conn);
+                        ISNULL(o.Name, h.KtoWykonal) as Handlowiec,
+                        DAY(h.DataZmiany) as Dzien,
+                        COUNT(*) as Akcje
+                    FROM HistoriaZmianCRM h
+                    LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
+                    WHERE h.TypZmiany = 'Zmiana statusu'
+                    AND h.DataZmiany >= @dataOd AND h.DataZmiany < @dataDo
+                    GROUP BY h.KtoWykonal, o.Name, DAY(h.DataZmiany)
 
-                var historiaData = new Dictionary<(int rok, int miesiac), (int tel, int stat)>();
+                    UNION ALL
+
+                    SELECT
+                        ISNULL(o.Name, n.KtoDodal) as Handlowiec,
+                        DAY(n.DataUtworzenia) as Dzien,
+                        COUNT(*) as Akcje
+                    FROM NotatkiCRM n
+                    LEFT JOIN operators o ON n.KtoDodal = CAST(o.ID AS NVARCHAR)
+                    WHERE n.DataUtworzenia >= @dataOd AND n.DataUtworzenia < @dataDo
+                    GROUP BY n.KtoDodal, o.Name, DAY(n.DataUtworzenia)", conn);
+                cmd.Parameters.AddWithValue("@dataOd", dataOd);
+                cmd.Parameters.AddWithValue("@dataDo", dataDo);
+
                 using (var reader = cmd.ExecuteReader())
                 {
                     while (reader.Read())
                     {
-                        int rok = reader.GetInt32(0);
-                        int mies = reader.GetInt32(1);
-                        historiaData[(rok, mies)] = (reader.GetInt32(2), reader.GetInt32(3));
+                        string handlowiec = reader.IsDBNull(0) ? "Nieznany" : reader.GetString(0);
+                        int dzien = reader.GetInt32(1);
+                        int akcje = reader.GetInt32(2);
+
+                        if (!dane.ContainsKey(handlowiec))
+                            dane[handlowiec] = new int[liczbaDni];
+
+                        if (dzien >= 1 && dzien <= liczbaDni)
+                            dane[handlowiec][dzien - 1] += akcje;
                     }
-                }
-
-                // Notatki
-                var cmdNotatki = new SqlCommand(@"
-                    SELECT YEAR(DataUtworzenia) as Rok, MONTH(DataUtworzenia) as Miesiac, COUNT(*) as Notatki
-                    FROM NotatkiCRM
-                    WHERE DataUtworzenia > DATEADD(month, -6, GETDATE())
-                    GROUP BY YEAR(DataUtworzenia), MONTH(DataUtworzenia)", conn);
-
-                var notatkiData = new Dictionary<(int rok, int miesiac), int>();
-                using (var reader = cmdNotatki.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        notatkiData[(reader.GetInt32(0), reader.GetInt32(1))] = reader.GetInt32(2);
-                    }
-                }
-
-                // Uzupełnij wszystkie 6 miesięcy
-                for (int i = 5; i >= 0; i--)
-                {
-                    var date = DateTime.Today.AddMonths(-i);
-                    int rok = date.Year;
-                    int mies = date.Month;
-
-                    int tel = historiaData.ContainsKey((rok, mies)) ? historiaData[(rok, mies)].tel : 0;
-                    int stat = historiaData.ContainsKey((rok, mies)) ? historiaData[(rok, mies)].stat : 0;
-                    int not = notatkiData.ContainsKey((rok, mies)) ? notatkiData[(rok, mies)] : 0;
-
-                    dane.Add(new MiesiacDane
-                    {
-                        Nazwa = culture.DateTimeFormat.GetAbbreviatedMonthName(mies),
-                        Telefony = tel,
-                        Statusy = stat,
-                        Notatki = not
-                    });
                 }
             }
 
-            return dane;
+            // Sortuj po sumie akcji (najbardziej aktywni na górze), max 10 handlowców
+            return dane.OrderByDescending(d => d.Value.Sum()).Take(10).ToDictionary(d => d.Key, d => d.Value);
         }
 
         private void WczytajRankingHandlowcow()
@@ -339,7 +357,6 @@ namespace Kalendarz1.CRM
             {
                 conn.Open();
 
-                // Historia
                 var cmd = new SqlCommand(@"
                     SELECT
                         ISNULL(o.Name, h.KtoWykonal) as Handlowiec,
@@ -363,7 +380,6 @@ namespace Kalendarz1.CRM
                     }
                 }
 
-                // Notatki
                 var cmdNotatki = new SqlCommand(@"
                     SELECT ISNULL(o.Name, n.KtoDodal) as Handlowiec, COUNT(*) as Notatki
                     FROM NotatkiCRM n
@@ -383,7 +399,6 @@ namespace Kalendarz1.CRM
                     }
                 }
 
-                // Połącz
                 var nazwy = daneHistoria.Keys.Union(daneNotatki.Keys).Distinct();
                 foreach (var nazwa in nazwy)
                 {
@@ -406,10 +421,8 @@ namespace Kalendarz1.CRM
                 }
             }
 
-            // Sortuj
             handlowcy = handlowcy.OrderByDescending(h => h.Suma).ToList();
 
-            // Podium
             if (handlowcy.Count > 0) { txtTop1Nazwa.Text = handlowcy[0].Nazwa; txtTop1Punkty.Text = handlowcy[0].Suma + " pkt"; }
             else { txtTop1Nazwa.Text = "-"; txtTop1Punkty.Text = "0"; }
 
@@ -419,7 +432,6 @@ namespace Kalendarz1.CRM
             if (handlowcy.Count > 2) { txtTop3Nazwa.Text = handlowcy[2].Nazwa; txtTop3Punkty.Text = handlowcy[2].Suma + " pkt"; }
             else { txtTop3Nazwa.Text = "-"; txtTop3Punkty.Text = "0"; }
 
-            // Lista pozostałych (od 4 miejsca)
             var pozostali = handlowcy.Skip(3).ToList();
             var kolory = new[] { "#16A34A", "#22C55E", "#4ADE80", "#86EFAC" };
 
@@ -446,7 +458,6 @@ namespace Kalendarz1.CRM
             {
                 conn.Open();
 
-                // Historia
                 var cmdHistoria = new SqlCommand(@"
                     SELECT CAST(DataZmiany AS DATE) as Dzien,
                         SUM(CASE WHEN WartoscNowa IN ('Próba kontaktu', 'Nawiązano kontakt') THEN 1 ELSE 0 END) as Telefony,
@@ -465,7 +476,6 @@ namespace Kalendarz1.CRM
                     }
                 }
 
-                // Notatki
                 var cmdNotatki = new SqlCommand(@"
                     SELECT CAST(DataUtworzenia AS DATE) as Dzien, COUNT(*) as Notatki
                     FROM NotatkiCRM
@@ -481,7 +491,6 @@ namespace Kalendarz1.CRM
                     }
                 }
 
-                // Ostatnie 14 dni
                 var culture = new CultureInfo("pl-PL");
                 for (int i = 13; i >= 0; i--)
                 {
@@ -508,7 +517,6 @@ namespace Kalendarz1.CRM
                 }
             }
 
-            // Oblicz wysokości słupków
             foreach (var d in dni)
             {
                 d.WysokoscTelefony = maxSuma > 0 ? Math.Max((d.Telefony / (double)maxSuma) * 70, d.Telefony > 0 ? 4 : 0) : 0;
@@ -524,12 +532,10 @@ namespace Kalendarz1.CRM
     }
 
     // Klasy pomocnicze
-    public class MiesiacDane
+    public class LegendaItem
     {
         public string Nazwa { get; set; }
-        public int Telefony { get; set; }
-        public int Statusy { get; set; }
-        public int Notatki { get; set; }
+        public SolidColorBrush Kolor { get; set; }
     }
 
     public class HandlowiecRanking
