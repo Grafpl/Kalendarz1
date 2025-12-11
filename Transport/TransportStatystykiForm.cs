@@ -417,7 +417,7 @@ namespace Kalendarz1.Transport
                 SELECT
                     p.Rejestracja,
                     p.Marka + ' ' + ISNULL(p.Model, '') AS Pojazd,
-                    p.Pojemnosc AS PojemnoscMax,
+                    ISNULL(p.PaletyH1, 0) AS PaletyMax,
                     COUNT(DISTINCT kurs.KursID) AS LiczbaKursow,
                     SUM(ISNULL(l.PojemnikiE2, 0)) AS SumaPojemnikow,
                     SUM(ISNULL(l.PaletyH1, 0)) AS SumaPalet
@@ -426,13 +426,13 @@ namespace Kalendarz1.Transport
                     AND kurs.DataKursu >= @DataOd AND kurs.DataKursu <= @DataDo
                 LEFT JOIN dbo.Ladunek l ON kurs.KursID = l.KursID
                 WHERE p.Aktywny = 1
-                GROUP BY p.PojazdID, p.Rejestracja, p.Marka, p.Model, p.Pojemnosc
+                GROUP BY p.PojazdID, p.Rejestracja, p.Marka, p.Model, p.PaletyH1
                 ORDER BY LiczbaKursow DESC";
 
             var dt = new DataTable();
             dt.Columns.Add("Rejestracja", typeof(string));
             dt.Columns.Add("Pojazd", typeof(string));
-            dt.Columns.Add("Pojemność max", typeof(int));
+            dt.Columns.Add("Palety max", typeof(int));
             dt.Columns.Add("Kursy", typeof(int));
             dt.Columns.Add("Pojemniki E2", typeof(int));
             dt.Columns.Add("Palety", typeof(int));
