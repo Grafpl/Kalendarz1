@@ -1204,13 +1204,13 @@ namespace Kalendarz1
             };
 
             // Style dla nagłówków kolumn (ciemne)
-            var headerStyle = new Style(typeof(DataGridColumnHeader));
-            headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BackgroundProperty, new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3A3A3E"))));
-            headerStyle.Setters.Add(new Setter(DataGridColumnHeader.ForegroundProperty, Brushes.White));
-            headerStyle.Setters.Add(new Setter(DataGridColumnHeader.FontWeightProperty, FontWeights.Bold));
-            headerStyle.Setters.Add(new Setter(DataGridColumnHeader.PaddingProperty, new Thickness(8, 5, 8, 5)));
-            headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BorderBrushProperty, new SolidColorBrush((Color)ColorConverter.ConvertFromString("#555"))));
-            headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BorderThicknessProperty, new Thickness(0, 0, 1, 1)));
+            var headerStyle = new Style(typeof(System.Windows.Controls.Primitives.DataGridColumnHeader));
+            headerStyle.Setters.Add(new Setter(Control.BackgroundProperty, new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3A3A3E"))));
+            headerStyle.Setters.Add(new Setter(Control.ForegroundProperty, Brushes.White));
+            headerStyle.Setters.Add(new Setter(Control.FontWeightProperty, FontWeights.Bold));
+            headerStyle.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(8, 5, 8, 5)));
+            headerStyle.Setters.Add(new Setter(Control.BorderBrushProperty, new SolidColorBrush((Color)ColorConverter.ConvertFromString("#555"))));
+            headerStyle.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0, 0, 1, 1)));
             dgItems.ColumnHeaderStyle = headerStyle;
 
             // Style dla komórek (ciemne)
