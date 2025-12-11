@@ -972,21 +972,53 @@ namespace Kalendarz1
 
             try
             {
-                // 1. Plan - na podstawie HarmonogramDostaw (masa dekowania * współczynnik tuszki)
-                // Plan jest globalny - nie filtrujemy po produkcie (bo to prognoza całości)
-                if (!_filteredProductId.HasValue)
+                // 1. Plan - na podstawie HarmonogramDostaw i konfiguracji wydajności z bazy
+                using (var cn = new SqlConnection(_connLibra))
                 {
-                    using (var cn = new SqlConnection(_connLibra))
-                    {
-                        await cn.OpenAsync();
-                        var cmd = new SqlCommand(@"SELECT ISNULL(SUM(WagaDek * SztukiDek), 0)
+                    await cn.OpenAsync();
+
+                    // Pobierz masę żywca z harmonogramu
+                    var cmdMasa = new SqlCommand(@"SELECT ISNULL(SUM(WagaDek * SztukiDek), 0)
                                                    FROM dbo.HarmonogramDostaw
                                                    WHERE DataOdbioru = @D AND Bufor = 'Potwierdzony'", cn);
-                        cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
-                        var result = await cmd.ExecuteScalarAsync();
-                        decimal sumaMasyDek = result != DBNull.Value ? Convert.ToDecimal(result) : 0m;
-                        // Współczynnik tuszki ~78%
-                        planPrzychodu = sumaMasyDek * 0.78m;
+                    cmdMasa.Parameters.AddWithValue("@D", _selectedDate.Date);
+                    var resultMasa = await cmdMasa.ExecuteScalarAsync();
+                    decimal sumaMasyZywca = resultMasa != DBNull.Value ? Convert.ToDecimal(resultMasa) : 0m;
+
+                    // Pobierz aktywną konfigurację wydajności dla tej daty
+                    decimal wspolczynnikTuszki = 78m; // domyślna wartość w %
+                    var cmdWydajnosc = new SqlCommand(@"SELECT TOP 1 WspolczynnikTuszki
+                                                        FROM KonfiguracjaWydajnosci
+                                                        WHERE DataOd <= @D AND Aktywny = 1
+                                                        ORDER BY DataOd DESC", cn);
+                    cmdWydajnosc.Parameters.AddWithValue("@D", _selectedDate.Date);
+                    var resultWydajnosc = await cmdWydajnosc.ExecuteScalarAsync();
+                    if (resultWydajnosc != null && resultWydajnosc != DBNull.Value)
+                        wspolczynnikTuszki = Convert.ToDecimal(resultWydajnosc);
+
+                    // Jeśli wybrany konkretny produkt - pobierz jego % udziału z KonfiguracjaPodrobow
+                    if (_filteredProductId.HasValue)
+                    {
+                        var cmdUdzial = new SqlCommand(@"SELECT TOP 1 ProcentUdzialu
+                                                         FROM KonfiguracjaPodrobow
+                                                         WHERE TowarID = @T AND DataOd <= @D AND Aktywny = 1
+                                                         ORDER BY DataOd DESC", cn);
+                        cmdUdzial.Parameters.AddWithValue("@T", _filteredProductId.Value);
+                        cmdUdzial.Parameters.AddWithValue("@D", _selectedDate.Date);
+                        var resultUdzial = await cmdUdzial.ExecuteScalarAsync();
+
+                        if (resultUdzial != null && resultUdzial != DBNull.Value)
+                        {
+                            decimal procentUdzialu = Convert.ToDecimal(resultUdzial);
+                            // Plan = masa żywca * współczynnik tuszki * procent udziału produktu
+                            planPrzychodu = sumaMasyZywca * (wspolczynnikTuszki / 100m) * (procentUdzialu / 100m);
+                        }
+                        // Jeśli brak konfiguracji dla tego produktu - plan = 0
+                    }
+                    else
+                    {
+                        // Wszystkie produkty - cały przychód tuszki
+                        planPrzychodu = sumaMasyZywca * (wspolczynnikTuszki / 100m);
                     }
                 }
 
@@ -1048,7 +1080,7 @@ namespace Kalendarz1
             decimal bilans = faktPrzychodu - sumaZamowien;
 
             // Aktualizuj UI
-            lblPrzychPlan.Text = _filteredProductId.HasValue ? "—" : (planPrzychodu > 0 ? $"{planPrzychodu:N0}" : "—");
+            lblPrzychPlan.Text = planPrzychodu > 0 ? $"{planPrzychodu:N0}" : "—";
             lblPrzychFakt.Text = faktPrzychodu > 0 ? $"{faktPrzychodu:N0}" : "—";
             lblPrzychZam.Text = sumaZamowien > 0 ? $"{sumaZamowien:N0}" : "—";
             lblPrzychBilans.Text = bilans != 0 ? $"{bilans:N0}" : "—";
