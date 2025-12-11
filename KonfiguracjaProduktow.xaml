@@ -427,9 +427,10 @@
                 </Border>
 
                 <DataGrid Grid.Row="1"
-                          x:Name="dgKonfiguracje" 
+                          x:Name="dgKonfiguracje"
                           Style="{StaticResource DataGridStyle}"
-                          ColumnHeaderStyle="{StaticResource ColumnHeaderStyle}">
+                          ColumnHeaderStyle="{StaticResource ColumnHeaderStyle}"
+                          MouseDoubleClick="DgKonfiguracje_MouseDoubleClick">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Data od" 
                                           Binding="{Binding DataOd, StringFormat=yyyy-MM-dd}" 
@@ -484,21 +485,35 @@
                                           Binding="{Binding DataModyfikacji, StringFormat=yyyy-MM-dd HH:mm}" 
                                           Width="130"/>
 
-                        <DataGridTemplateColumn Header="Akcje" Width="80">
+                        <DataGridTemplateColumn Header="Akcje" Width="120">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Button Content="✕" 
-                                            Width="28" 
-                                            Height="24"
-                                            Background="#E74C3C"
-                                            Foreground="White"
-                                            BorderThickness="0"
-                                            FontWeight="Bold"
-                                            Cursor="Hand"
-                                            Click="BtnUsunKonfiguracje_Click"
-                                            Tag="{Binding}"
-                                            ToolTip="Dezaktywuj"
-                                            Margin="2"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="✎"
+                                                Width="28"
+                                                Height="24"
+                                                Background="#3498DB"
+                                                Foreground="White"
+                                                BorderThickness="0"
+                                                FontWeight="Bold"
+                                                Cursor="Hand"
+                                                Click="BtnEdytujKonfiguracje_Click"
+                                                Tag="{Binding}"
+                                                ToolTip="Edytuj konfigurację"
+                                                Margin="2"/>
+                                        <Button Content="✕"
+                                                Width="28"
+                                                Height="24"
+                                                Background="#E74C3C"
+                                                Foreground="White"
+                                                BorderThickness="0"
+                                                FontWeight="Bold"
+                                                Cursor="Hand"
+                                                Click="BtnUsunKonfiguracje_Click"
+                                                Tag="{Binding}"
+                                                ToolTip="Dezaktywuj"
+                                                Margin="2"/>
+                                    </StackPanel>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>

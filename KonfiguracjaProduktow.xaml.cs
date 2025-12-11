@@ -470,6 +470,111 @@ namespace Kalendarz1
             Close();
         }
 
+        private void BtnEdytujKonfiguracje_Click(object sender, RoutedEventArgs e)
+        {
+            var button = sender as Button;
+            var konfig = button?.Tag as ProduktKonfiguracjaModel;
+
+            if (konfig != null)
+            {
+                WczytajKonfiguracjeDoEdycji(konfig.DataOd);
+            }
+        }
+
+        private void DgKonfiguracje_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            var konfig = dgKonfiguracje.SelectedItem as ProduktKonfiguracjaModel;
+            if (konfig != null)
+            {
+                WczytajKonfiguracjeDoEdycji(konfig.DataOd);
+            }
+        }
+
+        private void WczytajKonfiguracjeDoEdycji(DateTime dataOd)
+        {
+            try
+            {
+                // Wyczyść aktualną listę produktów
+                produktySzczegoly.Clear();
+
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Sprawdź czy kolumna GrupaScalowania istnieje
+                    bool hasGrupaColumn = false;
+                    string checkColumnQuery = @"
+                        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+                        WHERE TABLE_NAME = 'KonfiguracjaProduktow' AND COLUMN_NAME = 'GrupaScalowania'";
+                    using (SqlCommand cmd = new SqlCommand(checkColumnQuery, conn))
+                    {
+                        hasGrupaColumn = cmd.ExecuteScalar() != null;
+                    }
+
+                    string query = hasGrupaColumn
+                        ? @"SELECT k.TowarID, k.NazwaTowaru, k.ProcentUdzialu, k.GrupaScalowania, t.kod
+                           FROM KonfiguracjaProduktow k
+                           LEFT JOIN [HANDEL].[HM].[TW] t ON k.TowarID = t.id
+                           WHERE k.DataOd = @DataOd
+                           ORDER BY k.ID"
+                        : @"SELECT k.TowarID, k.NazwaTowaru, k.ProcentUdzialu, t.kod
+                           FROM KonfiguracjaProduktow k
+                           LEFT JOIN [HANDEL].[HM].[TW] t ON k.TowarID = t.id
+                           WHERE k.DataOd = @DataOd
+                           ORDER BY k.ID";
+
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@DataOd", dataOd);
+
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                var produkt = new ProduktSzczegolyModel
+                                {
+                                    TowarID = Convert.ToInt32(reader["TowarID"]),
+                                    Nazwa = reader["NazwaTowaru"].ToString(),
+                                    Kod = reader.IsDBNull(reader.GetOrdinal("kod")) ? "" : reader["kod"].ToString(),
+                                    Procent = Convert.ToDecimal(reader["ProcentUdzialu"]),
+                                    GrupaScalowania = hasGrupaColumn && !reader.IsDBNull(reader.GetOrdinal("GrupaScalowania"))
+                                        ? reader["GrupaScalowania"].ToString()
+                                        : ""
+                                };
+
+                                produktySzczegoly.Add(produkt);
+                            }
+                        }
+                    }
+                }
+
+                // Ustaw datę
+                dpDataOd.SelectedDate = dataOd;
+
+                // Ustaw ItemsSource jeśli jeszcze nie jest ustawione
+                if (listSkonfigurowane.ItemsSource == null)
+                {
+                    listSkonfigurowane.ItemsSource = produktySzczegoly;
+                }
+
+                ObliczSumeProcentow();
+
+                MessageBox.Show(
+                    $"Wczytano konfigurację z dnia {dataOd:yyyy-MM-dd}.\n\n" +
+                    $"Liczba produktów: {produktySzczegoly.Count}\n\n" +
+                    $"Możesz teraz edytować produkty i zapisać jako nową konfigurację\n" +
+                    $"lub zmienić datę aby nadpisać istniejącą.",
+                    "Konfiguracja wczytana",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd wczytywania konfiguracji: {ex.Message}",
+                              "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private void BtnUsunKonfiguracje_Click(object sender, RoutedEventArgs e)
         {
             var button = sender as Button;
