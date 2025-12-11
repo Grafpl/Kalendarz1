@@ -1895,23 +1895,23 @@ namespace Kalendarz1.Transport.Formularze
             {
                 var wolneZamowienia = new List<(int Id, string Klient, DateTime DataUboju, string Godzina, decimal Palety, int Pojemniki, string Adres)>();
 
-                await using var cn = new SqlConnection(_connLibra);
+                using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
 
-                // Pobierz zamówienia z dzisiejszą datą uboju, które nie mają przypisanego transportu
+                // Pobierz zamówienia z wybraną datą uboju, które nie mają przypisanego transportu
                 var sql = @"
                     SELECT DISTINCT
                         zm.Id AS ZamowienieId,
                         zm.KlientId,
-                        zm.DataPrzyjazdu,
+                        ISNULL(zm.DataPrzyjazdu, zm.DataUboju) AS DataPrzyjazdu,
                         ISNULL(zm.LiczbaPalet, 0) AS LiczbaPalet,
                         ISNULL(zm.LiczbaPojemnikow, 0) AS LiczbaPojemnikow,
                         ISNULL(zm.TransportStatus, 'Oczekuje') AS TransportStatus,
                         zm.DataUboju
                     FROM dbo.ZamowieniaMieso zm
-                    WHERE zm.DataUboju = @DataUboju
+                    WHERE CAST(zm.DataUboju AS DATE) = @DataUboju
                       AND ISNULL(zm.Status, 'Nowe') NOT IN ('Anulowane')
-                      AND (ISNULL(zm.TransportStatus, 'Oczekuje') = 'Oczekuje' OR zm.TransportStatus IS NULL)
+                      AND (ISNULL(zm.TransportStatus, 'Oczekuje') = 'Oczekuje' OR zm.TransportStatus IS NULL OR zm.TransportStatus = '')
                       AND ISNULL(zm.TransportStatus, '') <> 'Własny'
                     ORDER BY zm.DataPrzyjazdu";
 
@@ -1927,9 +1927,9 @@ namespace Kalendarz1.Transport.Formularze
                     {
                         var zamId = reader.GetInt32(0);
                         var klientId = reader.GetInt32(1);
-                        var dataPrzyjazdu = reader.GetDateTime(2);
-                        var palety = reader.GetDecimal(3);
-                        var pojemniki = reader.GetInt32(4);
+                        var dataPrzyjazdu = reader.IsDBNull(2) ? _selectedDate : reader.GetDateTime(2);
+                        var palety = reader.IsDBNull(3) ? 0m : reader.GetDecimal(3);
+                        var pojemniki = reader.IsDBNull(4) ? 0 : reader.GetInt32(4);
                         var dataUboju = reader.IsDBNull(6) ? (DateTime?)null : reader.GetDateTime(6);
 
                         tempList.Add((zamId, klientId, dataPrzyjazdu, palety, pojemniki, dataUboju));
@@ -1942,28 +1942,36 @@ namespace Kalendarz1.Transport.Formularze
                 var klienciDict = new Dictionary<int, (string Nazwa, string Adres)>();
                 if (klientIds.Any())
                 {
-                    await using var cnHandel = new SqlConnection(_connHandel);
-                    await cnHandel.OpenAsync();
-
-                    var sqlKlienci = $@"
-                        SELECT
-                            c.Id,
-                            ISNULL(c.Shortcut, 'KH ' + CAST(c.Id AS VARCHAR(10))) AS Nazwa,
-                            ISNULL(poa.City, '') + ' ' + ISNULL(poa.Street, '') AS Adres
-                        FROM SSCommon.STContractors c
-                        LEFT JOIN SSCommon.STPostOfficeAddresses poa ON poa.ContactGuid = c.ContactGuid
-                            AND poa.AddressName = N'adres domyślny'
-                        WHERE c.Id IN ({string.Join(",", klientIds)})";
-
-                    using var cmdKlienci = new SqlCommand(sqlKlienci, cnHandel);
-                    using var readerKlienci = await cmdKlienci.ExecuteReaderAsync();
-
-                    while (await readerKlienci.ReadAsync())
+                    try
                     {
-                        var id = readerKlienci.GetInt32(0);
-                        var nazwa = readerKlienci.GetString(1);
-                        var adres = readerKlienci.GetString(2).Trim();
-                        klienciDict[id] = (nazwa, adres);
+                        using var cnHandel = new SqlConnection(_connHandel);
+                        await cnHandel.OpenAsync();
+
+                        var sqlKlienci = $@"
+                            SELECT
+                                c.Id,
+                                ISNULL(c.Shortcut, 'KH ' + CAST(c.Id AS VARCHAR(10))) AS Nazwa,
+                                ISNULL(ISNULL(poa.City, '') + ' ' + ISNULL(poa.Street, ''), '') AS Adres
+                            FROM SSCommon.STContractors c
+                            LEFT JOIN SSCommon.STPostOfficeAddresses poa ON poa.ContactGuid = c.ContactGuid
+                                AND poa.AddressName = N'adres domyślny'
+                            WHERE c.Id IN ({string.Join(",", klientIds)})";
+
+                        using var cmdKlienci = new SqlCommand(sqlKlienci, cnHandel);
+                        using var readerKlienci = await cmdKlienci.ExecuteReaderAsync();
+
+                        while (await readerKlienci.ReadAsync())
+                        {
+                            var id = readerKlienci.GetInt32(0);
+                            var nazwa = readerKlienci.IsDBNull(1) ? $"Klient {id}" : readerKlienci.GetString(1);
+                            var adres = readerKlienci.IsDBNull(2) ? "" : readerKlienci.GetString(2).Trim();
+                            klienciDict[id] = (nazwa, adres);
+                        }
+                    }
+                    catch (Exception exHandel)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error loading klienci: {exHandel.Message}");
+                        // Kontynuuj bez nazw klientów
                     }
                 }
 
@@ -2023,8 +2031,17 @@ namespace Kalendarz1.Transport.Formularze
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error loading wolne zamowienia: {ex.Message}");
-                lblWolneZamowieniaInfo.Text = "Błąd ładowania";
+                System.Diagnostics.Debug.WriteLine($"Error loading wolne zamowienia: {ex.Message}\n{ex.StackTrace}");
+                lblWolneZamowieniaInfo.Text = $"Błąd: {ex.Message.Substring(0, Math.Min(30, ex.Message.Length))}...";
+
+                // Pokaż pustą tabelę
+                var dt = new DataTable();
+                dt.Columns.Add("ID", typeof(int));
+                dt.Columns.Add("Klient", typeof(string));
+                dt.Columns.Add("Godz.", typeof(string));
+                dt.Columns.Add("Palety", typeof(string));
+                dt.Columns.Add("E2", typeof(int));
+                dgvWolneZamowienia.DataSource = dt;
             }
         }
 
