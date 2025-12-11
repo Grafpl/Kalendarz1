@@ -490,6 +490,9 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     handlowcyNaSlupkach.Add(d.Handlowiec);
                 }
 
+                // Przechwycenie listy handlowcow dla uzycia w LabelPoint
+                var listaHandlowcow = handlowcyNaSlupkach.ToList();
+
                 // Jedna seria z grubymi slupkami
                 series.Add(new RowSeries
                 {
@@ -497,7 +500,11 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     Values = wartosci,
                     Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F4A261")),
                     DataLabels = true,
-                    LabelPoint = p => $"{p.X:N0} zl",
+                    LabelPoint = p => {
+                        int idx = (int)p.Y;
+                        string handlowiec = idx >= 0 && idx < listaHandlowcow.Count ? listaHandlowcow[idx] : "";
+                        return $"{p.X:N0} zl | {handlowiec}";
+                    },
                     Foreground = Brushes.White,
                     MaxRowHeigth = 35,
                     RowPadding = 2
@@ -1687,15 +1694,15 @@ FROM FakturyPrzeterminowane";
                 var agingTotal = agingData.Kwota030 + agingData.Kwota3160 + agingData.Kwota6190 + agingData.Kwota90Plus;
 
                 txtAging030.Text = $"{agingData.Kwota030:N0} zl";
-                txtAging030Procent.Text = $"{(agingTotal > 0 ? agingData.Kwota030 / agingTotal * 100 : 0):F0}% | {agingData.Faktur030} fakt.";
+                txtAging030Procent.Text = $"{(agingTotal > 0 ? agingData.Kwota030 / agingTotal * 100 : 0):F0}%";
                 txtAging3160.Text = $"{agingData.Kwota3160:N0} zl";
-                txtAging3160Procent.Text = $"{(agingTotal > 0 ? agingData.Kwota3160 / agingTotal * 100 : 0):F0}% | {agingData.Faktur3160} fakt.";
+                txtAging3160Procent.Text = $"{(agingTotal > 0 ? agingData.Kwota3160 / agingTotal * 100 : 0):F0}%";
                 txtAging6190.Text = $"{agingData.Kwota6190:N0} zl";
-                txtAging6190Procent.Text = $"{(agingTotal > 0 ? agingData.Kwota6190 / agingTotal * 100 : 0):F0}% | {agingData.Faktur6190} fakt.";
+                txtAging6190Procent.Text = $"{(agingTotal > 0 ? agingData.Kwota6190 / agingTotal * 100 : 0):F0}%";
                 txtAging90Plus.Text = $"{agingData.Kwota90Plus:N0} zl";
-                txtAging90PlusProcent.Text = $"{(agingTotal > 0 ? agingData.Kwota90Plus / agingTotal * 100 : 0):F0}% | {agingData.Faktur90Plus} fakt.";
+                txtAging90PlusProcent.Text = $"{(agingTotal > 0 ? agingData.Kwota90Plus / agingTotal * 100 : 0):F0}%";
 
-                // Wykres przeterminowanych per handlowiec
+                // Wykres przeterminowanych per handlowiec - jednolity kolor
                 var przeterminowanePerHandlowiec = dane
                     .Where(d => d.Przeterminowane > 0)
                     .GroupBy(d => d.Handlowiec)
@@ -1707,22 +1714,27 @@ FROM FakturyPrzeterminowane";
                 {
                     var seriesHandlowiec = new SeriesCollection();
                     var labelsHandlowiec = new List<string>();
+                    var wartosciHandlowiec = new ChartValues<double>();
 
                     // Odwroc kolejnosc dla wyswietlania (najwyzszy na gorze = ostatni w liscie)
                     for (int i = przeterminowanePerHandlowiec.Count - 1; i >= 0; i--)
                     {
                         var h = przeterminowanePerHandlowiec[i];
                         labelsHandlowiec.Add($"{h.Handlowiec} ({h.Klientow})");
-                        seriesHandlowiec.Add(new RowSeries
-                        {
-                            Title = h.Handlowiec,
-                            Values = new ChartValues<double> { (double)h.Kwota },
-                            Fill = new SolidColorBrush(GetHandlowiecColor(h.Handlowiec)),
-                            DataLabels = true,
-                            LabelPoint = p => $"{p.X:N0} zl",
-                            Foreground = Brushes.White
-                        });
+                        wartosciHandlowiec.Add((double)h.Kwota);
                     }
+
+                    // Jedna seria z jednolitym kolorem
+                    seriesHandlowiec.Add(new RowSeries
+                    {
+                        Title = "Przeterminowane",
+                        Values = wartosciHandlowiec,
+                        Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF6B6B")),
+                        DataLabels = true,
+                        LabelPoint = p => $"{p.X:N0} zl",
+                        Foreground = Brushes.White,
+                        MaxRowHeigth = 25
+                    });
 
                     chartPrzeterminowaneHandlowiec.Series = seriesHandlowiec;
                     axisYPrzeterminowaneHandlowiec.Labels = labelsHandlowiec;

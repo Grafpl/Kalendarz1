@@ -935,135 +935,151 @@
                                 </Border>
                             </Grid>
 
-                            <!-- Aging Analysis - podzial wg dni z liczba faktur -->
-                            <Border Grid.Row="2" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="15" Margin="0,0,0,10">
-                                <Grid>
+                            <!-- Wykresy po lewej + Analiza wiekowa po prawej -->
+                            <Grid Grid.Row="2" Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="280"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- LEWA STRONA: Wykresy -->
+                                <Grid Grid.Column="0" Margin="0,0,5,0">
                                     <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
-                                    <TextBlock Grid.Row="0" Text="ANALIZA WIEKOWA NALEZNOSCI (przeterminowane wg liczby dni)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold" Margin="0,0,0,10"/>
-                                    <Grid Grid.Row="1">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
 
-                                        <!-- 0-30 dni -->
-                                        <Border Grid.Column="0" Background="#1A1D21" CornerRadius="5" Padding="12" Margin="0,0,5,0">
-                                            <StackPanel HorizontalAlignment="Center">
-                                                <TextBlock Text="1-30 DNI" FontSize="12" Foreground="#4ECDC4" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                                <TextBlock x:Name="txtAging030" Text="0 zl" FontSize="18" FontWeight="Bold" Foreground="#4ECDC4" HorizontalAlignment="Center" Margin="0,5,0,0"/>
-                                                <TextBlock x:Name="txtAging030Procent" Text="0% | 0 faktur" FontSize="10" Foreground="#8B949E" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                    <!-- Przeterminowane per Handlowiec -->
+                                    <Border Grid.Row="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="0,0,0,5">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0" Text="PRZETERMINOWANE WG HANDLOWCA" FontSize="10" Foreground="{StaticResource AccentOrangeBrush}" FontWeight="Bold" Margin="5,0,0,5"/>
+                                            <lvc:CartesianChart Grid.Row="1" x:Name="chartPrzeterminowaneHandlowiec" Margin="0" MinHeight="150">
+                                                <lvc:CartesianChart.AxisX>
+                                                    <lvc:Axis x:Name="axisXPrzeterminowaneHandlowiec" Title="" MinValue="0" Foreground="#FFFFFF" FontSize="9">
+                                                        <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
+                                                    </lvc:Axis>
+                                                </lvc:CartesianChart.AxisX>
+                                                <lvc:CartesianChart.AxisY>
+                                                    <lvc:Axis x:Name="axisYPrzeterminowaneHandlowiec" ShowLabels="True" FontSize="9" Foreground="#FFFFFF" IsMerged="False">
+                                                        <lvc:Axis.Separator><lvc:Separator StrokeThickness="0" Step="1"/></lvc:Axis.Separator>
+                                                    </lvc:Axis>
+                                                </lvc:CartesianChart.AxisY>
+                                            </lvc:CartesianChart>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Wskazniki platnosci -->
+                                    <Border Grid.Row="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="15">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                                <TextBlock Text="Srednie dni opozn." Foreground="#8B949E" FontSize="9" HorizontalAlignment="Center"/>
+                                                <TextBlock x:Name="txtWskaznikSrednieDni" Text="0 dni" Foreground="#FFE66D" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,3,0,0"/>
                                             </StackPanel>
+                                            <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                                                <TextBlock Text="% przeterminow." Foreground="#8B949E" FontSize="9" HorizontalAlignment="Center"/>
+                                                <TextBlock x:Name="txtWskaznikProcentPrzeterminowanych" Text="0%" Foreground="#FF6B6B" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                                <TextBlock Text="Klientow przet." Foreground="#8B949E" FontSize="9" HorizontalAlignment="Center"/>
+                                                <TextBlock x:Name="txtWskaznikLiczbaKlientow" Text="0" Foreground="#F4A261" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="3" HorizontalAlignment="Center">
+                                                <TextBlock Text="Przekr. limit" Foreground="#8B949E" FontSize="9" HorizontalAlignment="Center"/>
+                                                <TextBlock x:Name="txtWskaznikPrzekroczonyLimit" Text="0" Foreground="#AA96DA" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="4" HorizontalAlignment="Center">
+                                                <TextBlock Text="Dyscyplina" Foreground="#8B949E" FontSize="9" HorizontalAlignment="Center"/>
+                                                <TextBlock x:Name="txtWskaznikDyscyplina" Text="0%" Foreground="#4ECDC4" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+
+                                <!-- PRAWA STRONA: Analiza wiekowa - pionowy uklad -->
+                                <Border Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,0,0">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Text="ANALIZA WIEKOWA" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" FontWeight="Bold" Margin="0,0,0,8"/>
+
+                                        <!-- 1-30 dni -->
+                                        <Border Grid.Row="1" Background="#1A1D21" CornerRadius="5" Padding="10" Margin="0,0,0,4">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="1-30 DNI" FontSize="11" Foreground="#4ECDC4" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" x:Name="txtAging030" Text="0 zl" FontSize="14" FontWeight="Bold" Foreground="#4ECDC4" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="10,0"/>
+                                                <TextBlock Grid.Column="2" x:Name="txtAging030Procent" Text="0%" FontSize="9" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                            </Grid>
                                         </Border>
 
                                         <!-- 31-60 dni -->
-                                        <Border Grid.Column="1" Background="#1A1D21" CornerRadius="5" Padding="12" Margin="5,0,5,0">
-                                            <StackPanel HorizontalAlignment="Center">
-                                                <TextBlock Text="31-60 DNI" FontSize="12" Foreground="#FFE66D" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                                <TextBlock x:Name="txtAging3160" Text="0 zl" FontSize="18" FontWeight="Bold" Foreground="#FFE66D" HorizontalAlignment="Center" Margin="0,5,0,0"/>
-                                                <TextBlock x:Name="txtAging3160Procent" Text="0% | 0 faktur" FontSize="10" Foreground="#8B949E" HorizontalAlignment="Center" Margin="0,3,0,0"/>
-                                            </StackPanel>
+                                        <Border Grid.Row="2" Background="#1A1D21" CornerRadius="5" Padding="10" Margin="0,0,0,4">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="31-60 DNI" FontSize="11" Foreground="#FFE66D" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" x:Name="txtAging3160" Text="0 zl" FontSize="14" FontWeight="Bold" Foreground="#FFE66D" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="10,0"/>
+                                                <TextBlock Grid.Column="2" x:Name="txtAging3160Procent" Text="0%" FontSize="9" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                            </Grid>
                                         </Border>
 
                                         <!-- 61-90 dni -->
-                                        <Border Grid.Column="2" Background="#1A1D21" CornerRadius="5" Padding="12" Margin="5,0,5,0">
-                                            <StackPanel HorizontalAlignment="Center">
-                                                <TextBlock Text="61-90 DNI" FontSize="12" Foreground="#F4A261" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                                <TextBlock x:Name="txtAging6190" Text="0 zl" FontSize="18" FontWeight="Bold" Foreground="#F4A261" HorizontalAlignment="Center" Margin="0,5,0,0"/>
-                                                <TextBlock x:Name="txtAging6190Procent" Text="0% | 0 faktur" FontSize="10" Foreground="#8B949E" HorizontalAlignment="Center" Margin="0,3,0,0"/>
-                                            </StackPanel>
+                                        <Border Grid.Row="3" Background="#1A1D21" CornerRadius="5" Padding="10" Margin="0,0,0,4">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="61-90 DNI" FontSize="11" Foreground="#F4A261" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" x:Name="txtAging6190" Text="0 zl" FontSize="14" FontWeight="Bold" Foreground="#F4A261" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="10,0"/>
+                                                <TextBlock Grid.Column="2" x:Name="txtAging6190Procent" Text="0%" FontSize="9" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                            </Grid>
                                         </Border>
 
                                         <!-- 90+ dni -->
-                                        <Border Grid.Column="3" Background="#1A1D21" CornerRadius="5" Padding="12" Margin="5,0,0,0">
-                                            <StackPanel HorizontalAlignment="Center">
-                                                <TextBlock Text="90+ DNI" FontSize="12" Foreground="#FF6B6B" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                                <TextBlock x:Name="txtAging90Plus" Text="0 zl" FontSize="18" FontWeight="Bold" Foreground="#FF6B6B" HorizontalAlignment="Center" Margin="0,5,0,0"/>
-                                                <TextBlock x:Name="txtAging90PlusProcent" Text="0% | 0 faktur" FontSize="10" Foreground="#8B949E" HorizontalAlignment="Center" Margin="0,3,0,0"/>
-                                            </StackPanel>
+                                        <Border Grid.Row="4" Background="#1A1D21" CornerRadius="5" Padding="10">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="90+ DNI" FontSize="11" Foreground="#FF6B6B" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" x:Name="txtAging90Plus" Text="0 zl" FontSize="14" FontWeight="Bold" Foreground="#FF6B6B" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="10,0"/>
+                                                <TextBlock Grid.Column="2" x:Name="txtAging90PlusProcent" Text="0%" FontSize="9" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                            </Grid>
                                         </Border>
-                                    </Grid>
-                                </Grid>
-                            </Border>
-
-                            <!-- Statystyki per Handlowiec + Wskazniki platnosci -->
-                            <Grid Grid.Row="3" Margin="0,0,0,10" Height="200">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="320"/>
-                                </Grid.ColumnDefinitions>
-
-                                <!-- Przeterminowane per Handlowiec -->
-                                <Border Grid.Column="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="0,0,5,0">
-                                    <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="*"/>
-                                        </Grid.RowDefinitions>
-                                        <TextBlock Grid.Row="0" Text="PRZETERMINOWANE WG HANDLOWCA" FontSize="10" Foreground="{StaticResource AccentOrangeBrush}" FontWeight="Bold" Margin="5,0,0,5"/>
-                                        <lvc:CartesianChart Grid.Row="1" x:Name="chartPrzeterminowaneHandlowiec" Margin="0">
-                                            <lvc:CartesianChart.AxisX>
-                                                <lvc:Axis x:Name="axisXPrzeterminowaneHandlowiec" Title="" MinValue="0" Foreground="#FFFFFF" FontSize="9">
-                                                    <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
-                                                </lvc:Axis>
-                                            </lvc:CartesianChart.AxisX>
-                                            <lvc:CartesianChart.AxisY>
-                                                <lvc:Axis x:Name="axisYPrzeterminowaneHandlowiec" ShowLabels="True" FontSize="9" Foreground="#FFFFFF" IsMerged="False">
-                                                    <lvc:Axis.Separator><lvc:Separator StrokeThickness="0" Step="1"/></lvc:Axis.Separator>
-                                                </lvc:Axis>
-                                            </lvc:CartesianChart.AxisY>
-                                        </lvc:CartesianChart>
-                                    </Grid>
-                                </Border>
-
-                                <!-- Wskazniki platnosci -->
-                                <Border Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="15" Margin="5,0,0,0">
-                                    <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="*"/>
-                                        </Grid.RowDefinitions>
-                                        <TextBlock Grid.Row="0" Text="WSKAZNIKI PLATNOSCI" FontSize="10" Foreground="#4ECDC4" FontWeight="Bold" Margin="0,0,0,10"/>
-                                        <Grid Grid.Row="1">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-
-                                            <!-- Srednie dni opoznienia -->
-                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Srednie dni opoznienia:" Foreground="#8B949E" FontSize="11" VerticalAlignment="Center"/>
-                                            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="txtWskaznikSrednieDni" Text="0 dni" Foreground="#FFE66D" FontSize="14" FontWeight="Bold" HorizontalAlignment="Right"/>
-
-                                            <!-- Procent przeterminowanych -->
-                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="% kwoty przeterminowanej:" Foreground="#8B949E" FontSize="11" VerticalAlignment="Center" Margin="0,8,0,0"/>
-                                            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="txtWskaznikProcentPrzeterminowanych" Text="0%" Foreground="#FF6B6B" FontSize="14" FontWeight="Bold" HorizontalAlignment="Right" Margin="0,8,0,0"/>
-
-                                            <!-- Liczba klientow z przeterminowanymi -->
-                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Klientow z przeterminowaniem:" Foreground="#8B949E" FontSize="11" VerticalAlignment="Center" Margin="0,8,0,0"/>
-                                            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="txtWskaznikLiczbaKlientow" Text="0" Foreground="#F4A261" FontSize="14" FontWeight="Bold" HorizontalAlignment="Right" Margin="0,8,0,0"/>
-
-                                            <!-- Liczba klientow z przekroczonym limitem -->
-                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Klientow z przekr. limitem:" Foreground="#8B949E" FontSize="11" VerticalAlignment="Center" Margin="0,8,0,0"/>
-                                            <TextBlock Grid.Row="3" Grid.Column="1" x:Name="txtWskaznikPrzekroczonyLimit" Text="0" Foreground="#AA96DA" FontSize="14" FontWeight="Bold" HorizontalAlignment="Right" Margin="0,8,0,0"/>
-
-                                            <!-- Dyscyplina platnicza -->
-                                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Dyscyplina platnicza:" Foreground="#8B949E" FontSize="11" VerticalAlignment="Center" Margin="0,8,0,0"/>
-                                            <TextBlock Grid.Row="4" Grid.Column="1" x:Name="txtWskaznikDyscyplina" Text="0%" Foreground="#4ECDC4" FontSize="14" FontWeight="Bold" HorizontalAlignment="Right" Margin="0,8,0,0"/>
-                                        </Grid>
                                     </Grid>
                                 </Border>
                             </Grid>
+
+                            <!-- Pusty Row 3 - usuniety -->
+                            <Grid Grid.Row="3" Height="0"/>
 
                             <!-- Tabela ze szczegolami - styl Excel -->
                             <DataGrid Grid.Row="4" x:Name="gridPlatnosci" AutoGenerateColumns="False" IsReadOnly="True"
