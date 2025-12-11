@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
@@ -9,6 +10,7 @@ using System.Windows.Media;
 using Microsoft.Data.SqlClient;
 using LiveCharts;
 using LiveCharts.Wpf;
+using Syncfusion.UI.Xaml.Charts;
 
 namespace Kalendarz1.HandlowiecDashboard.Views
 {
@@ -432,13 +434,12 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             int? towarId = cmbTowarTop10.SelectedValue as int?;
             if (towarId == 0) towarId = null;
 
-            var series = new SeriesCollection();
-            var labels = new List<string>();
             decimal sumaKg = 0;
             decimal sumaWartosc = 0;
 
-            // Lista danych do odwrocenia (najwyzszy na gorze)
-            var daneTop10 = new List<(string Kontrahent, string Handlowiec, decimal Kg, decimal Wartosc)>();
+            // Lista danych Top 15
+            var daneTop15 = new List<Top15ChartModel>();
+            var daneDoLegendy = new List<(string Kontrahent, string Handlowiec, decimal Kg, decimal Wartosc)>();
 
             try
             {
@@ -471,40 +472,25 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     var kg = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
                     var wartosc = reader.IsDBNull(3) ? 0m : Convert.ToDecimal(reader.GetValue(3));
 
-                    daneTop10.Add((kontrahent, handlowiec, kg, wartosc));
+                    // Skroc nazwe kontrahenta jesli za dluga
+                    var labelTekst = kontrahent.Length > 22 ? kontrahent.Substring(0, 22) + ".." : kontrahent;
+
+                    // Dodaj do danych wykresu z kolorem handlowca
+                    daneTop15.Add(new Top15ChartModel
+                    {
+                        Kontrahent = labelTekst,
+                        Wartosc = (double)wartosc,
+                        Kolor = new SolidColorBrush(GetHandlowiecColor(handlowiec)),
+                        Handlowiec = handlowiec
+                    });
+
+                    daneDoLegendy.Add((kontrahent, handlowiec, kg, wartosc));
                     sumaKg += kg;
                     sumaWartosc += wartosc;
                 }
 
-                // Buduj liste etykiet i wartosci (od najnizszej do najwyzszej wartosci)
-                int liczbaElementow = daneTop10.Count;
-                var wartosci = new ChartValues<double>();
-                var handlowcyNaSlupkach = new List<string>();
-
-                for (int i = liczbaElementow - 1; i >= 0; i--)
-                {
-                    var d = daneTop10[i];
-                    var labelTekst = d.Kontrahent.Length > 20 ? d.Kontrahent.Substring(0, 20) + ".." : d.Kontrahent;
-                    labels.Add(labelTekst);
-                    wartosci.Add((double)d.Wartosc);
-                    handlowcyNaSlupkach.Add(d.Handlowiec);
-                }
-
-                // Jedna seria z grubymi slupkami
-                series.Add(new RowSeries
-                {
-                    Title = "Wartosc",
-                    Values = wartosci,
-                    Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F4A261")),
-                    DataLabels = true,
-                    LabelPoint = p => $"{p.X:N0} zl",
-                    Foreground = Brushes.White,
-                    MaxRowHeigth = 35,
-                    RowPadding = 2
-                });
-
                 // Aktualizuj legende handlowcow
-                AktualizujLegendeTop15(daneTop10, handlowcyNaSlupkach);
+                AktualizujLegendeTop15(daneDoLegendy, daneTop15.Select(d => d.Handlowiec).ToList());
 
                 // Oblicz srednia cene
                 decimal sredniaCena = sumaKg > 0 ? sumaWartosc / sumaKg : 0;
@@ -512,11 +498,11 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Blad Top 10:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Blad Top 15:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
 
-            chartTop10.Series = series;
-            axisYTop10.Labels = labels;
+            // Ustaw dane wykresu Syncfusion
+            seriesTop15.ItemsSource = daneTop15;
         }
 
         private void AktualizujLegendeTop15(List<(string Kontrahent, string Handlowiec, decimal Kg, decimal Wartosc)> dane, List<string> handlowcyNaSlupkach)
@@ -1904,5 +1890,14 @@ FROM FakturyPrzeterminowane";
         public string MinCenaTekst => $"{MinCena:F2}";
         public string MaxCenaTekst => $"{MaxCena:F2}";
         public string SumaWartoscTekst => $"{SumaWartosc:N2}";
+    }
+
+    // Model danych dla wykresu Top 15 (Syncfusion)
+    public class Top15ChartModel
+    {
+        public string Kontrahent { get; set; }
+        public double Wartosc { get; set; }
+        public Brush Kolor { get; set; }
+        public string Handlowiec { get; set; }
     }
 }
