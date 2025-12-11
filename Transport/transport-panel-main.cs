@@ -1886,6 +1886,8 @@ namespace Kalendarz1.Transport.Formularze
             try
             {
                 // Zoptymalizowane zapytanie - filtrowanie w SQL
+                // Wolne = nie ma przypisanego kursu (TransportKursID IS NULL)
+                //         i TransportStatus nie jest 'Przypisany' ani 'Własny'
                 var sql = @"
                     SELECT
                         zm.Id,
@@ -1896,10 +1898,9 @@ namespace Kalendarz1.Transport.Formularze
                         ISNULL(zm.LiczbaPojemnikow, 0) AS Pojemniki
                     FROM dbo.ZamowieniaMieso zm
                     WHERE zm.DataUboju = @Data
-                      AND ISNULL(zm.Status, 'Nowe') <> 'Anulowane'
-                      AND (ISNULL(zm.TransportStatus, 'Oczekuje') = 'Oczekuje'
-                           OR zm.TransportStatus IS NULL OR zm.TransportStatus = '')
-                      AND ISNULL(zm.TransportStatus, '') <> 'Własny'
+                      AND ISNULL(zm.Status, 'Nowe') NOT IN ('Anulowane', 'Wydany')
+                      AND zm.TransportKursID IS NULL
+                      AND ISNULL(zm.TransportStatus, 'Oczekuje') NOT IN ('Przypisany', 'Własny')
                     ORDER BY zm.DataPrzyjazdu";
 
                 var tempList = new List<(int Id, int KlientId, DateTime DataOdbioru, DateTime DataUboju, decimal Palety, int Pojemniki)>();
