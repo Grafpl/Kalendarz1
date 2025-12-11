@@ -1891,6 +1891,7 @@ namespace Kalendarz1.Transport.Formularze
                         zm.Id,
                         zm.KlientId,
                         zm.DataPrzyjazdu,
+                        zm.DataUboju,
                         ISNULL(zm.LiczbaPalet, 0) AS Palety,
                         ISNULL(zm.LiczbaPojemnikow, 0) AS Pojemniki
                     FROM dbo.ZamowieniaMieso zm
@@ -1901,7 +1902,7 @@ namespace Kalendarz1.Transport.Formularze
                       AND ISNULL(zm.TransportStatus, '') <> 'Własny'
                     ORDER BY zm.DataPrzyjazdu";
 
-                var tempList = new List<(int Id, int KlientId, DateTime DataPrzyjazdu, decimal Palety, int Pojemniki)>();
+                var tempList = new List<(int Id, int KlientId, DateTime DataOdbioru, DateTime DataUboju, decimal Palety, int Pojemniki)>();
                 var klientIdsToFetch = new HashSet<int>();
 
                 using (var cn = new SqlConnection(_connLibra))
@@ -1918,11 +1919,11 @@ namespace Kalendarz1.Transport.Formularze
                             reader.GetInt32(0),
                             klientId,
                             reader.IsDBNull(2) ? _selectedDate : reader.GetDateTime(2),
-                            reader.IsDBNull(3) ? 0m : reader.GetDecimal(3),
-                            reader.IsDBNull(4) ? 0 : reader.GetInt32(4)
+                            reader.IsDBNull(3) ? _selectedDate : reader.GetDateTime(3),
+                            reader.IsDBNull(4) ? 0m : reader.GetDecimal(4),
+                            reader.IsDBNull(5) ? 0 : reader.GetInt32(5)
                         ));
 
-                        // Sprawdź czy potrzebujemy pobrać nazwę klienta
                         if (!_klienciCache.ContainsKey(klientId))
                             klientIdsToFetch.Add(klientId);
                     }
@@ -1934,21 +1935,30 @@ namespace Kalendarz1.Transport.Formularze
                     await LoadMissingKlienciAsync(klientIdsToFetch);
                 }
 
-                // Szybkie budowanie tabeli
+                // Budowanie tabeli
                 var dt = new DataTable();
                 dt.Columns.Add("ID", typeof(int));
+                dt.Columns.Add("Odbiór", typeof(string));
+                dt.Columns.Add("Ubój", typeof(string));
                 dt.Columns.Add("Klient", typeof(string));
                 dt.Columns.Add("Godz.", typeof(string));
                 dt.Columns.Add("Palety", typeof(string));
-                dt.Columns.Add("E2", typeof(int));
+                dt.Columns.Add("Poj.", typeof(int));
 
                 foreach (var zam in tempList)
                 {
                     var klientNazwa = _klienciCache.TryGetValue(zam.KlientId, out var nazwa)
                         ? nazwa
                         : $"KH {zam.KlientId}";
-                    dt.Rows.Add(zam.Id, klientNazwa, zam.DataPrzyjazdu.ToString("HH:mm"),
-                        zam.Palety.ToString("N1"), zam.Pojemniki);
+                    dt.Rows.Add(
+                        zam.Id,
+                        zam.DataOdbioru.ToString("MM-dd"),
+                        zam.DataUboju.ToString("MM-dd"),
+                        klientNazwa,
+                        zam.DataOdbioru.ToString("HH:mm"),
+                        zam.Palety.ToString("N1"),
+                        zam.Pojemniki
+                    );
                 }
 
                 dgvWolneZamowienia.DataSource = dt;
@@ -1956,14 +1966,18 @@ namespace Kalendarz1.Transport.Formularze
                 // Konfiguracja kolumn
                 if (dgvWolneZamowienia.Columns["ID"] != null)
                     dgvWolneZamowienia.Columns["ID"].Visible = false;
+                if (dgvWolneZamowienia.Columns["Odbiór"] != null)
+                    dgvWolneZamowienia.Columns["Odbiór"].Width = 50;
+                if (dgvWolneZamowienia.Columns["Ubój"] != null)
+                    dgvWolneZamowienia.Columns["Ubój"].Width = 50;
                 if (dgvWolneZamowienia.Columns["Klient"] != null)
                     dgvWolneZamowienia.Columns["Klient"].FillWeight = 100;
                 if (dgvWolneZamowienia.Columns["Godz."] != null)
-                    dgvWolneZamowienia.Columns["Godz."].Width = 45;
+                    dgvWolneZamowienia.Columns["Godz."].Width = 42;
                 if (dgvWolneZamowienia.Columns["Palety"] != null)
-                    dgvWolneZamowienia.Columns["Palety"].Width = 45;
-                if (dgvWolneZamowienia.Columns["E2"] != null)
-                    dgvWolneZamowienia.Columns["E2"].Width = 45;
+                    dgvWolneZamowienia.Columns["Palety"].Width = 42;
+                if (dgvWolneZamowienia.Columns["Poj."] != null)
+                    dgvWolneZamowienia.Columns["Poj."].Width = 38;
 
                 // Aktualizuj licznik
                 lblWolneZamowieniaInfo.Text = tempList.Count.ToString();
