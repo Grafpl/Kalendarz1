@@ -300,6 +300,7 @@ namespace Kalendarz1
                 _filteredProductId = productId == 0 ? null : productId;
                 SetProductButtonSelected(btn);
                 await LoadOrdersAsync();
+                await LoadPrzychodyInfoAsync();
             }
         }
 
@@ -972,37 +973,71 @@ namespace Kalendarz1
             try
             {
                 // 1. Plan - na podstawie HarmonogramDostaw (masa dekowania * współczynnik tuszki)
-                using (var cn = new SqlConnection(_connLibra))
+                // Plan jest globalny - nie filtrujemy po produkcie (bo to prognoza całości)
+                if (!_filteredProductId.HasValue)
                 {
-                    await cn.OpenAsync();
-                    var cmd = new SqlCommand(@"SELECT ISNULL(SUM(WagaDek * SztukiDek), 0)
-                                               FROM dbo.HarmonogramDostaw
-                                               WHERE DataOdbioru = @D AND Bufor = 'Potwierdzony'", cn);
-                    cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
-                    var result = await cmd.ExecuteScalarAsync();
-                    decimal sumaMasyDek = result != DBNull.Value ? Convert.ToDecimal(result) : 0m;
-                    // Współczynnik tuszki ~78%
-                    planPrzychodu = sumaMasyDek * 0.78m;
+                    using (var cn = new SqlConnection(_connLibra))
+                    {
+                        await cn.OpenAsync();
+                        var cmd = new SqlCommand(@"SELECT ISNULL(SUM(WagaDek * SztukiDek), 0)
+                                                   FROM dbo.HarmonogramDostaw
+                                                   WHERE DataOdbioru = @D AND Bufor = 'Potwierdzony'", cn);
+                        cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
+                        var result = await cmd.ExecuteScalarAsync();
+                        decimal sumaMasyDek = result != DBNull.Value ? Convert.ToDecimal(result) : 0m;
+                        // Współczynnik tuszki ~78%
+                        planPrzychodu = sumaMasyDek * 0.78m;
+                    }
                 }
 
                 // 2. Faktyczny przychód - z dokumentów sPWU (produkcja) - tylko towary z grupy mięso (katalog=67095)
                 using (var cn = new SqlConnection(_connHandel))
                 {
                     await cn.OpenAsync();
-                    var cmd = new SqlCommand(@"SELECT ISNULL(SUM(ABS(MZ.ilosc)), 0)
-                                               FROM [HANDEL].[HM].[MZ] MZ
-                                               JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
-                                               JOIN [HANDEL].[HM].[TW] ON MZ.idtw = TW.id
-                                               WHERE MG.seria = 'sPWU' AND MG.aktywny = 1 AND MG.data = @D AND TW.katalog = 67095", cn);
+                    string sql = @"SELECT ISNULL(SUM(ABS(MZ.ilosc)), 0)
+                                   FROM [HANDEL].[HM].[MZ] MZ
+                                   JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
+                                   JOIN [HANDEL].[HM].[TW] ON MZ.idtw = TW.id
+                                   WHERE MG.seria = 'sPWU' AND MG.aktywny = 1 AND MG.data = @D AND TW.katalog = 67095";
+                    if (_filteredProductId.HasValue)
+                        sql += " AND MZ.idtw = @P";
+
+                    var cmd = new SqlCommand(sql, cn);
                     cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
+                    if (_filteredProductId.HasValue)
+                        cmd.Parameters.AddWithValue("@P", _filteredProductId.Value);
+
                     var result = await cmd.ExecuteScalarAsync();
                     faktPrzychodu = result != DBNull.Value ? Convert.ToDecimal(result) : 0m;
                 }
 
-                // 3. Suma zamówień na dzień
-                sumaZamowien = _zamowienia.Values
-                    .Where(z => !z.IsShipmentOnly)
-                    .Sum(z => z.TotalIlosc);
+                // 3. Suma zamówień na dzień - filtrowana po produkcie jeśli wybrany
+                if (_filteredProductId.HasValue)
+                {
+                    // Pobierz sumę zamówień dla wybranego produktu
+                    var zamowieniaIds = _zamowienia.Values
+                        .Where(z => !z.IsShipmentOnly && z.Id > 0)
+                        .Select(z => z.Id)
+                        .ToList();
+
+                    if (zamowieniaIds.Any())
+                    {
+                        using var cn = new SqlConnection(_connLibra);
+                        await cn.OpenAsync();
+                        var sql = $@"SELECT ISNULL(SUM(Ilosc), 0) FROM [dbo].[ZamowieniaMiesoTowar]
+                                     WHERE ZamowienieId IN ({string.Join(",", zamowieniaIds)}) AND KodTowaru = @P";
+                        using var cmd = new SqlCommand(sql, cn);
+                        cmd.Parameters.AddWithValue("@P", _filteredProductId.Value);
+                        var result = await cmd.ExecuteScalarAsync();
+                        sumaZamowien = result != DBNull.Value ? Convert.ToDecimal(result) : 0m;
+                    }
+                }
+                else
+                {
+                    sumaZamowien = _zamowienia.Values
+                        .Where(z => !z.IsShipmentOnly)
+                        .Sum(z => z.TotalIlosc);
+                }
             }
             catch (Exception ex)
             {
@@ -1013,7 +1048,7 @@ namespace Kalendarz1
             decimal bilans = faktPrzychodu - sumaZamowien;
 
             // Aktualizuj UI
-            lblPrzychPlan.Text = planPrzychodu > 0 ? $"{planPrzychodu:N0}" : "—";
+            lblPrzychPlan.Text = _filteredProductId.HasValue ? "—" : (planPrzychodu > 0 ? $"{planPrzychodu:N0}" : "—");
             lblPrzychFakt.Text = faktPrzychodu > 0 ? $"{faktPrzychodu:N0}" : "—";
             lblPrzychZam.Text = sumaZamowien > 0 ? $"{sumaZamowien:N0}" : "—";
             lblPrzychBilans.Text = bilans != 0 ? $"{bilans:N0}" : "—";
