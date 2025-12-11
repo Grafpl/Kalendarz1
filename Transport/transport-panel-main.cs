@@ -58,6 +58,13 @@ namespace Kalendarz1.Transport.Formularze
         // Menu kontekstowe
         private ContextMenuStrip contextMenuKurs;
 
+        // Panel boczny - wolne zamówienia
+        private Panel panelWolneZamowienia;
+        private DataGridView dgvWolneZamowienia;
+        private Label lblWolneZamowieniaInfo;
+        private readonly string _connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private readonly string _connHandel = "Server=192.168.0.109;Database=Handel2024;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+
         // Podsumowanie
         private Label lblSummaryKursy;
         private Label lblSummaryPojemniki;
@@ -105,13 +112,16 @@ namespace Kalendarz1.Transport.Formularze
             // ========== CONTENT ==========
             CreateContent();
 
+            // ========== SIDE PANEL - WOLNE ZAMÓWIENIA ==========
+            CreateWolneZamowieniaPanel();
+
             // ========== CONTEXT MENU ==========
             CreateContextMenu();
 
             // ========== SUMMARY ==========
             CreateSummary();
 
-            // Layout główny
+            // Layout główny z dwoma kolumnami w środku
             var mainLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -123,12 +133,27 @@ namespace Kalendarz1.Transport.Formularze
 
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 80));  // Header
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));  // Filters
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Content
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Content + Side panel
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 100)); // Summary
+
+            // Panel środkowy z dwoma kolumnami
+            var contentWrapper = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 1,
+                Margin = new Padding(0),
+                Padding = new Padding(0)
+            };
+            contentWrapper.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 70));  // Kursy
+            contentWrapper.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30));  // Wolne zamówienia
+
+            contentWrapper.Controls.Add(panelContent, 0, 0);
+            contentWrapper.Controls.Add(panelWolneZamowienia, 1, 0);
 
             mainLayout.Controls.Add(panelHeader, 0, 0);
             mainLayout.Controls.Add(panelFilters, 0, 1);
-            mainLayout.Controls.Add(panelContent, 0, 2);
+            mainLayout.Controls.Add(contentWrapper, 0, 2);
             mainLayout.Controls.Add(panelSummary, 0, 3);
 
             Controls.Add(mainLayout);
@@ -595,6 +620,78 @@ namespace Kalendarz1.Transport.Formularze
             }
         }
 
+        private void CreateWolneZamowieniaPanel()
+        {
+            panelWolneZamowienia = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(250, 251, 253),
+                Padding = new Padding(10, 10, 10, 10)
+            };
+
+            // Nagłówek
+            var panelHeader = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 50,
+                BackColor = Color.FromArgb(155, 89, 182),
+                Padding = new Padding(10, 8, 10, 8)
+            };
+
+            var lblTytul = new Label
+            {
+                Text = "📋 WOLNE ZAMÓWIENIA",
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                ForeColor = Color.White,
+                AutoSize = true,
+                Location = new Point(10, 5)
+            };
+
+            lblWolneZamowieniaInfo = new Label
+            {
+                Text = "Dziś ubój: 0 zamówień",
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(220, 220, 255),
+                AutoSize = true,
+                Location = new Point(10, 28)
+            };
+
+            panelHeader.Controls.AddRange(new Control[] { lblTytul, lblWolneZamowieniaInfo });
+
+            // Grid zamówień
+            dgvWolneZamowienia = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                ReadOnly = true,
+                BackgroundColor = Color.White,
+                BorderStyle = BorderStyle.None,
+                RowHeadersVisible = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false
+            };
+
+            dgvWolneZamowienia.EnableHeadersVisualStyles = false;
+            dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 252);
+            dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(52, 73, 94);
+            dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            dgvWolneZamowienia.ColumnHeadersHeight = 32;
+            dgvWolneZamowienia.DefaultCellStyle.Font = new Font("Segoe UI", 9F);
+            dgvWolneZamowienia.DefaultCellStyle.SelectionBackColor = Color.FromArgb(155, 89, 182);
+            dgvWolneZamowienia.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 252);
+            dgvWolneZamowienia.RowTemplate.Height = 30;
+            dgvWolneZamowienia.GridColor = Color.FromArgb(236, 240, 241);
+
+            // Tooltip z informacją
+            var toolTip = new ToolTip();
+            toolTip.SetToolTip(dgvWolneZamowienia, "Zamówienia z dzisiejszego uboju bez przypisanego transportu");
+
+            panelWolneZamowienia.Controls.Add(dgvWolneZamowienia);
+            panelWolneZamowienia.Controls.Add(panelHeader);
+        }
+
         private void CreateSummary()
         {
             panelSummary = new Panel
@@ -798,6 +895,9 @@ namespace Kalendarz1.Transport.Formularze
                 // Załaduj kursy - to automatycznie wywoła UpdateSummary
                 await LoadKursyAsync();
 
+                // Załaduj wolne zamówienia z dzisiejszego uboju
+                await LoadWolneZamowieniaAsync();
+
                 System.Diagnostics.Debug.WriteLine("=== LoadInitialDataAsync END ===");
             }
             catch (Exception ex)
@@ -815,6 +915,7 @@ namespace Kalendarz1.Transport.Formularze
             System.Diagnostics.Debug.WriteLine($"Date changed to: {_selectedDate:yyyy-MM-dd}");
 
             await LoadKursyAsync();
+            await LoadWolneZamowieniaAsync();
 
             // Wymuś wywołanie UpdateSummary po zmianie daty
             System.Diagnostics.Debug.WriteLine("Force calling UpdateSummary after date change");
@@ -1785,6 +1886,134 @@ namespace Kalendarz1.Transport.Formularze
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error loading filter data: {ex.Message}");
+            }
+        }
+
+        private async Task LoadWolneZamowieniaAsync()
+        {
+            try
+            {
+                var wolneZamowienia = new List<(int Id, string Klient, DateTime DataUboju, string Godzina, decimal Palety, int Pojemniki, string Adres)>();
+
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Pobierz zamówienia z dzisiejszą datą uboju, które nie mają przypisanego transportu
+                var sql = @"
+                    SELECT DISTINCT
+                        zm.Id AS ZamowienieId,
+                        zm.KlientId,
+                        zm.DataPrzyjazdu,
+                        ISNULL(zm.LiczbaPalet, 0) AS LiczbaPalet,
+                        ISNULL(zm.LiczbaPojemnikow, 0) AS LiczbaPojemnikow,
+                        ISNULL(zm.TransportStatus, 'Oczekuje') AS TransportStatus,
+                        zm.DataUboju
+                    FROM dbo.ZamowieniaMieso zm
+                    WHERE zm.DataUboju = @DataUboju
+                      AND ISNULL(zm.Status, 'Nowe') NOT IN ('Anulowane')
+                      AND (ISNULL(zm.TransportStatus, 'Oczekuje') = 'Oczekuje' OR zm.TransportStatus IS NULL)
+                      AND ISNULL(zm.TransportStatus, '') <> 'Własny'
+                    ORDER BY zm.DataPrzyjazdu";
+
+                using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@DataUboju", _selectedDate.Date);
+
+                var klientIds = new List<int>();
+                var tempList = new List<(int Id, int KlientId, DateTime DataPrzyjazdu, decimal Palety, int Pojemniki, DateTime? DataUboju)>();
+
+                using (var reader = await cmd.ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        var zamId = reader.GetInt32(0);
+                        var klientId = reader.GetInt32(1);
+                        var dataPrzyjazdu = reader.GetDateTime(2);
+                        var palety = reader.GetDecimal(3);
+                        var pojemniki = reader.GetInt32(4);
+                        var dataUboju = reader.IsDBNull(6) ? (DateTime?)null : reader.GetDateTime(6);
+
+                        tempList.Add((zamId, klientId, dataPrzyjazdu, palety, pojemniki, dataUboju));
+                        if (!klientIds.Contains(klientId))
+                            klientIds.Add(klientId);
+                    }
+                }
+
+                // Pobierz nazwy klientów i adresy
+                var klienciDict = new Dictionary<int, (string Nazwa, string Adres)>();
+                if (klientIds.Any())
+                {
+                    await using var cnHandel = new SqlConnection(_connHandel);
+                    await cnHandel.OpenAsync();
+
+                    var sqlKlienci = $@"
+                        SELECT
+                            c.Id,
+                            ISNULL(c.Shortcut, 'KH ' + CAST(c.Id AS VARCHAR(10))) AS Nazwa,
+                            ISNULL(poa.City, '') + ' ' + ISNULL(poa.Street, '') AS Adres
+                        FROM SSCommon.STContractors c
+                        LEFT JOIN SSCommon.STPostOfficeAddresses poa ON poa.ContactGuid = c.ContactGuid
+                            AND poa.AddressName = N'adres domyślny'
+                        WHERE c.Id IN ({string.Join(",", klientIds)})";
+
+                    using var cmdKlienci = new SqlCommand(sqlKlienci, cnHandel);
+                    using var readerKlienci = await cmdKlienci.ExecuteReaderAsync();
+
+                    while (await readerKlienci.ReadAsync())
+                    {
+                        var id = readerKlienci.GetInt32(0);
+                        var nazwa = readerKlienci.GetString(1);
+                        var adres = readerKlienci.GetString(2).Trim();
+                        klienciDict[id] = (nazwa, adres);
+                    }
+                }
+
+                // Złóż dane
+                foreach (var zam in tempList)
+                {
+                    var klient = klienciDict.TryGetValue(zam.KlientId, out var k) ? k : ($"Klient {zam.KlientId}", "");
+                    var godzina = zam.DataPrzyjazdu.ToString("HH:mm");
+                    wolneZamowienia.Add((zam.Id, klient.Nazwa, zam.DataUboju ?? _selectedDate, godzina, zam.Palety, zam.Pojemniki, klient.Adres));
+                }
+
+                // Wyświetl w gridzie
+                var dt = new DataTable();
+                dt.Columns.Add("ID", typeof(int));
+                dt.Columns.Add("Klient", typeof(string));
+                dt.Columns.Add("Godz.", typeof(string));
+                dt.Columns.Add("Palety", typeof(string));
+                dt.Columns.Add("E2", typeof(int));
+
+                foreach (var zam in wolneZamowienia.OrderBy(z => z.Godzina))
+                {
+                    dt.Rows.Add(zam.Id, zam.Klient, zam.Godzina, zam.Palety.ToString("N1"), zam.Pojemniki);
+                }
+
+                dgvWolneZamowienia.DataSource = dt;
+
+                if (dgvWolneZamowienia.Columns["ID"] != null)
+                    dgvWolneZamowienia.Columns["ID"].Visible = false;
+                if (dgvWolneZamowienia.Columns["Godz."] != null)
+                    dgvWolneZamowienia.Columns["Godz."].Width = 50;
+                if (dgvWolneZamowienia.Columns["Palety"] != null)
+                    dgvWolneZamowienia.Columns["Palety"].Width = 55;
+                if (dgvWolneZamowienia.Columns["E2"] != null)
+                    dgvWolneZamowienia.Columns["E2"].Width = 45;
+
+                // Aktualizuj info
+                lblWolneZamowieniaInfo.Text = $"Ubój {_selectedDate:dd.MM}: {wolneZamowienia.Count} zamówień";
+
+                // Kolor nagłówka zależny od liczby zamówień
+                if (wolneZamowienia.Count == 0)
+                    lblWolneZamowieniaInfo.ForeColor = Color.FromArgb(150, 255, 150);
+                else if (wolneZamowienia.Count > 10)
+                    lblWolneZamowieniaInfo.ForeColor = Color.FromArgb(255, 200, 150);
+                else
+                    lblWolneZamowieniaInfo.ForeColor = Color.FromArgb(220, 220, 255);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error loading wolne zamowienia: {ex.Message}");
+                lblWolneZamowieniaInfo.Text = "Błąd ładowania";
             }
         }
 
