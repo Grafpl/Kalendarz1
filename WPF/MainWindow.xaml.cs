@@ -3851,7 +3851,7 @@ ORDER BY zm.Id";
             dtAgg.Columns.Add("Bilans", typeof(decimal));
 
             // Określ czy bilans ma uwzględniać wydania czy zamówienia
-            bool uzywajWydan = rbBilansWydania.IsChecked == true;
+            bool uzywajWydan = rbBilansWydania?.IsChecked == true;
 
             var (wspolczynnikTuszki, procentA, procentB) = await GetKonfiguracjaWydajnosciAsync(day);
             var konfiguracjaProduktow = await GetKonfiguracjaProduktowAsync(day);
