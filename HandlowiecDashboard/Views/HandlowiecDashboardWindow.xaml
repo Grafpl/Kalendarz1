@@ -680,8 +680,8 @@
                                             </lvc:Axis>
                                         </lvc:CartesianChart.AxisX>
                                         <lvc:CartesianChart.AxisY>
-                                            <lvc:Axis x:Name="axisYOpakE2" ShowLabels="True" FontSize="9" Foreground="#FFFFFF" IsMerged="False">
-                                                <lvc:Axis.Separator><lvc:Separator StrokeThickness="0" Step="1"/></lvc:Axis.Separator>
+                                            <lvc:Axis x:Name="axisYOpakE2" ShowLabels="True" FontSize="9" Foreground="#FFFFFF">
+                                                <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
                                             </lvc:Axis>
                                         </lvc:CartesianChart.AxisY>
                                     </lvc:CartesianChart>
@@ -729,8 +729,8 @@
                                             </lvc:Axis>
                                         </lvc:CartesianChart.AxisX>
                                         <lvc:CartesianChart.AxisY>
-                                            <lvc:Axis x:Name="axisYOpakH1" ShowLabels="True" FontSize="9" Foreground="#FFFFFF" IsMerged="False">
-                                                <lvc:Axis.Separator><lvc:Separator StrokeThickness="0" Step="1"/></lvc:Axis.Separator>
+                                            <lvc:Axis x:Name="axisYOpakH1" ShowLabels="True" FontSize="9" Foreground="#FFFFFF">
+                                                <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
                                             </lvc:Axis>
                                         </lvc:CartesianChart.AxisY>
                                     </lvc:CartesianChart>

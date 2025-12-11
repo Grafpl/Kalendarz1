@@ -1243,7 +1243,7 @@ HAVING SUM(MZ.Ilosc) <> 0";
                 var signH1 = zmianaH1 >= 0 ? "+" : "";
                 txtOpakZmiana.Text = $"Zmiana E2: {signE2}{zmianaE2:N0} | H1: {signH1}{zmianaH1:N0}";
 
-                // Wykres E2 - Top 15
+                // Wykres E2 - Top 15 kontrahentow z dodatnim saldem
                 var top15E2 = _opakowaniaData
                     .Where(d => d.PojemnikiE2 > 0)
                     .OrderByDescending(d => d.PojemnikiE2)
@@ -1251,28 +1251,38 @@ HAVING SUM(MZ.Ilosc) <> 0";
                     .Reverse()
                     .ToList();
 
-                var valuesE2 = new ChartValues<double>(top15E2.Select(d => (double)d.PojemnikiE2));
-                var labelsE2 = top15E2.Select(d => {
+                var listaE2 = new List<double>();
+                var etykietyE2 = new List<string>();
+                foreach (var d in top15E2)
+                {
+                    listaE2.Add((double)d.PojemnikiE2);
                     var sign = d.E2Zmiana >= 0 ? "+" : "";
                     var nazwa = d.Kontrahent.Length > 15 ? d.Kontrahent.Substring(0, 15) + ".." : d.Kontrahent;
-                    return $"{d.PojemnikiE2:N0} ({sign}{d.E2Zmiana:N0}) | {nazwa}";
-                }).ToList();
+                    etykietyE2.Add($"{d.PojemnikiE2:N0} ({sign}{d.E2Zmiana:N0}) | {nazwa}");
+                }
 
-                chartOpakowaniaE2.Series = new SeriesCollection
+                // Wylacz animacje, wyczysc, ustaw dane, wlacz animacje
+                chartOpakowaniaE2.DisableAnimations = true;
+                chartOpakowaniaE2.Series = new SeriesCollection();
+                axisYOpakE2.Labels = new string[0];
+
+                var seriesE2 = new SeriesCollection
                 {
                     new RowSeries
                     {
                         Title = "E2",
-                        Values = valuesE2,
+                        Values = new ChartValues<double>(listaE2),
                         Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(23, 165, 137)),
                         DataLabels = false,
                         Foreground = Brushes.White
                     }
                 };
-                axisYOpakE2.Labels = labelsE2;
+                chartOpakowaniaE2.Series = seriesE2;
+                axisYOpakE2.Labels = etykietyE2.ToArray();
+                chartOpakowaniaE2.DisableAnimations = false;
                 txtOpakE2Suma.Text = $"Razem: {sumaE2Data2:N0} (zmiana: {signE2}{zmianaE2:N0})";
 
-                // Wykres H1 - Top 15
+                // Wykres H1 - Top 15 kontrahentow z dodatnim saldem
                 var top15H1 = _opakowaniaData
                     .Where(d => d.PaletaH1 > 0)
                     .OrderByDescending(d => d.PaletaH1)
@@ -1280,25 +1290,35 @@ HAVING SUM(MZ.Ilosc) <> 0";
                     .Reverse()
                     .ToList();
 
-                var valuesH1 = new ChartValues<double>(top15H1.Select(d => (double)d.PaletaH1));
-                var labelsH1 = top15H1.Select(d => {
+                var listaH1 = new List<double>();
+                var etykietyH1 = new List<string>();
+                foreach (var d in top15H1)
+                {
+                    listaH1.Add((double)d.PaletaH1);
                     var sign = d.H1Zmiana >= 0 ? "+" : "";
                     var nazwa = d.Kontrahent.Length > 15 ? d.Kontrahent.Substring(0, 15) + ".." : d.Kontrahent;
-                    return $"{d.PaletaH1:N0} ({sign}{d.H1Zmiana:N0}) | {nazwa}";
-                }).ToList();
+                    etykietyH1.Add($"{d.PaletaH1:N0} ({sign}{d.H1Zmiana:N0}) | {nazwa}");
+                }
 
-                chartOpakowaniaH1.Series = new SeriesCollection
+                // Wylacz animacje, wyczysc, ustaw dane, wlacz animacje
+                chartOpakowaniaH1.DisableAnimations = true;
+                chartOpakowaniaH1.Series = new SeriesCollection();
+                axisYOpakH1.Labels = new string[0];
+
+                var seriesH1 = new SeriesCollection
                 {
                     new RowSeries
                     {
                         Title = "H1",
-                        Values = valuesH1,
+                        Values = new ChartValues<double>(listaH1),
                         Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(192, 57, 43)),
                         DataLabels = false,
                         Foreground = Brushes.White
                     }
                 };
-                axisYOpakH1.Labels = labelsH1;
+                chartOpakowaniaH1.Series = seriesH1;
+                axisYOpakH1.Labels = etykietyH1.ToArray();
+                chartOpakowaniaH1.DisableAnimations = false;
                 txtOpakH1Suma.Text = $"Razem: {sumaH1Data2:N0} (zmiana: {signH1}{zmianaH1:N0})";
 
                 // Wyczysc wykresy liniowe
