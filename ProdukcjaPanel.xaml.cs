@@ -1115,6 +1115,9 @@ namespace Kalendarz1
                 using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
 
+                // Najpierw upewnij się że kolumny istnieją
+                await EnsurePartialRealizationColumnsAsync(cn);
+
                 var cmd = new SqlCommand(@"SELECT t.KodTowaru, t.Ilosc, ISNULL(t.IloscZrealizowana, t.Ilosc) AS IloscZreal, ISNULL(t.PowodBraku, '') AS Powod
                                            FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = @Id", cn);
                 cmd.Parameters.AddWithValue("@Id", orderId.Value);
