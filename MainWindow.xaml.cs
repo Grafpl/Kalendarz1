@@ -124,7 +124,8 @@ namespace Kalendarz1
                 [18] = "ProdukcjaPodglad",
                 [19] = "OfertaCenowa",
                 [20] = "PrognozyUboju",
-                [21] = "AnalizaTygodniowa"
+                [21] = "AnalizaTygodniowa",
+                [22] = "Monitoring"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -160,7 +161,7 @@ namespace Kalendarz1
                 "CRM", "ZamowieniaOdbiorcow", "KalkulacjaKrojenia", "PrzychodMrozni",
                 "DokumentySprzedazy", "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "DaneFinansowe",
                 "UstalanieTranportu", "ZmianyUHodowcow", "ProdukcjaPodglad", "OfertaCenowa",
-                "PrognozyUboju", "AnalizaTygodniowa"
+                "PrognozyUboju", "AnalizaTygodniowa", "Monitoring"
             };
         }
 
@@ -202,7 +203,8 @@ namespace Kalendarz1
                 },
                 ["Finanse"] = new List<ModuleConfig>
                 {
-                    new ModuleConfig("DaneFinansowe", "Wynik Finansowy", "Analizuj dane finansowe firmy", "#7F8C8D", () => new WidokSprzeZakup(), "💼")
+                    new ModuleConfig("DaneFinansowe", "Wynik Finansowy", "Analizuj dane finansowe firmy", "#7F8C8D", () => new WidokSprzeZakup(), "💼"),
+                    new ModuleConfig("Monitoring", "Monitoring", "Podgląd kamer Hikvision NVR", "#E74C3C", () => new Monitoring.MonitoringWindow(), "📹")
                 }
             };
 
