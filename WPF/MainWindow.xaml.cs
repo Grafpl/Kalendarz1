@@ -58,6 +58,7 @@ namespace Kalendarz1.WPF
         private readonly Dictionary<int, string> _productCatalogSwieze = new();
         private readonly Dictionary<int, string> _productCatalogMrozone = new();
         private Dictionary<int, string> _mapowanieScalowania = new(); // TowarIdtw -> NazwaGrupy
+        private Dictionary<string, List<int>> _grupyDoProduktow = new(); // NazwaGrupy -> lista TowarId
         private int? _selectedProductId = null;
         private readonly Dictionary<string, string> _userCache = new();
         private readonly List<string> _salesmenCache = new();
@@ -533,6 +534,7 @@ namespace Kalendarz1.WPF
         {
             var result = new Dictionary<int, decimal>();
             _mapowanieScalowania.Clear(); // Odśwież mapowanie scalowania
+            _grupyDoProduktow.Clear(); // Odśwież mapowanie grup
 
             try
             {
@@ -587,6 +589,11 @@ namespace Kalendarz1.WPF
                             if (!string.IsNullOrWhiteSpace(grupa))
                             {
                                 _mapowanieScalowania[towarId] = grupa;
+
+                                // Buduj słownik grup -> produkty
+                                if (!_grupyDoProduktow.ContainsKey(grupa))
+                                    _grupyDoProduktow[grupa] = new List<int>();
+                                _grupyDoProduktow[grupa].Add(towarId);
                             }
                         }
                     }
@@ -4305,6 +4312,14 @@ ORDER BY zm.Id";
                 var zamowienia = rowView.Row.Field<decimal?>("Zamówienia") ?? 0m;
                 var bilans = rowView.Row.Field<decimal?>("Bilans") ?? 0m;
 
+                // Sprawdź czy to jest grupa scalowania
+                if (_grupyDoProduktow.ContainsKey(czystyProdukt))
+                {
+                    // Pokaż szczegóły grupy
+                    await PokazSzczegolyGrupyAsync(czystyProdukt, plan, fakt, zamowienia, bilans);
+                    return;
+                }
+
                 int? produktId = await ZnajdzIdProduktuAsync(czystyProdukt);
 
                 if (!produktId.HasValue)
@@ -4328,6 +4343,120 @@ ORDER BY zm.Id";
                     _selectedDate);
                 okno.ShowDialog();
             }
+        }
+
+        private async Task PokazSzczegolyGrupyAsync(string nazwaGrupy, decimal planSuma, decimal faktSuma, decimal zamowieniaSuma, decimal bilansSuma)
+        {
+            if (!_grupyDoProduktow.TryGetValue(nazwaGrupy, out var produktyIds) || !produktyIds.Any())
+            {
+                MessageBox.Show("Brak produktów w tej grupie.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // Pobierz szczegóły dla każdego produktu w grupie
+            var szczegoly = new System.Text.StringBuilder();
+            szczegoly.AppendLine($"📊 SZCZEGÓŁY GRUPY: {nazwaGrupy}");
+            szczegoly.AppendLine($"════════════════════════════════════════");
+            szczegoly.AppendLine();
+            szczegoly.AppendLine($"{"Produkt",-25} {"Plan",10} {"Fakt",10} {"Zam.",10} {"Bilans",10}");
+            szczegoly.AppendLine($"{"───────────────────────",-25} {"──────────",10} {"──────────",10} {"──────────",10} {"──────────",10}");
+
+            decimal sumaPlan = 0, sumaFakt = 0, sumaZam = 0;
+
+            foreach (var produktId in produktyIds)
+            {
+                string nazwaProdukt = _productCatalogCache.TryGetValue(produktId, out var n) ? n : $"ID:{produktId}";
+
+                // Pobierz dane dla tego produktu
+                var (plan, fakt, zam) = await PobierzDaneProduktuAsync(produktId, _selectedDate);
+
+                decimal bil = (fakt > 0 ? fakt : plan) - zam;
+
+                szczegoly.AppendLine($"{nazwaProdukt,-25} {plan,10:N0} {fakt,10:N0} {zam,10:N0} {bil,10:N0}");
+
+                sumaPlan += plan;
+                sumaFakt += fakt;
+                sumaZam += zam;
+            }
+
+            decimal sumaBilans = (sumaFakt > 0 ? sumaFakt : sumaPlan) - sumaZam;
+
+            szczegoly.AppendLine($"{"───────────────────────",-25} {"──────────",10} {"──────────",10} {"──────────",10} {"──────────",10}");
+            szczegoly.AppendLine($"{"SUMA",-25} {sumaPlan,10:N0} {sumaFakt,10:N0} {sumaZam,10:N0} {sumaBilans,10:N0}");
+            szczegoly.AppendLine();
+            szczegoly.AppendLine($"Produktów w grupie: {produktyIds.Count}");
+
+            MessageBox.Show(szczegoly.ToString(), $"Szczegóły grupy: {nazwaGrupy}",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private async Task<(decimal plan, decimal fakt, decimal zam)> PobierzDaneProduktuAsync(int produktId, DateTime dzien)
+        {
+            decimal plan = 0, fakt = 0, zam = 0;
+
+            try
+            {
+                // Pobierz plan z konfiguracji
+                var konfig = await GetKonfiguracjaProduktowAsync(dzien);
+                if (konfig.TryGetValue(produktId, out var procent))
+                {
+                    var (wsp, procA, procB) = await GetKonfiguracjaWydajnosciAsync(dzien);
+
+                    // Pobierz masę z harmonogramu
+                    decimal masaDek = 0;
+                    await using (var cn = new SqlConnection(_connLibra))
+                    {
+                        await cn.OpenAsync();
+                        var sql = "SELECT SUM(WagaDek * SztukiDek) FROM dbo.HarmonogramDostaw WHERE DataOdbioru = @Day AND Bufor IN ('B.Wolny', 'B.Kontr.', 'Potwierdzony')";
+                        await using var cmd = new SqlCommand(sql, cn);
+                        cmd.Parameters.AddWithValue("@Day", dzien.Date);
+                        var result = await cmd.ExecuteScalarAsync();
+                        if (result != DBNull.Value && result != null)
+                            masaDek = Convert.ToDecimal(result);
+                    }
+
+                    decimal pulaTuszkiB = masaDek * (wsp / 100m) * (procB / 100m);
+                    plan = pulaTuszkiB * (procent / 100m);
+                }
+
+                // Pobierz faktyczny przychód
+                await using (var cn = new SqlConnection(_connHandel))
+                {
+                    await cn.OpenAsync();
+                    var sql = @"SELECT SUM(ABS(MZ.ilosc)) FROM [HANDEL].[HM].[MZ] MZ
+                                JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
+                                WHERE MZ.idtw = @Id AND MG.seria IN ('sPWP', 'PWP') AND MG.aktywny=1 AND MG.data = @Day";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Id", produktId);
+                    cmd.Parameters.AddWithValue("@Day", dzien.Date);
+                    var result = await cmd.ExecuteScalarAsync();
+                    if (result != DBNull.Value && result != null)
+                        fakt = Convert.ToDecimal(result);
+                }
+
+                // Pobierz zamówienia
+                var orderIds = _dtOrders.AsEnumerable()
+                    .Where(r => !string.Equals(r.Field<string>("Status"), "Anulowane", StringComparison.OrdinalIgnoreCase))
+                    .Where(r => r.Field<string>("Status") != "SUMA")
+                    .Select(r => r.Field<int>("Id"))
+                    .Where(id => id > 0)
+                    .ToList();
+
+                if (orderIds.Any())
+                {
+                    await using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
+                    var sql = $"SELECT SUM(Ilosc) FROM [dbo].[ZamowieniaMiesoTowar] WHERE KodTowaru = @Id AND ZamowienieId IN ({string.Join(",", orderIds)})";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Id", produktId);
+                    var result = await cmd.ExecuteScalarAsync();
+                    if (result != DBNull.Value && result != null)
+                        zam = Convert.ToDecimal(result);
+                }
+            }
+            catch { }
+
+            return (plan, fakt, zam);
         }
 
         private async Task<int?> ZnajdzIdProduktuAsync(string nazwaProdukt)
