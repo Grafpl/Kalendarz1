@@ -329,8 +329,8 @@
                                                         ToolTip="Usuń produkt"/>
 
                                                 <!-- Slider procentu -->
-                                                <StackPanel Grid.Row="1" 
-                                                            Grid.Column="0" 
+                                                <StackPanel Grid.Row="1"
+                                                            Grid.Column="0"
                                                             Grid.ColumnSpan="2"
                                                             Margin="0,10,0,0">
                                                     <Grid>
@@ -340,15 +340,15 @@
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
 
-                                                        <TextBlock Grid.Column="0" 
-                                                                   Text="Udział:" 
+                                                        <TextBlock Grid.Column="0"
+                                                                   Text="Udział:"
                                                                    FontWeight="SemiBold"
                                                                    FontSize="10"
                                                                    VerticalAlignment="Center"
                                                                    Margin="0,0,8,0"/>
 
                                                         <Slider Grid.Column="1"
-                                                                Minimum="0" 
+                                                                Minimum="0"
                                                                 Maximum="100"
                                                                 Value="{Binding Procent}"
                                                                 TickFrequency="0.5"
@@ -370,6 +370,28 @@
                                                                 <Run Text="%"/>
                                                             </TextBlock>
                                                         </Border>
+                                                    </Grid>
+
+                                                    <!-- Grupa scalania -->
+                                                    <Grid Margin="0,8,0,0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <TextBlock Grid.Column="0"
+                                                                   Text="Grupa:"
+                                                                   FontWeight="SemiBold"
+                                                                   FontSize="10"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="0,0,8,0"
+                                                                   ToolTip="Produkty z tą samą grupą będą sumowane razem w podsumowaniu dnia"/>
+
+                                                        <TextBox Grid.Column="1"
+                                                                 Text="{Binding GrupaScalowania, UpdateSourceTrigger=PropertyChanged}"
+                                                                 FontSize="10"
+                                                                 Padding="5,3"
+                                                                 ToolTip="Wpisz nazwę grupy (np. 'Filet') - produkty z tą samą grupą będą sumowane"/>
                                                     </Grid>
                                                 </StackPanel>
                                             </Grid>
@@ -405,9 +427,10 @@
                 </Border>
 
                 <DataGrid Grid.Row="1"
-                          x:Name="dgKonfiguracje" 
+                          x:Name="dgKonfiguracje"
                           Style="{StaticResource DataGridStyle}"
-                          ColumnHeaderStyle="{StaticResource ColumnHeaderStyle}">
+                          ColumnHeaderStyle="{StaticResource ColumnHeaderStyle}"
+                          MouseDoubleClick="DgKonfiguracje_MouseDoubleClick">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Data od" 
                                           Binding="{Binding DataOd, StringFormat=yyyy-MM-dd}" 
@@ -462,21 +485,35 @@
                                           Binding="{Binding DataModyfikacji, StringFormat=yyyy-MM-dd HH:mm}" 
                                           Width="130"/>
 
-                        <DataGridTemplateColumn Header="Akcje" Width="80">
+                        <DataGridTemplateColumn Header="Akcje" Width="120">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Button Content="✕" 
-                                            Width="28" 
-                                            Height="24"
-                                            Background="#E74C3C"
-                                            Foreground="White"
-                                            BorderThickness="0"
-                                            FontWeight="Bold"
-                                            Cursor="Hand"
-                                            Click="BtnUsunKonfiguracje_Click"
-                                            Tag="{Binding}"
-                                            ToolTip="Dezaktywuj"
-                                            Margin="2"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="✎"
+                                                Width="28"
+                                                Height="24"
+                                                Background="#3498DB"
+                                                Foreground="White"
+                                                BorderThickness="0"
+                                                FontWeight="Bold"
+                                                Cursor="Hand"
+                                                Click="BtnEdytujKonfiguracje_Click"
+                                                Tag="{Binding}"
+                                                ToolTip="Edytuj konfigurację"
+                                                Margin="2"/>
+                                        <Button Content="✕"
+                                                Width="28"
+                                                Height="24"
+                                                Background="#E74C3C"
+                                                Foreground="White"
+                                                BorderThickness="0"
+                                                FontWeight="Bold"
+                                                Cursor="Hand"
+                                                Click="BtnUsunKonfiguracje_Click"
+                                                Tag="{Binding}"
+                                                ToolTip="Dezaktywuj"
+                                                Margin="2"/>
+                                    </StackPanel>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>

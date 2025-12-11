@@ -445,6 +445,7 @@ namespace Kalendarz1
         private int? _aktualneIdZamowienia;
         private readonly List<Button> _dayButtons = new();
         private Button btnDodajNotatke;
+        private Dictionary<int, string> _mapowanieScalowania = new(); // TowarIdtw -> NazwaGrupy
         private bool _pokazujPoDatachUboju = true;
         private bool _dataUbojuKolumnaIstnieje = true;
         private bool _isInitialized = false;
@@ -699,12 +700,16 @@ namespace Kalendarz1
             SzybkiGrid(dgvSzczegoly);
             SzybkiGrid(dgvAgregacja);
 
+            // Menu kontekstowe dla podsumowania dnia (prawy przycisk myszy)
+            InicjalizujMenuKontekstoweAgregacji();
+
             AttachGridEventHandlers();
 
             btnUsun.Visible = (UserID == "11111");
             btnCykliczne.Visible = true;
 
             await ZaladujDanePoczatkoweAsync();
+            await ZaladujMapowanieScalowaniaAsync();
 
             _selectedDate = DateTime.Today;
             AktualizujDatyPrzyciskow();
@@ -2006,6 +2011,49 @@ namespace Kalendarz1
             return stany;
         }
 
+        #region Scalowanie towarów
+        private void InicjalizujMenuKontekstoweAgregacji()
+        {
+            var menuAgregacja = new ContextMenuStrip();
+
+            var menuScalowanie = new ToolStripMenuItem("Konfiguruj scalowanie towarów");
+            menuScalowanie.Click += async (s, e) =>
+            {
+                using var dialog = new ScalowanieTowarowDialog(_connLibra, _twKatalogCache);
+                dialog.ShowDialog(this);
+
+                // Po zamknięciu dialogu odśwież mapowanie
+                await ZaladujMapowanieScalowaniaAsync();
+                await WyswietlAgregacjeProduktowAsync(_selectedDate);
+            };
+
+            var menuOdswiez = new ToolStripMenuItem("Odśwież podsumowanie");
+            menuOdswiez.Click += async (s, e) =>
+            {
+                await ZaladujMapowanieScalowaniaAsync();
+                await WyswietlAgregacjeProduktowAsync(_selectedDate);
+            };
+
+            menuAgregacja.Items.Add(menuScalowanie);
+            menuAgregacja.Items.Add(new ToolStripSeparator());
+            menuAgregacja.Items.Add(menuOdswiez);
+
+            dgvAgregacja.ContextMenuStrip = menuAgregacja;
+        }
+
+        private async Task ZaladujMapowanieScalowaniaAsync()
+        {
+            try
+            {
+                _mapowanieScalowania = await ScalowanieTowarowManager.PobierzMapowanieTowarowAsync(_connLibra);
+            }
+            catch
+            {
+                _mapowanieScalowania = new Dictionary<int, string>();
+            }
+        }
+        #endregion
+
         private async Task WyswietlAgregacjeProduktowAsync(DateTime dzien)
         {
             var dtAg = new DataTable();
@@ -2035,17 +2083,54 @@ namespace Kalendarz1
                     sumaZamowien[reader.GetInt32(0)] = ReadDecimal(reader, 1);
             }
 
+            // Agregacja z uwzględnieniem scalania towarów
+            // Słownik: nazwa produktu (lub grupa) -> (plan, fakt, zam)
+            var agregowane = new Dictionary<string, (decimal plan, decimal fakt, decimal zam)>(StringComparer.OrdinalIgnoreCase);
+            var towaryWGrupach = new HashSet<int>(); // idtw towarów już scalonych
+
+            // Najpierw zbierz towary w grupach scalania
+            foreach (var towar in _twKatalogCache)
+            {
+                if (_mapowanieScalowania.TryGetValue(towar.Key, out var nazwaGrupy))
+                {
+                    towaryWGrupach.Add(towar.Key);
+
+                    var plan = planPrzychodu.TryGetValue(towar.Key, out var p) ? p : 0m;
+                    var fakt = faktPrzychodu.TryGetValue(towar.Key, out var f) ? f : 0m;
+                    var zam = sumaZamowien.TryGetValue(towar.Key, out var z) ? z : 0m;
+
+                    if (agregowane.ContainsKey(nazwaGrupy))
+                    {
+                        var existing = agregowane[nazwaGrupy];
+                        agregowane[nazwaGrupy] = (existing.plan + plan, existing.fakt + fakt, existing.zam + zam);
+                    }
+                    else
+                    {
+                        agregowane[nazwaGrupy] = (plan, fakt, zam);
+                    }
+                }
+            }
+
+            // Dodaj towary niescalone
             foreach (var towar in _twKatalogCache.OrderBy(kvp => kvp.Value))
             {
+                if (towaryWGrupach.Contains(towar.Key)) continue;
+
                 var kod = towar.Value;
                 if (IsKurczakB(kod)) continue;
 
                 var plan = planPrzychodu.TryGetValue(towar.Key, out var p) ? p : 0m;
                 var fakt = faktPrzychodu.TryGetValue(towar.Key, out var f) ? f : 0m;
                 var zam = sumaZamowien.TryGetValue(towar.Key, out var z) ? z : 0m;
-                var bilans = fakt - zam;
 
-                dtAg.Rows.Add(kod, plan, fakt, zam, bilans);
+                agregowane[kod] = (plan, fakt, zam);
+            }
+
+            // Dodaj do DataTable
+            foreach (var kv in agregowane.OrderBy(x => x.Key))
+            {
+                var bilans = kv.Value.fakt - kv.Value.zam;
+                dtAg.Rows.Add(kv.Key, kv.Value.plan, kv.Value.fakt, kv.Value.zam, bilans);
             }
 
             dgvAgregacja.DataSource = dtAg;

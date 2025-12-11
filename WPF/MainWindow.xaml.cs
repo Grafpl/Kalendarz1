@@ -17,6 +17,7 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Kalendarz1;
 using Kalendarz1.Services;
 
 
@@ -56,6 +57,10 @@ namespace Kalendarz1.WPF
         private readonly Dictionary<int, string> _productCatalogCache = new();
         private readonly Dictionary<int, string> _productCatalogSwieze = new();
         private readonly Dictionary<int, string> _productCatalogMrozone = new();
+        private Dictionary<int, string> _mapowanieScalowania = new(); // TowarIdtw -> NazwaGrupy
+        private Dictionary<string, List<int>> _grupyDoProduktow = new(); // NazwaGrupy -> lista TowarId
+        private HashSet<string> _expandedGroups = new(); // Rozwinięte grupy
+        private Dictionary<string, List<(string nazwa, decimal plan, decimal fakt, decimal zam, string stan, decimal stanDec, decimal bilans)>> _detaleGrup = new(); // Szczegóły produktów w grupach
         private int? _selectedProductId = null;
         private readonly Dictionary<string, string> _userCache = new();
         private readonly List<string> _salesmenCache = new();
@@ -461,6 +466,7 @@ namespace Kalendarz1.WPF
             chkShowAnulowane.IsChecked = false;
 
             await LoadInitialDataAsync();
+            InicjalizujMenuKontekstoweBilansu();
 
             _selectedDate = ValidateSqlDate(DateTime.Today);
             UpdateDayButtonDates();
@@ -529,21 +535,40 @@ namespace Kalendarz1.WPF
         private async Task<Dictionary<int, decimal>> GetKonfiguracjaProduktowAsync(DateTime data)
         {
             var result = new Dictionary<int, decimal>();
+            _mapowanieScalowania.Clear(); // Odśwież mapowanie scalowania
+            _grupyDoProduktow.Clear(); // Odśwież mapowanie grup
 
             try
             {
                 await using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
 
-                const string query = @"
-                    SELECT kp.TowarID, kp.ProcentUdzialu
-                    FROM KonfiguracjaProduktow kp
-                    INNER JOIN (
-                        SELECT MAX(DataOd) as MaxData
-                        FROM KonfiguracjaProduktow
-                        WHERE DataOd <= @Data AND Aktywny = 1
-                    ) sub ON kp.DataOd = sub.MaxData
-                    WHERE kp.Aktywny = 1";
+                // Sprawdź czy kolumna GrupaScalowania istnieje
+                bool hasGrupaColumn = false;
+                const string checkQuery = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                                            WHERE TABLE_NAME = 'KonfiguracjaProduktow' AND COLUMN_NAME = 'GrupaScalowania'";
+                await using (var checkCmd = new SqlCommand(checkQuery, cn))
+                {
+                    hasGrupaColumn = (int)await checkCmd.ExecuteScalarAsync() > 0;
+                }
+
+                string query = hasGrupaColumn
+                    ? @"SELECT kp.TowarID, kp.ProcentUdzialu, kp.GrupaScalowania
+                        FROM KonfiguracjaProduktow kp
+                        INNER JOIN (
+                            SELECT MAX(DataOd) as MaxData
+                            FROM KonfiguracjaProduktow
+                            WHERE DataOd <= @Data AND Aktywny = 1
+                        ) sub ON kp.DataOd = sub.MaxData
+                        WHERE kp.Aktywny = 1"
+                    : @"SELECT kp.TowarID, kp.ProcentUdzialu
+                        FROM KonfiguracjaProduktow kp
+                        INNER JOIN (
+                            SELECT MAX(DataOd) as MaxData
+                            FROM KonfiguracjaProduktow
+                            WHERE DataOd <= @Data AND Aktywny = 1
+                        ) sub ON kp.DataOd = sub.MaxData
+                        WHERE kp.Aktywny = 1";
 
                 await using var cmd = new SqlCommand(query, cn);
                 cmd.Parameters.AddWithValue("@Data", data.Date);
@@ -555,6 +580,25 @@ namespace Kalendarz1.WPF
                     int towarId = Convert.ToInt32(reader["TowarID"]);
                     decimal procent = Convert.ToDecimal(reader["ProcentUdzialu"]);
                     result[towarId] = procent;
+
+                    // Pobierz grupę scalania jeśli istnieje
+                    if (hasGrupaColumn)
+                    {
+                        var grupaOrdinal = reader.GetOrdinal("GrupaScalowania");
+                        if (!reader.IsDBNull(grupaOrdinal))
+                        {
+                            string grupa = reader.GetString(grupaOrdinal);
+                            if (!string.IsNullOrWhiteSpace(grupa))
+                            {
+                                _mapowanieScalowania[towarId] = grupa;
+
+                                // Buduj słownik grup -> produkty
+                                if (!_grupyDoProduktow.ContainsKey(grupa))
+                                    _grupyDoProduktow[grupa] = new List<int>();
+                                _grupyDoProduktow[grupa].Add(towarId);
+                            }
+                        }
+                    }
                 }
 
                 return result;
@@ -3803,7 +3847,11 @@ ORDER BY zm.Id";
             dtAgg.Columns.Add("FaktycznyPrzychód", typeof(decimal));
             dtAgg.Columns.Add("Stan", typeof(string));
             dtAgg.Columns.Add("Zamówienia", typeof(decimal));
+            dtAgg.Columns.Add("Wydania", typeof(decimal));
             dtAgg.Columns.Add("Bilans", typeof(decimal));
+
+            // Określ czy bilans ma uwzględniać wydania czy zamówienia
+            bool uzywajWydan = rbBilansWydania?.IsChecked == true;
 
             var (wspolczynnikTuszki, procentA, procentB) = await GetKonfiguracjaWydajnosciAsync(day);
             var konfiguracjaProduktow = await GetKonfiguracjaProduktowAsync(day);
@@ -3893,6 +3941,28 @@ ORDER BY zm.Id";
                     orderSum[reader.GetInt32(0)] = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
             }
 
+            // ✅ POBIERZ WYDANIA (WZ)
+            var wydaniaSum = new Dictionary<int, decimal>();
+            await using (var cn = new SqlConnection(_connHandel))
+            {
+                await cn.OpenAsync();
+                const string sqlWydania = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc))
+                    FROM [HANDEL].[HM].[MZ] MZ
+                    JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
+                    WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny=1 AND MG.data = @Day
+                    GROUP BY MZ.idtw";
+                await using var cmd = new SqlCommand(sqlWydania, cn);
+                cmd.Parameters.AddWithValue("@Day", day.Date);
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    int productId = reader.GetInt32(0);
+                    decimal qty = reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1));
+                    wydaniaSum[productId] = qty;
+                }
+            }
+
             // ✅ POBIERZ STANY MAGAZYNOWE
             var stanyMagazynowe = new Dictionary<int, decimal>();
             try
@@ -3924,7 +3994,7 @@ ORDER BY zm.Id";
             var kurczakA = _productCatalogCache.FirstOrDefault(p =>
                 p.Value.Contains("Kurczak A", StringComparison.OrdinalIgnoreCase));
 
-            decimal planA = 0m, factA = 0m, ordersA = 0m, balanceA = 0m;
+            decimal planA = 0m, factA = 0m, ordersA = 0m, wydaniaA = 0m, balanceA = 0m;
             string stanA = "";
             decimal stanMagA = 0m;
 
@@ -3933,32 +4003,133 @@ ORDER BY zm.Id";
                 planA = pulaTuszkiA;
                 factA = actualIncomeTuszkaA.TryGetValue(kurczakA.Key, out var a) ? a : 0m;
                 ordersA = orderSum.TryGetValue(kurczakA.Key, out var z) ? z : 0m;
+                wydaniaA = wydaniaSum.TryGetValue(kurczakA.Key, out var w) ? w : 0m;
 
                 // ✅ POBIERZ STAN MAGAZYNOWY
                 stanMagA = stanyMagazynowe.TryGetValue(kurczakA.Key, out var sA) ? sA : 0m;
                 stanA = stanMagA > 0 ? stanMagA.ToString("N0") : "";
 
-                // ✅ NOWA LOGIKA BILANSU: (Fakt lub Plan) + Stan - Zamówienia
+                // ✅ LOGIKA BILANSU: (Fakt lub Plan) + Stan - (Zamówienia lub Wydania)
+                decimal odejmij = uzywajWydan ? wydaniaA : ordersA;
                 if (factA > 0)
                 {
-                    balanceA = factA + stanMagA - ordersA;
+                    balanceA = factA + stanMagA - odejmij;
                 }
                 else
                 {
-                    balanceA = planA + stanMagA - ordersA;
+                    balanceA = planA + stanMagA - odejmij;
                 }
             }
 
             decimal sumaPlanB = 0m;
             decimal sumaFaktB = 0m;
             decimal sumaZamB = 0m;
+            decimal sumaWydB = 0m;
             decimal sumaStanB = 0m;
 
-            var produktyB = new List<(string nazwa, decimal plan, decimal fakt, decimal zam, string stan, decimal stanDec, decimal bilans)>();
+            var produktyB = new List<(string nazwa, decimal plan, decimal fakt, decimal zam, decimal wyd, string stan, decimal stanDec, decimal bilans)>();
 
+            // Agregacja z uwzględnieniem scalania towarów
+            var agregowaneGrupy = new Dictionary<string, (decimal plan, decimal fakt, decimal zam, decimal wyd, decimal stan, decimal procent)>(StringComparer.OrdinalIgnoreCase);
+            var towaryWGrupach = new HashSet<int>();
+            _detaleGrup.Clear(); // Wyczyść poprzednie szczegóły grup
+
+            // Najpierw zbierz towary w grupach scalania
+            foreach (var produktKonfig in konfiguracjaProduktow)
+            {
+                int produktId = produktKonfig.Key;
+                decimal procentUdzialu = produktKonfig.Value;
+
+                if (!_productCatalogCache.ContainsKey(produktId))
+                    continue;
+
+                string nazwaProdukt = _productCatalogCache[produktId];
+                if (nazwaProdukt.Contains("Kurczak B", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (_mapowanieScalowania.TryGetValue(produktId, out var nazwaGrupy))
+                {
+                    towaryWGrupach.Add(produktId);
+
+                    decimal plannedForProduct = pulaTuszkiB * (procentUdzialu / 100m);
+                    var actual = actualIncomeElementy.TryGetValue(produktId, out var a) ? a : 0m;
+                    var orders = orderSum.TryGetValue(produktId, out var z) ? z : 0m;
+                    var releases = wydaniaSum.TryGetValue(produktId, out var r) ? r : 0m;
+                    decimal stanMag = stanyMagazynowe.TryGetValue(produktId, out var sm) ? sm : 0m;
+
+                    if (agregowaneGrupy.ContainsKey(nazwaGrupy))
+                    {
+                        var existing = agregowaneGrupy[nazwaGrupy];
+                        agregowaneGrupy[nazwaGrupy] = (existing.plan + plannedForProduct, existing.fakt + actual, existing.zam + orders, existing.wyd + releases, existing.stan + stanMag, existing.procent + procentUdzialu);
+                    }
+                    else
+                    {
+                        agregowaneGrupy[nazwaGrupy] = (plannedForProduct, actual, orders, releases, stanMag, procentUdzialu);
+                    }
+
+                    // Zapisz szczegóły produktu dla grupy
+                    if (!_detaleGrup.ContainsKey(nazwaGrupy))
+                        _detaleGrup[nazwaGrupy] = new List<(string, decimal, decimal, decimal, string, decimal, decimal)>();
+
+                    decimal odejmijProd = uzywajWydan ? releases : orders;
+                    decimal balanceProd = (actual > 0 ? actual : plannedForProduct) + stanMag - odejmijProd;
+                    string stanTextProd = stanMag > 0 ? stanMag.ToString("N0") : "";
+                    _detaleGrup[nazwaGrupy].Add(($"      · {nazwaProdukt} ({procentUdzialu:F1}%)", plannedForProduct, actual, orders, stanTextProd, stanMag, balanceProd));
+                }
+            }
+
+            // Dodaj scalone grupy
+            foreach (var grupa in agregowaneGrupy.OrderByDescending(g => g.Value.procent))
+            {
+                string ikona = "";
+                if (grupa.Key.Contains("Skrzydło", StringComparison.OrdinalIgnoreCase))
+                    ikona = "🍗";
+                else if (grupa.Key.Contains("Korpus", StringComparison.OrdinalIgnoreCase))
+                    ikona = "🍖";
+                else if (grupa.Key.Contains("Ćwiartka", StringComparison.OrdinalIgnoreCase) || grupa.Key.Contains("Noga", StringComparison.OrdinalIgnoreCase))
+                    ikona = "🍗";
+                else if (grupa.Key.Contains("Filet", StringComparison.OrdinalIgnoreCase))
+                    ikona = "🥩";
+
+                var (plan, fakt, zam, wyd, stan, procent) = grupa.Value;
+                string stanText = stan > 0 ? stan.ToString("N0") : "";
+
+                decimal odejmij = uzywajWydan ? wyd : zam;
+                decimal balance = (fakt > 0 ? fakt : plan) + stan - odejmij;
+
+                // Dodaj znak + lub - w zależności czy grupa jest rozwinięta
+                bool isExpanded = _expandedGroups.Contains(grupa.Key);
+                string expandIcon = isExpanded ? "▼" : "▶";
+
+                string nazwaZIkonka = string.IsNullOrEmpty(ikona)
+                    ? $"  {expandIcon} {grupa.Key} ({procent:F1}%)"
+                    : $"  {expandIcon} {ikona} {grupa.Key} ({procent:F1}%)";
+
+                produktyB.Add((nazwaZIkonka, plan, fakt, zam, wyd, stanText, stan, balance));
+
+                // Jeśli grupa jest rozwinięta, dodaj szczegóły produktów
+                if (isExpanded && _detaleGrup.TryGetValue(grupa.Key, out var detale))
+                {
+                    foreach (var detal in detale)
+                    {
+                        // Dodaj wydania = 0 dla szczegółów (nie mamy ich w detaleGrup)
+                        produktyB.Add((detal.Item1, detal.Item2, detal.Item3, detal.Item4, 0m, detal.Item5, detal.Item6, detal.Item7));
+                    }
+                }
+
+                sumaPlanB += plan;
+                sumaFaktB += fakt;
+                sumaZamB += zam;
+                sumaWydB += wyd;
+                sumaStanB += stan;
+            }
+
+            // Dodaj towary niescalone
             foreach (var produktKonfig in konfiguracjaProduktow.OrderByDescending(p => p.Value))
             {
                 int produktId = produktKonfig.Key;
+                if (towaryWGrupach.Contains(produktId)) continue;
+
                 decimal procentUdzialu = produktKonfig.Value;
 
                 if (!_productCatalogCache.ContainsKey(produktId))
@@ -3982,43 +4153,47 @@ ORDER BY zm.Id";
                 decimal plannedForProduct = pulaTuszkiB * (procentUdzialu / 100m);
                 var actual = actualIncomeElementy.TryGetValue(produktId, out var a) ? a : 0m;
                 var orders = orderSum.TryGetValue(produktId, out var z) ? z : 0m;
+                var releases = wydaniaSum.TryGetValue(produktId, out var r) ? r : 0m;
 
                 // ✅ POBIERZ STAN MAGAZYNOWY
                 decimal stanMag = stanyMagazynowe.TryGetValue(produktId, out var sm) ? sm : 0m;
                 string stanText = stanMag > 0 ? stanMag.ToString("N0") : "";
 
-                // ✅ NOWA LOGIKA BILANSU: (Fakt lub Plan) + Stan - Zamówienia
+                // ✅ LOGIKA BILANSU: (Fakt lub Plan) + Stan - (Zamówienia lub Wydania)
+                decimal odejmij = uzywajWydan ? releases : orders;
                 decimal balance;
                 if (actual > 0)
                 {
-                    balance = actual + stanMag - orders;
+                    balance = actual + stanMag - odejmij;
                 }
                 else
                 {
-                    balance = plannedForProduct + stanMag - orders;
+                    balance = plannedForProduct + stanMag - odejmij;
                 }
 
                 string nazwaZIkonka = string.IsNullOrEmpty(ikona)
                     ? $"  └ {nazwaProdukt} ({procentUdzialu:F1}%)"
                     : $"  └ {ikona} {nazwaProdukt} ({procentUdzialu:F1}%)";
 
-                produktyB.Add((nazwaZIkonka, plannedForProduct, actual, orders, stanText, stanMag, balance));
+                produktyB.Add((nazwaZIkonka, plannedForProduct, actual, orders, releases, stanText, stanMag, balance));
 
                 sumaPlanB += plannedForProduct;
                 sumaFaktB += actual;
                 sumaZamB += orders;
+                sumaWydB += releases;
                 sumaStanB += stanMag;
             }
 
             // ✅ BILANS CAŁKOWITY DLA KURCZAKA B
+            decimal odejmijB = uzywajWydan ? sumaWydB : sumaZamB;
             decimal bilansB;
             if (sumaFaktB > 0)
             {
-                bilansB = sumaFaktB + sumaStanB - sumaZamB;
+                bilansB = sumaFaktB + sumaStanB - odejmijB;
             }
             else
             {
-                bilansB = sumaPlanB + sumaStanB - sumaZamB;
+                bilansB = sumaPlanB + sumaStanB - odejmijB;
             }
 
             // ✅ BILANS CAŁKOWITY
@@ -4030,6 +4205,7 @@ ORDER BY zm.Id";
                 factA + sumaFaktB,
                 (stanMagA + sumaStanB > 0 ? (stanMagA + sumaStanB).ToString("N0") : ""),
                 ordersA + sumaZamB,
+                wydaniaA + sumaWydB,
                 bilansCalk);
 
             dtAgg.Rows.Add("🐔 Kurczak A",
@@ -4037,6 +4213,7 @@ ORDER BY zm.Id";
                 factA,
                 stanA,
                 ordersA,
+                wydaniaA,
                 balanceA);
 
             dtAgg.Rows.Add("🐔 Kurczak B",
@@ -4044,11 +4221,12 @@ ORDER BY zm.Id";
                 sumaFaktB,
                 (sumaStanB > 0 ? sumaStanB.ToString("N0") : ""),
                 sumaZamB,
+                sumaWydB,
                 bilansB);
 
             foreach (var produkt in produktyB)
             {
-                dtAgg.Rows.Add(produkt.nazwa, produkt.plan, produkt.fakt, produkt.stan, produkt.zam, produkt.bilans);
+                dtAgg.Rows.Add(produkt.nazwa, produkt.plan, produkt.fakt, produkt.stan, produkt.zam, produkt.wyd, produkt.bilans);
             }
 
             dgAggregation.ItemsSource = dtAgg.DefaultView;
@@ -4082,13 +4260,30 @@ ORDER BY zm.Id";
                     e.Row.FontSize = 13;
                     e.Row.Height = 36;
                 }
+                else if (produkt.StartsWith("  ▶") || produkt.StartsWith("  ▼"))
+                {
+                    // Wiersz grupy (zwijana/rozwijana)
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(225, 245, 254));
+                    e.Row.FontWeight = FontWeights.SemiBold;
+                    e.Row.FontSize = 11;
+                    e.Row.Height = 28;
+                    e.Row.Cursor = System.Windows.Input.Cursors.Hand;
+                }
+                else if (produkt.StartsWith("      ·"))
+                {
+                    // Wiersz szczegółowy produktu w grupie (rozwinięty)
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(240, 248, 255));
+                    e.Row.FontStyle = FontStyles.Italic;
+                    e.Row.FontSize = 9;
+                    e.Row.Height = 22;
+                }
                 else if (produkt.StartsWith("  └"))
                 {
-                    // ✅ POPRAWKA 14: Mniejsze wiersze dla elementów Kurczaka B
+                    // Towary niescalone
                     e.Row.Background = new SolidColorBrush(Color.FromRgb(225, 245, 254));
                     e.Row.FontStyle = FontStyles.Normal;
-                    e.Row.FontSize = 10; // Zmniejszone z 11
-                    e.Row.Height = 24;    // Zmniejszone z 32
+                    e.Row.FontSize = 10;
+                    e.Row.Height = 24;
                 }
             }
         }
@@ -4139,16 +4334,47 @@ ORDER BY zm.Id";
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
 
+            // Określ czy używamy wydań czy zamówień
+            bool uzywajWydan = rbBilansWydania?.IsChecked == true;
+
+            // Style dla przekreślenia
+            var zamStyle = new Style(typeof(TextBlock));
+            zamStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
+            zamStyle.Setters.Add(new Setter(TextBlock.PaddingProperty, new Thickness(0, 0, 8, 0)));
+            if (uzywajWydan)
+            {
+                zamStyle.Setters.Add(new Setter(TextBlock.TextDecorationsProperty, TextDecorations.Strikethrough));
+                zamStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, Brushes.Gray));
+            }
+
+            var wydStyle = new Style(typeof(TextBlock));
+            wydStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
+            wydStyle.Setters.Add(new Setter(TextBlock.PaddingProperty, new Thickness(0, 0, 8, 0)));
+            if (!uzywajWydan)
+            {
+                wydStyle.Setters.Add(new Setter(TextBlock.TextDecorationsProperty, TextDecorations.Strikethrough));
+                wydStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, Brushes.Gray));
+            }
+
             // 4. ZAM.
             dgAggregation.Columns.Add(new DataGridTextColumn
             {
-                Header = "Zam.",
+                Header = uzywajWydan ? "Zam." : "Zam. ✓",
                 Binding = new System.Windows.Data.Binding("Zamówienia") { StringFormat = "N0" },
-                Width = new DataGridLength(70),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+                Width = new DataGridLength(65),
+                ElementStyle = zamStyle
             });
 
-            // 5. BILANS
+            // 5. WYD.
+            dgAggregation.Columns.Add(new DataGridTextColumn
+            {
+                Header = uzywajWydan ? "Wyd. ✓" : "Wyd.",
+                Binding = new System.Windows.Data.Binding("Wydania") { StringFormat = "N0" },
+                Width = new DataGridLength(65),
+                ElementStyle = wydStyle
+            });
+
+            // 6. BILANS
             dgAggregation.Columns.Add(new DataGridTextColumn
             {
                 Header = "Bil.",
@@ -4157,7 +4383,7 @@ ORDER BY zm.Id";
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
-            // 6. PRODUKT
+            // 7. PRODUKT
             dgAggregation.Columns.Add(new DataGridTextColumn
             {
                 Header = "Produkt",
@@ -4171,7 +4397,58 @@ ORDER BY zm.Id";
 
             dgAggregation.MouseDoubleClick -= DgAggregation_MouseDoubleClick;
             dgAggregation.MouseDoubleClick += DgAggregation_MouseDoubleClick;
+
+            dgAggregation.PreviewMouseLeftButtonUp -= DgAggregation_PreviewMouseLeftButtonUp;
+            dgAggregation.PreviewMouseLeftButtonUp += DgAggregation_PreviewMouseLeftButtonUp;
         }
+
+        private async void DgAggregation_PreviewMouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (dgAggregation.SelectedItem is DataRowView rowView)
+            {
+                var produktNazwa = rowView.Row.Field<string>("Produkt") ?? "";
+
+                // Sprawdź czy kliknięto na wiersz grupy (z ikoną ▶ lub ▼)
+                if (produktNazwa.StartsWith("  ▶") || produktNazwa.StartsWith("  ▼"))
+                {
+                    // Wyciągnij nazwę grupy
+                    var nazwaGrupy = produktNazwa
+                        .Replace("▶", "")
+                        .Replace("▼", "")
+                        .Replace("🍗", "")
+                        .Replace("🍖", "")
+                        .Replace("🥩", "")
+                        .Trim();
+
+                    // Usuń procent z końca
+                    int lastParen = nazwaGrupy.LastIndexOf('(');
+                    if (lastParen > 0)
+                        nazwaGrupy = nazwaGrupy.Substring(0, lastParen).Trim();
+
+                    // Przełącz stan rozwinięcia
+                    if (_expandedGroups.Contains(nazwaGrupy))
+                        _expandedGroups.Remove(nazwaGrupy);
+                    else
+                        _expandedGroups.Add(nazwaGrupy);
+
+                    // Odśwież agregację aby pokazać/ukryć szczegóły
+                    await RefreshAggregationAsync();
+                    e.Handled = true;
+                }
+            }
+        }
+
+        private async Task RefreshAggregationAsync()
+        {
+            await DisplayProductAggregationAsync(_selectedDate);
+        }
+
+        private async void RbBilans_Checked(object sender, RoutedEventArgs e)
+        {
+            // Odśwież agregację przy zmianie radio button
+            await RefreshAggregationAsync();
+        }
+
         private async void DgAggregation_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             if (dgAggregation.SelectedItem is DataRowView rowView)
@@ -4181,8 +4458,22 @@ ORDER BY zm.Id";
                 if (produktNazwa.StartsWith("═══"))
                     return;
 
+                // Jeśli to wiersz szczegółowy (rozwinięty z grupy), ignoruj double-click
+                if (produktNazwa.StartsWith("      ·"))
+                    return;
+
+                // Jeśli to wiersz grupy (▶ lub ▼), toggle expand zamiast double-click
+                if (produktNazwa.StartsWith("  ▶") || produktNazwa.StartsWith("  ▼"))
+                {
+                    // Już obsługiwane przez single-click
+                    return;
+                }
+
                 var czystyProdukt = produktNazwa
                     .Replace("└", "")
+                    .Replace("▶", "")
+                    .Replace("▼", "")
+                    .Replace("·", "")
                     .Replace("🍗", "")
                     .Replace("🍖", "")
                     .Replace("🥩", "")
@@ -4198,6 +4489,14 @@ ORDER BY zm.Id";
                 var fakt = rowView.Row.Field<decimal?>("FaktycznyPrzychód") ?? 0m;
                 var zamowienia = rowView.Row.Field<decimal?>("Zamówienia") ?? 0m;
                 var bilans = rowView.Row.Field<decimal?>("Bilans") ?? 0m;
+
+                // Sprawdź czy to jest grupa scalowania
+                if (_grupyDoProduktow.ContainsKey(czystyProdukt))
+                {
+                    // Pokaż szczegóły grupy
+                    await PokazSzczegolyGrupyAsync(czystyProdukt, plan, fakt, zamowienia, bilans);
+                    return;
+                }
 
                 int? produktId = await ZnajdzIdProduktuAsync(czystyProdukt);
 
@@ -4222,6 +4521,120 @@ ORDER BY zm.Id";
                     _selectedDate);
                 okno.ShowDialog();
             }
+        }
+
+        private async Task PokazSzczegolyGrupyAsync(string nazwaGrupy, decimal planSuma, decimal faktSuma, decimal zamowieniaSuma, decimal bilansSuma)
+        {
+            if (!_grupyDoProduktow.TryGetValue(nazwaGrupy, out var produktyIds) || !produktyIds.Any())
+            {
+                MessageBox.Show("Brak produktów w tej grupie.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // Pobierz szczegóły dla każdego produktu w grupie
+            var szczegoly = new System.Text.StringBuilder();
+            szczegoly.AppendLine($"📊 SZCZEGÓŁY GRUPY: {nazwaGrupy}");
+            szczegoly.AppendLine($"════════════════════════════════════════");
+            szczegoly.AppendLine();
+            szczegoly.AppendLine($"{"Produkt",-25} {"Plan",10} {"Fakt",10} {"Zam.",10} {"Bilans",10}");
+            szczegoly.AppendLine($"{"───────────────────────",-25} {"──────────",10} {"──────────",10} {"──────────",10} {"──────────",10}");
+
+            decimal sumaPlan = 0, sumaFakt = 0, sumaZam = 0;
+
+            foreach (var produktId in produktyIds)
+            {
+                string nazwaProdukt = _productCatalogCache.TryGetValue(produktId, out var n) ? n : $"ID:{produktId}";
+
+                // Pobierz dane dla tego produktu
+                var (plan, fakt, zam) = await PobierzDaneProduktuAsync(produktId, _selectedDate);
+
+                decimal bil = (fakt > 0 ? fakt : plan) - zam;
+
+                szczegoly.AppendLine($"{nazwaProdukt,-25} {plan,10:N0} {fakt,10:N0} {zam,10:N0} {bil,10:N0}");
+
+                sumaPlan += plan;
+                sumaFakt += fakt;
+                sumaZam += zam;
+            }
+
+            decimal sumaBilans = (sumaFakt > 0 ? sumaFakt : sumaPlan) - sumaZam;
+
+            szczegoly.AppendLine($"{"───────────────────────",-25} {"──────────",10} {"──────────",10} {"──────────",10} {"──────────",10}");
+            szczegoly.AppendLine($"{"SUMA",-25} {sumaPlan,10:N0} {sumaFakt,10:N0} {sumaZam,10:N0} {sumaBilans,10:N0}");
+            szczegoly.AppendLine();
+            szczegoly.AppendLine($"Produktów w grupie: {produktyIds.Count}");
+
+            MessageBox.Show(szczegoly.ToString(), $"Szczegóły grupy: {nazwaGrupy}",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private async Task<(decimal plan, decimal fakt, decimal zam)> PobierzDaneProduktuAsync(int produktId, DateTime dzien)
+        {
+            decimal plan = 0, fakt = 0, zam = 0;
+
+            try
+            {
+                // Pobierz plan z konfiguracji
+                var konfig = await GetKonfiguracjaProduktowAsync(dzien);
+                if (konfig.TryGetValue(produktId, out var procent))
+                {
+                    var (wsp, procA, procB) = await GetKonfiguracjaWydajnosciAsync(dzien);
+
+                    // Pobierz masę z harmonogramu
+                    decimal masaDek = 0;
+                    await using (var cn = new SqlConnection(_connLibra))
+                    {
+                        await cn.OpenAsync();
+                        var sql = "SELECT SUM(WagaDek * SztukiDek) FROM dbo.HarmonogramDostaw WHERE DataOdbioru = @Day AND Bufor IN ('B.Wolny', 'B.Kontr.', 'Potwierdzony')";
+                        await using var cmd = new SqlCommand(sql, cn);
+                        cmd.Parameters.AddWithValue("@Day", dzien.Date);
+                        var result = await cmd.ExecuteScalarAsync();
+                        if (result != DBNull.Value && result != null)
+                            masaDek = Convert.ToDecimal(result);
+                    }
+
+                    decimal pulaTuszkiB = masaDek * (wsp / 100m) * (procB / 100m);
+                    plan = pulaTuszkiB * (procent / 100m);
+                }
+
+                // Pobierz faktyczny przychód
+                await using (var cn = new SqlConnection(_connHandel))
+                {
+                    await cn.OpenAsync();
+                    var sql = @"SELECT SUM(ABS(MZ.ilosc)) FROM [HANDEL].[HM].[MZ] MZ
+                                JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
+                                WHERE MZ.idtw = @Id AND MG.seria IN ('sPWP', 'PWP') AND MG.aktywny=1 AND MG.data = @Day";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Id", produktId);
+                    cmd.Parameters.AddWithValue("@Day", dzien.Date);
+                    var result = await cmd.ExecuteScalarAsync();
+                    if (result != DBNull.Value && result != null)
+                        fakt = Convert.ToDecimal(result);
+                }
+
+                // Pobierz zamówienia
+                var orderIds = _dtOrders.AsEnumerable()
+                    .Where(r => !string.Equals(r.Field<string>("Status"), "Anulowane", StringComparison.OrdinalIgnoreCase))
+                    .Where(r => r.Field<string>("Status") != "SUMA")
+                    .Select(r => r.Field<int>("Id"))
+                    .Where(id => id > 0)
+                    .ToList();
+
+                if (orderIds.Any())
+                {
+                    await using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
+                    var sql = $"SELECT SUM(Ilosc) FROM [dbo].[ZamowieniaMiesoTowar] WHERE KodTowaru = @Id AND ZamowienieId IN ({string.Join(",", orderIds)})";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Id", produktId);
+                    var result = await cmd.ExecuteScalarAsync();
+                    if (result != DBNull.Value && result != null)
+                        zam = Convert.ToDecimal(result);
+                }
+            }
+            catch { }
+
+            return (plan, fakt, zam);
         }
 
         private async Task<int?> ZnajdzIdProduktuAsync(string nazwaProdukt)
@@ -4588,50 +5001,91 @@ ORDER BY zm.Id";
             }
             catch { }
 
-            // Dodaj produkty do tabeli
+            // Dodaj produkty do tabeli z uwzględnieniem scalania
             decimal totalZamowienia = 0m;
             decimal totalWydania = 0m;
             decimal totalPlan = 0m;
 
+            // Agregacja produktów z uwzględnieniem scalania
+            var agregowane = new Dictionary<string, (decimal plan, decimal fakt, decimal stan, decimal zam)>(StringComparer.OrdinalIgnoreCase);
+            var towaryWGrupach = new HashSet<int>();
+
+            // Najpierw zbierz towary w grupach scalania
             foreach (var product in _productCatalogCache)
             {
                 int productId = product.Key;
                 string productName = product.Value;
 
+                if (_mapowanieScalowania.TryGetValue(productId, out var nazwaGrupy))
+                {
+                    towaryWGrupach.Add(productId);
+
+                    // Oblicz plan
+                    decimal plan = 0m;
+                    if (konfiguracjaProduktow.TryGetValue(productId, out decimal procentUdzialu))
+                        plan = pulaTuszkiB * (procentUdzialu / 100m);
+                    else if (productName.Contains("Kurczak A", StringComparison.OrdinalIgnoreCase) ||
+                             productName.Contains("Tuszka A", StringComparison.OrdinalIgnoreCase))
+                        plan = pulaTuszkiA;
+                    else if (productName.Contains("Kurczak B", StringComparison.OrdinalIgnoreCase) ||
+                             productName.Contains("Tuszka B", StringComparison.OrdinalIgnoreCase))
+                        plan = pulaTuszkiB;
+
+                    decimal fakt = actualIncome.TryGetValue(productId, out var f) ? f : 0m;
+                    decimal stan = stanyMagazynowe.TryGetValue(productId, out var s) ? s : 0m;
+                    decimal zam = orderSum.TryGetValue(productId, out var z) ? z : 0m;
+
+                    if (agregowane.ContainsKey(nazwaGrupy))
+                    {
+                        var existing = agregowane[nazwaGrupy];
+                        agregowane[nazwaGrupy] = (existing.plan + plan, existing.fakt + fakt, existing.stan + stan, existing.zam + zam);
+                    }
+                    else
+                    {
+                        agregowane[nazwaGrupy] = (plan, fakt, stan, zam);
+                    }
+                }
+            }
+
+            // Dodaj towary niescalone
+            foreach (var product in _productCatalogCache)
+            {
+                int productId = product.Key;
+                if (towaryWGrupach.Contains(productId)) continue;
+
+                string productName = product.Value;
+
                 // Oblicz plan na podstawie konfiguracji wydajności
                 decimal plan = 0m;
-
-                // Sprawdź czy produkt ma skonfigurowany procent udziału
                 if (konfiguracjaProduktow.TryGetValue(productId, out decimal procentUdzialu))
-                {
-                    // Produkty z konfiguracji są liczone jako % z TuszkiB
                     plan = pulaTuszkiB * (procentUdzialu / 100m);
-                }
-                // Fallback na nazwy produktów dla tuszek
                 else if (productName.Contains("Kurczak A", StringComparison.OrdinalIgnoreCase) ||
                          productName.Contains("Tuszka A", StringComparison.OrdinalIgnoreCase))
-                {
                     plan = pulaTuszkiA;
-                }
                 else if (productName.Contains("Kurczak B", StringComparison.OrdinalIgnoreCase) ||
                          productName.Contains("Tuszka B", StringComparison.OrdinalIgnoreCase))
-                {
                     plan = pulaTuszkiB;
-                }
 
                 decimal fakt = actualIncome.TryGetValue(productId, out var f) ? f : 0m;
                 decimal stan = stanyMagazynowe.TryGetValue(productId, out var s) ? s : 0m;
-                decimal zamowienia = orderSum.TryGetValue(productId, out var z) ? z : 0m;
+                decimal zam = orderSum.TryGetValue(productId, out var z) ? z : 0m;
+
+                agregowane[productName] = (plan, fakt, stan, zam);
+            }
+
+            // Dodaj do tabeli
+            foreach (var kv in agregowane.OrderBy(x => x.Key))
+            {
+                var (plan, fakt, stan, zamowienia) = kv.Value;
 
                 // Pokaż produkt jeśli ma jakiekolwiek dane lub ma plan
                 if (zamowienia == 0 && fakt == 0 && stan == 0 && plan == 0) continue;
 
                 // Bilans = dostępne (fakt lub plan) + stan - zamówienia
                 decimal bilans = (fakt > 0 ? fakt : plan) + stan - zamowienia;
-
                 string status = bilans > 0 ? "✅" : (bilans == 0 ? "⚠️" : "❌");
 
-                _dtDashboard.Rows.Add(productName, plan, fakt, stan, zamowienia, bilans, status);
+                _dtDashboard.Rows.Add(kv.Key, plan, fakt, stan, zamowienia, bilans, status);
 
                 totalZamowienia += zamowienia;
                 totalWydania += fakt;
@@ -5145,6 +5599,43 @@ ORDER BY zm.Id";
             }
         }
 
+        #endregion
+
+        #region Scalowanie towarów
+        private void InicjalizujMenuKontekstoweBilansu()
+        {
+            var contextMenu = new System.Windows.Controls.ContextMenu();
+
+            var menuKonfiguracja = new System.Windows.Controls.MenuItem
+            {
+                Header = "Konfiguruj produkty i scalowanie"
+            };
+            menuKonfiguracja.Click += async (s, e) =>
+            {
+                // Otwórz okno konfiguracji produktów (zawiera też scalowanie)
+                var konfig = new Dictionary<string, decimal>();
+                var dialog = new KonfiguracjaProduktow(_connLibra, _connHandel, konfig);
+                dialog.ShowDialog();
+
+                // Po zamknięciu dialogu odśwież dane
+                await RefreshAllDataAsync();
+            };
+
+            var menuOdswiez = new System.Windows.Controls.MenuItem
+            {
+                Header = "Odśwież podsumowanie"
+            };
+            menuOdswiez.Click += async (s, e) =>
+            {
+                await RefreshAllDataAsync();
+            };
+
+            contextMenu.Items.Add(menuKonfiguracja);
+            contextMenu.Items.Add(new System.Windows.Controls.Separator());
+            contextMenu.Items.Add(menuOdswiez);
+
+            dgAggregation.ContextMenu = contextMenu;
+        }
         #endregion
     }
 }

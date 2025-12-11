@@ -705,8 +705,17 @@
                     </Grid>
                 </Border>
 
-                <TextBlock Grid.Row="1" Text="Podsumowanie dnia"
-                           Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,3"/>
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,3">
+                    <TextBlock Text="Podsumowanie dnia"
+                               Style="{StaticResource SectionHeaderStyle}" Margin="0,0,15,0"/>
+                    <TextBlock Text="Bilans:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="10"/>
+                    <RadioButton x:Name="rbBilansZamowienia" Content="Zam." IsChecked="True"
+                                 VerticalAlignment="Center" Margin="0,0,8,0" FontSize="10"
+                                 Checked="RbBilans_Checked"/>
+                    <RadioButton x:Name="rbBilansWydania" Content="Wyd."
+                                 VerticalAlignment="Center" FontSize="10"
+                                 Checked="RbBilans_Checked"/>
+                </StackPanel>
 
                 <Border Grid.Row="2" Style="{StaticResource PanelBorderStyle}">
                     <DataGrid x:Name="dgAggregation"
