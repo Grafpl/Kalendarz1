@@ -4368,10 +4368,7 @@ ORDER BY zm.Id";
 
         private async Task RefreshAggregationAsync()
         {
-            if (dpSelectedDate.SelectedDate.HasValue)
-            {
-                await LoadAggregationAsync(dpSelectedDate.SelectedDate.Value);
-            }
+            await DisplayProductAggregationAsync(_selectedDate);
         }
 
         private async void DgAggregation_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
