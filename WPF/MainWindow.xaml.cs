@@ -3847,7 +3847,11 @@ ORDER BY zm.Id";
             dtAgg.Columns.Add("FaktycznyPrzychód", typeof(decimal));
             dtAgg.Columns.Add("Stan", typeof(string));
             dtAgg.Columns.Add("Zamówienia", typeof(decimal));
+            dtAgg.Columns.Add("Wydania", typeof(decimal));
             dtAgg.Columns.Add("Bilans", typeof(decimal));
+
+            // Określ czy bilans ma uwzględniać wydania czy zamówienia
+            bool uzywajWydan = rbBilansWydania.IsChecked == true;
 
             var (wspolczynnikTuszki, procentA, procentB) = await GetKonfiguracjaWydajnosciAsync(day);
             var konfiguracjaProduktow = await GetKonfiguracjaProduktowAsync(day);
@@ -3937,6 +3941,28 @@ ORDER BY zm.Id";
                     orderSum[reader.GetInt32(0)] = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
             }
 
+            // ✅ POBIERZ WYDANIA (WZ)
+            var wydaniaSum = new Dictionary<int, decimal>();
+            await using (var cn = new SqlConnection(_connHandel))
+            {
+                await cn.OpenAsync();
+                const string sqlWydania = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc))
+                    FROM [HANDEL].[HM].[MZ] MZ
+                    JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
+                    WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny=1 AND MG.data = @Day
+                    GROUP BY MZ.idtw";
+                await using var cmd = new SqlCommand(sqlWydania, cn);
+                cmd.Parameters.AddWithValue("@Day", day.Date);
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    int productId = reader.GetInt32(0);
+                    decimal qty = reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1));
+                    wydaniaSum[productId] = qty;
+                }
+            }
+
             // ✅ POBIERZ STANY MAGAZYNOWE
             var stanyMagazynowe = new Dictionary<int, decimal>();
             try
@@ -3968,7 +3994,7 @@ ORDER BY zm.Id";
             var kurczakA = _productCatalogCache.FirstOrDefault(p =>
                 p.Value.Contains("Kurczak A", StringComparison.OrdinalIgnoreCase));
 
-            decimal planA = 0m, factA = 0m, ordersA = 0m, balanceA = 0m;
+            decimal planA = 0m, factA = 0m, ordersA = 0m, wydaniaA = 0m, balanceA = 0m;
             string stanA = "";
             decimal stanMagA = 0m;
 
@@ -3977,31 +4003,34 @@ ORDER BY zm.Id";
                 planA = pulaTuszkiA;
                 factA = actualIncomeTuszkaA.TryGetValue(kurczakA.Key, out var a) ? a : 0m;
                 ordersA = orderSum.TryGetValue(kurczakA.Key, out var z) ? z : 0m;
+                wydaniaA = wydaniaSum.TryGetValue(kurczakA.Key, out var w) ? w : 0m;
 
                 // ✅ POBIERZ STAN MAGAZYNOWY
                 stanMagA = stanyMagazynowe.TryGetValue(kurczakA.Key, out var sA) ? sA : 0m;
                 stanA = stanMagA > 0 ? stanMagA.ToString("N0") : "";
 
-                // ✅ NOWA LOGIKA BILANSU: (Fakt lub Plan) + Stan - Zamówienia
+                // ✅ LOGIKA BILANSU: (Fakt lub Plan) + Stan - (Zamówienia lub Wydania)
+                decimal odejmij = uzywajWydan ? wydaniaA : ordersA;
                 if (factA > 0)
                 {
-                    balanceA = factA + stanMagA - ordersA;
+                    balanceA = factA + stanMagA - odejmij;
                 }
                 else
                 {
-                    balanceA = planA + stanMagA - ordersA;
+                    balanceA = planA + stanMagA - odejmij;
                 }
             }
 
             decimal sumaPlanB = 0m;
             decimal sumaFaktB = 0m;
             decimal sumaZamB = 0m;
+            decimal sumaWydB = 0m;
             decimal sumaStanB = 0m;
 
-            var produktyB = new List<(string nazwa, decimal plan, decimal fakt, decimal zam, string stan, decimal stanDec, decimal bilans)>();
+            var produktyB = new List<(string nazwa, decimal plan, decimal fakt, decimal zam, decimal wyd, string stan, decimal stanDec, decimal bilans)>();
 
             // Agregacja z uwzględnieniem scalania towarów
-            var agregowaneGrupy = new Dictionary<string, (decimal plan, decimal fakt, decimal zam, decimal stan, decimal procent)>(StringComparer.OrdinalIgnoreCase);
+            var agregowaneGrupy = new Dictionary<string, (decimal plan, decimal fakt, decimal zam, decimal wyd, decimal stan, decimal procent)>(StringComparer.OrdinalIgnoreCase);
             var towaryWGrupach = new HashSet<int>();
             _detaleGrup.Clear(); // Wyczyść poprzednie szczegóły grup
 
@@ -4025,23 +4054,25 @@ ORDER BY zm.Id";
                     decimal plannedForProduct = pulaTuszkiB * (procentUdzialu / 100m);
                     var actual = actualIncomeElementy.TryGetValue(produktId, out var a) ? a : 0m;
                     var orders = orderSum.TryGetValue(produktId, out var z) ? z : 0m;
+                    var releases = wydaniaSum.TryGetValue(produktId, out var r) ? r : 0m;
                     decimal stanMag = stanyMagazynowe.TryGetValue(produktId, out var sm) ? sm : 0m;
 
                     if (agregowaneGrupy.ContainsKey(nazwaGrupy))
                     {
                         var existing = agregowaneGrupy[nazwaGrupy];
-                        agregowaneGrupy[nazwaGrupy] = (existing.plan + plannedForProduct, existing.fakt + actual, existing.zam + orders, existing.stan + stanMag, existing.procent + procentUdzialu);
+                        agregowaneGrupy[nazwaGrupy] = (existing.plan + plannedForProduct, existing.fakt + actual, existing.zam + orders, existing.wyd + releases, existing.stan + stanMag, existing.procent + procentUdzialu);
                     }
                     else
                     {
-                        agregowaneGrupy[nazwaGrupy] = (plannedForProduct, actual, orders, stanMag, procentUdzialu);
+                        agregowaneGrupy[nazwaGrupy] = (plannedForProduct, actual, orders, releases, stanMag, procentUdzialu);
                     }
 
                     // Zapisz szczegóły produktu dla grupy
                     if (!_detaleGrup.ContainsKey(nazwaGrupy))
                         _detaleGrup[nazwaGrupy] = new List<(string, decimal, decimal, decimal, string, decimal, decimal)>();
 
-                    decimal balanceProd = (actual > 0 ? actual : plannedForProduct) + stanMag - orders;
+                    decimal odejmijProd = uzywajWydan ? releases : orders;
+                    decimal balanceProd = (actual > 0 ? actual : plannedForProduct) + stanMag - odejmijProd;
                     string stanTextProd = stanMag > 0 ? stanMag.ToString("N0") : "";
                     _detaleGrup[nazwaGrupy].Add(($"      · {nazwaProdukt} ({procentUdzialu:F1}%)", plannedForProduct, actual, orders, stanTextProd, stanMag, balanceProd));
                 }
@@ -4060,10 +4091,11 @@ ORDER BY zm.Id";
                 else if (grupa.Key.Contains("Filet", StringComparison.OrdinalIgnoreCase))
                     ikona = "🥩";
 
-                var (plan, fakt, zam, stan, procent) = grupa.Value;
+                var (plan, fakt, zam, wyd, stan, procent) = grupa.Value;
                 string stanText = stan > 0 ? stan.ToString("N0") : "";
 
-                decimal balance = (fakt > 0 ? fakt : plan) + stan - zam;
+                decimal odejmij = uzywajWydan ? wyd : zam;
+                decimal balance = (fakt > 0 ? fakt : plan) + stan - odejmij;
 
                 // Dodaj znak + lub - w zależności czy grupa jest rozwinięta
                 bool isExpanded = _expandedGroups.Contains(grupa.Key);
@@ -4073,20 +4105,22 @@ ORDER BY zm.Id";
                     ? $"  {expandIcon} {grupa.Key} ({procent:F1}%)"
                     : $"  {expandIcon} {ikona} {grupa.Key} ({procent:F1}%)";
 
-                produktyB.Add((nazwaZIkonka, plan, fakt, zam, stanText, stan, balance));
+                produktyB.Add((nazwaZIkonka, plan, fakt, zam, wyd, stanText, stan, balance));
 
                 // Jeśli grupa jest rozwinięta, dodaj szczegóły produktów
                 if (isExpanded && _detaleGrup.TryGetValue(grupa.Key, out var detale))
                 {
                     foreach (var detal in detale)
                     {
-                        produktyB.Add(detal);
+                        // Dodaj wydania = 0 dla szczegółów (nie mamy ich w detaleGrup)
+                        produktyB.Add((detal.Item1, detal.Item2, detal.Item3, detal.Item4, 0m, detal.Item5, detal.Item6, detal.Item7));
                     }
                 }
 
                 sumaPlanB += plan;
                 sumaFaktB += fakt;
                 sumaZamB += zam;
+                sumaWydB += wyd;
                 sumaStanB += stan;
             }
 
@@ -4119,43 +4153,47 @@ ORDER BY zm.Id";
                 decimal plannedForProduct = pulaTuszkiB * (procentUdzialu / 100m);
                 var actual = actualIncomeElementy.TryGetValue(produktId, out var a) ? a : 0m;
                 var orders = orderSum.TryGetValue(produktId, out var z) ? z : 0m;
+                var releases = wydaniaSum.TryGetValue(produktId, out var r) ? r : 0m;
 
                 // ✅ POBIERZ STAN MAGAZYNOWY
                 decimal stanMag = stanyMagazynowe.TryGetValue(produktId, out var sm) ? sm : 0m;
                 string stanText = stanMag > 0 ? stanMag.ToString("N0") : "";
 
-                // ✅ NOWA LOGIKA BILANSU: (Fakt lub Plan) + Stan - Zamówienia
+                // ✅ LOGIKA BILANSU: (Fakt lub Plan) + Stan - (Zamówienia lub Wydania)
+                decimal odejmij = uzywajWydan ? releases : orders;
                 decimal balance;
                 if (actual > 0)
                 {
-                    balance = actual + stanMag - orders;
+                    balance = actual + stanMag - odejmij;
                 }
                 else
                 {
-                    balance = plannedForProduct + stanMag - orders;
+                    balance = plannedForProduct + stanMag - odejmij;
                 }
 
                 string nazwaZIkonka = string.IsNullOrEmpty(ikona)
                     ? $"  └ {nazwaProdukt} ({procentUdzialu:F1}%)"
                     : $"  └ {ikona} {nazwaProdukt} ({procentUdzialu:F1}%)";
 
-                produktyB.Add((nazwaZIkonka, plannedForProduct, actual, orders, stanText, stanMag, balance));
+                produktyB.Add((nazwaZIkonka, plannedForProduct, actual, orders, releases, stanText, stanMag, balance));
 
                 sumaPlanB += plannedForProduct;
                 sumaFaktB += actual;
                 sumaZamB += orders;
+                sumaWydB += releases;
                 sumaStanB += stanMag;
             }
 
             // ✅ BILANS CAŁKOWITY DLA KURCZAKA B
+            decimal odejmijB = uzywajWydan ? sumaWydB : sumaZamB;
             decimal bilansB;
             if (sumaFaktB > 0)
             {
-                bilansB = sumaFaktB + sumaStanB - sumaZamB;
+                bilansB = sumaFaktB + sumaStanB - odejmijB;
             }
             else
             {
-                bilansB = sumaPlanB + sumaStanB - sumaZamB;
+                bilansB = sumaPlanB + sumaStanB - odejmijB;
             }
 
             // ✅ BILANS CAŁKOWITY
@@ -4167,6 +4205,7 @@ ORDER BY zm.Id";
                 factA + sumaFaktB,
                 (stanMagA + sumaStanB > 0 ? (stanMagA + sumaStanB).ToString("N0") : ""),
                 ordersA + sumaZamB,
+                wydaniaA + sumaWydB,
                 bilansCalk);
 
             dtAgg.Rows.Add("🐔 Kurczak A",
@@ -4174,6 +4213,7 @@ ORDER BY zm.Id";
                 factA,
                 stanA,
                 ordersA,
+                wydaniaA,
                 balanceA);
 
             dtAgg.Rows.Add("🐔 Kurczak B",
@@ -4181,11 +4221,12 @@ ORDER BY zm.Id";
                 sumaFaktB,
                 (sumaStanB > 0 ? sumaStanB.ToString("N0") : ""),
                 sumaZamB,
+                sumaWydB,
                 bilansB);
 
             foreach (var produkt in produktyB)
             {
-                dtAgg.Rows.Add(produkt.nazwa, produkt.plan, produkt.fakt, produkt.stan, produkt.zam, produkt.bilans);
+                dtAgg.Rows.Add(produkt.nazwa, produkt.plan, produkt.fakt, produkt.stan, produkt.zam, produkt.wyd, produkt.bilans);
             }
 
             dgAggregation.ItemsSource = dtAgg.DefaultView;
@@ -4298,11 +4339,20 @@ ORDER BY zm.Id";
             {
                 Header = "Zam.",
                 Binding = new System.Windows.Data.Binding("Zamówienia") { StringFormat = "N0" },
-                Width = new DataGridLength(70),
+                Width = new DataGridLength(65),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
-            // 5. BILANS
+            // 5. WYD.
+            dgAggregation.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Wyd.",
+                Binding = new System.Windows.Data.Binding("Wydania") { StringFormat = "N0" },
+                Width = new DataGridLength(65),
+                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+            });
+
+            // 6. BILANS
             dgAggregation.Columns.Add(new DataGridTextColumn
             {
                 Header = "Bil.",
@@ -4311,7 +4361,7 @@ ORDER BY zm.Id";
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
-            // 6. PRODUKT
+            // 7. PRODUKT
             dgAggregation.Columns.Add(new DataGridTextColumn
             {
                 Header = "Produkt",
@@ -4369,6 +4419,12 @@ ORDER BY zm.Id";
         private async Task RefreshAggregationAsync()
         {
             await DisplayProductAggregationAsync(_selectedDate);
+        }
+
+        private async void RbBilans_Checked(object sender, RoutedEventArgs e)
+        {
+            // Odśwież agregację przy zmianie radio button
+            await RefreshAggregationAsync();
         }
 
         private async void DgAggregation_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
