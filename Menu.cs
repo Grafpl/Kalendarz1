@@ -1,5 +1,6 @@
 ﻿using Kalendarz1.AnalizaPrzychoduProdukcji;
 using Kalendarz1.HandlowiecDashboard.Views;
+using Kalendarz1.Monitoring;
 using Kalendarz1.OfertaCenowa;
 using Kalendarz1.Opakowania.Views;  // Nowe okna opakowań WPF
 using Kalendarz1.Reklamacje;
@@ -154,7 +155,8 @@ namespace Kalendarz1
                 [33] = "ReklamacjeJakosc",
                 [34] = "RaportyHodowcow",
                 [35] = "AdminPermissions",
-                [36] = "AnalizaPrzychodu"
+                [36] = "AnalizaPrzychodu",
+                [37] = "Monitoring"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -164,6 +166,9 @@ namespace Kalendarz1
                     userPermissions[accessMap[i]] = true;
                 }
             }
+
+            // Monitoring dostępny dla wszystkich użytkowników
+            userPermissions["Monitoring"] = true;
         }
 
         private void LoadAllPermissions(bool grantAll)
@@ -199,7 +204,7 @@ namespace Kalendarz1
                 "RezerwacjaKlas", "DashboardWyczerpalnosci",
                 "ListaOfert", "DashboardOfert",
                 "PanelReklamacji", "ReklamacjeJakosc", "RaportyHodowcow",
-                "AdminPermissions", "AnalizaPrzychodu"
+                "AdminPermissions", "AnalizaPrzychodu", "Monitoring"
             };
         }
 
@@ -481,8 +486,13 @@ namespace Kalendarz1
 
                     new MenuItemConfig("NotatkiZeSpotkan", "Notatki Służbowe",
                         "Rejestr notatek ze spotkań biznesowych, ustaleń i zadań do wykonania",
+                        Color.FromArgb(96, 125, 139), // #607D8B
+                        () => new Kalendarz1.NotatkiZeSpotkan.NotatkirGlownyWindow(App.UserID), "📝"),
+
+                    new MenuItemConfig("Monitoring", "Monitoring Kamer",
+                        "Podgląd kamer z rejestratora Hikvision NVR - podgląd na żywo i zrzuty ekranu",
                         Color.FromArgb(38, 50, 56), // Ciemny szaroniebieski #263238
-                        () => new Kalendarz1.NotatkiZeSpotkan.NotatkirGlownyWindow(App.UserID), "📝")
+                        () => new MonitoringWindow(), "📹")
                 }
             };
 
