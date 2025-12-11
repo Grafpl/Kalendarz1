@@ -1280,7 +1280,7 @@ HAVING ISNULL(SUM(MZ.Ilosc), 0) <> 0";
                     {
                         Title = "E2",
                         Values = valuesE2,
-                        Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(78, 205, 196)),
+                        Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(23, 165, 137)),
                         DataLabels = false,
                         Foreground = Brushes.White
                     }
@@ -1313,7 +1313,7 @@ HAVING ISNULL(SUM(MZ.Ilosc), 0) <> 0";
                     {
                         Title = "H1",
                         Values = valuesH1,
-                        Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(244, 162, 97)),
+                        Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(192, 57, 43)),
                         DataLabels = false,
                         Foreground = Brushes.White
                     }
@@ -1417,7 +1417,7 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
                 {
                     Title = kontrahent,
                     Values = valuesE2,
-                    Stroke = new SolidColorBrush(System.Windows.Media.Color.FromRgb(78, 205, 196)),
+                    Stroke = new SolidColorBrush(System.Windows.Media.Color.FromRgb(23, 165, 137)),
                     Fill = Brushes.Transparent,
                     PointGeometrySize = 8,
                     StrokeThickness = 2,
@@ -1436,7 +1436,7 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
                 {
                     Title = kontrahent,
                     Values = valuesH1,
-                    Stroke = new SolidColorBrush(System.Windows.Media.Color.FromRgb(244, 162, 97)),
+                    Stroke = new SolidColorBrush(System.Windows.Media.Color.FromRgb(192, 57, 43)),
                     Fill = Brushes.Transparent,
                     PointGeometrySize = 8,
                     StrokeThickness = 2,
@@ -1692,7 +1692,7 @@ FROM FakturyPrzeterminowane";
 
                 // Ustawienie kolorow wskaznikow w zaleznosci od wartosci
                 txtWskaznikDyscyplina.Foreground = new SolidColorBrush(
-                    dyscyplinaPlatnicza >= 80 ? System.Windows.Media.Color.FromRgb(78, 205, 196) :
+                    dyscyplinaPlatnicza >= 80 ? System.Windows.Media.Color.FromRgb(23, 165, 137) :
                     dyscyplinaPlatnicza >= 60 ? System.Windows.Media.Color.FromRgb(255, 230, 109) :
                     System.Windows.Media.Color.FromRgb(255, 107, 107));
             }
