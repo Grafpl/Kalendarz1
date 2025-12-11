@@ -10,10 +10,13 @@ namespace Kalendarz1.Monitoring
 {
     public partial class MonitoringWindow : Window
     {
-        // Konfiguracja NVR - można przenieść do ustawień
-        private readonly string _nvrIp = "192.168.0.128";
-        private readonly string _username = "Admin";
-        private readonly string _password = "terePacja12$";
+        // ═══════════════════════════════════════════════════════════════════
+        // KONFIGURACJA NVR - Zmień te wartości dla swojego urządzenia
+        // ═══════════════════════════════════════════════════════════════════
+        private readonly string _nvrIp = "192.168.0.125";    // IP rejestratora NVR
+        private readonly string _username = "admin";          // Login (zazwyczaj małymi literami)
+        private readonly string _password = "terePacja12$";   // Hasło
+        // ═══════════════════════════════════════════════════════════════════
 
         private HikvisionService _hikvisionService;
 
@@ -33,24 +36,33 @@ namespace Kalendarz1.Monitoring
             try
             {
                 LoadingOverlay.Visibility = Visibility.Visible;
-                LoadingText.Text = "Łączenie z NVR...";
+                LoadingText.Text = $"Łączenie z NVR ({_nvrIp})...";
 
                 _hikvisionService = new HikvisionService(_nvrIp, _username, _password);
 
-                // Test połączenia
+                // Test połączenia z diagnostyką
                 LoadingText.Text = "Testowanie połączenia...";
-                var isConnected = await _hikvisionService.TestConnectionAsync();
+                var (success, message) = await _hikvisionService.TestConnectionAsync();
 
-                if (!isConnected)
+                if (!success)
                 {
-                    SetOfflineStatus("Brak połączenia z NVR");
+                    SetOfflineStatus(message);
+                    ShowConnectionHelp(message);
                     return;
                 }
 
                 // Pobierz informacje o urządzeniu
-                LoadingText.Text = "Pobieranie informacji o urządzeniu...";
-                var deviceInfo = await _hikvisionService.GetDeviceInfoAsync();
-                UpdateDeviceInfo(deviceInfo);
+                LoadingText.Text = "Pobieranie informacji o NVR...";
+                try
+                {
+                    var deviceInfo = await _hikvisionService.GetDeviceInfoAsync();
+                    UpdateDeviceInfo(deviceInfo);
+                }
+                catch (Exception ex)
+                {
+                    DeviceNameText.Text = "NVR Połączony";
+                    DeviceModelText.Text = $"(nie udało się pobrać szczegółów: {ex.Message})";
+                }
 
                 // Pobierz listę kamer
                 LoadingText.Text = "Pobieranie listy kamer...";
@@ -63,13 +75,24 @@ namespace Kalendarz1.Monitoring
             catch (Exception ex)
             {
                 SetOfflineStatus($"Błąd: {ex.Message}");
-                MessageBox.Show($"Błąd połączenia z NVR:\n{ex.Message}",
-                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowConnectionHelp(ex.Message);
             }
             finally
             {
                 LoadingOverlay.Visibility = Visibility.Collapsed;
             }
+        }
+
+        private void ShowConnectionHelp(string errorMessage)
+        {
+            var help = "Sprawdź:\n" +
+                      $"1. Czy NVR jest dostępny pod adresem {_nvrIp}\n" +
+                      $"2. Czy login ({_username}) i hasło są poprawne\n" +
+                      "3. Czy ISAPI jest włączone w NVR\n" +
+                      "4. Czy firewall nie blokuje połączenia\n\n" +
+                      $"Błąd: {errorMessage}";
+
+            MessageBox.Show(help, "Problem z połączeniem", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 
         private void UpdateDeviceInfo(DeviceInfo info)
@@ -109,19 +132,20 @@ namespace Kalendarz1.Monitoring
             stack.Children.Add(new TextBlock
             {
                 Text = channel.Name,
-                FontSize = 11,
+                FontSize = 10,
                 FontWeight = FontWeights.SemiBold,
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 5, 0, 0)
+                Margin = new Thickness(0, 5, 0, 0),
+                TextWrapping = TextWrapping.Wrap,
+                TextAlignment = TextAlignment.Center,
+                MaxWidth = 130
             });
 
             stack.Children.Add(new TextBlock
             {
                 Text = channel.Status,
                 FontSize = 9,
-                Foreground = channel.Status == "Online" ?
-                    new SolidColorBrush((Color)ColorConverter.ConvertFromString("#27AE60")) :
-                    new SolidColorBrush((Color)ColorConverter.ConvertFromString("#888")),
+                Foreground = GetStatusBrush(channel.Status),
                 HorizontalAlignment = HorizontalAlignment.Center
             });
 
@@ -129,11 +153,23 @@ namespace Kalendarz1.Monitoring
             {
                 Style = (Style)FindResource("CameraButtonStyle"),
                 Content = stack,
-                Tag = channel
+                Tag = channel,
+                ToolTip = $"Kliknij aby pobrać snapshot\nKanał: {channel.Id}\nRTSP: rtsp://.../{channel.Id}01"
             };
 
             button.Click += CameraButton_Click;
             return button;
+        }
+
+        private Brush GetStatusBrush(string status)
+        {
+            return status switch
+            {
+                "Online" => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#27AE60")),
+                "Aktywny" => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3498DB")),
+                "Offline" => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E74C3C")),
+                _ => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#888888"))
+            };
         }
 
         private async void CameraButton_Click(object sender, RoutedEventArgs e)
@@ -145,15 +181,17 @@ namespace Kalendarz1.Monitoring
                     LoadingOverlay.Visibility = Visibility.Visible;
                     LoadingText.Text = $"Pobieranie obrazu z {channel.Name}...";
 
-                    // Pobierz snapshot z kamery
                     var imageBytes = await _hikvisionService.GetSnapshotAsync(channel.Id);
-
-                    // Wyświetl w nowym oknie
-                    ShowSnapshot(channel.Name, imageBytes);
+                    ShowSnapshot(channel.Name, imageBytes, channel.Id);
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Błąd pobierania obrazu:\n{ex.Message}",
+                    MessageBox.Show(
+                        $"Nie udało się pobrać obrazu z kamery.\n\n" +
+                        $"Kamera: {channel.Name} (kanał {channel.Id})\n" +
+                        $"Błąd: {ex.Message}\n\n" +
+                        $"Spróbuj otworzyć stream RTSP w VLC:\n" +
+                        $"{_hikvisionService.GetRtspUrl(channel.Id)}",
                         "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
                 finally
@@ -163,17 +201,21 @@ namespace Kalendarz1.Monitoring
             }
         }
 
-        private void ShowSnapshot(string cameraName, byte[] imageBytes)
+        private void ShowSnapshot(string cameraName, byte[] imageBytes, string channelId)
         {
             var window = new Window
             {
                 Title = $"Podgląd - {cameraName}",
-                Width = 800,
+                Width = 900,
                 Height = 600,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Owner = this,
                 Background = new SolidColorBrush(Colors.Black)
             };
+
+            var grid = new Grid();
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
             var image = new Image
             {
@@ -192,7 +234,39 @@ namespace Kalendarz1.Monitoring
                 image.Source = bitmap;
             }
 
-            window.Content = image;
+            Grid.SetRow(image, 0);
+            grid.Children.Add(image);
+
+            // Panel z informacjami i przyciskami
+            var infoPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(10)
+            };
+
+            var rtspUrl = _hikvisionService.GetRtspUrl(channelId);
+            var copyButton = new Button
+            {
+                Content = "📋 Kopiuj URL RTSP",
+                Padding = new Thickness(15, 8, 15, 8),
+                Margin = new Thickness(5),
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3498DB")),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0)
+            };
+            copyButton.Click += (s, ev) =>
+            {
+                Clipboard.SetText(rtspUrl);
+                MessageBox.Show($"Skopiowano URL RTSP:\n{rtspUrl}", "Skopiowano", MessageBoxButton.OK, MessageBoxImage.Information);
+            };
+
+            infoPanel.Children.Add(copyButton);
+
+            Grid.SetRow(infoPanel, 1);
+            grid.Children.Add(infoPanel);
+
+            window.Content = grid;
             window.ShowDialog();
         }
 
@@ -207,25 +281,31 @@ namespace Kalendarz1.Monitoring
             StatusIndicator.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E74C3C"));
             StatusText.Text = "Offline";
             DeviceNameText.Text = message;
+            DeviceModelText.Text = "";
             LoadingOverlay.Visibility = Visibility.Collapsed;
         }
 
         private async void RefreshButton_Click(object sender, RoutedEventArgs e)
         {
+            CamerasPanel.Children.Clear();
             await LoadDataAsync();
         }
 
         private void SettingsButton_Click(object sender, RoutedEventArgs e)
         {
-            // Info o konfiguracji
+            var rtspExample = _hikvisionService?.GetRtspUrl("1") ?? $"rtsp://{_username}:***@{_nvrIp}:554/Streaming/Channels/101";
+
             var info = $"Konfiguracja NVR:\n\n" +
                        $"IP: {_nvrIp}\n" +
-                       $"Użytkownik: {_username}\n" +
-                       $"URL RTSP: rtsp://{_username}:***@{_nvrIp}:554/Streaming/Channels/101\n\n" +
+                       $"Użytkownik: {_username}\n\n" +
+                       $"URL RTSP (przykład dla kanału 1):\n{rtspExample}\n\n" +
+                       $"Format kanałów RTSP:\n" +
+                       $"  X01 = główny strumień (HD)\n" +
+                       $"  X02 = substream (niższa jakość)\n\n" +
                        $"Aby zmienić konfigurację, edytuj plik:\n" +
                        $"Monitoring/MonitoringWindow.xaml.cs";
 
-            MessageBox.Show(info, "Ustawienia", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(info, "Ustawienia NVR", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         protected override void OnClosed(EventArgs e)
