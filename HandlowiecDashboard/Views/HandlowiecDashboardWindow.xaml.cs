@@ -476,42 +476,35 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     sumaWartosc += wartosc;
                 }
 
-                // Buduj liste etykiet (od najnizszej do najwyzszej wartosci)
+                // Buduj liste etykiet i wartosci (od najnizszej do najwyzszej wartosci)
                 int liczbaElementow = daneTop10.Count;
+                var wartosci = new ChartValues<double>();
+                var handlowcyNaSlupkach = new List<string>();
+
                 for (int i = liczbaElementow - 1; i >= 0; i--)
                 {
                     var d = daneTop10[i];
                     var labelTekst = d.Kontrahent.Length > 20 ? d.Kontrahent.Substring(0, 20) + ".." : d.Kontrahent;
                     labels.Add(labelTekst);
+                    wartosci.Add((double)d.Wartosc);
+                    handlowcyNaSlupkach.Add(d.Handlowiec);
                 }
 
-                // Kazdy slupek jako osobna seria z kolorem handlowca - wartosci wyzerowane poza wlasna pozycja
-                for (int i = liczbaElementow - 1; i >= 0; i--)
+                // Jedna seria z grubymi slupkami
+                series.Add(new RowSeries
                 {
-                    var d = daneTop10[i];
-                    int pozycja = liczbaElementow - 1 - i; // pozycja na osi Y (0 = dol, n-1 = gora)
-
-                    // Utworz tablice z zerami i jedna wartoscia na wlasciwej pozycji
-                    var wartosci = new ChartValues<double>();
-                    for (int j = 0; j < liczbaElementow; j++)
-                    {
-                        wartosci.Add(j == pozycja ? (double)d.Wartosc : 0);
-                    }
-
-                    series.Add(new RowSeries
-                    {
-                        Title = d.Handlowiec,
-                        Values = wartosci,
-                        Fill = new SolidColorBrush(GetHandlowiecColor(d.Handlowiec)),
-                        DataLabels = true,
-                        LabelPoint = p => p.X > 0 ? $"{p.X:N0} zl" : "",
-                        Foreground = Brushes.White,
-                        MaxRowHeigth = 80
-                    });
-                }
+                    Title = "Wartosc",
+                    Values = wartosci,
+                    Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F4A261")),
+                    DataLabels = true,
+                    LabelPoint = p => $"{p.X:N0} zl",
+                    Foreground = Brushes.White,
+                    MaxRowHeigth = 35,
+                    RowPadding = 2
+                });
 
                 // Aktualizuj legende handlowcow
-                AktualizujLegendeTop15(daneTop10);
+                AktualizujLegendeTop15(daneTop10, handlowcyNaSlupkach);
 
                 // Oblicz srednia cene
                 decimal sredniaCena = sumaKg > 0 ? sumaWartosc / sumaKg : 0;
@@ -526,33 +519,38 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             axisYTop10.Labels = labels;
         }
 
-        private void AktualizujLegendeTop15(List<(string Kontrahent, string Handlowiec, decimal Kg, decimal Wartosc)> dane)
+        private void AktualizujLegendeTop15(List<(string Kontrahent, string Handlowiec, decimal Kg, decimal Wartosc)> dane, List<string> handlowcyNaSlupkach)
         {
-            // Pobierz unikalne pary handlowiec-kolor
-            var handlowcyWDanych = dane.Select(d => d.Handlowiec).Distinct().ToList();
             var panelLegenda = FindName("panelLegendaTop15") as StackPanel;
-
             if (panelLegenda == null) return;
 
             panelLegenda.Children.Clear();
 
-            foreach (var handlowiec in handlowcyWDanych)
-            {
-                var kolor = GetHandlowiecColor(handlowiec);
+            // Podsumowanie: ile klientow ma kazdy handlowiec w Top 15
+            var podsumowanie = dane
+                .GroupBy(d => d.Handlowiec)
+                .Select(g => new { Handlowiec = g.Key, Liczba = g.Count(), Suma = g.Sum(x => x.Wartosc) })
+                .OrderByDescending(x => x.Suma)
+                .ToList();
 
-                var element = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 15, 0) };
+            foreach (var h in podsumowanie)
+            {
+                var kolor = GetHandlowiecColor(h.Handlowiec);
+
+                var element = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 20, 0) };
                 element.Children.Add(new System.Windows.Shapes.Rectangle
                 {
-                    Width = 14,
-                    Height = 14,
+                    Width = 12,
+                    Height = 12,
                     Fill = new SolidColorBrush(kolor),
                     RadiusX = 2,
                     RadiusY = 2,
-                    Margin = new Thickness(0, 0, 5, 0)
+                    Margin = new Thickness(0, 0, 5, 0),
+                    VerticalAlignment = VerticalAlignment.Center
                 });
                 element.Children.Add(new TextBlock
                 {
-                    Text = handlowiec,
+                    Text = $"{h.Handlowiec}: {h.Liczba} klient. ({h.Suma:N0} zl)",
                     Foreground = Brushes.White,
                     FontSize = 11,
                     VerticalAlignment = VerticalAlignment.Center
