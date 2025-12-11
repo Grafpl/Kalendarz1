@@ -4389,6 +4389,9 @@ ORDER BY zm.Id";
 
             dgAggregation.ItemsSource = dtAgg.DefaultView;
             SetupAggregationDataGrid();
+
+            // Wypełnij dashboard dostępności produktów dla handlowców
+            PopulateDostepnoscProduktow(dtAgg);
         }
         private void DgAggregation_LoadingRow(object sender, DataGridRowEventArgs e)
         {
@@ -5770,5 +5773,118 @@ ORDER BY zm.Id";
             dgAggregation.ContextMenu = contextMenu;
         }
         #endregion
+
+        #region Dashboard Dostępność Produktów
+
+        private void PopulateDostepnoscProduktow(DataTable dtAgg)
+        {
+            var produkty = new List<DostepnoscProduktuModel>();
+
+            // Przetwórz każdy wiersz z agregacji (pomijając sumy)
+            foreach (DataRow row in dtAgg.Rows)
+            {
+                string nazwa = row["Produkt"]?.ToString() ?? "";
+
+                // Pomijaj wiersze sum i rozwinięte szczegóły
+                if (nazwa.Contains("SUMA") || nazwa.TrimStart().StartsWith("·"))
+                    continue;
+
+                // Pomijaj wiersze nagłówkowe (Kurczak A, Kurczak B)
+                if (nazwa.Contains("Kurczak A") || nazwa.Contains("Kurczak B"))
+                    continue;
+
+                decimal plan = row["PlanowanyPrzychód"] != DBNull.Value ? Convert.ToDecimal(row["PlanowanyPrzychód"]) : 0;
+                decimal fakt = row["FaktycznyPrzychód"] != DBNull.Value ? Convert.ToDecimal(row["FaktycznyPrzychód"]) : 0;
+                decimal zam = row["Zamówienia"] != DBNull.Value ? Convert.ToDecimal(row["Zamówienia"]) : 0;
+                decimal bilans = row["Bilans"] != DBNull.Value ? Convert.ToDecimal(row["Bilans"]) : 0;
+
+                // Podstawa do obliczeń - fakt jeśli > 0, inaczej plan
+                decimal podstawa = fakt > 0 ? fakt : plan;
+                if (podstawa <= 0) continue;
+
+                // Oblicz procent dostępności
+                decimal procentDostepnosci = podstawa > 0 ? (bilans / podstawa) * 100m : 0;
+                procentDostepnosci = Math.Max(-100, Math.Min(procentDostepnosci, 100)); // Ograniczenie -100% do 100%
+
+                // Oblicz szerokość paska (0-180 px dla pełnej szerokości karty 200px - padding)
+                double szerokoscPaska = Math.Max(0, Math.Min(180, (double)(procentDostepnosci * 180m / 100m)));
+
+                // Ustal kolory na podstawie bilansu
+                Brush kolorRamki, kolorPaska, kolorTekstu;
+                Color kolorTla;
+
+                if (bilans > podstawa * 0.3m)
+                {
+                    // Dużo dostępne - zielony
+                    kolorRamki = new SolidColorBrush(Color.FromRgb(39, 174, 96));    // #27AE60
+                    kolorPaska = new SolidColorBrush(Color.FromRgb(39, 174, 96));
+                    kolorTla = Color.FromRgb(232, 245, 233);                          // Jasno zielone tło
+                    kolorTekstu = new SolidColorBrush(Color.FromRgb(39, 174, 96));
+                }
+                else if (bilans > 0)
+                {
+                    // Mało dostępne - żółty/pomarańczowy
+                    kolorRamki = new SolidColorBrush(Color.FromRgb(243, 156, 18));   // #F39C12
+                    kolorPaska = new SolidColorBrush(Color.FromRgb(243, 156, 18));
+                    kolorTla = Color.FromRgb(255, 248, 225);                          // Jasno żółte tło
+                    kolorTekstu = new SolidColorBrush(Color.FromRgb(243, 156, 18));
+                }
+                else
+                {
+                    // Brak / ujemny - czerwony
+                    kolorRamki = new SolidColorBrush(Color.FromRgb(231, 76, 60));    // #E74C3C
+                    kolorPaska = new SolidColorBrush(Color.FromRgb(231, 76, 60));
+                    kolorTla = Color.FromRgb(253, 237, 236);                          // Jasno czerwone tło
+                    kolorTekstu = new SolidColorBrush(Color.FromRgb(231, 76, 60));
+                }
+
+                // Wyczyść nazwę z ikon i formatowania
+                string czystaNazwa = nazwa
+                    .Replace("▶", "").Replace("▼", "")
+                    .Replace("└", "").Replace("🍗", "").Replace("🍖", "").Replace("🥩", "")
+                    .Trim();
+
+                produkty.Add(new DostepnoscProduktuModel
+                {
+                    Nazwa = czystaNazwa,
+                    KolorRamki = kolorRamki,
+                    KolorTla = kolorTla,
+                    KolorPaska = kolorPaska,
+                    SzerokoscPaska = szerokoscPaska,
+                    DostepneText = $"{bilans:N0} kg",
+                    KolorTekstu = kolorTekstu,
+                    ZamowioneText = $"Zam: {zam:N0}",
+                    PlanText = $"Plan: {podstawa:N0}"
+                });
+            }
+
+            // Posortuj - najpierw czerwone (najbardziej krytyczne), potem żółte, na końcu zielone
+            produkty = produkty
+                .OrderBy(p => {
+                    if (((SolidColorBrush)p.KolorRamki).Color == Color.FromRgb(231, 76, 60)) return 0; // czerwony
+                    if (((SolidColorBrush)p.KolorRamki).Color == Color.FromRgb(243, 156, 18)) return 1; // żółty
+                    return 2; // zielony
+                })
+                .ThenBy(p => p.Nazwa)
+                .ToList();
+
+            icDostepnoscProduktow.ItemsSource = produkty;
+        }
+
+        #endregion
+    }
+
+    // Model do wyświetlania dostępności produktów na dashboardzie
+    public class DostepnoscProduktuModel
+    {
+        public string Nazwa { get; set; } = "";
+        public Brush KolorRamki { get; set; } = Brushes.Gray;
+        public Color KolorTla { get; set; } = Colors.White;
+        public Brush KolorPaska { get; set; } = Brushes.Gray;
+        public double SzerokoscPaska { get; set; }
+        public string DostepneText { get; set; } = "";
+        public Brush KolorTekstu { get; set; } = Brushes.Black;
+        public string ZamowioneText { get; set; } = "";
+        public string PlanText { get; set; } = "";
     }
 }

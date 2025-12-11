@@ -643,8 +643,99 @@
                                     </Border>
                                 </Grid>
 
-                                <!-- SEKCJA 3: TOP PRODUKTY -->
+                                <!-- SEKCJA 3: DOSTĘPNOŚĆ DLA HANDLOWCÓW -->
                                 <Border Grid.Row="2" Margin="5,0,5,15" CornerRadius="12" Background="White">
+                                    <Border.Effect>
+                                        <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="10"/>
+                                    </Border.Effect>
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <!-- Nagłówek -->
+                                        <Border Grid.Row="0" CornerRadius="12,12,0,0" Padding="20,12">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                    <GradientStop Color="#00b09b" Offset="0"/>
+                                                    <GradientStop Color="#96c93d" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <Grid>
+                                                <TextBlock Text="🛒 DOSTĘPNOŚĆ PRODUKTÓW DLA HANDLOWCÓW" FontSize="14" Foreground="White" FontWeight="Bold"/>
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                    <TextBlock Text="Legenda: " Foreground="#E0FFE0" FontSize="11" VerticalAlignment="Center"/>
+                                                    <Border Background="#27AE60" CornerRadius="3" Padding="8,2" Margin="5,0">
+                                                        <TextBlock Text="Dostępny" Foreground="White" FontSize="10"/>
+                                                    </Border>
+                                                    <Border Background="#F39C12" CornerRadius="3" Padding="8,2" Margin="5,0">
+                                                        <TextBlock Text="Mało" Foreground="White" FontSize="10"/>
+                                                    </Border>
+                                                    <Border Background="#E74C3C" CornerRadius="3" Padding="8,2" Margin="5,0">
+                                                        <TextBlock Text="Brak" Foreground="White" FontSize="10"/>
+                                                    </Border>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- Karty produktów -->
+                                        <ItemsControl x:Name="icDostepnoscProduktow" Grid.Row="1" Margin="10">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Margin="5" Padding="12" CornerRadius="10" Width="200"
+                                                            BorderThickness="2" BorderBrush="{Binding KolorRamki}">
+                                                        <Border.Background>
+                                                            <SolidColorBrush Color="{Binding KolorTla}"/>
+                                                        </Border.Background>
+                                                        <Grid>
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                            </Grid.RowDefinitions>
+
+                                                            <!-- Nazwa produktu -->
+                                                            <TextBlock Grid.Row="0" Text="{Binding Nazwa}"
+                                                                       FontWeight="Bold" FontSize="12"
+                                                                       Foreground="#2c3e50" TextTrimming="CharacterEllipsis"/>
+
+                                                            <!-- Pasek postępu -->
+                                                            <Grid Grid.Row="1" Margin="0,8,0,5">
+                                                                <Border Background="#E0E0E0" CornerRadius="4" Height="12"/>
+                                                                <Border Background="{Binding KolorPaska}" CornerRadius="4" Height="12"
+                                                                        HorizontalAlignment="Left" Width="{Binding SzerokoscPaska}"/>
+                                                            </Grid>
+
+                                                            <!-- Dostępna ilość -->
+                                                            <StackPanel Grid.Row="2" Orientation="Horizontal">
+                                                                <TextBlock Text="Dostępne: " FontSize="11" Foreground="#7f8c8d"/>
+                                                                <TextBlock Text="{Binding DostepneText}" FontSize="11"
+                                                                           FontWeight="Bold" Foreground="{Binding KolorTekstu}"/>
+                                                            </StackPanel>
+
+                                                            <!-- Zamówione vs Plan -->
+                                                            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,3,0,0">
+                                                                <TextBlock Text="{Binding ZamowioneText}" FontSize="10" Foreground="#95a5a6"/>
+                                                                <TextBlock Text=" / " FontSize="10" Foreground="#bdc3c7"/>
+                                                                <TextBlock Text="{Binding PlanText}" FontSize="10" Foreground="#95a5a6"/>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Grid>
+                                </Border>
+
+                                <!-- SEKCJA 4: TOP PRODUKTY -->
+                                <Border Grid.Row="3" Margin="5,0,5,15" CornerRadius="12" Background="White">
                                     <Border.Effect>
                                         <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="10"/>
                                     </Border.Effect>
