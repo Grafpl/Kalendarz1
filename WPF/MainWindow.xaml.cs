@@ -4334,22 +4334,44 @@ ORDER BY zm.Id";
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
 
+            // Określ czy używamy wydań czy zamówień
+            bool uzywajWydan = rbBilansWydania?.IsChecked == true;
+
+            // Style dla przekreślenia
+            var zamStyle = new Style(typeof(TextBlock));
+            zamStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
+            zamStyle.Setters.Add(new Setter(TextBlock.PaddingProperty, new Thickness(0, 0, 8, 0)));
+            if (uzywajWydan)
+            {
+                zamStyle.Setters.Add(new Setter(TextBlock.TextDecorationsProperty, TextDecorations.Strikethrough));
+                zamStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, Brushes.Gray));
+            }
+
+            var wydStyle = new Style(typeof(TextBlock));
+            wydStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
+            wydStyle.Setters.Add(new Setter(TextBlock.PaddingProperty, new Thickness(0, 0, 8, 0)));
+            if (!uzywajWydan)
+            {
+                wydStyle.Setters.Add(new Setter(TextBlock.TextDecorationsProperty, TextDecorations.Strikethrough));
+                wydStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, Brushes.Gray));
+            }
+
             // 4. ZAM.
             dgAggregation.Columns.Add(new DataGridTextColumn
             {
-                Header = "Zam.",
+                Header = uzywajWydan ? "Zam." : "Zam. ✓",
                 Binding = new System.Windows.Data.Binding("Zamówienia") { StringFormat = "N0" },
                 Width = new DataGridLength(65),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+                ElementStyle = zamStyle
             });
 
             // 5. WYD.
             dgAggregation.Columns.Add(new DataGridTextColumn
             {
-                Header = "Wyd.",
+                Header = uzywajWydan ? "Wyd. ✓" : "Wyd.",
                 Binding = new System.Windows.Data.Binding("Wydania") { StringFormat = "N0" },
                 Width = new DataGridLength(65),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+                ElementStyle = wydStyle
             });
 
             // 6. BILANS
