@@ -161,34 +161,21 @@
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <!-- Product Buttons -->
-            <RowDefinition Height="Auto"/>
             <!-- Top Control Panel -->
             <RowDefinition Height="*"/>
             <!-- Tabbed Content -->
         </Grid.RowDefinitions>
 
-        <!-- PRZYCISKI TOWARÓW - NAJWYŻSZY RZĄD -->
-        <Border Grid.Row="0" Background="#1A3A5A" CornerRadius="6" Padding="8" Margin="0,0,0,5">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <WrapPanel x:Name="pnlProductButtons" Orientation="Horizontal">
-                    <!-- Przyciski towarów zostaną dodane dynamicznie -->
-                </WrapPanel>
-                <Border Background="#2A5A8A" CornerRadius="5" Padding="15,8" Margin="20,0,0,0" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Suma: " Foreground="White" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="lblFilteredSum" Text="0" Foreground="#FFD700" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
-                        <TextBlock Text=" kg" Foreground="White" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Border>
-            </StackPanel>
-        </Border>
-
         <!-- TOP CONTROL PANEL - kompaktowy design -->
-        <Border Grid.Row="1" Background="#282A32" CornerRadius="6" Padding="10,5">
+        <Border Grid.Row="0" Background="#282A32" CornerRadius="6" Padding="10,5">
             <Grid>
-                <!-- Górny rząd: Data, Progress, Legenda -->
-                <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Górny rząd: Data, Progress, Legenda+Suma, Przyciski -->
+                <Grid Grid.Row="0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
@@ -227,25 +214,30 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Legenda ikon -->
-                    <Border Grid.Column="2" Background="#2A2A2A" CornerRadius="4" Padding="10,5" Margin="15,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="⚠️" FontSize="13" Foreground="Orange" VerticalAlignment="Center"/>
-                            <TextBlock Text="zmienione" Foreground="Orange" FontSize="11" VerticalAlignment="Center" Margin="3,0,10,0"/>
-                            <TextBlock Text="📝" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
-                            <TextBlock Text="notatka" Foreground="White" FontSize="11" VerticalAlignment="Center" Margin="3,0,10,0"/>
-                            <TextBlock Text="🎞️" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
-                            <TextBlock Text="folia" Foreground="White" FontSize="11" VerticalAlignment="Center" Margin="3,0,10,0"/>
-                            <TextBlock Text="🔪" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
-                            <TextBlock Text="halal" Foreground="White" FontSize="11" VerticalAlignment="Center" Margin="3,0,10,0"/>
-                            <TextBlock Text="📦" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
-                            <TextBlock Text="symfonia" Foreground="White" FontSize="11" VerticalAlignment="Center" Margin="3,0,10,0"/>
-                            <TextBlock Text="🚚" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
-                            <TextBlock Text="własny" Foreground="White" FontSize="11" VerticalAlignment="Center" Margin="3,0,0,0"/>
-                        </StackPanel>
-                    </Border>
+                    <!-- Legenda ikon + Suma kg -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Background="#2A2A2A" CornerRadius="4" Padding="8,5" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="📝" FontSize="12" VerticalAlignment="Center"/>
+                                <TextBlock Text="not" Foreground="Gray" FontSize="10" VerticalAlignment="Center" Margin="2,0,6,0"/>
+                                <TextBlock Text="🎞️" FontSize="12" VerticalAlignment="Center"/>
+                                <TextBlock Text="fol" Foreground="Gray" FontSize="10" VerticalAlignment="Center" Margin="2,0,6,0"/>
+                                <TextBlock Text="🔪" FontSize="12" VerticalAlignment="Center"/>
+                                <TextBlock Text="hal" Foreground="Gray" FontSize="10" VerticalAlignment="Center" Margin="2,0,6,0"/>
+                                <TextBlock Text="🚚" FontSize="12" VerticalAlignment="Center"/>
+                                <TextBlock Text="wł" Foreground="Gray" FontSize="10" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#1A3A5A" CornerRadius="4" Padding="10,5" Margin="10,0,0,0" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Σ " Foreground="White" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="lblFilteredSum" Text="0" Foreground="#FFD700" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <TextBlock Text=" kg" Foreground="White" FontSize="12" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
 
-                    <!-- Przyciski akcji - większe szerokości -->
+                    <!-- Przyciski akcji -->
                     <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="15,0,0,0">
                         <Button x:Name="btnRefresh" Content="🔄 Odśwież" Height="45" Padding="25,0" FontSize="15" FontWeight="Bold" Background="#376EA0" Foreground="White" BorderThickness="0" Margin="0,0,10,0" Click="btnRefresh_Click" Cursor="Hand"/>
                         <Button x:Name="btnZrealizowano" Content="✓ ZREALIZOWANO" Height="45" Padding="35,0" FontSize="15" FontWeight="Bold" Background="#19874B" Foreground="White" BorderThickness="0" Margin="0,0,10,0" Click="btnZrealizowano_Click" Cursor="Hand"/>
@@ -253,14 +245,17 @@
                     </StackPanel>
                 </Grid>
 
-                <!-- Usunięty dolny rząd - przyciski przeniesione do górnego -->
-                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,0" Visibility="Collapsed">
-                </StackPanel>
+                <!-- Dolny rząd: Przyciski towarów -->
+                <Border Grid.Row="1" Background="#1A3A5A" CornerRadius="4" Padding="8,5" Margin="0,8,0,0">
+                    <WrapPanel x:Name="pnlProductButtons" Orientation="Horizontal" HorizontalAlignment="Center">
+                        <!-- Przyciski towarów zostaną dodane dynamicznie -->
+                    </WrapPanel>
+                </Border>
             </Grid>
         </Border>
 
         <!-- TABBED CONTENT AREA - Tabs in dark theme -->
-        <TabControl Grid.Row="2" Margin="0,5,0,0" Background="#1C1E26" BorderThickness="0">
+        <TabControl Grid.Row="1" Margin="0,5,0,0" Background="#1C1E26" BorderThickness="0">
             <TabControl.Resources>
                 <Style TargetType="TabItem">
                     <Setter Property="FontSize" Value="18"/>
