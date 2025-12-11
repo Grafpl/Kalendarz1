@@ -135,6 +135,9 @@ namespace Kalendarz1
                     userPermissions[accessMap[i]] = true;
                 }
             }
+
+            // Monitoring dostępny dla wszystkich użytkowników
+            userPermissions["Monitoring"] = true;
         }
 
         private void LoadAllPermissions(bool grantAll)
