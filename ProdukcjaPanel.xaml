@@ -313,6 +313,15 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
                                 <DataGridTextColumn Header="Kg" Binding="{Binding TotalIlosc, StringFormat=N0}" Width="60"/>
+                                <DataGridTextColumn Header="Zreal." Binding="{Binding ZrealizowanoDisplay}" Width="50">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="Orange"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
                                 <DataGridTextColumn Header="Wyjazd" Binding="{Binding CzasWyjazdDisplay}" Width="100">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
@@ -351,6 +360,15 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
                                 <DataGridTextColumn Header="Kg" Binding="{Binding TotalIlosc, StringFormat=N0}" Width="60"/>
+                                <DataGridTextColumn Header="Zreal." Binding="{Binding ZrealizowanoDisplay}" Width="50">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="Orange"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
                                 <DataGridTextColumn Header="Wyjazd" Binding="{Binding CzasWyjazdDisplay}" Width="100">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
@@ -417,7 +435,7 @@
                             <DataGrid x:Name="dgvPozycje" Style="{StaticResource CustomDataGridStyle}" IsReadOnly="True" RowHeight="28" Margin="5" FontSize="11">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Produkt" Binding="{Binding Produkt}" Width="2*"/>
-                                    <DataGridTextColumn Header="Zamówiono" Binding="{Binding [Zamówiono (kg)], StringFormat=N0}" Width="*">
+                                    <DataGridTextColumn Header="Zam." Binding="{Binding [Zamówiono (kg)], StringFormat=N0}" Width="55">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -425,7 +443,17 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Wydano" Binding="{Binding [Wydano (kg)], StringFormat=N0}" Width="*">
+                                    <DataGridTextColumn Header="Zreal." Binding="{Binding Zrealizowano}" Width="50">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Margin" Value="0,0,5,0"/>
+                                                <Setter Property="Foreground" Value="Orange"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Wyd." Binding="{Binding [Wydano (kg)], StringFormat=N0}" Width="50">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -433,7 +461,7 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Różnica" Binding="{Binding [Różnica (kg)], StringFormat=N0}" Width="*">
+                                    <DataGridTextColumn Header="Różn." Binding="{Binding [Różnica (kg)], StringFormat=N0}" Width="50">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>

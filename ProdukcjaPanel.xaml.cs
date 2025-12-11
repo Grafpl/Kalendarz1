@@ -351,6 +351,19 @@ namespace Kalendarz1
             return _dataAkceptacjiProdukcjaColumnExists.Value;
         }
 
+        private static bool? _partialRealizationColumnsExist = null;
+        private async Task<bool> CheckPartialRealizationColumnsExistAsync(SqlConnection cn)
+        {
+            if (_partialRealizationColumnsExist.HasValue)
+                return _partialRealizationColumnsExist.Value;
+
+            string checkSql = @"SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'CzyCzesciowoZrealizowane'";
+            using var cmd = new SqlCommand(checkSql, cn);
+            var result = await cmd.ExecuteScalarAsync();
+            _partialRealizationColumnsExist = result != null;
+            return _partialRealizationColumnsExist.Value;
+        }
+
         private async Task LoadOrdersAsync()
         {
             string dateColumn = "DataUboju";
@@ -368,6 +381,9 @@ namespace Kalendarz1
                     bool hasAkceptacjaColumn = await CheckDataAkceptacjiProdukcjaColumnExistsAsync(cn);
                     string akceptacjaColumn = hasAkceptacjaColumn ? ", z.DataAkceptacjiProdukcja" : ", NULL AS DataAkceptacjiProdukcja";
 
+                    // Sprawdź czy kolumny częściowej realizacji istnieją
+                    bool hasPartialColumns = await CheckPartialRealizationColumnsExistAsync(cn);
+
                     var sqlBuilder = new System.Text.StringBuilder();
                     sqlBuilder.Append("SELECT z.Id, z.KlientId, ISNULL(z.Uwagi,'') AS Uwagi, ISNULL(z.Status,'Nowe') AS Status, ");
                     sqlBuilder.Append("(SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id");
@@ -382,6 +398,11 @@ namespace Kalendarz1
                     // Nowe pola do wykrywania zmian
                     sqlBuilder.Append("z.DataOstatniejModyfikacji, z.DataRealizacji");
                     sqlBuilder.Append(akceptacjaColumn);
+                    // Pola częściowej realizacji
+                    if (hasPartialColumns)
+                        sqlBuilder.Append(", ISNULL(z.CzyCzesciowoZrealizowane, 0) AS CzyCzesciowoZrealizowane, z.ProcentRealizacji");
+                    else
+                        sqlBuilder.Append(", CAST(0 AS BIT) AS CzyCzesciowoZrealizowane, NULL AS ProcentRealizacji");
                     sqlBuilder.Append($" FROM dbo.ZamowieniaMieso z WHERE z.{dateColumn}=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')");
                     if (_filteredProductId.HasValue) sqlBuilder.Append(" AND EXISTS (SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId=z.Id AND t.KodTowaru=@P)");
 
@@ -395,6 +416,8 @@ namespace Kalendarz1
                         var dataOstatniejModyfikacji = rd.IsDBNull(13) ? (DateTime?)null : rd.GetDateTime(13);
                         var dataRealizacji = rd.IsDBNull(14) ? (DateTime?)null : rd.GetDateTime(14);
                         var dataAkceptacjiProdukcja = rd.IsDBNull(15) ? (DateTime?)null : rd.GetDateTime(15);
+                        var czyCzesciowoZrealizowane = rd.GetBoolean(16);
+                        var procentRealizacji = rd.IsDBNull(17) ? (decimal?)null : rd.GetDecimal(17);
                         var czyZrealizowane = rd.GetBoolean(8);
 
                         // Sprawdź czy zamówienie zostało zmodyfikowane od czasu akceptacji przez produkcję
@@ -434,7 +457,10 @@ namespace Kalendarz1
                             DataOstatniejModyfikacji = dataOstatniejModyfikacji,
                             DataRealizacji = dataRealizacji,
                             DataAkceptacjiProdukcja = dataAkceptacjiProdukcja,
-                            CzyZmodyfikowaneOdRealizacji = czyZmodyfikowane
+                            CzyZmodyfikowaneOdRealizacji = czyZmodyfikowane,
+                            // Pola częściowej realizacji
+                            CzyCzesciowoZrealizowane = czyCzesciowoZrealizowane,
+                            ProcentRealizacji = procentRealizacji
                         };
                         _zamowienia[info.Id] = info;
                         klientIdsWithOrder.Add(info.KlientId);
@@ -644,12 +670,17 @@ namespace Kalendarz1
 
             await EnsureNotesTableAsync();
 
-            var orderPositions = new List<(int TowarId, decimal Ilosc, bool Folia)>();
+            var orderPositions = new List<(int TowarId, decimal Ilosc, bool Folia, decimal? IloscZreal)>();
             using (var cn = new SqlConnection(_connLibra))
             {
                 await cn.OpenAsync();
-                string sql = @"SELECT zmt.KodTowaru, zmt.Ilosc, ISNULL(zmt.Folia, 0) AS Folia 
-                               FROM dbo.ZamowieniaMiesoTowar zmt 
+
+                // Sprawdź czy kolumna IloscZrealizowana istnieje
+                bool hasZrealColumn = await CheckPartialRealizationColumnsExistAsync(cn);
+                string zrealCol = hasZrealColumn ? ", zmt.IloscZrealizowana" : ", NULL AS IloscZrealizowana";
+
+                string sql = $@"SELECT zmt.KodTowaru, zmt.Ilosc, ISNULL(zmt.Folia, 0) AS Folia{zrealCol}
+                               FROM dbo.ZamowieniaMiesoTowar zmt
                                WHERE zmt.ZamowienieId=@Id" + (_filteredProductId.HasValue ? " AND zmt.KodTowaru=@P" : "");
                 var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Id", info.Id);
@@ -658,7 +689,7 @@ namespace Kalendarz1
                 using var rd = await cmd.ExecuteReaderAsync();
                 while (await rd.ReadAsync())
                 {
-                    orderPositions.Add((rd.GetInt32(0), rd.GetDecimal(1), rd.GetBoolean(2)));
+                    orderPositions.Add((rd.GetInt32(0), rd.GetDecimal(1), rd.GetBoolean(2), rd.IsDBNull(3) ? null : rd.GetDecimal(3)));
                 }
             }
 
@@ -675,12 +706,13 @@ namespace Kalendarz1
             var dt = new DataTable();
             dt.Columns.Add("Produkt", typeof(string));
             dt.Columns.Add("Zamówiono (kg)", typeof(decimal));
+            dt.Columns.Add("Zrealizowano", typeof(string));
             dt.Columns.Add("Wydano (kg)", typeof(decimal));
             dt.Columns.Add("Różnica (kg)", typeof(decimal));
             // Kolumna zmian - pokazuje różnicę między aktualnym stanem a snapshotem
             dt.Columns.Add("Zmiana", typeof(string));
 
-            var mapOrd = orderPositions.ToDictionary(p => p.TowarId, p => (p.Ilosc, p.Folia));
+            var mapOrd = orderPositions.ToDictionary(p => p.TowarId, p => (p.Ilosc, p.Folia, p.IloscZreal));
 
             foreach (var id in ids)
             {
@@ -709,7 +741,14 @@ namespace Kalendarz1
                     }
                 }
 
-                dt.Rows.Add(kod, ord.Ilosc, wyd, ord.Ilosc - wyd, zmiana);
+                // Wyświetl zrealizowaną ilość tylko gdy różni się od zamówionej
+                string zrealDisplay = "";
+                if (ord.IloscZreal.HasValue && ord.IloscZreal.Value != ord.Ilosc)
+                {
+                    zrealDisplay = $"{ord.IloscZreal:N0}";
+                }
+
+                dt.Rows.Add(kod, ord.Ilosc, zrealDisplay, wyd, ord.Ilosc - wyd, zmiana);
             }
 
             // Sprawdź czy są pozycje usunięte (były w snapshocie, ale nie ma w aktualnym zamówieniu)
@@ -719,7 +758,7 @@ namespace Kalendarz1
                 {
                     string kod = towarMap.TryGetValue(snapItem.Key, out var t) ? t.Kod : $"ID:{snapItem.Key}";
                     kod = "❌ " + kod;
-                    dt.Rows.Add(kod, 0, 0, 0, $"USUNIĘTO ({snapItem.Value.Ilosc:N0} kg)");
+                    dt.Rows.Add(kod, 0, "", 0, 0, $"USUNIĘTO ({snapItem.Value.Ilosc:N0} kg)");
                 }
             }
 
@@ -1079,41 +1118,279 @@ namespace Kalendarz1
             var orderId = GetSelectedOrderId();
             if (!orderId.HasValue) return;
 
-            // Pokaż dialog z opcjonalną notatką
+            var selected = SelectedZamowienie;
+            if (selected == null) return;
+
+            // Pobierz pozycje zamówienia
+            var items = new ObservableCollection<RealizationItem>();
+            try
+            {
+                using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Najpierw upewnij się że kolumny istnieją
+                await EnsurePartialRealizationColumnsAsync(cn);
+
+                var cmd = new SqlCommand(@"SELECT t.KodTowaru, t.Ilosc, ISNULL(t.IloscZrealizowana, t.Ilosc) AS IloscZreal, ISNULL(t.PowodBraku, '') AS Powod
+                                           FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = @Id", cn);
+                cmd.Parameters.AddWithValue("@Id", orderId.Value);
+
+                using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    int kodTowaru = rd.GetInt32(0);
+                    string nazwa = _produktLookup.TryGetValue(kodTowaru, out var n) ? n : $"ID: {kodTowaru}";
+                    items.Add(new RealizationItem
+                    {
+                        KodTowaru = kodTowaru,
+                        NazwaTowaru = nazwa,
+                        IloscZamowiona = rd.GetDecimal(1),
+                        IloscZrealizowana = rd.GetDecimal(2),
+                        PowodBraku = rd.GetString(3)
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd pobierania pozycji zamówienia:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            if (items.Count == 0)
+            {
+                MessageBox.Show("Brak pozycji w zamówieniu.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // === DIALOG REALIZACJI ===
             var dialog = new Window
             {
-                Title = "Zrealizowano zamówienie",
-                Width = 450,
-                Height = 220,
+                Title = $"📋 Realizacja zamówienia: {selected.Info.Klient}",
+                Width = 750,
+                Height = 550,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Owner = this,
                 Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2D2D30")),
-                ResizeMode = ResizeMode.NoResize
+                ResizeMode = ResizeMode.CanResize,
+                MinWidth = 600,
+                MinHeight = 400
             };
 
-            var stack = new StackPanel { Margin = new Thickness(20) };
-            stack.Children.Add(new TextBlock { Text = "Notatka produkcji (opcjonalna):", Foreground = Brushes.White, FontSize = 14, Margin = new Thickness(0, 0, 0, 10) });
-            var txtNote = new TextBox { Height = 80, FontSize = 14, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true, Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E1E1E")), Foreground = Brushes.White, BorderBrush = Brushes.Gray };
-            stack.Children.Add(txtNote);
+            var mainGrid = new Grid();
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            var btnStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 15, 0, 0) };
-            var btnOk = new Button { Content = "✓ Zrealizuj", Width = 120, Height = 35, FontSize = 13, Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#19874B")), Foreground = Brushes.White, BorderThickness = new Thickness(0), Margin = new Thickness(0, 0, 10, 0) };
-            var btnCancel = new Button { Content = "Anuluj", Width = 80, Height = 35, FontSize = 13, Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#555")), Foreground = Brushes.White, BorderThickness = new Thickness(0) };
+            // DataGrid z pozycjami
+            var dgItems = new DataGrid
+            {
+                ItemsSource = items,
+                AutoGenerateColumns = false,
+                CanUserAddRows = false,
+                CanUserDeleteRows = false,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E1E1E")),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Margin = new Thickness(15, 15, 15, 10),
+                RowHeight = 40,
+                FontSize = 14,
+                GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                HorizontalGridLinesBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#444")),
+                RowBackground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2A2A2E")),
+                AlternatingRowBackground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#323236")),
+                HeadersVisibility = DataGridHeadersVisibility.Column,
+                ColumnHeaderHeight = 35
+            };
+
+            // Style dla nagłówków kolumn (ciemne)
+            var headerStyle = new Style(typeof(System.Windows.Controls.Primitives.DataGridColumnHeader));
+            headerStyle.Setters.Add(new Setter(Control.BackgroundProperty, new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3A3A3E"))));
+            headerStyle.Setters.Add(new Setter(Control.ForegroundProperty, Brushes.White));
+            headerStyle.Setters.Add(new Setter(Control.FontWeightProperty, FontWeights.Bold));
+            headerStyle.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(8, 5, 8, 5)));
+            headerStyle.Setters.Add(new Setter(Control.BorderBrushProperty, new SolidColorBrush((Color)ColorConverter.ConvertFromString("#555"))));
+            headerStyle.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0, 0, 1, 1)));
+            dgItems.ColumnHeaderStyle = headerStyle;
+
+            // Style dla komórek (ciemne)
+            var cellStyle = new Style(typeof(DataGridCell));
+            cellStyle.Setters.Add(new Setter(DataGridCell.BackgroundProperty, Brushes.Transparent));
+            cellStyle.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(0)));
+            cellStyle.Setters.Add(new Setter(DataGridCell.ForegroundProperty, Brushes.White));
+            dgItems.CellStyle = cellStyle;
+
+            // Kolumna: Produkt (readonly) - krótsza
+            dgItems.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Produkt",
+                Binding = new System.Windows.Data.Binding("NazwaTowaru"),
+                Width = new DataGridLength(110),
+                IsReadOnly = true,
+                ElementStyle = new Style(typeof(TextBlock)) { Setters = { new Setter(TextBlock.ForegroundProperty, Brushes.White), new Setter(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis) } }
+            });
+
+            // Kolumna: Zamówiono (readonly)
+            dgItems.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Zamówiono",
+                Binding = new System.Windows.Data.Binding("IloscZamowiona") { StringFormat = "N0" },
+                Width = new DataGridLength(90),
+                IsReadOnly = true,
+                ElementStyle = new Style(typeof(TextBlock)) { Setters = { new Setter(TextBlock.ForegroundProperty, Brushes.White), new Setter(TextBlock.TextAlignmentProperty, TextAlignment.Right) } }
+            });
+
+            // Kolumna: Zrealizowano (editable)
+            dgItems.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Zrealizowano",
+                Binding = new System.Windows.Data.Binding("IloscZrealizowana") { StringFormat = "N0", UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged },
+                Width = new DataGridLength(100),
+                ElementStyle = new Style(typeof(TextBlock)) { Setters = { new Setter(TextBlock.ForegroundProperty, Brushes.LimeGreen), new Setter(TextBlock.TextAlignmentProperty, TextAlignment.Right), new Setter(TextBlock.FontWeightProperty, FontWeights.Bold) } },
+                EditingElementStyle = new Style(typeof(TextBox)) { Setters = { new Setter(TextBox.BackgroundProperty, new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1A3A1A"))), new Setter(TextBox.ForegroundProperty, Brushes.White), new Setter(TextBox.FontSizeProperty, 14.0) } }
+            });
+
+            // Kolumna: Różnica (readonly, calculated)
+            var roznicaCol = new DataGridTextColumn
+            {
+                Header = "Różnica",
+                Binding = new System.Windows.Data.Binding("Roznica") { StringFormat = "N0" },
+                Width = new DataGridLength(80),
+                IsReadOnly = true
+            };
+            var roznicaStyle = new Style(typeof(TextBlock));
+            roznicaStyle.Setters.Add(new Setter(TextBlock.TextAlignmentProperty, TextAlignment.Right));
+            roznicaStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
+            roznicaStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, new System.Windows.Data.Binding("RoznicaColor")));
+            roznicaCol.ElementStyle = roznicaStyle;
+            dgItems.Columns.Add(roznicaCol);
+
+            // Kolumna: Powód braku (editable)
+            dgItems.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Powód braku",
+                Binding = new System.Windows.Data.Binding("PowodBraku") { UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged },
+                Width = new DataGridLength(180),
+                ElementStyle = new Style(typeof(TextBlock)) { Setters = { new Setter(TextBlock.ForegroundProperty, Brushes.Orange) } },
+                EditingElementStyle = new Style(typeof(TextBox)) { Setters = { new Setter(TextBox.BackgroundProperty, new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3A2A1A"))), new Setter(TextBox.ForegroundProperty, Brushes.White) } }
+            });
+
+            Grid.SetRow(dgItems, 0);
+            mainGrid.Children.Add(dgItems);
+
+            // Podsumowanie
+            var summaryPanel = new Border
+            {
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1A3A5A")),
+                Margin = new Thickness(15, 0, 15, 10),
+                Padding = new Thickness(15, 10, 15, 10),
+                CornerRadius = new CornerRadius(5)
+            };
+            var summaryStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+            var lblSummary = new TextBlock { Foreground = Brushes.White, FontSize = 16, FontWeight = FontWeights.Bold };
+
+            // Aktualizacja podsumowania
+            void UpdateSummary()
+            {
+                decimal totalOrdered = items.Sum(i => i.IloscZamowiona);
+                decimal totalRealized = items.Sum(i => i.IloscZrealizowana);
+                decimal percent = totalOrdered > 0 ? (totalRealized / totalOrdered) * 100 : 100;
+                lblSummary.Text = $"Podsumowanie: {totalRealized:N0} kg / {totalOrdered:N0} kg ({percent:N0}%)";
+                lblSummary.Foreground = percent >= 100 ? Brushes.LimeGreen : (percent >= 80 ? Brushes.Yellow : Brushes.OrangeRed);
+            }
+
+            foreach (var item in items)
+            {
+                item.PropertyChanged += (s, e) => UpdateSummary();
+            }
+            UpdateSummary();
+
+            summaryStack.Children.Add(lblSummary);
+            summaryPanel.Child = summaryStack;
+            Grid.SetRow(summaryPanel, 1);
+            mainGrid.Children.Add(summaryPanel);
+
+            // Notatka produkcji
+            var notePanel = new StackPanel { Margin = new Thickness(15, 0, 15, 10) };
+            notePanel.Children.Add(new TextBlock { Text = "Notatka produkcji (opcjonalna):", Foreground = Brushes.White, FontSize = 13, Margin = new Thickness(0, 0, 0, 5) });
+            var txtNote = new TextBox
+            {
+                Height = 50,
+                FontSize = 13,
+                TextWrapping = TextWrapping.Wrap,
+                AcceptsReturn = true,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E1E1E")),
+                Foreground = Brushes.White,
+                BorderBrush = Brushes.Gray
+            };
+            notePanel.Children.Add(txtNote);
+            Grid.SetRow(notePanel, 2);
+            mainGrid.Children.Add(notePanel);
+
+            // Przyciski
+            var btnPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(15, 0, 15, 15) };
+            var btnOk = new Button
+            {
+                Content = "✓ Zatwierdź realizację",
+                Width = 180,
+                Height = 40,
+                FontSize = 14,
+                FontWeight = FontWeights.Bold,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#19874B")),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Margin = new Thickness(0, 0, 10, 0),
+                Cursor = Cursors.Hand
+            };
+            var btnCancel = new Button
+            {
+                Content = "Anuluj",
+                Width = 100,
+                Height = 40,
+                FontSize = 14,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#555")),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand
+            };
 
             btnOk.Click += (s, e) => { dialog.DialogResult = true; dialog.Close(); };
             btnCancel.Click += (s, e) => { dialog.DialogResult = false; dialog.Close(); };
 
-            btnStack.Children.Add(btnOk);
-            btnStack.Children.Add(btnCancel);
-            stack.Children.Add(btnStack);
-            dialog.Content = stack;
+            btnPanel.Children.Add(btnOk);
+            btnPanel.Children.Add(btnCancel);
+            Grid.SetRow(btnPanel, 3);
+            mainGrid.Children.Add(btnPanel);
+
+            dialog.Content = mainGrid;
 
             if (dialog.ShowDialog() != true) return;
 
+            // === ZAPISZ REALIZACJĘ ===
             string note = txtNote.Text?.Trim() ?? "";
+            decimal totalOrdered = items.Sum(i => i.IloscZamowiona);
+            decimal totalRealized = items.Sum(i => i.IloscZrealizowana);
+            decimal percentRealized = totalOrdered > 0 ? (totalRealized / totalOrdered) * 100 : 100;
+            bool isPartial = items.Any(i => i.IloscZrealizowana < i.IloscZamowiona);
 
-            using var cn = new SqlConnection(_connLibra);
-            await cn.OpenAsync();
+            using var cnSave = new SqlConnection(_connLibra);
+            await cnSave.OpenAsync();
+
+            // Upewnij się że kolumny istnieją
+            await EnsurePartialRealizationColumnsAsync(cnSave);
+
+            // Zapisz ilości zrealizowane per produkt
+            foreach (var item in items)
+            {
+                var cmdItem = new SqlCommand(@"UPDATE dbo.ZamowieniaMiesoTowar
+                                               SET IloscZrealizowana = @Zreal, PowodBraku = @Powod
+                                               WHERE ZamowienieId = @ZamId AND KodTowaru = @Kod", cnSave);
+                cmdItem.Parameters.AddWithValue("@Zreal", item.IloscZrealizowana);
+                cmdItem.Parameters.AddWithValue("@Powod", string.IsNullOrEmpty(item.PowodBraku) ? (object)DBNull.Value : item.PowodBraku);
+                cmdItem.Parameters.AddWithValue("@ZamId", orderId.Value);
+                cmdItem.Parameters.AddWithValue("@Kod", item.KodTowaru);
+                await cmdItem.ExecuteNonQueryAsync();
+            }
 
             // Zapisz notatkę produkcji jeśli podano
             if (!string.IsNullOrEmpty(note))
@@ -1121,27 +1398,59 @@ namespace Kalendarz1
                 await EnsureNotesTableAsync();
                 var cmdNote = new SqlCommand(@"IF EXISTS (SELECT 1 FROM dbo.ZamowieniaMiesoProdukcjaNotatki WHERE ZamowienieId = @Id)
                                                UPDATE dbo.ZamowieniaMiesoProdukcjaNotatki SET NotatkaProdukcja = @N WHERE ZamowienieId = @Id
-                                               ELSE INSERT INTO dbo.ZamowieniaMiesoProdukcjaNotatki (ZamowienieId, NotatkaProdukcja) VALUES (@Id, @N)", cn);
+                                               ELSE INSERT INTO dbo.ZamowieniaMiesoProdukcjaNotatki (ZamowienieId, NotatkaProdukcja) VALUES (@Id, @N)", cnSave);
                 cmdNote.Parameters.AddWithValue("@Id", orderId.Value);
                 cmdNote.Parameters.AddWithValue("@N", note);
                 await cmdNote.ExecuteNonQueryAsync();
             }
 
-            // Zapisz snapshot pozycji zamówienia (do późniejszego porównania zmian)
-            await SaveOrderSnapshotAsync(cn, orderId.Value, "Realizacja");
+            // Zapisz snapshot pozycji zamówienia
+            await SaveOrderSnapshotAsync(cnSave, orderId.Value, "Realizacja");
 
-            // Oznacz jako zrealizowane
-            var cmd = new SqlCommand(@"UPDATE dbo.ZamowieniaMieso
+            // Oznacz jako zrealizowane (z informacją o częściowej realizacji)
+            var cmdUpdate = new SqlCommand(@"UPDATE dbo.ZamowieniaMieso
                                        SET CzyZrealizowane = 1,
+                                           CzyCzesciowoZrealizowane = @Partial,
+                                           ProcentRealizacji = @Percent,
                                            DataRealizacji = GETDATE(),
                                            KtoZrealizowal = @UserID,
-                                           Status = CASE WHEN CzyWydane = 1 THEN 'Wydany' ELSE 'Zrealizowane' END
-                                       WHERE Id = @I", cn);
-            cmd.Parameters.AddWithValue("@I", orderId.Value);
+                                           Status = CASE
+                                               WHEN @Partial = 1 THEN 'Częściowo zrealizowane'
+                                               WHEN CzyWydane = 1 THEN 'Wydany'
+                                               ELSE 'Zrealizowane'
+                                           END
+                                       WHERE Id = @I", cnSave);
+            cmdUpdate.Parameters.AddWithValue("@I", orderId.Value);
+            cmdUpdate.Parameters.AddWithValue("@Partial", isPartial);
+            cmdUpdate.Parameters.AddWithValue("@Percent", percentRealized);
             int.TryParse(UserID, out int userId);
-            cmd.Parameters.AddWithValue("@UserID", userId > 0 ? userId : (object)DBNull.Value);
-            await cmd.ExecuteNonQueryAsync();
+            cmdUpdate.Parameters.AddWithValue("@UserID", userId > 0 ? userId : (object)DBNull.Value);
+            await cmdUpdate.ExecuteNonQueryAsync();
+
+            string msg = isPartial
+                ? $"Zamówienie częściowo zrealizowane ({percentRealized:N0}%)"
+                : "Zamówienie w pełni zrealizowane!";
+            MessageBox.Show(msg, "Realizacja", MessageBoxButton.OK, isPartial ? MessageBoxImage.Warning : MessageBoxImage.Information);
+
             await LoadOrdersAsync();
+        }
+
+        private async Task EnsurePartialRealizationColumnsAsync(SqlConnection cn)
+        {
+            // Sprawdź i dodaj kolumny do ZamowieniaMiesoTowar
+            var checkCmd = new SqlCommand(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMiesoTowar') AND name = 'IloscZrealizowana')
+                    ALTER TABLE dbo.ZamowieniaMiesoTowar ADD IloscZrealizowana DECIMAL(18,2) NULL;
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMiesoTowar') AND name = 'PowodBraku')
+                    ALTER TABLE dbo.ZamowieniaMiesoTowar ADD PowodBraku NVARCHAR(500) NULL;
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'ProcentRealizacji')
+                    ALTER TABLE dbo.ZamowieniaMieso ADD ProcentRealizacji DECIMAL(5,2) NULL;
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'CzyCzesciowoZrealizowane')
+                    ALTER TABLE dbo.ZamowieniaMieso ADD CzyCzesciowoZrealizowane BIT DEFAULT 0;
+            ", cn);
+            await checkCmd.ExecuteNonQueryAsync();
+            // Zresetuj cache po utworzeniu kolumn
+            _partialRealizationColumnsExist = true;
         }
 
         private async Task MarkOrderRealizedAsync()
@@ -1170,15 +1479,26 @@ namespace Kalendarz1
         {
             var orderId = GetSelectedOrderId();
             if (!orderId.HasValue) return;
-            if (MessageBox.Show("Cofnąć realizację?", "Potwierdzenie", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            if (MessageBox.Show("Cofnąć realizację?\n\nWartości zrealizowanych ilości zostaną usunięte.", "Potwierdzenie", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
 
             using var cn = new SqlConnection(_connLibra);
             await cn.OpenAsync();
-            // Cofnij tylko CzyZrealizowane (nie ruszaj CzyWydane)
+
+            // Wyczyść wartości realizacji z pozycji zamówienia
+            var cmdClearItems = new SqlCommand(@"UPDATE dbo.ZamowieniaMiesoTowar
+                                                 SET IloscZrealizowana = NULL, PowodBraku = NULL
+                                                 WHERE ZamowienieId = @I", cn);
+            cmdClearItems.Parameters.AddWithValue("@I", orderId.Value);
+            await cmdClearItems.ExecuteNonQueryAsync();
+
+            // Cofnij realizację zamówienia
             var cmd = new SqlCommand(@"UPDATE dbo.ZamowieniaMieso
                                        SET CzyZrealizowane = 0,
+                                           CzyCzesciowoZrealizowane = 0,
+                                           ProcentRealizacji = NULL,
                                            DataRealizacji = NULL,
                                            KtoZrealizowal = NULL,
+                                           DataAkceptacjiProdukcja = NULL,
                                            Status = CASE WHEN CzyWydane = 1 THEN 'Wydany' ELSE 'Nowe' END
                                        WHERE Id = @I", cn);
             cmd.Parameters.AddWithValue("@I", orderId.Value);
@@ -1366,6 +1686,10 @@ namespace Kalendarz1
             public DateTime? DataRealizacji { get; set; }
             public DateTime? DataAkceptacjiProdukcja { get; set; } // Osobna akceptacja produkcji
             public bool CzyZmodyfikowaneOdRealizacji { get; set; }
+
+            // Pola częściowej realizacji
+            public bool CzyCzesciowoZrealizowane { get; set; }
+            public decimal? ProcentRealizacji { get; set; }
         }
 
         public class ContractorInfo
@@ -1388,6 +1712,37 @@ namespace Kalendarz1
             public ComboItem(int value, string text) { Value = value; Text = text; }
         }
 
+        // Klasa dla pozycji w dialogu realizacji
+        public class RealizationItem : INotifyPropertyChanged
+        {
+            public int KodTowaru { get; set; }
+            public string NazwaTowaru { get; set; } = "";
+            public decimal IloscZamowiona { get; set; }
+
+            private decimal _iloscZrealizowana;
+            public decimal IloscZrealizowana
+            {
+                get => _iloscZrealizowana;
+                set { _iloscZrealizowana = value; OnPropertyChanged(); OnPropertyChanged(nameof(Roznica)); OnPropertyChanged(nameof(RoznicaColor)); }
+            }
+
+            private string _powodBraku = "";
+            public string PowodBraku
+            {
+                get => _powodBraku;
+                set { _powodBraku = value; OnPropertyChanged(); }
+            }
+
+            public decimal Roznica => IloscZrealizowana - IloscZamowiona;
+            public Brush RoznicaColor => Roznica < 0 ? Brushes.OrangeRed : (Roznica > 0 ? Brushes.LimeGreen : Brushes.White);
+
+            public event PropertyChangedEventHandler PropertyChanged;
+            protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
+            {
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            }
+        }
+
         public class ZamowienieViewModel : INotifyPropertyChanged
         {
             public ZamowienieInfo Info { get; }
@@ -1405,6 +1760,14 @@ namespace Kalendarz1
             public decimal TotalIlosc => Info.TotalIlosc;
             public string Handlowiec => Info.Handlowiec;
 
+            // Wyświetlanie zrealizowanej ilości (tylko gdy częściowo zrealizowane)
+            public string ZrealizowanoDisplay => Info.CzyCzesciowoZrealizowane && Info.ProcentRealizacji.HasValue
+                ? $"{Info.ProcentRealizacji:N0}%"
+                : "";
+
+            // Widoczność kolumny Zrealizowano
+            public bool ShowZrealizowano => Info.CzyCzesciowoZrealizowane;
+
             // Kombinowany status
             public string Status
             {
@@ -1413,6 +1776,11 @@ namespace Kalendarz1
                     if (Info.IsShipmentOnly) return "Symfonia";
                     // Jeśli jest zmodyfikowane od realizacji - pokaż "Do zaakceptowania"
                     if (Info.CzyZmodyfikowaneOdRealizacji) return "⚠ Do zaakceptowania";
+                    // Częściowa realizacja
+                    if (Info.CzyCzesciowoZrealizowane && Info.CzyWydane)
+                        return $"⚠ Częśc. ({Info.ProcentRealizacji:N0}%) + Wyd.";
+                    if (Info.CzyCzesciowoZrealizowane)
+                        return $"⚠ Częśc. zreal. ({Info.ProcentRealizacji:N0}%)";
                     if (Info.CzyWydane && Info.CzyZrealizowane) return "✓ Zreal. + Wydane";
                     if (Info.CzyWydane && !Info.CzyZrealizowane) return "⚠ Tylko wydane";
                     if (Info.CzyZrealizowane) return "✓ Zrealizowane";
@@ -1427,6 +1795,8 @@ namespace Kalendarz1
                 {
                     // Żółty dla statusu "Do zaakceptowania"
                     if (Info.CzyZmodyfikowaneOdRealizacji) return Brushes.Yellow;
+                    // Pomarańczowy dla częściowej realizacji
+                    if (Info.CzyCzesciowoZrealizowane) return Brushes.Orange;
                     if (Info.CzyWydane && Info.CzyZrealizowane) return Brushes.LimeGreen;
                     if (Info.CzyWydane && !Info.CzyZrealizowane) return Brushes.Orange;
                     if (Info.CzyZrealizowane) return Brushes.LightGreen;
