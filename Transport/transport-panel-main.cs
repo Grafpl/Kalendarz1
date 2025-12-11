@@ -257,7 +257,11 @@ namespace Kalendarz1.Transport.Formularze
             var btnRaport = CreateActionButton("RAPORT", Color.FromArgb(155, 89, 182), 100);
             btnRaport.Click += BtnRaport_Click;
 
-            btnMapa = CreateActionButton("🗺️ MAPA", Color.FromArgb(156, 39, 176), 90);
+            // PRZYCISK STATYSTYKI
+            var btnStatystyki = CreateActionButton("STATYSTYKI", Color.FromArgb(26, 188, 156), 110);
+            btnStatystyki.Click += BtnStatystyki_Click;
+
+            btnMapa = CreateActionButton("MAPA", Color.FromArgb(156, 39, 176), 80);
             btnMapa.Click += BtnMapa_Click;
 
             btnKierowcy = CreateActionButton("KIEROWCY", Color.FromArgb(52, 73, 94), 100);
@@ -271,10 +275,10 @@ namespace Kalendarz1.Transport.Formularze
             btnPrzydziel.Click += BtnPrzydziel_Click;
             btnPrzydziel.Enabled = false; // Aktywowany gdy wybrany kurs wymaga przypisania
 
-            // Dodanie wszystkich przycisków do panelu - WŁĄCZNIE Z RAPORTEM i PRZYDZIEL
+            // Dodanie wszystkich przycisków do panelu
             panelButtons.Controls.AddRange(new Control[] {
-        btnUsun, btnKopiuj, btnMapa, btnRaport, btnKierowcy, btnPojazdy, btnPrzydziel, btnEdytuj, btnNowyKurs
-    });
+                btnUsun, btnKopiuj, btnMapa, btnStatystyki, btnRaport, btnKierowcy, btnPojazdy, btnPrzydziel, btnEdytuj, btnNowyKurs
+            });
 
             panelHeader.Controls.Add(panelDate);
             panelHeader.Controls.Add(panelButtons);
@@ -305,6 +309,22 @@ namespace Kalendarz1.Transport.Formularze
                     "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
+        // METODA obsługi przycisku STATYSTYKI
+        private void BtnStatystyki_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var statystykiForm = new TransportStatystykiForm();
+                statystykiForm.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas otwierania statystyk transportu: {ex.Message}",
+                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         // BEZPIECZNE obsługa przycisków - z pełną obsługą błędów
         private void SafeBtnKierowcy_Click(object sender, EventArgs e)
         {
