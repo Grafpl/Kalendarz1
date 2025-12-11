@@ -1970,9 +1970,20 @@ namespace Kalendarz1.Transport.Formularze
                 // Złóż dane
                 foreach (var zam in tempList)
                 {
-                    var klient = klienciDict.TryGetValue(zam.KlientId, out var k) ? k : ($"Klient {zam.KlientId}", "");
+                    string klientNazwa;
+                    string klientAdres;
+                    if (klienciDict.TryGetValue(zam.KlientId, out var k))
+                    {
+                        klientNazwa = k.Item1;
+                        klientAdres = k.Item2;
+                    }
+                    else
+                    {
+                        klientNazwa = $"Klient {zam.KlientId}";
+                        klientAdres = "";
+                    }
                     var godzina = zam.DataPrzyjazdu.ToString("HH:mm");
-                    wolneZamowienia.Add((zam.Id, klient.Nazwa, zam.DataUboju ?? _selectedDate, godzina, zam.Palety, zam.Pojemniki, klient.Adres));
+                    wolneZamowienia.Add((zam.Id, klientNazwa, zam.DataUboju ?? _selectedDate, godzina, zam.Palety, zam.Pojemniki, klientAdres));
                 }
 
                 // Wyświetl w gridzie
