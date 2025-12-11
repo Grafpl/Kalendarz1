@@ -141,11 +141,12 @@ namespace Kalendarz1.Monitoring
                 MaxWidth = 130
             });
 
+            // Pokaż IP kamery
             stack.Children.Add(new TextBlock
             {
-                Text = channel.Status,
-                FontSize = 9,
-                Foreground = GetStatusBrush(channel.Status),
+                Text = channel.IpAddress ?? "",
+                FontSize = 8,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#666666")),
                 HorizontalAlignment = HorizontalAlignment.Center
             });
 
@@ -154,7 +155,7 @@ namespace Kalendarz1.Monitoring
                 Style = (Style)FindResource("CameraButtonStyle"),
                 Content = stack,
                 Tag = channel,
-                ToolTip = $"Kliknij aby pobrać snapshot\nKanał: {channel.Id}\nRTSP: rtsp://.../{channel.Id}01"
+                ToolTip = $"Kliknij aby pobrać snapshot\nKanał: {channel.Id}\nIP: {channel.IpAddress}"
             };
 
             button.Click += CameraButton_Click;
