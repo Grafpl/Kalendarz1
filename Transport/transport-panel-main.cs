@@ -1893,53 +1893,59 @@ namespace Kalendarz1.Transport.Formularze
         {
             try
             {
-                var wolneZamowienia = new List<(int Id, string Klient, DateTime DataUboju, string Godzina, decimal Palety, int Pojemniki, string Adres)>();
+                var wolneZamowienia = new List<(int Id, string Klient, string Godzina, decimal Palety, int Pojemniki)>();
 
                 using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
 
-                // Pobierz zamówienia z wybraną datą uboju, które nie mają przypisanego transportu
+                // Zapytanie identyczne jak w edytorze transportu
                 var sql = @"
-                    SELECT
+                    SELECT DISTINCT
                         zm.Id AS ZamowienieId,
                         zm.KlientId,
-                        ISNULL(zm.DataPrzyjazdu, zm.DataUboju) AS DataPrzyjazdu,
+                        zm.DataPrzyjazdu,
+                        zm.Status,
                         ISNULL(zm.LiczbaPalet, 0) AS LiczbaPalet,
                         ISNULL(zm.LiczbaPojemnikow, 0) AS LiczbaPojemnikow,
                         ISNULL(zm.TransportStatus, 'Oczekuje') AS TransportStatus,
                         zm.DataUboju
                     FROM dbo.ZamowieniaMieso zm
-                    WHERE CAST(zm.DataUboju AS DATE) = @DataUboju
+                    WHERE zm.DataUboju >= @DataOd AND zm.DataUboju <= @DataDo
                       AND ISNULL(zm.Status, 'Nowe') NOT IN ('Anulowane')
-                      AND (ISNULL(zm.TransportStatus, 'Oczekuje') = 'Oczekuje' OR zm.TransportStatus IS NULL OR zm.TransportStatus = '')
-                      AND ISNULL(zm.TransportStatus, '') <> 'Własny'
-                    ORDER BY ISNULL(zm.DataPrzyjazdu, zm.DataUboju)";
+                    ORDER BY zm.DataUboju, zm.DataPrzyjazdu";
 
                 using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@DataUboju", _selectedDate.Date);
+                cmd.Parameters.AddWithValue("@DataOd", _selectedDate.Date);
+                cmd.Parameters.AddWithValue("@DataDo", _selectedDate.Date.AddDays(1).AddSeconds(-1));
 
                 var klientIds = new List<int>();
-                var tempList = new List<(int Id, int KlientId, DateTime DataPrzyjazdu, decimal Palety, int Pojemniki, DateTime? DataUboju)>();
+                var tempList = new List<(int Id, int KlientId, DateTime DataPrzyjazdu, decimal Palety, int Pojemniki)>();
 
                 using (var reader = await cmd.ExecuteReaderAsync())
                 {
                     while (await reader.ReadAsync())
                     {
-                        var zamId = reader.GetInt32(0);
-                        var klientId = reader.GetInt32(1);
-                        var dataPrzyjazdu = reader.IsDBNull(2) ? _selectedDate : reader.GetDateTime(2);
-                        var palety = reader.IsDBNull(3) ? 0m : reader.GetDecimal(3);
-                        var pojemniki = reader.IsDBNull(4) ? 0 : reader.GetInt32(4);
-                        var dataUboju = reader.IsDBNull(6) ? (DateTime?)null : reader.GetDateTime(6);
+                        var transportStatus = reader.IsDBNull(6) ? "Oczekuje" : reader.GetString(6);
 
-                        tempList.Add((zamId, klientId, dataPrzyjazdu, palety, pojemniki, dataUboju));
-                        if (!klientIds.Contains(klientId))
-                            klientIds.Add(klientId);
+                        // Filtruj w kodzie - tak jak w edytorze
+                        if ((transportStatus == "Oczekuje" || string.IsNullOrEmpty(transportStatus))
+                            && transportStatus != "Własny")
+                        {
+                            var zamId = reader.GetInt32(0);
+                            var klientId = reader.GetInt32(1);
+                            var dataPrzyjazdu = reader.IsDBNull(2) ? _selectedDate : reader.GetDateTime(2);
+                            var palety = reader.IsDBNull(4) ? 0m : reader.GetDecimal(4);
+                            var pojemniki = reader.IsDBNull(5) ? 0 : reader.GetInt32(5);
+
+                            tempList.Add((zamId, klientId, dataPrzyjazdu, palety, pojemniki));
+                            if (!klientIds.Contains(klientId))
+                                klientIds.Add(klientId);
+                        }
                     }
                 }
 
-                // Pobierz nazwy klientów i adresy
-                var klienciDict = new Dictionary<int, (string Nazwa, string Adres)>();
+                // Pobierz nazwy klientów - zapytanie jak w edytorze
+                var klienciDict = new Dictionary<int, string>();
                 if (klientIds.Any())
                 {
                     try
@@ -1950,11 +1956,8 @@ namespace Kalendarz1.Transport.Formularze
                         var sqlKlienci = $@"
                             SELECT
                                 c.Id,
-                                ISNULL(c.Shortcut, 'KH ' + CAST(c.Id AS VARCHAR(10))) AS Nazwa,
-                                ISNULL(ISNULL(poa.City, '') + ' ' + ISNULL(poa.Street, ''), '') AS Adres
+                                ISNULL(c.Shortcut, 'KH ' + CAST(c.Id AS VARCHAR(10))) AS Nazwa
                             FROM SSCommon.STContractors c
-                            LEFT JOIN SSCommon.STPostOfficeAddresses poa ON poa.ContactGuid = c.ContactGuid
-                                AND poa.AddressName = N'adres domyślny'
                             WHERE c.Id IN ({string.Join(",", klientIds)})";
 
                         using var cmdKlienci = new SqlCommand(sqlKlienci, cnHandel);
@@ -1963,35 +1966,22 @@ namespace Kalendarz1.Transport.Formularze
                         while (await readerKlienci.ReadAsync())
                         {
                             var id = readerKlienci.GetInt32(0);
-                            var nazwa = readerKlienci.IsDBNull(1) ? $"Klient {id}" : readerKlienci.GetString(1);
-                            var adres = readerKlienci.IsDBNull(2) ? "" : readerKlienci.GetString(2).Trim();
-                            klienciDict[id] = (nazwa, adres);
+                            var nazwa = readerKlienci.GetString(1);
+                            klienciDict[id] = nazwa;
                         }
                     }
                     catch (Exception exHandel)
                     {
                         System.Diagnostics.Debug.WriteLine($"Error loading klienci: {exHandel.Message}");
-                        // Kontynuuj bez nazw klientów
                     }
                 }
 
                 // Złóż dane
                 foreach (var zam in tempList)
                 {
-                    string klientNazwa;
-                    string klientAdres;
-                    if (klienciDict.TryGetValue(zam.KlientId, out var k))
-                    {
-                        klientNazwa = k.Item1;
-                        klientAdres = k.Item2;
-                    }
-                    else
-                    {
-                        klientNazwa = $"Klient {zam.KlientId}";
-                        klientAdres = "";
-                    }
+                    var klientNazwa = klienciDict.TryGetValue(zam.KlientId, out var nazwa) ? nazwa : $"Klient {zam.KlientId}";
                     var godzina = zam.DataPrzyjazdu.ToString("HH:mm");
-                    wolneZamowienia.Add((zam.Id, klientNazwa, zam.DataUboju ?? _selectedDate, godzina, zam.Palety, zam.Pojemniki, klientAdres));
+                    wolneZamowienia.Add((zam.Id, klientNazwa, godzina, zam.Palety, zam.Pojemniki));
                 }
 
                 // Wyświetl w gridzie
