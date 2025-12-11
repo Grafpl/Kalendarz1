@@ -512,16 +512,14 @@ namespace Kalendarz1
                     }
 
                     string query = hasGrupaColumn
-                        ? @"SELECT k.TowarID, k.NazwaTowaru, k.ProcentUdzialu, k.GrupaScalowania, t.kod
-                           FROM KonfiguracjaProduktow k
-                           LEFT JOIN [HANDEL].[HM].[TW] t ON k.TowarID = t.id
-                           WHERE k.DataOd = @DataOd
-                           ORDER BY k.ID"
-                        : @"SELECT k.TowarID, k.NazwaTowaru, k.ProcentUdzialu, t.kod
-                           FROM KonfiguracjaProduktow k
-                           LEFT JOIN [HANDEL].[HM].[TW] t ON k.TowarID = t.id
-                           WHERE k.DataOd = @DataOd
-                           ORDER BY k.ID";
+                        ? @"SELECT TowarID, NazwaTowaru, ProcentUdzialu, GrupaScalowania
+                           FROM KonfiguracjaProduktow
+                           WHERE DataOd = @DataOd
+                           ORDER BY ID"
+                        : @"SELECT TowarID, NazwaTowaru, ProcentUdzialu
+                           FROM KonfiguracjaProduktow
+                           WHERE DataOd = @DataOd
+                           ORDER BY ID";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
@@ -531,11 +529,15 @@ namespace Kalendarz1
                         {
                             while (reader.Read())
                             {
+                                int towarId = Convert.ToInt32(reader["TowarID"]);
+                                // Znajdź kod produktu z listy wszystkich produktów
+                                var produktInfo = wszystkieProdukty.FirstOrDefault(p => p.ID == towarId);
+
                                 var produkt = new ProduktSzczegolyModel
                                 {
-                                    TowarID = Convert.ToInt32(reader["TowarID"]),
+                                    TowarID = towarId,
                                     Nazwa = reader["NazwaTowaru"].ToString(),
-                                    Kod = reader.IsDBNull(reader.GetOrdinal("kod")) ? "" : reader["kod"].ToString(),
+                                    Kod = produktInfo?.Kod ?? "",
                                     Procent = Convert.ToDecimal(reader["ProcentUdzialu"]),
                                     GrupaScalowania = hasGrupaColumn && !reader.IsDBNull(reader.GetOrdinal("GrupaScalowania"))
                                         ? reader["GrupaScalowania"].ToString()

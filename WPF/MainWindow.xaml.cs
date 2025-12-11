@@ -59,6 +59,8 @@ namespace Kalendarz1.WPF
         private readonly Dictionary<int, string> _productCatalogMrozone = new();
         private Dictionary<int, string> _mapowanieScalowania = new(); // TowarIdtw -> NazwaGrupy
         private Dictionary<string, List<int>> _grupyDoProduktow = new(); // NazwaGrupy -> lista TowarId
+        private HashSet<string> _expandedGroups = new(); // Rozwinięte grupy
+        private Dictionary<string, List<(string nazwa, decimal plan, decimal fakt, decimal zam, string stan, decimal stanDec, decimal bilans)>> _detaleGrup = new(); // Szczegóły produktów w grupach
         private int? _selectedProductId = null;
         private readonly Dictionary<string, string> _userCache = new();
         private readonly List<string> _salesmenCache = new();
@@ -4001,6 +4003,7 @@ ORDER BY zm.Id";
             // Agregacja z uwzględnieniem scalania towarów
             var agregowaneGrupy = new Dictionary<string, (decimal plan, decimal fakt, decimal zam, decimal stan, decimal procent)>(StringComparer.OrdinalIgnoreCase);
             var towaryWGrupach = new HashSet<int>();
+            _detaleGrup.Clear(); // Wyczyść poprzednie szczegóły grup
 
             // Najpierw zbierz towary w grupach scalania
             foreach (var produktKonfig in konfiguracjaProduktow)
@@ -4033,6 +4036,14 @@ ORDER BY zm.Id";
                     {
                         agregowaneGrupy[nazwaGrupy] = (plannedForProduct, actual, orders, stanMag, procentUdzialu);
                     }
+
+                    // Zapisz szczegóły produktu dla grupy
+                    if (!_detaleGrup.ContainsKey(nazwaGrupy))
+                        _detaleGrup[nazwaGrupy] = new List<(string, decimal, decimal, decimal, string, decimal, decimal)>();
+
+                    decimal balanceProd = (actual > 0 ? actual : plannedForProduct) + stanMag - orders;
+                    string stanTextProd = stanMag > 0 ? stanMag.ToString("N0") : "";
+                    _detaleGrup[nazwaGrupy].Add(($"      · {nazwaProdukt} ({procentUdzialu:F1}%)", plannedForProduct, actual, orders, stanTextProd, stanMag, balanceProd));
                 }
             }
 
@@ -4054,11 +4065,24 @@ ORDER BY zm.Id";
 
                 decimal balance = (fakt > 0 ? fakt : plan) + stan - zam;
 
+                // Dodaj znak + lub - w zależności czy grupa jest rozwinięta
+                bool isExpanded = _expandedGroups.Contains(grupa.Key);
+                string expandIcon = isExpanded ? "▼" : "▶";
+
                 string nazwaZIkonka = string.IsNullOrEmpty(ikona)
-                    ? $"  └ {grupa.Key} ({procent:F1}%)"
-                    : $"  └ {ikona} {grupa.Key} ({procent:F1}%)";
+                    ? $"  {expandIcon} {grupa.Key} ({procent:F1}%)"
+                    : $"  {expandIcon} {ikona} {grupa.Key} ({procent:F1}%)";
 
                 produktyB.Add((nazwaZIkonka, plan, fakt, zam, stanText, stan, balance));
+
+                // Jeśli grupa jest rozwinięta, dodaj szczegóły produktów
+                if (isExpanded && _detaleGrup.TryGetValue(grupa.Key, out var detale))
+                {
+                    foreach (var detal in detale)
+                    {
+                        produktyB.Add(detal);
+                    }
+                }
 
                 sumaPlanB += plan;
                 sumaFaktB += fakt;
@@ -4195,13 +4219,30 @@ ORDER BY zm.Id";
                     e.Row.FontSize = 13;
                     e.Row.Height = 36;
                 }
+                else if (produkt.StartsWith("  ▶") || produkt.StartsWith("  ▼"))
+                {
+                    // Wiersz grupy (zwijana/rozwijana)
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(225, 245, 254));
+                    e.Row.FontWeight = FontWeights.SemiBold;
+                    e.Row.FontSize = 11;
+                    e.Row.Height = 28;
+                    e.Row.Cursor = System.Windows.Input.Cursors.Hand;
+                }
+                else if (produkt.StartsWith("      ·"))
+                {
+                    // Wiersz szczegółowy produktu w grupie (rozwinięty)
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(240, 248, 255));
+                    e.Row.FontStyle = FontStyles.Italic;
+                    e.Row.FontSize = 9;
+                    e.Row.Height = 22;
+                }
                 else if (produkt.StartsWith("  └"))
                 {
-                    // ✅ POPRAWKA 14: Mniejsze wiersze dla elementów Kurczaka B
+                    // Towary niescalone
                     e.Row.Background = new SolidColorBrush(Color.FromRgb(225, 245, 254));
                     e.Row.FontStyle = FontStyles.Normal;
-                    e.Row.FontSize = 10; // Zmniejszone z 11
-                    e.Row.Height = 24;    // Zmniejszone z 32
+                    e.Row.FontSize = 10;
+                    e.Row.Height = 24;
                 }
             }
         }
@@ -4284,7 +4325,55 @@ ORDER BY zm.Id";
 
             dgAggregation.MouseDoubleClick -= DgAggregation_MouseDoubleClick;
             dgAggregation.MouseDoubleClick += DgAggregation_MouseDoubleClick;
+
+            dgAggregation.PreviewMouseLeftButtonUp -= DgAggregation_PreviewMouseLeftButtonUp;
+            dgAggregation.PreviewMouseLeftButtonUp += DgAggregation_PreviewMouseLeftButtonUp;
         }
+
+        private async void DgAggregation_PreviewMouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (dgAggregation.SelectedItem is DataRowView rowView)
+            {
+                var produktNazwa = rowView.Row.Field<string>("Produkt") ?? "";
+
+                // Sprawdź czy kliknięto na wiersz grupy (z ikoną ▶ lub ▼)
+                if (produktNazwa.StartsWith("  ▶") || produktNazwa.StartsWith("  ▼"))
+                {
+                    // Wyciągnij nazwę grupy
+                    var nazwaGrupy = produktNazwa
+                        .Replace("▶", "")
+                        .Replace("▼", "")
+                        .Replace("🍗", "")
+                        .Replace("🍖", "")
+                        .Replace("🥩", "")
+                        .Trim();
+
+                    // Usuń procent z końca
+                    int lastParen = nazwaGrupy.LastIndexOf('(');
+                    if (lastParen > 0)
+                        nazwaGrupy = nazwaGrupy.Substring(0, lastParen).Trim();
+
+                    // Przełącz stan rozwinięcia
+                    if (_expandedGroups.Contains(nazwaGrupy))
+                        _expandedGroups.Remove(nazwaGrupy);
+                    else
+                        _expandedGroups.Add(nazwaGrupy);
+
+                    // Odśwież agregację aby pokazać/ukryć szczegóły
+                    await RefreshAggregationAsync();
+                    e.Handled = true;
+                }
+            }
+        }
+
+        private async Task RefreshAggregationAsync()
+        {
+            if (dpSelectedDate.SelectedDate.HasValue)
+            {
+                await LoadAggregationAsync(dpSelectedDate.SelectedDate.Value);
+            }
+        }
+
         private async void DgAggregation_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             if (dgAggregation.SelectedItem is DataRowView rowView)
@@ -4294,8 +4383,22 @@ ORDER BY zm.Id";
                 if (produktNazwa.StartsWith("═══"))
                     return;
 
+                // Jeśli to wiersz szczegółowy (rozwinięty z grupy), ignoruj double-click
+                if (produktNazwa.StartsWith("      ·"))
+                    return;
+
+                // Jeśli to wiersz grupy (▶ lub ▼), toggle expand zamiast double-click
+                if (produktNazwa.StartsWith("  ▶") || produktNazwa.StartsWith("  ▼"))
+                {
+                    // Już obsługiwane przez single-click
+                    return;
+                }
+
                 var czystyProdukt = produktNazwa
                     .Replace("└", "")
+                    .Replace("▶", "")
+                    .Replace("▼", "")
+                    .Replace("·", "")
                     .Replace("🍗", "")
                     .Replace("🍖", "")
                     .Replace("🥩", "")
