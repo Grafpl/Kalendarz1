@@ -985,14 +985,15 @@ namespace Kalendarz1
                     planPrzychodu = sumaMasyDek * 0.78m;
                 }
 
-                // 2. Faktyczny przychód - z dokumentów sPWU (produkcja)
+                // 2. Faktyczny przychód - z dokumentów sPWU (produkcja) - tylko towary z grupy mięso (katalog=67095)
                 using (var cn = new SqlConnection(_connHandel))
                 {
                     await cn.OpenAsync();
                     var cmd = new SqlCommand(@"SELECT ISNULL(SUM(ABS(MZ.ilosc)), 0)
                                                FROM [HANDEL].[HM].[MZ] MZ
                                                JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
-                                               WHERE MG.seria = 'sPWU' AND MG.aktywny = 1 AND MG.data = @D", cn);
+                                               JOIN [HANDEL].[HM].[TW] ON MZ.idtw = TW.id
+                                               WHERE MG.seria = 'sPWU' AND MG.aktywny = 1 AND MG.data = @D AND TW.katalog = 67095", cn);
                     cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
                     var result = await cmd.ExecuteScalarAsync();
                     faktPrzychodu = result != DBNull.Value ? Convert.ToDecimal(result) : 0m;
