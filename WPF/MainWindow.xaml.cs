@@ -5854,7 +5854,7 @@ ORDER BY zm.Id";
                     DostepneText = $"{bilans:N0} kg",
                     KolorTekstu = kolorTekstu,
                     ZamowioneText = $"Zam: {zam:N0}",
-                    PlanText = $"Plan: {podstawa:N0}"
+                    FaktText = $"Fakt: {fakt:N0}"
                 });
             }
 
@@ -5885,6 +5885,6 @@ ORDER BY zm.Id";
         public string DostepneText { get; set; } = "";
         public Brush KolorTekstu { get; set; } = Brushes.Black;
         public string ZamowioneText { get; set; } = "";
-        public string PlanText { get; set; } = "";
+        public string FaktText { get; set; } = "";
     }
 }

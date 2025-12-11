@@ -720,50 +720,17 @@
                                                                            FontWeight="Bold" Foreground="{Binding KolorTekstu}"/>
                                                             </StackPanel>
 
-                                                            <!-- Zamówione vs Plan -->
+                                                            <!-- Zamówione vs Fakt -->
                                                             <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,3,0,0">
                                                                 <TextBlock Text="{Binding ZamowioneText}" FontSize="10" Foreground="#95a5a6"/>
                                                                 <TextBlock Text=" / " FontSize="10" Foreground="#bdc3c7"/>
-                                                                <TextBlock Text="{Binding PlanText}" FontSize="10" Foreground="#95a5a6"/>
+                                                                <TextBlock Text="{Binding FaktText}" FontSize="10" Foreground="#95a5a6"/>
                                                             </StackPanel>
                                                         </Grid>
                                                     </Border>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
-                                    </Grid>
-                                </Border>
-
-                                <!-- SEKCJA 4: TOP PRODUKTY -->
-                                <Border Grid.Row="3" Margin="5,0,5,15" CornerRadius="12" Background="White">
-                                    <Border.Effect>
-                                        <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="10"/>
-                                    </Border.Effect>
-                                    <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="*"/>
-                                        </Grid.RowDefinitions>
-
-                                        <!-- Nagłówek -->
-                                        <Border Grid.Row="0" CornerRadius="12,12,0,0" Padding="20,12">
-                                            <Border.Background>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                                    <GradientStop Color="#1a2a6c" Offset="0"/>
-                                                    <GradientStop Color="#b21f1f" Offset="0.5"/>
-                                                    <GradientStop Color="#fdbb2d" Offset="1"/>
-                                                </LinearGradientBrush>
-                                            </Border.Background>
-                                            <TextBlock Text="🏆 TOP 5 PRODUKTÓW WG ZAMÓWIEŃ" FontSize="14" Foreground="White" FontWeight="Bold"/>
-                                        </Border>
-
-                                        <!-- Tabela -->
-                                        <DataGrid x:Name="dgTopProdukty" Grid.Row="1"
-                                                  Style="{StaticResource ModernDataGridStyle}"
-                                                  AutoGenerateColumns="False"
-                                                  HeadersVisibility="Column"
-                                                  MaxHeight="180"
-                                                  Margin="5"/>
                                     </Grid>
                                 </Border>
                             </Grid>
