@@ -670,12 +670,17 @@ namespace Kalendarz1
 
             await EnsureNotesTableAsync();
 
-            var orderPositions = new List<(int TowarId, decimal Ilosc, bool Folia)>();
+            var orderPositions = new List<(int TowarId, decimal Ilosc, bool Folia, decimal? IloscZreal)>();
             using (var cn = new SqlConnection(_connLibra))
             {
                 await cn.OpenAsync();
-                string sql = @"SELECT zmt.KodTowaru, zmt.Ilosc, ISNULL(zmt.Folia, 0) AS Folia 
-                               FROM dbo.ZamowieniaMiesoTowar zmt 
+
+                // Sprawdź czy kolumna IloscZrealizowana istnieje
+                bool hasZrealColumn = await CheckPartialRealizationColumnsExistAsync(cn);
+                string zrealCol = hasZrealColumn ? ", zmt.IloscZrealizowana" : ", NULL AS IloscZrealizowana";
+
+                string sql = $@"SELECT zmt.KodTowaru, zmt.Ilosc, ISNULL(zmt.Folia, 0) AS Folia{zrealCol}
+                               FROM dbo.ZamowieniaMiesoTowar zmt
                                WHERE zmt.ZamowienieId=@Id" + (_filteredProductId.HasValue ? " AND zmt.KodTowaru=@P" : "");
                 var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Id", info.Id);
@@ -684,7 +689,7 @@ namespace Kalendarz1
                 using var rd = await cmd.ExecuteReaderAsync();
                 while (await rd.ReadAsync())
                 {
-                    orderPositions.Add((rd.GetInt32(0), rd.GetDecimal(1), rd.GetBoolean(2)));
+                    orderPositions.Add((rd.GetInt32(0), rd.GetDecimal(1), rd.GetBoolean(2), rd.IsDBNull(3) ? null : rd.GetDecimal(3)));
                 }
             }
 
@@ -701,12 +706,13 @@ namespace Kalendarz1
             var dt = new DataTable();
             dt.Columns.Add("Produkt", typeof(string));
             dt.Columns.Add("Zamówiono (kg)", typeof(decimal));
+            dt.Columns.Add("Zrealizowano", typeof(string));
             dt.Columns.Add("Wydano (kg)", typeof(decimal));
             dt.Columns.Add("Różnica (kg)", typeof(decimal));
             // Kolumna zmian - pokazuje różnicę między aktualnym stanem a snapshotem
             dt.Columns.Add("Zmiana", typeof(string));
 
-            var mapOrd = orderPositions.ToDictionary(p => p.TowarId, p => (p.Ilosc, p.Folia));
+            var mapOrd = orderPositions.ToDictionary(p => p.TowarId, p => (p.Ilosc, p.Folia, p.IloscZreal));
 
             foreach (var id in ids)
             {
@@ -735,7 +741,14 @@ namespace Kalendarz1
                     }
                 }
 
-                dt.Rows.Add(kod, ord.Ilosc, wyd, ord.Ilosc - wyd, zmiana);
+                // Wyświetl zrealizowaną ilość tylko gdy różni się od zamówionej
+                string zrealDisplay = "";
+                if (ord.IloscZreal.HasValue && ord.IloscZreal.Value != ord.Ilosc)
+                {
+                    zrealDisplay = $"{ord.IloscZreal:N0}";
+                }
+
+                dt.Rows.Add(kod, ord.Ilosc, zrealDisplay, wyd, ord.Ilosc - wyd, zmiana);
             }
 
             // Sprawdź czy są pozycje usunięte (były w snapshocie, ale nie ma w aktualnym zamówieniu)
@@ -745,7 +758,7 @@ namespace Kalendarz1
                 {
                     string kod = towarMap.TryGetValue(snapItem.Key, out var t) ? t.Kod : $"ID:{snapItem.Key}";
                     kod = "❌ " + kod;
-                    dt.Rows.Add(kod, 0, 0, 0, $"USUNIĘTO ({snapItem.Value.Ilosc:N0} kg)");
+                    dt.Rows.Add(kod, 0, "", 0, 0, $"USUNIĘTO ({snapItem.Value.Ilosc:N0} kg)");
                 }
             }
 
@@ -1188,14 +1201,14 @@ namespace Kalendarz1
                 AlternatingRowBackground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#323236"))
             };
 
-            // Kolumna: Produkt (readonly)
+            // Kolumna: Produkt (readonly) - krótsza
             dgItems.Columns.Add(new DataGridTextColumn
             {
                 Header = "Produkt",
                 Binding = new System.Windows.Data.Binding("NazwaTowaru"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
+                Width = new DataGridLength(140),
                 IsReadOnly = true,
-                ElementStyle = new Style(typeof(TextBlock)) { Setters = { new Setter(TextBlock.ForegroundProperty, Brushes.White) } }
+                ElementStyle = new Style(typeof(TextBlock)) { Setters = { new Setter(TextBlock.ForegroundProperty, Brushes.White), new Setter(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis) } }
             });
 
             // Kolumna: Zamówiono (readonly)
@@ -1716,6 +1729,14 @@ namespace Kalendarz1
 
             public decimal TotalIlosc => Info.TotalIlosc;
             public string Handlowiec => Info.Handlowiec;
+
+            // Wyświetlanie zrealizowanej ilości (tylko gdy częściowo zrealizowane)
+            public string ZrealizowanoDisplay => Info.CzyCzesciowoZrealizowane && Info.ProcentRealizacji.HasValue
+                ? $"{Info.ProcentRealizacji:N0}%"
+                : "";
+
+            // Widoczność kolumny Zrealizowano
+            public bool ShowZrealizowano => Info.CzyCzesciowoZrealizowane;
 
             // Kombinowany status
             public string Status
