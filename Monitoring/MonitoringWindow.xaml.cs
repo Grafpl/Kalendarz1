@@ -155,7 +155,7 @@ namespace Kalendarz1.Monitoring
                 Style = (Style)FindResource("CameraButtonStyle"),
                 Content = stack,
                 Tag = channel,
-                ToolTip = $"Kliknij aby pobrać snapshot\nKanał: {channel.Id}\nIP: {channel.IpAddress}"
+                ToolTip = $"Kliknij aby otworzyć podgląd na żywo\nKanał: {channel.Id}\nIP: {channel.IpAddress}"
             };
 
             button.Click += CameraButton_Click;
@@ -173,32 +173,17 @@ namespace Kalendarz1.Monitoring
             };
         }
 
-        private async void CameraButton_Click(object sender, RoutedEventArgs e)
+        private void CameraButton_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button button && button.Tag is CameraChannel channel)
             {
-                try
+                // Otwórz podgląd na żywo
+                var rtspUrl = _hikvisionService.GetRtspUrl(channel.Id);
+                var liveView = new LiveViewWindow(channel.Name, rtspUrl, channel.Id)
                 {
-                    LoadingOverlay.Visibility = Visibility.Visible;
-                    LoadingText.Text = $"Pobieranie obrazu z {channel.Name}...";
-
-                    var imageBytes = await _hikvisionService.GetSnapshotAsync(channel.Id);
-                    ShowSnapshot(channel.Name, imageBytes, channel.Id);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show(
-                        $"Nie udało się pobrać obrazu z kamery.\n\n" +
-                        $"Kamera: {channel.Name} (kanał {channel.Id})\n" +
-                        $"Błąd: {ex.Message}\n\n" +
-                        $"Spróbuj otworzyć stream RTSP w VLC:\n" +
-                        $"{_hikvisionService.GetRtspUrl(channel.Id)}",
-                        "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
-                }
-                finally
-                {
-                    LoadingOverlay.Visibility = Visibility.Collapsed;
-                }
+                    Owner = this
+                };
+                liveView.ShowDialog();
             }
         }
 
