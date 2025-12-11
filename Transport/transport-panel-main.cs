@@ -1900,7 +1900,7 @@ namespace Kalendarz1.Transport.Formularze
 
                 // Pobierz zamówienia z wybraną datą uboju, które nie mają przypisanego transportu
                 var sql = @"
-                    SELECT DISTINCT
+                    SELECT
                         zm.Id AS ZamowienieId,
                         zm.KlientId,
                         ISNULL(zm.DataPrzyjazdu, zm.DataUboju) AS DataPrzyjazdu,
@@ -1913,7 +1913,7 @@ namespace Kalendarz1.Transport.Formularze
                       AND ISNULL(zm.Status, 'Nowe') NOT IN ('Anulowane')
                       AND (ISNULL(zm.TransportStatus, 'Oczekuje') = 'Oczekuje' OR zm.TransportStatus IS NULL OR zm.TransportStatus = '')
                       AND ISNULL(zm.TransportStatus, '') <> 'Własny'
-                    ORDER BY zm.DataPrzyjazdu";
+                    ORDER BY ISNULL(zm.DataPrzyjazdu, zm.DataUboju)";
 
                 using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@DataUboju", _selectedDate.Date);
