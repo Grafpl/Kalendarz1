@@ -373,156 +373,11 @@
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
 
-                                <!-- SEKCJA 1: KARTY KPI Z GRADIENTAMI -->
-                                <UniformGrid Grid.Row="0" Rows="1" Columns="4" Margin="0,0,0,15">
-
-                                    <!-- KPI 1: PLAN PRODUKCJI - Niebieski gradient -->
-                                    <Border Margin="5" CornerRadius="12">
-                                        <Border.Effect>
-                                            <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="10"/>
-                                        </Border.Effect>
-                                        <Border.Background>
-                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                <GradientStop Color="#667eea" Offset="0"/>
-                                                <GradientStop Color="#764ba2" Offset="1"/>
-                                            </LinearGradientBrush>
-                                        </Border.Background>
-                                        <Grid Margin="20,15">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-                                            <TextBlock Grid.Row="0" Text="📦 PLAN PRODUKCJI" FontSize="11" Foreground="#E8E8FF" FontWeight="SemiBold"/>
-                                            <TextBlock x:Name="txtKpiPlan" Grid.Row="1" Text="0 kg" FontSize="28" Foreground="White" FontWeight="Bold" Margin="0,8,0,0"/>
-                                            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,12,0,0">
-                                                <Border Background="#FFFFFF30" CornerRadius="10" Padding="8,3">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="Surowiec: " FontSize="10" Foreground="#E0E0FF"/>
-                                                        <TextBlock x:Name="txtKpiSurowiec" Text="0 kg" FontSize="10" Foreground="White" FontWeight="Bold"/>
-                                                    </StackPanel>
-                                                </Border>
-                                            </StackPanel>
-                                            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,5,0,0">
-                                                <TextBlock Text="Wydajność: " FontSize="10" Foreground="#D0D0FF"/>
-                                                <TextBlock x:Name="txtKpiWydajnosc" Text="78%" FontSize="10" Foreground="#90EE90" FontWeight="Bold"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </Border>
-
-                                    <!-- KPI 2: FAKTYCZNA PRODUKCJA - Zielony gradient -->
-                                    <Border Margin="5" CornerRadius="12">
-                                        <Border.Effect>
-                                            <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="10"/>
-                                        </Border.Effect>
-                                        <Border.Background>
-                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                <GradientStop Color="#11998e" Offset="0"/>
-                                                <GradientStop Color="#38ef7d" Offset="1"/>
-                                            </LinearGradientBrush>
-                                        </Border.Background>
-                                        <Grid Margin="20,15">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-                                            <TextBlock Grid.Row="0" Text="🏭 PRODUKCJA" FontSize="11" Foreground="#E8FFE8" FontWeight="SemiBold"/>
-                                            <TextBlock x:Name="txtKpiWydania" Grid.Row="1" Text="0 kg" FontSize="28" Foreground="White" FontWeight="Bold" Margin="0,8,0,0"/>
-                                            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,12,0,0">
-                                                <Border Background="#FFFFFF30" CornerRadius="10" Padding="8,3">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="vs Plan: " FontSize="10" Foreground="#E0FFE0"/>
-                                                        <TextBlock x:Name="txtKpiWydaniaVsPlan" Text="0%" FontSize="10" Foreground="White" FontWeight="Bold"/>
-                                                    </StackPanel>
-                                                </Border>
-                                            </StackPanel>
-                                            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,5,0,0">
-                                                <TextBlock Text="Wydanych: " FontSize="10" Foreground="#D0FFD0"/>
-                                                <TextBlock x:Name="txtKpiWydaniaKlienci" Text="0" FontSize="10" Foreground="White" FontWeight="Bold"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </Border>
-
-                                    <!-- KPI 3: ZAMÓWIENIA - Pomarańczowy gradient -->
-                                    <Border Margin="5" CornerRadius="12">
-                                        <Border.Effect>
-                                            <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="10"/>
-                                        </Border.Effect>
-                                        <Border.Background>
-                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                <GradientStop Color="#f2994a" Offset="0"/>
-                                                <GradientStop Color="#f2c94c" Offset="1"/>
-                                            </LinearGradientBrush>
-                                        </Border.Background>
-                                        <Grid Margin="20,15">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-                                            <TextBlock Grid.Row="0" Text="📋 ZAMÓWIENIA" FontSize="11" Foreground="#FFF8E8" FontWeight="SemiBold"/>
-                                            <TextBlock x:Name="txtKpiZamowienia" Grid.Row="1" Text="0 kg" FontSize="28" Foreground="White" FontWeight="Bold" Margin="0,8,0,0"/>
-                                            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,12,0,0">
-                                                <Border Background="#FFFFFF30" CornerRadius="10" Padding="8,3">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="Klientów: " FontSize="10" Foreground="#FFF0D0"/>
-                                                        <TextBlock x:Name="txtKpiZamowieniaKlienci" Text="0" FontSize="10" Foreground="White" FontWeight="Bold"/>
-                                                    </StackPanel>
-                                                </Border>
-                                            </StackPanel>
-                                            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,5,0,0">
-                                                <TextBlock Text="Różnica: " FontSize="10" Foreground="#FFE8C0"/>
-                                                <TextBlock x:Name="txtKpiRoznica" Text="0 kg" FontSize="10" Foreground="White" FontWeight="Bold"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </Border>
-
-                                    <!-- KPI 4: REALIZACJA - Czerwony/Różowy gradient -->
-                                    <Border Margin="5" CornerRadius="12">
-                                        <Border.Effect>
-                                            <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="10"/>
-                                        </Border.Effect>
-                                        <Border.Background>
-                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                <GradientStop Color="#eb3349" Offset="0"/>
-                                                <GradientStop Color="#f45c43" Offset="1"/>
-                                            </LinearGradientBrush>
-                                        </Border.Background>
-                                        <Grid Margin="20,15">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-                                            <TextBlock Grid.Row="0" Text="📈 REALIZACJA" FontSize="11" Foreground="#FFE8E8" FontWeight="SemiBold"/>
-                                            <TextBlock x:Name="txtKpiRealizacja" Grid.Row="1" Text="0%" FontSize="28" Foreground="White" FontWeight="Bold" Margin="0,8,0,0"/>
-                                            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,12,0,0">
-                                                <Border Background="#FFFFFF30" CornerRadius="10" Padding="8,3">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="Status: " FontSize="10" Foreground="#FFD0D0"/>
-                                                        <TextBlock x:Name="txtKpiRealizacjaStatus" Text="Oczekuje" FontSize="10" Foreground="White" FontWeight="Bold"/>
-                                                    </StackPanel>
-                                                </Border>
-                                            </StackPanel>
-                                            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,5,0,0">
-                                                <TextBlock Text="Bilans: " FontSize="10" Foreground="#FFD0D0"/>
-                                                <TextBlock x:Name="txtKpiRealizacjaInfo" Text="0 kg" FontSize="10" Foreground="White" FontWeight="Bold"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </Border>
-                                </UniformGrid>
-
-                                <!-- SEKCJA 2: BILANS I WYDAJNOŚĆ -->
-                                <Grid Grid.Row="1" Margin="0,0,0,15">
+                                <!-- SEKCJA 1: BILANS I WYDAJNOŚĆ -->
+                                <Grid Grid.Row="0" Margin="0,0,0,15">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="300"/>
@@ -643,8 +498,8 @@
                                     </Border>
                                 </Grid>
 
-                                <!-- SEKCJA 3: DOSTĘPNOŚĆ DLA HANDLOWCÓW -->
-                                <Border Grid.Row="2" Margin="5,0,5,15" CornerRadius="12" Background="White">
+                                <!-- SEKCJA 2: DOSTĘPNOŚĆ DLA HANDLOWCÓW -->
+                                <Border Grid.Row="1" Margin="5,0,5,15" CornerRadius="12" Background="White">
                                     <Border.Effect>
                                         <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="10"/>
                                     </Border.Effect>
