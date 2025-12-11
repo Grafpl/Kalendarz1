@@ -65,6 +65,8 @@ namespace Kalendarz1.WPF
         private readonly Dictionary<string, string> _userCache = new();
         private readonly List<string> _salesmenCache = new();
         private bool _showReleasesWithoutOrders = false;
+        private HashSet<string> _expandedDashboardProducts = new(); // Rozwinięte produkty w dashboardzie
+        private Dictionary<string, List<(string odbiorca, decimal ilosc, string handlowiec)>> _orderDetailsPerProduct = new(); // Szczegóły zamówień per produkt
 
         private readonly Dictionary<string, Color> _salesmanColors = new Dictionary<string, Color>();
         private readonly List<Color> _colorPalette = new List<Color>
@@ -5131,6 +5133,9 @@ ORDER BY zm.Id";
                 .Where(id => id > 0)
                 .ToList();
 
+            // Słownik: ProductId -> lista (Odbiorca, Ilosc, Handlowiec)
+            var orderDetailsPerProductId = new Dictionary<int, List<(string odbiorca, decimal ilosc, string handlowiec)>>();
+
             if (orderIds.Any())
             {
                 await using var cn = new SqlConnection(_connLibra);
@@ -5141,6 +5146,32 @@ ORDER BY zm.Id";
                 using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                     orderSum[reader.GetInt32(0)] = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
+            }
+
+            // Pobierz szczegóły zamówień per produkt (kto co zamówił)
+            if (orderIds.Any())
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                var sql = $@"SELECT t.KodTowaru, z.Odbiorca, SUM(t.Ilosc), z.Handlowiec
+                             FROM [dbo].[ZamowieniaMiesoTowar] t
+                             JOIN [dbo].[ZamowieniaMieso] z ON t.ZamowienieId = z.Id
+                             WHERE t.ZamowienieId IN ({string.Join(",", orderIds)})
+                             GROUP BY t.KodTowaru, z.Odbiorca, z.Handlowiec
+                             ORDER BY t.KodTowaru, SUM(t.Ilosc) DESC";
+                using var cmd = new SqlCommand(sql, cn);
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    int productId = reader.GetInt32(0);
+                    string odbiorca = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                    decimal ilosc = reader.IsDBNull(2) ? 0m : reader.GetDecimal(2);
+                    string handlowiec = reader.IsDBNull(3) ? "" : reader.GetString(3);
+
+                    if (!orderDetailsPerProductId.ContainsKey(productId))
+                        orderDetailsPerProductId[productId] = new List<(string, decimal, string)>();
+                    orderDetailsPerProductId[productId].Add((odbiorca, ilosc, handlowiec));
+                }
             }
 
             // Pobierz stany magazynowe
@@ -5234,6 +5265,46 @@ ORDER BY zm.Id";
                 agregowane[productName] = (plan, fakt, stan, zam);
             }
 
+            // Mapuj szczegóły zamówień do nazw produktów (w tym grup scalania)
+            _orderDetailsPerProduct.Clear();
+            var productIdToName = new Dictionary<int, string>();
+
+            // Zbierz mapowanie productId -> nazwa (lub nazwa grupy)
+            foreach (var product in _productCatalogCache)
+            {
+                int productId = product.Key;
+                string productName = product.Value;
+
+                if (_mapowanieScalowania.TryGetValue(productId, out var nazwaGrupy))
+                    productIdToName[productId] = nazwaGrupy;
+                else
+                    productIdToName[productId] = productName;
+            }
+
+            // Zbierz szczegóły zamówień per nazwa produktu/grupy
+            foreach (var kvp in orderDetailsPerProductId)
+            {
+                int productId = kvp.Key;
+                if (!productIdToName.TryGetValue(productId, out var productName))
+                    continue;
+
+                if (!_orderDetailsPerProduct.ContainsKey(productName))
+                    _orderDetailsPerProduct[productName] = new List<(string, decimal, string)>();
+
+                _orderDetailsPerProduct[productName].AddRange(kvp.Value);
+            }
+
+            // Agreguj szczegóły zamówień dla grup (suma per odbiorca)
+            foreach (var kvp in _orderDetailsPerProduct.ToList())
+            {
+                var aggregated = kvp.Value
+                    .GroupBy(x => (x.odbiorca, x.handlowiec))
+                    .Select(g => (g.Key.odbiorca, g.Sum(x => x.ilosc), g.Key.handlowiec))
+                    .OrderByDescending(x => x.Item2)
+                    .ToList();
+                _orderDetailsPerProduct[kvp.Key] = aggregated;
+            }
+
             // Dodaj do tabeli
             foreach (var kv in agregowane.OrderBy(x => x.Key))
             {
@@ -5246,7 +5317,23 @@ ORDER BY zm.Id";
                 decimal bilans = (fakt > 0 ? fakt : plan) + stan - zamowienia;
                 string status = bilans > 0 ? "✅" : (bilans == 0 ? "⚠️" : "❌");
 
-                _dtDashboard.Rows.Add(kv.Key, plan, fakt, stan, zamowienia, bilans, status);
+                // Dodaj ikonę rozwijania jeśli są szczegóły zamówień
+                bool hasDetails = _orderDetailsPerProduct.ContainsKey(kv.Key) && _orderDetailsPerProduct[kv.Key].Any();
+                bool isExpanded = _expandedDashboardProducts.Contains(kv.Key);
+                string expandIcon = hasDetails ? (isExpanded ? "▼ " : "▶ ") : "  ";
+                string displayName = expandIcon + kv.Key;
+
+                _dtDashboard.Rows.Add(displayName, plan, fakt, stan, zamowienia, bilans, status);
+
+                // Jeśli rozwinięty, dodaj wiersze szczegółów
+                if (isExpanded && hasDetails)
+                {
+                    foreach (var detail in _orderDetailsPerProduct[kv.Key])
+                    {
+                        string detailName = $"      └ {detail.odbiorca} ({detail.handlowiec})";
+                        _dtDashboard.Rows.Add(detailName, 0m, 0m, 0m, detail.ilosc, 0m, "");
+                    }
+                }
 
                 totalZamowienia += zamowienia;
                 totalWydania += fakt;
@@ -5360,18 +5447,59 @@ ORDER BY zm.Id";
             // Kolorowanie wierszy
             dgDashboardProdukty.LoadingRow -= DgDashboardProdukty_LoadingRow;
             dgDashboardProdukty.LoadingRow += DgDashboardProdukty_LoadingRow;
+
+            // Obsługa kliknięcia do rozwijania/zwijania
+            dgDashboardProdukty.PreviewMouseLeftButtonUp -= DgDashboardProdukty_RowClick;
+            dgDashboardProdukty.PreviewMouseLeftButtonUp += DgDashboardProdukty_RowClick;
+        }
+
+        private async void DgDashboardProdukty_RowClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (dgDashboardProdukty.SelectedItem is DataRowView rowView)
+            {
+                string produktName = rowView["Produkt"]?.ToString() ?? "";
+
+                // Sprawdź czy to wiersz produktu (nie szczegół)
+                if (produktName.TrimStart().StartsWith("└"))
+                    return;
+
+                // Wyodrębnij nazwę produktu bez ikony
+                string cleanName = produktName.Replace("▶ ", "").Replace("▼ ", "").Trim();
+
+                // Sprawdź czy produkt ma szczegóły do rozwinięcia
+                if (!_orderDetailsPerProduct.ContainsKey(cleanName) || !_orderDetailsPerProduct[cleanName].Any())
+                    return;
+
+                // Toggle expand/collapse
+                if (_expandedDashboardProducts.Contains(cleanName))
+                    _expandedDashboardProducts.Remove(cleanName);
+                else
+                    _expandedDashboardProducts.Add(cleanName);
+
+                // Odśwież dashboard
+                await LoadDashboardDataAsync(_selectedDate);
+            }
         }
 
         private void DgDashboardProdukty_LoadingRow(object sender, DataGridRowEventArgs e)
         {
             if (e.Row.Item is DataRowView rowView)
             {
+                var produktName = rowView.Row.Field<string>("Produkt") ?? "";
                 var bilans = rowView.Row.Field<decimal>("Bilans");
                 var status = rowView.Row.Field<string>("Status") ?? "";
 
-                if (status == "❌" || bilans < 0)
+                // Wiersze szczegółów (kto zamówił) - jaśniejsze tło
+                if (produktName.TrimStart().StartsWith("└"))
+                {
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(245, 248, 255)); // Jasnoniebieski
+                    e.Row.FontSize = 11;
+                    e.Row.FontStyle = FontStyles.Italic;
+                }
+                else if (status == "❌" || bilans < 0)
                 {
                     e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 230, 230)); // Czerwony
+                    e.Row.FontWeight = FontWeights.SemiBold;
                 }
                 else if (status == "⚠️" || bilans == 0)
                 {
