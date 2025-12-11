@@ -1373,7 +1373,7 @@ namespace Kalendarz1
             await SaveOrderSnapshotAsync(cnSave, orderId.Value, "Realizacja");
 
             // Oznacz jako zrealizowane (z informacją o częściowej realizacji)
-            var cmd = new SqlCommand(@"UPDATE dbo.ZamowieniaMieso
+            var cmdUpdate = new SqlCommand(@"UPDATE dbo.ZamowieniaMieso
                                        SET CzyZrealizowane = 1,
                                            CzyCzesciowoZrealizowane = @Partial,
                                            ProcentRealizacji = @Percent,
@@ -1385,12 +1385,12 @@ namespace Kalendarz1
                                                ELSE 'Zrealizowane'
                                            END
                                        WHERE Id = @I", cnSave);
-            cmd.Parameters.AddWithValue("@I", orderId.Value);
-            cmd.Parameters.AddWithValue("@Partial", isPartial);
-            cmd.Parameters.AddWithValue("@Percent", percentRealized);
+            cmdUpdate.Parameters.AddWithValue("@I", orderId.Value);
+            cmdUpdate.Parameters.AddWithValue("@Partial", isPartial);
+            cmdUpdate.Parameters.AddWithValue("@Percent", percentRealized);
             int.TryParse(UserID, out int userId);
-            cmd.Parameters.AddWithValue("@UserID", userId > 0 ? userId : (object)DBNull.Value);
-            await cmd.ExecuteNonQueryAsync();
+            cmdUpdate.Parameters.AddWithValue("@UserID", userId > 0 ? userId : (object)DBNull.Value);
+            await cmdUpdate.ExecuteNonQueryAsync();
 
             string msg = isPartial
                 ? $"Zamówienie częściowo zrealizowane ({percentRealized:N0}%)"
