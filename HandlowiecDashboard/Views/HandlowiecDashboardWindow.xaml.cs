@@ -1103,6 +1103,12 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
         private string _wybranyKontrahentOpak = null;
         private Dictionary<string, Color> _handlowiecKolory = new Dictionary<string, Color>();
 
+        // Przechowywanie danych wykresow slupkowych do przywrocenia
+        private SeriesCollection _barChartE2Series;
+        private IList<string> _barChartE2Labels;
+        private SeriesCollection _barChartH1Series;
+        private IList<string> _barChartH1Labels;
+
         private Color GetHandlowiecColor(string handlowiec)
         {
             if (!_handlowiecKolory.ContainsKey(handlowiec))
@@ -1321,20 +1327,18 @@ HAVING ISNULL(SUM(MZ.Ilosc), 0) <> 0";
 
                 txtOpakH1Suma.Text = $"Razem: {sumaH1Data2:N0} (zmiana: {signH1}{zmianaH1:N0})";
 
-                // Wykresy trendow - pokazuj tylko jesli klient jest wybrany
-                if (string.IsNullOrEmpty(_wybranyKontrahentOpak))
-                {
-                    // Ukryj panel trendu gdy nie ma wybranego klienta
-                    gridOpakTrendPanel.Visibility = Visibility.Collapsed;
-                    btnResetOpakowaniaWybor.Visibility = Visibility.Collapsed;
-                    txtOpakWybranyKontrahent.Text = "";
-                }
-                else
-                {
-                    gridOpakTrendPanel.Visibility = Visibility.Visible;
-                    btnResetOpakowaniaWybor.Visibility = Visibility.Visible;
-                    await OdswiezTrendOpakowaniaKontrahenta(_wybranyKontrahentOpak);
-                }
+                // Zapisz dane wykresow slupkowych do przywrocenia
+                _barChartE2Series = chartOpakowaniaE2.Series;
+                _barChartE2Labels = axisYOpakE2.Labels;
+                _barChartH1Series = chartOpakowaniaH1.Series;
+                _barChartH1Labels = axisYOpakH1.Labels;
+
+                // Ukryj przyciski powrotu (pokazuja sie po kliknieciu na slupek)
+                btnOpakE2Powrot.Visibility = Visibility.Collapsed;
+                btnOpakH1Powrot.Visibility = Visibility.Collapsed;
+                txtOpakE2Tytul.Text = "Saldo E2 wg Kontrahenta";
+                txtOpakH1Tytul.Text = "Saldo H1 wg Kontrahenta";
+                txtOpakWybranyKontrahent.Text = "";
             }
             catch (Exception ex)
             {
@@ -1342,136 +1346,152 @@ HAVING ISNULL(SUM(MZ.Ilosc), 0) <> 0";
             }
         }
 
-        private async Task OdswiezTrendOpakowaniaDlaWszystkich()
+        private async void ChartOpakowaniaE2_DataClick(object sender, ChartPoint chartPoint)
         {
-            string wybranyHandlowiec = null;
-            if (cmbHandlowiecOpak.SelectedItem is ComboItem item && item.Value > 0)
-                wybranyHandlowiec = item.Text;
+            await PokazTrendKlientaE2(chartPoint);
+        }
 
-            var labels = new List<string>();
+        private async void ChartOpakowaniaH1_DataClick(object sender, ChartPoint chartPoint)
+        {
+            await PokazTrendKlientaH1(chartPoint);
+        }
+
+        private async Task PokazTrendKlientaE2(ChartPoint chartPoint)
+        {
+            var labels = axisYOpakE2.Labels;
+            var idx = (int)chartPoint.Y;
+            if (idx < 0 || idx >= labels.Count) return;
+
+            // Znajdz pelna nazwe kontrahenta z etykiety (format: "123 (+5) | NazwaKlienta..")
+            var etykieta = labels[idx];
+            var parts = etykieta.Split('|');
+            if (parts.Length < 2) return;
+            var skrocona = parts[1].Trim();
+
+            var kontrahent = _opakowaniaData.FirstOrDefault(d =>
+                d.Kontrahent == skrocona ||
+                (d.Kontrahent.Length > 12 && d.Kontrahent.Substring(0, 12) + ".." == skrocona))?.Kontrahent;
+
+            if (string.IsNullOrEmpty(kontrahent)) return;
+
+            _wybranyKontrahentOpak = kontrahent;
+            txtOpakWybranyKontrahent.Text = $"Wybrany: {kontrahent}";
+
+            // Pobierz dane trendu dla klienta
+            var trendLabels = new List<string>();
             var valuesE2 = new ChartValues<double>();
-            var valuesH1 = new ChartValues<double>();
             var niedziela = GetLastSunday(DateTime.Today);
 
             await using var cn = new SqlConnection(_connectionStringHandel);
             await cn.OpenAsync();
 
-            // Ostatnie 6 tygodni
-            for (int i = 5; i >= 0; i--)
+            var sql = @"
+SELECT
+    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc ELSE 0 END), 0) AS DECIMAL(18,0)) AS E2
+FROM [HANDEL].[HM].[MZ] MZ
+INNER JOIN [HANDEL].[HM].[TW] TW ON MZ.idtw = TW.id
+INNER JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id
+INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON MG.khid = C.id
+WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
+  AND TW.nazwa = 'Pojemnik Drobiowy E2'
+  AND C.shortcut = @Kontrahent";
+
+            for (int i = 7; i >= 0; i--)
             {
                 var data = niedziela.AddDays(-7 * i);
                 var nrTygodnia = System.Globalization.CultureInfo.CurrentCulture.Calendar.GetWeekOfYear(
                     data, System.Globalization.CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
-                labels.Add($"tydz {nrTygodnia}");
+                trendLabels.Add($"T{nrTygodnia}");
 
-                var (e2, h1) = await PobierzSaldoNaDzien(cn, data, wybranyHandlowiec);
-                valuesE2.Add((double)e2);
-                valuesH1.Add((double)h1);
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@DataDo", data);
+                cmd.Parameters.AddWithValue("@Kontrahent", kontrahent);
+                var result = await cmd.ExecuteScalarAsync();
+                valuesE2.Add(result != DBNull.Value ? Convert.ToDouble(result) : 0);
             }
 
-            txtOpakE2TrendKontrahent.Text = "";
-            txtOpakH1TrendKontrahent.Text = "";
+            // Zmien wykres slupkowy na liniowy
+            txtOpakE2Tytul.Text = $"Trend E2: {kontrahent}";
+            btnOpakE2Powrot.Visibility = Visibility.Visible;
 
-            chartOpakTrendE2.Series = new SeriesCollection
+            chartOpakowaniaE2.Series = new SeriesCollection
             {
                 new LineSeries
                 {
-                    Title = "E2",
+                    Title = kontrahent,
                     Values = valuesE2,
-                    Stroke = new SolidColorBrush(System.Windows.Media.Color.FromRgb(244, 162, 97)),
+                    Stroke = new SolidColorBrush(System.Windows.Media.Color.FromRgb(78, 205, 196)),
                     Fill = Brushes.Transparent,
-                    PointGeometrySize = 8,
+                    PointGeometrySize = 10,
+                    StrokeThickness = 3,
                     DataLabels = true,
                     LabelPoint = p => $"{p.Y:N0}",
                     Foreground = Brushes.White
                 }
             };
-            axisXOpakTrendE2.Labels = labels;
-
-            chartOpakTrendH1.Series = new SeriesCollection
-            {
-                new LineSeries
-                {
-                    Title = "H1",
-                    Values = valuesH1,
-                    Stroke = new SolidColorBrush(System.Windows.Media.Color.FromRgb(244, 162, 97)),
-                    Fill = Brushes.Transparent,
-                    PointGeometrySize = 8,
-                    DataLabels = true,
-                    LabelPoint = p => $"{p.Y:N0}",
-                    Foreground = Brushes.White
-                }
-            };
-            axisXOpakTrendH1.Labels = labels;
+            axisYOpakE2.Labels = trendLabels;
+            axisXOpakE2.MinValue = double.NaN; // Reset min value for line chart
         }
 
-        private async Task OdswiezTrendOpakowaniaKontrahenta(string kontrahent)
+        private async Task PokazTrendKlientaH1(ChartPoint chartPoint)
         {
-            var labels = new List<string>();
-            var valuesE2 = new ChartValues<double>();
+            var labels = axisYOpakH1.Labels;
+            var idx = (int)chartPoint.Y;
+            if (idx < 0 || idx >= labels.Count) return;
+
+            // Znajdz pelna nazwe kontrahenta z etykiety (format: "123 (+5) | NazwaKlienta..")
+            var etykieta = labels[idx];
+            var parts = etykieta.Split('|');
+            if (parts.Length < 2) return;
+            var skrocona = parts[1].Trim();
+
+            var kontrahent = _opakowaniaData.FirstOrDefault(d =>
+                d.Kontrahent == skrocona ||
+                (d.Kontrahent.Length > 12 && d.Kontrahent.Substring(0, 12) + ".." == skrocona))?.Kontrahent;
+
+            if (string.IsNullOrEmpty(kontrahent)) return;
+
+            _wybranyKontrahentOpak = kontrahent;
+            txtOpakWybranyKontrahent.Text = $"Wybrany: {kontrahent}";
+
+            // Pobierz dane trendu dla klienta
+            var trendLabels = new List<string>();
             var valuesH1 = new ChartValues<double>();
             var niedziela = GetLastSunday(DateTime.Today);
 
             await using var cn = new SqlConnection(_connectionStringHandel);
             await cn.OpenAsync();
 
-            // Ostatnie 6 tygodni dla wybranego kontrahenta
             var sql = @"
 SELECT
-    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc ELSE 0 END), 0) AS DECIMAL(18,0)) AS E2,
     CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta H1' THEN MZ.Ilosc ELSE 0 END), 0) AS DECIMAL(18,0)) AS H1
 FROM [HANDEL].[HM].[MZ] MZ
 INNER JOIN [HANDEL].[HM].[TW] TW ON MZ.idtw = TW.id
 INNER JOIN [HANDEL].[HM].[MG] MG ON MZ.super = MG.id
 INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON MG.khid = C.id
 WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
-  AND TW.nazwa IN ('Pojemnik Drobiowy E2', 'Paleta H1')
+  AND TW.nazwa = 'Paleta H1'
   AND C.shortcut = @Kontrahent";
 
-            for (int i = 5; i >= 0; i--)
+            for (int i = 7; i >= 0; i--)
             {
                 var data = niedziela.AddDays(-7 * i);
                 var nrTygodnia = System.Globalization.CultureInfo.CurrentCulture.Calendar.GetWeekOfYear(
                     data, System.Globalization.CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
-                labels.Add($"tydz {nrTygodnia}");
+                trendLabels.Add($"T{nrTygodnia}");
 
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@DataDo", data);
                 cmd.Parameters.AddWithValue("@Kontrahent", kontrahent);
-                await using var reader = await cmd.ExecuteReaderAsync();
-                if (await reader.ReadAsync())
-                {
-                    valuesE2.Add((double)(reader.IsDBNull(0) ? 0m : Convert.ToDecimal(reader.GetValue(0))));
-                    valuesH1.Add((double)(reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1))));
-                }
-                else
-                {
-                    valuesE2.Add(0);
-                    valuesH1.Add(0);
-                }
+                var result = await cmd.ExecuteScalarAsync();
+                valuesH1.Add(result != DBNull.Value ? Convert.ToDouble(result) : 0);
             }
 
-            txtOpakE2TrendKontrahent.Text = $"- {kontrahent}";
-            txtOpakH1TrendKontrahent.Text = $"- {kontrahent}";
-            txtOpakWybranyKontrahent.Text = $"Wybrany: {kontrahent}";
+            // Zmien wykres slupkowy na liniowy
+            txtOpakH1Tytul.Text = $"Trend H1: {kontrahent}";
+            btnOpakH1Powrot.Visibility = Visibility.Visible;
 
-            chartOpakTrendE2.Series = new SeriesCollection
-            {
-                new LineSeries
-                {
-                    Title = kontrahent,
-                    Values = valuesE2,
-                    Stroke = new SolidColorBrush(System.Windows.Media.Color.FromRgb(244, 162, 97)),
-                    Fill = Brushes.Transparent,
-                    PointGeometrySize = 8,
-                    DataLabels = true,
-                    LabelPoint = p => $"{p.Y:N0}",
-                    Foreground = Brushes.White
-                }
-            };
-            axisXOpakTrendE2.Labels = labels;
-
-            chartOpakTrendH1.Series = new SeriesCollection
+            chartOpakowaniaH1.Series = new SeriesCollection
             {
                 new LineSeries
                 {
@@ -1479,56 +1499,45 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
                     Values = valuesH1,
                     Stroke = new SolidColorBrush(System.Windows.Media.Color.FromRgb(244, 162, 97)),
                     Fill = Brushes.Transparent,
-                    PointGeometrySize = 8,
+                    PointGeometrySize = 10,
+                    StrokeThickness = 3,
                     DataLabels = true,
                     LabelPoint = p => $"{p.Y:N0}",
                     Foreground = Brushes.White
                 }
             };
-            axisXOpakTrendH1.Labels = labels;
+            axisYOpakH1.Labels = trendLabels;
+            axisXOpakH1.MinValue = double.NaN; // Reset min value for line chart
         }
 
-        private async void ChartOpakowaniaE2_DataClick(object sender, ChartPoint chartPoint)
+        private void BtnOpakE2Powrot_Click(object sender, RoutedEventArgs e)
         {
-            await ObsluzKlikniecieNaWykresOpakowania(chartPoint, axisYOpakE2.Labels);
-        }
-
-        private async void ChartOpakowaniaH1_DataClick(object sender, ChartPoint chartPoint)
-        {
-            await ObsluzKlikniecieNaWykresOpakowania(chartPoint, axisYOpakH1.Labels);
-        }
-
-        private async Task ObsluzKlikniecieNaWykresOpakowania(ChartPoint chartPoint, IList<string> labels)
-        {
-            var idx = (int)chartPoint.Y;
-            if (idx < 0 || idx >= labels.Count) return;
-
-            // Znajdz pelna nazwe kontrahenta
-            var skrocona = labels[idx];
-            var kontrahent = _opakowaniaData.FirstOrDefault(d =>
-                d.Kontrahent == skrocona ||
-                (d.Kontrahent.Length > 18 && d.Kontrahent.Substring(0, 18) + ".." == skrocona))?.Kontrahent;
-
-            if (string.IsNullOrEmpty(kontrahent)) return;
-
-            // Pojedyncze klikniecie - zaznacz odbiorce i pokaz trend
-            _wybranyKontrahentOpak = kontrahent;
-            txtOpakWybranyKontrahent.Text = $"Wybrany: {kontrahent}";
-
-            // Pokaz panel trendu klienta
-            gridOpakTrendPanel.Visibility = Visibility.Visible;
-            btnResetOpakowaniaWybor.Visibility = Visibility.Visible;
-
-            await OdswiezTrendOpakowaniaKontrahenta(kontrahent);
-        }
-
-        private void BtnResetOpakowaniaWybor_Click(object sender, RoutedEventArgs e)
-        {
-            // Resetuj wybor klienta i ukryj panel trendu
+            // Przywroc wykres slupkowy E2
+            if (_barChartE2Series != null)
+            {
+                chartOpakowaniaE2.Series = _barChartE2Series;
+                axisYOpakE2.Labels = _barChartE2Labels;
+                axisXOpakE2.MinValue = 0;
+            }
+            txtOpakE2Tytul.Text = "Saldo E2 wg Kontrahenta";
+            btnOpakE2Powrot.Visibility = Visibility.Collapsed;
             _wybranyKontrahentOpak = null;
             txtOpakWybranyKontrahent.Text = "";
-            gridOpakTrendPanel.Visibility = Visibility.Collapsed;
-            btnResetOpakowaniaWybor.Visibility = Visibility.Collapsed;
+        }
+
+        private void BtnOpakH1Powrot_Click(object sender, RoutedEventArgs e)
+        {
+            // Przywroc wykres slupkowy H1
+            if (_barChartH1Series != null)
+            {
+                chartOpakowaniaH1.Series = _barChartH1Series;
+                axisYOpakH1.Labels = _barChartH1Labels;
+                axisXOpakH1.MinValue = 0;
+            }
+            txtOpakH1Tytul.Text = "Saldo H1 wg Kontrahenta";
+            btnOpakH1Powrot.Visibility = Visibility.Collapsed;
+            _wybranyKontrahentOpak = null;
+            txtOpakWybranyKontrahent.Text = "";
         }
 
         #endregion

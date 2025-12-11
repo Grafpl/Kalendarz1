@@ -616,7 +616,6 @@
                                     <DatePicker x:Name="dpOpakDo" Width="110" SelectedDateChanged="DpOpakowania_SelectedDateChanged"/>
                                     <TextBlock x:Name="txtOpakZmiana" Text="" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Margin="15,0,0,0"/>
                                     <TextBlock x:Name="txtOpakWybranyKontrahent" Text="" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentOrangeBrush}" VerticalAlignment="Center" Margin="20,0,0,0"/>
-                                    <Button x:Name="btnResetOpakowaniaWybor" Content="✕" Click="BtnResetOpakowaniaWybor_Click" Style="{StaticResource SmallButtonStyle}" Margin="5,0,0,0" Visibility="Collapsed" ToolTip="Ukryj wykres klienta"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                     <TextBlock Text="Szybki wybor:" Style="{StaticResource FilterLabelStyle}"/>
@@ -669,10 +668,17 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
-                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5,0,0,5">
-                                        <TextBlock Text="Saldo E2 wg Kontrahenta" FontSize="12" FontWeight="Bold" Foreground="#4ECDC4"/>
-                                        <TextBlock x:Name="txtOpakE2Suma" Text="" FontSize="11" Foreground="#8B949E" Margin="15,0,0,0" VerticalAlignment="Center"/>
-                                    </StackPanel>
+                                    <Grid Grid.Row="0" Margin="5,0,0,5">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                            <TextBlock x:Name="txtOpakE2Tytul" Text="Saldo E2 wg Kontrahenta" FontSize="12" FontWeight="Bold" Foreground="#4ECDC4"/>
+                                            <TextBlock x:Name="txtOpakE2Suma" Text="" FontSize="11" Foreground="#8B949E" Margin="15,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <Button x:Name="btnOpakE2Powrot" Grid.Column="1" Content="← Powrot" Click="BtnOpakE2Powrot_Click" Style="{StaticResource SmallButtonStyle}" Visibility="Collapsed"/>
+                                    </Grid>
                                     <lvc:CartesianChart Grid.Row="1" x:Name="chartOpakowaniaE2" Margin="0" DataClick="ChartOpakowaniaE2_DataClick"
                                                         AnimationsSpeed="0:0:0.5" Hoverable="True" DisableAnimations="False">
                                         <lvc:CartesianChart.AxisX>
@@ -718,10 +724,17 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
-                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5,0,0,5">
-                                        <TextBlock Text="Saldo H1 wg Kontrahenta" FontSize="12" FontWeight="Bold" Foreground="#F4A261"/>
-                                        <TextBlock x:Name="txtOpakH1Suma" Text="" FontSize="11" Foreground="#8B949E" Margin="15,0,0,0" VerticalAlignment="Center"/>
-                                    </StackPanel>
+                                    <Grid Grid.Row="0" Margin="5,0,0,5">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                            <TextBlock x:Name="txtOpakH1Tytul" Text="Saldo H1 wg Kontrahenta" FontSize="12" FontWeight="Bold" Foreground="#F4A261"/>
+                                            <TextBlock x:Name="txtOpakH1Suma" Text="" FontSize="11" Foreground="#8B949E" Margin="15,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <Button x:Name="btnOpakH1Powrot" Grid.Column="1" Content="← Powrot" Click="BtnOpakH1Powrot_Click" Style="{StaticResource SmallButtonStyle}" Visibility="Collapsed"/>
+                                    </Grid>
                                     <lvc:CartesianChart Grid.Row="1" x:Name="chartOpakowaniaH1" Margin="0" DataClick="ChartOpakowaniaH1_DataClick"
                                                         AnimationsSpeed="0:0:0.5" Hoverable="True" DisableAnimations="False">
                                         <lvc:CartesianChart.AxisX>
@@ -732,112 +745,6 @@
                                         <lvc:CartesianChart.AxisY>
                                             <lvc:Axis x:Name="axisYOpakH1" ShowLabels="True" FontSize="9" Foreground="#FFFFFF" IsMerged="False">
                                                 <lvc:Axis.Separator><lvc:Separator StrokeThickness="0" Step="1"/></lvc:Axis.Separator>
-                                            </lvc:Axis>
-                                        </lvc:CartesianChart.AxisY>
-                                    </lvc:CartesianChart>
-                                </Grid>
-                            </Border>
-                        </Grid>
-
-                        <!-- Dolny panel - dwa wykresy liniowe tygodniowe (ukryty domyslnie) -->
-                        <Grid x:Name="gridOpakTrendPanel" Grid.Row="2" Visibility="Collapsed" Height="220" Margin="0,10,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-
-                            <!-- Wykres liniowy E2 - historia tygodniowa wybranego kontrahenta -->
-                            <Border x:Name="borderTrendE2" Grid.Column="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="0,0,5,0"
-                                    RenderTransformOrigin="0.5,0.5">
-                                <Border.RenderTransform>
-                                    <ScaleTransform ScaleX="1" ScaleY="1"/>
-                                </Border.RenderTransform>
-                                <Border.Triggers>
-                                    <EventTrigger RoutedEvent="MouseEnter">
-                                        <BeginStoryboard>
-                                            <Storyboard>
-                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleX)" To="1.02" Duration="0:0:0.2"/>
-                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleY)" To="1.02" Duration="0:0:0.2"/>
-                                            </Storyboard>
-                                        </BeginStoryboard>
-                                    </EventTrigger>
-                                    <EventTrigger RoutedEvent="MouseLeave">
-                                        <BeginStoryboard>
-                                            <Storyboard>
-                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleX)" To="1" Duration="0:0:0.2"/>
-                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleY)" To="1" Duration="0:0:0.2"/>
-                                            </Storyboard>
-                                        </BeginStoryboard>
-                                    </EventTrigger>
-                                </Border.Triggers>
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="*"/>
-                                    </Grid.RowDefinitions>
-                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5,0,0,5">
-                                        <TextBlock Text="Ilosc pojemnikow E2 ktore 'wisza' nam odbiorcy w tygodniach" FontSize="10" Foreground="#4ECDC4" FontWeight="Bold"/>
-                                        <TextBlock x:Name="txtOpakE2TrendKontrahent" Text="" FontSize="10" Foreground="#F4A261" FontWeight="Bold" Margin="10,0,0,0"/>
-                                    </StackPanel>
-                                    <lvc:CartesianChart Grid.Row="1" x:Name="chartOpakTrendE2" Margin="0"
-                                                        AnimationsSpeed="0:0:0.7" Hoverable="True" DisableAnimations="False">
-                                        <lvc:CartesianChart.AxisX>
-                                            <lvc:Axis x:Name="axisXOpakTrendE2" ShowLabels="True" FontSize="9" Foreground="#FFFFFF" LabelsRotation="0">
-                                                <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
-                                            </lvc:Axis>
-                                        </lvc:CartesianChart.AxisX>
-                                        <lvc:CartesianChart.AxisY>
-                                            <lvc:Axis x:Name="axisYOpakTrendE2" Title="" Foreground="#4ECDC4" FontSize="9" MinValue="0">
-                                                <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
-                                            </lvc:Axis>
-                                        </lvc:CartesianChart.AxisY>
-                                    </lvc:CartesianChart>
-                                </Grid>
-                            </Border>
-
-                            <!-- Wykres liniowy H1 - historia tygodniowa wybranego kontrahenta -->
-                            <Border x:Name="borderTrendH1" Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="5,0,0,0"
-                                    RenderTransformOrigin="0.5,0.5">
-                                <Border.RenderTransform>
-                                    <ScaleTransform ScaleX="1" ScaleY="1"/>
-                                </Border.RenderTransform>
-                                <Border.Triggers>
-                                    <EventTrigger RoutedEvent="MouseEnter">
-                                        <BeginStoryboard>
-                                            <Storyboard>
-                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleX)" To="1.02" Duration="0:0:0.2"/>
-                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleY)" To="1.02" Duration="0:0:0.2"/>
-                                            </Storyboard>
-                                        </BeginStoryboard>
-                                    </EventTrigger>
-                                    <EventTrigger RoutedEvent="MouseLeave">
-                                        <BeginStoryboard>
-                                            <Storyboard>
-                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleX)" To="1" Duration="0:0:0.2"/>
-                                                <DoubleAnimation Storyboard.TargetProperty="(Border.RenderTransform).(ScaleTransform.ScaleY)" To="1" Duration="0:0:0.2"/>
-                                            </Storyboard>
-                                        </BeginStoryboard>
-                                    </EventTrigger>
-                                </Border.Triggers>
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="*"/>
-                                    </Grid.RowDefinitions>
-                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5,0,0,5">
-                                        <TextBlock Text="Ilosc pojemnikow H1 ktore 'wisza' nam odbiorcy w tygodniach" FontSize="10" Foreground="#F4A261" FontWeight="Bold"/>
-                                        <TextBlock x:Name="txtOpakH1TrendKontrahent" Text="" FontSize="10" Foreground="#F4A261" FontWeight="Bold" Margin="10,0,0,0"/>
-                                    </StackPanel>
-                                    <lvc:CartesianChart Grid.Row="1" x:Name="chartOpakTrendH1" Margin="0"
-                                                        AnimationsSpeed="0:0:0.7" Hoverable="True" DisableAnimations="False">
-                                        <lvc:CartesianChart.AxisX>
-                                            <lvc:Axis x:Name="axisXOpakTrendH1" ShowLabels="True" FontSize="9" Foreground="#FFFFFF" LabelsRotation="0">
-                                                <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
-                                            </lvc:Axis>
-                                        </lvc:CartesianChart.AxisX>
-                                        <lvc:CartesianChart.AxisY>
-                                            <lvc:Axis x:Name="axisYOpakTrendH1" Title="" Foreground="#F4A261" FontSize="9" MinValue="0">
-                                                <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
                                             </lvc:Axis>
                                         </lvc:CartesianChart.AxisY>
                                     </lvc:CartesianChart>
