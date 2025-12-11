@@ -506,7 +506,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                         DataLabels = true,
                         LabelPoint = p => p.X > 0 ? $"{p.X:N0} zl" : "",
                         Foreground = Brushes.White,
-                        MaxRowHeigth = 40
+                        MaxRowHeigth = 80
                     });
                 }
 
