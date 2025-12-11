@@ -6,6 +6,8 @@
         WindowStartupLocation="CenterScreen" WindowState="Maximized" Background="#1A1D21">
 
     <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+
         <SolidColorBrush x:Key="BackgroundDarkBrush" Color="#1A1D21"/>
         <SolidColorBrush x:Key="CardBackgroundBrush" Color="#252A31"/>
         <SolidColorBrush x:Key="CardBackgroundLightBrush" Color="#2D333B"/>
@@ -262,11 +264,12 @@
                 </Border>
             </TabItem>
 
-            <!-- Tab: Top 10 odbiorcy -->
-            <TabItem Header="Top 10 odbiorcy">
+            <!-- Tab: Top 15 odbiorcy -->
+            <TabItem Header="Top 15 odbiorcy">
                 <Border Background="{StaticResource CardBackgroundLightBrush}" CornerRadius="0,8,8,8">
                     <Grid>
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
@@ -281,18 +284,29 @@
                                 <ComboBox x:Name="cmbTowarTop10" Style="{StaticResource DarkComboBoxStyle}" Width="250" SelectionChanged="CmbTop10_SelectionChanged"/>
                             </StackPanel>
                         </Border>
+                        <!-- Legenda kolorow handlowcow -->
                         <Border Grid.Row="1" Background="{StaticResource CardBackgroundBrush}" Padding="10,8" Margin="0,1,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Legenda: " FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <StackPanel Grid.Column="1" x:Name="panelLegendaTop15" Orientation="Horizontal" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                        <Border Grid.Row="2" Background="{StaticResource CardBackgroundBrush}" Padding="10,8" Margin="0,1,0,0">
                             <TextBlock x:Name="txtTop10Info" Text="" FontSize="12" Foreground="#FFFFFF" HorizontalAlignment="Center"/>
                         </Border>
-                        <lvc:CartesianChart Grid.Row="2" x:Name="chartTop10" Margin="20">
+                        <lvc:CartesianChart Grid.Row="3" x:Name="chartTop10" Margin="20" LegendLocation="None">
                             <lvc:CartesianChart.AxisX>
                                 <lvc:Axis x:Name="axisXTop10" Title="Wartosc (zl)" MinValue="0" Foreground="#FFFFFF" FontSize="10">
                                     <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
                                 </lvc:Axis>
                             </lvc:CartesianChart.AxisX>
                             <lvc:CartesianChart.AxisY>
-                                <lvc:Axis x:Name="axisYTop10" ShowLabels="True" FontSize="10" Foreground="#FFFFFF">
-                                    <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
+                                <lvc:Axis x:Name="axisYTop10" ShowLabels="True" FontSize="10" Foreground="#FFFFFF" IsMerged="False">
+                                    <lvc:Axis.Separator><lvc:Separator StrokeThickness="0" Step="1"/></lvc:Axis.Separator>
                                 </lvc:Axis>
                             </lvc:CartesianChart.AxisY>
                         </lvc:CartesianChart>
@@ -976,113 +990,203 @@
                                 </Grid>
                             </Border>
 
-                            <!-- Wykres + Top 5 przekroczonych limitow + Top 5 dluznikow -->
+                            <!-- Statystyki per Handlowiec + Wskazniki platnosci -->
                             <Grid Grid.Row="3" Margin="0,0,0,10" Height="200">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="280"/>
-                                    <ColumnDefinition Width="280"/>
+                                    <ColumnDefinition Width="320"/>
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Wykres slupkowy przeterminowanych -->
+                                <!-- Przeterminowane per Handlowiec -->
                                 <Border Grid.Column="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="0,0,5,0">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="*"/>
                                         </Grid.RowDefinitions>
-                                        <TextBlock Grid.Row="0" Text="TOP 5 PRZETERMINOWANYCH" FontSize="10" Foreground="{StaticResource AccentOrangeBrush}" FontWeight="Bold" Margin="5,0,0,5"/>
-                                        <lvc:CartesianChart Grid.Row="1" x:Name="chartTopDluznicy" Margin="0">
+                                        <TextBlock Grid.Row="0" Text="PRZETERMINOWANE WG HANDLOWCA" FontSize="10" Foreground="{StaticResource AccentOrangeBrush}" FontWeight="Bold" Margin="5,0,0,5"/>
+                                        <lvc:CartesianChart Grid.Row="1" x:Name="chartPrzeterminowaneHandlowiec" Margin="0">
                                             <lvc:CartesianChart.AxisX>
-                                                <lvc:Axis x:Name="axisXDluznicy" Title="" MinValue="0" Foreground="#FFFFFF" FontSize="9">
+                                                <lvc:Axis x:Name="axisXPrzeterminowaneHandlowiec" Title="" MinValue="0" Foreground="#FFFFFF" FontSize="9">
                                                     <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
                                                 </lvc:Axis>
                                             </lvc:CartesianChart.AxisX>
                                             <lvc:CartesianChart.AxisY>
-                                                <lvc:Axis x:Name="axisYDluznicy" ShowLabels="True" FontSize="9" Foreground="#FFFFFF">
-                                                    <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
+                                                <lvc:Axis x:Name="axisYPrzeterminowaneHandlowiec" ShowLabels="True" FontSize="9" Foreground="#FFFFFF" IsMerged="False">
+                                                    <lvc:Axis.Separator><lvc:Separator StrokeThickness="0" Step="1"/></lvc:Axis.Separator>
                                                 </lvc:Axis>
                                             </lvc:CartesianChart.AxisY>
                                         </lvc:CartesianChart>
                                     </Grid>
                                 </Border>
 
-                                <!-- Panel Top dluznicy -->
-                                <Border Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,5,0">
-                                    <StackPanel>
-                                        <TextBlock Text="TOP 5 DLUZNICY (przeterminowane)" FontSize="10" Foreground="#FF6B6B" FontWeight="Bold" Margin="0,0,0,8"/>
-                                        <StackPanel x:Name="panelTopDluznicy"/>
-                                    </StackPanel>
-                                </Border>
+                                <!-- Wskazniki platnosci -->
+                                <Border Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="15" Margin="5,0,0,0">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Text="WSKAZNIKI PLATNOSCI" FontSize="10" Foreground="#4ECDC4" FontWeight="Bold" Margin="0,0,0,10"/>
+                                        <Grid Grid.Row="1">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
 
-                                <!-- Panel Top przekroczone limity -->
-                                <Border Grid.Column="2" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,0,0">
-                                    <StackPanel>
-                                        <TextBlock Text="TOP 5 PRZEKROCZONE LIMITY" FontSize="10" Foreground="#F4A261" FontWeight="Bold" Margin="0,0,0,8"/>
-                                        <StackPanel x:Name="panelTopPrzekroczone"/>
-                                    </StackPanel>
+                                            <!-- Srednie dni opoznienia -->
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Srednie dni opoznienia:" Foreground="#8B949E" FontSize="11" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="txtWskaznikSrednieDni" Text="0 dni" Foreground="#FFE66D" FontSize="14" FontWeight="Bold" HorizontalAlignment="Right"/>
+
+                                            <!-- Procent przeterminowanych -->
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="% kwoty przeterminowanej:" Foreground="#8B949E" FontSize="11" VerticalAlignment="Center" Margin="0,8,0,0"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="txtWskaznikProcentPrzeterminowanych" Text="0%" Foreground="#FF6B6B" FontSize="14" FontWeight="Bold" HorizontalAlignment="Right" Margin="0,8,0,0"/>
+
+                                            <!-- Liczba klientow z przeterminowanymi -->
+                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Klientow z przeterminowaniem:" Foreground="#8B949E" FontSize="11" VerticalAlignment="Center" Margin="0,8,0,0"/>
+                                            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="txtWskaznikLiczbaKlientow" Text="0" Foreground="#F4A261" FontSize="14" FontWeight="Bold" HorizontalAlignment="Right" Margin="0,8,0,0"/>
+
+                                            <!-- Liczba klientow z przekroczonym limitem -->
+                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Klientow z przekr. limitem:" Foreground="#8B949E" FontSize="11" VerticalAlignment="Center" Margin="0,8,0,0"/>
+                                            <TextBlock Grid.Row="3" Grid.Column="1" x:Name="txtWskaznikPrzekroczonyLimit" Text="0" Foreground="#AA96DA" FontSize="14" FontWeight="Bold" HorizontalAlignment="Right" Margin="0,8,0,0"/>
+
+                                            <!-- Dyscyplina platnicza -->
+                                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Dyscyplina platnicza:" Foreground="#8B949E" FontSize="11" VerticalAlignment="Center" Margin="0,8,0,0"/>
+                                            <TextBlock Grid.Row="4" Grid.Column="1" x:Name="txtWskaznikDyscyplina" Text="0%" Foreground="#4ECDC4" FontSize="14" FontWeight="Bold" HorizontalAlignment="Right" Margin="0,8,0,0"/>
+                                        </Grid>
+                                    </Grid>
                                 </Border>
                             </Grid>
 
-                            <!-- Tabela ze szczegolami -->
+                            <!-- Tabela ze szczegolami - styl Excel -->
                             <DataGrid Grid.Row="4" x:Name="gridPlatnosci" AutoGenerateColumns="False" IsReadOnly="True"
-                                      Background="Transparent" BorderThickness="0"
+                                      Background="Transparent" BorderThickness="1" BorderBrush="#444444"
                                       RowBackground="#252A31" AlternatingRowBackground="#2D333B"
-                                      Foreground="#FFFFFF" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#30363D"
+                                      Foreground="#FFFFFF" GridLinesVisibility="All"
+                                      HorizontalGridLinesBrush="#444444" VerticalGridLinesBrush="#444444"
                                       HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
+                                      CanUserSortColumns="True" Sorting="GridPlatnosci_Sorting"
                                       MouseDoubleClick="GridPlatnosci_MouseDoubleClick">
                                 <DataGrid.RowStyle>
                                     <Style TargetType="DataGridRow">
                                         <Setter Property="Cursor" Value="Hand"/>
+                                        <Setter Property="Background" Value="#252A31"/>
                                         <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Background" Value="#3D434B"/>
-                                            </Trigger>
-                                            <DataTrigger Binding="{Binding PrzekroczonyLimitAlert}" Value="True">
-                                                <Setter Property="Background" Value="#3D2A2A"/>
+                                            <!-- Zielone tlo dla wierszy bez przeterminowanych -->
+                                            <DataTrigger Binding="{Binding IsGreenRow}" Value="True">
+                                                <Setter Property="Background" Value="#1B3D2E"/>
                                             </DataTrigger>
+                                            <!-- Pomaranczowe tlo dla sredniich przeterminowan 1-30 dni -->
+                                            <DataTrigger Binding="{Binding IsOrangeRow}" Value="True">
+                                                <Setter Property="Background" Value="#3D3520"/>
+                                            </DataTrigger>
+                                            <!-- Czerwone tlo dla duzych przeterminowan >30 dni -->
+                                            <DataTrigger Binding="{Binding IsRedRow}" Value="True">
+                                                <Setter Property="Background" Value="#3D1F1F"/>
+                                            </DataTrigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#4D535B"/>
+                                            </Trigger>
                                         </Style.Triggers>
                                     </Style>
                                 </DataGrid.RowStyle>
                                 <DataGrid.ColumnHeaderStyle>
                                     <Style TargetType="DataGridColumnHeader">
-                                        <Setter Property="Background" Value="#1A1D21"/>
-                                        <Setter Property="Foreground" Value="#F4A261"/>
-                                        <Setter Property="Padding" Value="8,6"/>
+                                        <Setter Property="Background" Value="#3A5F4A"/>
+                                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                                        <Setter Property="Padding" Value="10,8"/>
                                         <Setter Property="FontWeight" Value="Bold"/>
                                         <Setter Property="FontSize" Value="11"/>
-                                        <Setter Property="BorderThickness" Value="0,0,0,2"/>
-                                        <Setter Property="BorderBrush" Value="#30363D"/>
+                                        <Setter Property="BorderThickness" Value="0,0,1,2"/>
+                                        <Setter Property="BorderBrush" Value="#2A4A3A"/>
+                                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
                                     </Style>
                                 </DataGrid.ColumnHeaderStyle>
+                                <DataGrid.CellStyle>
+                                    <Style TargetType="DataGridCell">
+                                        <Setter Property="Padding" Value="5,3"/>
+                                        <Setter Property="BorderThickness" Value="0"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter Property="Background" Value="#5A6068"/>
+                                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGrid.CellStyle>
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Kontrahent" Binding="{Binding Kontrahent}" Width="160"/>
-                                    <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="90"/>
-                                    <DataGridTextColumn Header="Limit kredytu" Binding="{Binding LimitKredytuTekst}" Width="90">
+                                    <!-- Kontrahent -->
+                                    <DataGridTextColumn Header="Kontrahent" Binding="{Binding Kontrahent}" Width="180">
                                         <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Right"/></Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Padding" Value="5,0"/>
+                                            </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Do zaplaty" Binding="{Binding DoZaplatyTekst}" Width="90">
+                                    <!-- Limit -->
+                                    <DataGridTextColumn Header="Limit" Binding="{Binding LimitKredytuTekst}" Width="120">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Padding" Value="5,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <!-- Do zaplacenia -->
+                                    <DataGridTextColumn Header="Do zaplacenia" Binding="{Binding DoZaplatyTekst}" Width="120">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
                                                 <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Padding" Value="5,0"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Terminowe" Binding="{Binding TerminoweTekst}" Width="85">
+                                    <!-- Przekroczony limit -->
+                                    <DataGridTextColumn Header="Przekroczony limit" Binding="{Binding PrzekroczonyLimitTekst}" Width="130">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Padding" Value="5,0"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding PrzekroczonyLimitAlert}" Value="True">
+                                                        <Setter Property="Foreground" Value="#FF6B6B"/>
+                                                        <Setter Property="FontWeight" Value="Bold"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <!-- Terminowe -->
+                                    <DataGridTextColumn Header="Terminowe" Binding="{Binding TerminoweTekst}" Width="110">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
                                                 <Setter Property="Foreground" Value="#4ECDC4"/>
+                                                <Setter Property="Padding" Value="5,0"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Przetermin." Binding="{Binding PrzeterminowaneTekst}" Width="85">
+                                    <!-- Przeterminowane -->
+                                    <DataGridTextColumn Header="Przeterminowane" Binding="{Binding PrzeterminowaneTekst}" Width="130">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Padding" Value="5,0"/>
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding PrzeterminowaneAlert}" Value="True">
                                                         <Setter Property="Foreground" Value="#FF6B6B"/>
@@ -1092,52 +1196,19 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Po limicie" Binding="{Binding PrzekroczonyLimitTekst}" Width="80">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding PrzekroczonyLimitAlert}" Value="True">
-                                                        <Setter Property="Foreground" Value="#F4A261"/>
-                                                        <Setter Property="FontWeight" Value="Bold"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="% limitu" Binding="{Binding ProcentLimituTekst}" Width="65">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding PrzekroczonyLimitAlert}" Value="True">
-                                                        <Setter Property="Foreground" Value="#FF6B6B"/>
-                                                        <Setter Property="FontWeight" Value="Bold"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Max dni" Binding="{Binding DniPrzeterminowania}" Width="60">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding PrzeterminowaneAlert}" Value="True">
-                                                        <Setter Property="Foreground" Value="#FF6B6B"/>
-                                                        <Setter Property="FontWeight" Value="Bold"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Faktur" Binding="{Binding LiczbaFaktur}" Width="55">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
+                                    <!-- Najpozniejsza platnosc - z ikona ostrzezenia -->
+                                    <DataGridTemplateColumn Header="Najpozniejsza platnosc" Width="160">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="⚠" Foreground="#F4A261" FontSize="12" Margin="0,0,5,0" VerticalAlignment="Center"
+                                                               Visibility="{Binding PrzeterminowaneAlert, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                    <TextBlock Text="{Binding NajpozniejszaPlatnoscTekst}"
+                                                               Foreground="#F4A261" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </Grid>

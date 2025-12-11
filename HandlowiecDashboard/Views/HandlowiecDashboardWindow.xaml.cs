@@ -437,13 +437,16 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             decimal sumaKg = 0;
             decimal sumaWartosc = 0;
 
+            // Lista danych do odwrocenia (najwyzszy na gorze)
+            var daneTop10 = new List<(string Kontrahent, string Handlowiec, decimal Kg, decimal Wartosc)>();
+
             try
             {
                 await using var cn = new SqlConnection(_connectionStringHandel);
                 await cn.OpenAsync();
 
                 var sql = @"
-                    SELECT TOP 10 C.shortcut AS Kontrahent,
+                    SELECT TOP 15 C.shortcut AS Kontrahent,
                            ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
                            SUM(DP.ilosc) AS SumaKg, SUM(DP.wartNetto) AS SumaWartosc
                     FROM [HANDEL].[HM].[DK] DK
@@ -460,7 +463,6 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 cmd.Parameters.AddWithValue("@Miesiac", miesiac);
                 cmd.Parameters.AddWithValue("@TowarID", (object)towarId ?? DBNull.Value);
 
-                var wartosci = new ChartValues<decimal>();
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
@@ -469,21 +471,40 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     var kg = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
                     var wartosc = reader.IsDBNull(3) ? 0m : Convert.ToDecimal(reader.GetValue(3));
 
-                    labels.Add($"{kontrahent} ({handlowiec})");
-                    wartosci.Add(wartosc);
+                    daneTop10.Add((kontrahent, handlowiec, kg, wartosc));
                     sumaKg += kg;
                     sumaWartosc += wartosc;
                 }
 
+                // Buduj liste etykiet i wartosci (od najnizszej do najwyzszej wartosci)
+                int liczbaElementow = daneTop10.Count;
+                var wartosci = new ChartValues<double>();
+                var handlowcyNaSlupkach = new List<string>();
+
+                for (int i = liczbaElementow - 1; i >= 0; i--)
+                {
+                    var d = daneTop10[i];
+                    var labelTekst = d.Kontrahent.Length > 20 ? d.Kontrahent.Substring(0, 20) + ".." : d.Kontrahent;
+                    labels.Add(labelTekst);
+                    wartosci.Add((double)d.Wartosc);
+                    handlowcyNaSlupkach.Add(d.Handlowiec);
+                }
+
+                // Jedna seria z grubymi slupkami
                 series.Add(new RowSeries
                 {
                     Title = "Wartosc",
                     Values = wartosci,
-                    Fill = new SolidColorBrush(_kolory[1]),
+                    Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F4A261")),
                     DataLabels = true,
                     LabelPoint = p => $"{p.X:N0} zl",
-                    Foreground = Brushes.White
+                    Foreground = Brushes.White,
+                    MaxRowHeigth = 35,
+                    RowPadding = 2
                 });
+
+                // Aktualizuj legende handlowcow
+                AktualizujLegendeTop15(daneTop10, handlowcyNaSlupkach);
 
                 // Oblicz srednia cene
                 decimal sredniaCena = sumaKg > 0 ? sumaWartosc / sumaKg : 0;
@@ -496,6 +517,47 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
             chartTop10.Series = series;
             axisYTop10.Labels = labels;
+        }
+
+        private void AktualizujLegendeTop15(List<(string Kontrahent, string Handlowiec, decimal Kg, decimal Wartosc)> dane, List<string> handlowcyNaSlupkach)
+        {
+            var panelLegenda = FindName("panelLegendaTop15") as StackPanel;
+            if (panelLegenda == null) return;
+
+            panelLegenda.Children.Clear();
+
+            // Podsumowanie: ile klientow ma kazdy handlowiec w Top 15
+            var podsumowanie = dane
+                .GroupBy(d => d.Handlowiec)
+                .Select(g => new { Handlowiec = g.Key, Liczba = g.Count(), Suma = g.Sum(x => x.Wartosc) })
+                .OrderByDescending(x => x.Suma)
+                .ToList();
+
+            foreach (var h in podsumowanie)
+            {
+                var kolor = GetHandlowiecColor(h.Handlowiec);
+
+                var element = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 20, 0) };
+                element.Children.Add(new System.Windows.Shapes.Rectangle
+                {
+                    Width = 12,
+                    Height = 12,
+                    Fill = new SolidColorBrush(kolor),
+                    RadiusX = 2,
+                    RadiusY = 2,
+                    Margin = new Thickness(0, 0, 5, 0),
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+                element.Children.Add(new TextBlock
+                {
+                    Text = $"{h.Handlowiec}: {h.Liczba} klient. ({h.Suma:N0} zl)",
+                    Foreground = Brushes.White,
+                    FontSize = 11,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+
+                panelLegenda.Children.Add(element);
+            }
         }
 
         #endregion
@@ -1633,67 +1695,63 @@ FROM FakturyPrzeterminowane";
                 txtAging90Plus.Text = $"{agingData.Kwota90Plus:N0} zl";
                 txtAging90PlusProcent.Text = $"{(agingTotal > 0 ? agingData.Kwota90Plus / agingTotal * 100 : 0):F0}% | {agingData.Faktur90Plus} fakt.";
 
-                // Top 5 dluznicy - wykres z kolorami per handlowiec
-                var top5Dluznicy = dane.Where(d => d.Przeterminowane > 0).OrderByDescending(d => d.Przeterminowane).Take(5).ToList();
-                if (top5Dluznicy.Any())
+                // Wykres przeterminowanych per handlowiec
+                var przeterminowanePerHandlowiec = dane
+                    .Where(d => d.Przeterminowane > 0)
+                    .GroupBy(d => d.Handlowiec)
+                    .Select(g => new { Handlowiec = g.Key, Kwota = g.Sum(x => x.Przeterminowane), Klientow = g.Count() })
+                    .OrderByDescending(x => x.Kwota)
+                    .ToList();
+
+                if (przeterminowanePerHandlowiec.Any())
                 {
-                    var seriesDluznicy = new SeriesCollection();
-                    var labelsDluznicy = new List<string>();
+                    var seriesHandlowiec = new SeriesCollection();
+                    var labelsHandlowiec = new List<string>();
 
                     // Odwroc kolejnosc dla wyswietlania (najwyzszy na gorze = ostatni w liscie)
-                    for (int i = top5Dluznicy.Count - 1; i >= 0; i--)
+                    for (int i = przeterminowanePerHandlowiec.Count - 1; i >= 0; i--)
                     {
-                        var d = top5Dluznicy[i];
-                        labelsDluznicy.Add(d.Kontrahent.Length > 15 ? d.Kontrahent.Substring(0, 15) + ".." : d.Kontrahent);
-                        seriesDluznicy.Add(new RowSeries
+                        var h = przeterminowanePerHandlowiec[i];
+                        labelsHandlowiec.Add($"{h.Handlowiec} ({h.Klientow})");
+                        seriesHandlowiec.Add(new RowSeries
                         {
-                            Title = d.Handlowiec,
-                            Values = new ChartValues<double> { (double)d.Przeterminowane },
-                            Fill = new SolidColorBrush(GetHandlowiecColor(d.Handlowiec)),
+                            Title = h.Handlowiec,
+                            Values = new ChartValues<double> { (double)h.Kwota },
+                            Fill = new SolidColorBrush(GetHandlowiecColor(h.Handlowiec)),
                             DataLabels = true,
-                            LabelPoint = p => $"{p.X:N0}",
+                            LabelPoint = p => $"{p.X:N0} zl",
                             Foreground = Brushes.White
                         });
                     }
 
-                    chartTopDluznicy.Series = seriesDluznicy;
-                    axisYDluznicy.Labels = labelsDluznicy;
+                    chartPrzeterminowaneHandlowiec.Series = seriesHandlowiec;
+                    axisYPrzeterminowaneHandlowiec.Labels = labelsHandlowiec;
                 }
                 else
                 {
-                    chartTopDluznicy.Series = new SeriesCollection();
-                    axisYDluznicy.Labels = new List<string>();
+                    chartPrzeterminowaneHandlowiec.Series = new SeriesCollection();
+                    axisYPrzeterminowaneHandlowiec.Labels = new List<string>();
                 }
 
-                // Panel top dluznicy z kolorami per handlowiec
-                panelTopDluznicy.Children.Clear();
-                int idx = 1;
-                foreach (var d in top5Dluznicy)
-                {
-                    var kolorHandlowca = GetHandlowiecColor(d.Handlowiec);
-                    var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
-                    sp.Children.Add(new TextBlock { Text = $"{idx}. ", Foreground = new SolidColorBrush(kolorHandlowca), FontWeight = FontWeights.Bold, Width = 18, FontSize = 11 });
-                    sp.Children.Add(new TextBlock { Text = d.Kontrahent, Foreground = Brushes.White, Width = 130, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 11 });
-                    sp.Children.Add(new TextBlock { Text = $"{d.Przeterminowane:N0}", Foreground = new SolidColorBrush(kolorHandlowca), FontWeight = FontWeights.Bold, FontSize = 11 });
-                    panelTopDluznicy.Children.Add(sp);
-                    idx++;
-                }
+                // Wskazniki platnosci
+                var daneZPrzeterminowaniem = dane.Where(d => d.DniPrzeterminowania.HasValue && d.DniPrzeterminowania.Value > 0).ToList();
+                var srednieDniOpoznienia = daneZPrzeterminowaniem.Any()
+                    ? daneZPrzeterminowaniem.Average(d => d.DniPrzeterminowania.Value)
+                    : 0;
+                var procentPrzeterminowanych = sumaDoZaplaty > 0 ? (sumaPrzeterminowane / sumaDoZaplaty * 100) : 0;
+                var dyscyplinaPlatnicza = sumaDoZaplaty > 0 ? (sumaTerminowe / sumaDoZaplaty * 100) : 100;
 
-                // Panel top przekroczone limity z kolorami per handlowiec
-                panelTopPrzekroczone.Children.Clear();
-                var top5Limity = dane.Where(d => d.PrzekroczonyLimit > 0).OrderByDescending(d => d.PrzekroczonyLimit).Take(5).ToList();
-                idx = 1;
-                foreach (var d in top5Limity)
-                {
-                    var kolorHandlowca = GetHandlowiecColor(d.Handlowiec);
-                    var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
-                    sp.Children.Add(new TextBlock { Text = $"{idx}. ", Foreground = new SolidColorBrush(kolorHandlowca), FontWeight = FontWeights.Bold, Width = 18, FontSize = 11 });
-                    sp.Children.Add(new TextBlock { Text = d.Kontrahent, Foreground = Brushes.White, Width = 115, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 11 });
-                    sp.Children.Add(new TextBlock { Text = $"+{d.PrzekroczonyLimit:N0}", Foreground = new SolidColorBrush(kolorHandlowca), FontWeight = FontWeights.Bold, FontSize = 11 });
-                    sp.Children.Add(new TextBlock { Text = $" ({d.ProcentLimitu:F0}%)", Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(139, 148, 158)), FontSize = 10 });
-                    panelTopPrzekroczone.Children.Add(sp);
-                    idx++;
-                }
+                txtWskaznikSrednieDni.Text = $"{srednieDniOpoznienia:F0} dni";
+                txtWskaznikProcentPrzeterminowanych.Text = $"{procentPrzeterminowanych:F1}%";
+                txtWskaznikLiczbaKlientow.Text = $"{iloscZPrzeterminowanymi}";
+                txtWskaznikPrzekroczonyLimit.Text = $"{iloscZPrzekroczonym}";
+                txtWskaznikDyscyplina.Text = $"{dyscyplinaPlatnicza:F1}%";
+
+                // Ustawienie kolorow wskaznikow w zaleznosci od wartosci
+                txtWskaznikDyscyplina.Foreground = new SolidColorBrush(
+                    dyscyplinaPlatnicza >= 80 ? System.Windows.Media.Color.FromRgb(78, 205, 196) :
+                    dyscyplinaPlatnicza >= 60 ? System.Windows.Media.Color.FromRgb(255, 230, 109) :
+                    System.Windows.Media.Color.FromRgb(255, 107, 107));
             }
             catch (Exception ex)
             {
@@ -1709,6 +1767,31 @@ FROM FakturyPrzeterminowane";
             {
                 var okno = new KontrahentPlatnosciWindow(row.Kontrahent, row.Handlowiec);
                 okno.Show();
+            }
+        }
+
+        private void GridPlatnosci_Sorting(object sender, DataGridSortingEventArgs e)
+        {
+            // Domyslnie sortuj malejaco (od najwyzszego do najnizszego)
+            e.Handled = true;
+
+            var column = e.Column;
+            var direction = System.ComponentModel.ListSortDirection.Descending;
+
+            // Jesli juz sortujemy malejaco, zmien na rosnaco
+            if (column.SortDirection == System.ComponentModel.ListSortDirection.Descending)
+            {
+                direction = System.ComponentModel.ListSortDirection.Ascending;
+            }
+
+            column.SortDirection = direction;
+
+            var view = System.Windows.Data.CollectionViewSource.GetDefaultView(gridPlatnosci.ItemsSource);
+            if (view != null)
+            {
+                view.SortDescriptions.Clear();
+                view.SortDescriptions.Add(new System.ComponentModel.SortDescription(column.SortMemberPath, direction));
+                view.Refresh();
             }
         }
 
@@ -1772,13 +1855,23 @@ FROM FakturyPrzeterminowane";
         public int LiczbaFakturPrzeterminowanych { get; set; }
         public decimal ProcentLimitu { get; set; }
 
+        // Status wierszy - kolor tla
+        public bool IsGreenRow => Przeterminowane == 0 && PrzekroczonyLimit <= 0;
+        public bool IsRedRow => DniPrzeterminowania.HasValue && DniPrzeterminowania.Value > 30;
+        public bool IsOrangeRow => DniPrzeterminowania.HasValue && DniPrzeterminowania.Value > 0 && DniPrzeterminowania.Value <= 30;
+
         // Formatowane teksty do bindowania
-        public string LimitKredytuTekst => LimitKredytu > 0 ? $"{LimitKredytu:N0}" : "-";
-        public string DoZaplatyTekst => $"{DoZaplaty:N0}";
-        public string TerminoweTekst => $"{Terminowe:N0}";
-        public string PrzeterminowaneTekst => Przeterminowane > 0 ? $"{Przeterminowane:N0}" : "-";
-        public string PrzekroczonyLimitTekst => PrzekroczonyLimit > 0 ? $"{PrzekroczonyLimit:N0}" : "-";
+        public string LimitKredytuTekst => LimitKredytu > 0 ? $"{LimitKredytu:N2} zl" : "-";
+        public string DoZaplatyTekst => $"{DoZaplaty:N2} zl";
+        public string TerminoweTekst => Terminowe > 0 ? $"{Terminowe:N2} zl" : "0,00 zl";
+        public string PrzeterminowaneTekst => Przeterminowane > 0 ? $"{Przeterminowane:N2} zl" : "-";
+        public string PrzekroczonyLimitTekst => PrzekroczonyLimit != 0 ? $"{PrzekroczonyLimit:N2} zl" : "-";
         public string ProcentLimituTekst => LimitKredytu > 0 ? $"{ProcentLimitu:F0}%" : "-";
+
+        // Tekst najpozniejszej platnosci w stylu "X dni po terminie"
+        public string NajpozniejszaPlatnoscTekst => DniPrzeterminowania.HasValue && DniPrzeterminowania.Value > 0
+            ? $"{DniPrzeterminowania.Value} dni po terminie"
+            : "";
     }
 
     // Klasa do przechowywania danych aging per faktura
