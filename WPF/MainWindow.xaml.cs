@@ -2224,6 +2224,7 @@ namespace Kalendarz1.WPF
             try
             {
                 await LoadOrdersForDayAsync(_selectedDate);
+                await LoadTransportForDayAsync(_selectedDate);
                 await DisplayProductAggregationAsync(_selectedDate);
 
                 // Załaduj historię zmian dla całego tygodnia
@@ -2801,13 +2802,32 @@ ORDER BY zm.Id";
                 }
             }
 
+            // Pobierz wszystkie uwagi i transport dla wszystkich zamówień (nie tylko z TransportKursID)
+            var allOrderNotes = new Dictionary<int, (string Uwagi, long? KursId)>();
+            await using (var cnLibra = new SqlConnection(_connLibra))
+            {
+                await cnLibra.OpenAsync();
+                string dateColumn = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
+                string sql = $"SELECT Id, Uwagi, TransportKursID FROM dbo.ZamowieniaMieso WHERE {dateColumn} = @Day";
+                await using var cmd = new SqlCommand(sql, cnLibra);
+                cmd.Parameters.AddWithValue("@Day", day);
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    int id = rd.GetInt32(0);
+                    string uwagi = rd.IsDBNull(1) ? "" : rd.GetString(1);
+                    long? kursId = rd.IsDBNull(2) ? null : rd.GetInt64(2);
+                    allOrderNotes[id] = (uwagi, kursId);
+                }
+            }
+
             foreach (DataRow row in _dtOrders.Rows)
             {
-                string trans = row["Trans"]?.ToString() ?? "";
-                if (trans != "✓") continue;
-
                 int id = Convert.ToInt32(row["Id"]);
-                if (id == -1) continue;
+                if (id == -1) continue; // Pomiń wiersz SUMA
+
+                string status = row["Status"]?.ToString() ?? "";
+                if (status == "Anulowane") continue; // Pomiń anulowane
 
                 int clientId = Convert.ToInt32(row["KlientId"]);
                 string odbiorca = row["Odbiorca"]?.ToString() ?? "";
@@ -2815,15 +2835,16 @@ ORDER BY zm.Id";
                 decimal iloscZam = row["IloscZamowiona"] is DBNull ? 0m : Convert.ToDecimal(row["IloscZamowiona"]);
                 decimal iloscWyd = row["IloscFaktyczna"] is DBNull ? 0m : Convert.ToDecimal(row["IloscFaktyczna"]);
                 decimal palety = row["Palety"] is DBNull ? 0m : Convert.ToDecimal(row["Palety"]);
-                string status = row["Status"]?.ToString() ?? "";
+                string trans = row["Trans"]?.ToString() ?? "";
 
                 string kierowca = "";
                 string pojazd = "";
                 string trasa = "";
                 string godzWyjazdu = "";
                 string uwagi = "";
+                string statusTransportu = trans == "✓" ? "Przypisany" : "Brak";
 
-                if (orderNotes.TryGetValue(id, out var noteInfo))
+                if (allOrderNotes.TryGetValue(id, out var noteInfo))
                 {
                     uwagi = noteInfo.Uwagi;
                     if (noteInfo.KursId.HasValue && transportDetails.TryGetValue(noteInfo.KursId.Value, out var td))
@@ -2832,10 +2853,11 @@ ORDER BY zm.Id";
                         pojazd = td.Pojazd;
                         trasa = td.Trasa;
                         godzWyjazdu = td.GodzWyjazdu?.ToString(@"hh\:mm") ?? "";
+                        statusTransportu = "Przypisany";
                     }
                 }
 
-                _dtTransport.Rows.Add(id, clientId, odbiorca, handlowiec, iloscZam, iloscWyd, palety, kierowca, pojazd, godzWyjazdu, trasa, status, uwagi);
+                _dtTransport.Rows.Add(id, clientId, odbiorca, handlowiec, iloscZam, iloscWyd, palety, kierowca, pojazd, godzWyjazdu, trasa, statusTransportu, uwagi);
             }
 
             SetupTransportDataGrid();
