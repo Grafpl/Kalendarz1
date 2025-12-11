@@ -3353,8 +3353,144 @@ ORDER BY zm.Id";
             }
 
             SetupHistoriaZmianDataGrid();
+            PopulateHistoriaFilterComboBoxes();
         }
 
+        private void PopulateHistoriaFilterComboBoxes()
+        {
+            // Zapisz aktualne selekcje
+            var selectedKto = cmbHistoriaKtoEdytowal?.SelectedItem?.ToString();
+            var selectedOdbiorca = cmbHistoriaOdbiorca?.SelectedItem?.ToString();
+            var selectedTyp = cmbHistoriaTyp?.SelectedItem?.ToString();
+            var selectedHandlowiec = cmbHistoriaHandlowiec?.SelectedItem?.ToString();
+
+            // Pobierz unikalne wartości z danych
+            var ktoEdytowalList = new List<string> { "(Wszystkie)" };
+            var odbiorcaList = new List<string> { "(Wszystkie)" };
+            var typList = new List<string> { "(Wszystkie)" };
+            var handlowiecList = new List<string> { "(Wszystkie)" };
+
+            foreach (DataRow row in _dtHistoriaZmian.Rows)
+            {
+                string kto = row["UzytkownikNazwa"]?.ToString() ?? "";
+                string odbiorca = row["Odbiorca"]?.ToString() ?? "";
+                string typ = row["TypZmiany"]?.ToString() ?? "";
+                string handlowiec = row["Handlowiec"]?.ToString() ?? "";
+
+                if (!string.IsNullOrWhiteSpace(kto) && !ktoEdytowalList.Contains(kto))
+                    ktoEdytowalList.Add(kto);
+                if (!string.IsNullOrWhiteSpace(odbiorca) && !odbiorcaList.Contains(odbiorca))
+                    odbiorcaList.Add(odbiorca);
+                if (!string.IsNullOrWhiteSpace(typ) && !typList.Contains(typ))
+                    typList.Add(typ);
+                if (!string.IsNullOrWhiteSpace(handlowiec) && !handlowiecList.Contains(handlowiec))
+                    handlowiecList.Add(handlowiec);
+            }
+
+            // Sortuj listy (bez pierwszego elementu)
+            if (ktoEdytowalList.Count > 1)
+            {
+                var sorted = ktoEdytowalList.Skip(1).OrderBy(x => x).ToList();
+                ktoEdytowalList = new List<string> { "(Wszystkie)" };
+                ktoEdytowalList.AddRange(sorted);
+            }
+            if (odbiorcaList.Count > 1)
+            {
+                var sorted = odbiorcaList.Skip(1).OrderBy(x => x).ToList();
+                odbiorcaList = new List<string> { "(Wszystkie)" };
+                odbiorcaList.AddRange(sorted);
+            }
+            if (typList.Count > 1)
+            {
+                var sorted = typList.Skip(1).OrderBy(x => x).ToList();
+                typList = new List<string> { "(Wszystkie)" };
+                typList.AddRange(sorted);
+            }
+            if (handlowiecList.Count > 1)
+            {
+                var sorted = handlowiecList.Skip(1).OrderBy(x => x).ToList();
+                handlowiecList = new List<string> { "(Wszystkie)" };
+                handlowiecList.AddRange(sorted);
+            }
+
+            // Wypełnij ComboBox
+            if (cmbHistoriaKtoEdytowal != null)
+            {
+                cmbHistoriaKtoEdytowal.ItemsSource = ktoEdytowalList;
+                cmbHistoriaKtoEdytowal.SelectedIndex = string.IsNullOrEmpty(selectedKto) ? 0 :
+                    Math.Max(0, ktoEdytowalList.IndexOf(selectedKto));
+            }
+            if (cmbHistoriaOdbiorca != null)
+            {
+                cmbHistoriaOdbiorca.ItemsSource = odbiorcaList;
+                cmbHistoriaOdbiorca.SelectedIndex = string.IsNullOrEmpty(selectedOdbiorca) ? 0 :
+                    Math.Max(0, odbiorcaList.IndexOf(selectedOdbiorca));
+            }
+            if (cmbHistoriaTyp != null)
+            {
+                cmbHistoriaTyp.ItemsSource = typList;
+                cmbHistoriaTyp.SelectedIndex = string.IsNullOrEmpty(selectedTyp) ? 0 :
+                    Math.Max(0, typList.IndexOf(selectedTyp));
+            }
+            if (cmbHistoriaHandlowiec != null)
+            {
+                cmbHistoriaHandlowiec.ItemsSource = handlowiecList;
+                cmbHistoriaHandlowiec.SelectedIndex = string.IsNullOrEmpty(selectedHandlowiec) ? 0 :
+                    Math.Max(0, handlowiecList.IndexOf(selectedHandlowiec));
+            }
+        }
+
+        private void CmbHistoriaFiltr_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            ApplyHistoriaFilters();
+        }
+
+        private void BtnHistoriaCzyscFiltry_Click(object sender, RoutedEventArgs e)
+        {
+            if (cmbHistoriaKtoEdytowal != null) cmbHistoriaKtoEdytowal.SelectedIndex = 0;
+            if (cmbHistoriaOdbiorca != null) cmbHistoriaOdbiorca.SelectedIndex = 0;
+            if (cmbHistoriaTyp != null) cmbHistoriaTyp.SelectedIndex = 0;
+            if (cmbHistoriaHandlowiec != null) cmbHistoriaHandlowiec.SelectedIndex = 0;
+            ApplyHistoriaFilters();
+        }
+
+        private void ApplyHistoriaFilters()
+        {
+            if (_dtHistoriaZmian == null || dgHistoriaZmian == null) return;
+
+            var view = _dtHistoriaZmian.DefaultView;
+            var filters = new List<string>();
+
+            // Filtr: Kto edytował
+            string kto = cmbHistoriaKtoEdytowal?.SelectedItem?.ToString();
+            if (!string.IsNullOrEmpty(kto) && kto != "(Wszystkie)")
+            {
+                filters.Add($"UzytkownikNazwa = '{kto.Replace("'", "''")}'");
+            }
+
+            // Filtr: Odbiorca
+            string odbiorca = cmbHistoriaOdbiorca?.SelectedItem?.ToString();
+            if (!string.IsNullOrEmpty(odbiorca) && odbiorca != "(Wszystkie)")
+            {
+                filters.Add($"Odbiorca = '{odbiorca.Replace("'", "''")}'");
+            }
+
+            // Filtr: Typ zmiany
+            string typ = cmbHistoriaTyp?.SelectedItem?.ToString();
+            if (!string.IsNullOrEmpty(typ) && typ != "(Wszystkie)")
+            {
+                filters.Add($"TypZmiany = '{typ.Replace("'", "''")}'");
+            }
+
+            // Filtr: Handlowiec
+            string handlowiec = cmbHistoriaHandlowiec?.SelectedItem?.ToString();
+            if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "(Wszystkie)")
+            {
+                filters.Add($"Handlowiec = '{handlowiec.Replace("'", "''")}'");
+            }
+
+            view.RowFilter = filters.Count > 0 ? string.Join(" AND ", filters) : "";
+        }
 
         private async Task<Dictionary<long, (DateTime DataKursu, TimeSpan? GodzWyjazdu, string Kierowca)>> GetTransportInfoAsync(DateTime day)
         {
@@ -5489,28 +5625,20 @@ ORDER BY zm.Id";
 
                 await cmdUpdate.ExecuteNonQueryAsync();
 
-                // Zapisz w historii zmian
+                // Zapisz w historii zmian (używając HistoriaZmianService)
                 string staraWartosc = FormatValueForHistory(oldValue, columnName);
                 string nowaWartosc = FormatValueForHistory(newValue, columnName);
 
                 string opisZmiany = $"{produktNazwa}: {columnName} {staraWartosc} → {nowaWartosc}";
 
-                await using var cmdHistory = new SqlCommand(@"
-                    INSERT INTO dbo.ZamowieniaHistoria (ZamowienieId, DataZmiany, Uzytkownik, TypZmiany, OpisZmiany)
-                    VALUES (@orderId, GETDATE(), @user, @typ, @opis)", cn);
-                cmdHistory.Parameters.AddWithValue("@orderId", _currentOrderId.Value);
-                cmdHistory.Parameters.AddWithValue("@user", UserID);
-                cmdHistory.Parameters.AddWithValue("@typ", "Modyfikacja pozycji");
-                cmdHistory.Parameters.AddWithValue("@opis", opisZmiany);
-
-                try
-                {
-                    await cmdHistory.ExecuteNonQueryAsync();
-                }
-                catch
-                {
-                    // Tabela historii może nie istnieć - ignoruj
-                }
+                await Services.HistoriaZmianService.LogujEdycje(
+                    _currentOrderId.Value,
+                    UserID,
+                    App.UserFullName,
+                    $"Pozycja: {produktNazwa} - {columnName}",
+                    staraWartosc,
+                    nowaWartosc,
+                    opisZmiany);
 
                 // Odśwież dane po zmianie ilości (aby przeliczyć różnicę)
                 if (columnName == "Zam.")
@@ -5561,30 +5689,13 @@ ORDER BY zm.Id";
                 cmdUpdate.Parameters.AddWithValue("@orderId", _currentOrderId.Value);
                 await cmdUpdate.ExecuteNonQueryAsync();
 
-                // Zapisz zmianę w historii
-                string staraWartosc = string.IsNullOrEmpty(oldNotes) ? "(puste)" :
-                    (oldNotes.Length > 50 ? oldNotes.Substring(0, 50) + "..." : oldNotes);
-                string nowaWartosc = string.IsNullOrEmpty(newNotes) ? "(puste)" :
-                    (newNotes.Length > 50 ? newNotes.Substring(0, 50) + "..." : newNotes);
-
-                string opisZmiany = $"Notatki: \"{staraWartosc}\" → \"{nowaWartosc}\"";
-
-                await using var cmdHistory = new SqlCommand(@"
-                    INSERT INTO dbo.ZamowieniaHistoria (ZamowienieId, DataZmiany, Uzytkownik, TypZmiany, OpisZmiany)
-                    VALUES (@orderId, GETDATE(), @user, @typ, @opis)", cn);
-                cmdHistory.Parameters.AddWithValue("@orderId", _currentOrderId.Value);
-                cmdHistory.Parameters.AddWithValue("@user", UserID);
-                cmdHistory.Parameters.AddWithValue("@typ", "Modyfikacja notatek");
-                cmdHistory.Parameters.AddWithValue("@opis", opisZmiany);
-
-                try
-                {
-                    await cmdHistory.ExecuteNonQueryAsync();
-                }
-                catch
-                {
-                    // Tabela historii może nie istnieć - ignoruj
-                }
+                // Zapisz zmianę w historii (używając HistoriaZmianService)
+                await Services.HistoriaZmianService.LogujZmianeNotatki(
+                    _currentOrderId.Value,
+                    UserID,
+                    oldNotes,
+                    newNotes,
+                    App.UserFullName);
 
                 // Zaktualizuj oryginalną wartość
                 _originalNotesValue = newNotes;
