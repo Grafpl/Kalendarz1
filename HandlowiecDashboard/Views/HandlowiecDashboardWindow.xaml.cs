@@ -1174,7 +1174,7 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
                 var sqlSaldo = @"
 SELECT
     C.shortcut AS Kontrahent,
-    ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
+    MAX(ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany')) AS Handlowiec,
     CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc ELSE 0 END), 0) AS DECIMAL(18,0)) AS E2,
     CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta H1' THEN MZ.Ilosc ELSE 0 END), 0) AS DECIMAL(18,0)) AS H1
 FROM [HANDEL].[HM].[MZ] MZ
@@ -1185,7 +1185,7 @@ LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON C.Id = WYM.Eleme
 WHERE MZ.data <= @DataDo AND MG.anulowany = 0
   AND TW.nazwa IN ('Pojemnik Drobiowy E2', 'Paleta H1')
   AND (@Handlowiec IS NULL OR WYM.CDim_Handlowiec_Val = @Handlowiec)
-GROUP BY C.shortcut, ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany')
+GROUP BY C.shortcut
 HAVING ISNULL(SUM(MZ.Ilosc), 0) <> 0";
 
                 // Pobierz saldo na date 1
