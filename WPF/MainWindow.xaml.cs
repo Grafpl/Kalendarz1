@@ -5737,8 +5737,25 @@ ORDER BY zm.Id";
                 if (nazwa.Contains("SUMA") || nazwa.TrimStart().StartsWith("·"))
                     continue;
 
-                // Pomijaj wiersze nagłówkowe (Kurczak A, Kurczak B)
-                if (nazwa.Contains("Kurczak A") || nazwa.Contains("Kurczak B"))
+                // Pomijaj tylko Kurczak B (nagłówek zbiorczy), ale NIE Kurczak A
+                if (nazwa.Contains("Kurczak B") && !nazwa.Contains("Kurczak B "))
+                    continue;
+
+                // Sprawdź czy produkt jest mrożony - jeśli tak, pomiń
+                string czystaNazwaDlaSprawdzenia = nazwa
+                    .Replace("▶", "").Replace("▼", "")
+                    .Replace("└", "").Replace("🍗", "").Replace("🍖", "").Replace("🥩", "").Replace("🐔", "")
+                    .Trim();
+
+                // Sprawdź w katalogu mrożonych
+                bool jestMrozony = _productCatalogMrozone.Values.Any(v =>
+                    czystaNazwaDlaSprawdzenia.Contains(v, StringComparison.OrdinalIgnoreCase) ||
+                    v.Contains(czystaNazwaDlaSprawdzenia, StringComparison.OrdinalIgnoreCase));
+
+                // Pomiń produkty mrożone (zawierające "mrożon" lub "mroż" w nazwie)
+                if (nazwa.Contains("mrożon", StringComparison.OrdinalIgnoreCase) ||
+                    nazwa.Contains("mroż", StringComparison.OrdinalIgnoreCase) ||
+                    jestMrozony)
                     continue;
 
                 decimal plan = row["PlanowanyPrzychód"] != DBNull.Value ? Convert.ToDecimal(row["PlanowanyPrzychód"]) : 0;
@@ -5757,39 +5774,30 @@ ORDER BY zm.Id";
                 // Oblicz szerokość paska (0-180 px dla pełnej szerokości karty 200px - padding)
                 double szerokoscPaska = Math.Max(0, Math.Min(180, (double)(procentDostepnosci * 180m / 100m)));
 
-                // Ustal kolory na podstawie bilansu
+                // Ustal kolory - jednolite: białe tło, czerwony lub zielony akcent
                 Brush kolorRamki, kolorPaska, kolorTekstu;
-                Color kolorTla;
+                Color kolorTla = Colors.White; // Zawsze białe tło
 
-                if (bilans > podstawa * 0.3m)
+                if (bilans > 0)
                 {
-                    // Dużo dostępne - zielony
+                    // Dostępne - zielony
                     kolorRamki = new SolidColorBrush(Color.FromRgb(39, 174, 96));    // #27AE60
-                    kolorPaska = new SolidColorBrush(Color.FromRgb(39, 174, 96));
-                    kolorTla = Color.FromRgb(232, 245, 233);                          // Jasno zielone tło
+                    kolorPaska = new SolidColorBrush(Color.FromRgb(144, 238, 144));  // Jasno zielony pasek
                     kolorTekstu = new SolidColorBrush(Color.FromRgb(39, 174, 96));
-                }
-                else if (bilans > 0)
-                {
-                    // Mało dostępne - żółty/pomarańczowy
-                    kolorRamki = new SolidColorBrush(Color.FromRgb(243, 156, 18));   // #F39C12
-                    kolorPaska = new SolidColorBrush(Color.FromRgb(243, 156, 18));
-                    kolorTla = Color.FromRgb(255, 248, 225);                          // Jasno żółte tło
-                    kolorTekstu = new SolidColorBrush(Color.FromRgb(243, 156, 18));
                 }
                 else
                 {
                     // Brak / ujemny - czerwony
                     kolorRamki = new SolidColorBrush(Color.FromRgb(231, 76, 60));    // #E74C3C
                     kolorPaska = new SolidColorBrush(Color.FromRgb(231, 76, 60));
-                    kolorTla = Color.FromRgb(253, 237, 236);                          // Jasno czerwone tło
+                    kolorTla = Color.FromRgb(255, 240, 240);                          // Delikatnie różowe tło dla braku
                     kolorTekstu = new SolidColorBrush(Color.FromRgb(231, 76, 60));
                 }
 
                 // Wyczyść nazwę z ikon i formatowania
                 string czystaNazwa = nazwa
                     .Replace("▶", "").Replace("▼", "")
-                    .Replace("└", "").Replace("🍗", "").Replace("🍖", "").Replace("🥩", "")
+                    .Replace("└", "").Replace("🍗", "").Replace("🍖", "").Replace("🥩", "").Replace("🐔", "")
                     .Trim();
 
                 produkty.Add(new DostepnoscProduktuModel
@@ -5806,12 +5814,11 @@ ORDER BY zm.Id";
                 });
             }
 
-            // Posortuj - najpierw czerwone (najbardziej krytyczne), potem żółte, na końcu zielone
+            // Posortuj - najpierw czerwone (brak), potem zielone (dostępne)
             produkty = produkty
                 .OrderBy(p => {
-                    if (((SolidColorBrush)p.KolorRamki).Color == Color.FromRgb(231, 76, 60)) return 0; // czerwony
-                    if (((SolidColorBrush)p.KolorRamki).Color == Color.FromRgb(243, 156, 18)) return 1; // żółty
-                    return 2; // zielony
+                    if (((SolidColorBrush)p.KolorRamki).Color == Color.FromRgb(231, 76, 60)) return 0; // czerwony (brak)
+                    return 1; // zielony (dostępne)
                 })
                 .ThenBy(p => p.Nazwa)
                 .ToList();

@@ -669,9 +669,6 @@
                                                     <Border Background="#27AE60" CornerRadius="3" Padding="8,2" Margin="5,0">
                                                         <TextBlock Text="Dostępny" Foreground="White" FontSize="10"/>
                                                     </Border>
-                                                    <Border Background="#F39C12" CornerRadius="3" Padding="8,2" Margin="5,0">
-                                                        <TextBlock Text="Mało" Foreground="White" FontSize="10"/>
-                                                    </Border>
                                                     <Border Background="#E74C3C" CornerRadius="3" Padding="8,2" Margin="5,0">
                                                         <TextBlock Text="Brak" Foreground="White" FontSize="10"/>
                                                     </Border>
