@@ -1321,13 +1321,18 @@ HAVING ISNULL(SUM(MZ.Ilosc), 0) <> 0";
 
                 txtOpakH1Suma.Text = $"Razem: {sumaH1Data2:N0} (zmiana: {signH1}{zmianaH1:N0})";
 
-                // Wykresy trendow - uzywaja osobnych polaczen
+                // Wykresy trendow - pokazuj tylko jesli klient jest wybrany
                 if (string.IsNullOrEmpty(_wybranyKontrahentOpak))
                 {
-                    await OdswiezTrendOpakowaniaDlaWszystkich();
+                    // Ukryj panel trendu gdy nie ma wybranego klienta
+                    gridOpakTrendPanel.Visibility = Visibility.Collapsed;
+                    btnResetOpakowaniaWybor.Visibility = Visibility.Collapsed;
+                    txtOpakWybranyKontrahent.Text = "";
                 }
                 else
                 {
+                    gridOpakTrendPanel.Visibility = Visibility.Visible;
+                    btnResetOpakowaniaWybor.Visibility = Visibility.Visible;
                     await OdswiezTrendOpakowaniaKontrahenta(_wybranyKontrahentOpak);
                 }
             }
@@ -1509,12 +1514,21 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
             // Pojedyncze klikniecie - zaznacz odbiorce i pokaz trend
             _wybranyKontrahentOpak = kontrahent;
             txtOpakWybranyKontrahent.Text = $"Wybrany: {kontrahent}";
-            await OdswiezTrendOpakowaniaKontrahenta(kontrahent);
 
-            // Otworz okno dokumentow
-            var window = new KontrahentOpakowaniaWindow(kontrahent, _connectionStringHandel);
-            window.Owner = this;
-            window.Show();
+            // Pokaz panel trendu klienta
+            gridOpakTrendPanel.Visibility = Visibility.Visible;
+            btnResetOpakowaniaWybor.Visibility = Visibility.Visible;
+
+            await OdswiezTrendOpakowaniaKontrahenta(kontrahent);
+        }
+
+        private void BtnResetOpakowaniaWybor_Click(object sender, RoutedEventArgs e)
+        {
+            // Resetuj wybor klienta i ukryj panel trendu
+            _wybranyKontrahentOpak = null;
+            txtOpakWybranyKontrahent.Text = "";
+            gridOpakTrendPanel.Visibility = Visibility.Collapsed;
+            btnResetOpakowaniaWybor.Visibility = Visibility.Collapsed;
         }
 
         #endregion

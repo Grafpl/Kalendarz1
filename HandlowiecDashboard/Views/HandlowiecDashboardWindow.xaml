@@ -601,7 +601,7 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
-                            <RowDefinition Height="250"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <!-- Filtry -->
@@ -616,6 +616,7 @@
                                     <DatePicker x:Name="dpOpakDo" Width="110" SelectedDateChanged="DpOpakowania_SelectedDateChanged"/>
                                     <TextBlock x:Name="txtOpakZmiana" Text="" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Margin="15,0,0,0"/>
                                     <TextBlock x:Name="txtOpakWybranyKontrahent" Text="" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentOrangeBrush}" VerticalAlignment="Center" Margin="20,0,0,0"/>
+                                    <Button x:Name="btnResetOpakowaniaWybor" Content="✕" Click="BtnResetOpakowaniaWybor_Click" Style="{StaticResource SmallButtonStyle}" Margin="5,0,0,0" Visibility="Collapsed" ToolTip="Ukryj wykres klienta"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                     <TextBlock Text="Szybki wybor:" Style="{StaticResource FilterLabelStyle}"/>
@@ -627,7 +628,7 @@
                                     <Button Content="6 mies" Tag="180" Click="BtnOpakOkres_Click" Style="{StaticResource SmallButtonStyle}" Margin="3,0,3,0"/>
                                     <Button Content="1 rok" Tag="365" Click="BtnOpakOkres_Click" Style="{StaticResource SmallButtonStyle}" Margin="3,0,3,0"/>
                                     <Button Content="Calosc" Tag="9999" Click="BtnOpakOkres_Click" Style="{StaticResource SmallButtonStyle}" Margin="3,0,10,0"/>
-                                    <TextBlock Text="Kliknij na wykresie aby zaznaczyc odbiorce" Style="{StaticResource DescriptionStyle}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Kliknij slupek aby zobaczyc trend klienta" Style="{StaticResource DescriptionStyle}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -738,8 +739,8 @@
                             </Border>
                         </Grid>
 
-                        <!-- Dolny panel - dwa wykresy liniowe tygodniowe -->
-                        <Grid Grid.Row="2">
+                        <!-- Dolny panel - dwa wykresy liniowe tygodniowe (ukryty domyslnie) -->
+                        <Grid x:Name="gridOpakTrendPanel" Grid.Row="2" Visibility="Collapsed" Height="220" Margin="0,10,0,0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
