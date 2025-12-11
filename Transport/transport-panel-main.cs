@@ -63,7 +63,7 @@ namespace Kalendarz1.Transport.Formularze
         private DataGridView dgvWolneZamowienia;
         private Label lblWolneZamowieniaInfo;
         private readonly string _connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
-        private readonly string _connHandel = "Server=192.168.0.109;Database=Handel2024;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private readonly string _connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
 
         // Podsumowanie
         private Label lblSummaryKursy;
@@ -1933,7 +1933,7 @@ namespace Kalendarz1.Transport.Formularze
                 }
 
                 // Pobierz nazwy klientów - zapytanie jak w edytorze
-                var klienciDict = new Dictionary<int, string>();
+                var klienciDict = new Dictionary<int, (string Nazwa, string Adres)>();
                 if (klientIds.Any())
                 {
                     try
@@ -1944,8 +1944,11 @@ namespace Kalendarz1.Transport.Formularze
                         var sqlKlienci = $@"
                             SELECT
                                 c.Id,
-                                ISNULL(c.Shortcut, 'KH ' + CAST(c.Id AS VARCHAR(10))) AS Nazwa
+                                ISNULL(c.Shortcut, 'KH ' + CAST(c.Id AS VARCHAR(10))) AS Nazwa,
+                                ISNULL(poa.Postcode, '') + ' ' + ISNULL(poa.Street, '') AS Adres
                             FROM SSCommon.STContractors c
+                            LEFT JOIN SSCommon.STPostOfficeAddresses poa ON poa.ContactGuid = c.ContactGuid
+                                AND poa.AddressName = N'adres domyślny'
                             WHERE c.Id IN ({string.Join(",", klientIds)})";
 
                         using var cmdKlienci = new SqlCommand(sqlKlienci, cnHandel);
@@ -1955,7 +1958,8 @@ namespace Kalendarz1.Transport.Formularze
                         {
                             var id = readerKlienci.GetInt32(0);
                             var nazwa = readerKlienci.GetString(1);
-                            klienciDict[id] = nazwa;
+                            var adres = readerKlienci.IsDBNull(2) ? "" : readerKlienci.GetString(2);
+                            klienciDict[id] = (nazwa, adres);
                         }
                     }
                     catch (Exception exHandel)
@@ -1965,11 +1969,14 @@ namespace Kalendarz1.Transport.Formularze
                 }
 
                 // Złóż dane
+                var wolneList = new List<(int Id, string Klient, string Godzina, decimal Palety, int Pojemniki, string Adres)>();
                 foreach (var zam in tempList)
                 {
-                    var klientNazwa = klienciDict.TryGetValue(zam.KlientId, out var nazwa) ? nazwa : $"Klient {zam.KlientId}";
+                    var klientInfo = klienciDict.TryGetValue(zam.KlientId, out var info)
+                        ? info
+                        : ($"Klient {zam.KlientId}", "");
                     var godzina = zam.DataPrzyjazdu.ToString("HH:mm");
-                    wolneZamowienia.Add((zam.Id, klientNazwa, godzina, zam.Palety, zam.Pojemniki));
+                    wolneList.Add((zam.Id, klientInfo.Nazwa, godzina, zam.Palety, zam.Pojemniki, klientInfo.Adres));
                 }
 
                 // Wyświetl w gridzie
@@ -1980,21 +1987,29 @@ namespace Kalendarz1.Transport.Formularze
                 dt.Columns.Add("Palety", typeof(string));
                 dt.Columns.Add("E2", typeof(int));
 
-                foreach (var zam in wolneZamowienia.OrderBy(z => z.Godzina))
+                foreach (var zam in wolneList.OrderBy(z => z.Godzina))
                 {
                     dt.Rows.Add(zam.Id, zam.Klient, zam.Godzina, zam.Palety.ToString("N1"), zam.Pojemniki);
                 }
 
                 dgvWolneZamowienia.DataSource = dt;
 
+                // Konfiguracja kolumn
                 if (dgvWolneZamowienia.Columns["ID"] != null)
                     dgvWolneZamowienia.Columns["ID"].Visible = false;
+                if (dgvWolneZamowienia.Columns["Klient"] != null)
+                    dgvWolneZamowienia.Columns["Klient"].FillWeight = 100;
                 if (dgvWolneZamowienia.Columns["Godz."] != null)
-                    dgvWolneZamowienia.Columns["Godz."].Width = 50;
+                    dgvWolneZamowienia.Columns["Godz."].Width = 45;
                 if (dgvWolneZamowienia.Columns["Palety"] != null)
-                    dgvWolneZamowienia.Columns["Palety"].Width = 55;
+                    dgvWolneZamowienia.Columns["Palety"].Width = 45;
                 if (dgvWolneZamowienia.Columns["E2"] != null)
                     dgvWolneZamowienia.Columns["E2"].Width = 45;
+
+                // Aktualizuj licznik
+                wolneZamowienia.Clear();
+                foreach (var z in wolneList)
+                    wolneZamowienia.Add((z.Id, z.Klient, z.Godzina, z.Palety, z.Pojemniki));
 
                 // Aktualizuj info - kompaktowe
                 lblWolneZamowieniaInfo.Text = wolneZamowienia.Count.ToString();
