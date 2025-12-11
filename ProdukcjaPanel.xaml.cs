@@ -1198,15 +1198,34 @@ namespace Kalendarz1
                 GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
                 HorizontalGridLinesBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#444")),
                 RowBackground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2A2A2E")),
-                AlternatingRowBackground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#323236"))
+                AlternatingRowBackground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#323236")),
+                HeadersVisibility = DataGridHeadersVisibility.Column,
+                ColumnHeaderHeight = 35
             };
+
+            // Style dla nagłówków kolumn (ciemne)
+            var headerStyle = new Style(typeof(DataGridColumnHeader));
+            headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BackgroundProperty, new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3A3A3E"))));
+            headerStyle.Setters.Add(new Setter(DataGridColumnHeader.ForegroundProperty, Brushes.White));
+            headerStyle.Setters.Add(new Setter(DataGridColumnHeader.FontWeightProperty, FontWeights.Bold));
+            headerStyle.Setters.Add(new Setter(DataGridColumnHeader.PaddingProperty, new Thickness(8, 5, 8, 5)));
+            headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BorderBrushProperty, new SolidColorBrush((Color)ColorConverter.ConvertFromString("#555"))));
+            headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BorderThicknessProperty, new Thickness(0, 0, 1, 1)));
+            dgItems.ColumnHeaderStyle = headerStyle;
+
+            // Style dla komórek (ciemne)
+            var cellStyle = new Style(typeof(DataGridCell));
+            cellStyle.Setters.Add(new Setter(DataGridCell.BackgroundProperty, Brushes.Transparent));
+            cellStyle.Setters.Add(new Setter(DataGridCell.BorderThicknessProperty, new Thickness(0)));
+            cellStyle.Setters.Add(new Setter(DataGridCell.ForegroundProperty, Brushes.White));
+            dgItems.CellStyle = cellStyle;
 
             // Kolumna: Produkt (readonly) - krótsza
             dgItems.Columns.Add(new DataGridTextColumn
             {
                 Header = "Produkt",
                 Binding = new System.Windows.Data.Binding("NazwaTowaru"),
-                Width = new DataGridLength(140),
+                Width = new DataGridLength(110),
                 IsReadOnly = true,
                 ElementStyle = new Style(typeof(TextBlock)) { Setters = { new Setter(TextBlock.ForegroundProperty, Brushes.White), new Setter(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis) } }
             });
@@ -1460,15 +1479,26 @@ namespace Kalendarz1
         {
             var orderId = GetSelectedOrderId();
             if (!orderId.HasValue) return;
-            if (MessageBox.Show("Cofnąć realizację?", "Potwierdzenie", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            if (MessageBox.Show("Cofnąć realizację?\n\nWartości zrealizowanych ilości zostaną usunięte.", "Potwierdzenie", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
 
             using var cn = new SqlConnection(_connLibra);
             await cn.OpenAsync();
-            // Cofnij tylko CzyZrealizowane (nie ruszaj CzyWydane)
+
+            // Wyczyść wartości realizacji z pozycji zamówienia
+            var cmdClearItems = new SqlCommand(@"UPDATE dbo.ZamowieniaMiesoTowar
+                                                 SET IloscZrealizowana = NULL, PowodBraku = NULL
+                                                 WHERE ZamowienieId = @I", cn);
+            cmdClearItems.Parameters.AddWithValue("@I", orderId.Value);
+            await cmdClearItems.ExecuteNonQueryAsync();
+
+            // Cofnij realizację zamówienia
             var cmd = new SqlCommand(@"UPDATE dbo.ZamowieniaMieso
                                        SET CzyZrealizowane = 0,
+                                           CzyCzesciowoZrealizowane = 0,
+                                           ProcentRealizacji = NULL,
                                            DataRealizacji = NULL,
                                            KtoZrealizowal = NULL,
+                                           DataAkceptacjiProdukcja = NULL,
                                            Status = CASE WHEN CzyWydane = 1 THEN 'Wydany' ELSE 'Nowe' END
                                        WHERE Id = @I", cn);
             cmd.Parameters.AddWithValue("@I", orderId.Value);
