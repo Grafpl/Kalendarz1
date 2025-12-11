@@ -685,8 +685,8 @@
                                             </ItemsControl.ItemsPanel>
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Border Margin="5" Padding="12" CornerRadius="10" Width="200"
-                                                            BorderThickness="2" BorderBrush="{Binding KolorRamki}">
+                                                    <Border Margin="5" Padding="15" CornerRadius="10" Width="220"
+                                                            BorderThickness="3" BorderBrush="{Binding KolorRamki}">
                                                         <Border.Background>
                                                             <SolidColorBrush Color="{Binding KolorTla}"/>
                                                         </Border.Background>
@@ -696,32 +696,51 @@
                                                                 <RowDefinition Height="Auto"/>
                                                                 <RowDefinition Height="Auto"/>
                                                                 <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
                                                             </Grid.RowDefinitions>
 
                                                             <!-- Nazwa produktu -->
                                                             <TextBlock Grid.Row="0" Text="{Binding Nazwa}"
-                                                                       FontWeight="Bold" FontSize="12"
-                                                                       Foreground="#2c3e50" TextTrimming="CharacterEllipsis"/>
+                                                                       FontWeight="Bold" FontSize="13"
+                                                                       Foreground="#2c3e50" TextWrapping="Wrap"/>
 
                                                             <!-- Pasek postępu -->
-                                                            <Grid Grid.Row="1" Margin="0,8,0,5">
-                                                                <Border Background="#E0E0E0" CornerRadius="4" Height="12"/>
-                                                                <Border Background="{Binding KolorPaska}" CornerRadius="4" Height="12"
+                                                            <Grid Grid.Row="1" Margin="0,10,0,8">
+                                                                <Border Background="#E0E0E0" CornerRadius="5" Height="16"/>
+                                                                <Border Background="{Binding KolorPaska}" CornerRadius="5" Height="16"
                                                                         HorizontalAlignment="Left" Width="{Binding SzerokoscPaska}"/>
+                                                                <TextBlock Text="{Binding ProcentText}" FontSize="10" FontWeight="Bold"
+                                                                           Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                             </Grid>
 
-                                                            <!-- Dostępna ilość -->
-                                                            <StackPanel Grid.Row="2" Orientation="Horizontal">
-                                                                <TextBlock Text="Dostępne: " FontSize="11" Foreground="#7f8c8d"/>
-                                                                <TextBlock Text="{Binding DostepneText}" FontSize="11"
-                                                                           FontWeight="Bold" Foreground="{Binding KolorTekstu}"/>
-                                                            </StackPanel>
+                                                            <!-- BILANS - główna informacja -->
+                                                            <Border Grid.Row="2" Background="{Binding KolorRamki}" CornerRadius="5" Padding="8,5" Margin="0,0,0,8">
+                                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                                    <TextBlock Text="DO SPRZEDANIA: " FontSize="12" Foreground="White" FontWeight="SemiBold"/>
+                                                                    <TextBlock Text="{Binding BilansText}" FontSize="14" Foreground="White" FontWeight="Bold"/>
+                                                                </StackPanel>
+                                                            </Border>
 
-                                                            <!-- Zamówione vs Fakt -->
-                                                            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,3,0,0">
-                                                                <TextBlock Text="{Binding ZamowioneText}" FontSize="10" Foreground="#95a5a6"/>
-                                                                <TextBlock Text=" / " FontSize="10" Foreground="#bdc3c7"/>
-                                                                <TextBlock Text="{Binding FaktText}" FontSize="10" Foreground="#95a5a6"/>
+                                                            <!-- Plan/Fakt i Stan -->
+                                                            <Grid Grid.Row="3" Margin="0,0,0,5">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                </Grid.ColumnDefinitions>
+                                                                <StackPanel Grid.Column="0">
+                                                                    <TextBlock Text="Plan/Fakt:" FontSize="9" Foreground="#7f8c8d"/>
+                                                                    <TextBlock Text="{Binding PlanFaktText}" FontSize="11" FontWeight="SemiBold" Foreground="#2c3e50"/>
+                                                                </StackPanel>
+                                                                <StackPanel Grid.Column="1">
+                                                                    <TextBlock Text="Stan mag.:" FontSize="9" Foreground="#7f8c8d"/>
+                                                                    <TextBlock Text="{Binding StanText}" FontSize="11" FontWeight="SemiBold" Foreground="#2c3e50"/>
+                                                                </StackPanel>
+                                                            </Grid>
+
+                                                            <!-- Zamówienia -->
+                                                            <StackPanel Grid.Row="4" Orientation="Horizontal">
+                                                                <TextBlock Text="Zamówienia: " FontSize="10" Foreground="#7f8c8d"/>
+                                                                <TextBlock Text="{Binding ZamowioneText}" FontSize="10" FontWeight="SemiBold" Foreground="#e74c3c"/>
                                                             </StackPanel>
                                                         </Grid>
                                                     </Border>

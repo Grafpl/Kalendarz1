@@ -5728,7 +5728,7 @@ ORDER BY zm.Id";
         {
             var produkty = new List<DostepnoscProduktuModel>();
 
-            // Przetwórz każdy wiersz z agregacji (pomijając tylko sumy i rozwinięte szczegóły)
+            // Przetwórz każdy wiersz z agregacji
             foreach (DataRow row in dtAgg.Rows)
             {
                 string nazwa = row["Produkt"]?.ToString() ?? "";
@@ -5737,52 +5737,56 @@ ORDER BY zm.Id";
                 if (nazwa.Contains("SUMA") || nazwa.TrimStart().StartsWith("·"))
                     continue;
 
-                // Pomiń produkty mrożone (zawierające "mrożon" lub "mroż" w nazwie)
+                // Pomiń produkty mrożone
                 if (nazwa.Contains("mrożon", StringComparison.OrdinalIgnoreCase) ||
-                    nazwa.Contains("mroż", StringComparison.OrdinalIgnoreCase))
+                    nazwa.Contains("Mrożon", StringComparison.OrdinalIgnoreCase))
                     continue;
 
                 decimal plan = row["PlanowanyPrzychód"] != DBNull.Value ? Convert.ToDecimal(row["PlanowanyPrzychód"]) : 0;
                 decimal fakt = row["FaktycznyPrzychód"] != DBNull.Value ? Convert.ToDecimal(row["FaktycznyPrzychód"]) : 0;
                 decimal zam = row["Zamówienia"] != DBNull.Value ? Convert.ToDecimal(row["Zamówienia"]) : 0;
                 decimal bilans = row["Bilans"] != DBNull.Value ? Convert.ToDecimal(row["Bilans"]) : 0;
+                string stanText = row["Stan"]?.ToString() ?? "0";
 
                 // Podstawa do obliczeń - fakt jeśli > 0, inaczej plan
                 decimal podstawa = fakt > 0 ? fakt : plan;
-                if (podstawa <= 0) continue;
+                if (podstawa <= 0 && bilans == 0) continue;
 
-                // Oblicz procent dostępności
+                // Oblicz procent sprzedaży (ile zostało do sprzedania)
                 decimal procentDostepnosci = podstawa > 0 ? (bilans / podstawa) * 100m : 0;
-                procentDostepnosci = Math.Max(-100, Math.Min(procentDostepnosci, 100)); // Ograniczenie -100% do 100%
+                procentDostepnosci = Math.Max(0, Math.Min(procentDostepnosci, 100));
 
-                // Oblicz szerokość paska (0-180 px dla pełnej szerokości karty 200px - padding)
-                double szerokoscPaska = Math.Max(0, Math.Min(180, (double)(procentDostepnosci * 180m / 100m)));
+                // Szerokość paska (0-190 px)
+                double szerokoscPaska = Math.Max(0, Math.Min(190, (double)(procentDostepnosci * 190m / 100m)));
 
-                // Ustal kolory - jednolite: białe tło, czerwony lub zielony akcent
-                Brush kolorRamki, kolorPaska, kolorTekstu;
-                Color kolorTla = Colors.White; // Zawsze białe tło
+                // Ustal kolory
+                Brush kolorRamki, kolorPaska;
+                Color kolorTla = Colors.White;
 
                 if (bilans > 0)
                 {
                     // Dostępne - zielony
                     kolorRamki = new SolidColorBrush(Color.FromRgb(39, 174, 96));    // #27AE60
-                    kolorPaska = new SolidColorBrush(Color.FromRgb(144, 238, 144));  // Jasno zielony pasek
-                    kolorTekstu = new SolidColorBrush(Color.FromRgb(39, 174, 96));
+                    kolorPaska = new SolidColorBrush(Color.FromRgb(144, 238, 144));  // Jasno zielony
                 }
                 else
                 {
                     // Brak / ujemny - czerwony
                     kolorRamki = new SolidColorBrush(Color.FromRgb(231, 76, 60));    // #E74C3C
                     kolorPaska = new SolidColorBrush(Color.FromRgb(231, 76, 60));
-                    kolorTla = Color.FromRgb(255, 240, 240);                          // Delikatnie różowe tło dla braku
-                    kolorTekstu = new SolidColorBrush(Color.FromRgb(231, 76, 60));
+                    kolorTla = Color.FromRgb(255, 235, 235);
                 }
 
-                // Wyczyść nazwę z ikon i formatowania
+                // Wyczyść nazwę z ikon
                 string czystaNazwa = nazwa
                     .Replace("▶", "").Replace("▼", "")
                     .Replace("└", "").Replace("🍗", "").Replace("🍖", "").Replace("🥩", "").Replace("🐔", "")
                     .Trim();
+
+                // Ustal kolejność: Kurczak A = 0, Kurczak B = 1, elementy = 2
+                int kolejnosc = 2;
+                if (czystaNazwa.Contains("Kurczak A")) kolejnosc = 0;
+                else if (czystaNazwa.Contains("Kurczak B")) kolejnosc = 1;
 
                 produkty.Add(new DostepnoscProduktuModel
                 {
@@ -5791,19 +5795,20 @@ ORDER BY zm.Id";
                     KolorTla = kolorTla,
                     KolorPaska = kolorPaska,
                     SzerokoscPaska = szerokoscPaska,
-                    DostepneText = $"{bilans:N0} kg",
-                    KolorTekstu = kolorTekstu,
-                    ZamowioneText = $"Zam: {zam:N0}",
-                    FaktText = $"Fakt: {fakt:N0}"
+                    BilansText = $"{bilans:N0} kg",
+                    PlanFaktText = fakt > 0 ? $"{fakt:N0}" : $"{plan:N0}",
+                    StanText = stanText,
+                    ZamowioneText = $"{zam:N0} kg",
+                    ProcentText = $"{procentDostepnosci:N0}%",
+                    Kolejnosc = kolejnosc,
+                    Bilans = bilans
                 });
             }
 
-            // Posortuj - najpierw czerwone (brak), potem zielone (dostępne)
+            // Sortuj: Kurczak A, Kurczak B, potem elementy (czerwone najpierw)
             produkty = produkty
-                .OrderBy(p => {
-                    if (((SolidColorBrush)p.KolorRamki).Color == Color.FromRgb(231, 76, 60)) return 0; // czerwony (brak)
-                    return 1; // zielony (dostępne)
-                })
+                .OrderBy(p => p.Kolejnosc)
+                .ThenBy(p => p.Bilans > 0 ? 1 : 0)  // Czerwone (brak) najpierw
                 .ThenBy(p => p.Nazwa)
                 .ToList();
 
@@ -5821,9 +5826,12 @@ ORDER BY zm.Id";
         public Color KolorTla { get; set; } = Colors.White;
         public Brush KolorPaska { get; set; } = Brushes.Gray;
         public double SzerokoscPaska { get; set; }
-        public string DostepneText { get; set; } = "";
-        public Brush KolorTekstu { get; set; } = Brushes.Black;
+        public string BilansText { get; set; } = "";
+        public string PlanFaktText { get; set; } = "";
+        public string StanText { get; set; } = "";
         public string ZamowioneText { get; set; } = "";
-        public string FaktText { get; set; } = "";
+        public string ProcentText { get; set; } = "";
+        public int Kolejnosc { get; set; }
+        public decimal Bilans { get; set; }
     }
 }
