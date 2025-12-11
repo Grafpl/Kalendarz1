@@ -5728,34 +5728,18 @@ ORDER BY zm.Id";
         {
             var produkty = new List<DostepnoscProduktuModel>();
 
-            // Przetwórz każdy wiersz z agregacji (pomijając sumy)
+            // Przetwórz każdy wiersz z agregacji (pomijając tylko sumy i rozwinięte szczegóły)
             foreach (DataRow row in dtAgg.Rows)
             {
                 string nazwa = row["Produkt"]?.ToString() ?? "";
 
-                // Pomijaj wiersze sum i rozwinięte szczegóły
+                // Pomijaj tylko wiersze SUMA i rozwinięte szczegóły (·)
                 if (nazwa.Contains("SUMA") || nazwa.TrimStart().StartsWith("·"))
                     continue;
 
-                // Pomijaj tylko Kurczak B (nagłówek zbiorczy), ale NIE Kurczak A
-                if (nazwa.Contains("Kurczak B") && !nazwa.Contains("Kurczak B "))
-                    continue;
-
-                // Sprawdź czy produkt jest mrożony - jeśli tak, pomiń
-                string czystaNazwaDlaSprawdzenia = nazwa
-                    .Replace("▶", "").Replace("▼", "")
-                    .Replace("└", "").Replace("🍗", "").Replace("🍖", "").Replace("🥩", "").Replace("🐔", "")
-                    .Trim();
-
-                // Sprawdź w katalogu mrożonych
-                bool jestMrozony = _productCatalogMrozone.Values.Any(v =>
-                    czystaNazwaDlaSprawdzenia.Contains(v, StringComparison.OrdinalIgnoreCase) ||
-                    v.Contains(czystaNazwaDlaSprawdzenia, StringComparison.OrdinalIgnoreCase));
-
                 // Pomiń produkty mrożone (zawierające "mrożon" lub "mroż" w nazwie)
                 if (nazwa.Contains("mrożon", StringComparison.OrdinalIgnoreCase) ||
-                    nazwa.Contains("mroż", StringComparison.OrdinalIgnoreCase) ||
-                    jestMrozony)
+                    nazwa.Contains("mroż", StringComparison.OrdinalIgnoreCase))
                     continue;
 
                 decimal plan = row["PlanowanyPrzychód"] != DBNull.Value ? Convert.ToDecimal(row["PlanowanyPrzychód"]) : 0;
