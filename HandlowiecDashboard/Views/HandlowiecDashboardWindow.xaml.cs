@@ -1321,12 +1321,11 @@ HAVING SUM(MZ.Ilosc) <> 0";
                 chartOpakowaniaH1.DisableAnimations = false;
                 txtOpakH1Suma.Text = $"Razem: {sumaH1Data2:N0} (zmiana: {signH1}{zmianaH1:N0})";
 
-                // Wyczysc wykresy liniowe
+                // Wyczysc wykres liniowy trendu
                 txtOpakWybranyKontrahent.Text = "";
-                txtOpakTrendE2Klient.Text = "(kliknij słupek)";
-                txtOpakTrendH1Klient.Text = "(kliknij słupek)";
-                chartOpakTrendE2.Series = new SeriesCollection();
-                chartOpakTrendH1.Series = new SeriesCollection();
+                txtOpakTrendKlient.Text = "(kliknij slupek)";
+                chartOpakTrend.Series = new SeriesCollection();
+                axisXOpakTrend.Labels = new string[0];
             }
             catch (Exception ex)
             {
@@ -1408,13 +1407,13 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
                 }
             }
 
-            // Aktualizuj wykres liniowy E2
-            txtOpakTrendE2Klient.Text = $"- {kontrahent}";
-            chartOpakTrendE2.Series = new SeriesCollection
+            // Aktualizuj wykres liniowy z dwoma liniami (E2 i H1)
+            txtOpakTrendKlient.Text = $"- {kontrahent}";
+            chartOpakTrend.Series = new SeriesCollection
             {
                 new LineSeries
                 {
-                    Title = kontrahent,
+                    Title = "E2",
                     Values = valuesE2,
                     Stroke = new SolidColorBrush(System.Windows.Media.Color.FromRgb(23, 165, 137)),
                     Fill = Brushes.Transparent,
@@ -1422,18 +1421,11 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
                     StrokeThickness = 2,
                     DataLabels = true,
                     LabelPoint = p => $"{p.Y:N0}",
-                    Foreground = Brushes.White
-                }
-            };
-            axisXOpakTrendE2.Labels = trendLabels;
-
-            // Aktualizuj wykres liniowy H1
-            txtOpakTrendH1Klient.Text = $"- {kontrahent}";
-            chartOpakTrendH1.Series = new SeriesCollection
-            {
+                    Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(23, 165, 137))
+                },
                 new LineSeries
                 {
-                    Title = kontrahent,
+                    Title = "H1",
                     Values = valuesH1,
                     Stroke = new SolidColorBrush(System.Windows.Media.Color.FromRgb(192, 57, 43)),
                     Fill = Brushes.Transparent,
@@ -1441,10 +1433,10 @@ WHERE MZ.data >= '2020-01-01' AND MZ.data <= @DataDo AND MG.anulowany = 0
                     StrokeThickness = 2,
                     DataLabels = true,
                     LabelPoint = p => $"{p.Y:N0}",
-                    Foreground = Brushes.White
+                    Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(192, 57, 43))
                 }
             };
-            axisXOpakTrendH1.Labels = trendLabels;
+            axisXOpakTrend.Labels = trendLabels;
         }
 
         #endregion
