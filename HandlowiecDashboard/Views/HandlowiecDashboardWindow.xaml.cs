@@ -446,7 +446,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 await cn.OpenAsync();
 
                 var sql = @"
-                    SELECT TOP 10 C.shortcut AS Kontrahent,
+                    SELECT TOP 15 C.shortcut AS Kontrahent,
                            ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
                            SUM(DP.ilosc) AS SumaKg, SUM(DP.wartNetto) AS SumaWartosc
                     FROM [HANDEL].[HM].[DK] DK
@@ -476,24 +476,42 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                     sumaWartosc += wartosc;
                 }
 
-                // Odwroc kolejnosc dla wyswietlania (najwyzszy na gorze = ostatni w liscie)
-                for (int i = daneTop10.Count - 1; i >= 0; i--)
+                // Buduj liste etykiet (od najnizszej do najwyzszej wartosci)
+                int liczbaElementow = daneTop10.Count;
+                for (int i = liczbaElementow - 1; i >= 0; i--)
                 {
                     var d = daneTop10[i];
-                    var labelTekst = d.Kontrahent.Length > 18 ? d.Kontrahent.Substring(0, 18) + ".." : d.Kontrahent;
+                    var labelTekst = d.Kontrahent.Length > 20 ? d.Kontrahent.Substring(0, 20) + ".." : d.Kontrahent;
                     labels.Add(labelTekst);
+                }
 
-                    // Kazdy slupek jako osobna seria z kolorem handlowca
+                // Kazdy slupek jako osobna seria z kolorem handlowca - wartosci wyzerowane poza wlasna pozycja
+                for (int i = liczbaElementow - 1; i >= 0; i--)
+                {
+                    var d = daneTop10[i];
+                    int pozycja = liczbaElementow - 1 - i; // pozycja na osi Y (0 = dol, n-1 = gora)
+
+                    // Utworz tablice z zerami i jedna wartoscia na wlasciwej pozycji
+                    var wartosci = new ChartValues<double>();
+                    for (int j = 0; j < liczbaElementow; j++)
+                    {
+                        wartosci.Add(j == pozycja ? (double)d.Wartosc : 0);
+                    }
+
                     series.Add(new RowSeries
                     {
                         Title = d.Handlowiec,
-                        Values = new ChartValues<double> { (double)d.Wartosc },
+                        Values = wartosci,
                         Fill = new SolidColorBrush(GetHandlowiecColor(d.Handlowiec)),
                         DataLabels = true,
-                        LabelPoint = p => $"{p.X:N0} zl | {d.Handlowiec}",
-                        Foreground = Brushes.White
+                        LabelPoint = p => p.X > 0 ? $"{p.X:N0} zl" : "",
+                        Foreground = Brushes.White,
+                        MaxRowHeigth = 25
                     });
                 }
+
+                // Aktualizuj legende handlowcow
+                AktualizujLegendeTop15(daneTop10);
 
                 // Oblicz srednia cene
                 decimal sredniaCena = sumaKg > 0 ? sumaWartosc / sumaKg : 0;
@@ -506,6 +524,42 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
             chartTop10.Series = series;
             axisYTop10.Labels = labels;
+        }
+
+        private void AktualizujLegendeTop15(List<(string Kontrahent, string Handlowiec, decimal Kg, decimal Wartosc)> dane)
+        {
+            // Pobierz unikalne pary handlowiec-kolor
+            var handlowcyWDanych = dane.Select(d => d.Handlowiec).Distinct().ToList();
+            var panelLegenda = FindName("panelLegendaTop15") as StackPanel;
+
+            if (panelLegenda == null) return;
+
+            panelLegenda.Children.Clear();
+
+            foreach (var handlowiec in handlowcyWDanych)
+            {
+                var kolor = GetHandlowiecColor(handlowiec);
+
+                var element = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 15, 0) };
+                element.Children.Add(new System.Windows.Shapes.Rectangle
+                {
+                    Width = 14,
+                    Height = 14,
+                    Fill = new SolidColorBrush(kolor),
+                    RadiusX = 2,
+                    RadiusY = 2,
+                    Margin = new Thickness(0, 0, 5, 0)
+                });
+                element.Children.Add(new TextBlock
+                {
+                    Text = handlowiec,
+                    Foreground = Brushes.White,
+                    FontSize = 11,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+
+                panelLegenda.Children.Add(element);
+            }
         }
 
         #endregion
@@ -1643,67 +1697,63 @@ FROM FakturyPrzeterminowane";
                 txtAging90Plus.Text = $"{agingData.Kwota90Plus:N0} zl";
                 txtAging90PlusProcent.Text = $"{(agingTotal > 0 ? agingData.Kwota90Plus / agingTotal * 100 : 0):F0}% | {agingData.Faktur90Plus} fakt.";
 
-                // Top 5 dluznicy - wykres z kolorami per handlowiec
-                var top5Dluznicy = dane.Where(d => d.Przeterminowane > 0).OrderByDescending(d => d.Przeterminowane).Take(5).ToList();
-                if (top5Dluznicy.Any())
+                // Wykres przeterminowanych per handlowiec
+                var przeterminowanePerHandlowiec = dane
+                    .Where(d => d.Przeterminowane > 0)
+                    .GroupBy(d => d.Handlowiec)
+                    .Select(g => new { Handlowiec = g.Key, Kwota = g.Sum(x => x.Przeterminowane), Klientow = g.Count() })
+                    .OrderByDescending(x => x.Kwota)
+                    .ToList();
+
+                if (przeterminowanePerHandlowiec.Any())
                 {
-                    var seriesDluznicy = new SeriesCollection();
-                    var labelsDluznicy = new List<string>();
+                    var seriesHandlowiec = new SeriesCollection();
+                    var labelsHandlowiec = new List<string>();
 
                     // Odwroc kolejnosc dla wyswietlania (najwyzszy na gorze = ostatni w liscie)
-                    for (int i = top5Dluznicy.Count - 1; i >= 0; i--)
+                    for (int i = przeterminowanePerHandlowiec.Count - 1; i >= 0; i--)
                     {
-                        var d = top5Dluznicy[i];
-                        labelsDluznicy.Add(d.Kontrahent.Length > 15 ? d.Kontrahent.Substring(0, 15) + ".." : d.Kontrahent);
-                        seriesDluznicy.Add(new RowSeries
+                        var h = przeterminowanePerHandlowiec[i];
+                        labelsHandlowiec.Add($"{h.Handlowiec} ({h.Klientow})");
+                        seriesHandlowiec.Add(new RowSeries
                         {
-                            Title = d.Handlowiec,
-                            Values = new ChartValues<double> { (double)d.Przeterminowane },
-                            Fill = new SolidColorBrush(GetHandlowiecColor(d.Handlowiec)),
+                            Title = h.Handlowiec,
+                            Values = new ChartValues<double> { (double)h.Kwota },
+                            Fill = new SolidColorBrush(GetHandlowiecColor(h.Handlowiec)),
                             DataLabels = true,
-                            LabelPoint = p => $"{p.X:N0}",
+                            LabelPoint = p => $"{p.X:N0} zl",
                             Foreground = Brushes.White
                         });
                     }
 
-                    chartTopDluznicy.Series = seriesDluznicy;
-                    axisYDluznicy.Labels = labelsDluznicy;
+                    chartPrzeterminowaneHandlowiec.Series = seriesHandlowiec;
+                    axisYPrzeterminowaneHandlowiec.Labels = labelsHandlowiec;
                 }
                 else
                 {
-                    chartTopDluznicy.Series = new SeriesCollection();
-                    axisYDluznicy.Labels = new List<string>();
+                    chartPrzeterminowaneHandlowiec.Series = new SeriesCollection();
+                    axisYPrzeterminowaneHandlowiec.Labels = new List<string>();
                 }
 
-                // Panel top dluznicy z kolorami per handlowiec
-                panelTopDluznicy.Children.Clear();
-                int idx = 1;
-                foreach (var d in top5Dluznicy)
-                {
-                    var kolorHandlowca = GetHandlowiecColor(d.Handlowiec);
-                    var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
-                    sp.Children.Add(new TextBlock { Text = $"{idx}. ", Foreground = new SolidColorBrush(kolorHandlowca), FontWeight = FontWeights.Bold, Width = 18, FontSize = 11 });
-                    sp.Children.Add(new TextBlock { Text = d.Kontrahent, Foreground = Brushes.White, Width = 130, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 11 });
-                    sp.Children.Add(new TextBlock { Text = $"{d.Przeterminowane:N0}", Foreground = new SolidColorBrush(kolorHandlowca), FontWeight = FontWeights.Bold, FontSize = 11 });
-                    panelTopDluznicy.Children.Add(sp);
-                    idx++;
-                }
+                // Wskazniki platnosci
+                var daneZPrzeterminowaniem = dane.Where(d => d.DniPrzeterminowania.HasValue && d.DniPrzeterminowania.Value > 0).ToList();
+                var srednieDniOpoznienia = daneZPrzeterminowaniem.Any()
+                    ? daneZPrzeterminowaniem.Average(d => d.DniPrzeterminowania.Value)
+                    : 0;
+                var procentPrzeterminowanych = sumaDoZaplaty > 0 ? (sumaPrzeterminowane / sumaDoZaplaty * 100) : 0;
+                var dyscyplinaPlatnicza = sumaDoZaplaty > 0 ? (sumaTerminowe / sumaDoZaplaty * 100) : 100;
 
-                // Panel top przekroczone limity z kolorami per handlowiec
-                panelTopPrzekroczone.Children.Clear();
-                var top5Limity = dane.Where(d => d.PrzekroczonyLimit > 0).OrderByDescending(d => d.PrzekroczonyLimit).Take(5).ToList();
-                idx = 1;
-                foreach (var d in top5Limity)
-                {
-                    var kolorHandlowca = GetHandlowiecColor(d.Handlowiec);
-                    var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
-                    sp.Children.Add(new TextBlock { Text = $"{idx}. ", Foreground = new SolidColorBrush(kolorHandlowca), FontWeight = FontWeights.Bold, Width = 18, FontSize = 11 });
-                    sp.Children.Add(new TextBlock { Text = d.Kontrahent, Foreground = Brushes.White, Width = 115, TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 11 });
-                    sp.Children.Add(new TextBlock { Text = $"+{d.PrzekroczonyLimit:N0}", Foreground = new SolidColorBrush(kolorHandlowca), FontWeight = FontWeights.Bold, FontSize = 11 });
-                    sp.Children.Add(new TextBlock { Text = $" ({d.ProcentLimitu:F0}%)", Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(139, 148, 158)), FontSize = 10 });
-                    panelTopPrzekroczone.Children.Add(sp);
-                    idx++;
-                }
+                txtWskaznikSrednieDni.Text = $"{srednieDniOpoznienia:F0} dni";
+                txtWskaznikProcentPrzeterminowanych.Text = $"{procentPrzeterminowanych:F1}%";
+                txtWskaznikLiczbaKlientow.Text = $"{iloscZPrzeterminowanymi}";
+                txtWskaznikPrzekroczonyLimit.Text = $"{iloscZPrzekroczonym}";
+                txtWskaznikDyscyplina.Text = $"{dyscyplinaPlatnicza:F1}%";
+
+                // Ustawienie kolorow wskaznikow w zaleznosci od wartosci
+                txtWskaznikDyscyplina.Foreground = new SolidColorBrush(
+                    dyscyplinaPlatnicza >= 80 ? System.Windows.Media.Color.FromRgb(78, 205, 196) :
+                    dyscyplinaPlatnicza >= 60 ? System.Windows.Media.Color.FromRgb(255, 230, 109) :
+                    System.Windows.Media.Color.FromRgb(255, 107, 107));
             }
             catch (Exception ex)
             {
@@ -1719,6 +1769,31 @@ FROM FakturyPrzeterminowane";
             {
                 var okno = new KontrahentPlatnosciWindow(row.Kontrahent, row.Handlowiec);
                 okno.Show();
+            }
+        }
+
+        private void GridPlatnosci_Sorting(object sender, DataGridSortingEventArgs e)
+        {
+            // Domyslnie sortuj malejaco (od najwyzszego do najnizszego)
+            e.Handled = true;
+
+            var column = e.Column;
+            var direction = System.ComponentModel.ListSortDirection.Descending;
+
+            // Jesli juz sortujemy malejaco, zmien na rosnaco
+            if (column.SortDirection == System.ComponentModel.ListSortDirection.Descending)
+            {
+                direction = System.ComponentModel.ListSortDirection.Ascending;
+            }
+
+            column.SortDirection = direction;
+
+            var view = System.Windows.Data.CollectionViewSource.GetDefaultView(gridPlatnosci.ItemsSource);
+            if (view != null)
+            {
+                view.SortDescriptions.Clear();
+                view.SortDescriptions.Add(new System.ComponentModel.SortDescription(column.SortMemberPath, direction));
+                view.Refresh();
             }
         }
 

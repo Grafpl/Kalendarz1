@@ -264,11 +264,12 @@
                 </Border>
             </TabItem>
 
-            <!-- Tab: Top 10 odbiorcy -->
-            <TabItem Header="Top 10 odbiorcy">
+            <!-- Tab: Top 15 odbiorcy -->
+            <TabItem Header="Top 15 odbiorcy">
                 <Border Background="{StaticResource CardBackgroundLightBrush}" CornerRadius="0,8,8,8">
                     <Grid>
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
@@ -283,10 +284,21 @@
                                 <ComboBox x:Name="cmbTowarTop10" Style="{StaticResource DarkComboBoxStyle}" Width="250" SelectionChanged="CmbTop10_SelectionChanged"/>
                             </StackPanel>
                         </Border>
+                        <!-- Legenda kolorow handlowcow -->
                         <Border Grid.Row="1" Background="{StaticResource CardBackgroundBrush}" Padding="10,8" Margin="0,1,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Legenda: " FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <StackPanel Grid.Column="1" x:Name="panelLegendaTop15" Orientation="Horizontal" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                        <Border Grid.Row="2" Background="{StaticResource CardBackgroundBrush}" Padding="10,8" Margin="0,1,0,0">
                             <TextBlock x:Name="txtTop10Info" Text="" FontSize="12" Foreground="#FFFFFF" HorizontalAlignment="Center"/>
                         </Border>
-                        <lvc:CartesianChart Grid.Row="2" x:Name="chartTop10" Margin="20">
+                        <lvc:CartesianChart Grid.Row="3" x:Name="chartTop10" Margin="20" LegendLocation="None">
                             <lvc:CartesianChart.AxisX>
                                 <lvc:Axis x:Name="axisXTop10" Title="Wartosc (zl)" MinValue="0" Foreground="#FFFFFF" FontSize="10">
                                     <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
@@ -978,51 +990,78 @@
                                 </Grid>
                             </Border>
 
-                            <!-- Wykres + Top 5 przekroczonych limitow + Top 5 dluznikow -->
+                            <!-- Statystyki per Handlowiec + Wskazniki platnosci -->
                             <Grid Grid.Row="3" Margin="0,0,0,10" Height="200">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="280"/>
-                                    <ColumnDefinition Width="280"/>
+                                    <ColumnDefinition Width="320"/>
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Wykres slupkowy przeterminowanych -->
+                                <!-- Przeterminowane per Handlowiec -->
                                 <Border Grid.Column="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="10" Margin="0,0,5,0">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="*"/>
                                         </Grid.RowDefinitions>
-                                        <TextBlock Grid.Row="0" Text="TOP 5 PRZETERMINOWANYCH" FontSize="10" Foreground="{StaticResource AccentOrangeBrush}" FontWeight="Bold" Margin="5,0,0,5"/>
-                                        <lvc:CartesianChart Grid.Row="1" x:Name="chartTopDluznicy" Margin="0">
+                                        <TextBlock Grid.Row="0" Text="PRZETERMINOWANE WG HANDLOWCA" FontSize="10" Foreground="{StaticResource AccentOrangeBrush}" FontWeight="Bold" Margin="5,0,0,5"/>
+                                        <lvc:CartesianChart Grid.Row="1" x:Name="chartPrzeterminowaneHandlowiec" Margin="0">
                                             <lvc:CartesianChart.AxisX>
-                                                <lvc:Axis x:Name="axisXDluznicy" Title="" MinValue="0" Foreground="#FFFFFF" FontSize="9">
+                                                <lvc:Axis x:Name="axisXPrzeterminowaneHandlowiec" Title="" MinValue="0" Foreground="#FFFFFF" FontSize="9">
                                                     <lvc:Axis.Separator><lvc:Separator Stroke="#30363D" StrokeThickness="1"/></lvc:Axis.Separator>
                                                 </lvc:Axis>
                                             </lvc:CartesianChart.AxisX>
                                             <lvc:CartesianChart.AxisY>
-                                                <lvc:Axis x:Name="axisYDluznicy" ShowLabels="True" FontSize="9" Foreground="#FFFFFF">
-                                                    <lvc:Axis.Separator><lvc:Separator StrokeThickness="0"/></lvc:Axis.Separator>
+                                                <lvc:Axis x:Name="axisYPrzeterminowaneHandlowiec" ShowLabels="True" FontSize="9" Foreground="#FFFFFF" IsMerged="False">
+                                                    <lvc:Axis.Separator><lvc:Separator StrokeThickness="0" Step="1"/></lvc:Axis.Separator>
                                                 </lvc:Axis>
                                             </lvc:CartesianChart.AxisY>
                                         </lvc:CartesianChart>
                                     </Grid>
                                 </Border>
 
-                                <!-- Panel Top dluznicy -->
-                                <Border Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,5,0">
-                                    <StackPanel>
-                                        <TextBlock Text="TOP 5 DLUZNICY (przeterminowane)" FontSize="10" Foreground="#FF6B6B" FontWeight="Bold" Margin="0,0,0,8"/>
-                                        <StackPanel x:Name="panelTopDluznicy"/>
-                                    </StackPanel>
-                                </Border>
+                                <!-- Wskazniki platnosci -->
+                                <Border Grid.Column="1" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="15" Margin="5,0,0,0">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Text="WSKAZNIKI PLATNOSCI" FontSize="10" Foreground="#4ECDC4" FontWeight="Bold" Margin="0,0,0,10"/>
+                                        <Grid Grid.Row="1">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
 
-                                <!-- Panel Top przekroczone limity -->
-                                <Border Grid.Column="2" Background="{StaticResource CardBackgroundBrush}" CornerRadius="8" Padding="12" Margin="5,0,0,0">
-                                    <StackPanel>
-                                        <TextBlock Text="TOP 5 PRZEKROCZONE LIMITY" FontSize="10" Foreground="#F4A261" FontWeight="Bold" Margin="0,0,0,8"/>
-                                        <StackPanel x:Name="panelTopPrzekroczone"/>
-                                    </StackPanel>
+                                            <!-- Srednie dni opoznienia -->
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Srednie dni opoznienia:" Foreground="#8B949E" FontSize="11" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="txtWskaznikSrednieDni" Text="0 dni" Foreground="#FFE66D" FontSize="14" FontWeight="Bold" HorizontalAlignment="Right"/>
+
+                                            <!-- Procent przeterminowanych -->
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="% kwoty przeterminowanej:" Foreground="#8B949E" FontSize="11" VerticalAlignment="Center" Margin="0,8,0,0"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="txtWskaznikProcentPrzeterminowanych" Text="0%" Foreground="#FF6B6B" FontSize="14" FontWeight="Bold" HorizontalAlignment="Right" Margin="0,8,0,0"/>
+
+                                            <!-- Liczba klientow z przeterminowanymi -->
+                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Klientow z przeterminowaniem:" Foreground="#8B949E" FontSize="11" VerticalAlignment="Center" Margin="0,8,0,0"/>
+                                            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="txtWskaznikLiczbaKlientow" Text="0" Foreground="#F4A261" FontSize="14" FontWeight="Bold" HorizontalAlignment="Right" Margin="0,8,0,0"/>
+
+                                            <!-- Liczba klientow z przekroczonym limitem -->
+                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Klientow z przekr. limitem:" Foreground="#8B949E" FontSize="11" VerticalAlignment="Center" Margin="0,8,0,0"/>
+                                            <TextBlock Grid.Row="3" Grid.Column="1" x:Name="txtWskaznikPrzekroczonyLimit" Text="0" Foreground="#AA96DA" FontSize="14" FontWeight="Bold" HorizontalAlignment="Right" Margin="0,8,0,0"/>
+
+                                            <!-- Dyscyplina platnicza -->
+                                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Dyscyplina platnicza:" Foreground="#8B949E" FontSize="11" VerticalAlignment="Center" Margin="0,8,0,0"/>
+                                            <TextBlock Grid.Row="4" Grid.Column="1" x:Name="txtWskaznikDyscyplina" Text="0%" Foreground="#4ECDC4" FontSize="14" FontWeight="Bold" HorizontalAlignment="Right" Margin="0,8,0,0"/>
+                                        </Grid>
+                                    </Grid>
                                 </Border>
                             </Grid>
 
@@ -1033,6 +1072,7 @@
                                       Foreground="#FFFFFF" GridLinesVisibility="All"
                                       HorizontalGridLinesBrush="#444444" VerticalGridLinesBrush="#444444"
                                       HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
+                                      CanUserSortColumns="True" Sorting="GridPlatnosci_Sorting"
                                       MouseDoubleClick="GridPlatnosci_MouseDoubleClick">
                                 <DataGrid.RowStyle>
                                     <Style TargetType="DataGridRow">
