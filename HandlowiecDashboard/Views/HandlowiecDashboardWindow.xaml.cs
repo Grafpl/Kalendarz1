@@ -1261,10 +1261,13 @@ HAVING SUM(MZ.Ilosc) <> 0";
                     etykietyE2.Add($"{d.PojemnikiE2:N0} ({sign}{d.E2Zmiana:N0}) | {nazwa}");
                 }
 
-                // Wylacz animacje, wyczysc, ustaw dane, wlacz animacje
+                // Wylacz animacje, wyczysc, ustaw dane
                 chartOpakowaniaE2.DisableAnimations = true;
                 chartOpakowaniaE2.Series = new SeriesCollection();
-                axisYOpakE2.Labels = new string[0];
+                axisYOpakE2.Labels = null;
+                axisYOpakE2.MinValue = 0;
+                axisYOpakE2.MaxValue = listaE2.Count;
+                axisYOpakE2.Separator.Step = 1;
 
                 var seriesE2 = new SeriesCollection
                 {
@@ -1300,10 +1303,13 @@ HAVING SUM(MZ.Ilosc) <> 0";
                     etykietyH1.Add($"{d.PaletaH1:N0} ({sign}{d.H1Zmiana:N0}) | {nazwa}");
                 }
 
-                // Wylacz animacje, wyczysc, ustaw dane, wlacz animacje
+                // Wylacz animacje, wyczysc, ustaw dane
                 chartOpakowaniaH1.DisableAnimations = true;
                 chartOpakowaniaH1.Series = new SeriesCollection();
-                axisYOpakH1.Labels = new string[0];
+                axisYOpakH1.Labels = null;
+                axisYOpakH1.MinValue = 0;
+                axisYOpakH1.MaxValue = listaH1.Count;
+                axisYOpakH1.Separator.Step = 1;
 
                 var seriesH1 = new SeriesCollection
                 {
