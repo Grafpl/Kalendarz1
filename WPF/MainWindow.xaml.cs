@@ -5323,58 +5323,6 @@ ORDER BY zm.Id";
             progressWydajnosc.Width = Math.Min(progressWidth, 250);
 
             SetupDashboardDataGrid();
-            SetupTopProduktyDataGrid();
-        }
-
-        private void SetupTopProduktyDataGrid()
-        {
-            // Pobierz top 5 produktów wg zamówień
-            var topProdukty = _dtDashboard.AsEnumerable()
-                .Where(r => r.Field<decimal>("Zamowienia") > 0)
-                .OrderByDescending(r => r.Field<decimal>("Zamowienia"))
-                .Take(5)
-                .Select(r => new
-                {
-                    Produkt = r.Field<string>("Produkt"),
-                    Zamowienia = r.Field<decimal>("Zamowienia"),
-                    Bilans = r.Field<decimal>("Bilans"),
-                    Status = r.Field<string>("Status")
-                })
-                .ToList();
-
-            dgTopProdukty.ItemsSource = topProdukty;
-            dgTopProdukty.Columns.Clear();
-
-            dgTopProdukty.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Produkt",
-                Binding = new System.Windows.Data.Binding("Produkt"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
-            });
-
-            dgTopProdukty.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Zamów.",
-                Binding = new System.Windows.Data.Binding("Zamowienia") { StringFormat = "N0" },
-                Width = new DataGridLength(70),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
-            });
-
-            dgTopProdukty.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Bilans",
-                Binding = new System.Windows.Data.Binding("Bilans") { StringFormat = "N0" },
-                Width = new DataGridLength(70),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
-            });
-
-            dgTopProdukty.Columns.Add(new DataGridTextColumn
-            {
-                Header = "",
-                Binding = new System.Windows.Data.Binding("Status"),
-                Width = new DataGridLength(30),
-                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
-            });
         }
 
         private void SetupDashboardDataGrid()
