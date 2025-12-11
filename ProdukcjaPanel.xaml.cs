@@ -197,6 +197,7 @@ namespace Kalendarz1
             await LoadPojTuszkiAsync();
             await LoadPozycjeForSelectedAsync();
             await LoadHandlowcyStatsAsync();
+            await LoadPrzychodyInfoAsync();
         }
 
         private async Task PopulateProductFilterAsync()
@@ -960,6 +961,69 @@ namespace Kalendarz1
             });
 
             dgvHandlowcyStats.ItemsSource = dt.DefaultView;
+        }
+
+        private async Task LoadPrzychodyInfoAsync()
+        {
+            decimal planPrzychodu = 0m;
+            decimal faktPrzychodu = 0m;
+            decimal sumaZamowien = 0m;
+
+            try
+            {
+                // 1. Plan - na podstawie HarmonogramDostaw (masa dekowania * współczynnik tuszki)
+                using (var cn = new SqlConnection(_connLibra))
+                {
+                    await cn.OpenAsync();
+                    var cmd = new SqlCommand(@"SELECT ISNULL(SUM(WagaDek * SztukiDek), 0)
+                                               FROM dbo.HarmonogramDostaw
+                                               WHERE DataOdbioru = @D AND Bufor = 'Potwierdzony'", cn);
+                    cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
+                    var result = await cmd.ExecuteScalarAsync();
+                    decimal sumaMasyDek = result != DBNull.Value ? Convert.ToDecimal(result) : 0m;
+                    // Współczynnik tuszki ~78%
+                    planPrzychodu = sumaMasyDek * 0.78m;
+                }
+
+                // 2. Faktyczny przychód - z dokumentów sPWU (produkcja)
+                using (var cn = new SqlConnection(_connHandel))
+                {
+                    await cn.OpenAsync();
+                    var cmd = new SqlCommand(@"SELECT ISNULL(SUM(ABS(MZ.ilosc)), 0)
+                                               FROM [HANDEL].[HM].[MZ] MZ
+                                               JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
+                                               WHERE MG.seria = 'sPWU' AND MG.aktywny = 1 AND MG.data = @D", cn);
+                    cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
+                    var result = await cmd.ExecuteScalarAsync();
+                    faktPrzychodu = result != DBNull.Value ? Convert.ToDecimal(result) : 0m;
+                }
+
+                // 3. Suma zamówień na dzień
+                sumaZamowien = _zamowienia.Values
+                    .Where(z => !z.IsShipmentOnly)
+                    .Sum(z => z.TotalIlosc);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd ładowania przychodu: {ex.Message}");
+            }
+
+            // Bilans = faktyczny przychód - zamówienia
+            decimal bilans = faktPrzychodu - sumaZamowien;
+
+            // Aktualizuj UI
+            lblPrzychPlan.Text = planPrzychodu > 0 ? $"{planPrzychodu:N0}" : "—";
+            lblPrzychFakt.Text = faktPrzychodu > 0 ? $"{faktPrzychodu:N0}" : "—";
+            lblPrzychZam.Text = sumaZamowien > 0 ? $"{sumaZamowien:N0}" : "—";
+            lblPrzychBilans.Text = bilans != 0 ? $"{bilans:N0}" : "—";
+
+            // Kolor bilansu
+            if (bilans > 0)
+                lblPrzychBilans.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4CAF50")); // zielony - nadwyżka
+            else if (bilans < 0)
+                lblPrzychBilans.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF5350")); // czerwony - niedobór
+            else
+                lblPrzychBilans.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CE93D8")); // neutralny
         }
         #endregion
 
