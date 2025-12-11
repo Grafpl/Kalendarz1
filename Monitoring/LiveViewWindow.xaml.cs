@@ -1,7 +1,8 @@
 using System;
 using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Media.Imaging;
 using LibVLCSharp.Shared;
 
 namespace Kalendarz1.Monitoring
@@ -10,19 +11,23 @@ namespace Kalendarz1.Monitoring
     {
         private LibVLC _libVLC;
         private MediaPlayer _mediaPlayer;
-        private readonly string _baseRtspUrl;
+        private readonly string[] _rtspUrls;
         private readonly string _cameraName;
         private readonly string _channelId;
+        private int _currentUrlIndex = 0;
         private bool _isPlaying = false;
-        private string _currentStreamType = "01"; // 01 = main, 02 = sub
 
         public MediaPlayer MediaPlayer => _mediaPlayer;
 
         public LiveViewWindow(string cameraName, string rtspUrl, string channelId)
         {
             _cameraName = cameraName;
-            _baseRtspUrl = rtspUrl;
             _channelId = channelId;
+
+            // Pobierz wszystkie możliwe formaty URL
+            var service = new HikvisionService("192.168.0.125", "admin", "terePacja12$");
+            _rtspUrls = service.GetAllRtspUrls(channelId, true);
+            service.Dispose();
 
             InitializeComponent();
 
@@ -38,30 +43,33 @@ namespace Kalendarz1.Monitoring
         {
             try
             {
-                // Inicjalizacja LibVLC
                 Core.Initialize();
 
                 _libVLC = new LibVLC(
-                    "--rtsp-tcp",           // Użyj TCP zamiast UDP (stabilniejsze)
-                    "--network-caching=300", // Buforowanie sieci (ms)
-                    "--no-audio"            // Bez dźwięku (kamery zwykle nie mają)
+                    "--rtsp-tcp",
+                    "--network-caching=1000",
+                    "--clock-jitter=0",
+                    "--no-audio",
+                    "--rtsp-user=admin",
+                    "--rtsp-pwd=terePacja12$",
+                    "--live-caching=300",
+                    "--no-video-title-show",
+                    "--avcodec-hw=none"  // Wyłącz hardware decoding dla kompatybilności
                 );
 
                 _mediaPlayer = new MediaPlayer(_libVLC);
-
-                // Event handlers
                 _mediaPlayer.Playing += MediaPlayer_Playing;
                 _mediaPlayer.EncounteredError += MediaPlayer_Error;
                 _mediaPlayer.Buffering += MediaPlayer_Buffering;
+                _mediaPlayer.EndReached += MediaPlayer_EndReached;
 
                 VideoPlayer.MediaPlayer = _mediaPlayer;
 
-                // Rozpocznij odtwarzanie
                 StartStream();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd inicjalizacji VLC:\n{ex.Message}\n\nUpewnij się że pakiety LibVLC są zainstalowane.",
+                MessageBox.Show($"Błąd inicjalizacji VLC:\n{ex.Message}",
                     "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
                 Close();
             }
@@ -69,29 +77,51 @@ namespace Kalendarz1.Monitoring
 
         private void StartStream()
         {
+            if (_currentUrlIndex >= _rtspUrls.Length)
+            {
+                // Wypróbowano wszystkie URL-e
+                LoadingOverlay.Visibility = Visibility.Collapsed;
+                SetErrorStatus("Nie udało się połączyć - sprawdź format RTSP w NVR");
+                ShowRtspHelp();
+                return;
+            }
+
+            LoadingOverlay.Visibility = Visibility.Visible;
+            var url = _rtspUrls[_currentUrlIndex];
+            var displayUrl = url.Replace("terePacja12$", "***");
+            LoadingText.Text = $"Próba {_currentUrlIndex + 1}/{_rtspUrls.Length}:\n{displayUrl}";
+
             try
             {
-                LoadingOverlay.Visibility = Visibility.Visible;
-                LoadingText.Text = "Łączenie ze strumieniem...";
+                var media = new Media(_libVLC, new Uri(url));
 
-                // Zbuduj URL z wybraną jakością
-                var rtspUrl = _baseRtspUrl.Replace("01\"", $"{_currentStreamType}\"")
-                                          .Replace("/101", $"/1{_currentStreamType}")
-                                          .Replace("/201", $"/2{_currentStreamType}");
+                // Opcje dla połączenia RTSP
+                media.AddOption(":network-caching=1000");
+                media.AddOption(":rtsp-tcp");
+                media.AddOption(":rtsp-http=0");
+                media.AddOption(":live-caching=300");
+                media.AddOption(":clock-jitter=0");
 
-                // Jeśli URL kończy się na 01 lub 02, zamień
-                if (rtspUrl.EndsWith("01"))
-                    rtspUrl = rtspUrl.Substring(0, rtspUrl.Length - 2) + _currentStreamType;
-                else if (rtspUrl.EndsWith("02"))
-                    rtspUrl = rtspUrl.Substring(0, rtspUrl.Length - 2) + _currentStreamType;
-
-                var media = new Media(_libVLC, new Uri(rtspUrl));
                 _mediaPlayer.Play(media);
+
+                // Timeout - jeśli nie połączy w 10 sekund, próbuj następny URL
+                Task.Delay(10000).ContinueWith(t =>
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        if (!_isPlaying && _currentUrlIndex < _rtspUrls.Length)
+                        {
+                            _mediaPlayer.Stop();
+                            _currentUrlIndex++;
+                            StartStream();
+                        }
+                    });
+                });
             }
             catch (Exception ex)
             {
-                LoadingOverlay.Visibility = Visibility.Collapsed;
-                SetErrorStatus($"Błąd: {ex.Message}");
+                _currentUrlIndex++;
+                StartStream();
             }
         }
 
@@ -103,6 +133,10 @@ namespace Kalendarz1.Monitoring
                 _isPlaying = true;
                 PlayPauseButton.Content = "⏸ Pauza";
                 SetOnlineStatus();
+
+                // Pokaż który URL zadziałał
+                var workingUrl = _rtspUrls[_currentUrlIndex].Replace("terePacja12$", "***");
+                CameraInfoText.Text = $"Kanał: {_channelId} | {workingUrl.Split('?')[0].Split('/').Last()}";
             });
         }
 
@@ -110,8 +144,23 @@ namespace Kalendarz1.Monitoring
         {
             Dispatcher.Invoke(() =>
             {
-                LoadingOverlay.Visibility = Visibility.Collapsed;
-                SetErrorStatus("Błąd strumienia - sprawdź połączenie");
+                if (!_isPlaying)
+                {
+                    _currentUrlIndex++;
+                    StartStream();
+                }
+            });
+        }
+
+        private void MediaPlayer_EndReached(object sender, EventArgs e)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (!_isPlaying)
+                {
+                    _currentUrlIndex++;
+                    StartStream();
+                }
             });
         }
 
@@ -124,6 +173,18 @@ namespace Kalendarz1.Monitoring
                     LoadingText.Text = $"Buforowanie... {e.Cache:F0}%";
                 }
             });
+        }
+
+        private void ShowRtspHelp()
+        {
+            var urls = string.Join("\n", _rtspUrls.Select(u => u.Replace("terePacja12$", "***")));
+            MessageBox.Show(
+                $"Nie udało się połączyć z kamerą {_channelId}.\n\n" +
+                $"Wypróbowane URL-e:\n{urls}\n\n" +
+                $"Sprawdź w VLC Player który URL działa:\n" +
+                $"Media -> Otwórz strumień sieciowy\n\n" +
+                $"Możesz też sprawdzić format RTSP w konfiguracji NVR.",
+                "Błąd połączenia", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 
         private void SetOnlineStatus()
@@ -186,21 +247,33 @@ namespace Kalendarz1.Monitoring
         private void RefreshButton_Click(object sender, RoutedEventArgs e)
         {
             _mediaPlayer?.Stop();
+            _isPlaying = false;
+            _currentUrlIndex = 0;
             StartStream();
         }
 
         private void QualityCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
+            // Przebuduj listę URL z nową jakością
             if (QualityCombo.SelectedItem is System.Windows.Controls.ComboBoxItem item && item.Tag is string streamType)
             {
-                if (_currentStreamType != streamType)
+                var mainStream = streamType == "01";
+                var service = new HikvisionService("192.168.0.125", "admin", "terePacja12$");
+                var newUrls = service.GetAllRtspUrls(_channelId, mainStream);
+                service.Dispose();
+
+                // Zaktualizuj URL-e
+                for (int i = 0; i < _rtspUrls.Length && i < newUrls.Length; i++)
                 {
-                    _currentStreamType = streamType;
-                    if (_mediaPlayer != null && _libVLC != null)
-                    {
-                        _mediaPlayer.Stop();
-                        StartStream();
-                    }
+                    _rtspUrls[i] = newUrls[i];
+                }
+
+                if (_mediaPlayer != null && _libVLC != null)
+                {
+                    _mediaPlayer.Stop();
+                    _isPlaying = false;
+                    _currentUrlIndex = 0;
+                    StartStream();
                 }
             }
         }

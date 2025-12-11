@@ -225,8 +225,45 @@ namespace Kalendarz1.Monitoring
 
         public string GetRtspUrl(string channelId, bool mainStream = true)
         {
-            var streamType = mainStream ? "01" : "02";
-            return $"rtsp://{_username}:{_password}@{_nvrIp}:554/Streaming/Channels/{channelId}{streamType}";
+            var streamType = mainStream ? "0" : "1";  // 0 = main, 1 = sub dla Dahua/INTERNEC
+            // INTERNEC/Dahua format
+            return $"rtsp://{_username}:{_password}@{_nvrIp}:554/cam/realmonitor?channel={channelId}&subtype={streamType}";
+        }
+
+        /// <summary>
+        /// Zwraca wszystkie możliwe formaty URL RTSP do przetestowania
+        /// </summary>
+        public string[] GetAllRtspUrls(string channelId, bool mainStream = true)
+        {
+            var subtype = mainStream ? "0" : "1";
+            var streamNum = mainStream ? "01" : "02";
+
+            // URL-encode hasła ($ -> %24, @ -> %40, etc.)
+            var encodedPassword = Uri.EscapeDataString(_password);
+
+            return new[]
+            {
+                // INTERNEC / Dahua format (najprawdopodobniej) - z zakodowanym hasłem
+                $"rtsp://{_username}:{encodedPassword}@{_nvrIp}:554/cam/realmonitor?channel={channelId}&subtype={subtype}",
+
+                // Hikvision format
+                $"rtsp://{_username}:{encodedPassword}@{_nvrIp}:554/Streaming/Channels/{channelId}{streamNum}",
+
+                // Dahua - alternatywne ścieżki
+                $"rtsp://{_username}:{encodedPassword}@{_nvrIp}:554/cam/realmonitor?channel={channelId}&subtype={subtype}&unicast=true&proto=Onvif",
+                $"rtsp://{_username}:{encodedPassword}@{_nvrIp}:554/live/ch{int.Parse(channelId) - 1:D2}_{subtype}",
+                $"rtsp://{_username}:{encodedPassword}@{_nvrIp}:554/h264/ch{channelId}/main/av_stream",
+
+                // ONVIF
+                $"rtsp://{_username}:{encodedPassword}@{_nvrIp}:554/onvif{channelId}",
+
+                // Generic / inne
+                $"rtsp://{_username}:{encodedPassword}@{_nvrIp}:554/ch{channelId}_{subtype}.264",
+                $"rtsp://{_username}:{encodedPassword}@{_nvrIp}:554/stream{channelId}",
+
+                // Bez hasła w URL (VLC użyje opcji --rtsp-user/pwd)
+                $"rtsp://{_nvrIp}:554/cam/realmonitor?channel={channelId}&subtype={subtype}",
+            };
         }
 
         public async Task<(bool Success, string Message)> TestConnectionAsync()
