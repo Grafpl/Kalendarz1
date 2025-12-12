@@ -343,6 +343,133 @@ namespace Kalendarz1
 
         #endregion
 
+        #region Import AVILOG
+
+        private void BtnImportAvilog_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Sprawdź czy są już dane w matrycy
+                if (matrycaData.Count > 0)
+                {
+                    var result = MessageBox.Show(
+                        "W matrycy są już dane. Import z AVILOG zastąpi wszystkie obecne wiersze.\n\n" +
+                        "Czy chcesz kontynuować?",
+                        "Potwierdzenie",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+
+                    if (result != MessageBoxResult.Yes)
+                        return;
+                }
+
+                // Otwórz okno importu
+                var importWindow = new ImportAvilogWindow();
+                importWindow.Owner = this;
+
+                if (importWindow.ShowDialog() == true && importWindow.ImportSuccess)
+                {
+                    // Aktualizuj datę jeśli różna
+                    if (importWindow.ImportedDate.HasValue)
+                    {
+                        dateTimePicker1.SelectedDate = importWindow.ImportedDate.Value;
+                    }
+
+                    // Wyczyść obecne dane i załaduj zaimportowane
+                    matrycaData.Clear();
+
+                    int lpCounter = 1;
+                    DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                    foreach (var importRow in importWindow.ImportedRows)
+                    {
+                        // Pobierz dane hodowcy z bazy
+                        string hodowcaNazwa = "";
+                        string hodowcaAdres = "";
+                        string hodowcaMiejscowosc = "";
+                        string hodowcaOdleglosc = "";
+                        string hodowcaTelefon = "";
+                        string hodowcaEmail = "";
+
+                        if (importRow.MappedHodowcaGID.HasValue)
+                        {
+                            string idDostawcy = importRow.MappedHodowcaGID.Value.ToString();
+                            hodowcaNazwa = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "ShortName") ?? "";
+                            hodowcaAdres = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "address") ?? "";
+                            hodowcaMiejscowosc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "city") ?? "";
+                            hodowcaOdleglosc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "distance") ?? "";
+                            hodowcaTelefon = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "Phone1") ?? "";
+                            hodowcaEmail = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "email") ?? "";
+                        }
+
+                        // Przygotuj godziny z daty importu
+                        DateTime? wyjazd = null;
+                        DateTime? zaladunek = null;
+                        DateTime? przyjazd = null;
+
+                        if (importRow.WyjazdZaklad.HasValue)
+                        {
+                            wyjazd = selectedDate.Date.Add(importRow.WyjazdZaklad.Value.TimeOfDay);
+                        }
+                        if (importRow.PoczatekZaladunku.HasValue)
+                        {
+                            zaladunek = selectedDate.Date.Add(importRow.PoczatekZaladunku.Value);
+                        }
+                        if (importRow.PowrotZaklad.HasValue)
+                        {
+                            przyjazd = selectedDate.Date.Add(importRow.PowrotZaklad.Value.TimeOfDay);
+                        }
+
+                        var matrycaRow = new MatrycaRow
+                        {
+                            ID = 0,
+                            LpDostawy = lpCounter.ToString(),
+                            CustomerGID = importRow.MappedHodowcaGID?.ToString() ?? "",
+                            HodowcaNazwa = hodowcaNazwa,
+                            WagaDek = importRow.WagaDek,
+                            SztPoj = importRow.Sztuki,
+                            DriverGID = importRow.MappedKierowcaGID,
+                            CarID = importRow.Ciagnik,
+                            TrailerID = importRow.Naczepa,
+                            Wyjazd = wyjazd,
+                            Zaladunek = zaladunek,
+                            Przyjazd = przyjazd,
+                            NotkaWozek = importRow.Obserwacje,
+                            Adres = hodowcaAdres,
+                            Miejscowosc = hodowcaMiejscowosc,
+                            Odleglosc = hodowcaOdleglosc,
+                            Telefon = hodowcaTelefon,
+                            Email = hodowcaEmail,
+                            IsFarmerCalc = false,
+                            AutoNrUHodowcy = 1,
+                            IloscAutUHodowcy = 1
+                        };
+
+                        matrycaData.Add(matrycaRow);
+                        lpCounter++;
+                    }
+
+                    UpdateStatistics();
+                    UpdateStatus($"Zaimportowano {matrycaData.Count} wierszy z AVILOG. Sprawdź dane i zapisz do bazy.");
+
+                    MessageBox.Show(
+                        $"Pomyślnie zaimportowano {matrycaData.Count} wierszy z planu AVILOG.\n\n" +
+                        "Dane zostały wczytane do matrycy. Sprawdź poprawność i kliknij \"ZAPISZ DO BAZY\" aby zapisać.",
+                        "Import zakończony",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas importu z AVILOG:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                UpdateStatus("Błąd importu AVILOG");
+            }
+        }
+
+        #endregion
+
         #region Event Handlers - Row Operations
 
         private void BtnAddRow_Click(object sender, RoutedEventArgs e)

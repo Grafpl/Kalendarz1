@@ -319,6 +319,34 @@
 
                             <!-- Przyciski kolejności -->
                             <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                <Button x:Name="btnImportAvilog"
+                                        Content="IMPORT AVILOG"
+                                        Click="BtnImportAvilog_Click"
+                                        Background="#E65100"
+                                        Foreground="White"
+                                        FontWeight="Bold"
+                                        FontSize="11"
+                                        Padding="14,10"
+                                        Margin="4"
+                                        Cursor="Hand"
+                                        ToolTip="Importuj plan transportu z pliku PDF AVILOG">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                <Border.Effect>
+                                                    <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="8"/>
+                                                </Border.Effect>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#BF360C"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                <Border Width="1" Background="#E0E0E0" Margin="8,5"/>
                                 <Button Content="Przesuń w górę"
                                         Click="BtnMoveUp_Click"
                                         Style="{StaticResource ActionButtonStyle}"
