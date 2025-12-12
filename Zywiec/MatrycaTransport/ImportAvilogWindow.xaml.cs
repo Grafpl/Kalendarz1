@@ -261,8 +261,21 @@ namespace Kalendarz1
 
                 if (result.Wiersze.Count == 0)
                 {
-                    MessageBox.Show("Nie znaleziono danych transportowych w pliku PDF.\n\nUpewnij się, że wybrany plik to plan transportu AVILOG.",
-                        "Brak danych", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    // Pokaż fragment tekstu dla diagnostyki
+                    string preview = "";
+                    if (!string.IsNullOrEmpty(result.DebugText))
+                    {
+                        preview = result.DebugText.Length > 1000
+                            ? result.DebugText.Substring(0, 1000) + "..."
+                            : result.DebugText;
+                    }
+
+                    string message = "Nie znaleziono danych transportowych w pliku PDF.\n\n" +
+                        "Upewnij się, że wybrany plik to plan transportu AVILOG.\n\n" +
+                        "Tekst zapisano do pliku avilog_debug_text.txt obok PDF.\n\n" +
+                        $"Fragment tekstu z PDF:\n{preview}";
+
+                    MessageBox.Show(message, "Brak danych", MessageBoxButton.OK, MessageBoxImage.Warning);
                     lblStatus.Text = "Brak danych w pliku";
                     return;
                 }

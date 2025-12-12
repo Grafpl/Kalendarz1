@@ -37,6 +37,17 @@ namespace Kalendarz1
 
                     string text = fullText.ToString();
 
+                    // DEBUG: Zapisz tekst do pliku do analizy
+                    try
+                    {
+                        string debugPath = System.IO.Path.Combine(
+                            System.IO.Path.GetDirectoryName(filePath),
+                            "avilog_debug_text.txt");
+                        System.IO.File.WriteAllText(debugPath, text);
+                        result.DebugText = text;
+                    }
+                    catch { }
+
                     // Wyciągnij datę uboju z nagłówka
                     result.DataUboju = ExtractDataUboju(text);
 
@@ -123,8 +134,22 @@ namespace Kalendarz1
         {
             var rows = new List<AvilogTransportRow>();
 
-            // Znajdź wszystkie pojazdy (C: XXX) - to są unikalne markery wierszy
-            var pojazdMatches = Regex.Matches(text, @"C:\s*([A-Z0-9]+)\s*N:\s*([A-Z0-9]+)", RegexOptions.IgnoreCase);
+            // Próbuj różne wzorce dla pojazdów
+            // Wzorzec 1: C: XXX N: YYY (na jednej linii lub rozdzielone)
+            var pojazdMatches = Regex.Matches(text, @"C\s*:\s*([A-Z0-9]+)[\s\n]*N\s*:\s*([A-Z0-9]+)", RegexOptions.IgnoreCase);
+
+            // Wzorzec 2: Jeśli pierwszy nie zadziałał, szukaj samego C: i N: osobno
+            if (pojazdMatches.Count == 0)
+            {
+                pojazdMatches = Regex.Matches(text, @"C\s*:[\s\n]*([A-Z]{2,3}\d{4,6}[A-Z]?)[\s\S]*?N\s*:[\s\n]*([A-Z]{2,3}\d{4,6}[A-Z]?)", RegexOptions.IgnoreCase);
+            }
+
+            // Wzorzec 3: Szukaj numerów rejestracyjnych (WOT, WL, SK itp.)
+            if (pojazdMatches.Count == 0)
+            {
+                // Szukaj par rejestracji - ciągnik zaczyna się od liter + cyfry
+                pojazdMatches = Regex.Matches(text, @"([A-Z]{2,3}\d{4,6}[A-Z]?)[\s\n]+([A-Z]{2,3}\d{4,6}[A-Z]?)", RegexOptions.IgnoreCase);
+            }
 
             foreach (Match pojazdMatch in pojazdMatches)
             {
@@ -137,7 +162,9 @@ namespace Kalendarz1
                 int pojazdPos = pojazdMatch.Index;
 
                 // Szukaj wstecz od pozycji pojazdu żeby znaleźć kierowcę i hodowcę
-                string textBefore = text.Substring(Math.Max(0, pojazdPos - 800), Math.Min(800, pojazdPos));
+                int startPos = Math.Max(0, pojazdPos - 800);
+                int length = Math.Min(800, pojazdPos - startPos);
+                string textBefore = text.Substring(startPos, length);
 
                 // Szukaj do przodu od pozycji pojazdu żeby znaleźć ilości i godziny
                 string textAfter = text.Substring(pojazdPos, Math.Min(500, text.Length - pojazdPos));
@@ -155,10 +182,107 @@ namespace Kalendarz1
                 ParseObserwacjeFromText(textAfter, row);
 
                 // Dodaj tylko jeśli mamy podstawowe dane
-                if (!string.IsNullOrEmpty(row.Ciagnik) && row.Sztuki > 0)
+                if (!string.IsNullOrEmpty(row.Ciagnik))
                 {
+                    // Jeśli brak sztuk, spróbuj jeszcze raz szukać w szerszym zakresie
+                    if (row.Sztuki == 0)
+                    {
+                        string widerText = text.Substring(pojazdPos, Math.Min(800, text.Length - pojazdPos));
+                        ParseQuantityFromText(widerText, row);
+                    }
                     rows.Add(row);
                 }
+            }
+
+            // Jeśli nadal brak wyników, spróbuj parsować linia po linii
+            if (rows.Count == 0)
+            {
+                rows = ParseByLines(text);
+            }
+
+            return rows;
+        }
+
+        /// <summary>
+        /// Alternatywne parsowanie - linia po linii
+        /// </summary>
+        private List<AvilogTransportRow> ParseByLines(string text)
+        {
+            var rows = new List<AvilogTransportRow>();
+            var lines = text.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+
+            AvilogTransportRow currentRow = null;
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string line = lines[i].Trim();
+
+                // Szukaj numeru rejestracyjnego (ciągnik)
+                var rejestracja = Regex.Match(line, @"^([A-Z]{2,3}\d{4,6}[A-Z]?)$");
+                if (rejestracja.Success)
+                {
+                    // To może być nowy ciągnik
+                    if (currentRow == null || !string.IsNullOrEmpty(currentRow.Naczepa))
+                    {
+                        if (currentRow != null && !string.IsNullOrEmpty(currentRow.Ciagnik))
+                        {
+                            rows.Add(currentRow);
+                        }
+                        currentRow = new AvilogTransportRow();
+                        currentRow.Ciagnik = rejestracja.Value;
+                    }
+                    else if (string.IsNullOrEmpty(currentRow.Naczepa))
+                    {
+                        // To jest naczepa
+                        currentRow.Naczepa = rejestracja.Value;
+                    }
+                    continue;
+                }
+
+                // Szukaj ilości sztuk (np. "4 224" lub "5544")
+                var sztukiMatch = Regex.Match(line, @"^(\d[\s]?\d{3})$");
+                if (sztukiMatch.Success && currentRow != null)
+                {
+                    string sztuki = Regex.Replace(sztukiMatch.Value, @"\s+", "");
+                    if (int.TryParse(sztuki, out int szt) && szt > 1000 && szt < 20000)
+                    {
+                        currentRow.Sztuki = szt;
+                    }
+                    continue;
+                }
+
+                // Szukaj wymiaru (np. "16 x 264")
+                var wymiaryMatch = Regex.Match(line, @"^(\d+)\s*[xX]\s*(\d+)$");
+                if (wymiaryMatch.Success && currentRow != null)
+                {
+                    currentRow.WymiarSkrzyn = line;
+                    continue;
+                }
+
+                // Szukaj kierowcy (imię nazwisko + telefon)
+                var kierowcaMatch = Regex.Match(line, @"^([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]+|[A-ZŻŹĆĄŚĘŁÓŃ]+)\s+([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]+|[A-ZŻŹĆĄŚĘŁÓŃ]+)\s+(\d{3}[\s]?\d{3}[\s]?\d{3})$");
+                if (kierowcaMatch.Success && currentRow != null)
+                {
+                    currentRow.KierowcaNazwa = $"{kierowcaMatch.Groups[1].Value} {kierowcaMatch.Groups[2].Value}";
+                    currentRow.KierowcaTelefon = Regex.Replace(kierowcaMatch.Groups[3].Value, @"\s+", "");
+                    continue;
+                }
+
+                // Szukaj hodowcy (WIELKIE LITERY)
+                if (Regex.IsMatch(line, @"^[A-ZŻŹĆĄŚĘŁÓŃ\s/]+$") && line.Length > 5 &&
+                    !line.Contains("KIEROWCA") && !line.Contains("HODOWCA") && !line.Contains("POJAZD"))
+                {
+                    if (currentRow != null && string.IsNullOrEmpty(currentRow.HodowcaNazwa))
+                    {
+                        currentRow.HodowcaNazwa = line;
+                    }
+                }
+            }
+
+            // Dodaj ostatni wiersz
+            if (currentRow != null && !string.IsNullOrEmpty(currentRow.Ciagnik))
+            {
+                rows.Add(currentRow);
             }
 
             return rows;
@@ -357,6 +481,7 @@ namespace Kalendarz1
         public string ErrorMessage { get; set; }
         public DateTime? DataUboju { get; set; }
         public List<AvilogTransportRow> Wiersze { get; set; } = new List<AvilogTransportRow>();
+        public string DebugText { get; set; }
     }
 
     /// <summary>
