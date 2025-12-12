@@ -59,6 +59,7 @@ namespace Kalendarz1.WPF
         private readonly Dictionary<int, string> _productCatalogMrozone = new();
         private Dictionary<int, string> _mapowanieScalowania = new(); // TowarIdtw -> NazwaGrupy
         private Dictionary<string, List<int>> _grupyDoProduktow = new(); // NazwaGrupy -> lista TowarId
+        private List<string> _grupyTowaroweNazwy = new(); // Lista nazw grup towarowych dla kolumn w tabeli zamówień
         private HashSet<string> _expandedGroups = new(); // Rozwinięte grupy
         private Dictionary<string, List<(string nazwa, decimal plan, decimal fakt, decimal zam, string stan, decimal stanDec, decimal bilans)>> _detaleGrup = new(); // Szczegóły produktów w grupach
         private int? _selectedProductId = null;
@@ -539,6 +540,7 @@ namespace Kalendarz1.WPF
             var result = new Dictionary<int, decimal>();
             _mapowanieScalowania.Clear(); // Odśwież mapowanie scalowania
             _grupyDoProduktow.Clear(); // Odśwież mapowanie grup
+            _grupyTowaroweNazwy.Clear(); // Odśwież listę nazw grup
 
             try
             {
@@ -602,6 +604,9 @@ namespace Kalendarz1.WPF
                         }
                     }
                 }
+
+                // Ustaw listę nazw grup towarowych (posortowane)
+                _grupyTowaroweNazwy = _grupyDoProduktow.Keys.OrderBy(n => n).ToList();
 
                 return result;
             }
@@ -2259,39 +2264,44 @@ namespace Kalendarz1.WPF
         {
             day = ValidateSqlDate(day);
 
-            // Zawsze czyść dane przed ładowaniem
-            _dtOrders.Rows.Clear();
+            // Zawsze czyść i odtwarzaj kolumny - grupy mogą się zmienić
+            _dtOrders.Clear();
+            _dtOrders.Columns.Clear();
 
-            if (_dtOrders.Columns.Count == 0)
+            // Podstawowe kolumny
+            _dtOrders.Columns.Add("Id", typeof(int));
+            _dtOrders.Columns.Add("KlientId", typeof(int));
+            _dtOrders.Columns.Add("Odbiorca", typeof(string));
+            _dtOrders.Columns.Add("Handlowiec", typeof(string));
+            _dtOrders.Columns.Add("IloscZamowiona", typeof(decimal));
+            _dtOrders.Columns.Add("IloscFaktyczna", typeof(decimal));
+            _dtOrders.Columns.Add("Roznica", typeof(decimal));
+            _dtOrders.Columns.Add("Pojemniki", typeof(int));
+            _dtOrders.Columns.Add("Palety", typeof(decimal));
+            _dtOrders.Columns.Add("TrybE2", typeof(string));
+            _dtOrders.Columns.Add("DataPrzyjecia", typeof(DateTime));
+            _dtOrders.Columns.Add("GodzinaPrzyjecia", typeof(string));
+            _dtOrders.Columns.Add("TerminOdbioru", typeof(string));
+            _dtOrders.Columns.Add("DataUboju", typeof(DateTime));
+            _dtOrders.Columns.Add("UtworzonePrzez", typeof(string));
+            _dtOrders.Columns.Add("Status", typeof(string));
+            _dtOrders.Columns.Add("MaNotatke", typeof(bool));
+            _dtOrders.Columns.Add("MaFolie", typeof(bool));
+            _dtOrders.Columns.Add("MaHallal", typeof(bool));
+            _dtOrders.Columns.Add("Trans", typeof(string));
+            _dtOrders.Columns.Add("Prod", typeof(string));
+            _dtOrders.Columns.Add("CzyMaCeny", typeof(bool));
+            _dtOrders.Columns.Add("CenaInfo", typeof(string));
+            _dtOrders.Columns.Add("TerminInfo", typeof(string));
+            _dtOrders.Columns.Add("TransportInfo", typeof(string));
+            _dtOrders.Columns.Add("CzyZrealizowane", typeof(bool));
+            _dtOrders.Columns.Add("WyprInfo", typeof(string));
+            _dtOrders.Columns.Add("WydanoInfo", typeof(string));
+
+            // Dynamiczne kolumny dla grup towarowych
+            foreach (var grupaName in _grupyTowaroweNazwy)
             {
-                _dtOrders.Columns.Add("Id", typeof(int));
-                _dtOrders.Columns.Add("KlientId", typeof(int));
-                _dtOrders.Columns.Add("Odbiorca", typeof(string));
-                _dtOrders.Columns.Add("Handlowiec", typeof(string));
-                _dtOrders.Columns.Add("IloscZamowiona", typeof(decimal));
-                _dtOrders.Columns.Add("IloscFaktyczna", typeof(decimal));
-                _dtOrders.Columns.Add("Roznica", typeof(decimal));
-                _dtOrders.Columns.Add("Pojemniki", typeof(int));
-                _dtOrders.Columns.Add("Palety", typeof(decimal));
-                _dtOrders.Columns.Add("TrybE2", typeof(string));
-                _dtOrders.Columns.Add("DataPrzyjecia", typeof(DateTime));
-                _dtOrders.Columns.Add("GodzinaPrzyjecia", typeof(string));
-                _dtOrders.Columns.Add("TerminOdbioru", typeof(string));
-                _dtOrders.Columns.Add("DataUboju", typeof(DateTime));
-                _dtOrders.Columns.Add("UtworzonePrzez", typeof(string));
-                _dtOrders.Columns.Add("Status", typeof(string));
-                _dtOrders.Columns.Add("MaNotatke", typeof(bool));
-                _dtOrders.Columns.Add("MaFolie", typeof(bool));
-                _dtOrders.Columns.Add("MaHallal", typeof(bool));
-                _dtOrders.Columns.Add("Trans", typeof(string));
-                _dtOrders.Columns.Add("Prod", typeof(string));
-                _dtOrders.Columns.Add("CzyMaCeny", typeof(bool));
-                _dtOrders.Columns.Add("CenaInfo", typeof(string));
-                _dtOrders.Columns.Add("TerminInfo", typeof(string));
-                _dtOrders.Columns.Add("TransportInfo", typeof(string));
-                _dtOrders.Columns.Add("CzyZrealizowane", typeof(bool));
-                _dtOrders.Columns.Add("WyprInfo", typeof(string));
-                _dtOrders.Columns.Add("WydanoInfo", typeof(string));
+                _dtOrders.Columns.Add($"Grupa_{grupaName}", typeof(decimal));
             }
 
             var contractors = new Dictionary<int, (string Name, string Salesman)>();
@@ -2416,6 +2426,42 @@ ORDER BY zm.Id";
             var transportInfo = await GetTransportInfoAsync(day);
             var cultureInfo = new CultureInfo("pl-PL");
 
+            // Polskie skróty miesięcy dla formatu "Sty 12 (Ania)"
+            string[] polskieMiesiaceSkrot = { "", "Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru" };
+
+            // Pobierz sumy per zamówienie per grupa towarowa
+            var sumaPerZamowieniePerGrupa = new Dictionary<int, Dictionary<string, decimal>>();
+            if (_grupyTowaroweNazwy.Any() && temp.Rows.Count > 0)
+            {
+                var zamowieniaIds = temp.AsEnumerable().Select(r => Convert.ToInt32(r["Id"])).Where(id => id > 0).ToList();
+                if (zamowieniaIds.Any())
+                {
+                    await using var cnLibraGrupy = new SqlConnection(_connLibra);
+                    await cnLibraGrupy.OpenAsync();
+                    var sqlGrupy = $"SELECT ZamowienieId, KodTowaru, SUM(Ilosc) AS Ilosc FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId IN ({string.Join(",", zamowieniaIds)}) GROUP BY ZamowienieId, KodTowaru";
+                    await using var cmdGrupy = new SqlCommand(sqlGrupy, cnLibraGrupy);
+                    await using var readerGrupy = await cmdGrupy.ExecuteReaderAsync();
+                    while (await readerGrupy.ReadAsync())
+                    {
+                        int zamId = readerGrupy.GetInt32(0);
+                        int kodTowaru = readerGrupy.GetInt32(1);
+                        decimal iloscTowaru = readerGrupy.IsDBNull(2) ? 0m : Convert.ToDecimal(readerGrupy.GetValue(2));
+
+                        // Znajdź grupę dla tego towaru
+                        if (_mapowanieScalowania.TryGetValue(kodTowaru, out var nazwaGrupy))
+                        {
+                            if (!sumaPerZamowieniePerGrupa.ContainsKey(zamId))
+                                sumaPerZamowieniePerGrupa[zamId] = new Dictionary<string, decimal>();
+
+                            if (!sumaPerZamowieniePerGrupa[zamId].ContainsKey(nazwaGrupy))
+                                sumaPerZamowieniePerGrupa[zamId][nazwaGrupy] = 0m;
+
+                            sumaPerZamowieniePerGrupa[zamId][nazwaGrupy] += iloscTowaru;
+                        }
+                    }
+                }
+            }
+
             decimal totalOrdered = 0m;
             decimal totalReleased = 0m;
             decimal totalPallets = 0m;
@@ -2504,21 +2550,17 @@ ORDER BY zm.Id";
                     pickupTerm = $"{day:yyyy-MM-dd} {dzienTygodnia}";
                 }
 
-                // ✅ PRZYWRÓCONY ORYGINALNY FORMAT - pełne imię
+                // Format: "Sty 12 (Ania)" - skrócony miesiąc, dzień i imię
                 string createdBy = "";
+                string userName = _userCache.TryGetValue(userId, out var user) ? user : "Brak";
+                string imie = userName.Contains(" ") ? userName.Split(' ')[0] : userName;
                 if (createdDate.HasValue)
                 {
-                    string userName = _userCache.TryGetValue(userId, out var user) ? user : "Brak";
-
-                    // Wyciągnij tylko imię (pierwszy wyraz przed spacją)
-                    string imie = userName.Contains(" ") ? userName.Split(' ')[0] : userName;
-
-                    createdBy = $"{createdDate.Value:yyyy-MM-dd HH:mm} ({imie})";
+                    string miesiacSkrot = polskieMiesiaceSkrot[createdDate.Value.Month];
+                    createdBy = $"{miesiacSkrot} {createdDate.Value.Day} ({imie})";
                 }
                 else
                 {
-                    string userName = _userCache.TryGetValue(userId, out var user) ? user : "Brak";
-                    string imie = userName.Contains(" ") ? userName.Split(' ')[0] : userName;
                     createdBy = imie;
                 }
 
@@ -2583,14 +2625,50 @@ ORDER BY zm.Id";
                 // Różnica = Zamówiono - Wydano
                 decimal roznica = quantity - released;
 
-                // Dodanie wiersza z kolumnami Cena, Termin, Transport, Wyprodukowano, Wydano
-                _dtOrders.Rows.Add(
-                    id, clientId, name, salesman, quantity, released, roznica, containers, pallets, modeText,
-                    arrivalDate?.Date ?? day, arrivalDate?.ToString("HH:mm") ?? "08:00",
-                    pickupTerm, slaughterDate.HasValue ? (object)slaughterDate.Value.Date : DBNull.Value,
-                    createdBy, status, hasNote, hasFoil, hasHallal, transColumn, prodColumn,
-                    czyMaCeny, cenaInfo, terminInfo, transportInfoStr, czyZrealizowane, wyprInfo, wydanoInfo
-                );
+                // Tworzenie wiersza z dynamicznymi kolumnami grup
+                var newRow = _dtOrders.NewRow();
+                newRow["Id"] = id;
+                newRow["KlientId"] = clientId;
+                newRow["Odbiorca"] = name;
+                newRow["Handlowiec"] = salesman;
+                newRow["IloscZamowiona"] = quantity;
+                newRow["IloscFaktyczna"] = released;
+                newRow["Roznica"] = roznica;
+                newRow["Pojemniki"] = containers;
+                newRow["Palety"] = pallets;
+                newRow["TrybE2"] = modeText;
+                newRow["DataPrzyjecia"] = arrivalDate?.Date ?? day;
+                newRow["GodzinaPrzyjecia"] = arrivalDate?.ToString("HH:mm") ?? "08:00";
+                newRow["TerminOdbioru"] = pickupTerm;
+                newRow["DataUboju"] = slaughterDate.HasValue ? (object)slaughterDate.Value.Date : DBNull.Value;
+                newRow["UtworzonePrzez"] = createdBy;
+                newRow["Status"] = status;
+                newRow["MaNotatke"] = hasNote;
+                newRow["MaFolie"] = hasFoil;
+                newRow["MaHallal"] = hasHallal;
+                newRow["Trans"] = transColumn;
+                newRow["Prod"] = prodColumn;
+                newRow["CzyMaCeny"] = czyMaCeny;
+                newRow["CenaInfo"] = cenaInfo;
+                newRow["TerminInfo"] = terminInfo;
+                newRow["TransportInfo"] = transportInfoStr;
+                newRow["CzyZrealizowane"] = czyZrealizowane;
+                newRow["WyprInfo"] = wyprInfo;
+                newRow["WydanoInfo"] = wydanoInfo;
+
+                // Wypełnij kolumny grup towarowych
+                foreach (var grupaName in _grupyTowaroweNazwy)
+                {
+                    decimal sumaGrupy = 0m;
+                    if (sumaPerZamowieniePerGrupa.TryGetValue(id, out var grupyDict) &&
+                        grupyDict.TryGetValue(grupaName, out var suma))
+                    {
+                        sumaGrupy = suma;
+                    }
+                    newRow[$"Grupa_{grupaName}"] = sumaGrupy;
+                }
+
+                _dtOrders.Rows.Add(newRow);
             }
 
             var releasesWithoutOrders = new List<DataRow>();
@@ -2638,6 +2716,13 @@ ORDER BY zm.Id";
                 row["CzyZrealizowane"] = false;
                 row["WyprInfo"] = "";
                 row["WydanoInfo"] = "";
+
+                // Kolumny grup dla wydań bez zamówień = 0
+                foreach (var grupaName in _grupyTowaroweNazwy)
+                {
+                    row[$"Grupa_{grupaName}"] = 0m;
+                }
+
                 releasesWithoutOrders.Add(row);
 
                 // Wydania bez zamówień - każdy klient tutaj jest unikalny (już sprawdzono clientsWithOrders)
@@ -2705,6 +2790,18 @@ ORDER BY zm.Id";
                 summaryRow["CzyZrealizowane"] = false;
                 summaryRow["WyprInfo"] = "";
                 summaryRow["WydanoInfo"] = "";
+
+                // Sumy kolumn grup dla wiersza podsumowania
+                foreach (var grupaName in _grupyTowaroweNazwy)
+                {
+                    decimal sumaGrupy = 0m;
+                    foreach (var kvp in sumaPerZamowieniePerGrupa.Values)
+                    {
+                        if (kvp.TryGetValue(grupaName, out var val))
+                            sumaGrupy += val;
+                    }
+                    summaryRow[$"Grupa_{grupaName}"] = sumaGrupy;
+                }
 
                 _dtOrders.Rows.InsertAt(summaryRow, 0);
             }
@@ -3108,6 +3205,23 @@ ORDER BY zm.Id";
                 Width = new DataGridLength(75),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
+
+            // Dynamiczne kolumny grup towarowych
+            foreach (var grupaName in _grupyTowaroweNazwy)
+            {
+                var grupaStyle = new Style(typeof(TextBlock));
+                grupaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
+                grupaStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
+                grupaStyle.Setters.Add(new Setter(TextBlock.BackgroundProperty, new SolidColorBrush(Color.FromRgb(240, 248, 255))));
+
+                dgOrders.Columns.Add(new DataGridTextColumn
+                {
+                    Header = grupaName,
+                    Binding = new System.Windows.Data.Binding($"Grupa_{grupaName}") { StringFormat = "N0" },
+                    Width = new DataGridLength(65),
+                    ElementStyle = grupaStyle
+                });
+            }
         }
 
         private void TabOrders_SelectionChanged(object sender, SelectionChangedEventArgs e)
