@@ -3164,22 +3164,30 @@ ORDER BY zm.Id";
                 ElementStyle = (Style)FindResource("BoldCellStyle")
             });
 
-            // 3. Zamówiono
+            // 3. Zamówiono - pogrubione
+            var zamowioneStyle = new Style(typeof(TextBlock));
+            zamowioneStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
+            zamowioneStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
+
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Zam.",
                 Binding = new System.Windows.Data.Binding("IloscZamowiona") { StringFormat = "N0" },
                 Width = new DataGridLength(55),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+                ElementStyle = zamowioneStyle
             });
 
-            // 4. Wydano
+            // 4. Wydano - pogrubione
+            var wydaneStyle = new Style(typeof(TextBlock));
+            wydaneStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
+            wydaneStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
+
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Wyd.",
                 Binding = new System.Windows.Data.Binding("IloscFaktyczna") { StringFormat = "N0" },
                 Width = new DataGridLength(55),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
+                ElementStyle = wydaneStyle
             });
 
             // 5. +/- (Różnica: Zam - Wyd)
