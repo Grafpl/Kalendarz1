@@ -58,6 +58,13 @@ namespace Kalendarz1.Transport.Formularze
         // Menu kontekstowe
         private ContextMenuStrip contextMenuKurs;
 
+        // Panel boczny - wolne zamówienia
+        private Panel panelWolneZamowienia;
+        private DataGridView dgvWolneZamowienia;
+        private Label lblWolneZamowieniaInfo;
+        private readonly string _connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
+        private readonly string _connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+
         // Podsumowanie
         private Label lblSummaryKursy;
         private Label lblSummaryPojemniki;
@@ -67,6 +74,10 @@ namespace Kalendarz1.Transport.Formularze
         // Dane
         private List<Kurs> _kursy;
         private Dictionary<long, WynikPakowania> _wypelnienia;
+
+        // Cache klientów dla szybszego ładowania
+        private static Dictionary<int, string> _klienciCache = new Dictionary<int, string>();
+        private static DateTime _klienciCacheTime = DateTime.MinValue;
 
         public TransportMainFormImproved(TransportRepozytorium repozytorium, string uzytkownik = null)
         {
@@ -105,13 +116,16 @@ namespace Kalendarz1.Transport.Formularze
             // ========== CONTENT ==========
             CreateContent();
 
+            // ========== SIDE PANEL - WOLNE ZAMÓWIENIA ==========
+            CreateWolneZamowieniaPanel();
+
             // ========== CONTEXT MENU ==========
             CreateContextMenu();
 
             // ========== SUMMARY ==========
             CreateSummary();
 
-            // Layout główny
+            // Layout główny z dwoma kolumnami w środku
             var mainLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -122,13 +136,28 @@ namespace Kalendarz1.Transport.Formularze
             };
 
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 80));  // Header
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));  // Filters
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Content
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 100)); // Summary
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));  // Filters - kompaktowe
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Content + Side panel
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 90));  // Summary - karty
+
+            // Panel środkowy z dwoma kolumnami
+            var contentWrapper = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 1,
+                Margin = new Padding(0),
+                Padding = new Padding(0)
+            };
+            contentWrapper.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 70));  // Kursy
+            contentWrapper.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30));  // Wolne zamówienia
+
+            contentWrapper.Controls.Add(panelContent, 0, 0);
+            contentWrapper.Controls.Add(panelWolneZamowienia, 1, 0);
 
             mainLayout.Controls.Add(panelHeader, 0, 0);
             mainLayout.Controls.Add(panelFilters, 0, 1);
-            mainLayout.Controls.Add(panelContent, 0, 2);
+            mainLayout.Controls.Add(contentWrapper, 0, 2);
             mainLayout.Controls.Add(panelSummary, 0, 3);
 
             Controls.Add(mainLayout);
@@ -228,7 +257,11 @@ namespace Kalendarz1.Transport.Formularze
             var btnRaport = CreateActionButton("RAPORT", Color.FromArgb(155, 89, 182), 100);
             btnRaport.Click += BtnRaport_Click;
 
-            btnMapa = CreateActionButton("🗺️ MAPA", Color.FromArgb(156, 39, 176), 90);
+            // PRZYCISK STATYSTYKI
+            var btnStatystyki = CreateActionButton("STATYSTYKI", Color.FromArgb(26, 188, 156), 110);
+            btnStatystyki.Click += BtnStatystyki_Click;
+
+            btnMapa = CreateActionButton("MAPA", Color.FromArgb(156, 39, 176), 80);
             btnMapa.Click += BtnMapa_Click;
 
             btnKierowcy = CreateActionButton("KIEROWCY", Color.FromArgb(52, 73, 94), 100);
@@ -242,10 +275,10 @@ namespace Kalendarz1.Transport.Formularze
             btnPrzydziel.Click += BtnPrzydziel_Click;
             btnPrzydziel.Enabled = false; // Aktywowany gdy wybrany kurs wymaga przypisania
 
-            // Dodanie wszystkich przycisków do panelu - WŁĄCZNIE Z RAPORTEM i PRZYDZIEL
+            // Dodanie wszystkich przycisków do panelu
             panelButtons.Controls.AddRange(new Control[] {
-        btnUsun, btnKopiuj, btnMapa, btnRaport, btnKierowcy, btnPojazdy, btnPrzydziel, btnEdytuj, btnNowyKurs
-    });
+                btnUsun, btnKopiuj, btnMapa, btnStatystyki, btnRaport, btnKierowcy, btnPojazdy, btnPrzydziel, btnEdytuj, btnNowyKurs
+            });
 
             panelHeader.Controls.Add(panelDate);
             panelHeader.Controls.Add(panelButtons);
@@ -276,6 +309,22 @@ namespace Kalendarz1.Transport.Formularze
                     "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
+        // METODA obsługi przycisku STATYSTYKI
+        private void BtnStatystyki_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var statystykiForm = new TransportStatystykiForm();
+                statystykiForm.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas otwierania statystyk transportu: {ex.Message}",
+                    "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         // BEZPIECZNE obsługa przycisków - z pełną obsługą błędów
         private void SafeBtnKierowcy_Click(object sender, EventArgs e)
         {
@@ -405,8 +454,16 @@ namespace Kalendarz1.Transport.Formularze
             panelFilters = new Panel
             {
                 Dock = DockStyle.Fill,
-                BackColor = Color.FromArgb(248, 249, 252),
-                Padding = new Padding(20, 8, 20, 8)
+                BackColor = Color.White,
+                Padding = new Padding(20, 0, 20, 0)
+            };
+
+            // Dolna linia separatora
+            var bottomLine = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 1,
+                BackColor = Color.FromArgb(230, 232, 235)
             };
 
             var flowLayout = new FlowLayoutPanel
@@ -414,76 +471,53 @@ namespace Kalendarz1.Transport.Formularze
                 Dock = DockStyle.Fill,
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = false,
-                BackColor = Color.Transparent
+                BackColor = Color.Transparent,
+                Padding = new Padding(0, 8, 0, 8)
             };
 
-            // Label filtry
-            var lblFiltry = new Label
+            // Ikona filtra
+            var lblIkona = new Label
             {
-                Text = "🔍 FILTRY:",
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(52, 73, 94),
+                Text = "⚙",
+                Font = new Font("Segoe UI", 14F),
+                ForeColor = Color.FromArgb(155, 89, 182),
                 AutoSize = true,
-                Margin = new Padding(0, 8, 15, 0)
+                Margin = new Padding(0, 6, 8, 0)
             };
 
-            // Filtr kierowcy
-            var lblKierowca = new Label
-            {
-                Text = "Kierowca:",
-                Font = new Font("Segoe UI", 9F),
-                ForeColor = Color.FromArgb(52, 73, 94),
-                AutoSize = true,
-                Margin = new Padding(0, 10, 5, 0)
-            };
-
+            // Filtr kierowcy - bez etykiety, z placeholder
             cboFiltrKierowca = new ComboBox
             {
-                Width = 180,
+                Width = 170,
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font = new Font("Segoe UI", 9F),
-                Margin = new Padding(0, 5, 15, 0)
+                Margin = new Padding(0, 8, 12, 0),
+                FlatStyle = FlatStyle.Flat
             };
             cboFiltrKierowca.SelectedIndexChanged += FiltrChanged;
 
             // Filtr pojazdu
-            var lblPojazd = new Label
-            {
-                Text = "Pojazd:",
-                Font = new Font("Segoe UI", 9F),
-                ForeColor = Color.FromArgb(52, 73, 94),
-                AutoSize = true,
-                Margin = new Padding(0, 10, 5, 0)
-            };
-
             cboFiltrPojazd = new ComboBox
             {
-                Width = 150,
+                Width = 140,
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font = new Font("Segoe UI", 9F),
-                Margin = new Padding(0, 5, 15, 0)
+                Margin = new Padding(0, 8, 12, 0),
+                FlatStyle = FlatStyle.Flat
             };
             cboFiltrPojazd.SelectedIndexChanged += FiltrChanged;
 
             // Filtr statusu
-            var lblStatus = new Label
-            {
-                Text = "Status:",
-                Font = new Font("Segoe UI", 9F),
-                ForeColor = Color.FromArgb(52, 73, 94),
-                AutoSize = true,
-                Margin = new Padding(0, 10, 5, 0)
-            };
-
             cboFiltrStatus = new ComboBox
             {
-                Width = 130,
+                Width = 120,
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font = new Font("Segoe UI", 9F),
-                Margin = new Padding(0, 5, 15, 0)
+                Margin = new Padding(0, 8, 12, 0),
+                FlatStyle = FlatStyle.Flat
             };
             cboFiltrStatus.Items.AddRange(new object[] {
-                "Wszystkie",
+                "Wszystkie statusy",
                 "Planowany",
                 "W realizacji",
                 "Zakończony",
@@ -492,27 +526,29 @@ namespace Kalendarz1.Transport.Formularze
             cboFiltrStatus.SelectedIndex = 0;
             cboFiltrStatus.SelectedIndexChanged += FiltrChanged;
 
-            // Przycisk wyczyść filtry
+            // Przycisk wyczyść filtry - minimalistyczny
             btnWyczyscFiltry = new Button
             {
-                Text = "✕ Wyczyść",
-                Size = new Size(90, 28),
+                Text = "Wyczyść",
+                Size = new Size(70, 26),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(108, 117, 125),
-                ForeColor = Color.White,
-                Font = new Font("Segoe UI", 9F),
+                BackColor = Color.FromArgb(240, 240, 245),
+                ForeColor = Color.FromArgb(100, 100, 120),
+                Font = new Font("Segoe UI", 8F),
                 Cursor = Cursors.Hand,
-                Margin = new Padding(10, 5, 0, 0)
+                Margin = new Padding(8, 9, 0, 0)
             };
-            btnWyczyscFiltry.FlatAppearance.BorderSize = 0;
+            btnWyczyscFiltry.FlatAppearance.BorderColor = Color.FromArgb(200, 200, 210);
+            btnWyczyscFiltry.FlatAppearance.BorderSize = 1;
+            btnWyczyscFiltry.FlatAppearance.MouseOverBackColor = Color.FromArgb(230, 230, 235);
             btnWyczyscFiltry.Click += BtnWyczyscFiltry_Click;
 
             flowLayout.Controls.AddRange(new Control[] {
-                lblFiltry, lblKierowca, cboFiltrKierowca, lblPojazd, cboFiltrPojazd,
-                lblStatus, cboFiltrStatus, btnWyczyscFiltry
+                lblIkona, cboFiltrKierowca, cboFiltrPojazd, cboFiltrStatus, btnWyczyscFiltry
             });
 
             panelFilters.Controls.Add(flowLayout);
+            panelFilters.Controls.Add(bottomLine);
         }
 
         private void CreateContextMenu()
@@ -536,7 +572,16 @@ namespace Kalendarz1.Transport.Formularze
             panelContent = new Panel
             {
                 Dock = DockStyle.Fill,
-                Padding = new Padding(20, 10, 20, 10)
+                Padding = new Padding(20, 12, 10, 12),
+                BackColor = Color.FromArgb(245, 247, 250)
+            };
+
+            // Kontener dla grida z ramką
+            var gridContainer = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(220, 222, 228),
+                Padding = new Padding(1)
             };
 
             dgvKursy = new DataGridView
@@ -551,33 +596,35 @@ namespace Kalendarz1.Transport.Formularze
                 BackgroundColor = Color.White,
                 BorderStyle = BorderStyle.None,
                 RowHeadersVisible = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal
             };
 
-            // Stylizacja nagłówków
+            // Stylizacja nagłówków - bardziej subtelna
             dgvKursy.EnableHeadersVisualStyles = false;
-            dgvKursy.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 252);
-            dgvKursy.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(52, 73, 94);
-            dgvKursy.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            dgvKursy.ColumnHeadersDefaultCellStyle.Padding = new Padding(8);
-            dgvKursy.ColumnHeadersHeight = 45;
-            dgvKursy.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
+            dgvKursy.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(250, 251, 253);
+            dgvKursy.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(80, 90, 110);
+            dgvKursy.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            dgvKursy.ColumnHeadersDefaultCellStyle.Padding = new Padding(10, 8, 10, 8);
+            dgvKursy.ColumnHeadersHeight = 40;
+            dgvKursy.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None;
 
             // Stylizacja wierszy
             dgvKursy.DefaultCellStyle.Font = new Font("Segoe UI", 9.5F);
-            dgvKursy.DefaultCellStyle.Padding = new Padding(8, 4, 8, 4);
+            dgvKursy.DefaultCellStyle.Padding = new Padding(10, 6, 10, 6);
             dgvKursy.DefaultCellStyle.SelectionBackColor = Color.FromArgb(52, 152, 219);
             dgvKursy.DefaultCellStyle.SelectionForeColor = Color.White;
-            dgvKursy.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 252);
-            dgvKursy.RowTemplate.Height = 40;
-            dgvKursy.GridColor = Color.FromArgb(236, 240, 241);
+            dgvKursy.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(252, 252, 254);
+            dgvKursy.RowTemplate.Height = 42;
+            dgvKursy.GridColor = Color.FromArgb(240, 242, 246);
 
             dgvKursy.CellFormatting += DgvKursy_CellFormatting;
             dgvKursy.CellDoubleClick += (s, e) => BtnEdytujKurs_Click(s, e);
             dgvKursy.SelectionChanged += DgvKursy_SelectionChanged;
             dgvKursy.MouseClick += DgvKursy_MouseClick;
 
-            panelContent.Controls.Add(dgvKursy);
+            gridContainer.Controls.Add(dgvKursy);
+            panelContent.Controls.Add(gridContainer);
         }
 
         private void DgvKursy_MouseClick(object sender, MouseEventArgs e)
@@ -595,148 +642,210 @@ namespace Kalendarz1.Transport.Formularze
             }
         }
 
+        private void CreateWolneZamowieniaPanel()
+        {
+            panelWolneZamowienia = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.White,
+                Padding = new Padding(0)
+            };
+
+            // Lewa krawędź jako separator wizualny
+            var leftBorder = new Panel
+            {
+                Dock = DockStyle.Left,
+                Width = 3,
+                BackColor = Color.FromArgb(155, 89, 182)
+            };
+
+            // Główny kontener z marginesem
+            var mainContainer = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(250, 251, 253),
+                Padding = new Padding(12, 8, 12, 8)
+            };
+
+            // Nagłówek - kompaktowy
+            var panelHeader = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 44,
+                BackColor = Color.FromArgb(155, 89, 182),
+                Padding = new Padding(12, 0, 12, 0)
+            };
+
+            // Tytuł i info w jednej linii
+            var headerLayout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 1,
+                BackColor = Color.Transparent
+            };
+            headerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            headerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+            var lblTytul = new Label
+            {
+                Text = "WOLNE ZAMÓWIENIA",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.White,
+                AutoSize = true,
+                Anchor = AnchorStyles.Left,
+                Margin = new Padding(0, 12, 8, 0)
+            };
+
+            lblWolneZamowieniaInfo = new Label
+            {
+                Text = "0 zamówień",
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(220, 220, 255),
+                AutoSize = true,
+                Anchor = AnchorStyles.Right,
+                Margin = new Padding(0, 14, 0, 0)
+            };
+
+            headerLayout.Controls.Add(lblTytul, 0, 0);
+            headerLayout.Controls.Add(lblWolneZamowieniaInfo, 1, 0);
+            panelHeader.Controls.Add(headerLayout);
+
+            // Grid zamówień
+            dgvWolneZamowienia = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                ReadOnly = true,
+                BackgroundColor = Color.White,
+                BorderStyle = BorderStyle.None,
+                RowHeadersVisible = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false,
+                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal
+            };
+
+            dgvWolneZamowienia.EnableHeadersVisualStyles = false;
+            dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(245, 247, 250);
+            dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(100, 100, 120);
+            dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
+            dgvWolneZamowienia.ColumnHeadersDefaultCellStyle.Padding = new Padding(4, 6, 4, 6);
+            dgvWolneZamowienia.ColumnHeadersHeight = 28;
+            dgvWolneZamowienia.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None;
+            dgvWolneZamowienia.DefaultCellStyle.Font = new Font("Segoe UI", 8.5F);
+            dgvWolneZamowienia.DefaultCellStyle.Padding = new Padding(4, 2, 4, 2);
+            dgvWolneZamowienia.DefaultCellStyle.SelectionBackColor = Color.FromArgb(155, 89, 182);
+            dgvWolneZamowienia.DefaultCellStyle.SelectionForeColor = Color.White;
+            dgvWolneZamowienia.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(250, 250, 252);
+            dgvWolneZamowienia.RowTemplate.Height = 26;
+            dgvWolneZamowienia.GridColor = Color.FromArgb(240, 242, 245);
+
+            // Kontener dla grida z ramką
+            var gridContainer = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(230, 232, 235),
+                Padding = new Padding(1)
+            };
+            gridContainer.Controls.Add(dgvWolneZamowienia);
+
+            mainContainer.Controls.Add(gridContainer);
+            mainContainer.Controls.Add(panelHeader);
+
+            panelWolneZamowienia.Controls.Add(mainContainer);
+            panelWolneZamowienia.Controls.Add(leftBorder);
+        }
+
         private void CreateSummary()
         {
             panelSummary = new Panel
             {
                 Dock = DockStyle.Fill,
-                BackColor = Color.FromArgb(33, 37, 43),
-                Padding = new Padding(20, 15, 20, 15)
+                BackColor = Color.FromArgb(38, 42, 50),
+                Padding = new Padding(20, 10, 20, 10)
             };
 
-            // PROSTY układ bez skomplikowanych tile'ów
-            var mainLayout = new TableLayoutPanel
+            // Górna linia dekoracyjna
+            var topLine = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 2,
+                BackColor = Color.FromArgb(60, 65, 75)
+            };
+
+            // Główny layout z kartami
+            var mainLayout = new FlowLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                ColumnCount = 4,
-                RowCount = 2,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                BackColor = Color.Transparent,
+                Padding = new Padding(0, 8, 0, 0)
             };
 
-            // Ustawienia kolumn - równomierne
-            for (int i = 0; i < 4; i++)
-            {
-                mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
-            }
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 40)); // Tytuły
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 60)); // Wartości
+            // Karta 1 - Kursy
+            var cardKursy = CreateSummaryCard("KURSY", Color.FromArgb(52, 152, 219), out lblSummaryKursy);
 
-            // BEZPOŚREDNIE tworzenie labels
-            var lblTytulKursy = new Label
-            {
-                Text = "KURSY DZISIAJ",
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(173, 181, 189),
-                TextAlign = ContentAlignment.BottomCenter,
-                Dock = DockStyle.Fill
-            };
+            // Karta 2 - Pojemniki E2
+            var cardPojemniki = CreateSummaryCard("POJEMNIKI E2", Color.FromArgb(241, 196, 15), out lblSummaryPojemniki);
 
-            lblSummaryKursy = new Label
-            {
-                Text = "0",
-                Font = new Font("Segoe UI", 24F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(0, 123, 255),
-                TextAlign = ContentAlignment.TopCenter,
-                Dock = DockStyle.Fill
-            };
+            // Karta 3 - Palety
+            var cardPalety = CreateSummaryCard("PALETY", Color.FromArgb(155, 89, 182), out lblSummaryPalety);
 
-            var lblTytulPojemniki = new Label
-            {
-                Text = "POJEMNIKI",
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(173, 181, 189),
-                TextAlign = ContentAlignment.BottomCenter,
-                Dock = DockStyle.Fill
-            };
+            // Karta 4 - Wypełnienie
+            var cardWypelnienie = CreateSummaryCard("WYPEŁNIENIE", Color.FromArgb(46, 204, 113), out lblSummaryWypelnienie);
+            lblSummaryWypelnienie.Text = "0%";
 
-            lblSummaryPojemniki = new Label
-            {
-                Text = "0",
-                Font = new Font("Segoe UI", 24F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(255, 193, 7),
-                TextAlign = ContentAlignment.TopCenter,
-                Dock = DockStyle.Fill
-            };
-
-            var lblTytulPalety = new Label
-            {
-                Text = "PALETY",
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(173, 181, 189),
-                TextAlign = ContentAlignment.BottomCenter,
-                Dock = DockStyle.Fill
-            };
-
-            lblSummaryPalety = new Label
-            {
-                Text = "0",
-                Font = new Font("Segoe UI", 24F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(156, 39, 176),
-                TextAlign = ContentAlignment.TopCenter,
-                Dock = DockStyle.Fill
-            };
-
-            var lblTytulWypelnienie = new Label
-            {
-                Text = "ŚREDNIE WYPEŁNIENIE",
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(173, 181, 189),
-                TextAlign = ContentAlignment.BottomCenter,
-                Dock = DockStyle.Fill
-            };
-
-            lblSummaryWypelnienie = new Label
-            {
-                Text = "0%",
-                Font = new Font("Segoe UI", 24F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(40, 167, 69),
-                TextAlign = ContentAlignment.TopCenter,
-                Dock = DockStyle.Fill
-            };
-
-            // Dodaj do layoutu
-            mainLayout.Controls.Add(lblTytulKursy, 0, 0);
-            mainLayout.Controls.Add(lblSummaryKursy, 0, 1);
-            mainLayout.Controls.Add(lblTytulPojemniki, 1, 0);
-            mainLayout.Controls.Add(lblSummaryPojemniki, 1, 1);
-            mainLayout.Controls.Add(lblTytulPalety, 2, 0);
-            mainLayout.Controls.Add(lblSummaryPalety, 2, 1);
-            mainLayout.Controls.Add(lblTytulWypelnienie, 3, 0);
-            mainLayout.Controls.Add(lblSummaryWypelnienie, 3, 1);
+            mainLayout.Controls.AddRange(new Control[] { cardKursy, cardPojemniki, cardPalety, cardWypelnienie });
 
             panelSummary.Controls.Add(mainLayout);
+            panelSummary.Controls.Add(topLine);
+        }
 
-            // Test czy labels są przypisane
-            System.Diagnostics.Debug.WriteLine($"=== CreateSummary: Labels created ===");
-            System.Diagnostics.Debug.WriteLine($"lblSummaryKursy: {lblSummaryKursy != null}");
-            System.Diagnostics.Debug.WriteLine($"lblSummaryPojemniki: {lblSummaryPojemniki != null}");
-            System.Diagnostics.Debug.WriteLine($"lblSummaryPalety: {lblSummaryPalety != null}");
-            System.Diagnostics.Debug.WriteLine($"lblSummaryWypelnienie: {lblSummaryWypelnienie != null}");
-
-            // TESTUJ funkcję aktualizacji z przykładowymi danymi
-            if (lblSummaryKursy != null)
+        private Panel CreateSummaryCard(string title, Color accentColor, out Label valueLabel)
+        {
+            var card = new Panel
             {
-                System.Diagnostics.Debug.WriteLine("Testing summary update with sample data...");
-                lblSummaryKursy.Text = "Test";
-                lblSummaryPojemniki.Text = "123";
-                lblSummaryPalety.Text = "456";
-                lblSummaryWypelnienie.Text = "78%";
+                Size = new Size(180, 70),
+                BackColor = Color.FromArgb(48, 52, 60),
+                Margin = new Padding(0, 0, 15, 0)
+            };
 
-                // Po krótkiej chwili przywróć wartości domyślne
-                var timer = new System.Windows.Forms.Timer();
-                timer.Interval = 1000; // 1 sekunda
-                timer.Tick += (s, e) =>
-                {
-                    lblSummaryKursy.Text = "0";
-                    lblSummaryPojemniki.Text = "0";
-                    lblSummaryPalety.Text = "0";
-                    lblSummaryWypelnienie.Text = "0%";
-                    timer.Stop();
-                    timer.Dispose();
-                    System.Diagnostics.Debug.WriteLine("Sample data cleared, ready for real data");
-                };
-                timer.Start();
-            }
+            // Lewa linia akcentu
+            var accent = new Panel
+            {
+                Dock = DockStyle.Left,
+                Width = 4,
+                BackColor = accentColor
+            };
+
+            // Tytuł
+            var lblTitle = new Label
+            {
+                Text = title,
+                Location = new Point(14, 10),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(140, 150, 165)
+            };
+
+            // Wartość
+            valueLabel = new Label
+            {
+                Text = "0",
+                Location = new Point(14, 30),
+                AutoSize = true,
+                Font = new Font("Segoe UI", 22F, FontStyle.Bold),
+                ForeColor = accentColor
+            };
+
+            card.Controls.Add(lblTitle);
+            card.Controls.Add(valueLabel);
+            card.Controls.Add(accent);
+
+            return card;
         }
 
         private Panel CreateSummaryTile(string title, string value, Color color)
@@ -798,6 +907,9 @@ namespace Kalendarz1.Transport.Formularze
                 // Załaduj kursy - to automatycznie wywoła UpdateSummary
                 await LoadKursyAsync();
 
+                // Załaduj wolne zamówienia z dzisiejszego uboju
+                await LoadWolneZamowieniaAsync();
+
                 System.Diagnostics.Debug.WriteLine("=== LoadInitialDataAsync END ===");
             }
             catch (Exception ex)
@@ -815,6 +927,7 @@ namespace Kalendarz1.Transport.Formularze
             System.Diagnostics.Debug.WriteLine($"Date changed to: {_selectedDate:yyyy-MM-dd}");
 
             await LoadKursyAsync();
+            await LoadWolneZamowieniaAsync();
 
             // Wymuś wywołanie UpdateSummary po zmianie daty
             System.Diagnostics.Debug.WriteLine("Force calling UpdateSummary after date change");
@@ -893,7 +1006,7 @@ namespace Kalendarz1.Transport.Formularze
                 var filtrKierowcaId = (cboFiltrKierowca?.SelectedItem as Kierowca)?.KierowcaID;
                 var filtrPojazdId = (cboFiltrPojazd?.SelectedItem as Pojazd)?.PojazdID;
                 var filtrStatus = cboFiltrStatus?.SelectedItem?.ToString();
-                if (filtrStatus == "Wszystkie") filtrStatus = null;
+                if (filtrStatus == "Wszystkie statusy") filtrStatus = null;
 
                 if (_kursy != null)
                 {
@@ -1785,6 +1898,150 @@ namespace Kalendarz1.Transport.Formularze
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error loading filter data: {ex.Message}");
+            }
+        }
+
+        private async Task LoadWolneZamowieniaAsync()
+        {
+            try
+            {
+                // Zoptymalizowane zapytanie - filtrowanie w SQL
+                // Wolne = nie ma przypisanego kursu (TransportKursID IS NULL)
+                //         i TransportStatus nie jest 'Przypisany' ani 'Własny'
+                var sql = @"
+                    SELECT
+                        zm.Id,
+                        zm.KlientId,
+                        zm.DataPrzyjazdu,
+                        zm.DataUboju,
+                        ISNULL(zm.LiczbaPalet, 0) AS Palety,
+                        ISNULL(zm.LiczbaPojemnikow, 0) AS Pojemniki
+                    FROM dbo.ZamowieniaMieso zm
+                    WHERE zm.DataUboju = @Data
+                      AND ISNULL(zm.Status, 'Nowe') NOT IN ('Anulowane', 'Wydany')
+                      AND zm.TransportKursID IS NULL
+                      AND ISNULL(zm.TransportStatus, 'Oczekuje') NOT IN ('Przypisany', 'Własny')
+                    ORDER BY zm.DataPrzyjazdu";
+
+                var tempList = new List<(int Id, int KlientId, DateTime DataOdbioru, DateTime DataUboju, decimal Palety, int Pojemniki)>();
+                var klientIdsToFetch = new HashSet<int>();
+
+                using (var cn = new SqlConnection(_connLibra))
+                {
+                    await cn.OpenAsync();
+                    using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Data", _selectedDate.Date);
+
+                    using var reader = await cmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        var klientId = reader.GetInt32(1);
+                        tempList.Add((
+                            reader.GetInt32(0),
+                            klientId,
+                            reader.IsDBNull(2) ? _selectedDate : reader.GetDateTime(2),
+                            reader.IsDBNull(3) ? _selectedDate : reader.GetDateTime(3),
+                            reader.IsDBNull(4) ? 0m : reader.GetDecimal(4),
+                            reader.IsDBNull(5) ? 0 : reader.GetInt32(5)
+                        ));
+
+                        if (!_klienciCache.ContainsKey(klientId))
+                            klientIdsToFetch.Add(klientId);
+                    }
+                }
+
+                // Pobierz tylko brakujących klientów (cache 30 min)
+                if (klientIdsToFetch.Count > 0 || (DateTime.Now - _klienciCacheTime).TotalMinutes > 30)
+                {
+                    await LoadMissingKlienciAsync(klientIdsToFetch);
+                }
+
+                // Budowanie tabeli
+                var dt = new DataTable();
+                dt.Columns.Add("ID", typeof(int));
+                dt.Columns.Add("Odbiór", typeof(string));
+                dt.Columns.Add("Ubój", typeof(string));
+                dt.Columns.Add("Klient", typeof(string));
+                dt.Columns.Add("Godz.", typeof(string));
+                dt.Columns.Add("Palety", typeof(string));
+                dt.Columns.Add("Poj.", typeof(int));
+
+                foreach (var zam in tempList)
+                {
+                    var klientNazwa = _klienciCache.TryGetValue(zam.KlientId, out var nazwa)
+                        ? nazwa
+                        : $"KH {zam.KlientId}";
+                    dt.Rows.Add(
+                        zam.Id,
+                        zam.DataOdbioru.ToString("MM-dd"),
+                        zam.DataUboju.ToString("MM-dd"),
+                        klientNazwa,
+                        zam.DataOdbioru.ToString("HH:mm"),
+                        zam.Palety.ToString("N1"),
+                        zam.Pojemniki
+                    );
+                }
+
+                dgvWolneZamowienia.DataSource = dt;
+
+                // Konfiguracja kolumn
+                if (dgvWolneZamowienia.Columns["ID"] != null)
+                    dgvWolneZamowienia.Columns["ID"].Visible = false;
+                if (dgvWolneZamowienia.Columns["Odbiór"] != null)
+                    dgvWolneZamowienia.Columns["Odbiór"].Width = 50;
+                if (dgvWolneZamowienia.Columns["Ubój"] != null)
+                    dgvWolneZamowienia.Columns["Ubój"].Width = 50;
+                if (dgvWolneZamowienia.Columns["Klient"] != null)
+                    dgvWolneZamowienia.Columns["Klient"].FillWeight = 100;
+                if (dgvWolneZamowienia.Columns["Godz."] != null)
+                    dgvWolneZamowienia.Columns["Godz."].Width = 42;
+                if (dgvWolneZamowienia.Columns["Palety"] != null)
+                    dgvWolneZamowienia.Columns["Palety"].Width = 42;
+                if (dgvWolneZamowienia.Columns["Poj."] != null)
+                    dgvWolneZamowienia.Columns["Poj."].Width = 38;
+
+                // Aktualizuj licznik
+                lblWolneZamowieniaInfo.Text = tempList.Count.ToString();
+                lblWolneZamowieniaInfo.ForeColor = tempList.Count == 0
+                    ? Color.FromArgb(150, 255, 150)
+                    : tempList.Count > 10
+                        ? Color.FromArgb(255, 180, 120)
+                        : Color.FromArgb(220, 220, 255);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error loading wolne zamowienia: {ex.Message}");
+                lblWolneZamowieniaInfo.Text = "!";
+                lblWolneZamowieniaInfo.ForeColor = Color.Red;
+            }
+        }
+
+        private async Task LoadMissingKlienciAsync(HashSet<int> klientIds)
+        {
+            try
+            {
+                using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync();
+
+                // Pobierz wszystkich klientów na raz (szybsze niż pojedyncze zapytania)
+                var sql = @"SELECT c.Id, ISNULL(c.Shortcut, 'KH ' + CAST(c.Id AS VARCHAR(10)))
+                            FROM SSCommon.STContractors c";
+
+                using var cmd = new SqlCommand(sql, cn);
+                using var reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    var id = reader.GetInt32(0);
+                    var nazwa = reader.GetString(1);
+                    _klienciCache[id] = nazwa;
+                }
+
+                _klienciCacheTime = DateTime.Now;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error loading klienci cache: {ex.Message}");
             }
         }
 
