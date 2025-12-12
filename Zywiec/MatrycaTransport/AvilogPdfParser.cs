@@ -295,20 +295,60 @@ namespace Kalendarz1
                 }
             }
 
-            // Znajdź imię kierowcy - przed "Tel2. :" (mixed case lub UPPERCASE)
-            var imieMatch = Regex.Match(context, @"([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]+)\s+Tel2\s*\.");
-            if (imieMatch.Success)
+            // Znajdź imię kierowcy - przed "Tel2. :"
+            // Uwaga: może być wzorzec "IMIĘ ul. Adres Miejscowość Tel2." - szukaj przed "ul." lub samodzielnie
+
+            // Wzorzec 1: IMIĘ przed "ul." (adres)
+            // np. "KRZYSZTOF ul. Piłkarzy 24 Oblęgorek Tel2."
+            var imieBeforeUlMatch = Regex.Match(context, @"([A-ZŻŹĆĄŚĘŁÓŃ]{3,})\s+ul\.\s");
+            if (imieBeforeUlMatch.Success)
             {
-                kierowcaImie = imieMatch.Groups[1].Value;
+                kierowcaImie = imieBeforeUlMatch.Groups[1].Value;
             }
 
-            // Alternatywnie: imię WIELKIMI LITERAMI przed Tel2
+            // Wzorzec 2: IMIĘ samodzielnie przed Tel2 (bez adresu pomiędzy)
+            // np. "ARKADIUSZ Tel2." lub "Sylwester Tel2."
             if (string.IsNullOrEmpty(kierowcaImie))
             {
-                var imieUpperMatch = Regex.Match(context, @"([A-ZŻŹĆĄŚĘŁÓŃ]{3,})\s+Tel2\s*\.");
-                if (imieUpperMatch.Success)
+                // Najpierw szukaj UPPERCASE bezpośrednio przed Tel2
+                var imieDirectMatch = Regex.Match(context, @"([A-ZŻŹĆĄŚĘŁÓŃ]{4,})\s+Tel2\s*\.");
+                if (imieDirectMatch.Success)
                 {
-                    kierowcaImie = imieUpperMatch.Groups[1].Value;
+                    string potentialName = imieDirectMatch.Groups[1].Value;
+                    // Pomiń nazwy miejscowości
+                    if (!IsPlaceName(potentialName))
+                    {
+                        kierowcaImie = potentialName;
+                    }
+                }
+            }
+
+            // Wzorzec 3: Mixed case przed Tel2
+            if (string.IsNullOrEmpty(kierowcaImie))
+            {
+                var imieMixedMatch = Regex.Match(context, @"([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]{3,})\s+Tel2\s*\.");
+                if (imieMixedMatch.Success)
+                {
+                    string potentialName = imieMixedMatch.Groups[1].Value;
+                    // Pomiń nazwy miejscowości
+                    if (!IsPlaceName(potentialName))
+                    {
+                        kierowcaImie = potentialName;
+                    }
+                }
+            }
+
+            // Wzorzec 4: IMIĘ przed adresem z numerem (np. "SEBASTIAN JORDANÓW 7")
+            if (string.IsNullOrEmpty(kierowcaImie))
+            {
+                var imieBeforeAddrMatch = Regex.Match(context, @"([A-ZŻŹĆĄŚĘŁÓŃ]{4,})\s+[A-ZŻŹĆĄŚĘŁÓŃ]+\s+\d");
+                if (imieBeforeAddrMatch.Success)
+                {
+                    string potentialName = imieBeforeAddrMatch.Groups[1].Value;
+                    if (!IsPlaceName(potentialName) && !potentialName.Equals(kierowcaNazwisko))
+                    {
+                        kierowcaImie = potentialName;
+                    }
                 }
             }
 
@@ -335,6 +375,25 @@ namespace Kalendarz1
                 row.Obserwacje = "Zabierasz wózek";
             else if (context.Contains("Przywozisz wózek") || context.Contains("Przywozisz wozek"))
                 row.Obserwacje = "Przywozisz wózek";
+        }
+
+        /// <summary>
+        /// Sprawdza czy podane słowo to nazwa miejscowości (nie imię)
+        /// </summary>
+        private bool IsPlaceName(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return false;
+
+            // Lista znanych miejscowości z PDF-ów AVILOG
+            var placeNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "OBLĘGOREK", "OBLEGOREK", "KOLUSZKI", "KUTNO", "SLUBICE", "SŁUBICE",
+                "STRAWCZYN", "GODZIANOW", "GODZIANÓW", "JEZOW", "JEŻÓW", "DOBRZYKOW",
+                "DOBRZYKÓW", "MICHAŁÓW", "MICHALOW", "STUDZIENIEC", "JORDANÓW", "JORDANOW",
+                "ZAPADY", "FELICJANÓW", "FELICJANOW", "MOSCISKA", "MOŚCISKA"
+            };
+
+            return placeNames.Contains(name.ToUpper());
         }
 
         /// <summary>
