@@ -391,9 +391,9 @@ namespace Kalendarz1
                         string hodowcaTelefon = "";
                         string hodowcaEmail = "";
 
-                        if (importRow.MappedHodowcaGID.HasValue)
+                        if (!string.IsNullOrEmpty(importRow.MappedHodowcaGID))
                         {
-                            string idDostawcy = importRow.MappedHodowcaGID.Value.ToString();
+                            string idDostawcy = importRow.MappedHodowcaGID;
                             hodowcaNazwa = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "ShortName") ?? "";
                             hodowcaAdres = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "address") ?? "";
                             hodowcaMiejscowosc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "city") ?? "";
@@ -424,7 +424,7 @@ namespace Kalendarz1
                         {
                             ID = 0,
                             LpDostawy = lpCounter.ToString(),
-                            CustomerGID = importRow.MappedHodowcaGID?.ToString() ?? "",
+                            CustomerGID = importRow.MappedHodowcaGID ?? "",
                             HodowcaNazwa = hodowcaNazwa,
                             WagaDek = importRow.WagaDek,
                             SztPoj = importRow.Sztuki,

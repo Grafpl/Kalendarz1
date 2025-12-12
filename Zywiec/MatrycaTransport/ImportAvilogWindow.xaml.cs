@@ -22,7 +22,7 @@ namespace Kalendarz1
         public List<HodowcaItem> ListaHodowcow { get; set; }
 
         // Mapowania z bazy
-        private Dictionary<string, int> savedMappings = new Dictionary<string, int>();
+        private Dictionary<string, string> savedMappings = new Dictionary<string, string>();
 
         // Wynik importu
         public List<ImportAvilogRow> ImportedRows { get; private set; }
@@ -94,7 +94,7 @@ namespace Kalendarz1
                         {
                             ListaHodowcow.Add(new HodowcaItem
                             {
-                                GID = reader.GetInt32(0),
+                                GID = reader["GID"]?.ToString() ?? "",
                                 ShortName = reader["ShortName"]?.ToString() ?? "",
                                 FullName = reader["Name"]?.ToString() ?? "",
                                 City = reader["City"]?.ToString() ?? ""
@@ -124,7 +124,7 @@ namespace Kalendarz1
                             ID INT IDENTITY(1,1) PRIMARY KEY,
                             AvilogNazwa NVARCHAR(200) NOT NULL,
                             AvilogAdres NVARCHAR(300) NULL,
-                            MappedGID INT NOT NULL,
+                            MappedGID NVARCHAR(50) NOT NULL,
                             CreatedDate DATETIME DEFAULT GETDATE(),
                             CreatedBy NVARCHAR(100) NULL,
                             CONSTRAINT UQ_AvilogNazwa UNIQUE (AvilogNazwa)
@@ -142,8 +142,8 @@ namespace Kalendarz1
                         while (reader.Read())
                         {
                             string avilogNazwa = reader["AvilogNazwa"]?.ToString()?.ToUpper() ?? "";
-                            int mappedGid = reader.GetInt32(1);
-                            if (!savedMappings.ContainsKey(avilogNazwa))
+                            string mappedGid = reader["MappedGID"]?.ToString() ?? "";
+                            if (!savedMappings.ContainsKey(avilogNazwa) && !string.IsNullOrEmpty(mappedGid))
                             {
                                 savedMappings[avilogNazwa] = mappedGid;
                             }
@@ -301,7 +301,7 @@ namespace Kalendarz1
             var exactMatch = ListaHodowcow.FirstOrDefault(h =>
                 h.ShortName != null && h.ShortName.ToUpper().Trim() == searchName);
 
-            if (exactMatch != null && exactMatch.GID.HasValue)
+            if (exactMatch != null && !string.IsNullOrEmpty(exactMatch.GID))
             {
                 row.MappedHodowcaGID = exactMatch.GID;
                 return;
@@ -315,7 +315,7 @@ namespace Kalendarz1
                 var partialMatch = ListaHodowcow.FirstOrDefault(h =>
                     h.ShortName != null && h.ShortName.ToUpper().StartsWith(firstPart));
 
-                if (partialMatch != null && partialMatch.GID.HasValue)
+                if (partialMatch != null && !string.IsNullOrEmpty(partialMatch.GID))
                 {
                     row.MappedHodowcaGID = partialMatch.GID;
                 }
@@ -327,7 +327,7 @@ namespace Kalendarz1
             int mapped = 0;
             foreach (var row in importData)
             {
-                if (!row.MappedHodowcaGID.HasValue)
+                if (string.IsNullOrEmpty(row.MappedHodowcaGID))
                 {
                     // Próbuj różne strategie dopasowania
                     string avilogNazwa = row.AvilogHodowca?.ToUpper().Trim() ?? "";
@@ -356,7 +356,7 @@ namespace Kalendarz1
             int bestScore = 0;
             HodowcaItem bestMatch = null;
 
-            foreach (var hodowca in ListaHodowcow.Where(h => h.GID.HasValue))
+            foreach (var hodowca in ListaHodowcow.Where(h => !string.IsNullOrEmpty(h.GID)))
             {
                 string hodowcaNazwa = hodowca.ShortName?.ToUpper() ?? "";
                 int score = 0;
@@ -382,7 +382,7 @@ namespace Kalendarz1
 
         private void UpdateNiezamapowaniCount()
         {
-            int niezamapowani = importData.Count(r => !r.MappedHodowcaGID.HasValue);
+            int niezamapowani = importData.Count(r => string.IsNullOrEmpty(r.MappedHodowcaGID));
             lblNiezamapowani.Text = niezamapowani.ToString();
 
             // Odśwież widok żeby zaktualizować statusy
@@ -396,7 +396,7 @@ namespace Kalendarz1
         private void BtnImportuj_Click(object sender, RoutedEventArgs e)
         {
             // Sprawdź czy są niezamapowani hodowcy
-            var niezamapowani = importData.Where(r => !r.MappedHodowcaGID.HasValue).ToList();
+            var niezamapowani = importData.Where(r => string.IsNullOrEmpty(r.MappedHodowcaGID)).ToList();
             if (niezamapowani.Any())
             {
                 var result = MessageBox.Show(
@@ -420,7 +420,7 @@ namespace Kalendarz1
             }
 
             // Przygotuj wynik
-            ImportedRows = importData.Where(r => r.MappedHodowcaGID.HasValue).ToList();
+            ImportedRows = importData.Where(r => !string.IsNullOrEmpty(r.MappedHodowcaGID)).ToList();
             ImportSuccess = true;
 
             lblStatus.Text = $"Zaimportowano {ImportedRows.Count} wierszy.";
@@ -436,7 +436,7 @@ namespace Kalendarz1
                 {
                     conn.Open();
 
-                    foreach (var row in importData.Where(r => r.MappedHodowcaGID.HasValue))
+                    foreach (var row in importData.Where(r => !string.IsNullOrEmpty(r.MappedHodowcaGID)))
                     {
                         string avilogNazwa = row.AvilogHodowca?.ToUpper().Trim() ?? "";
                         if (string.IsNullOrEmpty(avilogNazwa)) continue;
@@ -445,7 +445,7 @@ namespace Kalendarz1
                         if (savedMappings.ContainsKey(avilogNazwa))
                         {
                             // Aktualizuj jeśli się zmieniło
-                            if (savedMappings[avilogNazwa] != row.MappedHodowcaGID.Value)
+                            if (savedMappings[avilogNazwa] != row.MappedHodowcaGID)
                             {
                                 string updateSql = @"UPDATE dbo.AvilogHodowcyMapping
                                                     SET MappedGID = @MappedGID
@@ -453,7 +453,7 @@ namespace Kalendarz1
                                 using (SqlCommand cmd = new SqlCommand(updateSql, conn))
                                 {
                                     cmd.Parameters.AddWithValue("@AvilogNazwa", avilogNazwa);
-                                    cmd.Parameters.AddWithValue("@MappedGID", row.MappedHodowcaGID.Value);
+                                    cmd.Parameters.AddWithValue("@MappedGID", row.MappedHodowcaGID);
                                     cmd.ExecuteNonQuery();
                                 }
                             }
@@ -468,7 +468,7 @@ namespace Kalendarz1
                             {
                                 cmd.Parameters.AddWithValue("@AvilogNazwa", avilogNazwa);
                                 cmd.Parameters.AddWithValue("@AvilogAdres", row.AvilogAdres ?? "");
-                                cmd.Parameters.AddWithValue("@MappedGID", row.MappedHodowcaGID.Value);
+                                cmd.Parameters.AddWithValue("@MappedGID", row.MappedHodowcaGID);
                                 cmd.Parameters.AddWithValue("@CreatedBy", App.UserID);
                                 cmd.ExecuteNonQuery();
                             }
@@ -498,7 +498,7 @@ namespace Kalendarz1
     public class ImportAvilogRow : INotifyPropertyChanged
     {
         private int? _mappedKierowcaGID;
-        private int? _mappedHodowcaGID;
+        private string _mappedHodowcaGID;
 
         public int Lp { get; set; }
 
@@ -519,7 +519,7 @@ namespace Kalendarz1
             }
         }
 
-        public int? MappedHodowcaGID
+        public string MappedHodowcaGID
         {
             get => _mappedHodowcaGID;
             set
@@ -553,7 +553,7 @@ namespace Kalendarz1
         {
             get
             {
-                if (MappedHodowcaGID.HasValue)
+                if (!string.IsNullOrEmpty(MappedHodowcaGID))
                     return "OK";
                 else
                     return "BRAK";
@@ -581,7 +581,7 @@ namespace Kalendarz1
     /// </summary>
     public class HodowcaItem
     {
-        public int? GID { get; set; }
+        public string GID { get; set; }
         public string ShortName { get; set; }
         public string FullName { get; set; }
         public string City { get; set; }
