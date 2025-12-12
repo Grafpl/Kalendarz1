@@ -605,6 +605,12 @@ namespace Kalendarz1.WPF
                     }
                 }
 
+                // Jeśli nie ma grup z KonfiguracjaProduktow, pobierz z ScalowanieTowarow
+                if (!_mapowanieScalowania.Any())
+                {
+                    await LoadScalowanieTowarowAsync(cn);
+                }
+
                 // Ustaw listę nazw grup towarowych (posortowane)
                 _grupyTowaroweNazwy = _grupyDoProduktow.Keys.OrderBy(n => n).ToList();
 
@@ -616,6 +622,37 @@ namespace Kalendarz1.WPF
                     "Ostrzeżenie", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return result;
             }
+        }
+
+        /// <summary>
+        /// Pobiera mapowanie scalowania towarów z tabeli ScalowanieTowarow
+        /// </summary>
+        private async Task LoadScalowanieTowarowAsync(SqlConnection cn)
+        {
+            try
+            {
+                // Sprawdź czy tabela istnieje
+                const string checkSql = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'ScalowanieTowarow'";
+                await using var checkCmd = new SqlCommand(checkSql, cn);
+                if ((int)await checkCmd.ExecuteScalarAsync()! == 0) return;
+
+                const string sql = "SELECT NazwaGrupy, TowarIdtw FROM [dbo].[ScalowanieTowarow]";
+                await using var cmd = new SqlCommand(sql, cn);
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    string nazwaGrupy = reader.GetString(0);
+                    int towarIdtw = reader.GetInt32(1);
+
+                    _mapowanieScalowania[towarIdtw] = nazwaGrupy;
+
+                    if (!_grupyDoProduktow.ContainsKey(nazwaGrupy))
+                        _grupyDoProduktow[nazwaGrupy] = new List<int>();
+                    _grupyDoProduktow[nazwaGrupy].Add(towarIdtw);
+                }
+            }
+            catch { /* Ignoruj błędy - tabela może nie istnieć */ }
         }
 
         #endregion
