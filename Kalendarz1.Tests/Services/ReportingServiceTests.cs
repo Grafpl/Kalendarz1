@@ -107,23 +107,23 @@ namespace Kalendarz1.Tests.Services
         #region RankingHodowcy Tests
 
         [Theory]
-        [InlineData(RankingKryterium.Wartosc, "WartoscSuma DESC")]
-        [InlineData(RankingKryterium.Waga, "WagaSuma DESC")]
-        [InlineData(RankingKryterium.Sztuki, "SztukiSuma DESC")]
-        [InlineData(RankingKryterium.SredniaWagaSztuki, "SredniaWagaSztuki DESC")]
-        [InlineData(RankingKryterium.LiczbaDostawL, "LiczbaDostaw DESC")]
-        [InlineData(RankingKryterium.NajnizszaStrata, "SredniUbytek ASC")]
-        public void RankingKryterium_MapujeNaOrderBy(RankingKryterium kryterium, string oczekiwanyOrderBy)
+        [InlineData(ReportingService.RankingKryterium.Wartosc, "WartoscSuma DESC")]
+        [InlineData(ReportingService.RankingKryterium.Waga, "WagaSuma DESC")]
+        [InlineData(ReportingService.RankingKryterium.Sztuki, "SztukiSuma DESC")]
+        [InlineData(ReportingService.RankingKryterium.SredniaWagaSztuki, "SredniaWagaSztuki DESC")]
+        [InlineData(ReportingService.RankingKryterium.LiczbaDostawL, "LiczbaDostaw DESC")]
+        [InlineData(ReportingService.RankingKryterium.NajnizszaStrata, "SredniUbytek ASC")]
+        public void RankingKryterium_MapujeNaOrderBy(ReportingService.RankingKryterium kryterium, string oczekiwanyOrderBy)
         {
             // Act - logika z serwisu
             string orderBy = kryterium switch
             {
-                RankingKryterium.Wartosc => "WartoscSuma DESC",
-                RankingKryterium.Waga => "WagaSuma DESC",
-                RankingKryterium.Sztuki => "SztukiSuma DESC",
-                RankingKryterium.SredniaWagaSztuki => "SredniaWagaSztuki DESC",
-                RankingKryterium.LiczbaDostawL => "LiczbaDostaw DESC",
-                RankingKryterium.NajnizszaStrata => "SredniUbytek ASC",
+                ReportingService.RankingKryterium.Wartosc => "WartoscSuma DESC",
+                ReportingService.RankingKryterium.Waga => "WagaSuma DESC",
+                ReportingService.RankingKryterium.Sztuki => "SztukiSuma DESC",
+                ReportingService.RankingKryterium.SredniaWagaSztuki => "SredniaWagaSztuki DESC",
+                ReportingService.RankingKryterium.LiczbaDostawL => "LiczbaDostaw DESC",
+                ReportingService.RankingKryterium.NajnizszaStrata => "SredniUbytek ASC",
                 _ => "WartoscSuma DESC"
             };
 
