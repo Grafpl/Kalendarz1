@@ -60,6 +60,7 @@ namespace Kalendarz1.WPF
         private Dictionary<int, string> _mapowanieScalowania = new(); // TowarIdtw -> NazwaGrupy
         private Dictionary<string, List<int>> _grupyDoProduktow = new(); // NazwaGrupy -> lista TowarId
         private List<string> _grupyTowaroweNazwy = new(); // Lista nazw grup towarowych dla kolumn w tabeli zamówień
+        private Dictionary<string, string> _grupyKolumnDoNazw = new(); // Sanitized column name -> original display name
         private HashSet<string> _expandedGroups = new(); // Rozwinięte grupy
         private Dictionary<string, List<(string nazwa, decimal plan, decimal fakt, decimal zam, string stan, decimal stanDec, decimal bilans)>> _detaleGrup = new(); // Szczegóły produktów w grupach
         private int? _selectedProductId = null;
@@ -2338,10 +2339,13 @@ namespace Kalendarz1.WPF
             _dtOrders.Columns.Add("WyprInfo", typeof(string));
             _dtOrders.Columns.Add("WydanoInfo", typeof(string));
 
-            // Dynamiczne kolumny dla grup towarowych
+            // Dynamiczne kolumny dla grup towarowych (z sanityzowanymi nazwami)
+            _grupyKolumnDoNazw.Clear();
             foreach (var grupaName in _grupyTowaroweNazwy)
             {
-                _dtOrders.Columns.Add($"Grupa_{grupaName}", typeof(decimal));
+                string colName = SanitizeColumnName(grupaName);
+                _grupyKolumnDoNazw[colName] = grupaName;
+                _dtOrders.Columns.Add(colName, typeof(decimal));
             }
 
             var contractors = new Dictionary<int, (string Name, string Salesman)>();
@@ -2699,13 +2703,14 @@ ORDER BY zm.Id";
                 // Wypełnij kolumny grup towarowych
                 foreach (var grupaName in _grupyTowaroweNazwy)
                 {
+                    string colName = SanitizeColumnName(grupaName);
                     decimal sumaGrupy = 0m;
                     if (sumaPerZamowieniePerGrupa.TryGetValue(id, out var grupyDict) &&
                         grupyDict.TryGetValue(grupaName, out var suma))
                     {
                         sumaGrupy = suma;
                     }
-                    newRow[$"Grupa_{grupaName}"] = sumaGrupy;
+                    newRow[colName] = sumaGrupy;
                 }
 
                 _dtOrders.Rows.Add(newRow);
@@ -2760,7 +2765,8 @@ ORDER BY zm.Id";
                 // Kolumny grup dla wydań bez zamówień = 0
                 foreach (var grupaName in _grupyTowaroweNazwy)
                 {
-                    row[$"Grupa_{grupaName}"] = 0m;
+                    string colName = SanitizeColumnName(grupaName);
+                    row[colName] = 0m;
                 }
 
                 releasesWithoutOrders.Add(row);
@@ -2834,13 +2840,14 @@ ORDER BY zm.Id";
                 // Sumy kolumn grup dla wiersza podsumowania
                 foreach (var grupaName in _grupyTowaroweNazwy)
                 {
+                    string colName = SanitizeColumnName(grupaName);
                     decimal sumaGrupy = 0m;
                     foreach (var kvp in sumaPerZamowieniePerGrupa.Values)
                     {
                         if (kvp.TryGetValue(grupaName, out var val))
                             sumaGrupy += val;
                     }
-                    summaryRow[$"Grupa_{grupaName}"] = sumaGrupy;
+                    summaryRow[colName] = sumaGrupy;
                 }
 
                 _dtOrders.Rows.InsertAt(summaryRow, 0);
@@ -3171,11 +3178,30 @@ ORDER BY zm.Id";
             {
                 Header = "Utworzono",
                 Binding = new System.Windows.Data.Binding("UtworzonePrzez"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
-                MinWidth = 80
+                Width = new DataGridLength(85)
             });
 
-            // 6. Cena - V (zielony) jeśli wszystkie pozycje mają cenę, X (czerwony) jeśli nie
+            // Dynamiczne kolumny grup towarowych - zaraz po "Utworzono"
+            foreach (var kvp in _grupyKolumnDoNazw)
+            {
+                string colName = kvp.Key;
+                string displayName = kvp.Value;
+
+                var grupaStyle = new Style(typeof(TextBlock));
+                grupaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
+                grupaStyle.Setters.Add(new Setter(TextBlock.FontSizeProperty, 11.0));
+                grupaStyle.Setters.Add(new Setter(TextBlock.PaddingProperty, new Thickness(2, 0, 4, 0)));
+
+                dgOrders.Columns.Add(new DataGridTextColumn
+                {
+                    Header = displayName,
+                    Binding = new System.Windows.Data.Binding(colName) { StringFormat = "N0" },
+                    Width = new DataGridLength(45),
+                    ElementStyle = grupaStyle
+                });
+            }
+
+            // 7. Cena - V (zielony) jeśli wszystkie pozycje mają cenę, X (czerwony) jeśli nie
             var cenaStyle = new Style(typeof(TextBlock));
             cenaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
             cenaStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
@@ -3245,23 +3271,6 @@ ORDER BY zm.Id";
                 Width = new DataGridLength(75),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
-
-            // Dynamiczne kolumny grup towarowych
-            foreach (var grupaName in _grupyTowaroweNazwy)
-            {
-                var grupaStyle = new Style(typeof(TextBlock));
-                grupaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
-                grupaStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
-                grupaStyle.Setters.Add(new Setter(TextBlock.BackgroundProperty, new SolidColorBrush(Color.FromRgb(240, 248, 255))));
-
-                dgOrders.Columns.Add(new DataGridTextColumn
-                {
-                    Header = grupaName,
-                    Binding = new System.Windows.Data.Binding($"Grupa_{grupaName}") { StringFormat = "N0" },
-                    Width = new DataGridLength(65),
-                    ElementStyle = grupaStyle
-                });
-            }
         }
 
         private void TabOrders_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -3312,10 +3321,10 @@ ORDER BY zm.Id";
 
                 if (id == -1 || status == "SUMA")
                 {
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(92, 138, 58));
-                    e.Row.Foreground = Brushes.White;
+                    // Subtelniejszy styl wiersza sumy - jasne tło, ciemny tekst
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(240, 245, 240));
+                    e.Row.Foreground = new SolidColorBrush(Color.FromRgb(40, 60, 40));
                     e.Row.FontWeight = FontWeights.Bold;
-                    e.Row.FontSize = 14;
                     return;
                 }
 
@@ -5066,6 +5075,24 @@ ORDER BY zm.Id";
             txtNotes.Clear();
             _originalNotesValue = "";
             _currentOrderId = null;
+        }
+
+        /// <summary>
+        /// Sanityzuje nazwę grupy do użycia jako nazwa kolumny DataTable (bez znaków specjalnych)
+        /// </summary>
+        private string SanitizeColumnName(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return "Grupa";
+            // Zamień spacje i znaki specjalne na podkreślniki
+            var sanitized = new System.Text.StringBuilder();
+            foreach (char c in name)
+            {
+                if (char.IsLetterOrDigit(c))
+                    sanitized.Append(c);
+                else
+                    sanitized.Append('_');
+            }
+            return "G_" + sanitized.ToString();
         }
 
         private async Task DuplicateOrderAsync(int sourceId, DateTime targetDate, bool copyNotes = false)
