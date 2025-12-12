@@ -3,7 +3,6 @@ using iTextSharp.text.pdf.parser;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -28,10 +27,12 @@ namespace Kalendarz1
                 {
                     StringBuilder fullText = new StringBuilder();
 
+                    // Czytaj wszystkie strony
                     for (int page = 1; page <= reader.NumberOfPages; page++)
                     {
                         string pageText = PdfTextExtractor.GetTextFromPage(reader, page);
                         fullText.AppendLine(pageText);
+                        fullText.AppendLine("---PAGE_BREAK---");
                     }
 
                     string text = fullText.ToString();
@@ -39,8 +40,8 @@ namespace Kalendarz1
                     // Wyciągnij datę uboju z nagłówka
                     result.DataUboju = ExtractDataUboju(text);
 
-                    // Parsuj wiersze transportowe
-                    result.Wiersze = ParseTransportRows(text);
+                    // Parsuj wiersze transportowe - nowa metoda
+                    result.Wiersze = ParseTransportRowsNew(text);
                     result.Success = true;
                 }
             }
@@ -58,52 +59,41 @@ namespace Kalendarz1
         /// </summary>
         private DateTime? ExtractDataUboju(string text)
         {
-            // Szukamy: "DATA UBOJU : środa 03 grudzień 2025" lub podobne
-            var datePatterns = new[]
+            // Szukamy: "DATA UBOJU : środa 03 grudzień 2025"
+            var match = Regex.Match(text, @"DATA UBOJU\s*:\s*\w+\s+(\d{1,2})\s+(\w+)\s+(\d{4})", RegexOptions.IgnoreCase);
+            if (match.Success)
             {
-                @"DATA UBOJU\s*:\s*\w+\s+(\d{1,2})\s+(\w+)\s+(\d{4})",
-                @"DATA UBOJU\s*:\s*(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})",
-                @"(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})"
-            };
-
-            foreach (var pattern in datePatterns)
-            {
-                var match = Regex.Match(text, pattern, RegexOptions.IgnoreCase);
-                if (match.Success)
+                try
                 {
-                    try
+                    int day = int.Parse(match.Groups[1].Value);
+                    string monthName = match.Groups[2].Value.ToLower();
+                    int year = int.Parse(match.Groups[3].Value);
+                    int month = ParsePolishMonth(monthName);
+                    if (month > 0)
                     {
-                        // Próba parsowania z nazwą miesiąca
-                        if (match.Groups.Count >= 4 && !int.TryParse(match.Groups[2].Value, out _))
-                        {
-                            int day = int.Parse(match.Groups[1].Value);
-                            string monthName = match.Groups[2].Value.ToLower();
-                            int year = int.Parse(match.Groups[3].Value);
-                            int month = ParsePolishMonth(monthName);
-                            if (month > 0)
-                            {
-                                return new DateTime(year, month, day);
-                            }
-                        }
-                        else
-                        {
-                            // Format dd.MM.yyyy lub dd/MM/yyyy
-                            int day = int.Parse(match.Groups[1].Value);
-                            int month = int.Parse(match.Groups[2].Value);
-                            int year = int.Parse(match.Groups[3].Value);
-                            return new DateTime(year, month, day);
-                        }
+                        return new DateTime(year, month, day);
                     }
-                    catch { }
                 }
+                catch { }
+            }
+
+            // Alternatywny format dd/MM/yyyy
+            var match2 = Regex.Match(text, @"(\d{2})/(\d{2})/(\d{4})");
+            if (match2.Success)
+            {
+                try
+                {
+                    int day = int.Parse(match2.Groups[1].Value);
+                    int month = int.Parse(match2.Groups[2].Value);
+                    int year = int.Parse(match2.Groups[3].Value);
+                    return new DateTime(year, month, day);
+                }
+                catch { }
             }
 
             return null;
         }
 
-        /// <summary>
-        /// Konwertuje polską nazwę miesiąca na numer
-        /// </summary>
         private int ParsePolishMonth(string monthName)
         {
             var months = new Dictionary<string, int>
@@ -127,203 +117,155 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Parsuje wiersze transportowe z tekstu PDF
+        /// Nowa metoda parsowania - szuka wzorców pojazdów C: i wyciąga dane
         /// </summary>
-        private List<AvilogTransportRow> ParseTransportRows(string text)
+        private List<AvilogTransportRow> ParseTransportRowsNew(string text)
         {
             var rows = new List<AvilogTransportRow>();
-            var lines = text.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
 
-            AvilogTransportRow currentRow = null;
-            bool inDataSection = false;
+            // Znajdź wszystkie pojazdy (C: XXX) - to są unikalne markery wierszy
+            var pojazdMatches = Regex.Matches(text, @"C:\s*([A-Z0-9]+)\s*N:\s*([A-Z0-9]+)", RegexOptions.IgnoreCase);
 
-            for (int i = 0; i < lines.Length; i++)
+            foreach (Match pojazdMatch in pojazdMatches)
             {
-                string line = lines[i].Trim();
+                var row = new AvilogTransportRow();
 
-                // Szukamy początku sekcji danych (po nagłówku KIEROWCA)
-                if (line.Contains("KIEROWCA") && line.Contains("HODOWCA"))
-                {
-                    inDataSection = true;
-                    continue;
-                }
+                // Pojazd
+                row.Ciagnik = pojazdMatch.Groups[1].Value.Trim();
+                row.Naczepa = pojazdMatch.Groups[2].Value.Trim();
 
-                if (!inDataSection) continue;
+                int pojazdPos = pojazdMatch.Index;
 
-                // Sprawdź czy to nowy wiersz z kierowcą (zaczyna się od imienia i nazwiska + telefon)
-                if (IsDriverLine(line))
-                {
-                    if (currentRow != null && !string.IsNullOrEmpty(currentRow.HodowcaNazwa))
-                    {
-                        rows.Add(currentRow);
-                    }
+                // Szukaj wstecz od pozycji pojazdu żeby znaleźć kierowcę i hodowcę
+                string textBefore = text.Substring(Math.Max(0, pojazdPos - 800), Math.Min(800, pojazdPos));
 
-                    currentRow = new AvilogTransportRow();
-                    ParseDriverLine(line, currentRow);
-                }
-                // Linia z hodowcą (nazwa + adres)
-                else if (currentRow != null && string.IsNullOrEmpty(currentRow.HodowcaNazwa) && IsHodowcaLine(line))
-                {
-                    ParseHodowcaLine(line, currentRow);
-                }
-                // Linia z pojazdem (C:, N:, W:)
-                else if (currentRow != null && line.Contains("C:"))
-                {
-                    ParsePojazdLine(line, currentRow);
-                }
-                // Linia z ilością i godzinami
-                else if (currentRow != null && ContainsQuantityData(line))
-                {
-                    ParseQuantityAndTimeLine(line, currentRow);
-                }
-                // Linia z obserwacjami
-                else if (currentRow != null && (line.Contains("Wózek") || line.Contains("wózek") || line.Contains("Wieziesz") || line.Contains("Zabierasz")))
-                {
-                    currentRow.Obserwacje = line.Trim();
-                }
-            }
+                // Szukaj do przodu od pozycji pojazdu żeby znaleźć ilości i godziny
+                string textAfter = text.Substring(pojazdPos, Math.Min(500, text.Length - pojazdPos));
 
-            // Dodaj ostatni wiersz
-            if (currentRow != null && !string.IsNullOrEmpty(currentRow.HodowcaNazwa))
-            {
-                rows.Add(currentRow);
+                // Kierowca - szukaj imienia i nazwiska z telefonem
+                ParseKierowcaFromText(textBefore, row);
+
+                // Hodowca - szukaj pogrubionej nazwy (wielkie litery) z telefonem
+                ParseHodowcaFromText(textBefore, row);
+
+                // Ilości i godziny
+                ParseQuantityFromText(textAfter, row);
+
+                // Obserwacje (wózek)
+                ParseObserwacjeFromText(textAfter, row);
+
+                // Dodaj tylko jeśli mamy podstawowe dane
+                if (!string.IsNullOrEmpty(row.Ciagnik) && row.Sztuki > 0)
+                {
+                    rows.Add(row);
+                }
             }
 
             return rows;
         }
 
-        private bool IsDriverLine(string line)
+        private void ParseKierowcaFromText(string text, AvilogTransportRow row)
         {
-            // Kierowca: Imię NAZWISKO + numer telefonu (9 cyfr)
-            return Regex.IsMatch(line, @"^\w+\s+[A-ZŻŹĆĄŚĘŁÓŃ]+\s*$") ||
-                   Regex.IsMatch(line, @"^\w+\s+[A-ZŻŹĆĄŚĘŁÓŃ]+.*\d{9}");
-        }
+            // Szukaj wzorca: Imię Nazwisko + telefon 9 cyfr
+            // Przykłady: "Knapkiewicz Sylwester 609 258 813", "JANECZEK GRZEGORZ 507129854"
 
-        private bool IsHodowcaLine(string line)
-        {
-            // Hodowca to linia z nazwą i adresem, często zawiera współrzędne GPS
-            return Regex.IsMatch(line, @"\d{2}[.,]\d+") || // współrzędne GPS
-                   Regex.IsMatch(line, @"\d{2}-\d{3}") ||   // kod pocztowy
-                   line.Contains("Tel.");
-        }
+            // Najpierw znajdź telefon 9-cyfrowy
+            var phoneMatches = Regex.Matches(text, @"(\d{3}[\s]?\d{3}[\s]?\d{3}|\d{9})");
 
-        private bool ContainsQuantityData(string line)
-        {
-            // Linia z danymi ilościowymi: zawiera liczbę sztuk, wagę w Kg
-            return Regex.IsMatch(line, @"\d+\s*x\s*\d+") || // np. 21 x 264
-                   Regex.IsMatch(line, @"\d+[.,]\d+\s*Kg", RegexOptions.IgnoreCase);
-        }
-
-        private void ParseDriverLine(string line, AvilogTransportRow row)
-        {
-            // Format: "Knapkiewicz Sylwester 609 258 813" lub "JANECZEK GRZEGORZ\n507129854"
-            var phoneMatch = Regex.Match(line, @"(\d[\d\s]{8,})");
-            if (phoneMatch.Success)
+            foreach (Match phoneMatch in phoneMatches)
             {
-                row.KierowcaTelefon = Regex.Replace(phoneMatch.Value, @"\s+", "");
-                row.KierowcaNazwa = line.Substring(0, phoneMatch.Index).Trim();
-            }
-            else
-            {
-                row.KierowcaNazwa = line.Trim();
-            }
-        }
+                int phonePos = phoneMatch.Index;
+                string phoneBefore = text.Substring(Math.Max(0, phonePos - 100), Math.Min(100, phonePos));
 
-        private void ParseHodowcaLine(string line, AvilogTransportRow row)
-        {
-            // Format: "KIEŁBASA MARCIN Tel. : 784897762"
-            // lub: "STUDZIENIEC 8 52.376821 19.909136 Tel2. :"
-            // lub: "09-533 SŁUBICE Tel. Ferma :"
+                // Szukaj imienia i nazwiska przed telefonem
+                // Format: słowo + słowo (np. "Knapkiewicz Sylwester" lub "JANECZEK GRZEGORZ")
+                var nameMatch = Regex.Match(phoneBefore, @"([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]+|[A-ZŻŹĆĄŚĘŁÓŃ]+)\s+([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]+|[A-ZŻŹĆĄŚĘŁÓŃ]+)\s*$");
 
-            var telMatch = Regex.Match(line, @"Tel\.?\s*:?\s*(\d[\d\s-]+)");
-            if (telMatch.Success)
-            {
-                row.HodowcaTelefon = Regex.Replace(telMatch.Groups[1].Value, @"\s+", "");
-            }
-
-            // GPS coordinates
-            var gpsMatch = Regex.Match(line, @"(\d{2}[.,]\d+)[,\s]+(\d{2}[.,]\d+)");
-            if (gpsMatch.Success)
-            {
-                row.HodowcaGpsLat = gpsMatch.Groups[1].Value;
-                row.HodowcaGpsLon = gpsMatch.Groups[2].Value;
-            }
-
-            // Kod pocztowy i miejscowość
-            var zipMatch = Regex.Match(line, @"(\d{2}-\d{3})\s+(\w+)");
-            if (zipMatch.Success)
-            {
-                row.HodowcaKodPocztowy = zipMatch.Groups[1].Value;
-                row.HodowcaMiejscowosc = zipMatch.Groups[2].Value;
-            }
-
-            // Nazwa hodowcy - pierwsza linia bez współrzędnych i telefonów
-            if (string.IsNullOrEmpty(row.HodowcaNazwa))
-            {
-                string cleanLine = Regex.Replace(line, @"Tel\.?\s*:?\s*\d[\d\s-]*", "");
-                cleanLine = Regex.Replace(cleanLine, @"\d{2}[.,]\d+", "");
-                cleanLine = Regex.Replace(cleanLine, @"\d{2}-\d{3}", "");
-                row.HodowcaNazwa = cleanLine.Trim();
-            }
-            else
-            {
-                // Dodaj do adresu
-                string cleanLine = Regex.Replace(line, @"Tel\.?\s*:?\s*\d[\d\s-]*", "");
-                cleanLine = Regex.Replace(cleanLine, @"\d{2}[.,]\d+", "");
-                if (!string.IsNullOrWhiteSpace(cleanLine))
+                if (nameMatch.Success)
                 {
-                    row.HodowcaAdres = (row.HodowcaAdres + " " + cleanLine).Trim();
+                    row.KierowcaNazwa = nameMatch.Value.Trim();
+                    row.KierowcaTelefon = Regex.Replace(phoneMatch.Value, @"\s+", "");
+                    return;
                 }
             }
         }
 
-        private void ParsePojazdLine(string line, AvilogTransportRow row)
+        private void ParseHodowcaFromText(string text, AvilogTransportRow row)
         {
-            // Format: "C: WPR6904T N: WOT51L5 W:" lub "C: WOT51407"
-            var ciagnikMatch = Regex.Match(line, @"C:\s*(\w+)");
-            if (ciagnikMatch.Success)
-            {
-                row.Ciagnik = ciagnikMatch.Groups[1].Value;
-            }
+            // Szukaj nazwy hodowcy - WIELKIE LITERY (pogrubione w PDF)
+            // Przykłady: "KIEŁBASA MARCIN", "MARKOWSKI KRZYSZTOF", "LAPIAK PIOTR / MONIKA"
 
-            var naczepaMatch = Regex.Match(line, @"N:\s*(\w+)");
-            if (naczepaMatch.Success)
-            {
-                row.Naczepa = naczepaMatch.Groups[1].Value;
-            }
+            // Wzorzec: 2+ słowa wielkimi literami, może zawierać "/"
+            var hodowcaMatches = Regex.Matches(text, @"([A-ZŻŹĆĄŚĘŁÓŃ]{3,}(?:\s+[A-ZŻŹĆĄŚĘŁÓŃ]{2,})+(?:\s*/\s*[A-ZŻŹĆĄŚĘŁÓŃ]+)?)");
 
-            var wozekMatch = Regex.Match(line, @"W:\s*(\w+)");
-            if (wozekMatch.Success)
+            foreach (Match match in hodowcaMatches)
             {
-                row.Wozek = wozekMatch.Groups[1].Value;
+                string nazwa = match.Value.Trim();
+
+                // Pomiń jeśli to nagłówek tabeli lub inne słowa kluczowe
+                if (nazwa.Contains("KIEROWCA") || nazwa.Contains("HODOWCA") || nazwa.Contains("POJAZD") ||
+                    nazwa.Contains("AVILOG") || nazwa.Contains("POLSKA") || nazwa.Contains("DATA") ||
+                    nazwa.Contains("OBSERWACJE") || nazwa.Contains("ZAKŁAD") || nazwa.Contains("ILOŚĆ") ||
+                    nazwa.Length < 6)
+                    continue;
+
+                row.HodowcaNazwa = nazwa;
+
+                // Szukaj adresu po nazwie hodowcy
+                int namePos = match.Index + match.Length;
+                if (namePos < text.Length)
+                {
+                    string afterName = text.Substring(namePos, Math.Min(300, text.Length - namePos));
+
+                    // Szukaj adresu (ulica + numer lub miejscowość)
+                    var adresMatch = Regex.Match(afterName, @"^[\s\n]*([A-Za-zżźćąśęłóńŻŹĆĄŚĘŁÓŃ\s]+\d+[A-Za-z]?)");
+                    if (adresMatch.Success)
+                    {
+                        row.HodowcaAdres = adresMatch.Groups[1].Value.Trim();
+                    }
+
+                    // Szukaj kodu pocztowego i miejscowości
+                    var zipMatch = Regex.Match(afterName, @"(\d{2}-\d{3})\s+([A-ZŻŹĆĄŚĘŁÓŃ]+)");
+                    if (zipMatch.Success)
+                    {
+                        row.HodowcaKodPocztowy = zipMatch.Groups[1].Value;
+                        row.HodowcaMiejscowosc = zipMatch.Groups[2].Value;
+                    }
+
+                    // Szukaj telefonu hodowcy
+                    var telMatch = Regex.Match(afterName, @"Tel\.?\s*:?\s*(\d{3}[\s-]?\d{3}[\s-]?\d{3}|\d{9})");
+                    if (telMatch.Success)
+                    {
+                        row.HodowcaTelefon = Regex.Replace(telMatch.Groups[1].Value, @"[\s-]+", "");
+                    }
+                }
+
+                return; // Weź pierwszy pasujący
             }
         }
 
-        private void ParseQuantityAndTimeLine(string line, AvilogTransportRow row)
+        private void ParseQuantityFromText(string text, AvilogTransportRow row)
         {
-            // Format: "4 224 16 x 264 2.80 Kg 02/12/2025 22:30 03/12/2025"
-            // lub: "5 544 21 x 264 2.25 Kg"
-
-            // Ilość sztuk (pierwsza duża liczba)
-            var sztukiMatch = Regex.Match(line, @"(\d[\d\s]{2,5})(?=\s+\d+\s*x)");
+            // Szukaj ilości sztuk - duża liczba (np. 4 224, 5 544)
+            var sztukiMatch = Regex.Match(text, @"(\d[\s]?\d{3})");
             if (sztukiMatch.Success)
             {
-                string sztuki = Regex.Replace(sztukiMatch.Groups[1].Value, @"\s+", "");
-                if (int.TryParse(sztuki, out int szt))
+                string sztuki = Regex.Replace(sztukiMatch.Value, @"\s+", "");
+                if (int.TryParse(sztuki, out int szt) && szt > 1000 && szt < 20000)
                 {
                     row.Sztuki = szt;
                 }
             }
 
-            // Wymiary skrzyń (np. 16 x 264)
-            var wymiaryMatch = Regex.Match(line, @"(\d+)\s*x\s*(\d+)");
+            // Szukaj wymiaru skrzyń (np. 16 x 264, 21 x 264)
+            var wymiaryMatch = Regex.Match(text, @"(\d+)\s*[xX]\s*(\d+)");
             if (wymiaryMatch.Success)
             {
                 row.WymiarSkrzyn = $"{wymiaryMatch.Groups[1].Value} x {wymiaryMatch.Groups[2].Value}";
             }
 
-            // Waga deklarowana (np. 2.80 Kg)
-            var wagaMatch = Regex.Match(line, @"(\d+[.,]\d+)\s*Kg", RegexOptions.IgnoreCase);
+            // Szukaj wagi (np. 2.80 Kg, 2.25 Kg)
+            var wagaMatch = Regex.Match(text, @"(\d+[.,]\d+)\s*Kg", RegexOptions.IgnoreCase);
             if (wagaMatch.Success)
             {
                 string waga = wagaMatch.Groups[1].Value.Replace(",", ".");
@@ -333,9 +275,9 @@ namespace Kalendarz1
                 }
             }
 
-            // Daty i godziny
-            // Format: dd/MM/yyyy HH:mm
-            var dateTimeMatches = Regex.Matches(line, @"(\d{2})/(\d{2})/(\d{4})\s*(\d{2}:\d{2})?");
+            // Szukaj dat i godzin
+            // Format: dd/MM/yyyy HH:mm lub dd/MM/yyyy \n HH:mm
+            var dateTimeMatches = Regex.Matches(text, @"(\d{2})/(\d{2})/(\d{4})[\s\n]*(\d{2}:\d{2})?");
             int dateIndex = 0;
             foreach (Match m in dateTimeMatches)
             {
@@ -346,10 +288,9 @@ namespace Kalendarz1
                     int year = int.Parse(m.Groups[3].Value);
                     DateTime date = new DateTime(year, month, day);
 
-                    string timeStr = m.Groups[4].Success ? m.Groups[4].Value : null;
-                    if (!string.IsNullOrEmpty(timeStr))
+                    if (m.Groups[4].Success && !string.IsNullOrEmpty(m.Groups[4].Value))
                     {
-                        var timeParts = timeStr.Split(':');
+                        var timeParts = m.Groups[4].Value.Split(':');
                         date = date.AddHours(int.Parse(timeParts[0])).AddMinutes(int.Parse(timeParts[1]));
                     }
 
@@ -366,20 +307,43 @@ namespace Kalendarz1
                 catch { }
             }
 
-            // Godzina załadunku (sama godzina bez daty)
-            var timeOnlyMatch = Regex.Match(line, @"(?<!\d{2}/\d{2}/\d{4}\s*)(\d{2}:\d{2})(?!\s*\d{2}/\d{2})");
-            if (timeOnlyMatch.Success && row.PoczatekZaladunku == null)
+            // Szukaj godziny załadunku (sama godzina HH:mm między datami)
+            var allTimes = Regex.Matches(text, @"(\d{2}):(\d{2})");
+            if (allTimes.Count >= 2)
             {
-                // Szukamy godziny która nie jest częścią daty
-                var allTimes = Regex.Matches(line, @"(\d{2}):(\d{2})");
-                if (allTimes.Count >= 2)
+                // Druga godzina (po godzinie wyjazdu) to początek załadunku
+                try
                 {
-                    // Druga godzina to zazwyczaj początek załadunku
                     var secondTime = allTimes[1];
                     int hour = int.Parse(secondTime.Groups[1].Value);
                     int minute = int.Parse(secondTime.Groups[2].Value);
-                    row.PoczatekZaladunku = new TimeSpan(hour, minute, 0);
+                    if (hour >= 0 && hour < 24)
+                    {
+                        row.PoczatekZaladunku = new TimeSpan(hour, minute, 0);
+                    }
                 }
+                catch { }
+            }
+        }
+
+        private void ParseObserwacjeFromText(string text, AvilogTransportRow row)
+        {
+            // Szukaj informacji o wózku
+            if (text.Contains("Wózek w obie strony"))
+            {
+                row.Obserwacje = "Wózek w obie strony";
+            }
+            else if (text.Contains("Wieziesz wózek"))
+            {
+                row.Obserwacje = "Wieziesz wózek";
+            }
+            else if (text.Contains("Zabierasz wózek"))
+            {
+                row.Obserwacje = "Zabierasz wózek";
+            }
+            else if (text.Contains("Przywozisz wózek"))
+            {
+                row.Obserwacje = "Przywozisz wózek";
             }
         }
     }
@@ -431,14 +395,10 @@ namespace Kalendarz1
         // Uwagi
         public string Obserwacje { get; set; }
 
-        // Mapowanie na wewnętrzną bazę (wypełniane później)
+        // Mapowanie na wewnętrzną bazę
         public int? MappedKierowcaGID { get; set; }
-        public int? MappedHodowcaGID { get; set; }
-
-        /// <summary>
-        /// Pełny opis hodowcy dla wyświetlenia
-        /// </summary>
-        public string HodowcaFullDescription =>
-            $"{HodowcaNazwa}\n{HodowcaAdres}\n{HodowcaKodPocztowy} {HodowcaMiejscowosc}".Trim();
+        public string MappedHodowcaGID { get; set; }
+        public string MappedCiagnikID { get; set; }
+        public string MappedNaczepaID { get; set; }
     }
 }

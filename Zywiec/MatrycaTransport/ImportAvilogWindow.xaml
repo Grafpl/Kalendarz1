@@ -211,24 +211,71 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
-                <!-- Pojazd -->
-                <DataGridTextColumn Header="CIAGNIK" Binding="{Binding Ciagnik}" Width="100" IsReadOnly="True">
+                <!-- Pojazd - AVILOG -->
+                <DataGridTextColumn Header="CIĄGNIK (AVILOG)" Binding="{Binding Ciagnik}" Width="100" IsReadOnly="True">
+                    <DataGridTextColumn.HeaderStyle>
+                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource AvilogHeaderStyle}"/>
+                    </DataGridTextColumn.HeaderStyle>
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="Padding" Value="5"/>
                             <Setter Property="FontWeight" Value="Bold"/>
+                            <Setter Property="Background" Value="#FFF3E0"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
 
-                <DataGridTextColumn Header="NACZEPA" Binding="{Binding Naczepa}" Width="100" IsReadOnly="True">
+                <!-- Mapowanie: Ciągnik -->
+                <DataGridTemplateColumn Header="CIĄGNIK (BAZA)" Width="110">
+                    <DataGridTemplateColumn.HeaderStyle>
+                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource MappingHeaderStyle}"/>
+                    </DataGridTemplateColumn.HeaderStyle>
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=DataContext.ListaCiagnikow}"
+                                      SelectedValue="{Binding MappedCiagnikID, UpdateSourceTrigger=PropertyChanged}"
+                                      SelectedValuePath="ID"
+                                      DisplayMemberPath="ID"
+                                      Background="#E3F2FD"
+                                      Padding="3"
+                                      FontSize="11"
+                                      VerticalContentAlignment="Center"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <!-- Pojazd - AVILOG Naczepa -->
+                <DataGridTextColumn Header="NACZEPA (AVILOG)" Binding="{Binding Naczepa}" Width="100" IsReadOnly="True">
+                    <DataGridTextColumn.HeaderStyle>
+                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource AvilogHeaderStyle}"/>
+                    </DataGridTextColumn.HeaderStyle>
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="Padding" Value="5"/>
                             <Setter Property="FontWeight" Value="Bold"/>
+                            <Setter Property="Background" Value="#FFF3E0"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
+
+                <!-- Mapowanie: Naczepa -->
+                <DataGridTemplateColumn Header="NACZEPA (BAZA)" Width="110">
+                    <DataGridTemplateColumn.HeaderStyle>
+                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource MappingHeaderStyle}"/>
+                    </DataGridTemplateColumn.HeaderStyle>
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=DataContext.ListaNaczep}"
+                                      SelectedValue="{Binding MappedNaczepaID, UpdateSourceTrigger=PropertyChanged}"
+                                      SelectedValuePath="ID"
+                                      DisplayMemberPath="ID"
+                                      Background="#E3F2FD"
+                                      Padding="3"
+                                      FontSize="11"
+                                      VerticalContentAlignment="Center"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
 
                 <!-- Ilości -->
                 <DataGridTextColumn Header="SZTUKI" Binding="{Binding Sztuki, StringFormat=N0}" Width="80" IsReadOnly="True">

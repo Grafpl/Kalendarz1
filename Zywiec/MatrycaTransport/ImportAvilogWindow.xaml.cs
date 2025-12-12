@@ -21,6 +21,8 @@ namespace Kalendarz1
         // Listy dla ComboBox
         public List<KierowcaItem> ListaKierowcow { get; set; }
         public List<HodowcaItem> ListaHodowcow { get; set; }
+        public List<PojazdItem> ListaCiagnikow { get; set; }
+        public List<PojazdItem> ListaNaczep { get; set; }
 
         // Mapowania z bazy
         private Dictionary<string, string> savedMappings = new Dictionary<string, string>();
@@ -41,6 +43,8 @@ namespace Kalendarz1
 
             LoadKierowcy();
             LoadHodowcy();
+            LoadCiagniki();
+            LoadNaczepy();
             LoadSavedMappings();
         }
 
@@ -107,6 +111,66 @@ namespace Kalendarz1
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd ładowania hodowców: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void LoadCiagniki()
+        {
+            ListaCiagnikow = new List<PojazdItem>();
+            ListaCiagnikow.Add(new PojazdItem { ID = null });
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string query = "SELECT DISTINCT ID FROM dbo.CarTrailer WHERE kind = '1' ORDER BY ID DESC";
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            ListaCiagnikow.Add(new PojazdItem
+                            {
+                                ID = reader["ID"]?.ToString() ?? ""
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd ładowania ciągników: {ex.Message}");
+            }
+        }
+
+        private void LoadNaczepy()
+        {
+            ListaNaczep = new List<PojazdItem>();
+            ListaNaczep.Add(new PojazdItem { ID = null });
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string query = "SELECT DISTINCT ID FROM dbo.CarTrailer WHERE kind = '2' ORDER BY ID DESC";
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            ListaNaczep.Add(new PojazdItem
+                            {
+                                ID = reader["ID"]?.ToString() ?? ""
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd ładowania naczep: {ex.Message}");
             }
         }
 
@@ -233,6 +297,10 @@ namespace Kalendarz1
 
                     // Spróbuj zmapować hodowcę z zapisanych mapowań
                     AutoMapHodowca(importRow, row.HodowcaNazwa);
+
+                    // Auto-mapuj pojazdy (ciągnik i naczepa)
+                    AutoMapCiagnik(importRow, row.Ciagnik);
+                    AutoMapNaczepa(importRow, row.Naczepa);
 
                     importData.Add(importRow);
                 }
@@ -373,6 +441,58 @@ namespace Kalendarz1
                         return;
                     }
                 }
+            }
+        }
+
+        private void AutoMapCiagnik(ImportAvilogRow row, string ciagnikAvilog)
+        {
+            if (string.IsNullOrWhiteSpace(ciagnikAvilog)) return;
+
+            string searchID = ciagnikAvilog.ToUpper().Trim();
+
+            // Szukaj dokładnego dopasowania
+            var exactMatch = ListaCiagnikow.FirstOrDefault(c =>
+                c.ID != null && c.ID.ToUpper().Trim() == searchID);
+
+            if (exactMatch != null && !string.IsNullOrEmpty(exactMatch.ID))
+            {
+                row.MappedCiagnikID = exactMatch.ID;
+                return;
+            }
+
+            // Szukaj częściowego dopasowania (np. "WOT51407" zawiera się w "WOT51407")
+            var partialMatch = ListaCiagnikow.FirstOrDefault(c =>
+                c.ID != null && (c.ID.ToUpper().Contains(searchID) || searchID.Contains(c.ID.ToUpper())));
+
+            if (partialMatch != null && !string.IsNullOrEmpty(partialMatch.ID))
+            {
+                row.MappedCiagnikID = partialMatch.ID;
+            }
+        }
+
+        private void AutoMapNaczepa(ImportAvilogRow row, string naczepaAvilog)
+        {
+            if (string.IsNullOrWhiteSpace(naczepaAvilog)) return;
+
+            string searchID = naczepaAvilog.ToUpper().Trim();
+
+            // Szukaj dokładnego dopasowania
+            var exactMatch = ListaNaczep.FirstOrDefault(n =>
+                n.ID != null && n.ID.ToUpper().Trim() == searchID);
+
+            if (exactMatch != null && !string.IsNullOrEmpty(exactMatch.ID))
+            {
+                row.MappedNaczepaID = exactMatch.ID;
+                return;
+            }
+
+            // Szukaj częściowego dopasowania
+            var partialMatch = ListaNaczep.FirstOrDefault(n =>
+                n.ID != null && (n.ID.ToUpper().Contains(searchID) || searchID.Contains(n.ID.ToUpper())));
+
+            if (partialMatch != null && !string.IsNullOrEmpty(partialMatch.ID))
+            {
+                row.MappedNaczepaID = partialMatch.ID;
             }
         }
 
@@ -553,6 +673,8 @@ namespace Kalendarz1
     {
         private int? _mappedKierowcaGID;
         private string _mappedHodowcaGID;
+        private string _mappedCiagnikID;
+        private string _mappedNaczepaID;
 
         public int Lp { get; set; }
 
@@ -581,6 +703,26 @@ namespace Kalendarz1
                 _mappedHodowcaGID = value;
                 OnPropertyChanged(nameof(MappedHodowcaGID));
                 OnPropertyChanged(nameof(StatusMapowania));
+            }
+        }
+
+        public string MappedCiagnikID
+        {
+            get => _mappedCiagnikID;
+            set
+            {
+                _mappedCiagnikID = value;
+                OnPropertyChanged(nameof(MappedCiagnikID));
+            }
+        }
+
+        public string MappedNaczepaID
+        {
+            get => _mappedNaczepaID;
+            set
+            {
+                _mappedNaczepaID = value;
+                OnPropertyChanged(nameof(MappedNaczepaID));
             }
         }
 
@@ -639,5 +781,13 @@ namespace Kalendarz1
         public string ShortName { get; set; }
         public string FullName { get; set; }
         public string City { get; set; }
+    }
+
+    /// <summary>
+    /// Item pojazdu (ciągnik/naczepa) dla ComboBox
+    /// </summary>
+    public class PojazdItem
+    {
+        public string ID { get; set; }
     }
 }
