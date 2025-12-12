@@ -461,21 +461,25 @@ namespace Kalendarz1
         {
             if (string.IsNullOrWhiteSpace(ciagnikAvilog)) return;
 
-            string searchID = ciagnikAvilog.ToUpper().Trim();
+            // Usuń spacje do porównania (baza ma "WOT 51407", AVILOG ma "WOT51407")
+            string searchID = ciagnikAvilog.ToUpper().Replace(" ", "").Trim();
 
-            // Szukaj dokładnego dopasowania
-            var exactMatch = ListaCiagnikow.FirstOrDefault(c =>
-                c.ID != null && c.ID.ToUpper().Trim() == searchID);
+            // Szukaj dopasowania ignorując spacje
+            var match = ListaCiagnikow.FirstOrDefault(c =>
+                c.ID != null && c.ID.ToUpper().Replace(" ", "").Trim() == searchID);
 
-            if (exactMatch != null && !string.IsNullOrEmpty(exactMatch.ID))
+            if (match != null && !string.IsNullOrEmpty(match.ID))
             {
-                row.MappedCiagnikID = exactMatch.ID;
+                row.MappedCiagnikID = match.ID;
                 return;
             }
 
-            // Szukaj częściowego dopasowania (np. "WOT51407" zawiera się w "WOT51407")
+            // Szukaj częściowego dopasowania (bez spacji)
             var partialMatch = ListaCiagnikow.FirstOrDefault(c =>
-                c.ID != null && (c.ID.ToUpper().Contains(searchID) || searchID.Contains(c.ID.ToUpper())));
+                c.ID != null && (
+                    c.ID.ToUpper().Replace(" ", "").Contains(searchID) ||
+                    searchID.Contains(c.ID.ToUpper().Replace(" ", ""))
+                ));
 
             if (partialMatch != null && !string.IsNullOrEmpty(partialMatch.ID))
             {
@@ -487,21 +491,25 @@ namespace Kalendarz1
         {
             if (string.IsNullOrWhiteSpace(naczepaAvilog)) return;
 
-            string searchID = naczepaAvilog.ToUpper().Trim();
+            // Usuń spacje do porównania (baza ma "WOT 46L9", AVILOG ma "WOT46L9")
+            string searchID = naczepaAvilog.ToUpper().Replace(" ", "").Trim();
 
-            // Szukaj dokładnego dopasowania
-            var exactMatch = ListaNaczep.FirstOrDefault(n =>
-                n.ID != null && n.ID.ToUpper().Trim() == searchID);
+            // Szukaj dopasowania ignorując spacje
+            var match = ListaNaczep.FirstOrDefault(n =>
+                n.ID != null && n.ID.ToUpper().Replace(" ", "").Trim() == searchID);
 
-            if (exactMatch != null && !string.IsNullOrEmpty(exactMatch.ID))
+            if (match != null && !string.IsNullOrEmpty(match.ID))
             {
-                row.MappedNaczepaID = exactMatch.ID;
+                row.MappedNaczepaID = match.ID;
                 return;
             }
 
-            // Szukaj częściowego dopasowania
+            // Szukaj częściowego dopasowania (bez spacji)
             var partialMatch = ListaNaczep.FirstOrDefault(n =>
-                n.ID != null && (n.ID.ToUpper().Contains(searchID) || searchID.Contains(n.ID.ToUpper())));
+                n.ID != null && (
+                    n.ID.ToUpper().Replace(" ", "").Contains(searchID) ||
+                    searchID.Contains(n.ID.ToUpper().Replace(" ", ""))
+                ));
 
             if (partialMatch != null && !string.IsNullOrEmpty(partialMatch.ID))
             {
