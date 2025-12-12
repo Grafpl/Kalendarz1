@@ -135,23 +135,45 @@ namespace Kalendarz1
             var rows = new List<AvilogTransportRow>();
 
             // Znajdź wszystkie numery rejestracyjne
-            // Format polski: 2-3 litery + 4-6 znaków alfanumerycznych
-            // Przykłady: WOT51407, WPR6904T, WOT46L9, WOT51L5, SK12345
-            var rejMatches = Regex.Matches(text, @"\b([A-Z]{2,3}[0-9A-Z]{4,6})\b");
+            // Wzorce polskich rejestracji: WOT51407, WPR6904T, WOT46L9, SK12345
+            // Używamy bardziej elastycznego wzorca bez word boundary
+            var rejMatches = Regex.Matches(text, @"(?<![A-Z])([A-Z]{2,3}[0-9][0-9A-Z]{3,5})(?![A-Z])");
 
             var rejestracje = new List<(string Numer, int Pos)>();
+            var debugList = new List<string>(); // dla diagnostyki
+
             foreach (Match m in rejMatches)
             {
                 string num = m.Groups[1].Value;
-                // Musi mieć co najmniej jedną cyfrę (żeby nie łapać słów typu "POJAZD")
-                if (num.Length >= 6 && num.Length <= 9 && Regex.IsMatch(num, @"\d"))
+                // Musi mieć co najmniej 2 cyfry (żeby odfiltrować słowa)
+                int digitCount = num.Count(c => char.IsDigit(c));
+                if (num.Length >= 6 && num.Length <= 9 && digitCount >= 2)
                 {
-                    rejestracje.Add((num, m.Index));
+                    // Pomiń duplikaty blisko siebie (w zakresie 50 znaków)
+                    bool isDuplicate = rejestracje.Any(r =>
+                        r.Numer == num && Math.Abs(r.Pos - m.Index) < 50);
+
+                    if (!isDuplicate)
+                    {
+                        rejestracje.Add((num, m.Index));
+                        debugList.Add($"{num} @ {m.Index}");
+                    }
                 }
             }
 
-            // Bezpośrednio grupuj rejestracje w pary: ciągnik, naczepa, ciągnik, naczepa...
-            // To najprostsze i najskuteczniejsze podejście
+            // Zapisz znalezione rejestracje do debug
+            try
+            {
+                string debugPath = System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                    "avilog_rejestracje_debug.txt");
+                System.IO.File.WriteAllText(debugPath,
+                    $"Znaleziono {rejestracje.Count} rejestracji:\n" +
+                    string.Join("\n", debugList));
+            }
+            catch { }
+
+            // Grupuj rejestracje w pary: ciągnik, naczepa, ciągnik, naczepa...
             for (int i = 0; i < rejestracje.Count - 1; i += 2)
             {
                 var row = new AvilogTransportRow();
