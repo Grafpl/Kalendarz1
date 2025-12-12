@@ -2301,6 +2301,10 @@ namespace Kalendarz1.WPF
         {
             day = ValidateSqlDate(day);
 
+            // DEBUG: Pokaż ile grup towarowych jest załadowanych
+            MessageBox.Show($"Grupy towarowe: {_grupyTowaroweNazwy.Count}\nNazwy: {string.Join(", ", _grupyTowaroweNazwy)}\nMapowanie: {_mapowanieScalowania.Count} towarów",
+                "DEBUG - Grupy towarowe", MessageBoxButton.OK, MessageBoxImage.Information);
+
             // Zawsze czyść i odtwarzaj kolumny - grupy mogą się zmienić
             _dtOrders.Clear();
             _dtOrders.Columns.Clear();
