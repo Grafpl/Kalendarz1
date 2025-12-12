@@ -232,7 +232,7 @@
                     </DataGridTemplateColumn.HeaderStyle>
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=DataContext.ListaCiagnikow}"
+                            <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ListaCiagnikow}"
                                       SelectedValue="{Binding MappedCiagnikID, UpdateSourceTrigger=PropertyChanged}"
                                       SelectedValuePath="ID"
                                       DisplayMemberPath="ID"
@@ -265,7 +265,7 @@
                     </DataGridTemplateColumn.HeaderStyle>
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=DataContext.ListaNaczep}"
+                            <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ListaNaczep}"
                                       SelectedValue="{Binding MappedNaczepaID, UpdateSourceTrigger=PropertyChanged}"
                                       SelectedValuePath="ID"
                                       DisplayMemberPath="ID"
