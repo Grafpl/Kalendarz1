@@ -6,6 +6,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Data;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Windows;
 
 namespace Kalendarz1
@@ -257,7 +258,9 @@ namespace Kalendarz1
         {
             if (string.IsNullOrWhiteSpace(kierowcaNazwa)) return;
 
-            string searchName = kierowcaNazwa.ToUpper().Trim();
+            // Wyczyść numer telefonu z nazwy kierowcy
+            string cleanName = Regex.Replace(kierowcaNazwa, @"[\d\s-]{9,}", "").Trim();
+            string searchName = cleanName.ToUpper().Trim();
 
             // Szukaj dokładnego dopasowania
             var exactMatch = ListaKierowcow.FirstOrDefault(k =>
@@ -269,17 +272,35 @@ namespace Kalendarz1
                 return;
             }
 
-            // Szukaj po nazwisku (drugie słowo)
+            // Rozbij na części (imię, nazwisko)
             var nameParts = searchName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
             if (nameParts.Length >= 2)
             {
-                string lastName = nameParts.Last();
-                var partialMatch = ListaKierowcow.FirstOrDefault(k =>
-                    k.Name != null && k.Name.ToUpper().Contains(lastName));
-
-                if (partialMatch != null && partialMatch.GID.HasValue)
+                // Szukaj po nazwisku (zwykle drugie słowo) - np. "Knapkiewicz Sylwester" -> "SYLWESTER" lub "KNAPKIEWICZ"
+                foreach (var part in nameParts)
                 {
-                    row.MappedKierowcaGID = partialMatch.GID;
+                    if (part.Length < 3) continue;
+
+                    var match = ListaKierowcow.FirstOrDefault(k =>
+                        k.Name != null && k.Name.ToUpper().Contains(part));
+
+                    if (match != null && match.GID.HasValue)
+                    {
+                        row.MappedKierowcaGID = match.GID;
+                        return;
+                    }
+                }
+            }
+            else if (nameParts.Length == 1 && nameParts[0].Length >= 4)
+            {
+                // Tylko jedno słowo - szukaj częściowo
+                var match = ListaKierowcow.FirstOrDefault(k =>
+                    k.Name != null && k.Name.ToUpper().Contains(nameParts[0]));
+
+                if (match != null && match.GID.HasValue)
+                {
+                    row.MappedKierowcaGID = match.GID;
                 }
             }
         }
@@ -288,7 +309,16 @@ namespace Kalendarz1
         {
             if (string.IsNullOrWhiteSpace(hodowcaNazwa)) return;
 
-            string searchName = hodowcaNazwa.ToUpper().Trim();
+            // Weź tylko pierwszą linię (pogrubiona nazwa) - usuń adresy, kody pocztowe itp.
+            string cleanName = hodowcaNazwa.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? hodowcaNazwa;
+
+            // Usuń numery telefonów, współrzędne GPS, kody pocztowe
+            cleanName = Regex.Replace(cleanName, @"Tel\.?\s*:?\s*[\d\s-]+", "", RegexOptions.IgnoreCase);
+            cleanName = Regex.Replace(cleanName, @"\d{2}[.,]\d+", ""); // GPS
+            cleanName = Regex.Replace(cleanName, @"\d{2}-\d{3}", ""); // kod pocztowy
+            cleanName = cleanName.Trim();
+
+            string searchName = cleanName.ToUpper().Trim();
 
             // Najpierw sprawdź zapisane mapowania
             if (savedMappings.ContainsKey(searchName))
@@ -307,17 +337,41 @@ namespace Kalendarz1
                 return;
             }
 
-            // Szukaj po pierwszym słowie (nazwisko)
+            // Szukaj po słowach - np. "KIEŁBASA MARCIN" powinno znaleźć "Kiełbasa Marcin" lub "KIEŁBASA"
             var nameParts = searchName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            if (nameParts.Length >= 1)
+
+            // Spróbuj znaleźć po pierwszym słowie (nazwisko)
+            if (nameParts.Length >= 1 && nameParts[0].Length >= 4)
             {
                 string firstPart = nameParts[0];
+
+                // Szukaj hodowcy który zawiera to słowo
                 var partialMatch = ListaHodowcow.FirstOrDefault(h =>
-                    h.ShortName != null && h.ShortName.ToUpper().StartsWith(firstPart));
+                    h.ShortName != null && h.ShortName.ToUpper().Contains(firstPart));
 
                 if (partialMatch != null && !string.IsNullOrEmpty(partialMatch.GID))
                 {
                     row.MappedHodowcaGID = partialMatch.GID;
+                    return;
+                }
+            }
+
+            // Jeśli są dwa słowa, spróbuj znaleźć po obu
+            if (nameParts.Length >= 2)
+            {
+                foreach (var hodowca in ListaHodowcow.Where(h => !string.IsNullOrEmpty(h.GID)))
+                {
+                    string hodowcaNazwaUpper = hodowca.ShortName?.ToUpper() ?? "";
+
+                    // Sprawdź czy zawiera oba słowa
+                    bool containsAll = nameParts.All(part =>
+                        part.Length >= 3 && hodowcaNazwaUpper.Contains(part));
+
+                    if (containsAll)
+                    {
+                        row.MappedHodowcaGID = hodowca.GID;
+                        return;
+                    }
                 }
             }
         }
