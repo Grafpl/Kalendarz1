@@ -197,6 +197,7 @@ namespace Kalendarz1
             await LoadPojTuszkiAsync();
             await LoadPozycjeForSelectedAsync();
             await LoadHandlowcyStatsAsync();
+            await LoadPrzychodyInfoAsync();
         }
 
         private async Task PopulateProductFilterAsync()
@@ -299,6 +300,7 @@ namespace Kalendarz1
                 _filteredProductId = productId == 0 ? null : productId;
                 SetProductButtonSelected(btn);
                 await LoadOrdersAsync();
+                await LoadPrzychodyInfoAsync();
             }
         }
 
@@ -960,6 +962,136 @@ namespace Kalendarz1
             });
 
             dgvHandlowcyStats.ItemsSource = dt.DefaultView;
+        }
+
+        private async Task LoadPrzychodyInfoAsync()
+        {
+            decimal planPrzychodu = 0m;
+            decimal faktPrzychodu = 0m;
+            decimal sumaZamowien = 0m;
+
+            try
+            {
+                // 1. Plan - na podstawie HarmonogramDostaw i konfiguracji wydajności z bazy
+                using (var cn = new SqlConnection(_connLibra))
+                {
+                    await cn.OpenAsync();
+
+                    // Pobierz masę żywca z harmonogramu
+                    var cmdMasa = new SqlCommand(@"SELECT ISNULL(SUM(WagaDek * SztukiDek), 0)
+                                                   FROM dbo.HarmonogramDostaw
+                                                   WHERE DataOdbioru = @D AND Bufor = 'Potwierdzony'", cn);
+                    cmdMasa.Parameters.AddWithValue("@D", _selectedDate.Date);
+                    var resultMasa = await cmdMasa.ExecuteScalarAsync();
+                    decimal sumaMasyZywca = resultMasa != DBNull.Value ? Convert.ToDecimal(resultMasa) : 0m;
+
+                    // Pobierz aktywną konfigurację wydajności dla tej daty
+                    decimal wspolczynnikTuszki = 78m; // domyślna wartość w %
+                    var cmdWydajnosc = new SqlCommand(@"SELECT TOP 1 WspolczynnikTuszki
+                                                        FROM KonfiguracjaWydajnosci
+                                                        WHERE DataOd <= @D AND Aktywny = 1
+                                                        ORDER BY DataOd DESC", cn);
+                    cmdWydajnosc.Parameters.AddWithValue("@D", _selectedDate.Date);
+                    var resultWydajnosc = await cmdWydajnosc.ExecuteScalarAsync();
+                    if (resultWydajnosc != null && resultWydajnosc != DBNull.Value)
+                        wspolczynnikTuszki = Convert.ToDecimal(resultWydajnosc);
+
+                    // Jeśli wybrany konkretny produkt - pobierz jego % udziału z KonfiguracjaPodrobow
+                    if (_filteredProductId.HasValue)
+                    {
+                        var cmdUdzial = new SqlCommand(@"SELECT TOP 1 ProcentUdzialu
+                                                         FROM KonfiguracjaPodrobow
+                                                         WHERE TowarID = @T AND DataOd <= @D AND Aktywny = 1
+                                                         ORDER BY DataOd DESC", cn);
+                        cmdUdzial.Parameters.AddWithValue("@T", _filteredProductId.Value);
+                        cmdUdzial.Parameters.AddWithValue("@D", _selectedDate.Date);
+                        var resultUdzial = await cmdUdzial.ExecuteScalarAsync();
+
+                        if (resultUdzial != null && resultUdzial != DBNull.Value)
+                        {
+                            decimal procentUdzialu = Convert.ToDecimal(resultUdzial);
+                            // Plan = masa żywca * współczynnik tuszki * procent udziału produktu
+                            planPrzychodu = sumaMasyZywca * (wspolczynnikTuszki / 100m) * (procentUdzialu / 100m);
+                        }
+                        // Jeśli brak konfiguracji dla tego produktu - plan = 0
+                    }
+                    else
+                    {
+                        // Wszystkie produkty - cały przychód tuszki
+                        planPrzychodu = sumaMasyZywca * (wspolczynnikTuszki / 100m);
+                    }
+                }
+
+                // 2. Faktyczny przychód - z dokumentów sPWU (produkcja) - tylko towary z grupy mięso (katalog=67095)
+                using (var cn = new SqlConnection(_connHandel))
+                {
+                    await cn.OpenAsync();
+                    string sql = @"SELECT ISNULL(SUM(ABS(MZ.ilosc)), 0)
+                                   FROM [HANDEL].[HM].[MZ] MZ
+                                   JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
+                                   JOIN [HANDEL].[HM].[TW] ON MZ.idtw = TW.id
+                                   WHERE MG.seria = 'sPWU' AND MG.aktywny = 1 AND MG.data = @D AND TW.katalog = 67095";
+                    if (_filteredProductId.HasValue)
+                        sql += " AND MZ.idtw = @P";
+
+                    var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
+                    if (_filteredProductId.HasValue)
+                        cmd.Parameters.AddWithValue("@P", _filteredProductId.Value);
+
+                    var result = await cmd.ExecuteScalarAsync();
+                    faktPrzychodu = result != DBNull.Value ? Convert.ToDecimal(result) : 0m;
+                }
+
+                // 3. Suma zamówień na dzień - filtrowana po produkcie jeśli wybrany
+                if (_filteredProductId.HasValue)
+                {
+                    // Pobierz sumę zamówień dla wybranego produktu
+                    var zamowieniaIds = _zamowienia.Values
+                        .Where(z => !z.IsShipmentOnly && z.Id > 0)
+                        .Select(z => z.Id)
+                        .ToList();
+
+                    if (zamowieniaIds.Any())
+                    {
+                        using var cn = new SqlConnection(_connLibra);
+                        await cn.OpenAsync();
+                        var sql = $@"SELECT ISNULL(SUM(Ilosc), 0) FROM [dbo].[ZamowieniaMiesoTowar]
+                                     WHERE ZamowienieId IN ({string.Join(",", zamowieniaIds)}) AND KodTowaru = @P";
+                        using var cmd = new SqlCommand(sql, cn);
+                        cmd.Parameters.AddWithValue("@P", _filteredProductId.Value);
+                        var result = await cmd.ExecuteScalarAsync();
+                        sumaZamowien = result != DBNull.Value ? Convert.ToDecimal(result) : 0m;
+                    }
+                }
+                else
+                {
+                    sumaZamowien = _zamowienia.Values
+                        .Where(z => !z.IsShipmentOnly)
+                        .Sum(z => z.TotalIlosc);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd ładowania przychodu: {ex.Message}");
+            }
+
+            // Bilans = faktyczny przychód - zamówienia
+            decimal bilans = faktPrzychodu - sumaZamowien;
+
+            // Aktualizuj UI
+            lblPrzychPlan.Text = planPrzychodu > 0 ? $"{planPrzychodu:N0}" : "—";
+            lblPrzychFakt.Text = faktPrzychodu > 0 ? $"{faktPrzychodu:N0}" : "—";
+            lblPrzychZam.Text = sumaZamowien > 0 ? $"{sumaZamowien:N0}" : "—";
+            lblPrzychBilans.Text = bilans != 0 ? $"{bilans:N0}" : "—";
+
+            // Kolor bilansu
+            if (bilans > 0)
+                lblPrzychBilans.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4CAF50")); // zielony - nadwyżka
+            else if (bilans < 0)
+                lblPrzychBilans.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF5350")); // czerwony - niedobór
+            else
+                lblPrzychBilans.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CE93D8")); // neutralny
         }
         #endregion
 
