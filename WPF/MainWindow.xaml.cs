@@ -2481,8 +2481,20 @@ ORDER BY zm.Id";
 
             // Pobierz sumy per zamówienie per grupa towarowa
             var sumaPerZamowieniePerGrupa = new Dictionary<int, Dictionary<string, decimal>>();
+            var anulowaneZamowieniaIds = new HashSet<int>(); // Śledzenie anulowanych zamówień
             if (_grupyTowaroweNazwy.Any() && temp.Rows.Count > 0)
             {
+                // Zbierz ID anulowanych zamówień
+                foreach (DataRow r in temp.Rows)
+                {
+                    int id = Convert.ToInt32(r["Id"]);
+                    string status = r["Status"]?.ToString() ?? "";
+                    if (id > 0 && string.Equals(status, "Anulowane", StringComparison.OrdinalIgnoreCase))
+                    {
+                        anulowaneZamowieniaIds.Add(id);
+                    }
+                }
+
                 var zamowieniaIds = temp.AsEnumerable().Select(r => Convert.ToInt32(r["Id"])).Where(id => id > 0).ToList();
                 if (zamowieniaIds.Any())
                 {
@@ -2843,14 +2855,18 @@ ORDER BY zm.Id";
                 summaryRow["WyprInfo"] = "";
                 summaryRow["WydanoInfo"] = "";
 
-                // Sumy kolumn grup dla wiersza podsumowania
+                // Sumy kolumn grup dla wiersza podsumowania (bez anulowanych zamówień)
                 foreach (var grupaName in _grupyTowaroweNazwy)
                 {
                     string colName = SanitizeColumnName(grupaName);
                     decimal sumaGrupy = 0m;
-                    foreach (var kvp in sumaPerZamowieniePerGrupa.Values)
+                    foreach (var kvp in sumaPerZamowieniePerGrupa)
                     {
-                        if (kvp.TryGetValue(grupaName, out var val))
+                        // Pomiń anulowane zamówienia
+                        if (anulowaneZamowieniaIds.Contains(kvp.Key))
+                            continue;
+
+                        if (kvp.Value.TryGetValue(grupaName, out var val))
                             sumaGrupy += val;
                     }
                     summaryRow[colName] = sumaGrupy;
