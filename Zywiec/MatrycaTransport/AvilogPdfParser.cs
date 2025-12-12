@@ -257,25 +257,51 @@ namespace Kalendarz1
             }
 
             // Szukaj kierowcy - pełne dane
-            // Wzorzec 1: "Nazwisko HODOWCA Tel. :" - nazwisko mixed case przed hodowcą
-            // Wzorzec 2: "Imię Tel2. :" - imię przed Tel2
+            // Wzorzec: Nazwisko (przed hodowcą) + Imię (przed Tel2.)
+            // Nazwisko może być mixed case (Knapkiewicz) lub UPPERCASE (JANECZEK)
             string kierowcaNazwisko = "";
             string kierowcaImie = "";
 
-            // Znajdź nazwisko kierowcy - mixed case przed WIELKIMI LITERAMI hodowcy
-            var nazwiskoMatch = Regex.Match(context,
+            // Wzorzec 1: Nazwisko mixed case przed hodowcą (WIELKIE LITERY)
+            // np. "Knapkiewicz MARKOWSKI KRZYSZTOF Tel."
+            var nazwiskoMixedMatch = Regex.Match(context,
                 @"([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]+)\s+[A-ZŻŹĆĄŚĘŁÓŃ]{2,}\s+[A-ZŻŹĆĄŚĘŁÓŃ]{2,}\s+Tel\s*\.");
-            if (nazwiskoMatch.Success)
+            if (nazwiskoMixedMatch.Success)
             {
-                kierowcaNazwisko = nazwiskoMatch.Groups[1].Value;
+                kierowcaNazwisko = nazwiskoMixedMatch.Groups[1].Value;
             }
 
-            // Znajdź imię kierowcy - przed "Tel2. :"
+            // Wzorzec 2: Nazwisko UPPERCASE na początku przed hodowcą
+            // np. "JANECZEK KIEŁBASA MARCIN Tel." - pierwsze słowo to kierowca
+            if (string.IsNullOrEmpty(kierowcaNazwisko))
+            {
+                // Szukaj: SŁOWO1 SŁOWO2 SŁOWO3 Tel. - gdzie SŁOWO1 to nazwisko kierowcy
+                var nazwiskoUpperMatch = Regex.Match(context,
+                    @"^[\s\n]*([A-ZŻŹĆĄŚĘŁÓŃ]{3,})\s+[A-ZŻŹĆĄŚĘŁÓŃ]{2,}\s+[A-ZŻŹĆĄŚĘŁÓŃ]{2,}\s+Tel\s*\.");
+                if (nazwiskoUpperMatch.Success)
+                {
+                    kierowcaNazwisko = nazwiskoUpperMatch.Groups[1].Value;
+                }
+            }
+
+            // Wzorzec 3: Szukaj w całym kontekście - UPPERCASE słowo przed hodowcą
+            if (string.IsNullOrEmpty(kierowcaNazwisko))
+            {
+                var altMatch = Regex.Match(context,
+                    @"([A-ZŻŹĆĄŚĘŁÓŃ]{4,})\s+(?:KIEŁBASA|MARKOWSKI|SUKIENNIK|KUBICZ|LAPIAK|Kukulski|Klimczak)");
+                if (altMatch.Success)
+                {
+                    kierowcaNazwisko = altMatch.Groups[1].Value;
+                }
+            }
+
+            // Znajdź imię kierowcy - przed "Tel2. :" (mixed case lub UPPERCASE)
             var imieMatch = Regex.Match(context, @"([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]+)\s+Tel2\s*\.");
             if (imieMatch.Success)
             {
                 kierowcaImie = imieMatch.Groups[1].Value;
             }
+
             // Alternatywnie: imię WIELKIMI LITERAMI przed Tel2
             if (string.IsNullOrEmpty(kierowcaImie))
             {
