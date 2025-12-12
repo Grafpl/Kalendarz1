@@ -279,8 +279,8 @@
             <!-- ZAWARTOŚĆ - dwie kolumny -->
             <Grid Grid.Row="1">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition x:Name="leftColumnDef" Width="60*"/>
-                    <ColumnDefinition x:Name="rightColumnDef" Width="40*"/>
+                    <ColumnDefinition x:Name="leftColumnDef" Width="70*"/>
+                    <ColumnDefinition x:Name="rightColumnDef" Width="30*"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Lewa kolumna - zakładki -->

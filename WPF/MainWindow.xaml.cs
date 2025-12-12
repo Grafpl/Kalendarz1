@@ -52,7 +52,7 @@ namespace Kalendarz1.WPF
         private readonly DataTable _dtTransport = new();
         private readonly DataTable _dtHistoriaZmian = new();
         private readonly DataTable _dtDashboard = new();
-        private GridLength _savedRightColumnWidth = new GridLength(40, GridUnitType.Star);
+        private GridLength _savedRightColumnWidth = new GridLength(30, GridUnitType.Star);
         private readonly Dictionary<int, string> _productCodeCache = new();
         private readonly Dictionary<int, string> _productCatalogCache = new();
         private readonly Dictionary<int, string> _productCatalogSwieze = new();
@@ -3316,7 +3316,7 @@ ORDER BY zm.Id";
                 // Przywróć prawy panel
                 rightPanel.Visibility = Visibility.Visible;
                 rightColumnDef.Width = _savedRightColumnWidth;
-                leftColumnDef.Width = new GridLength(60, GridUnitType.Star);
+                leftColumnDef.Width = new GridLength(70, GridUnitType.Star);
             }
         }
 
