@@ -128,89 +128,45 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Parsowanie - szuka numerów rejestracyjnych i grupuje w wiersze
-        /// Format AVILOG: C: na końcu linii, potem rejestracja ciągnika, potem naczepa, potem N:
+        /// Parsowanie - szuka numerów rejestracyjnych i grupuje w pary (ciągnik, naczepa)
         /// </summary>
         private List<AvilogTransportRow> ParseTransportRowsNew(string text)
         {
             var rows = new List<AvilogTransportRow>();
 
             // Znajdź wszystkie numery rejestracyjne
-            // Format: 2-3 litery + 4-6 cyfr + opcjonalnie litera lub cyfra
-            // Przykłady: WOT51407, WPR6904T, WOT46L9, WOT51L5
-            var rejMatches = Regex.Matches(text, @"\b([A-Z]{2,3}\d{4,6}[A-Z0-9]?)\b");
+            // Format polski: 2-3 litery + 4-6 znaków alfanumerycznych
+            // Przykłady: WOT51407, WPR6904T, WOT46L9, WOT51L5, SK12345
+            var rejMatches = Regex.Matches(text, @"\b([A-Z]{2,3}[0-9A-Z]{4,6})\b");
 
             var rejestracje = new List<(string Numer, int Pos)>();
             foreach (Match m in rejMatches)
             {
                 string num = m.Groups[1].Value;
-                // Filtruj - musi mieć 7-9 znaków i nie być kodem pocztowym
-                if (num.Length >= 7 && num.Length <= 9)
+                // Musi mieć co najmniej jedną cyfrę (żeby nie łapać słów typu "POJAZD")
+                if (num.Length >= 6 && num.Length <= 9 && Regex.IsMatch(num, @"\d"))
                 {
                     rejestracje.Add((num, m.Index));
                 }
             }
 
-            // Znajdź wszystkie pozycje "C:" i "N:"
-            var cMarkers = Regex.Matches(text, @"C\s*:");
-            var nMarkers = Regex.Matches(text, @"N\s*:");
-
-            // Dla każdego markera C: znajdź ciągnik (pierwsza rejestracja PO C:)
-            // i naczepa (rejestracja PRZED następnym N:)
-            foreach (Match cMatch in cMarkers)
+            // Bezpośrednio grupuj rejestracje w pary: ciągnik, naczepa, ciągnik, naczepa...
+            // To najprostsze i najskuteczniejsze podejście
+            for (int i = 0; i < rejestracje.Count - 1; i += 2)
             {
-                int cPos = cMatch.Index;
-
-                // Pomiń jeśli to nagłówek (POJAZD ILOŚĆ po C:)
-                string afterC = text.Substring(cPos, Math.Min(50, text.Length - cPos));
-                if (afterC.Contains("POJAZD") || afterC.Contains("ILOŚĆ"))
-                    continue;
-
                 var row = new AvilogTransportRow();
+                row.Ciagnik = rejestracje[i].Numer;
+                row.Naczepa = rejestracje[i + 1].Numer;
 
-                // Znajdź ciągnik - pierwsza rejestracja po C: (w zakresie 100 znaków)
-                var ciagnikRej = rejestracje.FirstOrDefault(r => r.Pos > cPos && r.Pos < cPos + 100);
-                if (ciagnikRej.Numer != null)
-                {
-                    row.Ciagnik = ciagnikRej.Numer;
-                }
-                else
-                {
-                    continue; // Brak ciągnika = pomiń
-                }
-
-                // Znajdź naczepa - szukaj N: po ciągniku i weź rejestrację przed N:
-                var nextN = nMarkers.Cast<Match>().FirstOrDefault(n => n.Index > ciagnikRej.Pos && n.Index < ciagnikRej.Pos + 500);
-                if (nextN != null)
-                {
-                    // Naczepa jest PRZED N: - szukaj rejestracji między ciągnikiem a N:
-                    var naczepaRej = rejestracje.LastOrDefault(r =>
-                        r.Pos > ciagnikRej.Pos + ciagnikRej.Numer.Length &&
-                        r.Pos < nextN.Index);
-                    if (naczepaRej.Numer != null)
-                    {
-                        row.Naczepa = naczepaRej.Numer;
-                    }
-                }
-
-                // Wyciągnij kontekst - tekst wokół ciągnika
-                int contextStart = Math.Max(0, cPos - 200);
-                int contextEnd = Math.Min(text.Length, (nextN?.Index ?? ciagnikRej.Pos) + 300);
-                string context = text.Substring(contextStart, contextEnd - contextStart);
+                // Wyciągnij kontekst - tekst wokół tej pary rejestracji
+                int startPos = Math.Max(0, rejestracje[i].Pos - 300);
+                int endPos = Math.Min(text.Length, rejestracje[i + 1].Pos + 400);
+                string context = text.Substring(startPos, endPos - startPos);
 
                 // Parsuj dane z kontekstu
                 ParseContextData(context, row);
 
-                if (!string.IsNullOrEmpty(row.Ciagnik))
-                {
-                    rows.Add(row);
-                }
-            }
-
-            // Jeśli brak wyników, spróbuj alternatywnego parsowania
-            if (rows.Count == 0)
-            {
-                rows = ParseByRegistrations(text, rejestracje);
+                rows.Add(row);
             }
 
             return rows;
