@@ -91,7 +91,6 @@ namespace Kalendarz1.WPF
         public MainWindow()
         {
             InitializeComponent();
-            MessageBox.Show("WPF/MainWindow.xaml.cs Constructor", "DEBUG", MessageBoxButton.OK, MessageBoxImage.Information);
             Loaded += MainWindow_Loaded;
         }
         private void ApplyResponsiveLayout()
@@ -2268,6 +2267,9 @@ namespace Kalendarz1.WPF
 
             try
             {
+                // Najpierw załaduj konfigurację produktów i grupy towarowe
+                await GetKonfiguracjaProduktowAsync(_selectedDate);
+
                 await LoadOrdersForDayAsync(_selectedDate);
                 await LoadTransportForDayAsync(_selectedDate);
                 await DisplayProductAggregationAsync(_selectedDate);
@@ -2301,10 +2303,6 @@ namespace Kalendarz1.WPF
         private async Task LoadOrdersForDayAsync(DateTime day)
         {
             day = ValidateSqlDate(day);
-
-            // DEBUG: Pokaż ile grup towarowych jest załadowanych
-            MessageBox.Show($"Grupy towarowe: {_grupyTowaroweNazwy.Count}\nNazwy: {string.Join(", ", _grupyTowaroweNazwy)}\nMapowanie: {_mapowanieScalowania.Count} towarów",
-                "DEBUG - Grupy towarowe", MessageBoxButton.OK, MessageBoxImage.Information);
 
             // Zawsze czyść i odtwarzaj kolumny - grupy mogą się zmienić
             _dtOrders.Clear();
