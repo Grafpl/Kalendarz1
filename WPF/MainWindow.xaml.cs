@@ -91,6 +91,7 @@ namespace Kalendarz1.WPF
         public MainWindow()
         {
             InitializeComponent();
+            MessageBox.Show("WPF/MainWindow.xaml.cs Constructor", "DEBUG", MessageBoxButton.OK, MessageBoxImage.Information);
             Loaded += MainWindow_Loaded;
         }
         private void ApplyResponsiveLayout()
