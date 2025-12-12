@@ -65,6 +65,8 @@ namespace Kalendarz1.WPF
         private readonly Dictionary<string, string> _userCache = new();
         private readonly List<string> _salesmenCache = new();
         private bool _showReleasesWithoutOrders = false;
+        private HashSet<string> _expandedDashboardProducts = new(); // Rozwinięte produkty w dashboardzie
+        private Dictionary<string, List<(string odbiorca, decimal ilosc, string handlowiec)>> _orderDetailsPerProduct = new(); // Szczegóły zamówień per produkt
 
         private readonly Dictionary<string, Color> _salesmanColors = new Dictionary<string, Color>();
         private readonly List<Color> _colorPalette = new List<Color>
@@ -2224,6 +2226,7 @@ namespace Kalendarz1.WPF
             try
             {
                 await LoadOrdersForDayAsync(_selectedDate);
+                await LoadTransportForDayAsync(_selectedDate);
                 await DisplayProductAggregationAsync(_selectedDate);
 
                 // Załaduj historię zmian dla całego tygodnia
@@ -2801,13 +2804,32 @@ ORDER BY zm.Id";
                 }
             }
 
+            // Pobierz wszystkie uwagi i transport dla wszystkich zamówień (nie tylko z TransportKursID)
+            var allOrderNotes = new Dictionary<int, (string Uwagi, long? KursId)>();
+            await using (var cnLibra = new SqlConnection(_connLibra))
+            {
+                await cnLibra.OpenAsync();
+                string dateColumn = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
+                string sql = $"SELECT Id, Uwagi, TransportKursID FROM dbo.ZamowieniaMieso WHERE {dateColumn} = @Day";
+                await using var cmd = new SqlCommand(sql, cnLibra);
+                cmd.Parameters.AddWithValue("@Day", day);
+                await using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    int id = rd.GetInt32(0);
+                    string uwagi = rd.IsDBNull(1) ? "" : rd.GetString(1);
+                    long? kursId = rd.IsDBNull(2) ? null : rd.GetInt64(2);
+                    allOrderNotes[id] = (uwagi, kursId);
+                }
+            }
+
             foreach (DataRow row in _dtOrders.Rows)
             {
-                string trans = row["Trans"]?.ToString() ?? "";
-                if (trans != "✓") continue;
-
                 int id = Convert.ToInt32(row["Id"]);
-                if (id == -1) continue;
+                if (id == -1) continue; // Pomiń wiersz SUMA
+
+                string status = row["Status"]?.ToString() ?? "";
+                if (status == "Anulowane") continue; // Pomiń anulowane
 
                 int clientId = Convert.ToInt32(row["KlientId"]);
                 string odbiorca = row["Odbiorca"]?.ToString() ?? "";
@@ -2815,15 +2837,16 @@ ORDER BY zm.Id";
                 decimal iloscZam = row["IloscZamowiona"] is DBNull ? 0m : Convert.ToDecimal(row["IloscZamowiona"]);
                 decimal iloscWyd = row["IloscFaktyczna"] is DBNull ? 0m : Convert.ToDecimal(row["IloscFaktyczna"]);
                 decimal palety = row["Palety"] is DBNull ? 0m : Convert.ToDecimal(row["Palety"]);
-                string status = row["Status"]?.ToString() ?? "";
+                string trans = row["Trans"]?.ToString() ?? "";
 
                 string kierowca = "";
                 string pojazd = "";
                 string trasa = "";
                 string godzWyjazdu = "";
                 string uwagi = "";
+                string statusTransportu = trans == "✓" ? "Przypisany" : "Brak";
 
-                if (orderNotes.TryGetValue(id, out var noteInfo))
+                if (allOrderNotes.TryGetValue(id, out var noteInfo))
                 {
                     uwagi = noteInfo.Uwagi;
                     if (noteInfo.KursId.HasValue && transportDetails.TryGetValue(noteInfo.KursId.Value, out var td))
@@ -2832,10 +2855,11 @@ ORDER BY zm.Id";
                         pojazd = td.Pojazd;
                         trasa = td.Trasa;
                         godzWyjazdu = td.GodzWyjazdu?.ToString(@"hh\:mm") ?? "";
+                        statusTransportu = "Przypisany";
                     }
                 }
 
-                _dtTransport.Rows.Add(id, clientId, odbiorca, handlowiec, iloscZam, iloscWyd, palety, kierowca, pojazd, godzWyjazdu, trasa, status, uwagi);
+                _dtTransport.Rows.Add(id, clientId, odbiorca, handlowiec, iloscZam, iloscWyd, palety, kierowca, pojazd, godzWyjazdu, trasa, statusTransportu, uwagi);
             }
 
             SetupTransportDataGrid();
@@ -3353,8 +3377,144 @@ ORDER BY zm.Id";
             }
 
             SetupHistoriaZmianDataGrid();
+            PopulateHistoriaFilterComboBoxes();
         }
 
+        private void PopulateHistoriaFilterComboBoxes()
+        {
+            // Zapisz aktualne selekcje
+            var selectedKto = cmbHistoriaKtoEdytowal?.SelectedItem?.ToString();
+            var selectedOdbiorca = cmbHistoriaOdbiorca?.SelectedItem?.ToString();
+            var selectedTyp = cmbHistoriaTyp?.SelectedItem?.ToString();
+            var selectedHandlowiec = cmbHistoriaHandlowiec?.SelectedItem?.ToString();
+
+            // Pobierz unikalne wartości z danych
+            var ktoEdytowalList = new List<string> { "(Wszystkie)" };
+            var odbiorcaList = new List<string> { "(Wszystkie)" };
+            var typList = new List<string> { "(Wszystkie)" };
+            var handlowiecList = new List<string> { "(Wszystkie)" };
+
+            foreach (DataRow row in _dtHistoriaZmian.Rows)
+            {
+                string kto = row["UzytkownikNazwa"]?.ToString() ?? "";
+                string odbiorca = row["Odbiorca"]?.ToString() ?? "";
+                string typ = row["TypZmiany"]?.ToString() ?? "";
+                string handlowiec = row["Handlowiec"]?.ToString() ?? "";
+
+                if (!string.IsNullOrWhiteSpace(kto) && !ktoEdytowalList.Contains(kto))
+                    ktoEdytowalList.Add(kto);
+                if (!string.IsNullOrWhiteSpace(odbiorca) && !odbiorcaList.Contains(odbiorca))
+                    odbiorcaList.Add(odbiorca);
+                if (!string.IsNullOrWhiteSpace(typ) && !typList.Contains(typ))
+                    typList.Add(typ);
+                if (!string.IsNullOrWhiteSpace(handlowiec) && !handlowiecList.Contains(handlowiec))
+                    handlowiecList.Add(handlowiec);
+            }
+
+            // Sortuj listy (bez pierwszego elementu)
+            if (ktoEdytowalList.Count > 1)
+            {
+                var sorted = ktoEdytowalList.Skip(1).OrderBy(x => x).ToList();
+                ktoEdytowalList = new List<string> { "(Wszystkie)" };
+                ktoEdytowalList.AddRange(sorted);
+            }
+            if (odbiorcaList.Count > 1)
+            {
+                var sorted = odbiorcaList.Skip(1).OrderBy(x => x).ToList();
+                odbiorcaList = new List<string> { "(Wszystkie)" };
+                odbiorcaList.AddRange(sorted);
+            }
+            if (typList.Count > 1)
+            {
+                var sorted = typList.Skip(1).OrderBy(x => x).ToList();
+                typList = new List<string> { "(Wszystkie)" };
+                typList.AddRange(sorted);
+            }
+            if (handlowiecList.Count > 1)
+            {
+                var sorted = handlowiecList.Skip(1).OrderBy(x => x).ToList();
+                handlowiecList = new List<string> { "(Wszystkie)" };
+                handlowiecList.AddRange(sorted);
+            }
+
+            // Wypełnij ComboBox
+            if (cmbHistoriaKtoEdytowal != null)
+            {
+                cmbHistoriaKtoEdytowal.ItemsSource = ktoEdytowalList;
+                cmbHistoriaKtoEdytowal.SelectedIndex = string.IsNullOrEmpty(selectedKto) ? 0 :
+                    Math.Max(0, ktoEdytowalList.IndexOf(selectedKto));
+            }
+            if (cmbHistoriaOdbiorca != null)
+            {
+                cmbHistoriaOdbiorca.ItemsSource = odbiorcaList;
+                cmbHistoriaOdbiorca.SelectedIndex = string.IsNullOrEmpty(selectedOdbiorca) ? 0 :
+                    Math.Max(0, odbiorcaList.IndexOf(selectedOdbiorca));
+            }
+            if (cmbHistoriaTyp != null)
+            {
+                cmbHistoriaTyp.ItemsSource = typList;
+                cmbHistoriaTyp.SelectedIndex = string.IsNullOrEmpty(selectedTyp) ? 0 :
+                    Math.Max(0, typList.IndexOf(selectedTyp));
+            }
+            if (cmbHistoriaHandlowiec != null)
+            {
+                cmbHistoriaHandlowiec.ItemsSource = handlowiecList;
+                cmbHistoriaHandlowiec.SelectedIndex = string.IsNullOrEmpty(selectedHandlowiec) ? 0 :
+                    Math.Max(0, handlowiecList.IndexOf(selectedHandlowiec));
+            }
+        }
+
+        private void CmbHistoriaFiltr_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            ApplyHistoriaFilters();
+        }
+
+        private void BtnHistoriaCzyscFiltry_Click(object sender, RoutedEventArgs e)
+        {
+            if (cmbHistoriaKtoEdytowal != null) cmbHistoriaKtoEdytowal.SelectedIndex = 0;
+            if (cmbHistoriaOdbiorca != null) cmbHistoriaOdbiorca.SelectedIndex = 0;
+            if (cmbHistoriaTyp != null) cmbHistoriaTyp.SelectedIndex = 0;
+            if (cmbHistoriaHandlowiec != null) cmbHistoriaHandlowiec.SelectedIndex = 0;
+            ApplyHistoriaFilters();
+        }
+
+        private void ApplyHistoriaFilters()
+        {
+            if (_dtHistoriaZmian == null || dgHistoriaZmian == null) return;
+
+            var view = _dtHistoriaZmian.DefaultView;
+            var filters = new List<string>();
+
+            // Filtr: Kto edytował
+            string kto = cmbHistoriaKtoEdytowal?.SelectedItem?.ToString();
+            if (!string.IsNullOrEmpty(kto) && kto != "(Wszystkie)")
+            {
+                filters.Add($"UzytkownikNazwa = '{kto.Replace("'", "''")}'");
+            }
+
+            // Filtr: Odbiorca
+            string odbiorca = cmbHistoriaOdbiorca?.SelectedItem?.ToString();
+            if (!string.IsNullOrEmpty(odbiorca) && odbiorca != "(Wszystkie)")
+            {
+                filters.Add($"Odbiorca = '{odbiorca.Replace("'", "''")}'");
+            }
+
+            // Filtr: Typ zmiany
+            string typ = cmbHistoriaTyp?.SelectedItem?.ToString();
+            if (!string.IsNullOrEmpty(typ) && typ != "(Wszystkie)")
+            {
+                filters.Add($"TypZmiany = '{typ.Replace("'", "''")}'");
+            }
+
+            // Filtr: Handlowiec
+            string handlowiec = cmbHistoriaHandlowiec?.SelectedItem?.ToString();
+            if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "(Wszystkie)")
+            {
+                filters.Add($"Handlowiec = '{handlowiec.Replace("'", "''")}'");
+            }
+
+            view.RowFilter = filters.Count > 0 ? string.Join(" AND ", filters) : "";
+        }
 
         private async Task<Dictionary<long, (DateTime DataKursu, TimeSpan? GodzWyjazdu, string Kierowca)>> GetTransportInfoAsync(DateTime day)
         {
@@ -4231,6 +4391,9 @@ ORDER BY zm.Id";
 
             dgAggregation.ItemsSource = dtAgg.DefaultView;
             SetupAggregationDataGrid();
+
+            // Wypełnij dashboard dostępności produktów dla handlowców
+            PopulateDostepnoscProduktow(dtAgg);
         }
         private void DgAggregation_LoadingRow(object sender, DataGridRowEventArgs e)
         {
@@ -4970,6 +5133,9 @@ ORDER BY zm.Id";
                 .Where(id => id > 0)
                 .ToList();
 
+            // Słownik: ProductId -> lista (Odbiorca, Ilosc, Handlowiec)
+            var orderDetailsPerProductId = new Dictionary<int, List<(string odbiorca, decimal ilosc, string handlowiec)>>();
+
             if (orderIds.Any())
             {
                 await using var cn = new SqlConnection(_connLibra);
@@ -4980,6 +5146,32 @@ ORDER BY zm.Id";
                 using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                     orderSum[reader.GetInt32(0)] = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
+            }
+
+            // Pobierz szczegóły zamówień per produkt (kto co zamówił)
+            if (orderIds.Any())
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                var sql = $@"SELECT t.KodTowaru, z.Odbiorca, SUM(t.Ilosc), z.Handlowiec
+                             FROM [dbo].[ZamowieniaMiesoTowar] t
+                             JOIN [dbo].[ZamowieniaMieso] z ON t.ZamowienieId = z.Id
+                             WHERE t.ZamowienieId IN ({string.Join(",", orderIds)})
+                             GROUP BY t.KodTowaru, z.Odbiorca, z.Handlowiec
+                             ORDER BY t.KodTowaru, SUM(t.Ilosc) DESC";
+                using var cmd = new SqlCommand(sql, cn);
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    int productId = reader.GetInt32(0);
+                    string odbiorca = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                    decimal ilosc = reader.IsDBNull(2) ? 0m : reader.GetDecimal(2);
+                    string handlowiec = reader.IsDBNull(3) ? "" : reader.GetString(3);
+
+                    if (!orderDetailsPerProductId.ContainsKey(productId))
+                        orderDetailsPerProductId[productId] = new List<(string, decimal, string)>();
+                    orderDetailsPerProductId[productId].Add((odbiorca, ilosc, handlowiec));
+                }
             }
 
             // Pobierz stany magazynowe
@@ -5073,6 +5265,46 @@ ORDER BY zm.Id";
                 agregowane[productName] = (plan, fakt, stan, zam);
             }
 
+            // Mapuj szczegóły zamówień do nazw produktów (w tym grup scalania)
+            _orderDetailsPerProduct.Clear();
+            var productIdToName = new Dictionary<int, string>();
+
+            // Zbierz mapowanie productId -> nazwa (lub nazwa grupy)
+            foreach (var product in _productCatalogCache)
+            {
+                int productId = product.Key;
+                string productName = product.Value;
+
+                if (_mapowanieScalowania.TryGetValue(productId, out var nazwaGrupy))
+                    productIdToName[productId] = nazwaGrupy;
+                else
+                    productIdToName[productId] = productName;
+            }
+
+            // Zbierz szczegóły zamówień per nazwa produktu/grupy
+            foreach (var kvp in orderDetailsPerProductId)
+            {
+                int productId = kvp.Key;
+                if (!productIdToName.TryGetValue(productId, out var productName))
+                    continue;
+
+                if (!_orderDetailsPerProduct.ContainsKey(productName))
+                    _orderDetailsPerProduct[productName] = new List<(string, decimal, string)>();
+
+                _orderDetailsPerProduct[productName].AddRange(kvp.Value);
+            }
+
+            // Agreguj szczegóły zamówień dla grup (suma per odbiorca)
+            foreach (var kvp in _orderDetailsPerProduct.ToList())
+            {
+                var aggregated = kvp.Value
+                    .GroupBy(x => (x.odbiorca, x.handlowiec))
+                    .Select(g => (g.Key.odbiorca, g.Sum(x => x.ilosc), g.Key.handlowiec))
+                    .OrderByDescending(x => x.Item2)
+                    .ToList();
+                _orderDetailsPerProduct[kvp.Key] = aggregated;
+            }
+
             // Dodaj do tabeli
             foreach (var kv in agregowane.OrderBy(x => x.Key))
             {
@@ -5085,7 +5317,23 @@ ORDER BY zm.Id";
                 decimal bilans = (fakt > 0 ? fakt : plan) + stan - zamowienia;
                 string status = bilans > 0 ? "✅" : (bilans == 0 ? "⚠️" : "❌");
 
-                _dtDashboard.Rows.Add(kv.Key, plan, fakt, stan, zamowienia, bilans, status);
+                // Dodaj ikonę rozwijania jeśli są szczegóły zamówień
+                bool hasDetails = _orderDetailsPerProduct.ContainsKey(kv.Key) && _orderDetailsPerProduct[kv.Key].Any();
+                bool isExpanded = _expandedDashboardProducts.Contains(kv.Key);
+                string expandIcon = hasDetails ? (isExpanded ? "▼ " : "▶ ") : "  ";
+                string displayName = expandIcon + kv.Key;
+
+                _dtDashboard.Rows.Add(displayName, plan, fakt, stan, zamowienia, bilans, status);
+
+                // Jeśli rozwinięty, dodaj wiersze szczegółów
+                if (isExpanded && hasDetails)
+                {
+                    foreach (var detail in _orderDetailsPerProduct[kv.Key])
+                    {
+                        string detailName = $"      └ {detail.odbiorca} ({detail.handlowiec})";
+                        _dtDashboard.Rows.Add(detailName, 0m, 0m, 0m, detail.ilosc, 0m, "");
+                    }
+                }
 
                 totalZamowienia += zamowienia;
                 totalWydania += fakt;
@@ -5102,46 +5350,6 @@ ORDER BY zm.Id";
                 .Where(r => r.Field<string>("Status") != "SUMA" && r.Field<int>("Id") > 0)
                 .Where(r => r.Field<decimal>("IloscFaktyczna") > 0)
                 .Count();
-
-            decimal realizacja = totalZamowienia > 0 ? (totalWydania / totalZamowienia) * 100m : 0m;
-            decimal roznica = totalZamowienia - totalWydania;
-
-            // KPI 1: Plan produkcji
-            txtKpiPlan.Text = $"{totalPlan:N0} kg";
-            txtKpiSurowiec.Text = $"{totalMassDek:N0} kg";
-            txtKpiWydajnosc.Text = $"{wspolczynnikTuszki:N0}%";
-
-            // KPI 2: Faktyczna produkcja
-            txtKpiWydania.Text = $"{totalWydania:N0} kg";
-            decimal wydaniaVsPlan = totalPlan > 0 ? (totalWydania / totalPlan) * 100m : 0m;
-            txtKpiWydaniaVsPlan.Text = $"{wydaniaVsPlan:N1}%";
-            txtKpiWydaniaVsPlan.Foreground = wydaniaVsPlan >= 100 ?
-                new SolidColorBrush(Color.FromRgb(39, 174, 96)) :
-                new SolidColorBrush(Color.FromRgb(231, 76, 60));
-            txtKpiWydaniaKlienci.Text = $"{wydanychCount}";
-
-            // KPI 3: Zamówienia
-            txtKpiZamowienia.Text = $"{totalZamowienia:N0} kg";
-            txtKpiZamowieniaKlienci.Text = $"{klientowCount}";
-            txtKpiRoznica.Text = $"{roznica:N0} kg";
-            txtKpiRoznica.Foreground = roznica <= 0 ?
-                new SolidColorBrush(Color.FromRgb(39, 174, 96)) :
-                new SolidColorBrush(Color.FromRgb(231, 76, 60));
-
-            // KPI 4: Realizacja
-            txtKpiRealizacja.Text = $"{realizacja:N1}%";
-            string statusText = realizacja >= 100 ? "Zrealizowane" : (realizacja > 50 ? "W trakcie" : "Oczekuje");
-            txtKpiRealizacjaStatus.Text = statusText;
-            txtKpiRealizacjaStatus.Foreground = realizacja >= 100 ?
-                new SolidColorBrush(Color.FromRgb(39, 174, 96)) :
-                (realizacja > 50 ? new SolidColorBrush(Color.FromRgb(243, 156, 18)) :
-                new SolidColorBrush(Color.FromRgb(231, 76, 60)));
-
-            decimal bilansTotal = (totalWydania > 0 ? totalWydania : totalPlan) - totalZamowienia;
-            txtKpiRealizacjaInfo.Text = $"{bilansTotal:N0} kg";
-            txtKpiRealizacjaInfo.Foreground = bilansTotal >= 0 ?
-                new SolidColorBrush(Color.FromRgb(39, 174, 96)) :
-                new SolidColorBrush(Color.FromRgb(231, 76, 60));
 
             // Zlicz statusy bilansu
             int okCount = _dtDashboard.AsEnumerable().Count(r => r.Field<string>("Status") == "✅");
@@ -5162,58 +5370,6 @@ ORDER BY zm.Id";
             progressWydajnosc.Width = Math.Min(progressWidth, 250);
 
             SetupDashboardDataGrid();
-            SetupTopProduktyDataGrid();
-        }
-
-        private void SetupTopProduktyDataGrid()
-        {
-            // Pobierz top 5 produktów wg zamówień
-            var topProdukty = _dtDashboard.AsEnumerable()
-                .Where(r => r.Field<decimal>("Zamowienia") > 0)
-                .OrderByDescending(r => r.Field<decimal>("Zamowienia"))
-                .Take(5)
-                .Select(r => new
-                {
-                    Produkt = r.Field<string>("Produkt"),
-                    Zamowienia = r.Field<decimal>("Zamowienia"),
-                    Bilans = r.Field<decimal>("Bilans"),
-                    Status = r.Field<string>("Status")
-                })
-                .ToList();
-
-            dgTopProdukty.ItemsSource = topProdukty;
-            dgTopProdukty.Columns.Clear();
-
-            dgTopProdukty.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Produkt",
-                Binding = new System.Windows.Data.Binding("Produkt"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star)
-            });
-
-            dgTopProdukty.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Zamów.",
-                Binding = new System.Windows.Data.Binding("Zamowienia") { StringFormat = "N0" },
-                Width = new DataGridLength(70),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
-            });
-
-            dgTopProdukty.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Bilans",
-                Binding = new System.Windows.Data.Binding("Bilans") { StringFormat = "N0" },
-                Width = new DataGridLength(70),
-                ElementStyle = (Style)FindResource("RightAlignedCellStyle")
-            });
-
-            dgTopProdukty.Columns.Add(new DataGridTextColumn
-            {
-                Header = "",
-                Binding = new System.Windows.Data.Binding("Status"),
-                Width = new DataGridLength(30),
-                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
-            });
         }
 
         private void SetupDashboardDataGrid()
@@ -5291,18 +5447,59 @@ ORDER BY zm.Id";
             // Kolorowanie wierszy
             dgDashboardProdukty.LoadingRow -= DgDashboardProdukty_LoadingRow;
             dgDashboardProdukty.LoadingRow += DgDashboardProdukty_LoadingRow;
+
+            // Obsługa kliknięcia do rozwijania/zwijania
+            dgDashboardProdukty.PreviewMouseLeftButtonUp -= DgDashboardProdukty_RowClick;
+            dgDashboardProdukty.PreviewMouseLeftButtonUp += DgDashboardProdukty_RowClick;
+        }
+
+        private async void DgDashboardProdukty_RowClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (dgDashboardProdukty.SelectedItem is DataRowView rowView)
+            {
+                string produktName = rowView["Produkt"]?.ToString() ?? "";
+
+                // Sprawdź czy to wiersz produktu (nie szczegół)
+                if (produktName.TrimStart().StartsWith("└"))
+                    return;
+
+                // Wyodrębnij nazwę produktu bez ikony
+                string cleanName = produktName.Replace("▶ ", "").Replace("▼ ", "").Trim();
+
+                // Sprawdź czy produkt ma szczegóły do rozwinięcia
+                if (!_orderDetailsPerProduct.ContainsKey(cleanName) || !_orderDetailsPerProduct[cleanName].Any())
+                    return;
+
+                // Toggle expand/collapse
+                if (_expandedDashboardProducts.Contains(cleanName))
+                    _expandedDashboardProducts.Remove(cleanName);
+                else
+                    _expandedDashboardProducts.Add(cleanName);
+
+                // Odśwież dashboard
+                await LoadDashboardDataAsync(_selectedDate);
+            }
         }
 
         private void DgDashboardProdukty_LoadingRow(object sender, DataGridRowEventArgs e)
         {
             if (e.Row.Item is DataRowView rowView)
             {
+                var produktName = rowView.Row.Field<string>("Produkt") ?? "";
                 var bilans = rowView.Row.Field<decimal>("Bilans");
                 var status = rowView.Row.Field<string>("Status") ?? "";
 
-                if (status == "❌" || bilans < 0)
+                // Wiersze szczegółów (kto zamówił) - jaśniejsze tło
+                if (produktName.TrimStart().StartsWith("└"))
+                {
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(245, 248, 255)); // Jasnoniebieski
+                    e.Row.FontSize = 11;
+                    e.Row.FontStyle = FontStyles.Italic;
+                }
+                else if (status == "❌" || bilans < 0)
                 {
                     e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 230, 230)); // Czerwony
+                    e.Row.FontWeight = FontWeights.SemiBold;
                 }
                 else if (status == "⚠️" || bilans == 0)
                 {
@@ -5489,28 +5686,20 @@ ORDER BY zm.Id";
 
                 await cmdUpdate.ExecuteNonQueryAsync();
 
-                // Zapisz w historii zmian
+                // Zapisz w historii zmian (używając HistoriaZmianService)
                 string staraWartosc = FormatValueForHistory(oldValue, columnName);
                 string nowaWartosc = FormatValueForHistory(newValue, columnName);
 
                 string opisZmiany = $"{produktNazwa}: {columnName} {staraWartosc} → {nowaWartosc}";
 
-                await using var cmdHistory = new SqlCommand(@"
-                    INSERT INTO dbo.ZamowieniaHistoria (ZamowienieId, DataZmiany, Uzytkownik, TypZmiany, OpisZmiany)
-                    VALUES (@orderId, GETDATE(), @user, @typ, @opis)", cn);
-                cmdHistory.Parameters.AddWithValue("@orderId", _currentOrderId.Value);
-                cmdHistory.Parameters.AddWithValue("@user", UserID);
-                cmdHistory.Parameters.AddWithValue("@typ", "Modyfikacja pozycji");
-                cmdHistory.Parameters.AddWithValue("@opis", opisZmiany);
-
-                try
-                {
-                    await cmdHistory.ExecuteNonQueryAsync();
-                }
-                catch
-                {
-                    // Tabela historii może nie istnieć - ignoruj
-                }
+                await Services.HistoriaZmianService.LogujEdycje(
+                    _currentOrderId.Value,
+                    UserID,
+                    App.UserFullName,
+                    $"Pozycja: {produktNazwa} - {columnName}",
+                    staraWartosc,
+                    nowaWartosc,
+                    opisZmiany);
 
                 // Odśwież dane po zmianie ilości (aby przeliczyć różnicę)
                 if (columnName == "Zam.")
@@ -5561,30 +5750,13 @@ ORDER BY zm.Id";
                 cmdUpdate.Parameters.AddWithValue("@orderId", _currentOrderId.Value);
                 await cmdUpdate.ExecuteNonQueryAsync();
 
-                // Zapisz zmianę w historii
-                string staraWartosc = string.IsNullOrEmpty(oldNotes) ? "(puste)" :
-                    (oldNotes.Length > 50 ? oldNotes.Substring(0, 50) + "..." : oldNotes);
-                string nowaWartosc = string.IsNullOrEmpty(newNotes) ? "(puste)" :
-                    (newNotes.Length > 50 ? newNotes.Substring(0, 50) + "..." : newNotes);
-
-                string opisZmiany = $"Notatki: \"{staraWartosc}\" → \"{nowaWartosc}\"";
-
-                await using var cmdHistory = new SqlCommand(@"
-                    INSERT INTO dbo.ZamowieniaHistoria (ZamowienieId, DataZmiany, Uzytkownik, TypZmiany, OpisZmiany)
-                    VALUES (@orderId, GETDATE(), @user, @typ, @opis)", cn);
-                cmdHistory.Parameters.AddWithValue("@orderId", _currentOrderId.Value);
-                cmdHistory.Parameters.AddWithValue("@user", UserID);
-                cmdHistory.Parameters.AddWithValue("@typ", "Modyfikacja notatek");
-                cmdHistory.Parameters.AddWithValue("@opis", opisZmiany);
-
-                try
-                {
-                    await cmdHistory.ExecuteNonQueryAsync();
-                }
-                catch
-                {
-                    // Tabela historii może nie istnieć - ignoruj
-                }
+                // Zapisz zmianę w historii (używając HistoriaZmianService)
+                await Services.HistoriaZmianService.LogujZmianeNotatki(
+                    _currentOrderId.Value,
+                    UserID,
+                    oldNotes,
+                    newNotes,
+                    App.UserFullName);
 
                 // Zaktualizuj oryginalną wartość
                 _originalNotesValue = newNotes;
@@ -5637,5 +5809,120 @@ ORDER BY zm.Id";
             dgAggregation.ContextMenu = contextMenu;
         }
         #endregion
+
+        #region Dashboard Dostępność Produktów
+
+        private void PopulateDostepnoscProduktow(DataTable dtAgg)
+        {
+            var produkty = new List<DostepnoscProduktuModel>();
+
+            // Przetwórz każdy wiersz z agregacji
+            foreach (DataRow row in dtAgg.Rows)
+            {
+                string nazwa = row["Produkt"]?.ToString() ?? "";
+
+                // Pomijaj wiersze SUMA, rozwinięte szczegóły (·) i Kurczak B
+                if (nazwa.Contains("SUMA") || nazwa.TrimStart().StartsWith("·"))
+                    continue;
+
+                // Pomiń Kurczak B (tylko Kurczak A i elementy)
+                if (nazwa.Contains("Kurczak B"))
+                    continue;
+
+                // Pomiń produkty mrożone
+                if (nazwa.Contains("mrożon", StringComparison.OrdinalIgnoreCase) ||
+                    nazwa.Contains("Mrożon", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                decimal plan = row["PlanowanyPrzychód"] != DBNull.Value ? Convert.ToDecimal(row["PlanowanyPrzychód"]) : 0;
+                decimal fakt = row["FaktycznyPrzychód"] != DBNull.Value ? Convert.ToDecimal(row["FaktycznyPrzychód"]) : 0;
+                decimal zam = row["Zamówienia"] != DBNull.Value ? Convert.ToDecimal(row["Zamówienia"]) : 0;
+                decimal bilans = row["Bilans"] != DBNull.Value ? Convert.ToDecimal(row["Bilans"]) : 0;
+                string stanText = row["Stan"]?.ToString() ?? "0";
+
+                // Podstawa do obliczeń - fakt jeśli > 0, inaczej plan
+                decimal podstawa = fakt > 0 ? fakt : plan;
+                if (podstawa <= 0 && bilans == 0) continue;
+
+                // Oblicz procent sprzedaży (ile zostało do sprzedania)
+                decimal procentDostepnosci = podstawa > 0 ? (bilans / podstawa) * 100m : 0;
+                procentDostepnosci = Math.Max(0, Math.Min(procentDostepnosci, 100));
+
+                // Szerokość paska (0-190 px)
+                double szerokoscPaska = Math.Max(0, Math.Min(190, (double)(procentDostepnosci * 190m / 100m)));
+
+                // Ustal kolory
+                Brush kolorRamki, kolorPaska;
+                Color kolorTla = Colors.White;
+
+                if (bilans > 0)
+                {
+                    // Dostępne - zielony
+                    kolorRamki = new SolidColorBrush(Color.FromRgb(39, 174, 96));    // #27AE60
+                    kolorPaska = new SolidColorBrush(Color.FromRgb(144, 238, 144));  // Jasno zielony
+                }
+                else
+                {
+                    // Brak / ujemny - czerwony
+                    kolorRamki = new SolidColorBrush(Color.FromRgb(231, 76, 60));    // #E74C3C
+                    kolorPaska = new SolidColorBrush(Color.FromRgb(231, 76, 60));
+                    kolorTla = Color.FromRgb(255, 235, 235);
+                }
+
+                // Wyczyść nazwę z ikon
+                string czystaNazwa = nazwa
+                    .Replace("▶", "").Replace("▼", "")
+                    .Replace("└", "").Replace("🍗", "").Replace("🍖", "").Replace("🥩", "").Replace("🐔", "")
+                    .Trim();
+
+                // Ustal kolejność: Kurczak A = 0, elementy = 1
+                int kolejnosc = 1;
+                if (czystaNazwa.Contains("Kurczak A")) kolejnosc = 0;
+
+                produkty.Add(new DostepnoscProduktuModel
+                {
+                    Nazwa = czystaNazwa,
+                    KolorRamki = kolorRamki,
+                    KolorTla = kolorTla,
+                    KolorPaska = kolorPaska,
+                    SzerokoscPaska = szerokoscPaska,
+                    BilansText = $"{bilans:N0} kg",
+                    PlanFaktText = fakt > 0 ? $"{fakt:N0}" : $"{plan:N0}",
+                    StanText = stanText,
+                    ZamowioneText = $"{zam:N0} kg",
+                    ProcentText = $"{procentDostepnosci:N0}%",
+                    Kolejnosc = kolejnosc,
+                    Bilans = bilans
+                });
+            }
+
+            // Sortuj: Kurczak A pierwszy, potem elementy (czerwone najpierw)
+            produkty = produkty
+                .OrderBy(p => p.Kolejnosc)
+                .ThenBy(p => p.Bilans > 0 ? 1 : 0)  // Czerwone (brak) najpierw
+                .ThenBy(p => p.Nazwa)
+                .ToList();
+
+            icDostepnoscProduktow.ItemsSource = produkty;
+        }
+
+        #endregion
+    }
+
+    // Model do wyświetlania dostępności produktów na dashboardzie
+    public class DostepnoscProduktuModel
+    {
+        public string Nazwa { get; set; } = "";
+        public Brush KolorRamki { get; set; } = Brushes.Gray;
+        public Color KolorTla { get; set; } = Colors.White;
+        public Brush KolorPaska { get; set; } = Brushes.Gray;
+        public double SzerokoscPaska { get; set; }
+        public string BilansText { get; set; } = "";
+        public string PlanFaktText { get; set; } = "";
+        public string StanText { get; set; } = "";
+        public string ZamowioneText { get; set; } = "";
+        public string ProcentText { get; set; } = "";
+        public int Kolejnosc { get; set; }
+        public decimal Bilans { get; set; }
     }
 }
