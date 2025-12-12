@@ -2305,6 +2305,12 @@ namespace Kalendarz1.WPF
         {
             day = ValidateSqlDate(day);
 
+            // Wyczyść RowFilter przed modyfikacją kolumn, aby uniknąć NullReferenceException
+            if (_dtOrders.DefaultView != null)
+            {
+                _dtOrders.DefaultView.RowFilter = "";
+            }
+
             // Zawsze czyść i odtwarzaj kolumny - grupy mogą się zmienić
             _dtOrders.Clear();
             _dtOrders.Columns.Clear();
