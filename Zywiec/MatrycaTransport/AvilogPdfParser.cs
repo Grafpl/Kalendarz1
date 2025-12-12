@@ -249,27 +249,55 @@ namespace Kalendarz1
 
             // Szukaj hodowcy - WIELKIE LITERY + Tel. : + telefon
             var hodowcaMatch = Regex.Match(context,
-                @"([A-ZŻŹĆĄŚĘŁÓŃ]+)\s+([A-ZŻŹĆĄŚĘŁÓŃ]+)\s+Tel\s*\.\s*:\s*(\d{9}|\d{3}\s?\d{3}\s?\d{3})");
+                @"([A-ZŻŹĆĄŚĘŁÓŃ]+)\s+([A-ZŻŹĆĄŚĘŁÓŃ]+)\s+Tel\s*\.\s*:\s*(\d{9}|\d{3}[\s-]?\d{3}[\s-]?\d{3})");
             if (hodowcaMatch.Success)
             {
                 row.HodowcaNazwa = $"{hodowcaMatch.Groups[1].Value} {hodowcaMatch.Groups[2].Value}";
-                row.HodowcaTelefon = Regex.Replace(hodowcaMatch.Groups[3].Value, @"\s+", "");
+                row.HodowcaTelefon = Regex.Replace(hodowcaMatch.Groups[3].Value, @"[\s-]+", "");
             }
 
-            // Szukaj kierowcy - imię (mixed case) + Tel2. :
-            var kierowcaMatch = Regex.Match(context, @"([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]+)\s+Tel2\s*\.");
-            if (kierowcaMatch.Success)
+            // Szukaj kierowcy - pełne dane
+            // Wzorzec 1: "Nazwisko HODOWCA Tel. :" - nazwisko mixed case przed hodowcą
+            // Wzorzec 2: "Imię Tel2. :" - imię przed Tel2
+            string kierowcaNazwisko = "";
+            string kierowcaImie = "";
+
+            // Znajdź nazwisko kierowcy - mixed case przed WIELKIMI LITERAMI hodowcy
+            var nazwiskoMatch = Regex.Match(context,
+                @"([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]+)\s+[A-ZŻŹĆĄŚĘŁÓŃ]{2,}\s+[A-ZŻŹĆĄŚĘŁÓŃ]{2,}\s+Tel\s*\.");
+            if (nazwiskoMatch.Success)
             {
-                row.KierowcaNazwa = kierowcaMatch.Groups[1].Value;
+                kierowcaNazwisko = nazwiskoMatch.Groups[1].Value;
             }
-            // Alternatywnie: szukaj imienia przed hodowcą
-            if (string.IsNullOrEmpty(row.KierowcaNazwa))
+
+            // Znajdź imię kierowcy - przed "Tel2. :"
+            var imieMatch = Regex.Match(context, @"([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]+)\s+Tel2\s*\.");
+            if (imieMatch.Success)
             {
-                var altKierowca = Regex.Match(context, @"([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]+)\s+[A-ZŻŹĆĄŚĘŁÓŃ]{3,}\s+[A-ZŻŹĆĄŚĘŁÓŃ]{3,}\s+Tel\s*\.");
-                if (altKierowca.Success)
+                kierowcaImie = imieMatch.Groups[1].Value;
+            }
+            // Alternatywnie: imię WIELKIMI LITERAMI przed Tel2
+            if (string.IsNullOrEmpty(kierowcaImie))
+            {
+                var imieUpperMatch = Regex.Match(context, @"([A-ZŻŹĆĄŚĘŁÓŃ]{3,})\s+Tel2\s*\.");
+                if (imieUpperMatch.Success)
                 {
-                    row.KierowcaNazwa = altKierowca.Groups[1].Value;
+                    kierowcaImie = imieUpperMatch.Groups[1].Value;
                 }
+            }
+
+            // Złóż pełną nazwę kierowcy
+            if (!string.IsNullOrEmpty(kierowcaNazwisko) && !string.IsNullOrEmpty(kierowcaImie))
+            {
+                row.KierowcaNazwa = $"{kierowcaNazwisko} {kierowcaImie}";
+            }
+            else if (!string.IsNullOrEmpty(kierowcaNazwisko))
+            {
+                row.KierowcaNazwa = kierowcaNazwisko;
+            }
+            else if (!string.IsNullOrEmpty(kierowcaImie))
+            {
+                row.KierowcaNazwa = kierowcaImie;
             }
 
             // Szukaj obserwacji o wózku
