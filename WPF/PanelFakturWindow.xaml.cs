@@ -15,6 +15,7 @@ namespace Kalendarz1.WPF
     {
         private readonly string _connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private readonly string _connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
+        private readonly string _connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
         public string UserID { get; set; } = string.Empty;
 
@@ -222,6 +223,10 @@ namespace Kalendarz1.WPF
             _dtOrders.Columns.Add("CzyZafakturowane", typeof(bool));
             _dtOrders.Columns.Add("NumerFaktury", typeof(string));
             _dtOrders.Columns.Add("UtworzonePrzez", typeof(string));
+            _dtOrders.Columns.Add("TransportKursID", typeof(long));
+            _dtOrders.Columns.Add("GodzWyjazdu", typeof(string));
+            _dtOrders.Columns.Add("Kierowca", typeof(string));
+            _dtOrders.Columns.Add("Pojazd", typeof(string));
 
             try
             {
@@ -240,24 +245,41 @@ namespace Kalendarz1.WPF
 
                 string fakturaSelect = hasFakturaColumn ? ", ISNULL(zm.CzyZafakturowane, 0) AS CzyZafakturowane, zm.NumerFaktury" : ", 0 AS CzyZafakturowane, NULL AS NumerFaktury";
 
+                // Sprawdź czy kolumna TransportKursID istnieje
+                bool hasTransportColumn = false;
+                try
+                {
+                    await using var checkTransportCmd = new SqlCommand(
+                        "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'TransportKursID'", cn);
+                    hasTransportColumn = (int)await checkTransportCmd.ExecuteScalarAsync()! > 0;
+                }
+                catch { }
+
+                string transportSelect = hasTransportColumn ? ", zm.TransportKursID" : ", NULL AS TransportKursID";
+                string transportGroupBy = hasTransportColumn ? ", zm.TransportKursID" : "";
+
                 string sql = $@"
                     SELECT zm.Id, zm.KlientId,
                            SUM(ISNULL(zmt.Ilosc, 0)) AS IloscZamowiona,
                            SUM(ISNULL(CAST(zmt.Cena AS decimal(18,2)) * zmt.Ilosc, 0)) AS Wartosc,
                            zm.DataZamowienia, zm.DataUboju, zm.Status, zm.IdUser
                            {fakturaSelect}
+                           {transportSelect}
                     FROM [dbo].[ZamowieniaMieso] zm
                     LEFT JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
                     WHERE zm.DataUboju = @Day
                       AND zm.Status <> 'Anulowane'
                     GROUP BY zm.Id, zm.KlientId, zm.DataZamowienia, zm.DataUboju, zm.Status, zm.IdUser
                              {(hasFakturaColumn ? ", zm.CzyZafakturowane, zm.NumerFaktury" : "")}
+                             {transportGroupBy}
                     ORDER BY zm.Id";
 
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Day", _selectedDate.Date);
 
                 await using var reader = await cmd.ExecuteReaderAsync();
+                var kursIds = new HashSet<long>();
+
                 while (await reader.ReadAsync())
                 {
                     int id = reader.GetInt32(0);
@@ -270,6 +292,7 @@ namespace Kalendarz1.WPF
                     string idUser = reader.IsDBNull(7) ? "" : reader.GetValue(7).ToString() ?? "";
                     bool czyZafakturowane = !reader.IsDBNull(8) && Convert.ToBoolean(reader.GetValue(8));
                     string numerFaktury = reader.IsDBNull(9) ? "" : reader.GetValue(9).ToString() ?? "";
+                    long? transportKursId = reader.IsDBNull(10) ? null : Convert.ToInt64(reader.GetValue(10));
 
                     var (name, salesman) = _contractorsCache.TryGetValue(clientId, out var c) ? c : ($"Klient {clientId}", "");
 
@@ -287,7 +310,19 @@ namespace Kalendarz1.WPF
                     row["NumerFaktury"] = numerFaktury;
                     row["UtworzonePrzez"] = idUser;
 
+                    if (transportKursId.HasValue)
+                    {
+                        row["TransportKursID"] = transportKursId.Value;
+                        kursIds.Add(transportKursId.Value);
+                    }
+
                     _dtOrders.Rows.Add(row);
+                }
+
+                // Pobierz informacje o transporcie z TransportPL
+                if (kursIds.Count > 0)
+                {
+                    await LoadTransportInfoAsync(kursIds);
                 }
 
                 txtOrdersCount.Text = $"{_dtOrders.Rows.Count} zamówień";
@@ -295,6 +330,63 @@ namespace Kalendarz1.WPF
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd ładowania zamówień: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async Task LoadTransportInfoAsync(HashSet<long> kursIds)
+        {
+            if (kursIds.Count == 0) return;
+
+            try
+            {
+                await using var cn = new SqlConnection(_connTransport);
+                await cn.OpenAsync();
+
+                // Pobierz dane kursów z kierowcami i pojazdami
+                var kursIdsList = string.Join(",", kursIds);
+                string sql = $@"
+                    SELECT k.KursID, k.GodzWyjazdu,
+                           ISNULL(kier.Imie + ' ' + kier.Nazwisko, '') AS Kierowca,
+                           ISNULL(p.Rejestracja, '') AS Pojazd
+                    FROM dbo.Kurs k
+                    LEFT JOIN dbo.Kierowca kier ON k.KierowcaID = kier.KierowcaID
+                    LEFT JOIN dbo.Pojazd p ON k.PojazdID = p.PojazdID
+                    WHERE k.KursID IN ({kursIdsList})";
+
+                var transportInfo = new Dictionary<long, (string GodzWyjazdu, string Kierowca, string Pojazd)>();
+
+                await using var cmd = new SqlCommand(sql, cn);
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    long kursId = reader.GetInt64(0);
+                    TimeSpan? godzWyjazdu = reader.IsDBNull(1) ? null : reader.GetTimeSpan(1);
+                    string kierowca = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                    string pojazd = reader.IsDBNull(3) ? "" : reader.GetString(3);
+
+                    string godzWyjazduStr = godzWyjazdu.HasValue ? godzWyjazdu.Value.ToString(@"hh\:mm") : "";
+                    transportInfo[kursId] = (godzWyjazduStr, kierowca, pojazd);
+                }
+
+                // Zaktualizuj wiersze w DataTable
+                foreach (DataRow row in _dtOrders.Rows)
+                {
+                    if (row["TransportKursID"] != DBNull.Value)
+                    {
+                        long kursId = Convert.ToInt64(row["TransportKursID"]);
+                        if (transportInfo.TryGetValue(kursId, out var info))
+                        {
+                            row["GodzWyjazdu"] = info.GodzWyjazdu;
+                            row["Kierowca"] = info.Kierowca;
+                            row["Pojazd"] = info.Pojazd;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd pobierania informacji o transporcie: {ex.Message}");
             }
         }
 
@@ -342,6 +434,32 @@ namespace Kalendarz1.WPF
                 Header = "Status",
                 Binding = new System.Windows.Data.Binding("Status"),
                 Width = new DataGridLength(100)
+            });
+
+            // Kolumny transportowe
+            var centerStyle = new Style(typeof(TextBlock));
+            centerStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
+
+            dgOrders.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Wyjazd",
+                Binding = new System.Windows.Data.Binding("GodzWyjazdu"),
+                Width = new DataGridLength(55),
+                ElementStyle = centerStyle
+            });
+
+            dgOrders.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Kierowca",
+                Binding = new System.Windows.Data.Binding("Kierowca"),
+                Width = new DataGridLength(100)
+            });
+
+            dgOrders.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Pojazd",
+                Binding = new System.Windows.Data.Binding("Pojazd"),
+                Width = new DataGridLength(80)
             });
 
             dgOrders.Columns.Add(new DataGridTextColumn
@@ -451,6 +569,23 @@ namespace Kalendarz1.WPF
                     txtHandlowiec.Text = $"Handlowiec: {orderRow.Field<string>("Handlowiec") ?? "brak"}";
                     var dataZam = orderRow.Field<DateTime>("DataZamowienia");
                     txtDataZamowienia.Text = dataZam > DateTime.MinValue ? $"Data zamówienia: {dataZam:dd.MM.yyyy}" : "";
+
+                    // Wyświetl informacje o transporcie
+                    string godzWyjazdu = orderRow.Field<string>("GodzWyjazdu") ?? "";
+                    string kierowca = orderRow.Field<string>("Kierowca") ?? "";
+                    string pojazd = orderRow.Field<string>("Pojazd") ?? "";
+
+                    if (!string.IsNullOrEmpty(godzWyjazdu) || !string.IsNullOrEmpty(kierowca) || !string.IsNullOrEmpty(pojazd))
+                    {
+                        borderTransport.Visibility = Visibility.Visible;
+                        txtGodzWyjazdu.Text = !string.IsNullOrEmpty(godzWyjazdu) ? $"Wyjazd: {godzWyjazdu}" : "";
+                        txtKierowca.Text = !string.IsNullOrEmpty(kierowca) ? $"Kierowca: {kierowca}" : "";
+                        txtPojazd.Text = !string.IsNullOrEmpty(pojazd) ? $"Pojazd: {pojazd}" : "";
+                    }
+                    else
+                    {
+                        borderTransport.Visibility = Visibility.Collapsed;
+                    }
                 }
 
                 await using var cn = new SqlConnection(_connLibra);
@@ -552,6 +687,12 @@ namespace Kalendarz1.WPF
             btnCreateInvoice.IsEnabled = false;
             btnMarkFakturowane.IsEnabled = false;
             txtInvoiceStatus.Text = "Wybierz zamówienie aby utworzyć fakturę";
+
+            // Ukryj panel transportu
+            borderTransport.Visibility = Visibility.Collapsed;
+            txtGodzWyjazdu.Text = "";
+            txtKierowca.Text = "";
+            txtPojazd.Text = "";
         }
 
         private async void BtnCreateInvoice_Click(object sender, RoutedEventArgs e)
