@@ -222,24 +222,76 @@ namespace Kalendarz1.WPF
                     _productsCache[id] = name;
                 }
 
-                // Wypełnij ComboBox
-                cbProductFilter.Items.Clear();
-                cbProductFilter.Items.Add(new ComboBoxItem { Content = "Wszystkie towary", Tag = (int?)null });
-                foreach (var prod in _productsCache.OrderBy(p => p.Value))
-                {
-                    cbProductFilter.Items.Add(new ComboBoxItem { Content = prod.Value, Tag = prod.Key });
-                }
-                cbProductFilter.SelectedIndex = 0;
+                GenerateProductButtons();
             }
             catch { }
         }
 
-        private void CbProductFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void GenerateProductButtons()
         {
-            if (cbProductFilter.SelectedItem is ComboBoxItem item)
+            pnlProductButtons.Children.Clear();
+
+            // Przycisk "Wszystkie"
+            var btnAll = new Button
             {
-                _selectedProductId = item.Tag as int?;
-                _ = RefreshDataAsync();
+                Content = "Wszystkie",
+                Margin = new Thickness(2),
+                Padding = new Thickness(10, 5, 10, 5),
+                FontSize = 11,
+                Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Tag = (int?)null
+            };
+            btnAll.Click += ProductButton_Click;
+            pnlProductButtons.Children.Add(btnAll);
+
+            foreach (var product in _productsCache.OrderBy(x => x.Value))
+            {
+                var btn = new Button
+                {
+                    Content = product.Value,
+                    Margin = new Thickness(2),
+                    Padding = new Thickness(10, 5, 10, 5),
+                    FontSize = 11,
+                    Background = new SolidColorBrush(Color.FromRgb(236, 240, 241)),
+                    Foreground = Brushes.Black,
+                    BorderThickness = new Thickness(1),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(189, 195, 199)),
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    Tag = product.Key
+                };
+                btn.Click += ProductButton_Click;
+                pnlProductButtons.Children.Add(btn);
+            }
+        }
+
+        private async void ProductButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn)
+            {
+                // Reset wszystkich przycisków
+                foreach (var child in pnlProductButtons.Children.OfType<Button>())
+                {
+                    if (child.Tag == null)
+                    {
+                        child.Background = new SolidColorBrush(Color.FromRgb(52, 152, 219));
+                        child.Foreground = Brushes.White;
+                    }
+                    else
+                    {
+                        child.Background = new SolidColorBrush(Color.FromRgb(236, 240, 241));
+                        child.Foreground = Brushes.Black;
+                    }
+                }
+
+                // Podświetl wybrany
+                btn.Background = new SolidColorBrush(Color.FromRgb(46, 204, 113));
+                btn.Foreground = Brushes.White;
+
+                _selectedProductId = btn.Tag as int?;
+                await RefreshDataAsync();
             }
         }
 

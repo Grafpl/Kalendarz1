@@ -140,6 +140,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -186,10 +187,7 @@
 
                 <!-- Filtry -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
-                    <TextBlock Text="Towar:" VerticalAlignment="Center" Margin="0,0,5,0" FontWeight="Medium"/>
-                    <ComboBox x:Name="cbProductFilter" Width="180" Height="30" VerticalContentAlignment="Center"
-                              SelectionChanged="CbProductFilter_SelectionChanged"/>
-                    <TextBlock Text="Szukaj:" VerticalAlignment="Center" Margin="15,0,5,0"/>
+                    <TextBlock Text="Szukaj:" VerticalAlignment="Center" Margin="0,0,5,0"/>
                     <TextBox x:Name="txtSearch" Width="120" Height="30" VerticalContentAlignment="Center"
                              TextChanged="TxtSearch_TextChanged"/>
                     <CheckBox x:Name="chkShowFakturowane" Content="Pokaż zafakturowane"
@@ -199,8 +197,24 @@
             </Grid>
         </Border>
 
+        <!-- PASEK FILTROWANIA PO TOWARZE -->
+        <Border Grid.Row="2" Background="#F8F9FA" Padding="10,6" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Towar:" VerticalAlignment="Center" Margin="0,0,10,0"
+                           FontWeight="Medium" Foreground="#5D6D7E"/>
+                <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Disabled">
+                    <WrapPanel x:Name="pnlProductButtons" Orientation="Horizontal"/>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
         <!-- ZAWARTOŚĆ - dwie kolumny -->
-        <Grid Grid.Row="2">
+        <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="480"/>
