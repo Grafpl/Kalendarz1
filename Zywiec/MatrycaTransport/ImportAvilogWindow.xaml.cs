@@ -597,9 +597,9 @@ namespace Kalendarz1
                 var result = MessageBox.Show(
                     $"Nie wszystkie hodowcy zostali zmapowani ({niezamapowani.Count} niezamapowanych).\n\n" +
                     "Niezamapowani:\n" +
-                    string.Join("\n", niezamapowani.Take(5).Select(r => $"  - {r.AvilogHodowca}")) +
+                    string.Join("\n", niezamapowani.Take(5).Select(r => $"  - {r.AvilogHodowca ?? "(brak nazwy)"}")) +
                     (niezamapowani.Count > 5 ? $"\n  ... i {niezamapowani.Count - 5} więcej" : "") +
-                    "\n\nCzy chcesz kontynuować? Niezamapowane wiersze zostaną pominięte.",
+                    "\n\nCzy chcesz kontynuować? Niezamapowane wiersze będą zaimportowane do ręcznego poprawienia.",
                     "Niezamapowani hodowcy",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Warning);
@@ -614,8 +614,8 @@ namespace Kalendarz1
                 SaveMappings();
             }
 
-            // Przygotuj wynik
-            ImportedRows = importData.Where(r => !string.IsNullOrEmpty(r.MappedHodowcaGID)).ToList();
+            // Przygotuj wynik - WSZYSTKIE wiersze (również bez hodowcy)
+            ImportedRows = importData.ToList();
             ImportSuccess = true;
 
             lblStatus.Text = $"Zaimportowano {ImportedRows.Count} wierszy.";
