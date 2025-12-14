@@ -724,8 +724,8 @@ namespace Kalendarz1.WPF
             // Klient z wykrzyknikiem gdy jest zmiana
             public string Klient => Info.CzyZmodyfikowaneDlaFaktur ? $"⚠️ {Info.Klient}" : Info.Klient;
 
-            // Kolor nazwy klienta - żółty gdy zmiana
-            public Brush KlientColor => Info.CzyZmodyfikowaneDlaFaktur ? Brushes.Yellow : Brushes.White;
+            // Kolor nazwy klienta - pomarańczowy gdy zmiana, czarny normalnie
+            public Brush KlientColor => Info.CzyZmodyfikowaneDlaFaktur ? Brushes.OrangeRed : Brushes.Black;
 
             public string Handlowiec => Info.Handlowiec;
             public decimal TotalIlosc => Info.TotalIlosc;
@@ -746,9 +746,9 @@ namespace Kalendarz1.WPF
             {
                 get
                 {
-                    if (Info.CzyZmodyfikowaneDlaFaktur) return Brushes.Orange;
-                    if (Info.CzyZafakturowane) return Brushes.LimeGreen;
-                    return Brushes.White;
+                    if (Info.CzyZmodyfikowaneDlaFaktur) return Brushes.OrangeRed;
+                    if (Info.CzyZafakturowane) return Brushes.Green;
+                    return Brushes.Black;
                 }
             }
 

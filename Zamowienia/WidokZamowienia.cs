@@ -1439,10 +1439,11 @@ namespace Kalendarz1
             {
                 orderId = _idZamowieniaDoEdycji.Value;
 
-                string updateSql = @"UPDATE [dbo].[ZamowieniaMieso] SET 
-            DataZamowienia = @dz, DataPrzyjazdu = @dp, KlientId = @kid, Uwagi = @uw, 
-            KtoMod = @km, KiedyMod = SYSDATETIME(), LiczbaPojemnikow = @poj, 
-            LiczbaPalet = @pal, TrybE2 = @e2, TransportStatus = @ts";
+                string updateSql = @"UPDATE [dbo].[ZamowieniaMieso] SET
+            DataZamowienia = @dz, DataPrzyjazdu = @dp, KlientId = @kid, Uwagi = @uw,
+            KtoMod = @km, KiedyMod = SYSDATETIME(), LiczbaPojemnikow = @poj,
+            LiczbaPalet = @pal, TrybE2 = @e2, TransportStatus = @ts,
+            CzyZmodyfikowaneDlaFaktur = 1, DataOstatniejModyfikacji = SYSDATETIME(), ModyfikowalPrzez = @km";
 
                 if (dataProdukcjiExists) updateSql += ", DataProdukcji = @dprod";
                 if (dataUbojuExists) updateSql += ", DataUboju = @duboj";

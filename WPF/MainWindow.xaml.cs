@@ -5897,6 +5897,17 @@ ORDER BY zm.Id";
 
                 await cmdUpdate.ExecuteNonQueryAsync();
 
+                // Oznacz zamówienie jako zmodyfikowane dla faktur
+                await using var cmdFlagModified = new SqlCommand(
+                    @"UPDATE dbo.ZamowieniaMieso
+                      SET CzyZmodyfikowaneDlaFaktur = 1,
+                          DataOstatniejModyfikacji = SYSDATETIME(),
+                          ModyfikowalPrzez = @user
+                      WHERE Id = @orderId", cn);
+                cmdFlagModified.Parameters.AddWithValue("@orderId", _currentOrderId.Value);
+                cmdFlagModified.Parameters.AddWithValue("@user", UserID);
+                await cmdFlagModified.ExecuteNonQueryAsync();
+
                 // Zapisz w historii zmian (używając HistoriaZmianService)
                 string staraWartosc = FormatValueForHistory(oldValue, columnName);
                 string nowaWartosc = FormatValueForHistory(newValue, columnName);
