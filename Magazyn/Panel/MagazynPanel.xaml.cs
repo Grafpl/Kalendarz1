@@ -445,9 +445,10 @@ namespace Kalendarz1
 
         private async void ProductButton_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button btn && btn.Tag is int productId)
+            if (sender is Button btn && btn.Tag != null)
             {
-                _filteredProductId = productId == 0 ? null : productId;
+                int productId = Convert.ToInt32(btn.Tag);
+                _filteredProductId = productId == 0 ? (int?)null : productId;
                 SetProductButtonSelected(btn);
                 await LoadOrdersAsync();
             }
@@ -540,6 +541,10 @@ namespace Kalendarz1
                     var cmd = new SqlCommand(sqlBuilder.ToString(), cn);
                     cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
                     if (_filteredProductId.HasValue) cmd.Parameters.AddWithValue("@P", _filteredProductId.Value);
+
+                    // Debug: pokaż zapytanie SQL
+                    System.Diagnostics.Debug.WriteLine($"[MagazynPanel] Filter: {(_filteredProductId.HasValue ? _filteredProductId.Value.ToString() : "BRAK")}");
+                    System.Diagnostics.Debug.WriteLine($"[MagazynPanel] SQL: {sqlBuilder}");
 
                     using var rd = await cmd.ExecuteReaderAsync();
                     while (await rd.ReadAsync())
