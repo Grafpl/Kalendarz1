@@ -470,6 +470,16 @@ namespace Kalendarz1
                 SetProductButtonSelected(btn);
                 await LoadOrdersAsync();
                 await LoadPlanDniaAsync();
+
+                // DEBUG: pokaż info o filtrze w tytule okna
+                string nazwaFiltra;
+                if (!string.IsNullOrEmpty(_filteredGroupName))
+                    nazwaFiltra = $"Grupa: {_filteredGroupName}";
+                else if (_filteredProductId.HasValue)
+                    nazwaFiltra = _produktLookup.ContainsKey(_filteredProductId.Value) ? _produktLookup[_filteredProductId.Value] : $"ID:{_filteredProductId.Value}";
+                else
+                    nazwaFiltra = "Wszystkie";
+                this.Title = $"Panel Produkcja - Filtr: {nazwaFiltra} ({_zamowienia.Count} zamówień)";
             }
         }
 
@@ -555,10 +565,20 @@ namespace Kalendarz1
                     // Sprawdź czy kolumny częściowej realizacji istnieją
                     bool hasPartialColumns = await CheckPartialRealizationColumnsExistAsync(cn);
 
+                    // Przygotuj listę produktów do filtrowania (dla grupy)
+                    List<int> produktyDoFiltrowania = null;
+                    if (!string.IsNullOrEmpty(_filteredGroupName) && _grupyDoProduktow.TryGetValue(_filteredGroupName, out var grpProdukty) && grpProdukty.Any())
+                    {
+                        produktyDoFiltrowania = grpProdukty;
+                    }
+
                     var sqlBuilder = new System.Text.StringBuilder();
                     sqlBuilder.Append("SELECT z.Id, z.KlientId, ISNULL(z.Uwagi,'') AS Uwagi, ISNULL(z.Status,'Nowe') AS Status, ");
                     sqlBuilder.Append("(SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id");
-                    if (_filteredProductId.HasValue) sqlBuilder.Append(" AND t.KodTowaru=@P");
+                    if (_filteredProductId.HasValue)
+                        sqlBuilder.Append(" AND t.KodTowaru=@P");
+                    else if (produktyDoFiltrowania != null)
+                        sqlBuilder.Append($" AND t.KodTowaru IN ({string.Join(",", produktyDoFiltrowania)})");
                     sqlBuilder.Append(") AS TotalIlosc, z.DataUtworzenia, z.TransportKursID, ");
                     sqlBuilder.Append("CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id AND t.Folia = 1) THEN 1 ELSE 0 END AS BIT) AS MaFolie, ");
                     sqlBuilder.Append("ISNULL(z.CzyZrealizowane, 0) AS CzyZrealizowane, ");
@@ -575,7 +595,10 @@ namespace Kalendarz1
                     else
                         sqlBuilder.Append(", CAST(0 AS BIT) AS CzyCzesciowoZrealizowane, NULL AS ProcentRealizacji");
                     sqlBuilder.Append($" FROM dbo.ZamowieniaMieso z WHERE z.{dateColumn}=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')");
-                    if (_filteredProductId.HasValue) sqlBuilder.Append(" AND EXISTS (SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId=z.Id AND t.KodTowaru=@P)");
+                    if (_filteredProductId.HasValue)
+                        sqlBuilder.Append(" AND EXISTS (SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId=z.Id AND t.KodTowaru=@P)");
+                    else if (produktyDoFiltrowania != null)
+                        sqlBuilder.Append($" AND EXISTS (SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId=z.Id AND t.KodTowaru IN ({string.Join(",", produktyDoFiltrowania)}))");
 
                     var cmd = new SqlCommand(sqlBuilder.ToString(), cn);
                     cmd.Parameters.AddWithValue("@D", _selectedDate.Date);

@@ -52,6 +52,10 @@ namespace Kalendarz1
 
         private async void InitializeAsync()
         {
+            // Ustaw domyślny zakres dat dla Historii wydań - ostatnie 2 tygodnie
+            dpHistoriaOd.SelectedDate = DateTime.Today.AddDays(-14);
+            dpHistoriaDo.SelectedDate = DateTime.Today;
+
             await ReloadAllAsync();
         }
 
