@@ -253,9 +253,70 @@
                     <DataGrid x:Name="dgOrders" Grid.Row="2" Style="{StaticResource ModernDataGridStyle}"
                               ColumnHeaderStyle="{StaticResource ModernDataGridColumnHeaderStyle}"
                               CellStyle="{StaticResource ModernDataGridCellStyle}"
-                              RowStyle="{StaticResource ModernDataGridRowStyle}"
+                              ItemsSource="{Binding ZamowieniaList}"
                               SelectionChanged="DgOrders_SelectionChanged"
                               MouseDoubleClick="DgOrders_MouseDoubleClick">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow" BasedOn="{StaticResource ModernDataGridRowStyle}">
+                                <Setter Property="Background" Value="{Binding RowBackground}"/>
+                            </Style>
+                        </DataGrid.RowStyle>
+                        <DataGrid.Columns>
+                            <!-- Klient z wykrzyknikiem i żółtym kolorem gdy zmiana -->
+                            <DataGridTemplateColumn Header="Odbiorca" Width="180">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Klient}" Foreground="{Binding KlientColor}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="5,0"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="80"/>
+                            <DataGridTextColumn Header="Ilość [kg]" Binding="{Binding TotalIlosc, StringFormat=N0}" Width="75">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="Margin" Value="0,0,5,0"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Wartość" Binding="{Binding Wartosc, StringFormat=N2}" Width="85">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="Margin" Value="0,0,5,0"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <!-- Status z kolorem -->
+                            <DataGridTemplateColumn Header="Status" Width="100">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding StatusDisplay}" Foreground="{Binding StatusColor}" FontWeight="Medium" VerticalAlignment="Center"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <!-- Data ostatniej zmiany -->
+                            <DataGridTemplateColumn Header="Ost. Zmiana" Width="90">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding OstatniaZmiana}" Foreground="{Binding ZmianaColor}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <!-- Kto zmienił -->
+                            <DataGridTextColumn Header="Kto zmienił" Binding="{Binding KtoZmienil}" Width="80"/>
+                            <!-- Kolumny transportowe -->
+                            <DataGridTextColumn Header="Wyjazd" Binding="{Binding GodzWyjazdu}" Width="90">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Kierowca" Binding="{Binding Kierowca}" Width="90"/>
+                            <DataGridTextColumn Header="Nr faktury" Binding="{Binding NumerFaktury}" Width="90"/>
+                        </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
             </Border>

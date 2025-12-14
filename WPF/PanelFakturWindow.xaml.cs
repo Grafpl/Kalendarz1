@@ -1,9 +1,12 @@
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Data;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -11,7 +14,7 @@ using System.Windows.Media;
 
 namespace Kalendarz1.WPF
 {
-    public partial class PanelFakturWindow : Window
+    public partial class PanelFakturWindow : Window, INotifyPropertyChanged
     {
         private readonly string _connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private readonly string _connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
@@ -22,15 +25,21 @@ namespace Kalendarz1.WPF
         private DateTime _selectedDate;
         private int? _currentOrderId;
         private bool _showFakturowane = false;
-        private readonly DataTable _dtOrders = new();
         private readonly DataTable _dtDetails = new();
         private readonly List<Button> _dayButtons = new();
         private readonly Dictionary<Button, DateTime> _dayButtonDates = new();
         private readonly Dictionary<int, (string Name, string Salesman)> _contractorsCache = new();
 
+        public ObservableCollection<ZamowienieViewModel> ZamowieniaList { get; } = new();
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
         public PanelFakturWindow()
         {
             InitializeComponent();
+            DataContext = this;
             Loaded += PanelFakturWindow_Loaded;
         }
 
@@ -121,7 +130,6 @@ namespace Kalendarz1.WPF
                 });
                 _dayButtons[i].Content = stack;
 
-                // Podświetl wybrany dzień
                 if (date.Date == _selectedDate.Date)
                 {
                     _dayButtons[i].Background = new SolidColorBrush(Color.FromRgb(25, 118, 210));
@@ -195,88 +203,48 @@ namespace Kalendarz1.WPF
         private async Task RefreshDataAsync()
         {
             await LoadOrdersAsync();
-            SetupOrdersDataGrid();
-            ApplyFilters();
             ClearDetails();
         }
 
         private async Task LoadOrdersAsync()
         {
-            // Wyczyść RowFilter przed modyfikacją kolumn
-            if (_dtOrders.DefaultView != null)
-            {
-                _dtOrders.DefaultView.RowFilter = "";
-            }
-
-            _dtOrders.Clear();
-            _dtOrders.Columns.Clear();
-
-            _dtOrders.Columns.Add("Id", typeof(int));
-            _dtOrders.Columns.Add("KlientId", typeof(int));
-            _dtOrders.Columns.Add("Odbiorca", typeof(string));
-            _dtOrders.Columns.Add("Handlowiec", typeof(string));
-            _dtOrders.Columns.Add("IloscZamowiona", typeof(decimal));
-            _dtOrders.Columns.Add("Wartosc", typeof(decimal));
-            _dtOrders.Columns.Add("DataZamowienia", typeof(DateTime));
-            _dtOrders.Columns.Add("DataUboju", typeof(DateTime));
-            _dtOrders.Columns.Add("Status", typeof(string));
-            _dtOrders.Columns.Add("CzyZafakturowane", typeof(bool));
-            _dtOrders.Columns.Add("NumerFaktury", typeof(string));
-            _dtOrders.Columns.Add("UtworzonePrzez", typeof(string));
-            _dtOrders.Columns.Add("TransportKursID", typeof(long));
-            _dtOrders.Columns.Add("GodzWyjazdu", typeof(string));
-            _dtOrders.Columns.Add("Kierowca", typeof(string));
-            _dtOrders.Columns.Add("Pojazd", typeof(string));
-            _dtOrders.Columns.Add("CzyZmodyfikowaneDlaFaktur", typeof(bool));
-            _dtOrders.Columns.Add("DataOstatniejModyfikacji", typeof(DateTime));
-            _dtOrders.Columns.Add("Zmiana", typeof(string));
+            ZamowieniaList.Clear();
 
             try
             {
                 await using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
 
-                // Sprawdź czy kolumny istnieją
-                bool hasFakturaColumn = await CheckColumnExistsAsync(cn, "ZamowieniaMieso", "CzyZafakturowane");
-                bool hasTransportColumn = await CheckColumnExistsAsync(cn, "ZamowieniaMieso", "TransportKursID");
-                bool hasZmianaColumn = await CheckColumnExistsAsync(cn, "ZamowieniaMieso", "CzyZmodyfikowaneDlaFaktur");
-                bool hasModyfikacjaColumn = await CheckColumnExistsAsync(cn, "ZamowieniaMieso", "DataOstatniejModyfikacji");
+                // Upewnij się że kolumny istnieją
+                await EnsureColumnsExistAsync(cn);
 
-                string fakturaSelect = hasFakturaColumn ? ", ISNULL(zm.CzyZafakturowane, 0) AS CzyZafakturowane, zm.NumerFaktury" : ", 0 AS CzyZafakturowane, NULL AS NumerFaktury";
-                string transportSelect = hasTransportColumn ? ", zm.TransportKursID" : ", NULL AS TransportKursID";
-                string zmianaSelect = hasZmianaColumn ? ", ISNULL(zm.CzyZmodyfikowaneDlaFaktur, 0) AS CzyZmodyfikowaneDlaFaktur" : ", 0 AS CzyZmodyfikowaneDlaFaktur";
-                string modyfikacjaSelect = hasModyfikacjaColumn ? ", zm.DataOstatniejModyfikacji" : ", NULL AS DataOstatniejModyfikacji";
-
-                string transportGroupBy = hasTransportColumn ? ", zm.TransportKursID" : "";
-                string zmianaGroupBy = hasZmianaColumn ? ", zm.CzyZmodyfikowaneDlaFaktur" : "";
-                string modyfikacjaGroupBy = hasModyfikacjaColumn ? ", zm.DataOstatniejModyfikacji" : "";
-
-                string sql = $@"
+                string sql = @"
                     SELECT zm.Id, zm.KlientId,
                            SUM(ISNULL(zmt.Ilosc, 0)) AS IloscZamowiona,
                            SUM(ISNULL(CAST(zmt.Cena AS decimal(18,2)) * zmt.Ilosc, 0)) AS Wartosc,
-                           zm.DataZamowienia, zm.DataUboju, zm.Status, zm.IdUser
-                           {fakturaSelect}
-                           {transportSelect}
-                           {zmianaSelect}
-                           {modyfikacjaSelect}
+                           zm.DataZamowienia, zm.DataUboju, zm.Status, zm.IdUser,
+                           ISNULL(zm.CzyZafakturowane, 0) AS CzyZafakturowane,
+                           zm.NumerFaktury,
+                           zm.TransportKursID,
+                           ISNULL(zm.CzyZmodyfikowaneDlaFaktur, 0) AS CzyZmodyfikowaneDlaFaktur,
+                           zm.DataOstatniejModyfikacji,
+                           zm.ModyfikowalPrzez
                     FROM [dbo].[ZamowieniaMieso] zm
                     LEFT JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
                     WHERE zm.DataUboju = @Day
                       AND zm.Status <> 'Anulowane'
-                    GROUP BY zm.Id, zm.KlientId, zm.DataZamowienia, zm.DataUboju, zm.Status, zm.IdUser
-                             {(hasFakturaColumn ? ", zm.CzyZafakturowane, zm.NumerFaktury" : "")}
-                             {transportGroupBy}
-                             {zmianaGroupBy}
-                             {modyfikacjaGroupBy}
+                    GROUP BY zm.Id, zm.KlientId, zm.DataZamowienia, zm.DataUboju, zm.Status, zm.IdUser,
+                             zm.CzyZafakturowane, zm.NumerFaktury, zm.TransportKursID,
+                             zm.CzyZmodyfikowaneDlaFaktur, zm.DataOstatniejModyfikacji, zm.ModyfikowalPrzez
                     ORDER BY zm.Id";
 
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Day", _selectedDate.Date);
 
-                await using var reader = await cmd.ExecuteReaderAsync();
                 var kursIds = new HashSet<long>();
+                var tempList = new List<ZamowienieInfo>();
 
+                await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
                     int id = reader.GetInt32(0);
@@ -292,49 +260,61 @@ namespace Kalendarz1.WPF
                     long? transportKursId = reader.IsDBNull(10) ? null : Convert.ToInt64(reader.GetValue(10));
                     bool czyZmodyfikowane = !reader.IsDBNull(11) && Convert.ToBoolean(reader.GetValue(11));
                     DateTime? dataModyfikacji = reader.IsDBNull(12) ? null : reader.GetDateTime(12);
+                    string modyfikowalPrzez = reader.IsDBNull(13) ? "" : reader.GetString(13);
 
                     var (name, salesman) = _contractorsCache.TryGetValue(clientId, out var c) ? c : ($"Klient {clientId}", "");
 
-                    // Określ tekst zmiany
-                    string zmianaTekst = "";
-                    if (czyZmodyfikowane)
+                    var info = new ZamowienieInfo
                     {
-                        zmianaTekst = dataModyfikacji.HasValue ? $"⚠️ {dataModyfikacji.Value:HH:mm}" : "⚠️ Zmiana";
-                    }
-
-                    var row = _dtOrders.NewRow();
-                    row["Id"] = id;
-                    row["KlientId"] = clientId;
-                    row["Odbiorca"] = name;
-                    row["Handlowiec"] = salesman;
-                    row["IloscZamowiona"] = ilosc;
-                    row["Wartosc"] = wartosc;
-                    row["DataZamowienia"] = dataZam ?? DateTime.MinValue;
-                    row["DataUboju"] = dataUboju ?? DateTime.MinValue;
-                    row["Status"] = czyZafakturowane ? "Zafakturowane" : status;
-                    row["CzyZafakturowane"] = czyZafakturowane;
-                    row["NumerFaktury"] = numerFaktury;
-                    row["UtworzonePrzez"] = idUser;
-                    row["CzyZmodyfikowaneDlaFaktur"] = czyZmodyfikowane;
-                    row["DataOstatniejModyfikacji"] = dataModyfikacji ?? DateTime.MinValue;
-                    row["Zmiana"] = zmianaTekst;
+                        Id = id,
+                        KlientId = clientId,
+                        Klient = name,
+                        Handlowiec = salesman,
+                        TotalIlosc = ilosc,
+                        Wartosc = wartosc,
+                        DataZamowienia = dataZam,
+                        DataUboju = dataUboju,
+                        Status = status,
+                        UtworzonePrzez = idUser,
+                        CzyZafakturowane = czyZafakturowane,
+                        NumerFaktury = numerFaktury,
+                        TransportKursID = transportKursId,
+                        CzyZmodyfikowaneDlaFaktur = czyZmodyfikowane,
+                        DataOstatniejModyfikacji = dataModyfikacji,
+                        ModyfikowalPrzez = modyfikowalPrzez
+                    };
 
                     if (transportKursId.HasValue)
-                    {
-                        row["TransportKursID"] = transportKursId.Value;
                         kursIds.Add(transportKursId.Value);
-                    }
 
-                    _dtOrders.Rows.Add(row);
+                    tempList.Add(info);
                 }
 
-                // Pobierz informacje o transporcie z TransportPL
+                // Pobierz info o transporcie
                 if (kursIds.Count > 0)
                 {
-                    await LoadTransportInfoAsync(kursIds);
+                    var transportInfo = await LoadTransportInfoAsync(kursIds);
+                    foreach (var info in tempList)
+                    {
+                        if (info.TransportKursID.HasValue && transportInfo.TryGetValue(info.TransportKursID.Value, out var ti))
+                        {
+                            info.GodzWyjazdu = ti.GodzWyjazdu;
+                            info.Kierowca = ti.Kierowca;
+                            info.Pojazd = ti.Pojazd;
+                        }
+                    }
                 }
 
-                txtOrdersCount.Text = $"{_dtOrders.Rows.Count} zamówień";
+                // Filtruj i dodaj do listy
+                foreach (var info in tempList)
+                {
+                    if (!_showFakturowane && info.CzyZafakturowane)
+                        continue;
+
+                    ZamowieniaList.Add(new ZamowienieViewModel(info));
+                }
+
+                txtOrdersCount.Text = $"{ZamowieniaList.Count} zamówień";
             }
             catch (Exception ex)
             {
@@ -342,22 +322,11 @@ namespace Kalendarz1.WPF
             }
         }
 
-        private async Task<bool> CheckColumnExistsAsync(SqlConnection cn, string tableName, string columnName)
+        private async Task<Dictionary<long, (string GodzWyjazdu, string Kierowca, string Pojazd)>> LoadTransportInfoAsync(HashSet<long> kursIds)
         {
-            try
-            {
-                await using var cmd = new SqlCommand(
-                    $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{tableName}' AND COLUMN_NAME = '{columnName}'", cn);
-                return (int)await cmd.ExecuteScalarAsync()! > 0;
-            }
-            catch { return false; }
-        }
+            var result = new Dictionary<long, (string GodzWyjazdu, string Kierowca, string Pojazd)>();
+            if (kursIds.Count == 0) return result;
 
-        private async Task LoadTransportInfoAsync(HashSet<long> kursIds)
-        {
-            if (kursIds.Count == 0) return;
-
-            // Polskie nazwy miesięcy (skrócone)
             string[] polskieMiesiace = { "", "Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru" };
 
             try
@@ -365,7 +334,6 @@ namespace Kalendarz1.WPF
                 await using var cn = new SqlConnection(_connTransport);
                 await cn.OpenAsync();
 
-                // Pobierz dane kursów z kierowcami i pojazdami
                 var kursIdsList = string.Join(",", kursIds);
                 string sql = $@"
                     SELECT k.KursID, k.GodzWyjazdu, k.DataKursu,
@@ -375,8 +343,6 @@ namespace Kalendarz1.WPF
                     LEFT JOIN dbo.Kierowca kier ON k.KierowcaID = kier.KierowcaID
                     LEFT JOIN dbo.Pojazd p ON k.PojazdID = p.PojazdID
                     WHERE k.KursID IN ({kursIdsList})";
-
-                var transportInfo = new Dictionary<long, (string GodzWyjazdu, string Kierowca, string Pojazd)>();
 
                 await using var cmd = new SqlCommand(sql, cn);
                 await using var reader = await cmd.ExecuteReaderAsync();
@@ -389,7 +355,6 @@ namespace Kalendarz1.WPF
                     string kierowca = reader.IsDBNull(3) ? "" : reader.GetString(3);
                     string pojazd = reader.IsDBNull(4) ? "" : reader.GetString(4);
 
-                    // Format: "08:30 Sty 12"
                     string godzWyjazduStr = "";
                     if (godzWyjazdu.HasValue && dataKursu.HasValue)
                     {
@@ -401,239 +366,72 @@ namespace Kalendarz1.WPF
                         godzWyjazduStr = godzWyjazdu.Value.ToString(@"hh\:mm");
                     }
 
-                    transportInfo[kursId] = (godzWyjazduStr, kierowca, pojazd);
-                }
-
-                // Zaktualizuj wiersze w DataTable
-                foreach (DataRow row in _dtOrders.Rows)
-                {
-                    if (row["TransportKursID"] != DBNull.Value)
-                    {
-                        long kursId = Convert.ToInt64(row["TransportKursID"]);
-                        if (transportInfo.TryGetValue(kursId, out var info))
-                        {
-                            row["GodzWyjazdu"] = info.GodzWyjazdu;
-                            row["Kierowca"] = info.Kierowca;
-                            row["Pojazd"] = info.Pojazd;
-                        }
-                    }
+                    result[kursId] = (godzWyjazduStr, kierowca, pojazd);
                 }
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Błąd pobierania informacji o transporcie: {ex.Message}");
-            }
-        }
-
-        private void SetupOrdersDataGrid()
-        {
-            dgOrders.ItemsSource = _dtOrders.DefaultView;
-            dgOrders.Columns.Clear();
-
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Odbiorca",
-                Binding = new System.Windows.Data.Binding("Odbiorca"),
-                Width = new DataGridLength(180)
-            });
-
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Handlowiec",
-                Binding = new System.Windows.Data.Binding("Handlowiec"),
-                Width = new DataGridLength(80)
-            });
-
-            var iloscStyle = new Style(typeof(TextBlock));
-            iloscStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
-            iloscStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
-
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Ilość [kg]",
-                Binding = new System.Windows.Data.Binding("IloscZamowiona") { StringFormat = "N0" },
-                Width = new DataGridLength(80),
-                ElementStyle = iloscStyle
-            });
-
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Wartość [PLN]",
-                Binding = new System.Windows.Data.Binding("Wartosc") { StringFormat = "N2" },
-                Width = new DataGridLength(100),
-                ElementStyle = iloscStyle
-            });
-
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Status",
-                Binding = new System.Windows.Data.Binding("Status"),
-                Width = new DataGridLength(100)
-            });
-
-            // Kolumna zmian
-            var zmianaStyle = new Style(typeof(TextBlock));
-            zmianaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
-            zmianaStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
-
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Zmiana",
-                Binding = new System.Windows.Data.Binding("Zmiana"),
-                Width = new DataGridLength(80),
-                ElementStyle = zmianaStyle
-            });
-
-            // Kolumny transportowe
-            var centerStyle = new Style(typeof(TextBlock));
-            centerStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
-
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Wyjazd",
-                Binding = new System.Windows.Data.Binding("GodzWyjazdu"),
-                Width = new DataGridLength(95),
-                ElementStyle = centerStyle
-            });
-
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Kierowca",
-                Binding = new System.Windows.Data.Binding("Kierowca"),
-                Width = new DataGridLength(100)
-            });
-
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Pojazd",
-                Binding = new System.Windows.Data.Binding("Pojazd"),
-                Width = new DataGridLength(80)
-            });
-
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Nr faktury",
-                Binding = new System.Windows.Data.Binding("NumerFaktury"),
-                Width = new DataGridLength(100)
-            });
-
-            dgOrders.LoadingRow += DgOrders_LoadingRow;
-        }
-
-        private void DgOrders_LoadingRow(object sender, DataGridRowEventArgs e)
-        {
-            if (e.Row.Item is DataRowView rowView)
-            {
-                string status = rowView.Row.Field<string>("Status") ?? "";
-                bool czyZafakturowane = rowView.Row.Field<bool>("CzyZafakturowane");
-                bool czyZmodyfikowane = rowView.Row.Field<bool>("CzyZmodyfikowaneDlaFaktur");
-
-                // Kolorowanie według statusu - priorytet dla zmian
-                if (czyZmodyfikowane)
-                {
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 243, 224)); // Pomarańczowy - zmiana
-                    e.Row.BorderBrush = new SolidColorBrush(Color.FromRgb(255, 183, 77));
-                    e.Row.BorderThickness = new Thickness(2, 0, 0, 0);
-                }
-                else if (czyZafakturowane || status == "Zafakturowane")
-                {
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(232, 245, 233)); // Jasno zielony
-                    e.Row.FontStyle = FontStyles.Italic;
-                }
-                else if (status == "Zrealizowane")
-                {
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(241, 248, 233)); // Bardzo jasno zielony
-                }
-                else if (status == "W realizacji")
-                {
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(227, 242, 253)); // Jasno niebieski
-                }
-                else if (status == "Nowe")
-                {
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 248, 225)); // Jasno żółty/pomarańczowy
-                }
-            }
-        }
-
-        private void ApplyFilters()
-        {
-            var search = txtSearch?.Text?.Trim().Replace("'", "''") ?? "";
-            var conditions = new List<string>();
-
-            if (!string.IsNullOrEmpty(search))
-                conditions.Add($"Odbiorca LIKE '%{search}%'");
-
-            if (!_showFakturowane)
-                conditions.Add("CzyZafakturowane = False");
-
-            _dtOrders.DefaultView.RowFilter = conditions.Count > 0 ? string.Join(" AND ", conditions) : "";
+            catch { }
+            return result;
         }
 
         private void TxtSearch_TextChanged(object sender, TextChangedEventArgs e)
         {
-            ApplyFilters();
+            _ = RefreshDataAsync();
         }
 
         private void ChkShowFakturowane_Changed(object sender, RoutedEventArgs e)
         {
             _showFakturowane = chkShowFakturowane.IsChecked == true;
-            ApplyFilters();
+            _ = RefreshDataAsync();
         }
 
         private async void DgOrders_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (dgOrders.SelectedItem is DataRowView rowView)
+            if (dgOrders.SelectedItem is ZamowienieViewModel vm)
             {
-                int id = rowView.Row.Field<int>("Id");
-                if (id > 0)
+                _currentOrderId = vm.Info.Id;
+                await LoadOrderDetailsAsync(vm.Info.Id);
+
+                btnMarkFakturowane.IsEnabled = !vm.Info.CzyZafakturowane;
+
+                // Pokaż/ukryj panel zmiany
+                if (vm.Info.CzyZmodyfikowaneDlaFaktur)
                 {
-                    _currentOrderId = id;
-                    await LoadOrderDetailsAsync(id);
-
-                    bool czyZafakturowane = rowView.Row.Field<bool>("CzyZafakturowane");
-                    bool czyZmodyfikowane = rowView.Row.Field<bool>("CzyZmodyfikowaneDlaFaktur");
-                    DateTime dataModyfikacji = rowView.Row.Field<DateTime>("DataOstatniejModyfikacji");
-
-                    btnMarkFakturowane.IsEnabled = !czyZafakturowane;
-
-                    // Pokaż/ukryj panel zmiany
-                    if (czyZmodyfikowane)
-                    {
-                        borderZmiana.Visibility = Visibility.Visible;
-                        string czasZmiany = dataModyfikacji > DateTime.MinValue ? $" o godz. {dataModyfikacji:HH:mm}" : "";
-                        txtZmianaInfo.Text = $"Zamówienie zostało zmodyfikowane{czasZmiany}.\nZatwierdź, że przyjmujesz do wiadomości tę zmianę.";
-                    }
-                    else
-                    {
-                        borderZmiana.Visibility = Visibility.Collapsed;
-                    }
-
-                    if (czyZafakturowane)
-                    {
-                        string nrFaktury = rowView.Row.Field<string>("NumerFaktury") ?? "";
-                        txtInvoiceStatus.Text = $"Zamówienie zafakturowane.\nNr: {nrFaktury}";
-                    }
-                    else if (czyZmodyfikowane)
-                    {
-                        txtInvoiceStatus.Text = "Zamówienie wymaga zatwierdzenia zmiany.";
-                    }
-                    else
-                    {
-                        txtInvoiceStatus.Text = "Zamówienie gotowe do zafakturowania.";
-                    }
-                    return;
+                    borderZmiana.Visibility = Visibility.Visible;
+                    string czasZmiany = vm.Info.DataOstatniejModyfikacji.HasValue
+                        ? $" o godz. {vm.Info.DataOstatniejModyfikacji.Value:HH:mm}" : "";
+                    string ktoZmienil = !string.IsNullOrEmpty(vm.Info.ModyfikowalPrzez)
+                        ? $"\nZmienił: {vm.Info.ModyfikowalPrzez}" : "";
+                    txtZmianaInfo.Text = $"Zamówienie zostało zmodyfikowane{czasZmiany}.{ktoZmienil}\nZatwierdź, że przyjmujesz do wiadomości tę zmianę.";
                 }
+                else
+                {
+                    borderZmiana.Visibility = Visibility.Collapsed;
+                }
+
+                if (vm.Info.CzyZafakturowane)
+                {
+                    txtInvoiceStatus.Text = $"Zamówienie zafakturowane.\nNr: {vm.Info.NumerFaktury}";
+                }
+                else if (vm.Info.CzyZmodyfikowaneDlaFaktur)
+                {
+                    txtInvoiceStatus.Text = "Zamówienie wymaga zatwierdzenia zmiany.";
+                }
+                else
+                {
+                    txtInvoiceStatus.Text = "Zamówienie gotowe do zafakturowania.";
+                }
+                return;
             }
             ClearDetails();
         }
 
         private void DgOrders_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            // Podwójne kliknięcie - otwórz szczegóły zamówienia
             if (_currentOrderId.HasValue)
             {
                 var widokZamowienia = new Kalendarz1.WidokZamowienia(UserID, _currentOrderId.Value);
                 widokZamowienia.ShowDialog();
+                _ = RefreshDataAsync();
             }
         }
 
@@ -649,26 +447,20 @@ namespace Kalendarz1.WPF
 
             try
             {
-                // Pobierz info o odbiorcy
-                var orderRow = _dtOrders.AsEnumerable().FirstOrDefault(r => r.Field<int>("Id") == orderId);
-                if (orderRow != null)
+                var vm = ZamowieniaList.FirstOrDefault(z => z.Info.Id == orderId);
+                if (vm != null)
                 {
-                    txtOdbiorca.Text = orderRow.Field<string>("Odbiorca") ?? "";
-                    txtHandlowiec.Text = $"Handlowiec: {orderRow.Field<string>("Handlowiec") ?? "brak"}";
-                    var dataZam = orderRow.Field<DateTime>("DataZamowienia");
-                    txtDataZamowienia.Text = dataZam > DateTime.MinValue ? $"Data zamówienia: {dataZam:dd.MM.yyyy}" : "";
+                    txtOdbiorca.Text = vm.Info.Klient;
+                    txtHandlowiec.Text = $"Handlowiec: {vm.Info.Handlowiec ?? "brak"}";
+                    txtDataZamowienia.Text = vm.Info.DataZamowienia.HasValue
+                        ? $"Data zamówienia: {vm.Info.DataZamowienia.Value:dd.MM.yyyy}" : "";
 
-                    // Wyświetl informacje o transporcie
-                    string godzWyjazdu = orderRow.Field<string>("GodzWyjazdu") ?? "";
-                    string kierowca = orderRow.Field<string>("Kierowca") ?? "";
-                    string pojazd = orderRow.Field<string>("Pojazd") ?? "";
-
-                    if (!string.IsNullOrEmpty(godzWyjazdu) || !string.IsNullOrEmpty(kierowca) || !string.IsNullOrEmpty(pojazd))
+                    if (!string.IsNullOrEmpty(vm.Info.GodzWyjazdu) || !string.IsNullOrEmpty(vm.Info.Kierowca) || !string.IsNullOrEmpty(vm.Info.Pojazd))
                     {
                         borderTransport.Visibility = Visibility.Visible;
-                        txtGodzWyjazdu.Text = godzWyjazdu;
-                        txtKierowca.Text = kierowca;
-                        txtPojazd.Text = pojazd;
+                        txtGodzWyjazdu.Text = vm.Info.GodzWyjazdu ?? "";
+                        txtKierowca.Text = vm.Info.Kierowca ?? "";
+                        txtPojazd.Text = vm.Info.Pojazd ?? "";
                     }
                     else
                     {
@@ -679,7 +471,6 @@ namespace Kalendarz1.WPF
                 await using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
 
-                // Pobierz produkty z zamówienia
                 var productNames = new Dictionary<int, string>();
                 await using (var cnHandel = new SqlConnection(_connHandel))
                 {
@@ -774,26 +565,19 @@ namespace Kalendarz1.WPF
             dgDetails.ItemsSource = null;
             btnMarkFakturowane.IsEnabled = false;
             txtInvoiceStatus.Text = "Wybierz zamówienie z listy";
-
-            // Ukryj panele
             borderTransport.Visibility = Visibility.Collapsed;
             borderZmiana.Visibility = Visibility.Collapsed;
-            txtGodzWyjazdu.Text = "";
-            txtKierowca.Text = "";
-            txtPojazd.Text = "";
         }
 
         private async void BtnAcceptChange_Click(object sender, RoutedEventArgs e)
         {
             if (!_currentOrderId.HasValue) return;
 
-            var orderRow = _dtOrders.AsEnumerable().FirstOrDefault(r => r.Field<int>("Id") == _currentOrderId.Value);
-            if (orderRow == null) return;
-
-            string odbiorca = orderRow.Field<string>("Odbiorca") ?? "";
+            var vm = ZamowieniaList.FirstOrDefault(z => z.Info.Id == _currentOrderId.Value);
+            if (vm == null) return;
 
             var result = MessageBox.Show(
-                $"Czy potwierdzasz, że wiesz o zmianach w zamówieniu '{odbiorca}'?\n\n" +
+                $"Czy potwierdzasz, że wiesz o zmianach w zamówieniu '{vm.Info.Klient}'?\n\n" +
                 "Kliknięcie 'Tak' oznaczy zmianę jako przyjętą do wiadomości.",
                 "Potwierdzenie przyjęcia zmiany - Faktury",
                 MessageBoxButton.YesNo,
@@ -806,10 +590,6 @@ namespace Kalendarz1.WPF
                     await using var cn = new SqlConnection(_connLibra);
                     await cn.OpenAsync();
 
-                    // Upewnij się że kolumna istnieje
-                    await EnsureZmianaColumnExistsAsync(cn);
-
-                    // Resetuj flagę zmiany
                     string sql = "UPDATE [dbo].[ZamowieniaMieso] SET CzyZmodyfikowaneDlaFaktur = 0 WHERE Id = @Id";
                     await using var cmd = new SqlCommand(sql, cn);
                     cmd.Parameters.AddWithValue("@Id", _currentOrderId.Value);
@@ -837,65 +617,153 @@ namespace Kalendarz1.WPF
 
             if (result == MessageBoxResult.Yes)
             {
-                await MarkAsFakturowaneAsync(_currentOrderId.Value, "");
+                try
+                {
+                    await using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
+
+                    string sql = "UPDATE [dbo].[ZamowieniaMieso] SET CzyZafakturowane = 1 WHERE Id = @Id";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Id", _currentOrderId.Value);
+                    await cmd.ExecuteNonQueryAsync();
+
+                    MessageBox.Show("Zamówienie zostało oznaczone jako zafakturowane.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                    await RefreshDataAsync();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
 
-        private async Task MarkAsFakturowaneAsync(int orderId, string numerFaktury)
+        private async Task EnsureColumnsExistAsync(SqlConnection cn)
         {
             try
             {
-                await using var cn = new SqlConnection(_connLibra);
-                await cn.OpenAsync();
-
-                // Najpierw upewnij się że kolumny istnieją
-                await EnsureFakturaColumnsExistAsync(cn);
-
-                string sql = "UPDATE [dbo].[ZamowieniaMieso] SET CzyZafakturowane = 1, NumerFaktury = @NrFaktury WHERE Id = @Id";
+                string sql = @"
+                    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'CzyZafakturowane')
+                        ALTER TABLE [dbo].[ZamowieniaMieso] ADD CzyZafakturowane BIT DEFAULT 0;
+                    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'NumerFaktury')
+                        ALTER TABLE [dbo].[ZamowieniaMieso] ADD NumerFaktury NVARCHAR(50) NULL;
+                    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'CzyZmodyfikowaneDlaFaktur')
+                        ALTER TABLE [dbo].[ZamowieniaMieso] ADD CzyZmodyfikowaneDlaFaktur BIT DEFAULT 0;
+                    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'DataOstatniejModyfikacji')
+                        ALTER TABLE [dbo].[ZamowieniaMieso] ADD DataOstatniejModyfikacji DATETIME NULL;
+                    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'ModyfikowalPrzez')
+                        ALTER TABLE [dbo].[ZamowieniaMieso] ADD ModyfikowalPrzez NVARCHAR(100) NULL;
+                    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'TransportKursID')
+                        ALTER TABLE [dbo].[ZamowieniaMieso] ADD TransportKursID BIGINT NULL;";
                 await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@Id", orderId);
-                cmd.Parameters.AddWithValue("@NrFaktury", string.IsNullOrEmpty(numerFaktury) ? DBNull.Value : numerFaktury);
                 await cmd.ExecuteNonQueryAsync();
-
-                MessageBox.Show("Zamówienie zostało oznaczone jako zafakturowane.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-                await RefreshDataAsync();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas oznaczania jako zafakturowane: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private async Task EnsureFakturaColumnsExistAsync(SqlConnection cn)
-        {
-            try
-            {
-                // Sprawdź i dodaj kolumnę CzyZafakturowane
-                await using var checkCmd1 = new SqlCommand(
-                    "IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'CzyZafakturowane') " +
-                    "ALTER TABLE [dbo].[ZamowieniaMieso] ADD CzyZafakturowane BIT DEFAULT 0", cn);
-                await checkCmd1.ExecuteNonQueryAsync();
-
-                // Sprawdź i dodaj kolumnę NumerFaktury
-                await using var checkCmd2 = new SqlCommand(
-                    "IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'NumerFaktury') " +
-                    "ALTER TABLE [dbo].[ZamowieniaMieso] ADD NumerFaktury NVARCHAR(50) NULL", cn);
-                await checkCmd2.ExecuteNonQueryAsync();
             }
             catch { }
         }
 
-        private async Task EnsureZmianaColumnExistsAsync(SqlConnection cn)
+        #region Data Classes
+
+        public class ZamowienieInfo
         {
-            try
-            {
-                // Sprawdź i dodaj kolumnę CzyZmodyfikowaneDlaFaktur
-                await using var checkCmd = new SqlCommand(
-                    "IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'CzyZmodyfikowaneDlaFaktur') " +
-                    "ALTER TABLE [dbo].[ZamowieniaMieso] ADD CzyZmodyfikowaneDlaFaktur BIT DEFAULT 0", cn);
-                await checkCmd.ExecuteNonQueryAsync();
-            }
-            catch { }
+            public int Id { get; set; }
+            public int KlientId { get; set; }
+            public string Klient { get; set; } = "";
+            public string Handlowiec { get; set; } = "";
+            public decimal TotalIlosc { get; set; }
+            public decimal Wartosc { get; set; }
+            public DateTime? DataZamowienia { get; set; }
+            public DateTime? DataUboju { get; set; }
+            public string Status { get; set; } = "";
+            public string UtworzonePrzez { get; set; } = "";
+            public bool CzyZafakturowane { get; set; }
+            public string NumerFaktury { get; set; } = "";
+            public long? TransportKursID { get; set; }
+            public string GodzWyjazdu { get; set; } = "";
+            public string Kierowca { get; set; } = "";
+            public string Pojazd { get; set; } = "";
+            public bool CzyZmodyfikowaneDlaFaktur { get; set; }
+            public DateTime? DataOstatniejModyfikacji { get; set; }
+            public string ModyfikowalPrzez { get; set; } = "";
         }
+
+        public class ZamowienieViewModel : INotifyPropertyChanged
+        {
+            public ZamowienieInfo Info { get; }
+            public ZamowienieViewModel(ZamowienieInfo info) { Info = info; }
+
+            // Klient z wykrzyknikiem gdy jest zmiana
+            public string Klient => Info.CzyZmodyfikowaneDlaFaktur ? $"⚠️ {Info.Klient}" : Info.Klient;
+
+            // Kolor nazwy klienta - żółty gdy zmiana
+            public Brush KlientColor => Info.CzyZmodyfikowaneDlaFaktur ? Brushes.Yellow : Brushes.White;
+
+            public string Handlowiec => Info.Handlowiec;
+            public decimal TotalIlosc => Info.TotalIlosc;
+            public decimal Wartosc => Info.Wartosc;
+
+            // Status wyświetlany
+            public string StatusDisplay
+            {
+                get
+                {
+                    if (Info.CzyZafakturowane) return "Zafakturowane";
+                    if (Info.CzyZmodyfikowaneDlaFaktur) return "⚠ Do zatwierdzenia";
+                    return Info.Status;
+                }
+            }
+
+            public Brush StatusColor
+            {
+                get
+                {
+                    if (Info.CzyZmodyfikowaneDlaFaktur) return Brushes.Orange;
+                    if (Info.CzyZafakturowane) return Brushes.LimeGreen;
+                    return Brushes.White;
+                }
+            }
+
+            // Kolumna ostatniej zmiany
+            public string OstatniaZmiana
+            {
+                get
+                {
+                    if (!Info.CzyZmodyfikowaneDlaFaktur) return "";
+                    if (Info.DataOstatniejModyfikacji.HasValue)
+                        return Info.DataOstatniejModyfikacji.Value.ToString("HH:mm dd.MM");
+                    return "Zmiana";
+                }
+            }
+
+            public Brush ZmianaColor => Info.CzyZmodyfikowaneDlaFaktur ? Brushes.Orange : Brushes.Transparent;
+
+            // Kto zmienił
+            public string KtoZmienil => Info.ModyfikowalPrzez ?? "";
+
+            // Wyjazd
+            public string GodzWyjazdu => Info.GodzWyjazdu ?? "";
+            public string Kierowca => Info.Kierowca ?? "";
+            public string Pojazd => Info.Pojazd ?? "";
+            public string NumerFaktury => Info.NumerFaktury ?? "";
+
+            // Kolor tła wiersza
+            public Brush RowBackground
+            {
+                get
+                {
+                    if (Info.CzyZmodyfikowaneDlaFaktur)
+                        return new SolidColorBrush(Color.FromRgb(255, 243, 224));
+                    if (Info.CzyZafakturowane)
+                        return new SolidColorBrush(Color.FromRgb(232, 245, 233));
+                    if (Info.Status == "Zrealizowane")
+                        return new SolidColorBrush(Color.FromRgb(241, 248, 233));
+                    if (Info.Status == "W realizacji")
+                        return new SolidColorBrush(Color.FromRgb(227, 242, 253));
+                    return new SolidColorBrush(Color.FromRgb(255, 248, 225));
+                }
+            }
+
+            public event PropertyChangedEventHandler? PropertyChanged;
+        }
+
+        #endregion
     }
 }
