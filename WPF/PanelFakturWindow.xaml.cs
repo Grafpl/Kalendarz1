@@ -953,10 +953,20 @@ namespace Kalendarz1.WPF
                     // bufor = 1 (dokument w buforze)
                     string sqlDK = @"
                         INSERT INTO [HANDEL].[HM].[DK]
-                        (typ, subtyp, serianr, kod, nazwa, data, khid, netto, vat, bufor, aktywny, seria, createdDate, modifiedDate)
+                        (flag, aktywny, subtyp, typ, znacznik, info, kod, seria, serianr, okres, seriadzial, nazwa, data, opis,
+                         khid, ok, rr, wplaty, rabat, netto, vat, odebrane, typ_dk, grupacen, wartoscSp, exp_fk, waluta, kurs,
+                         zyskdod, paragon, kod_obcy, rozlmg, schemat, bufor, anulowany, walNetto, walBrutto, wartPrzychod,
+                         kursDoch, eFaktura, statusRDF, guid, koszt, kosztAproksymowany, statusFK, typceny, jpk, importKasa,
+                         splitPayment, forceSP, checkWL, jpk_v7, importKasaZbiorczy, fiscalDeviceNo, statusMig, zeroVatRate,
+                         procedura_OSS, typeExternal, procedura_SME, createdDate, modifiedDate)
                         OUTPUT INSERTED.id
                         VALUES
-                        (6, 0, @SeriaNr, @Kod, @Nazwa, @Data, @KhId, @Netto, @Vat, 1, 1, 'sWZ', GETDATE(), GETDATE())";
+                        (0, 1, 0, 6, 0, 0, @Kod, 'sWZ', @SeriaNr, 0, 0, @Nazwa, @Data, '',
+                         @KhId, 0, 0, 0, 0, @Netto, @Vat, '', 'WZ', 1, 0, 0, 'PLN', 1,
+                         0, 0, '', 0, '', 1, 0, 0, 0, 0,
+                         0, 0, 0, NEWID(), 0, 0, 0, 0, 0, 0,
+                         0, 0, 0, '', 0, '', 0, 0,
+                         0, 0, 0, GETDATE(), GETDATE())";
 
                     await using var cmdDK = new SqlCommand(sqlDK, cn, transaction);
                     cmdDK.Parameters.AddWithValue("@SeriaNr", nowyNumer);
