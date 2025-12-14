@@ -276,35 +276,41 @@ namespace Kalendarz1
             }
 
             // ============ HODOWCA ============
-            // Wzorzec 1: UPPERCASE "NAZWISKO IMIĘ" + Tel. (np. "MARKOWSKI KRZYSZTOF Tel. : 663564962")
-            var hodowcaUpperMatch = Regex.Match(context,
-                @"([A-ZŻŹĆĄŚĘŁÓŃ]{3,})\s+([A-ZŻŹĆĄŚĘŁÓŃ]{3,}(?:\s*/\s*[A-ZŻŹĆĄŚĘŁÓŃ]+)?)\s+Tel\s*\.");
+            // Szukaj wzorca: NAZWISKO IMIĘ [/ DRUGIE_IMIĘ] Tel. : telefon
+            // Wielkość liter nie ma znaczenia - obsługujemy UPPERCASE i mixed case
+            // Jeśli jest "/" - bierzemy tylko pierwszą osobę
 
-            // Wzorzec 2: Mixed case "Nazwisko Imię" + Tel. (np. "Kukulski Janusz Tel. : 725640173")
-            var hodowcaMixedMatch = Regex.Match(context,
-                @"([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]+)\s+([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]+(?:\s*/)?)\s+Tel\s*\.");
+            // Wzorzec: Słowa (min 3 litery każde) + Tel.
+            var hodowcaMatch = Regex.Match(context,
+                @"([A-ZŻŹĆĄŚĘŁÓŃa-zżźćąśęłóń]{3,})\s+([A-ZŻŹĆĄŚĘŁÓŃa-zżźćąśęłóń]{3,})(?:\s+([A-ZŻŹĆĄŚĘŁÓŃa-zżźćąśęłóń]{2,}))?(?:\s*/[^T]*)?\s+Tel\s*\.",
+                RegexOptions.IgnoreCase);
 
-            if (hodowcaUpperMatch.Success)
+            if (hodowcaMatch.Success)
             {
-                row.HodowcaNazwa = $"{hodowcaUpperMatch.Groups[1].Value} {hodowcaUpperMatch.Groups[2].Value}".Trim();
+                string nazwisko = hodowcaMatch.Groups[1].Value;
+                string imie = hodowcaMatch.Groups[2].Value;
+                string drugie = hodowcaMatch.Groups[3].Success ? hodowcaMatch.Groups[3].Value : "";
 
-                // Wyciągnij telefon hodowcy
-                var telMatch = Regex.Match(context.Substring(hodowcaUpperMatch.Index),
-                    @"Tel\s*\.\s*:?\s*(\d[\d\s-]{7,})");
-                if (telMatch.Success)
+                // Sprawdź czy to nie są słowa kluczowe
+                if (!IsHeaderWord(nazwisko) && !IsHeaderWord(imie))
                 {
-                    row.HodowcaTelefon = Regex.Replace(telMatch.Groups[1].Value, @"[\s-]+", "");
-                }
-            }
-            else if (hodowcaMixedMatch.Success)
-            {
-                row.HodowcaNazwa = $"{hodowcaMixedMatch.Groups[1].Value} {hodowcaMixedMatch.Groups[2].Value}".Trim();
+                    // Jeśli jest drugie imię/słowo, dodaj je (ale nie jeśli to "Tel" lub podobne)
+                    if (!string.IsNullOrEmpty(drugie) && !IsHeaderWord(drugie) && drugie.ToUpper() != "TEL")
+                    {
+                        row.HodowcaNazwa = $"{nazwisko} {imie} {drugie}".Trim();
+                    }
+                    else
+                    {
+                        row.HodowcaNazwa = $"{nazwisko} {imie}".Trim();
+                    }
 
-                var telMatch = Regex.Match(context.Substring(hodowcaMixedMatch.Index),
-                    @"Tel\s*\.\s*:?\s*(\d[\d\s-]{7,})");
-                if (telMatch.Success)
-                {
-                    row.HodowcaTelefon = Regex.Replace(telMatch.Groups[1].Value, @"[\s-]+", "");
+                    // Wyciągnij telefon hodowcy
+                    var telMatch = Regex.Match(context.Substring(hodowcaMatch.Index),
+                        @"Tel\s*\.\s*:?\s*(\d[\d\s-]{7,})");
+                    if (telMatch.Success)
+                    {
+                        row.HodowcaTelefon = Regex.Replace(telMatch.Groups[1].Value, @"[\s-]+", "");
+                    }
                 }
             }
 
