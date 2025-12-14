@@ -302,6 +302,7 @@ namespace Kalendarz1
                 SetProductButtonSelected(btn);
                 await LoadOrdersAsync();
                 await LoadPrzychodyInfoAsync();
+                await LoadPlanDniaAsync();
             }
         }
 
@@ -1116,13 +1117,13 @@ namespace Kalendarz1
             {
                 // 1. Pobierz konfigurację wydajności
                 decimal wspolczynnikTuszki = 78m;
-                decimal procentA = 30m;
-                decimal procentB = 70m;
+                decimal procentA = 85m;
+                decimal procentB = 15m;
 
                 using (var cn = new SqlConnection(_connLibra))
                 {
                     await cn.OpenAsync();
-                    var cmdWydajnosc = new SqlCommand(@"SELECT TOP 1 WspolczynnikTuszki, ProcentTuszkiA, ProcentTuszkiB
+                    var cmdWydajnosc = new SqlCommand(@"SELECT TOP 1 WspolczynnikTuszki, ProcentTuszkaA, ProcentTuszkaB
                                                         FROM KonfiguracjaWydajnosci
                                                         WHERE DataOd <= @D AND Aktywny = 1
                                                         ORDER BY DataOd DESC", cn);
@@ -1131,8 +1132,8 @@ namespace Kalendarz1
                     if (await rd.ReadAsync())
                     {
                         wspolczynnikTuszki = rd.IsDBNull(0) ? 78m : Convert.ToDecimal(rd.GetValue(0));
-                        procentA = rd.IsDBNull(1) ? 30m : Convert.ToDecimal(rd.GetValue(1));
-                        procentB = rd.IsDBNull(2) ? 70m : Convert.ToDecimal(rd.GetValue(2));
+                        procentA = rd.IsDBNull(1) ? 85m : Convert.ToDecimal(rd.GetValue(1));
+                        procentB = rd.IsDBNull(2) ? 15m : Convert.ToDecimal(rd.GetValue(2));
                     }
                 }
 
@@ -1153,13 +1154,22 @@ namespace Kalendarz1
                 decimal planTuszkiA = pulaTuszki * (procentA / 100m);
                 decimal planTuszkiB = pulaTuszki * (procentB / 100m);
 
-                // 3. Pobierz konfigurację produktów (procenty udziału)
+                // 3. Pobierz konfigurację produktów (procenty udziału) - dla produktów które są w _produktLookup
                 var konfiguracjaProduktow = new Dictionary<int, decimal>();
-                using (var cn = new SqlConnection(_connLibra))
+                if (_produktLookup.Any())
                 {
+                    using var cn = new SqlConnection(_connLibra);
                     await cn.OpenAsync();
-                    var cmdKonfig = new SqlCommand(@"SELECT ProduktId, ProcentUdzialu FROM KonfiguracjaProduktow
-                                                     WHERE DataOd <= @D AND Aktywny = 1", cn);
+
+                    // Pobierz konfigurację dla wszystkich produktów
+                    var cmdKonfig = new SqlCommand(@"SELECT kp.TowarID, kp.ProcentUdzialu
+                                                     FROM KonfiguracjaProduktow kp
+                                                     INNER JOIN (
+                                                         SELECT MAX(DataOd) as MaxData
+                                                         FROM KonfiguracjaProduktow
+                                                         WHERE DataOd <= @D AND Aktywny = 1
+                                                     ) sub ON kp.DataOd = sub.MaxData
+                                                     WHERE kp.Aktywny = 1", cn);
                     cmdKonfig.Parameters.AddWithValue("@D", _selectedDate.Date);
                     using var rd = await cmdKonfig.ExecuteReaderAsync();
                     while (await rd.ReadAsync())
@@ -1170,22 +1180,7 @@ namespace Kalendarz1
                     }
                 }
 
-                // 4. Pobierz nazwy produktów z Handel
-                var produktNames = new Dictionary<int, string>();
-                if (konfiguracjaProduktow.Any())
-                {
-                    using var cn = new SqlConnection(_connHandel);
-                    await cn.OpenAsync();
-                    var productIds = konfiguracjaProduktow.Keys.ToList();
-                    var cmd = new SqlCommand($"SELECT ID, kod FROM HM.TW WHERE ID IN ({string.Join(",", productIds)}) AND katalog=67095", cn);
-                    using var rd = await cmd.ExecuteReaderAsync();
-                    while (await rd.ReadAsync())
-                    {
-                        produktNames[rd.GetInt32(0)] = rd.GetString(1);
-                    }
-                }
-
-                // 5. Pobierz faktyczny przychód z dokumentów produkcji (sPWU dla tuszek, sPWP/PWP dla elementów)
+                // 4. Pobierz faktyczny przychód z dokumentów produkcji
                 var faktPrzychod = new Dictionary<int, decimal>();
                 using (var cn = new SqlConnection(_connHandel))
                 {
@@ -1203,7 +1198,7 @@ namespace Kalendarz1
                     }
                 }
 
-                // 6. Pobierz zamówienia wg produktów
+                // 5. Pobierz zamówienia wg produktów
                 var zamowieniaSum = new Dictionary<int, decimal>();
                 var orderIds = _zamowienia.Values
                     .Where(z => !z.IsShipmentOnly && z.Id > 0)
@@ -1224,7 +1219,7 @@ namespace Kalendarz1
                     }
                 }
 
-                // 7. Pobierz wydania (WZ)
+                // 6. Pobierz wydania (WZ)
                 var wydaniaSum = new Dictionary<int, decimal>();
                 using (var cn = new SqlConnection(_connHandel))
                 {
@@ -1242,21 +1237,37 @@ namespace Kalendarz1
                     }
                 }
 
-                // 8. Buduj tabelę produktów
-                // Najpierw dodaj Tuszki A i B
-                foreach (var kvp in produktNames.OrderByDescending(p => konfiguracjaProduktow.GetValueOrDefault(p.Key, 0)))
+                // 7. Buduj tabelę produktów - użyj produktów z _produktLookup (te same co na przyciskach)
+                var produktyDoPokazania = _produktLookup.AsEnumerable();
+
+                // Jeśli jest filtr, pokaż tylko wybrany produkt
+                if (_filteredProductId.HasValue && _filteredProductId.Value > 0)
+                {
+                    produktyDoPokazania = produktyDoPokazania.Where(p => p.Key == _filteredProductId.Value);
+                }
+
+                foreach (var kvp in produktyDoPokazania.OrderByDescending(p => zamowieniaSum.GetValueOrDefault(p.Key, 0)))
                 {
                     int produktId = kvp.Key;
                     string nazwa = kvp.Value;
-                    decimal procentUdzialu = konfiguracjaProduktow.GetValueOrDefault(produktId, 0m);
 
+                    // Oblicz plan: dla tuszek A używamy planTuszkiA, dla innych produktów używamy planTuszkiB * procent
                     decimal plan = 0m;
-                    if (nazwa.Contains("Kurczak A", StringComparison.OrdinalIgnoreCase))
+                    if (nazwa.Contains("Kurczak A", StringComparison.OrdinalIgnoreCase) ||
+                        nazwa.Contains("Tuszka A", StringComparison.OrdinalIgnoreCase))
+                    {
                         plan = planTuszkiA;
-                    else if (nazwa.Contains("Kurczak B", StringComparison.OrdinalIgnoreCase))
+                    }
+                    else if (nazwa.Contains("Kurczak B", StringComparison.OrdinalIgnoreCase) ||
+                             nazwa.Contains("Tuszka B", StringComparison.OrdinalIgnoreCase))
+                    {
                         plan = planTuszkiB;
-                    else
+                    }
+                    else if (konfiguracjaProduktow.TryGetValue(produktId, out var procentUdzialu))
+                    {
+                        // Produkty rozbioru - procent z Tuszki B
                         plan = planTuszkiB * (procentUdzialu / 100m);
+                    }
 
                     decimal fakt = faktPrzychod.GetValueOrDefault(produktId, 0m);
                     decimal zam = zamowieniaSum.GetValueOrDefault(produktId, 0m);
@@ -1268,23 +1279,19 @@ namespace Kalendarz1
                     // Procent realizacji
                     string procent = plan > 0 ? $"{(fakt / plan * 100):F0}%" : "—";
 
-                    // Dodaj tylko produkty które mają jakieś dane
-                    if (plan > 0 || fakt > 0 || zam > 0 || wyd > 0)
-                    {
-                        dtPlan.Rows.Add(nazwa, plan, fakt, zam, wyd, bilans, procent);
-                        totalPlan += plan;
-                        totalFakt += fakt;
-                        totalZam += zam;
-                        totalWyd += wyd;
-                        totalBilans += bilans;
-                    }
+                    dtPlan.Rows.Add(nazwa, plan, fakt, zam, wyd, bilans, procent);
+                    totalPlan += plan;
+                    totalFakt += fakt;
+                    totalZam += zam;
+                    totalWyd += wyd;
+                    totalBilans += bilans;
                 }
 
-                // 9. Dodaj wiersz SUMA na końcu
-                if (dtPlan.Rows.Count > 0)
+                // 8. Dodaj wiersz SUMA na końcu (tylko gdy więcej niż 1 produkt)
+                if (dtPlan.Rows.Count > 1)
                 {
                     string totalProcent = totalPlan > 0 ? $"{(totalFakt / totalPlan * 100):F0}%" : "—";
-                    dtPlan.Rows.Add("═══ SUMA CAŁKOWITA ═══", totalPlan, totalFakt, totalZam, totalWyd, totalBilans, totalProcent);
+                    dtPlan.Rows.Add("═══ SUMA ═══", totalPlan, totalFakt, totalZam, totalWyd, totalBilans, totalProcent);
                 }
             }
             catch (Exception ex)
