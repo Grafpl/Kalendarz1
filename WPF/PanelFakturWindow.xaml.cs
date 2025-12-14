@@ -29,6 +29,8 @@ namespace Kalendarz1.WPF
         private readonly List<Button> _dayButtons = new();
         private readonly Dictionary<Button, DateTime> _dayButtonDates = new();
         private readonly Dictionary<int, (string Name, string Salesman)> _contractorsCache = new();
+        private bool _isRefreshing = false;
+        private bool _pendingRefresh = false;
 
         public ObservableCollection<ZamowienieViewModel> ZamowieniaList { get; } = new();
 
@@ -202,8 +204,32 @@ namespace Kalendarz1.WPF
 
         private async Task RefreshDataAsync()
         {
-            await LoadOrdersAsync();
-            ClearDetails();
+            // Zapobiega równoczesnym odświeżeniom które powodują duplikaty
+            if (_isRefreshing)
+            {
+                _pendingRefresh = true;
+                return;
+            }
+
+            _isRefreshing = true;
+            _pendingRefresh = false;
+
+            try
+            {
+                await LoadOrdersAsync();
+                ClearDetails();
+            }
+            finally
+            {
+                _isRefreshing = false;
+
+                // Jeśli było żądanie odświeżenia podczas pracy, odśwież ponownie
+                if (_pendingRefresh)
+                {
+                    _pendingRefresh = false;
+                    await RefreshDataAsync();
+                }
+            }
         }
 
         private async Task LoadOrdersAsync()
@@ -243,11 +269,16 @@ namespace Kalendarz1.WPF
 
                 var kursIds = new HashSet<long>();
                 var tempList = new List<ZamowienieInfo>();
+                var seenIds = new HashSet<int>(); // Zapobiega duplikatom
 
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
                     int id = reader.GetInt32(0);
+
+                    // Pomijamy jeśli już widzieliśmy to zamówienie
+                    if (!seenIds.Add(id))
+                        continue;
                     int clientId = reader.IsDBNull(1) ? 0 : reader.GetInt32(1);
                     decimal ilosc = reader.IsDBNull(2) ? 0 : reader.GetDecimal(2);
                     decimal wartosc = reader.IsDBNull(3) ? 0 : reader.GetDecimal(3);
