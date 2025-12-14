@@ -212,14 +212,18 @@ namespace Kalendarz1.WPF
             {
                 await using var cn = new SqlConnection(_connHandel);
                 await cn.OpenAsync();
-                const string sql = "SELECT ID, nazwa FROM [HANDEL].[HM].[TW] WHERE aktywny = 1 ORDER BY nazwa";
+                // Pobierz tylko produkty z katalogów mięsnych (Świeże=67095, Mrożone=67153)
+                const string sql = @"SELECT ID, kod FROM [HANDEL].[HM].[TW]
+                                     WHERE katalog IN (67095, 67153)
+                                     ORDER BY kod";
                 await using var cmd = new SqlCommand(sql, cn);
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
                     int id = reader.GetInt32(0);
-                    string name = reader.IsDBNull(1) ? "" : reader.GetString(1);
-                    _productsCache[id] = name;
+                    string kod = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                    if (!string.IsNullOrWhiteSpace(kod))
+                        _productsCache[id] = kod;
                 }
 
                 GenerateProductButtons();
