@@ -227,36 +227,29 @@ namespace Kalendarz1.WPF
             _dtOrders.Columns.Add("GodzWyjazdu", typeof(string));
             _dtOrders.Columns.Add("Kierowca", typeof(string));
             _dtOrders.Columns.Add("Pojazd", typeof(string));
+            _dtOrders.Columns.Add("CzyZmodyfikowaneDlaFaktur", typeof(bool));
+            _dtOrders.Columns.Add("DataOstatniejModyfikacji", typeof(DateTime));
+            _dtOrders.Columns.Add("Zmiana", typeof(string));
 
             try
             {
                 await using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
 
-                // Sprawdź czy kolumna CzyZafakturowane istnieje
-                bool hasFakturaColumn = false;
-                try
-                {
-                    await using var checkCmd = new SqlCommand(
-                        "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'CzyZafakturowane'", cn);
-                    hasFakturaColumn = (int)await checkCmd.ExecuteScalarAsync()! > 0;
-                }
-                catch { }
+                // Sprawdź czy kolumny istnieją
+                bool hasFakturaColumn = await CheckColumnExistsAsync(cn, "ZamowieniaMieso", "CzyZafakturowane");
+                bool hasTransportColumn = await CheckColumnExistsAsync(cn, "ZamowieniaMieso", "TransportKursID");
+                bool hasZmianaColumn = await CheckColumnExistsAsync(cn, "ZamowieniaMieso", "CzyZmodyfikowaneDlaFaktur");
+                bool hasModyfikacjaColumn = await CheckColumnExistsAsync(cn, "ZamowieniaMieso", "DataOstatniejModyfikacji");
 
                 string fakturaSelect = hasFakturaColumn ? ", ISNULL(zm.CzyZafakturowane, 0) AS CzyZafakturowane, zm.NumerFaktury" : ", 0 AS CzyZafakturowane, NULL AS NumerFaktury";
-
-                // Sprawdź czy kolumna TransportKursID istnieje
-                bool hasTransportColumn = false;
-                try
-                {
-                    await using var checkTransportCmd = new SqlCommand(
-                        "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'TransportKursID'", cn);
-                    hasTransportColumn = (int)await checkTransportCmd.ExecuteScalarAsync()! > 0;
-                }
-                catch { }
-
                 string transportSelect = hasTransportColumn ? ", zm.TransportKursID" : ", NULL AS TransportKursID";
+                string zmianaSelect = hasZmianaColumn ? ", ISNULL(zm.CzyZmodyfikowaneDlaFaktur, 0) AS CzyZmodyfikowaneDlaFaktur" : ", 0 AS CzyZmodyfikowaneDlaFaktur";
+                string modyfikacjaSelect = hasModyfikacjaColumn ? ", zm.DataOstatniejModyfikacji" : ", NULL AS DataOstatniejModyfikacji";
+
                 string transportGroupBy = hasTransportColumn ? ", zm.TransportKursID" : "";
+                string zmianaGroupBy = hasZmianaColumn ? ", zm.CzyZmodyfikowaneDlaFaktur" : "";
+                string modyfikacjaGroupBy = hasModyfikacjaColumn ? ", zm.DataOstatniejModyfikacji" : "";
 
                 string sql = $@"
                     SELECT zm.Id, zm.KlientId,
@@ -265,6 +258,8 @@ namespace Kalendarz1.WPF
                            zm.DataZamowienia, zm.DataUboju, zm.Status, zm.IdUser
                            {fakturaSelect}
                            {transportSelect}
+                           {zmianaSelect}
+                           {modyfikacjaSelect}
                     FROM [dbo].[ZamowieniaMieso] zm
                     LEFT JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
                     WHERE zm.DataUboju = @Day
@@ -272,6 +267,8 @@ namespace Kalendarz1.WPF
                     GROUP BY zm.Id, zm.KlientId, zm.DataZamowienia, zm.DataUboju, zm.Status, zm.IdUser
                              {(hasFakturaColumn ? ", zm.CzyZafakturowane, zm.NumerFaktury" : "")}
                              {transportGroupBy}
+                             {zmianaGroupBy}
+                             {modyfikacjaGroupBy}
                     ORDER BY zm.Id";
 
                 await using var cmd = new SqlCommand(sql, cn);
@@ -293,8 +290,17 @@ namespace Kalendarz1.WPF
                     bool czyZafakturowane = !reader.IsDBNull(8) && Convert.ToBoolean(reader.GetValue(8));
                     string numerFaktury = reader.IsDBNull(9) ? "" : reader.GetValue(9).ToString() ?? "";
                     long? transportKursId = reader.IsDBNull(10) ? null : Convert.ToInt64(reader.GetValue(10));
+                    bool czyZmodyfikowane = !reader.IsDBNull(11) && Convert.ToBoolean(reader.GetValue(11));
+                    DateTime? dataModyfikacji = reader.IsDBNull(12) ? null : reader.GetDateTime(12);
 
                     var (name, salesman) = _contractorsCache.TryGetValue(clientId, out var c) ? c : ($"Klient {clientId}", "");
+
+                    // Określ tekst zmiany
+                    string zmianaTekst = "";
+                    if (czyZmodyfikowane)
+                    {
+                        zmianaTekst = dataModyfikacji.HasValue ? $"⚠️ {dataModyfikacji.Value:HH:mm}" : "⚠️ Zmiana";
+                    }
 
                     var row = _dtOrders.NewRow();
                     row["Id"] = id;
@@ -309,6 +315,9 @@ namespace Kalendarz1.WPF
                     row["CzyZafakturowane"] = czyZafakturowane;
                     row["NumerFaktury"] = numerFaktury;
                     row["UtworzonePrzez"] = idUser;
+                    row["CzyZmodyfikowaneDlaFaktur"] = czyZmodyfikowane;
+                    row["DataOstatniejModyfikacji"] = dataModyfikacji ?? DateTime.MinValue;
+                    row["Zmiana"] = zmianaTekst;
 
                     if (transportKursId.HasValue)
                     {
@@ -331,6 +340,17 @@ namespace Kalendarz1.WPF
             {
                 MessageBox.Show($"Błąd ładowania zamówień: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private async Task<bool> CheckColumnExistsAsync(SqlConnection cn, string tableName, string columnName)
+        {
+            try
+            {
+                await using var cmd = new SqlCommand(
+                    $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{tableName}' AND COLUMN_NAME = '{columnName}'", cn);
+                return (int)await cmd.ExecuteScalarAsync()! > 0;
+            }
+            catch { return false; }
         }
 
         private async Task LoadTransportInfoAsync(HashSet<long> kursIds)
@@ -451,6 +471,19 @@ namespace Kalendarz1.WPF
                 Width = new DataGridLength(100)
             });
 
+            // Kolumna zmian
+            var zmianaStyle = new Style(typeof(TextBlock));
+            zmianaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
+            zmianaStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
+
+            dgOrders.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Zmiana",
+                Binding = new System.Windows.Data.Binding("Zmiana"),
+                Width = new DataGridLength(80),
+                ElementStyle = zmianaStyle
+            });
+
             // Kolumny transportowe
             var centerStyle = new Style(typeof(TextBlock));
             centerStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
@@ -493,9 +526,16 @@ namespace Kalendarz1.WPF
             {
                 string status = rowView.Row.Field<string>("Status") ?? "";
                 bool czyZafakturowane = rowView.Row.Field<bool>("CzyZafakturowane");
+                bool czyZmodyfikowane = rowView.Row.Field<bool>("CzyZmodyfikowaneDlaFaktur");
 
-                // Kolorowanie według statusu
-                if (czyZafakturowane || status == "Zafakturowane")
+                // Kolorowanie według statusu - priorytet dla zmian
+                if (czyZmodyfikowane)
+                {
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 243, 224)); // Pomarańczowy - zmiana
+                    e.Row.BorderBrush = new SolidColorBrush(Color.FromRgb(255, 183, 77));
+                    e.Row.BorderThickness = new Thickness(2, 0, 0, 0);
+                }
+                else if (czyZafakturowane || status == "Zafakturowane")
                 {
                     e.Row.Background = new SolidColorBrush(Color.FromRgb(232, 245, 233)); // Jasno zielony
                     e.Row.FontStyle = FontStyles.Italic;
@@ -551,17 +591,35 @@ namespace Kalendarz1.WPF
                     await LoadOrderDetailsAsync(id);
 
                     bool czyZafakturowane = rowView.Row.Field<bool>("CzyZafakturowane");
-                    btnCreateInvoice.IsEnabled = !czyZafakturowane;
+                    bool czyZmodyfikowane = rowView.Row.Field<bool>("CzyZmodyfikowaneDlaFaktur");
+                    DateTime dataModyfikacji = rowView.Row.Field<DateTime>("DataOstatniejModyfikacji");
+
                     btnMarkFakturowane.IsEnabled = !czyZafakturowane;
+
+                    // Pokaż/ukryj panel zmiany
+                    if (czyZmodyfikowane)
+                    {
+                        borderZmiana.Visibility = Visibility.Visible;
+                        string czasZmiany = dataModyfikacji > DateTime.MinValue ? $" o godz. {dataModyfikacji:HH:mm}" : "";
+                        txtZmianaInfo.Text = $"Zamówienie zostało zmodyfikowane{czasZmiany}.\nZatwierdź, że przyjmujesz do wiadomości tę zmianę.";
+                    }
+                    else
+                    {
+                        borderZmiana.Visibility = Visibility.Collapsed;
+                    }
 
                     if (czyZafakturowane)
                     {
                         string nrFaktury = rowView.Row.Field<string>("NumerFaktury") ?? "";
-                        txtInvoiceStatus.Text = $"To zamówienie zostało już zafakturowane.\nNr faktury: {nrFaktury}";
+                        txtInvoiceStatus.Text = $"Zamówienie zafakturowane.\nNr: {nrFaktury}";
+                    }
+                    else if (czyZmodyfikowane)
+                    {
+                        txtInvoiceStatus.Text = "Zamówienie wymaga zatwierdzenia zmiany.";
                     }
                     else
                     {
-                        txtInvoiceStatus.Text = "Kliknij aby utworzyć fakturę w Symfonii Handel";
+                        txtInvoiceStatus.Text = "Zamówienie gotowe do zafakturowania.";
                     }
                     return;
                 }
@@ -714,315 +772,56 @@ namespace Kalendarz1.WPF
             txtDataZamowienia.Text = "";
             _dtDetails.Clear();
             dgDetails.ItemsSource = null;
-            btnCreateInvoice.IsEnabled = false;
             btnMarkFakturowane.IsEnabled = false;
-            txtInvoiceStatus.Text = "Wybierz zamówienie aby utworzyć fakturę";
+            txtInvoiceStatus.Text = "Wybierz zamówienie z listy";
 
-            // Ukryj panel transportu
+            // Ukryj panele
             borderTransport.Visibility = Visibility.Collapsed;
+            borderZmiana.Visibility = Visibility.Collapsed;
             txtGodzWyjazdu.Text = "";
             txtKierowca.Text = "";
             txtPojazd.Text = "";
         }
 
-        private async void BtnCreateInvoice_Click(object sender, RoutedEventArgs e)
+        private async void BtnAcceptChange_Click(object sender, RoutedEventArgs e)
         {
             if (!_currentOrderId.HasValue) return;
 
-            try
+            var orderRow = _dtOrders.AsEnumerable().FirstOrDefault(r => r.Field<int>("Id") == _currentOrderId.Value);
+            if (orderRow == null) return;
+
+            string odbiorca = orderRow.Field<string>("Odbiorca") ?? "";
+
+            var result = MessageBox.Show(
+                $"Czy potwierdzasz, że wiesz o zmianach w zamówieniu '{odbiorca}'?\n\n" +
+                "Kliknięcie 'Tak' oznaczy zmianę jako przyjętą do wiadomości.",
+                "Potwierdzenie przyjęcia zmiany - Faktury",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
             {
-                btnCreateInvoice.IsEnabled = false;
-                txtInvoiceStatus.Text = "Przygotowywanie danych...";
-
-                // Pobierz dane zamówienia
-                var orderRow = _dtOrders.AsEnumerable().FirstOrDefault(r => r.Field<int>("Id") == _currentOrderId.Value);
-                if (orderRow == null)
-                {
-                    MessageBox.Show("Nie znaleziono zamówienia.", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
-
-                int klientId = orderRow.Field<int>("KlientId");
-                string odbiorcaNazwa = orderRow.Field<string>("Odbiorca") ?? "";
-
-                // Pobierz pozycje zamówienia z LibraNet
-                var pozycje = new List<(int KodTowaru, decimal Ilosc, decimal Cena, string NazwaTowaru)>();
-                await using (var cnLibra = new SqlConnection(_connLibra))
-                {
-                    await cnLibra.OpenAsync();
-                    string sql = @"SELECT KodTowaru, Ilosc, Cena FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId = @OrderId";
-                    await using var cmd = new SqlCommand(sql, cnLibra);
-                    cmd.Parameters.AddWithValue("@OrderId", _currentOrderId.Value);
-                    await using var reader = await cmd.ExecuteReaderAsync();
-                    while (await reader.ReadAsync())
-                    {
-                        int kodTowaru = reader.GetInt32(0);
-                        decimal ilosc = reader.IsDBNull(1) ? 0 : reader.GetDecimal(1);
-                        string cenaStr = reader.IsDBNull(2) ? "0" : reader.GetString(2);
-                        decimal.TryParse(cenaStr.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal cena);
-                        pozycje.Add((kodTowaru, ilosc, cena, ""));
-                    }
-                }
-
-                if (pozycje.Count == 0)
-                {
-                    MessageBox.Show("Zamówienie nie ma pozycji do zaimportowania.", "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-
-                // Sprawdź dopasowanie towarów i kontrahenta w Symfonii
-                txtInvoiceStatus.Text = "Sprawdzanie danych w Symfonii...";
-
-                var (kontrahentSymfoniaId, kontrahentNazwa) = await SprawdzKontrahentaWSymfoniiAsync(klientId);
-                var towarySymfonia = await SprawdzTowaryWSymfoniiAsync(pozycje.Select(p => p.KodTowaru).ToList());
-
-                // Przygotuj podgląd
-                var sb = new System.Text.StringBuilder();
-                sb.AppendLine($"=== PODGLĄD IMPORTU DO SYMFONII ===\n");
-                sb.AppendLine($"Odbiorca: {odbiorcaNazwa}");
-                sb.AppendLine($"ID w Symfonii: {(kontrahentSymfoniaId > 0 ? kontrahentSymfoniaId.ToString() : "NIE ZNALEZIONO!")}");
-                sb.AppendLine($"\nPozycje ({pozycje.Count}):");
-                sb.AppendLine("─────────────────────────────────────");
-
-                decimal sumaWartosci = 0;
-                int nieznalezione = 0;
-                foreach (var poz in pozycje)
-                {
-                    bool znaleziony = towarySymfonia.TryGetValue(poz.KodTowaru, out var towarInfo);
-                    string status = znaleziony ? "✓" : "✗";
-                    string nazwa = znaleziony ? towarInfo.Nazwa : $"[Kod: {poz.KodTowaru}]";
-                    decimal wartosc = poz.Ilosc * poz.Cena;
-                    sumaWartosci += wartosc;
-
-                    sb.AppendLine($"{status} {nazwa}");
-                    sb.AppendLine($"   {poz.Ilosc:N2} kg × {poz.Cena:N2} zł = {wartosc:N2} zł");
-
-                    if (!znaleziony) nieznalezione++;
-                }
-
-                sb.AppendLine("─────────────────────────────────────");
-                sb.AppendLine($"SUMA: {sumaWartosci:N2} zł");
-
-                if (kontrahentSymfoniaId <= 0 || nieznalezione > 0)
-                {
-                    sb.AppendLine($"\n⚠️ UWAGA: ");
-                    if (kontrahentSymfoniaId <= 0)
-                        sb.AppendLine("• Kontrahent nie został znaleziony w Symfonii");
-                    if (nieznalezione > 0)
-                        sb.AppendLine($"• {nieznalezione} towar(ów) nie ma w Symfonii");
-                    sb.AppendLine("\nImport może być niekompletny!");
-                }
-
-                var result = MessageBox.Show(
-                    sb.ToString() + "\n\nCzy utworzyć dokument WZ w buforze Symfonii?",
-                    "Podgląd importu do Symfonii Handel",
-                    MessageBoxButton.YesNo,
-                    nieznalezione > 0 || kontrahentSymfoniaId <= 0 ? MessageBoxImage.Warning : MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.Yes)
-                {
-                    if (kontrahentSymfoniaId <= 0)
-                    {
-                        MessageBox.Show("Nie można utworzyć dokumentu bez kontrahenta w Symfonii.\nDodaj kontrahenta do Symfonii i spróbuj ponownie.",
-                            "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                        return;
-                    }
-
-                    txtInvoiceStatus.Text = "Tworzenie dokumentu w Symfonii...";
-
-                    var (sukces, numerDokumentu, komunikat) = await UtworzDokumentWSymfoniiAsync(
-                        kontrahentSymfoniaId,
-                        pozycje.Where(p => towarySymfonia.ContainsKey(p.KodTowaru)).ToList(),
-                        towarySymfonia);
-
-                    if (sukces)
-                    {
-                        MessageBox.Show(
-                            $"Dokument został utworzony w buforze Symfonii!\n\nNumer: {numerDokumentu}\n\nSprawdź dokument w Symfonii Handel i zatwierdź go.",
-                            "Sukces",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Information);
-
-                        if (chkMarkAsFakturowane.IsChecked == true)
-                        {
-                            await MarkAsFakturowaneAsync(_currentOrderId.Value, numerDokumentu);
-                        }
-                    }
-                    else
-                    {
-                        MessageBox.Show($"Błąd podczas tworzenia dokumentu:\n{komunikat}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd podczas importu: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-            finally
-            {
-                btnCreateInvoice.IsEnabled = true;
-                txtInvoiceStatus.Text = "Kliknij aby utworzyć dokument w Symfonii Handel";
-            }
-        }
-
-        private async Task<(int Id, string Nazwa)> SprawdzKontrahentaWSymfoniiAsync(int klientIdLibra)
-        {
-            try
-            {
-                await using var cn = new SqlConnection(_connHandel);
-                await cn.OpenAsync();
-
-                // Szukaj kontrahenta po ID (zakładając że ID w LibraNet = ID w Symfonii)
-                string sql = @"SELECT Id, ISNULL(Shortcut, Name) AS Nazwa FROM [HANDEL].[SSCommon].[STContractors] WHERE Id = @Id";
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@Id", klientIdLibra);
-                await using var reader = await cmd.ExecuteReaderAsync();
-
-                if (await reader.ReadAsync())
-                {
-                    return (reader.GetInt32(0), reader.IsDBNull(1) ? "" : reader.GetString(1));
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Błąd sprawdzania kontrahenta: {ex.Message}");
-            }
-            return (0, "");
-        }
-
-        private async Task<Dictionary<int, (string Nazwa, string Kod, int Magazyn)>> SprawdzTowaryWSymfoniiAsync(List<int> kodyTowarow)
-        {
-            var result = new Dictionary<int, (string Nazwa, string Kod, int Magazyn)>();
-            if (kodyTowarow.Count == 0) return result;
-
-            try
-            {
-                await using var cn = new SqlConnection(_connHandel);
-                await cn.OpenAsync();
-
-                string ids = string.Join(",", kodyTowarow);
-                string sql = $@"SELECT ID, ISNULL(nazwa, '') AS Nazwa, ISNULL(kod, '') AS Kod, ISNULL(magazyn, 0) AS Magazyn
-                               FROM [HANDEL].[HM].[TW] WHERE ID IN ({ids})";
-                await using var cmd = new SqlCommand(sql, cn);
-                await using var reader = await cmd.ExecuteReaderAsync();
-
-                while (await reader.ReadAsync())
-                {
-                    int id = reader.GetInt32(0);
-                    string nazwa = reader.GetString(1);
-                    string kod = reader.GetString(2);
-                    int magazyn = reader.GetInt32(3);
-                    result[id] = (nazwa, kod, magazyn);
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Błąd sprawdzania towarów: {ex.Message}");
-            }
-            return result;
-        }
-
-        private async Task<(bool Sukces, string NumerDokumentu, string Komunikat)> UtworzDokumentWSymfoniiAsync(
-            int kontrahentId,
-            List<(int KodTowaru, decimal Ilosc, decimal Cena, string NazwaTowaru)> pozycje,
-            Dictionary<int, (string Nazwa, string Kod, int Magazyn)> towarySymfonia)
-        {
-            try
-            {
-                await using var cn = new SqlConnection(_connHandel);
-                await cn.OpenAsync();
-                await using var transaction = cn.BeginTransaction();
-
                 try
                 {
-                    // Pobierz kolejny numer dokumentu dla serii WZ (serianr)
-                    string sqlNumer = @"SELECT ISNULL(MAX(serianr), 0) + 1 FROM [HANDEL].[HM].[DK] WHERE typ = 6 AND YEAR(data) = YEAR(GETDATE())";
-                    await using var cmdNumer = new SqlCommand(sqlNumer, cn, transaction);
-                    int nowyNumer = Convert.ToInt32(await cmdNumer.ExecuteScalarAsync());
+                    await using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
 
-                    string kodDokumentu = $"WZ/{nowyNumer}/{DateTime.Now:yy}";
+                    // Upewnij się że kolumna istnieje
+                    await EnsureZmianaColumnExistsAsync(cn);
 
-                    // Oblicz wartości
-                    decimal wartoscNetto = pozycje.Sum(p => p.Ilosc * p.Cena);
-                    decimal wartoscVat = wartoscNetto * 0.05m; // Stawka 5% dla mięsa
-                    decimal wartoscBrutto = wartoscNetto + wartoscVat;
+                    // Resetuj flagę zmiany
+                    string sql = "UPDATE [dbo].[ZamowieniaMieso] SET CzyZmodyfikowaneDlaFaktur = 0 WHERE Id = @Id";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Id", _currentOrderId.Value);
+                    await cmd.ExecuteNonQueryAsync();
 
-                    // Utwórz nagłówek dokumentu WZ
-                    // typ = 6 (WZ - Wydanie Zewnętrzne)
-                    // subtyp = 0 (standardowy)
-                    // bufor = 1 (dokument w buforze)
-                    string sqlDK = @"
-                        INSERT INTO [HANDEL].[HM].[DK]
-                        (flag, aktywny, subtyp, typ, znacznik, info, kod, seria, serianr, okres, seriadzial, nazwa, data, opis,
-                         khid, ok, rr, wplaty, rabat, netto, vat, odebrane, typ_dk, grupacen, wartoscSp, exp_fk, waluta, kurs,
-                         zyskdod, paragon, kod_obcy, rozlmg, schemat, bufor, anulowany, walNetto, walBrutto, wartPrzychod,
-                         kursDoch, eFaktura, statusRDF, guid, koszt, kosztAproksymowany, statusFK, typceny, jpk, importKasa,
-                         splitPayment, forceSP, checkWL, jpk_v7, importKasaZbiorczy, fiscalDeviceNo, statusMig, zeroVatRate,
-                         procedura_OSS, typeExternal, procedura_SME, createdDate, modifiedDate)
-                        OUTPUT INSERTED.id
-                        VALUES
-                        (0, 1, 0, 6, 0, 0, @Kod, 'sWZ', @SeriaNr, 0, 0, @Nazwa, @Data, '',
-                         @KhId, 0, 0, 0, 0, @Netto, @Vat, '', 'WZ', 1, 0, 0, 'PLN', 1,
-                         0, 0, '', 0, '', 1, 0, 0, 0, 0,
-                         0, 0, 0, NEWID(), 0, 0, 0, 0, 0, 0,
-                         0, 0, 0, '', 0, '', 0, 0,
-                         0, 0, 0, GETDATE(), GETDATE())";
-
-                    await using var cmdDK = new SqlCommand(sqlDK, cn, transaction);
-                    cmdDK.Parameters.AddWithValue("@SeriaNr", nowyNumer);
-                    cmdDK.Parameters.AddWithValue("@Kod", kodDokumentu);
-                    cmdDK.Parameters.AddWithValue("@Nazwa", $"Import z Panelu Faktur - Zam. #{_currentOrderId}");
-                    cmdDK.Parameters.AddWithValue("@Data", DateTime.Today);
-                    cmdDK.Parameters.AddWithValue("@KhId", kontrahentId);
-                    cmdDK.Parameters.AddWithValue("@Netto", (double)wartoscNetto);
-                    cmdDK.Parameters.AddWithValue("@Vat", (double)wartoscVat);
-
-                    int dokumentId = Convert.ToInt32(await cmdDK.ExecuteScalarAsync());
-
-                    // Utwórz pozycje dokumentu
-                    short lp = 1;
-                    foreach (var poz in pozycje)
-                    {
-                        if (!towarySymfonia.TryGetValue(poz.KodTowaru, out var towarInfo)) continue;
-
-                        decimal wartoscPozNetto = poz.Ilosc * poz.Cena;
-                        decimal wartoscPozVat = wartoscPozNetto * 0.05m; // 5% VAT
-                        decimal wartoscPozTowaru = wartoscPozNetto + wartoscPozVat;
-
-                        string sqlDP = @"
-                            INSERT INTO [HANDEL].[HM].[DP]
-                            (super, lp, idtw, kod, ilosc, cena, wartNetto, wartVat, wartTowaru, jm, stvat, bufor)
-                            VALUES
-                            (@Super, @Lp, @IdTw, @Kod, @Ilosc, @Cena, @WartNetto, @WartVat, @WartTowaru, @Jm, @StVat, 1)";
-
-                        await using var cmdDP = new SqlCommand(sqlDP, cn, transaction);
-                        cmdDP.Parameters.AddWithValue("@Super", dokumentId);
-                        cmdDP.Parameters.AddWithValue("@Lp", lp++);
-                        cmdDP.Parameters.AddWithValue("@IdTw", poz.KodTowaru);
-                        cmdDP.Parameters.AddWithValue("@Kod", towarInfo.Kod);
-                        cmdDP.Parameters.AddWithValue("@Ilosc", (double)poz.Ilosc);
-                        cmdDP.Parameters.AddWithValue("@Cena", (double)poz.Cena);
-                        cmdDP.Parameters.AddWithValue("@WartNetto", (double)wartoscPozNetto);
-                        cmdDP.Parameters.AddWithValue("@WartVat", (double)wartoscPozVat);
-                        cmdDP.Parameters.AddWithValue("@WartTowaru", (double)wartoscPozTowaru);
-                        cmdDP.Parameters.AddWithValue("@Jm", "kg");
-                        cmdDP.Parameters.AddWithValue("@StVat", 5.0); // Stawka VAT 5%
-
-                        await cmdDP.ExecuteNonQueryAsync();
-                    }
-
-                    transaction.Commit();
-                    return (true, kodDokumentu, "");
+                    MessageBox.Show("Zmiana została przyjęta.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                    await RefreshDataAsync();
                 }
                 catch (Exception ex)
                 {
-                    transaction.Rollback();
-                    return (false, "", ex.Message);
+                    MessageBox.Show($"Błąd podczas akceptacji zmiany:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
-            }
-            catch (Exception ex)
-            {
-                return (false, "", ex.Message);
             }
         }
 
@@ -1082,6 +881,19 @@ namespace Kalendarz1.WPF
                     "IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'NumerFaktury') " +
                     "ALTER TABLE [dbo].[ZamowieniaMieso] ADD NumerFaktury NVARCHAR(50) NULL", cn);
                 await checkCmd2.ExecuteNonQueryAsync();
+            }
+            catch { }
+        }
+
+        private async Task EnsureZmianaColumnExistsAsync(SqlConnection cn)
+        {
+            try
+            {
+                // Sprawdź i dodaj kolumnę CzyZmodyfikowaneDlaFaktur
+                await using var checkCmd = new SqlCommand(
+                    "IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'CzyZmodyfikowaneDlaFaktur') " +
+                    "ALTER TABLE [dbo].[ZamowieniaMieso] ADD CzyZmodyfikowaneDlaFaktur BIT DEFAULT 0", cn);
+                await checkCmd.ExecuteNonQueryAsync();
             }
             catch { }
         }

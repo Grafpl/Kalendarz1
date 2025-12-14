@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Panel Faktur - Symfonia Handel"
+        Title="Panel Faktur - Zamówienia Klientów"
         Height="768" Width="1400"
         WindowState="Maximized"
         Background="#F5F7FA"
@@ -154,7 +154,7 @@
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="Panel Faktur" FontSize="24" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
-                    <TextBlock Text=" - Symfonia Handel" FontSize="16" Foreground="#B3E5FC" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                    <TextBlock Text=" - Zamówienia Klientów" FontSize="16" Foreground="#B3E5FC" VerticalAlignment="Center" Margin="5,0,0,0"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
@@ -243,6 +243,9 @@
                             </Border>
                             <Border Background="#C8E6C9" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#81C784" BorderThickness="1">
                                 <TextBlock Text="Zafakturowane" FontSize="10" Foreground="#2E7D32" FontWeight="Medium" FontStyle="Italic"/>
+                            </Border>
+                            <Border Background="#FFF3E0" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#FFB74D" BorderThickness="2">
+                                <TextBlock Text="⚠ Zmiana" FontSize="10" Foreground="#E65100" FontWeight="Bold"/>
                             </Border>
                         </StackPanel>
                     </Border>
@@ -338,27 +341,33 @@
                 <Border Grid.Row="1" Background="White" CornerRadius="8"
                         BorderBrush="#E0E0E0" BorderThickness="1" Padding="15">
                     <StackPanel>
-                        <TextBlock Text="Import do Symfonii Handel" FontSize="14" FontWeight="SemiBold"
+                        <!-- Panel powiadomienia o zmianie -->
+                        <Border x:Name="borderZmiana" Background="#FFF3E0" CornerRadius="8" Padding="12" Margin="0,0,0,10"
+                                BorderBrush="#FFB74D" BorderThickness="2" Visibility="Collapsed">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
+                                    <TextBlock Text="⚠️" FontSize="18" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Text="ZMIANA W ZAMÓWIENIU" FontSize="14" FontWeight="Bold" Foreground="#E65100" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock x:Name="txtZmianaInfo" Text="Zamówienie zostało zmodyfikowane od ostatniego zatwierdzenia."
+                                           FontSize="11" Foreground="#5D4037" TextAlignment="Center" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                                <Button x:Name="btnAcceptChange" Content="✓ Przyjmuję zmianę"
+                                        Style="{StaticResource SuccessButtonStyle}"
+                                        Height="40" FontSize="13"
+                                        Click="BtnAcceptChange_Click"/>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="Akcje" FontSize="14" FontWeight="SemiBold"
                                    Foreground="#2C3E50" Margin="0,0,0,10"/>
 
-                        <Button x:Name="btnCreateInvoice" Content="Importuj do Symfonii (WZ)"
-                                Style="{StaticResource SuccessButtonStyle}"
-                                Height="45" FontSize="14"
-                                Click="BtnCreateInvoice_Click"
-                                IsEnabled="False"/>
-
-                        <TextBlock x:Name="txtInvoiceStatus" Text="Wybierz zamówienie aby utworzyć dokument WZ"
-                                   FontSize="11" Foreground="#7F8C8D" TextAlignment="Center" Margin="0,10,0,0"
+                        <TextBlock x:Name="txtInvoiceStatus" Text="Wybierz zamówienie z listy"
+                                   FontSize="11" Foreground="#7F8C8D" TextAlignment="Center" Margin="0,0,0,10"
                                    TextWrapping="Wrap"/>
-
-                        <Separator Margin="0,15"/>
-
-                        <CheckBox x:Name="chkMarkAsFakturowane" Content="Oznacz jako zafakturowane po utworzeniu"
-                                  IsChecked="True" Margin="0,5"/>
 
                         <Button x:Name="btnMarkFakturowane" Content="Oznacz jako zafakturowane"
                                 Style="{StaticResource ActionButtonStyle}"
-                                Height="35" Margin="0,10,0,0"
+                                Height="40" Margin="0,5,0,0"
                                 Click="BtnMarkFakturowane_Click"
                                 IsEnabled="False"/>
                     </StackPanel>
