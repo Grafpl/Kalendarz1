@@ -383,6 +383,15 @@ namespace Kalendarz1
                         Color.FromArgb(33, 150, 243), // #2196F3
                         () => new WidokFakturSprzedazy { UserID = App.UserID }, "🧾"),
 
+                    new MenuItemConfig("PanelFaktur", "Panel Faktur",
+                        "Panel dla fakturzystki - przepisywanie zamówień do Symfonii Handel i tworzenie faktur",
+                        Color.FromArgb(30, 136, 229), // #1E88E5
+                        () => {
+                            var window = new Kalendarz1.WPF.PanelFakturWindow();
+                            window.UserID = App.UserID;
+                            return window;
+                        }, "📋"),
+
                     new MenuItemConfig("OfertaCenowa", "Kreator Ofert",
                         "Tworzenie profesjonalnych ofert cenowych dla klientów z aktualnym cennikiem produktów",
                         Color.FromArgb(30, 136, 229), // #1E88E5

@@ -916,6 +916,7 @@ namespace Kalendarz1
                 new ModuleInfo("KartotekaOdbiorcow", "Kartoteka Odbiorców", "Pełna baza danych klientów", "Sprzedaż i CRM", "👤"),
                 new ModuleInfo("ZamowieniaOdbiorcow", "Zamówienia Klientów", "Przyjmowanie zamówień", "Sprzedaż i CRM", "🛒"),
                 new ModuleInfo("DokumentySprzedazy", "Faktury Sprzedaży", "Przeglądanie faktur i WZ", "Sprzedaż i CRM", "🧾"),
+                new ModuleInfo("PanelFaktur", "Panel Faktur", "Tworzenie faktur w Symfonii", "Sprzedaż i CRM", "📋"),
                 new ModuleInfo("OfertaCenowa", "Kreator Ofert", "Tworzenie ofert cenowych", "Sprzedaż i CRM", "💰"),
                 new ModuleInfo("ListaOfert", "Archiwum Ofert", "Historia ofert handlowych", "Sprzedaż i CRM", "📂"),
                 new ModuleInfo("DashboardOfert", "Analiza Ofert", "Statystyki skuteczności ofert", "Sprzedaż i CRM", "📊"),
