@@ -581,9 +581,10 @@
                                     <TextBlock Text=" (Plan = prognoza z harmonogramu, Fakt = dokumenty produkcji)" Foreground="#90CAF9" FontSize="12" VerticalAlignment="Center" Margin="10,0,0,0"/>
                                 </StackPanel>
                             </Border>
-                            <DataGrid Grid.Row="1" x:Name="dgvPlanDnia" Style="{StaticResource CustomDataGridStyle}" IsReadOnly="True" RowHeight="42" Margin="5" FontSize="14">
+                            <DataGrid Grid.Row="1" x:Name="dgvPlanDnia" Style="{StaticResource CustomDataGridStyle}" IsReadOnly="True" RowHeight="42" Margin="5" FontSize="14"
+                                      ColumnWidth="*" HorizontalScrollBarVisibility="Disabled">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Produkt" Binding="{Binding Produkt}" Width="*" MinWidth="200">
+                                    <DataGridTextColumn Header="Produkt" Binding="{Binding Produkt}" Width="2*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="FontWeight" Value="SemiBold"/>
@@ -591,7 +592,7 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Plan (kg)" Binding="{Binding Plan, StringFormat=N0}" Width="100">
+                                    <DataGridTextColumn Header="Plan (kg)" Binding="{Binding Plan, StringFormat=N0}" Width="*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="Foreground" Value="#81C784"/>
@@ -601,7 +602,7 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Fakt (kg)" Binding="{Binding Fakt, StringFormat=N0}" Width="100">
+                                    <DataGridTextColumn Header="Fakt (kg)" Binding="{Binding Fakt, StringFormat=N0}" Width="*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="Foreground" Value="#64B5F6"/>
@@ -611,7 +612,7 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Zamówienia" Binding="{Binding Zamowienia, StringFormat=N0}" Width="110">
+                                    <DataGridTextColumn Header="Zamówienia" Binding="{Binding Zamowienia, StringFormat=N0}" Width="*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="Foreground" Value="#FFCC80"/>
@@ -621,7 +622,7 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Wydania" Binding="{Binding Wydania, StringFormat=N0}" Width="100">
+                                    <DataGridTextColumn Header="Wydania" Binding="{Binding Wydania, StringFormat=N0}" Width="*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="Foreground" Value="#CE93D8"/>
@@ -631,7 +632,7 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Bilans" Binding="{Binding Bilans, StringFormat=N0}" Width="100">
+                                    <DataGridTextColumn Header="Bilans" Binding="{Binding Bilans, StringFormat=N0}" Width="*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="FontWeight" Value="Bold"/>
@@ -640,7 +641,7 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="%" Binding="{Binding Procent}" Width="70">
+                                    <DataGridTextColumn Header="%" Binding="{Binding Procent}" Width="0.7*">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="Foreground" Value="#B0BEC5"/>
