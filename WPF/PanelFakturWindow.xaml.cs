@@ -953,17 +953,17 @@ namespace Kalendarz1.WPF
                     // bufor = 1 (dokument w buforze)
                     string sqlDK = @"
                         INSERT INTO [HANDEL].[HM].[DK]
-                        (typ, subtyp, serianr, kod, nazwa, data, kh, netto, vat, bufor, createdDate, modifiedDate)
+                        (typ, subtyp, serianr, kod, nazwa, data, khid, netto, vat, bufor, aktywny, seria, createdDate, modifiedDate)
                         OUTPUT INSERTED.id
                         VALUES
-                        (6, 0, @SeriaNr, @Kod, @Nazwa, @Data, @Kh, @Netto, @Vat, 1, GETDATE(), GETDATE())";
+                        (6, 0, @SeriaNr, @Kod, @Nazwa, @Data, @KhId, @Netto, @Vat, 1, 1, 'sWZ', GETDATE(), GETDATE())";
 
                     await using var cmdDK = new SqlCommand(sqlDK, cn, transaction);
                     cmdDK.Parameters.AddWithValue("@SeriaNr", nowyNumer);
                     cmdDK.Parameters.AddWithValue("@Kod", kodDokumentu);
                     cmdDK.Parameters.AddWithValue("@Nazwa", $"Import z Panelu Faktur - Zam. #{_currentOrderId}");
                     cmdDK.Parameters.AddWithValue("@Data", DateTime.Today);
-                    cmdDK.Parameters.AddWithValue("@Kh", kontrahentId);
+                    cmdDK.Parameters.AddWithValue("@KhId", kontrahentId);
                     cmdDK.Parameters.AddWithValue("@Netto", (double)wartoscNetto);
                     cmdDK.Parameters.AddWithValue("@Vat", (double)wartoscVat);
 
