@@ -445,14 +445,9 @@ namespace Kalendarz1
 
         private async void ProductButton_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button btn && btn.Tag != null)
+            if (sender is Button btn && btn.Tag is int productId)
             {
-                int productId = Convert.ToInt32(btn.Tag);
-                string productName = btn.Content?.ToString() ?? "?";
-                _filteredProductId = productId == 0 ? (int?)null : productId;
-
-                System.Diagnostics.Debug.WriteLine($"[MagazynPanel] Kliknięto: '{productName}' (ID={productId}), _filteredProductId={(_filteredProductId.HasValue ? _filteredProductId.Value.ToString() : "null")}");
-
+                _filteredProductId = productId == 0 ? null : productId;
                 SetProductButtonSelected(btn);
                 await LoadOrdersAsync();
             }
@@ -546,10 +541,6 @@ namespace Kalendarz1
                     cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
                     if (_filteredProductId.HasValue) cmd.Parameters.AddWithValue("@P", _filteredProductId.Value);
 
-                    // Debug: pokaż zapytanie SQL
-                    System.Diagnostics.Debug.WriteLine($"[MagazynPanel] Filter: {(_filteredProductId.HasValue ? _filteredProductId.Value.ToString() : "BRAK")}");
-                    System.Diagnostics.Debug.WriteLine($"[MagazynPanel] SQL: {sqlBuilder}");
-
                     using var rd = await cmd.ExecuteReaderAsync();
                     while (await rd.ReadAsync())
                     {
@@ -607,8 +598,6 @@ namespace Kalendarz1
                         _zamowienia[info.Id] = info;
                     }
                 }
-
-                System.Diagnostics.Debug.WriteLine($"[MagazynPanel] Załadowano {_zamowienia.Count} zamówień z filtrem: {(_filteredProductId.HasValue ? _filteredProductId.Value.ToString() : "BRAK")}");
 
                 // KROK 2: Pobierz dane kursów z TransportPL (kierowca, pojazd, godzina)
                 using var cnTransport = new SqlConnection(_connTransport);
