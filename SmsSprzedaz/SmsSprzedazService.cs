@@ -8,7 +8,8 @@ using Microsoft.Data.SqlClient;
 namespace Kalendarz1.SmsSprzedaz
 {
     /// <summary>
-    /// Serwis do wysyłania SMS-ów do handlowców o wydaniach towaru
+    /// Serwis do automatycznego wysyłania SMS-ów do handlowców o wydaniach towaru
+    /// Używa SMSAPI.pl jako dostawcy SMS
     /// </summary>
     public class SmsSprzedazService
     {
@@ -16,8 +17,101 @@ namespace Kalendarz1.SmsSprzedaz
         private readonly string _connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
         private readonly string _connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
-        // Cache dla mapowania Handlowiec -> OperatorID -> Telefon
+        // Cache
         private Dictionary<string, string> _handlowiecTelefonCache = new();
+        private SmsApiClient _smsApiClient = null;
+        private SmsApiConfig _apiConfig = null;
+        private bool _configLoaded = false;
+
+        /// <summary>
+        /// Pobiera konfigurację SMSAPI z bazy danych
+        /// </summary>
+        public async Task<SmsApiConfig> PobierzKonfiguracjeApiAsync()
+        {
+            if (_configLoaded && _apiConfig != null)
+                return _apiConfig;
+
+            _apiConfig = new SmsApiConfig();
+
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Upewnij się że tabela konfiguracji istnieje
+                await UtworzTabeleKonfiguracjiAsync(cn);
+
+                var sql = @"SELECT TOP 1 ApiToken, NadawcaNazwa, Aktywny, TestMode
+                            FROM dbo.SmsApiKonfiguracja
+                            WHERE Aktywny = 1
+                            ORDER BY Id DESC";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                await using var rd = await cmd.ExecuteReaderAsync();
+
+                if (await rd.ReadAsync())
+                {
+                    _apiConfig.ApiToken = rd.IsDBNull(0) ? "" : rd.GetString(0);
+                    _apiConfig.NadawcaNazwa = rd.IsDBNull(1) ? "" : rd.GetString(1);
+                    _apiConfig.Aktywny = rd.GetBoolean(2);
+                    _apiConfig.TestMode = rd.GetBoolean(3);
+                }
+
+                _configLoaded = true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd pobierania konfiguracji API: {ex.Message}");
+            }
+
+            return _apiConfig;
+        }
+
+        /// <summary>
+        /// Tworzy tabelę konfiguracji SMSAPI jeśli nie istnieje
+        /// </summary>
+        private async Task UtworzTabeleKonfiguracjiAsync(SqlConnection cn)
+        {
+            var sql = @"IF NOT EXISTS (SELECT * FROM sys.objects WHERE name='SmsApiKonfiguracja' AND type='U')
+                        BEGIN
+                            CREATE TABLE dbo.SmsApiKonfiguracja (
+                                Id INT IDENTITY(1,1) PRIMARY KEY,
+                                ApiToken NVARCHAR(200) NOT NULL,
+                                NadawcaNazwa NVARCHAR(11) NULL,
+                                Aktywny BIT NOT NULL DEFAULT 1,
+                                TestMode BIT NOT NULL DEFAULT 0,
+                                DataUtworzenia DATETIME NOT NULL DEFAULT GETDATE(),
+                                DataModyfikacji DATETIME NULL
+                            );
+
+                            -- Wstaw domyślny rekord (pusty - do uzupełnienia)
+                            INSERT INTO dbo.SmsApiKonfiguracja (ApiToken, NadawcaNazwa, Aktywny, TestMode)
+                            VALUES ('', 'PRONOVA', 0, 1);
+
+                            PRINT 'Tabela SmsApiKonfiguracja utworzona. Uzupełnij ApiToken w bazie!'
+                        END";
+
+            await using var cmd = new SqlCommand(sql, cn);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        /// <summary>
+        /// Pobiera lub tworzy klienta SMSAPI
+        /// </summary>
+        private async Task<SmsApiClient> GetSmsApiClientAsync()
+        {
+            if (_smsApiClient != null)
+                return _smsApiClient;
+
+            var config = await PobierzKonfiguracjeApiAsync();
+
+            if (!string.IsNullOrEmpty(config.ApiToken) && config.Aktywny)
+            {
+                _smsApiClient = new SmsApiClient(config.ApiToken, config.NadawcaNazwa);
+            }
+
+            return _smsApiClient;
+        }
 
         /// <summary>
         /// Pobiera informacje o wydaniu do wysłania SMS
@@ -156,7 +250,6 @@ namespace Kalendarz1.SmsSprzedaz
                 await cn.OpenAsync();
 
                 // Najpierw znajdź OperatorID na podstawie nazwy handlowca
-                // Zakładamy że nazwa handlowca odpowiada nazwie operatora
                 var sqlOperator = @"SELECT TOP 1 o.ID
                                     FROM dbo.operators o
                                     WHERE o.Name LIKE @Nazwa + '%' OR o.Name = @Nazwa
@@ -191,7 +284,7 @@ namespace Kalendarz1.SmsSprzedaz
         }
 
         /// <summary>
-        /// Wysyła SMS o wydaniu towaru do handlowca
+        /// Wysyła SMS o wydaniu towaru do handlowca - AUTOMATYCZNIE przez SMSAPI.pl
         /// </summary>
         public async Task<WynikWyslaniaSms> WyslijSmsWydaniaAsync(WydanieInfo info, string userId)
         {
@@ -202,25 +295,22 @@ namespace Kalendarz1.SmsSprzedaz
                 // Generuj treść SMS
                 var trescSms = SzablonSmsSprzedaz.GenerujTrescSms(info);
 
+                // Sprawdź czy mamy numer telefonu
                 if (string.IsNullOrWhiteSpace(info.HandlowiecTelefon))
                 {
-                    // Brak telefonu - skopiuj do schowka
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        Clipboard.SetText(trescSms);
-                    });
-
-                    wynik.Sukces = true;
-                    wynik.SkopiowaDoSchowka = true;
-                    wynik.Wiadomosc = $"SMS skopiowany do schowka (brak telefonu handlowca {info.Handlowiec})";
-
-                    // Zapisz historię
-                    await ZapiszHistorieSmsAsync(info, trescSms, userId, "Kopiowany", "Brak telefonu handlowca");
+                    wynik.Sukces = false;
+                    wynik.Wiadomosc = $"Brak numeru telefonu dla handlowca {info.Handlowiec}";
+                    await ZapiszHistorieSmsAsync(info, trescSms, userId, "Blad", "Brak numeru telefonu");
+                    return wynik;
                 }
-                else
+
+                // Pobierz klienta SMSAPI
+                var smsClient = await GetSmsApiClientAsync();
+                var config = await PobierzKonfiguracjeApiAsync();
+
+                if (smsClient == null || !config.Aktywny || string.IsNullOrEmpty(config.ApiToken))
                 {
-                    // Jest telefon - spróbuj wysłać przez Twilio lub skopiuj
-                    // Na razie kopiujemy do schowka (Twilio wymaga konfiguracji)
+                    // API nie skonfigurowane - fallback do schowka
                     Application.Current.Dispatcher.Invoke(() =>
                     {
                         Clipboard.SetText($"DO: {info.HandlowiecTelefon}\n\n{trescSms}");
@@ -228,10 +318,40 @@ namespace Kalendarz1.SmsSprzedaz
 
                     wynik.Sukces = true;
                     wynik.SkopiowaDoSchowka = true;
-                    wynik.Wiadomosc = $"SMS do {info.Handlowiec} ({info.HandlowiecTelefon}) skopiowany do schowka";
+                    wynik.Wiadomosc = "SMSAPI nie skonfigurowane - SMS skopiowany do schowka";
+                    await ZapiszHistorieSmsAsync(info, trescSms, userId, "Kopiowany", "API nie skonfigurowane");
+                    return wynik;
+                }
 
-                    // Zapisz historię
-                    await ZapiszHistorieSmsAsync(info, trescSms, userId, "Kopiowany", "");
+                // Tryb testowy - nie wysyłaj, tylko loguj
+                if (config.TestMode)
+                {
+                    wynik.Sukces = true;
+                    wynik.SkopiowaDoSchowka = false;
+                    wynik.Wiadomosc = $"[TEST] SMS do {info.Handlowiec} ({info.HandlowiecTelefon})";
+                    wynik.SmsId = "TEST-" + DateTime.Now.Ticks;
+                    await ZapiszHistorieSmsAsync(info, trescSms, userId, "Test", "Tryb testowy");
+                    return wynik;
+                }
+
+                // WYŚLIJ SMS PRZEZ SMSAPI.PL
+                var smsResult = await smsClient.WyslijSmsAsync(info.HandlowiecTelefon, trescSms);
+
+                if (smsResult.Sukces)
+                {
+                    wynik.Sukces = true;
+                    wynik.SkopiowaDoSchowka = false;
+                    wynik.SmsId = smsResult.SmsId;
+                    wynik.Wiadomosc = $"SMS wysłany do {info.Handlowiec}";
+
+                    await ZapiszHistorieSmsAsync(info, trescSms, userId, "Wyslany", $"ID: {smsResult.SmsId}");
+                }
+                else
+                {
+                    wynik.Sukces = false;
+                    wynik.Wiadomosc = $"Błąd SMSAPI: {smsResult.Blad}";
+
+                    await ZapiszHistorieSmsAsync(info, trescSms, userId, "Blad", smsResult.Blad);
                 }
             }
             catch (Exception ex)
@@ -335,7 +455,7 @@ namespace Kalendarz1.SmsSprzedaz
                 await cn.OpenAsync();
 
                 var sql = @"SELECT COUNT(*) FROM dbo.SmsSprzedazHistoria
-                            WHERE ZamowienieId = @ZamId AND Status IN ('Wyslany', 'Kopiowany')
+                            WHERE ZamowienieId = @ZamId AND Status IN ('Wyslany', 'Test')
                             AND CAST(DataWyslania AS DATE) = CAST(GETDATE() AS DATE)";
 
                 await using var cmd = new SqlCommand(sql, cn);
@@ -348,6 +468,24 @@ namespace Kalendarz1.SmsSprzedaz
             {
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Sprawdza stan konta SMSAPI
+        /// </summary>
+        public async Task<SmsApiAccountInfo> SprawdzKontoSmsApiAsync()
+        {
+            var client = await GetSmsApiClientAsync();
+            if (client == null)
+            {
+                return new SmsApiAccountInfo
+                {
+                    Sukces = false,
+                    Blad = "SMSAPI nie skonfigurowane"
+                };
+            }
+
+            return await client.SprawdzKontoAsync();
         }
 
         /// <summary>
@@ -417,7 +555,6 @@ namespace Kalendarz1.SmsSprzedaz
                 await using var cnHandel = new SqlConnection(_connHandel);
                 await cnHandel.OpenAsync();
 
-                // Pobierz unikalnych handlowców
                 var sqlHandlowcy = @"SELECT DISTINCT CDim_Handlowiec_Val
                                      FROM SSCommon.ContractorClassification
                                      WHERE CDim_Handlowiec_Val IS NOT NULL
@@ -448,46 +585,16 @@ namespace Kalendarz1.SmsSprzedaz
 
             return konfiguracje;
         }
+    }
 
-        /// <summary>
-        /// Generuje podsumowanie dzienne dla handlowca
-        /// </summary>
-        public async Task<string> GenerujPodsumowanieDzienneAsync(string handlowiec, DateTime data)
-        {
-            var wydania = new List<(string Klient, decimal Kg, string CzasWyjazdu)>();
-
-            try
-            {
-                await using var cn = new SqlConnection(_connLibra);
-                await cn.OpenAsync();
-
-                var sql = @"SELECT KlientNazwa, IloscKg, CzasWyjazdu
-                            FROM dbo.SmsSprzedazHistoria
-                            WHERE Handlowiec = @Handlowiec
-                              AND CAST(DataWyslania AS DATE) = @Data
-                              AND Status IN ('Wyslany', 'Kopiowany')
-                            ORDER BY CzasWyjazdu";
-
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@Handlowiec", handlowiec);
-                cmd.Parameters.AddWithValue("@Data", data.Date);
-
-                await using var rd = await cmd.ExecuteReaderAsync();
-                while (await rd.ReadAsync())
-                {
-                    var klient = rd.IsDBNull(0) ? "" : rd.GetString(0);
-                    var kg = rd.IsDBNull(1) ? 0 : rd.GetDecimal(1);
-                    var czasWyjazdu = rd.IsDBNull(2) ? "-" : rd.GetDateTime(2).ToString("HH:mm");
-
-                    wydania.Add((klient, kg, czasWyjazdu));
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Błąd generowania podsumowania: {ex.Message}");
-            }
-
-            return SzablonSmsSprzedaz.GenerujSmsDziennyZbiorczy(handlowiec, data, wydania);
-        }
+    /// <summary>
+    /// Konfiguracja SMSAPI.pl
+    /// </summary>
+    public class SmsApiConfig
+    {
+        public string ApiToken { get; set; } = "";
+        public string NadawcaNazwa { get; set; } = "";
+        public bool Aktywny { get; set; } = false;
+        public bool TestMode { get; set; } = true;
     }
 }

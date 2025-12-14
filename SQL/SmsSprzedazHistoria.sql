@@ -1,12 +1,42 @@
 -- =====================================================
--- Tabela historii SMS-ów wysyłanych do handlowców
--- o wydaniach towarów do ich odbiorców
+-- System SMS dla handlowców - SMSAPI.pl
+-- Tabele: Historia SMS, Konfiguracja API
 -- =====================================================
 
 USE [LibraNet]
 GO
 
--- Utwórz tabelę jeśli nie istnieje
+-- =====================================================
+-- 1. Tabela konfiguracji SMSAPI.pl
+-- =====================================================
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE name='SmsApiKonfiguracja' AND type='U')
+BEGIN
+    CREATE TABLE dbo.SmsApiKonfiguracja (
+        Id INT IDENTITY(1,1) PRIMARY KEY,
+        ApiToken NVARCHAR(200) NOT NULL,           -- Token z panelu SMSAPI.pl
+        NadawcaNazwa NVARCHAR(11) NULL,            -- Nazwa nadawcy (max 11 znaków)
+        Aktywny BIT NOT NULL DEFAULT 1,            -- Czy wysyłanie aktywne
+        TestMode BIT NOT NULL DEFAULT 0,           -- Tryb testowy (nie wysyła SMS)
+        DataUtworzenia DATETIME NOT NULL DEFAULT GETDATE(),
+        DataModyfikacji DATETIME NULL
+    );
+
+    -- Wstaw domyślny rekord (UZUPEŁNIJ TOKEN!)
+    INSERT INTO dbo.SmsApiKonfiguracja (ApiToken, NadawcaNazwa, Aktywny, TestMode)
+    VALUES ('TUTAJ_WKLEJ_TOKEN_Z_SMSAPI', 'PRONOVA', 1, 1);
+    -- TestMode = 1 oznacza tryb testowy (SMS nie będą wysyłane, tylko logowane)
+    -- Zmień na TestMode = 0 żeby włączyć wysyłanie
+
+    PRINT 'Tabela SmsApiKonfiguracja utworzona.'
+    PRINT 'WAŻNE: Uzupełnij ApiToken tokenem z panelu SMSAPI.pl!'
+END
+GO
+
+-- =====================================================
+-- 2. Tabela historii SMS-ów wysyłanych do handlowców
+-- =====================================================
+
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE name='SmsSprzedazHistoria' AND type='U')
 BEGIN
     CREATE TABLE dbo.SmsSprzedazHistoria (
@@ -21,50 +51,44 @@ BEGIN
         CzasWyjazdu DATETIME NULL,
         DataWyslania DATETIME NOT NULL DEFAULT GETDATE(),
         KtoWyslal NVARCHAR(100) NULL,
-        Status NVARCHAR(20) NOT NULL DEFAULT 'Wyslany',
+        Status NVARCHAR(20) NOT NULL DEFAULT 'Wyslany',  -- Wyslany, Test, Kopiowany, Blad
         BladOpis NVARCHAR(500) NULL
     );
 
-    -- Indeksy dla szybszego wyszukiwania
     CREATE INDEX IX_SmsSprzedaz_ZamowienieId ON dbo.SmsSprzedazHistoria(ZamowienieId);
     CREATE INDEX IX_SmsSprzedaz_Handlowiec ON dbo.SmsSprzedazHistoria(Handlowiec);
     CREATE INDEX IX_SmsSprzedaz_DataWyslania ON dbo.SmsSprzedazHistoria(DataWyslania);
-    CREATE INDEX IX_SmsSprzedaz_KlientId ON dbo.SmsSprzedazHistoria(KlientId);
+    CREATE INDEX IX_SmsSprzedaz_Status ON dbo.SmsSprzedazHistoria(Status);
 
-    PRINT 'Tabela SmsSprzedazHistoria została utworzona.'
-END
-ELSE
-BEGIN
-    PRINT 'Tabela SmsSprzedazHistoria już istnieje.'
+    PRINT 'Tabela SmsSprzedazHistoria utworzona.'
 END
 GO
 
 -- =====================================================
--- Tabela konfiguracji SMS dla handlowców
--- (opcjonalnie - można przechowywać preferencje)
+-- 3. Tabela kontaktów operatorów (telefony handlowców)
 -- =====================================================
 
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE name='SmsSprzedazKonfiguracja' AND type='U')
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE name='OperatorzyKontakt' AND type='U')
 BEGIN
-    CREATE TABLE dbo.SmsSprzedazKonfiguracja (
+    CREATE TABLE dbo.OperatorzyKontakt (
         Id INT IDENTITY(1,1) PRIMARY KEY,
-        Handlowiec NVARCHAR(100) NOT NULL UNIQUE,
-        TelefonOverride NVARCHAR(20) NULL,    -- Nadpisanie telefonu z OperatorzyKontakt
-        SmsAktywny BIT NOT NULL DEFAULT 1,    -- Czy wysyłać SMS
-        SmsPoWydaniu BIT NOT NULL DEFAULT 1,  -- SMS natychmiast po wydaniu
-        SmsZbiorczyDzienny BIT NOT NULL DEFAULT 0, -- SMS zbiorczy na koniec dnia
+        OperatorID INT NOT NULL,                   -- Powiązanie z dbo.operators.ID
+        Telefon NVARCHAR(20) NULL,                 -- Numer telefonu (+48123456789)
+        Email NVARCHAR(100) NULL,
         DataUtworzenia DATETIME NOT NULL DEFAULT GETDATE(),
-        DataModyfikacji DATETIME NULL
+        CONSTRAINT FK_OperatorzyKontakt_Operator FOREIGN KEY (OperatorID)
+            REFERENCES dbo.operators(ID)
     );
 
-    CREATE INDEX IX_SmsKonfiguracja_Handlowiec ON dbo.SmsSprzedazKonfiguracja(Handlowiec);
+    CREATE UNIQUE INDEX IX_OperatorzyKontakt_OperatorID ON dbo.OperatorzyKontakt(OperatorID);
 
-    PRINT 'Tabela SmsSprzedazKonfiguracja została utworzona.'
+    PRINT 'Tabela OperatorzyKontakt utworzona.'
+    PRINT 'WAŻNE: Uzupełnij numery telefonów handlowców!'
 END
 GO
 
 -- =====================================================
--- Widok do raportowania SMS handlowców
+-- 4. Widok raportowy SMS
 -- =====================================================
 
 IF EXISTS (SELECT * FROM sys.views WHERE name='vw_SmsSprzedazRaport')
@@ -79,17 +103,18 @@ SELECT
     SUM(h.IloscKg) AS SumaKg,
     COUNT(DISTINCT h.KlientId) AS LiczbaKlientow,
     SUM(CASE WHEN h.Status = 'Wyslany' THEN 1 ELSE 0 END) AS Wyslane,
+    SUM(CASE WHEN h.Status = 'Test' THEN 1 ELSE 0 END) AS Testowe,
     SUM(CASE WHEN h.Status = 'Kopiowany' THEN 1 ELSE 0 END) AS Kopiowane,
     SUM(CASE WHEN h.Status = 'Blad' THEN 1 ELSE 0 END) AS Bledy
 FROM dbo.SmsSprzedazHistoria h
 GROUP BY h.Handlowiec, CAST(h.DataWyslania AS DATE)
 GO
 
-PRINT 'Widok vw_SmsSprzedazRaport został utworzony.'
+PRINT 'Widok vw_SmsSprzedazRaport utworzony.'
 GO
 
 -- =====================================================
--- Procedura do pobierania statystyk SMS
+-- 5. Procedura statystyk SMS
 -- =====================================================
 
 IF EXISTS (SELECT * FROM sys.procedures WHERE name='sp_SmsSprzedazStatystyki')
@@ -114,16 +139,65 @@ BEGIN
         COUNT(DISTINCT h.KlientId) AS LiczbaKlientow,
         COUNT(DISTINCT CAST(h.DataWyslania AS DATE)) AS LiczbaDni,
         MIN(h.DataWyslania) AS PierwszySms,
-        MAX(h.DataWyslania) AS OstatniSms
+        MAX(h.DataWyslania) AS OstatniSms,
+        SUM(CASE WHEN h.Status = 'Wyslany' THEN 1 ELSE 0 END) AS Wyslane,
+        SUM(CASE WHEN h.Status = 'Blad' THEN 1 ELSE 0 END) AS Bledy
     FROM dbo.SmsSprzedazHistoria h
     WHERE h.DataWyslania >= @DataOd
       AND h.DataWyslania <= DATEADD(DAY, 1, @DataDo)
       AND (@Handlowiec IS NULL OR h.Handlowiec = @Handlowiec)
-      AND h.Status IN ('Wyslany', 'Kopiowany')
     GROUP BY h.Handlowiec
     ORDER BY SumaKg DESC
 END
 GO
 
-PRINT 'Procedura sp_SmsSprzedazStatystyki została utworzona.'
+PRINT 'Procedura sp_SmsSprzedazStatystyki utworzona.'
+GO
+
+-- =====================================================
+-- 6. Przykładowe zapytania konfiguracyjne
+-- =====================================================
+
+-- Sprawdź aktualną konfigurację SMSAPI:
+-- SELECT * FROM dbo.SmsApiKonfiguracja
+
+-- Włącz wysyłanie SMS (wyłącz tryb testowy):
+-- UPDATE dbo.SmsApiKonfiguracja SET TestMode = 0 WHERE Id = 1
+
+-- Wyłącz wysyłanie SMS:
+-- UPDATE dbo.SmsApiKonfiguracja SET Aktywny = 0 WHERE Id = 1
+
+-- Dodaj telefon handlowca (przykład dla operatora ID=5):
+-- INSERT INTO dbo.OperatorzyKontakt (OperatorID, Telefon, Email)
+-- VALUES (5, '+48123456789', 'handlowiec@firma.pl')
+
+-- Sprawdź wysłane SMS dzisiaj:
+-- SELECT * FROM dbo.SmsSprzedazHistoria WHERE CAST(DataWyslania AS DATE) = CAST(GETDATE() AS DATE)
+
+-- Raport dzienny:
+-- SELECT * FROM dbo.vw_SmsSprzedazRaport WHERE Data = CAST(GETDATE() AS DATE)
+
+PRINT ''
+PRINT '============================================='
+PRINT 'KONFIGURACJA SMSAPI.pl - INSTRUKCJA:'
+PRINT '============================================='
+PRINT '1. Zaloguj się do panelu SMSAPI.pl'
+PRINT '2. Przejdź do: Ustawienia -> Tokeny API'
+PRINT '3. Utwórz nowy token z uprawnieniami SMS'
+PRINT '4. Skopiuj token i wykonaj:'
+PRINT ''
+PRINT '   UPDATE dbo.SmsApiKonfiguracja'
+PRINT '   SET ApiToken = ''TWOJ_TOKEN_API'''
+PRINT '   WHERE Id = 1'
+PRINT ''
+PRINT '5. Dodaj telefony handlowców:'
+PRINT ''
+PRINT '   INSERT INTO dbo.OperatorzyKontakt (OperatorID, Telefon)'
+PRINT '   SELECT ID, ''+48XXXXXXXXX'' FROM dbo.operators WHERE Name = ''Jan Kowalski'''
+PRINT ''
+PRINT '6. Włącz wysyłanie (wyłącz tryb testowy):'
+PRINT ''
+PRINT '   UPDATE dbo.SmsApiKonfiguracja SET TestMode = 0'
+PRINT ''
+PRINT '============================================='
 GO

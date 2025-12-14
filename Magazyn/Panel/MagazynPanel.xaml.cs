@@ -903,7 +903,7 @@ namespace Kalendarz1
         {
             try
             {
-                txtSmsStatus.Text = "Przygotowywanie SMS...";
+                txtSmsStatus.Text = "Wysyłanie SMS...";
                 txtSmsStatus.Foreground = Brushes.Orange;
 
                 // Pobierz informacje o wydaniu
@@ -911,7 +911,7 @@ namespace Kalendarz1
 
                 if (string.IsNullOrEmpty(info.Handlowiec) || info.Handlowiec == "(Brak)")
                 {
-                    txtSmsStatus.Text = "Brak przypisanego handlowca";
+                    txtSmsStatus.Text = "Brak handlowca";
                     txtSmsStatus.Foreground = Brushes.Gray;
                     return;
                 }
@@ -923,33 +923,26 @@ namespace Kalendarz1
                 {
                     if (wynik.SkopiowaDoSchowka)
                     {
-                        txtSmsStatus.Text = $"SMS skopiowany ({info.Handlowiec})";
-                        txtSmsStatus.Foreground = Brushes.LimeGreen;
-
-                        MessageBox.Show(
-                            $"SMS dla handlowca {info.Handlowiec} został skopiowany do schowka.\n\n" +
-                            $"Odbiorca: {info.KlientNazwa}\n" +
-                            $"Ilość: {info.IloscKg:N0} kg\n\n" +
-                            "Wklej treść SMS w aplikacji do wysyłania wiadomości.",
-                            "SMS skopiowany",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Information);
+                        // API nie skonfigurowane - pokaż info
+                        txtSmsStatus.Text = $"📋 Skopiowano ({info.Handlowiec})";
+                        txtSmsStatus.Foreground = Brushes.Yellow;
                     }
                     else
                     {
-                        txtSmsStatus.Text = $"SMS wysłany ({info.Handlowiec})";
+                        // SMS wysłany automatycznie!
+                        txtSmsStatus.Text = $"✅ SMS wysłany do {info.Handlowiec}";
                         txtSmsStatus.Foreground = Brushes.LimeGreen;
                     }
                 }
                 else
                 {
-                    txtSmsStatus.Text = $"Błąd SMS: {wynik.Wiadomosc}";
+                    txtSmsStatus.Text = $"❌ Błąd: {wynik.Wiadomosc}";
                     txtSmsStatus.Foreground = Brushes.Red;
                 }
             }
             catch (Exception ex)
             {
-                txtSmsStatus.Text = $"Błąd: {ex.Message}";
+                txtSmsStatus.Text = $"❌ {ex.Message}";
                 txtSmsStatus.Foreground = Brushes.Red;
                 System.Diagnostics.Debug.WriteLine($"Błąd wysyłania SMS: {ex.Message}");
             }
