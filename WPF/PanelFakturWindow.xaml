@@ -232,19 +232,22 @@
                     <Border Grid.Row="1" Background="White" Padding="8,5" BorderBrush="#E8E8E8" BorderThickness="0,0,0,1">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Status:" FontSize="11" FontWeight="Medium" Foreground="#5D6D7E" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                            <Border Background="#FFF8E1" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#FFE082" BorderThickness="1">
+                            <Border Background="#FFF8E1" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#FFE082" BorderThickness="1" ToolTip="Nowe zlecenie na produkcję">
                                 <TextBlock Text="Nowe" FontSize="10" Foreground="#F57C00" FontWeight="Medium"/>
                             </Border>
-                            <Border Background="#E3F2FD" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#90CAF9" BorderThickness="1">
+                            <Border Background="#E3F2FD" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#90CAF9" BorderThickness="1" ToolTip="W trakcie realizacji przez produkcję">
                                 <TextBlock Text="W realizacji" FontSize="10" Foreground="#1976D2" FontWeight="Medium"/>
                             </Border>
-                            <Border Background="#E8F5E9" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#A5D6A7" BorderThickness="1">
+                            <Border Background="#E8F5E9" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#A5D6A7" BorderThickness="1" ToolTip="Zrealizowane przez produkcję">
                                 <TextBlock Text="Zrealizowane" FontSize="10" Foreground="#388E3C" FontWeight="Medium"/>
                             </Border>
-                            <Border Background="#C8E6C9" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#81C784" BorderThickness="1">
+                            <Border Background="#E1F5FE" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#81D4FA" BorderThickness="1" ToolTip="Wydane z magazynu (Panel Magazyniera)">
+                                <TextBlock Text="Wydano" FontSize="10" Foreground="#0277BD" FontWeight="Medium"/>
+                            </Border>
+                            <Border Background="#C8E6C9" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#81C784" BorderThickness="1" ToolTip="Zafakturowane - gotowe">
                                 <TextBlock Text="Zafakturowane" FontSize="10" Foreground="#2E7D32" FontWeight="Medium" FontStyle="Italic"/>
                             </Border>
-                            <Border Background="#FFF3E0" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#FFB74D" BorderThickness="2">
+                            <Border Background="#FFF3E0" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#FFB74D" BorderThickness="2" ToolTip="Zamówienie zostało zmodyfikowane - wymaga zatwierdzenia">
                                 <TextBlock Text="⚠ Zmiana" FontSize="10" Foreground="#E65100" FontWeight="Bold"/>
                             </Border>
                         </StackPanel>
@@ -262,60 +265,59 @@
                             </Style>
                         </DataGrid.RowStyle>
                         <DataGrid.Columns>
-                            <!-- Klient z wykrzyknikiem i żółtym kolorem gdy zmiana -->
-                            <DataGridTemplateColumn Header="Odbiorca" Width="180">
+                            <!-- Klient z wykrzyknikiem i kolorem gdy zmiana -->
+                            <DataGridTemplateColumn Header="Odbiorca" Width="220">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding Klient}" Foreground="{Binding KlientColor}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="5,0"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="80"/>
-                            <DataGridTextColumn Header="Ilość [kg]" Binding="{Binding TotalIlosc, StringFormat=N0}" Width="75">
+                            <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="100"/>
+                            <DataGridTextColumn Header="Ilość [kg]" Binding="{Binding TotalIlosc, StringFormat=N0}" Width="90">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="HorizontalAlignment" Value="Right"/>
                                         <Setter Property="FontWeight" Value="Bold"/>
-                                        <Setter Property="Margin" Value="0,0,5,0"/>
+                                        <Setter Property="Margin" Value="0,0,8,0"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Wartość" Binding="{Binding Wartosc, StringFormat=N2}" Width="85">
+                            <DataGridTextColumn Header="Wartość" Binding="{Binding Wartosc, StringFormat=N2}" Width="100">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="HorizontalAlignment" Value="Right"/>
-                                        <Setter Property="Margin" Value="0,0,5,0"/>
+                                        <Setter Property="Margin" Value="0,0,8,0"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
                             <!-- Status z kolorem -->
-                            <DataGridTemplateColumn Header="Status" Width="100">
+                            <DataGridTemplateColumn Header="Status" Width="120">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding StatusDisplay}" Foreground="{Binding StatusColor}" FontWeight="Medium" VerticalAlignment="Center"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <!-- Data ostatniej zmiany -->
-                            <DataGridTemplateColumn Header="Ost. Zmiana" Width="90">
+                            <!-- Data ostatniej zmiany - format: sty 12 12:00 -->
+                            <DataGridTemplateColumn Header="Ost. Zmiana" Width="110">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding OstatniaZmiana}" Foreground="{Binding ZmianaColor}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <!-- Kto zmienił -->
-                            <DataGridTextColumn Header="Kto zmienił" Binding="{Binding KtoZmienil}" Width="80"/>
+                            <!-- Kto zmienił - imię i nazwisko -->
+                            <DataGridTextColumn Header="Kto zmienił" Binding="{Binding KtoZmienil}" Width="120"/>
                             <!-- Kolumny transportowe -->
-                            <DataGridTextColumn Header="Wyjazd" Binding="{Binding GodzWyjazdu}" Width="90">
+                            <DataGridTextColumn Header="Wyjazd" Binding="{Binding GodzWyjazdu}" Width="110">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="HorizontalAlignment" Value="Center"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Kierowca" Binding="{Binding Kierowca}" Width="90"/>
-                            <DataGridTextColumn Header="Nr faktury" Binding="{Binding NumerFaktury}" Width="90"/>
+                            <DataGridTextColumn Header="Kierowca" Binding="{Binding Kierowca}" Width="120"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>

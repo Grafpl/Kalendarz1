@@ -5905,7 +5905,7 @@ ORDER BY zm.Id";
                           ModyfikowalPrzez = @user
                       WHERE Id = @orderId", cn);
                 cmdFlagModified.Parameters.AddWithValue("@orderId", _currentOrderId.Value);
-                cmdFlagModified.Parameters.AddWithValue("@user", UserID);
+                cmdFlagModified.Parameters.AddWithValue("@user", App.UserFullName ?? UserID);
                 await cmdFlagModified.ExecuteNonQueryAsync();
 
                 // Zapisz w historii zmian (używając HistoriaZmianService)

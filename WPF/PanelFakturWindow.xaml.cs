@@ -718,6 +718,8 @@ namespace Kalendarz1.WPF
 
         public class ZamowienieViewModel : INotifyPropertyChanged
         {
+            private static readonly string[] _polskieMiesiace = { "", "sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru" };
+
             public ZamowienieInfo Info { get; }
             public ZamowienieViewModel(ZamowienieInfo info) { Info = info; }
 
@@ -747,47 +749,56 @@ namespace Kalendarz1.WPF
                 get
                 {
                     if (Info.CzyZmodyfikowaneDlaFaktur) return Brushes.OrangeRed;
-                    if (Info.CzyZafakturowane) return Brushes.Green;
+                    if (Info.CzyZafakturowane) return new SolidColorBrush(Color.FromRgb(46, 125, 50)); // Zielony
+                    if (Info.Status == "Wydano") return new SolidColorBrush(Color.FromRgb(2, 119, 189)); // Niebieski
+                    if (Info.Status == "Zrealizowane") return new SolidColorBrush(Color.FromRgb(56, 142, 60)); // Zielony
+                    if (Info.Status == "W realizacji") return new SolidColorBrush(Color.FromRgb(25, 118, 210)); // Niebieski
+                    if (Info.Status == "Nowe") return new SolidColorBrush(Color.FromRgb(245, 124, 0)); // Pomarańczowy
                     return Brushes.Black;
                 }
             }
 
-            // Kolumna ostatniej zmiany
+            // Kolumna ostatniej zmiany - format: sty 12 12:00
             public string OstatniaZmiana
             {
                 get
                 {
                     if (!Info.CzyZmodyfikowaneDlaFaktur) return "";
                     if (Info.DataOstatniejModyfikacji.HasValue)
-                        return Info.DataOstatniejModyfikacji.Value.ToString("HH:mm dd.MM");
+                    {
+                        var d = Info.DataOstatniejModyfikacji.Value;
+                        return $"{_polskieMiesiace[d.Month]} {d.Day} {d:HH:mm}";
+                    }
                     return "Zmiana";
                 }
             }
 
-            public Brush ZmianaColor => Info.CzyZmodyfikowaneDlaFaktur ? Brushes.Orange : Brushes.Transparent;
+            public Brush ZmianaColor => Info.CzyZmodyfikowaneDlaFaktur ? Brushes.OrangeRed : Brushes.Transparent;
 
-            // Kto zmienił
+            // Kto zmienił - imię i nazwisko
             public string KtoZmienil => Info.ModyfikowalPrzez ?? "";
 
             // Wyjazd
             public string GodzWyjazdu => Info.GodzWyjazdu ?? "";
             public string Kierowca => Info.Kierowca ?? "";
             public string Pojazd => Info.Pojazd ?? "";
-            public string NumerFaktury => Info.NumerFaktury ?? "";
 
-            // Kolor tła wiersza
+            // Kolor tła wiersza - zgodny z WidokZamowienia
             public Brush RowBackground
             {
                 get
                 {
                     if (Info.CzyZmodyfikowaneDlaFaktur)
-                        return new SolidColorBrush(Color.FromRgb(255, 243, 224));
+                        return new SolidColorBrush(Color.FromRgb(255, 243, 224)); // Pomarańczowe tło dla zmian
                     if (Info.CzyZafakturowane)
-                        return new SolidColorBrush(Color.FromRgb(232, 245, 233));
+                        return new SolidColorBrush(Color.FromRgb(200, 230, 201)); // Ciemniejszy zielony
+                    if (Info.Status == "Wydano")
+                        return new SolidColorBrush(Color.FromRgb(225, 245, 254)); // Jasnoniebieski
                     if (Info.Status == "Zrealizowane")
-                        return new SolidColorBrush(Color.FromRgb(241, 248, 233));
+                        return new SolidColorBrush(Color.FromRgb(232, 245, 233)); // Jasnozielony
                     if (Info.Status == "W realizacji")
-                        return new SolidColorBrush(Color.FromRgb(227, 242, 253));
+                        return new SolidColorBrush(Color.FromRgb(227, 242, 253)); // Jasnoniebieski
+                    // Nowe - żółte tło
                     return new SolidColorBrush(Color.FromRgb(255, 248, 225));
                 }
             }
