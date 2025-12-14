@@ -521,7 +521,141 @@
                 </Grid>
             </TabItem>
 
-            <!-- TAB 2: STATYSTYKI -->
+            <!-- TAB 2: PLAN DNIA -->
+            <TabItem Header="📋 Plan dnia">
+                <Grid Background="#1C1E26">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Karty podsumowania na górze -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,10,0,15">
+                        <Border Background="#1E3A2A" CornerRadius="8" Padding="20,15" Margin="0,0,15,0" MinWidth="160">
+                            <StackPanel>
+                                <TextBlock Text="PLAN PRZYCHODU" Foreground="#81C784" FontSize="11" FontWeight="Bold"/>
+                                <TextBlock x:Name="lblPlanDniaPlan" Text="0" Foreground="White" FontSize="28" FontWeight="Bold" Margin="0,5,0,0"/>
+                                <TextBlock Text="kg z harmonogramu" Foreground="#81C784" FontSize="10"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#1A237E" CornerRadius="8" Padding="20,15" Margin="0,0,15,0" MinWidth="160">
+                            <StackPanel>
+                                <TextBlock Text="FAKTYCZNY PRZYCHÓD" Foreground="#90CAF9" FontSize="11" FontWeight="Bold"/>
+                                <TextBlock x:Name="lblPlanDniaFakt" Text="0" Foreground="White" FontSize="28" FontWeight="Bold" Margin="0,5,0,0"/>
+                                <TextBlock Text="kg z produkcji" Foreground="#90CAF9" FontSize="10"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#E65100" CornerRadius="8" Padding="20,15" Margin="0,0,15,0" MinWidth="160">
+                            <StackPanel>
+                                <TextBlock Text="SUMA ZAMÓWIEŃ" Foreground="#FFCC80" FontSize="11" FontWeight="Bold"/>
+                                <TextBlock x:Name="lblPlanDniaZam" Text="0" Foreground="White" FontSize="28" FontWeight="Bold" Margin="0,5,0,0"/>
+                                <TextBlock Text="kg do realizacji" Foreground="#FFCC80" FontSize="10"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#4A148C" CornerRadius="8" Padding="20,15" Margin="0,0,15,0" MinWidth="160">
+                            <StackPanel>
+                                <TextBlock Text="SUMA WYDAŃ" Foreground="#CE93D8" FontSize="11" FontWeight="Bold"/>
+                                <TextBlock x:Name="lblPlanDniaWyd" Text="0" Foreground="White" FontSize="28" FontWeight="Bold" Margin="0,5,0,0"/>
+                                <TextBlock Text="kg wydano" Foreground="#CE93D8" FontSize="10"/>
+                            </StackPanel>
+                        </Border>
+                        <Border x:Name="borderBilans" Background="#2E7D32" CornerRadius="8" Padding="20,15" MinWidth="160">
+                            <StackPanel>
+                                <TextBlock Text="BILANS" Foreground="#A5D6A7" FontSize="11" FontWeight="Bold"/>
+                                <TextBlock x:Name="lblPlanDniaBilans" Text="0" Foreground="White" FontSize="28" FontWeight="Bold" Margin="0,5,0,0"/>
+                                <TextBlock x:Name="lblPlanDniaBilansInfo" Text="nadwyżka/niedobór" Foreground="#A5D6A7" FontSize="10"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Tabela podsumowania produktów -->
+                    <Border Grid.Row="1" Background="#22242E" CornerRadius="5" Margin="0,0,0,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Background="#1565C0" CornerRadius="5,5,0,0" Padding="12,8">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="📊 Podsumowanie produktów - Plan vs Realizacja" Foreground="White" FontWeight="Bold" FontSize="16"/>
+                                    <TextBlock Text=" (Plan = prognoza z harmonogramu, Fakt = dokumenty produkcji)" Foreground="#90CAF9" FontSize="12" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <DataGrid Grid.Row="1" x:Name="dgvPlanDnia" Style="{StaticResource CustomDataGridStyle}" IsReadOnly="True" RowHeight="42" Margin="5" FontSize="14">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Produkt" Binding="{Binding Produkt}" Width="*" MinWidth="200">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Plan (kg)" Binding="{Binding Plan, StringFormat=N0}" Width="100">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#81C784"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Margin" Value="0,0,10,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Fakt (kg)" Binding="{Binding Fakt, StringFormat=N0}" Width="100">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#64B5F6"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Margin" Value="0,0,10,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Zamówienia" Binding="{Binding Zamowienia, StringFormat=N0}" Width="110">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#FFCC80"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Margin" Value="0,0,10,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Wydania" Binding="{Binding Wydania, StringFormat=N0}" Width="100">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#CE93D8"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Margin" Value="0,0,10,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Bilans" Binding="{Binding Bilans, StringFormat=N0}" Width="100">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Margin" Value="0,0,10,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="%" Binding="{Binding Procent}" Width="70">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#B0BEC5"/>
+                                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- TAB 3: STATYSTYKI -->
             <TabItem Header="📊 Statystyki">
                 <Grid Background="#1C1E26">
                     <Grid.RowDefinitions>

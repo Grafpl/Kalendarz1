@@ -198,6 +198,7 @@ namespace Kalendarz1
             await LoadPozycjeForSelectedAsync();
             await LoadHandlowcyStatsAsync();
             await LoadPrzychodyInfoAsync();
+            await LoadPlanDniaAsync();
         }
 
         private async Task PopulateProductFilterAsync()
@@ -1092,6 +1093,255 @@ namespace Kalendarz1
                 lblPrzychBilans.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF5350")); // czerwony - niedobór
             else
                 lblPrzychBilans.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CE93D8")); // neutralny
+        }
+
+        private async Task LoadPlanDniaAsync()
+        {
+            var dtPlan = new DataTable();
+            dtPlan.Columns.Add("Produkt", typeof(string));
+            dtPlan.Columns.Add("Plan", typeof(decimal));
+            dtPlan.Columns.Add("Fakt", typeof(decimal));
+            dtPlan.Columns.Add("Zamowienia", typeof(decimal));
+            dtPlan.Columns.Add("Wydania", typeof(decimal));
+            dtPlan.Columns.Add("Bilans", typeof(decimal));
+            dtPlan.Columns.Add("Procent", typeof(string));
+
+            decimal totalPlan = 0m;
+            decimal totalFakt = 0m;
+            decimal totalZam = 0m;
+            decimal totalWyd = 0m;
+            decimal totalBilans = 0m;
+
+            try
+            {
+                // 1. Pobierz konfigurację wydajności
+                decimal wspolczynnikTuszki = 78m;
+                decimal procentA = 30m;
+                decimal procentB = 70m;
+
+                using (var cn = new SqlConnection(_connLibra))
+                {
+                    await cn.OpenAsync();
+                    var cmdWydajnosc = new SqlCommand(@"SELECT TOP 1 WspolczynnikTuszki, ProcentTuszkiA, ProcentTuszkiB
+                                                        FROM KonfiguracjaWydajnosci
+                                                        WHERE DataOd <= @D AND Aktywny = 1
+                                                        ORDER BY DataOd DESC", cn);
+                    cmdWydajnosc.Parameters.AddWithValue("@D", _selectedDate.Date);
+                    using var rd = await cmdWydajnosc.ExecuteReaderAsync();
+                    if (await rd.ReadAsync())
+                    {
+                        wspolczynnikTuszki = rd.IsDBNull(0) ? 78m : Convert.ToDecimal(rd.GetValue(0));
+                        procentA = rd.IsDBNull(1) ? 30m : Convert.ToDecimal(rd.GetValue(1));
+                        procentB = rd.IsDBNull(2) ? 70m : Convert.ToDecimal(rd.GetValue(2));
+                    }
+                }
+
+                // 2. Pobierz masę żywca z harmonogramu
+                decimal sumaMasyZywca = 0m;
+                using (var cn = new SqlConnection(_connLibra))
+                {
+                    await cn.OpenAsync();
+                    var cmdMasa = new SqlCommand(@"SELECT ISNULL(SUM(WagaDek * SztukiDek), 0)
+                                                   FROM dbo.HarmonogramDostaw
+                                                   WHERE DataOdbioru = @D AND Bufor = 'Potwierdzony'", cn);
+                    cmdMasa.Parameters.AddWithValue("@D", _selectedDate.Date);
+                    var result = await cmdMasa.ExecuteScalarAsync();
+                    sumaMasyZywca = result != DBNull.Value ? Convert.ToDecimal(result) : 0m;
+                }
+
+                decimal pulaTuszki = sumaMasyZywca * (wspolczynnikTuszki / 100m);
+                decimal planTuszkiA = pulaTuszki * (procentA / 100m);
+                decimal planTuszkiB = pulaTuszki * (procentB / 100m);
+
+                // 3. Pobierz konfigurację produktów (procenty udziału)
+                var konfiguracjaProduktow = new Dictionary<int, decimal>();
+                using (var cn = new SqlConnection(_connLibra))
+                {
+                    await cn.OpenAsync();
+                    var cmdKonfig = new SqlCommand(@"SELECT ProduktId, ProcentUdzialu FROM KonfiguracjaProduktow
+                                                     WHERE DataOd <= @D AND Aktywny = 1", cn);
+                    cmdKonfig.Parameters.AddWithValue("@D", _selectedDate.Date);
+                    using var rd = await cmdKonfig.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        int produktId = rd.GetInt32(0);
+                        decimal procent = rd.IsDBNull(1) ? 0m : rd.GetDecimal(1);
+                        konfiguracjaProduktow[produktId] = procent;
+                    }
+                }
+
+                // 4. Pobierz nazwy produktów z Handel
+                var produktNames = new Dictionary<int, string>();
+                if (konfiguracjaProduktow.Any())
+                {
+                    using var cn = new SqlConnection(_connHandel);
+                    await cn.OpenAsync();
+                    var productIds = konfiguracjaProduktow.Keys.ToList();
+                    var cmd = new SqlCommand($"SELECT ID, kod FROM HM.TW WHERE ID IN ({string.Join(",", productIds)}) AND katalog=67095", cn);
+                    using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        produktNames[rd.GetInt32(0)] = rd.GetString(1);
+                    }
+                }
+
+                // 5. Pobierz faktyczny przychód z dokumentów produkcji (sPWU dla tuszek, sPWP/PWP dla elementów)
+                var faktPrzychod = new Dictionary<int, decimal>();
+                using (var cn = new SqlConnection(_connHandel))
+                {
+                    await cn.OpenAsync();
+                    var cmd = new SqlCommand(@"SELECT MZ.idtw, SUM(ABS(MZ.ilosc))
+                        FROM [HANDEL].[HM].[MZ] MZ
+                        JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
+                        WHERE MG.seria IN ('sPWU', 'sPWP', 'PWP') AND MG.aktywny=1 AND MG.data = @Day
+                        GROUP BY MZ.idtw", cn);
+                    cmd.Parameters.AddWithValue("@Day", _selectedDate.Date);
+                    using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        faktPrzychod[rd.GetInt32(0)] = rd.IsDBNull(1) ? 0m : Convert.ToDecimal(rd.GetValue(1));
+                    }
+                }
+
+                // 6. Pobierz zamówienia wg produktów
+                var zamowieniaSum = new Dictionary<int, decimal>();
+                var orderIds = _zamowienia.Values
+                    .Where(z => !z.IsShipmentOnly && z.Id > 0)
+                    .Select(z => z.Id)
+                    .ToList();
+
+                if (orderIds.Any())
+                {
+                    using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
+                    var sql = $"SELECT KodTowaru, SUM(Ilosc) FROM [dbo].[ZamowieniaMiesoTowar] " +
+                             $"WHERE ZamowienieId IN ({string.Join(",", orderIds)}) GROUP BY KodTowaru";
+                    using var cmd = new SqlCommand(sql, cn);
+                    using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        zamowieniaSum[rd.GetInt32(0)] = rd.IsDBNull(1) ? 0m : rd.GetDecimal(1);
+                    }
+                }
+
+                // 7. Pobierz wydania (WZ)
+                var wydaniaSum = new Dictionary<int, decimal>();
+                using (var cn = new SqlConnection(_connHandel))
+                {
+                    await cn.OpenAsync();
+                    var cmd = new SqlCommand(@"SELECT MZ.idtw, SUM(ABS(MZ.ilosc))
+                        FROM [HANDEL].[HM].[MZ] MZ
+                        JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
+                        WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny=1 AND MG.data = @Day
+                        GROUP BY MZ.idtw", cn);
+                    cmd.Parameters.AddWithValue("@Day", _selectedDate.Date);
+                    using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        wydaniaSum[rd.GetInt32(0)] = rd.IsDBNull(1) ? 0m : Convert.ToDecimal(rd.GetValue(1));
+                    }
+                }
+
+                // 8. Buduj tabelę produktów
+                // Najpierw dodaj Tuszki A i B
+                foreach (var kvp in produktNames.OrderByDescending(p => konfiguracjaProduktow.GetValueOrDefault(p.Key, 0)))
+                {
+                    int produktId = kvp.Key;
+                    string nazwa = kvp.Value;
+                    decimal procentUdzialu = konfiguracjaProduktow.GetValueOrDefault(produktId, 0m);
+
+                    decimal plan = 0m;
+                    if (nazwa.Contains("Kurczak A", StringComparison.OrdinalIgnoreCase))
+                        plan = planTuszkiA;
+                    else if (nazwa.Contains("Kurczak B", StringComparison.OrdinalIgnoreCase))
+                        plan = planTuszkiB;
+                    else
+                        plan = planTuszkiB * (procentUdzialu / 100m);
+
+                    decimal fakt = faktPrzychod.GetValueOrDefault(produktId, 0m);
+                    decimal zam = zamowieniaSum.GetValueOrDefault(produktId, 0m);
+                    decimal wyd = wydaniaSum.GetValueOrDefault(produktId, 0m);
+
+                    // Bilans = (fakt lub plan) - zamówienia
+                    decimal bilans = (fakt > 0 ? fakt : plan) - zam;
+
+                    // Procent realizacji
+                    string procent = plan > 0 ? $"{(fakt / plan * 100):F0}%" : "—";
+
+                    // Dodaj tylko produkty które mają jakieś dane
+                    if (plan > 0 || fakt > 0 || zam > 0 || wyd > 0)
+                    {
+                        dtPlan.Rows.Add(nazwa, plan, fakt, zam, wyd, bilans, procent);
+                        totalPlan += plan;
+                        totalFakt += fakt;
+                        totalZam += zam;
+                        totalWyd += wyd;
+                        totalBilans += bilans;
+                    }
+                }
+
+                // 9. Dodaj wiersz SUMA na końcu
+                if (dtPlan.Rows.Count > 0)
+                {
+                    string totalProcent = totalPlan > 0 ? $"{(totalFakt / totalPlan * 100):F0}%" : "—";
+                    dtPlan.Rows.Add("═══ SUMA CAŁKOWITA ═══", totalPlan, totalFakt, totalZam, totalWyd, totalBilans, totalProcent);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd ładowania planu dnia: {ex.Message}");
+            }
+
+            dgvPlanDnia.ItemsSource = dtPlan.DefaultView;
+            dgvPlanDnia.LoadingRow -= DgvPlanDnia_LoadingRow;
+            dgvPlanDnia.LoadingRow += DgvPlanDnia_LoadingRow;
+
+            // Aktualizuj karty podsumowania
+            lblPlanDniaPlan.Text = totalPlan > 0 ? $"{totalPlan:N0}" : "0";
+            lblPlanDniaFakt.Text = totalFakt > 0 ? $"{totalFakt:N0}" : "0";
+            lblPlanDniaZam.Text = totalZam > 0 ? $"{totalZam:N0}" : "0";
+            lblPlanDniaWyd.Text = totalWyd > 0 ? $"{totalWyd:N0}" : "0";
+            lblPlanDniaBilans.Text = totalBilans != 0 ? $"{totalBilans:N0}" : "0";
+
+            // Kolor bilansu
+            if (totalBilans > 0)
+            {
+                borderBilans.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2E7D32")); // zielony - nadwyżka
+                lblPlanDniaBilansInfo.Text = "nadwyżka";
+            }
+            else if (totalBilans < 0)
+            {
+                borderBilans.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C62828")); // czerwony - niedobór
+                lblPlanDniaBilansInfo.Text = "niedobór";
+            }
+            else
+            {
+                borderBilans.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#37474F")); // neutralny
+                lblPlanDniaBilansInfo.Text = "zbilansowane";
+            }
+        }
+
+        private void DgvPlanDnia_LoadingRow(object sender, DataGridRowEventArgs e)
+        {
+            if (e.Row.Item is DataRowView rowView)
+            {
+                var produkt = rowView.Row.Field<string>("Produkt") ?? "";
+                var bilans = rowView.Row.Field<decimal>("Bilans");
+
+                if (produkt.StartsWith("═══"))
+                {
+                    // Wiersz SUMA
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(21, 101, 192)); // #1565C0
+                    e.Row.Foreground = Brushes.White;
+                    e.Row.FontWeight = FontWeights.Bold;
+                    e.Row.FontSize = 15;
+                }
+                else
+                {
+                    // Kolory bilansu w wierszach
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(55, 57, 70)); // #373946
+                }
+            }
         }
         #endregion
 
