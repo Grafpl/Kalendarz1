@@ -353,7 +353,10 @@ namespace Kalendarz1.WPF
                            zm.TransportKursID,
                            ISNULL(zm.CzyZmodyfikowaneDlaFaktur, 0) AS CzyZmodyfikowaneDlaFaktur,
                            zm.DataOstatniejModyfikacji,
-                           zm.ModyfikowalPrzez
+                           zm.ModyfikowalPrzez,
+                           CASE WHEN COUNT(zmt.Id) = 0 THEN 0
+                                WHEN SUM(CASE WHEN zmt.Cena IS NULL OR zmt.Cena = '' OR CAST(zmt.Cena AS decimal(18,2)) = 0 THEN 1 ELSE 0 END) = 0 THEN 1
+                                ELSE 0 END AS CzyMaCeny
                     FROM [dbo].[ZamowieniaMieso] zm
                     LEFT JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
                     WHERE zm.DataUboju = @Day
@@ -394,6 +397,7 @@ namespace Kalendarz1.WPF
                     bool czyZmodyfikowane = !reader.IsDBNull(11) && Convert.ToBoolean(reader.GetValue(11));
                     DateTime? dataModyfikacji = reader.IsDBNull(12) ? null : reader.GetDateTime(12);
                     string modyfikowalPrzez = reader.IsDBNull(13) ? "" : reader.GetString(13);
+                    bool czyMaCeny = !reader.IsDBNull(14) && Convert.ToInt32(reader.GetValue(14)) == 1;
 
                     var (name, salesman) = _contractorsCache.TryGetValue(clientId, out var c) ? c : ($"Klient {clientId}", "");
 
@@ -414,7 +418,8 @@ namespace Kalendarz1.WPF
                         TransportKursID = transportKursId,
                         CzyZmodyfikowaneDlaFaktur = czyZmodyfikowane,
                         DataOstatniejModyfikacji = dataModyfikacji,
-                        ModyfikowalPrzez = modyfikowalPrzez
+                        ModyfikowalPrzez = modyfikowalPrzez,
+                        CzyMaCeny = czyMaCeny
                     };
 
                     if (transportKursId.HasValue)
@@ -525,6 +530,7 @@ namespace Kalendarz1.WPF
                 await LoadOrderDetailsAsync(vm.Info.Id);
 
                 btnMarkFakturowane.IsEnabled = !vm.Info.CzyZafakturowane;
+                btnCofnijFakturowanie.IsEnabled = vm.Info.CzyZafakturowane;
 
                 // Pokaż/ukryj panel zmiany
                 if (vm.Info.CzyZmodyfikowaneDlaFaktur)
@@ -752,6 +758,7 @@ namespace Kalendarz1.WPF
             _dtDetails.Clear();
             dgDetails.ItemsSource = null;
             btnMarkFakturowane.IsEnabled = false;
+            btnCofnijFakturowanie.IsEnabled = false;
             txtInvoiceStatus.Text = "Wybierz zamówienie z listy";
             borderTransport.Visibility = Visibility.Collapsed;
             borderZmiana.Visibility = Visibility.Collapsed;
@@ -826,6 +833,42 @@ namespace Kalendarz1.WPF
             }
         }
 
+        private async void BtnCofnijFakturowanie_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_currentOrderId.HasValue) return;
+
+            var vm = ZamowieniaList.FirstOrDefault(z => z.Info.Id == _currentOrderId.Value);
+            if (vm == null) return;
+
+            var result = MessageBox.Show(
+                $"Czy na pewno chcesz cofnąć fakturowanie zamówienia '{vm.Info.Klient}'?\n\n" +
+                "Zamówienie wróci do listy do zafakturowania.",
+                "Potwierdzenie cofnięcia fakturowania",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    await using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
+
+                    string sql = "UPDATE [dbo].[ZamowieniaMieso] SET CzyZafakturowane = 0, NumerFaktury = NULL WHERE Id = @Id";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Id", _currentOrderId.Value);
+                    await cmd.ExecuteNonQueryAsync();
+
+                    MessageBox.Show("Cofnięto fakturowanie zamówienia.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                    await RefreshDataAsync();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
         private async Task EnsureColumnsExistAsync(SqlConnection cn)
         {
             try
@@ -872,6 +915,7 @@ namespace Kalendarz1.WPF
             public bool CzyZmodyfikowaneDlaFaktur { get; set; }
             public DateTime? DataOstatniejModyfikacji { get; set; }
             public string ModyfikowalPrzez { get; set; } = "";
+            public bool CzyMaCeny { get; set; }
         }
 
         public class ZamowienieViewModel : INotifyPropertyChanged
@@ -935,6 +979,12 @@ namespace Kalendarz1.WPF
 
             // Kto zmienił - imię i nazwisko
             public string KtoZmienil => Info.ModyfikowalPrzez ?? "";
+
+            // Czy wszystkie towary mają ceny - ✓ lub ✗
+            public string CenaDisplay => Info.CzyMaCeny ? "✓" : "✗";
+            public Brush CenaColor => Info.CzyMaCeny
+                ? new SolidColorBrush(Color.FromRgb(46, 125, 50))   // Zielony dla ✓
+                : new SolidColorBrush(Color.FromRgb(198, 40, 40));  // Czerwony dla ✗
 
             // Wyjazd
             public string GodzWyjazdu => Info.GodzWyjazdu ?? "";

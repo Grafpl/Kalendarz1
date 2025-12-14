@@ -308,6 +308,14 @@
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
+                            <!-- Cena - czy wszystkie towary mają cenę -->
+                            <DataGridTemplateColumn Header="Cena" Width="60">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding CenaDisplay}" Foreground="{Binding CenaColor}" FontWeight="Bold" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             <!-- Status z kolorem -->
                             <DataGridTemplateColumn Header="Status" Width="120">
                                 <DataGridTemplateColumn.CellTemplate>
@@ -467,6 +475,14 @@
                                 Height="40" Margin="0,5,0,0"
                                 Click="BtnMarkFakturowane_Click"
                                 IsEnabled="False"/>
+
+                        <Button x:Name="btnCofnijFakturowanie" Content="Cofnij fakturowanie"
+                                Style="{StaticResource ActionButtonStyle}"
+                                Background="#F57C00"
+                                Height="40" Margin="0,8,0,0"
+                                Click="BtnCofnijFakturowanie_Click"
+                                IsEnabled="False"
+                                ToolTip="Cofnij status zafakturowane (zamówienie wróci do listy)"/>
                     </StackPanel>
                 </Border>
             </Grid>
