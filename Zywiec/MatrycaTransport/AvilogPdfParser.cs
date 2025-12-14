@@ -346,14 +346,33 @@ namespace Kalendarz1
                 }
             }
 
-            // Krok 2: IMIĘ - słowo tuż przed "Tel2."
-            var tel2ImieMatch = Regex.Match(context, @"([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]{2,}|[A-ZŻŹĆĄŚĘŁÓŃ]{3,})\s+Tel2\s*\.");
-            if (tel2ImieMatch.Success)
+            // Krok 2: IMIĘ - PIERWSZE słowo PO ostatniej godzinie (HH:MM), przed Tel2.
+            // W tekście PDF struktura to: "...HH:MM IMIĘ ul. adres miejscowość Tel2."
+            // Szukamy PIERWSZEGO słowa po ostatniej godzinie, a nie ostatniego przed Tel2.
+            var tel2Pos = context.IndexOf("Tel2");
+            if (tel2Pos > 0)
             {
-                string potentialImie = tel2ImieMatch.Groups[1].Value;
-                if (!IsHeaderWord(potentialImie) && potentialImie.ToUpper() != kierowcaNazwisko.ToUpper())
+                string beforeTel2 = context.Substring(0, tel2Pos);
+                var timeMatches = Regex.Matches(beforeTel2, @"\d{2}:\d{2}");
+                if (timeMatches.Count > 0)
                 {
-                    kierowcaImie = potentialImie;
+                    // Znajdź ostatnią godzinę przed Tel2
+                    var lastTime = timeMatches[timeMatches.Count - 1];
+                    int afterTimePos = lastTime.Index + lastTime.Length;
+                    string afterTime = beforeTel2.Substring(afterTimePos).Trim();
+
+                    // IMIĘ to PIERWSZE słowo po godzinie (min 3 litery, zaczyna się wielką)
+                    var imieMatch = Regex.Match(afterTime, @"^[\s\n]*([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]{2,}|[A-ZŻŹĆĄŚĘŁÓŃ]{3,})");
+                    if (imieMatch.Success)
+                    {
+                        string potentialImie = imieMatch.Groups[1].Value;
+                        // Walidacja: nie jest słowem kluczowym, nie jest takie samo jak nazwisko
+                        if (!IsHeaderWord(potentialImie) &&
+                            potentialImie.ToUpper() != kierowcaNazwisko.ToUpper())
+                        {
+                            kierowcaImie = potentialImie;
+                        }
+                    }
                 }
             }
 
