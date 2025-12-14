@@ -341,6 +341,142 @@ namespace Kalendarz1
             }
             await LoadPozycjeForSelectedAsync();
         }
+
+        // ============ HISTORIA WYDAŃ ============
+        private async void btnLoadHistoria_Click(object sender, RoutedEventArgs e)
+        {
+            if (dpHistoriaOd.SelectedDate == null || dpHistoriaDo.SelectedDate == null)
+            {
+                MessageBox.Show("Proszę wybrać zakres dat!", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            await LoadHistoriaWydanAsync(dpHistoriaOd.SelectedDate.Value, dpHistoriaDo.SelectedDate.Value);
+        }
+
+        private async void btnHistoriaToday_Click(object sender, RoutedEventArgs e)
+        {
+            dpHistoriaOd.SelectedDate = DateTime.Today;
+            dpHistoriaDo.SelectedDate = DateTime.Today;
+            await LoadHistoriaWydanAsync(DateTime.Today, DateTime.Today);
+        }
+
+        private async void btnHistoriaWeek_Click(object sender, RoutedEventArgs e)
+        {
+            var start = DateTime.Today.AddDays(-7);
+            var end = DateTime.Today;
+            dpHistoriaOd.SelectedDate = start;
+            dpHistoriaDo.SelectedDate = end;
+            await LoadHistoriaWydanAsync(start, end);
+        }
+
+        private async Task LoadHistoriaWydanAsync(DateTime dataOd, DateTime dataDo)
+        {
+            var historia = new List<HistoriaWydaniaItem>();
+
+            try
+            {
+                // Pobierz zamówienia z wydaniami z LibraNet
+                var zamowienia = new List<(int Id, int KlientId, DateTime DataWydania, string KtoWydal, decimal Ilosc, bool CzyWszystkoWydane, string Uwagi)>();
+
+                using (var cn = new SqlConnection(_connLibra))
+                {
+                    await cn.OpenAsync();
+
+                    // Sprawdź czy kolumny istnieją
+                    var checkCol = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'CzyWszystkoWydane'", cn);
+                    bool hasCzyWszystko = (int)await checkCol.ExecuteScalarAsync() > 0;
+
+                    var checkCol2 = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'UwagiWydania'", cn);
+                    bool hasUwagiWydania = (int)await checkCol2.ExecuteScalarAsync() > 0;
+
+                    string czyWszystkoCol = hasCzyWszystko ? "ISNULL(z.CzyWszystkoWydane, 1)" : "1";
+                    string uwagiWydaniaCol = hasUwagiWydania ? "ISNULL(z.UwagiWydania, '')" : "''";
+
+                    string sql = $@"
+                        SELECT z.Id, z.KlientId, z.DataWydania, ISNULL(z.KtoWydal, '') AS KtoWydal,
+                               (SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id) AS TotalIlosc,
+                               {czyWszystkoCol} AS CzyWszystkoWydane,
+                               {uwagiWydaniaCol} AS UwagiWydania
+                        FROM dbo.ZamowieniaMieso z
+                        WHERE z.CzyWydane = 1
+                          AND z.DataWydania >= @Od AND z.DataWydania < @DoPlus
+                        ORDER BY z.DataWydania DESC";
+
+                    var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Od", dataOd.Date);
+                    cmd.Parameters.AddWithValue("@DoPlus", dataDo.Date.AddDays(1)); // Do końca dnia
+
+                    using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        zamowienia.Add((
+                            rd.GetInt32(0),
+                            rd.GetInt32(1),
+                            rd.GetDateTime(2),
+                            rd.GetString(3),
+                            rd.IsDBNull(4) ? 0 : rd.GetDecimal(4),
+                            rd.GetBoolean(5),
+                            rd.GetString(6)
+                        ));
+                    }
+                }
+
+                if (!zamowienia.Any())
+                {
+                    dgvHistoriaWydan.ItemsSource = null;
+                    lblHistoriaCount.Text = "0";
+                    lblHistoriaSumaKg.Text = "0";
+                    lblHistoriaPelne.Text = "0";
+                    lblHistoriaRoznice.Text = "0";
+                    return;
+                }
+
+                // Pobierz nazwy operatorów (kto wydał)
+                var operatorIds = zamowienia
+                    .Where(z => !string.IsNullOrEmpty(z.KtoWydal) && int.TryParse(z.KtoWydal, out _))
+                    .Select(z => int.Parse(z.KtoWydal))
+                    .Distinct()
+                    .ToList();
+                var operatorNames = await LoadOperatorNamesAsync(operatorIds);
+
+                // Pobierz nazwy klientów
+                var klientIds = zamowienia.Select(z => z.KlientId).Distinct().ToList();
+                var klienci = await LoadContractorsAsync(klientIds);
+
+                // Połącz dane
+                foreach (var z in zamowienia)
+                {
+                    string klientNazwa = klienci.ContainsKey(z.KlientId) ? klienci[z.KlientId].Shortcut : $"KH {z.KlientId}";
+                    string ktoWydalNazwa = z.KtoWydal;
+                    if (!string.IsNullOrEmpty(z.KtoWydal) && int.TryParse(z.KtoWydal, out int opId) && operatorNames.ContainsKey(opId))
+                    {
+                        ktoWydalNazwa = operatorNames[opId];
+                    }
+
+                    historia.Add(new HistoriaWydaniaItem
+                    {
+                        DataWydania = z.DataWydania,
+                        Klient = klientNazwa,
+                        IloscKg = z.Ilosc,
+                        KtoWydal = ktoWydalNazwa,
+                        StatusWydania = z.CzyWszystkoWydane ? "✅ Pełne" : "⚠️ Z różnicami",
+                        Uwagi = z.Uwagi
+                    });
+                }
+
+                dgvHistoriaWydan.ItemsSource = historia;
+
+                // Podsumowanie
+                lblHistoriaCount.Text = historia.Count.ToString();
+                lblHistoriaSumaKg.Text = historia.Sum(h => h.IloscKg).ToString("N0");
+                lblHistoriaPelne.Text = historia.Count(h => h.StatusWydania.Contains("Pełne")).ToString();
+                lblHistoriaRoznice.Text = historia.Count(h => h.StatusWydania.Contains("różnicami")).ToString();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas ładowania historii wydań:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
         #endregion
 
         #region Data Loading
@@ -1178,6 +1314,16 @@ namespace Kalendarz1
         {
             public int Id { get; set; }
             public string Kod { get; set; } = "";
+        }
+
+        public class HistoriaWydaniaItem
+        {
+            public DateTime DataWydania { get; set; }
+            public string Klient { get; set; } = "";
+            public decimal IloscKg { get; set; }
+            public string KtoWydal { get; set; } = "";
+            public string StatusWydania { get; set; } = "";
+            public string Uwagi { get; set; } = "";
         }
 
         public class ZamowienieViewModel : INotifyPropertyChanged
