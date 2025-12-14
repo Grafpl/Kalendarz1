@@ -128,91 +128,105 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Parsowanie - szuka wzorców "C:" i "N:" jako kotwic dla pojazdów
-        /// Dane kierowcy i hodowcy są PRZED pozycją "C:" w tekście
+        /// Parsowanie - szuka numerów rejestracyjnych i grupuje w pary
+        /// Używa ulepszonego parsowania kontekstu
         /// </summary>
         private List<AvilogTransportRow> ParseTransportRowsNew(string text)
         {
             var rows = new List<AvilogTransportRow>();
             var debugLines = new List<string>();
 
-            // Szukaj wzorca "C: REJESTRACJA" - to oznacza ciągnik
-            // Format w PDF: "C: WOT51407" lub "C:WOT51407"
-            var ciagnikiMatches = Regex.Matches(text, @"C\s*:\s*([A-Z]{2,3}[0-9][0-9A-Z]{3,5})");
+            // Znajdź wszystkie numery rejestracyjne
+            var rejMatches = Regex.Matches(text, @"(?<![A-Z])([A-Z]{2,3}[0-9][0-9A-Z]{3,5})(?![A-Z])");
 
-            debugLines.Add($"Znaleziono {ciagnikiMatches.Count} ciągników (C:)");
+            var rejestracje = new List<(string Numer, int Pos)>();
 
-            // Pozycje wszystkich ciągników
-            var ciagnikiPositions = new List<(string Ciagnik, int Pos)>();
-            foreach (Match m in ciagnikiMatches)
+            foreach (Match m in rejMatches)
             {
-                ciagnikiPositions.Add((m.Groups[1].Value, m.Index));
-                debugLines.Add($"  C: {m.Groups[1].Value} @ pozycja {m.Index}");
+                string num = m.Groups[1].Value;
+                int digitCount = num.Count(c => char.IsDigit(c));
+                if (num.Length >= 6 && num.Length <= 9 && digitCount >= 2)
+                {
+                    // Pomiń duplikaty blisko siebie
+                    bool isDuplicate = rejestracje.Any(r =>
+                        r.Numer == num && Math.Abs(r.Pos - m.Index) < 50);
+
+                    if (!isDuplicate)
+                    {
+                        rejestracje.Add((num, m.Index));
+                    }
+                }
             }
 
-            // Dla każdego ciągnika znajdź odpowiednią naczepę (N:) i dane
-            for (int i = 0; i < ciagnikiPositions.Count; i++)
+            debugLines.Add($"Znaleziono {rejestracje.Count} rejestracji");
+            foreach (var r in rejestracje)
+            {
+                debugLines.Add($"  {r.Numer} @ {r.Pos}");
+            }
+
+            // Grupuj w pary: ciągnik, naczepa
+            for (int i = 0; i < rejestracje.Count - 1; i += 2)
             {
                 var row = new AvilogTransportRow();
-                row.Ciagnik = ciagnikiPositions[i].Ciagnik;
-                int ciagnikPos = ciagnikiPositions[i].Pos;
+                row.Ciagnik = rejestracje[i].Numer;
+                row.Naczepa = rejestracje[i + 1].Numer;
 
-                // Znajdź naczepę - powinna być blisko po ciągniku (w zakresie 100 znaków)
-                string afterCiagnik = text.Substring(ciagnikPos, Math.Min(150, text.Length - ciagnikPos));
-                var naczepaMatch = Regex.Match(afterCiagnik, @"N\s*:\s*([A-Z]{2,3}[0-9][0-9A-Z]{3,5})");
-                if (naczepaMatch.Success)
-                {
-                    row.Naczepa = naczepaMatch.Groups[1].Value;
-                }
+                int ciagnikPos = rejestracje[i].Pos;
+                int naczepaPos = rejestracje[i + 1].Pos;
 
-                // === KLUCZOWE: Wyciągnij tekst PRZED C: dla tego wiersza ===
-                // Określ początek kontekstu - albo początek tekstu, albo koniec poprzedniego wiersza
+                // Kontekst PRZED ciągnikiem (kierowca + hodowca)
                 int startContext;
                 if (i == 0)
                 {
-                    // Dla pierwszego wiersza - szukaj od początku tabeli (po nagłówkach)
+                    // Pierwszy wiersz - szukaj od nagłówka OBSERWACJE
                     var headerEnd = Regex.Match(text.Substring(0, ciagnikPos), @"OBSERWACJE", RegexOptions.IgnoreCase);
-                    startContext = headerEnd.Success ? headerEnd.Index + headerEnd.Length : Math.Max(0, ciagnikPos - 800);
+                    startContext = headerEnd.Success ? headerEnd.Index + headerEnd.Length : Math.Max(0, ciagnikPos - 600);
                 }
                 else
                 {
-                    // Dla kolejnych wierszy - zacznij od końca poprzedniego wiersza (po jego N:)
-                    startContext = ciagnikiPositions[i - 1].Pos + 50;
+                    // Kolejne wiersze - od końca poprzedniej naczepy
+                    startContext = rejestracje[i - 1].Pos + rejestracje[i - 1].Numer.Length;
                 }
 
-                // Tekst między początkiem kontekstu a C: zawiera dane kierowcy i hodowcy
-                int contextLength = ciagnikPos - startContext;
-                if (contextLength > 0 && contextLength < 2000)
+                // Kontekst PO naczepie (ilości, godziny)
+                int endContext;
+                if (i + 2 < rejestracje.Count)
                 {
-                    string beforeCiagnik = text.Substring(startContext, contextLength);
-
-                    // Znajdź też tekst PO N: dla godzin i obserwacji
-                    int naczepaEnd = ciagnikPos + (naczepaMatch.Success ? naczepaMatch.Index + naczepaMatch.Length : 50);
-                    int endContext = (i + 1 < ciagnikiPositions.Count)
-                        ? ciagnikiPositions[i + 1].Pos
-                        : Math.Min(text.Length, naczepaEnd + 400);
-
-                    string afterNaczepa = text.Substring(naczepaEnd, Math.Min(endContext - naczepaEnd, 400));
-
-                    string fullContext = beforeCiagnik + " |POJAZD| " + afterNaczepa;
-
-                    // DEBUG dla pierwszego wiersza
-                    if (i == 0)
-                    {
-                        debugLines.Add($"\n=== WIERSZ 1 - ANALIZA ===");
-                        debugLines.Add($"Ciągnik: {row.Ciagnik}, Naczepa: {row.Naczepa}");
-                        debugLines.Add($"StartContext: {startContext}, CiagnikPos: {ciagnikPos}");
-                        debugLines.Add($"=== TEKST PRZED C: (kierowca + hodowca) ===\n{beforeCiagnik}\n=== KONIEC ===");
-                    }
-
-                    // Parsuj dane z kontekstu (nowa metoda)
-                    ParseContextDataNew(beforeCiagnik, afterNaczepa, row);
+                    endContext = rejestracje[i + 2].Pos;
                 }
-
-                if (!string.IsNullOrEmpty(row.Ciagnik))
+                else
                 {
-                    rows.Add(row);
+                    endContext = Math.Min(text.Length, naczepaPos + 500);
                 }
+
+                string beforeCiagnik = "";
+                string afterNaczepa = "";
+
+                if (ciagnikPos > startContext && ciagnikPos - startContext < 1500)
+                {
+                    beforeCiagnik = text.Substring(startContext, ciagnikPos - startContext);
+                }
+
+                int afterStart = naczepaPos + row.Naczepa.Length;
+                if (afterStart < endContext && endContext - afterStart < 500)
+                {
+                    afterNaczepa = text.Substring(afterStart, endContext - afterStart);
+                }
+
+                // DEBUG
+                if (i == 0)
+                {
+                    debugLines.Add($"\n=== WIERSZ 1 ===");
+                    debugLines.Add($"Ciągnik: {row.Ciagnik} @ {ciagnikPos}");
+                    debugLines.Add($"Naczepa: {row.Naczepa} @ {naczepaPos}");
+                    debugLines.Add($"=== PRZED CIĄGNIKIEM ===\n{beforeCiagnik}\n=== KONIEC ===");
+                    debugLines.Add($"=== PO NACZEPIE ===\n{afterNaczepa}\n=== KONIEC ===");
+                }
+
+                // Parsuj dane
+                ParseContextDataNew(beforeCiagnik, afterNaczepa, row);
+
+                rows.Add(row);
             }
 
             // Zapisz debug
