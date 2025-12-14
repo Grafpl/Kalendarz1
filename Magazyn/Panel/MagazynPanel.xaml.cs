@@ -581,11 +581,25 @@ namespace Kalendarz1
 
         private async void ProductButton_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button btn && btn.Tag is int productId)
+            if (sender is Button btn)
             {
+                int productId = 0;
+                if (btn.Tag is int tagInt)
+                {
+                    productId = tagInt;
+                }
+                else if (btn.Tag != null && int.TryParse(btn.Tag.ToString(), out int parsed))
+                {
+                    productId = parsed;
+                }
+
                 _filteredProductId = productId == 0 ? null : productId;
                 SetProductButtonSelected(btn);
                 await LoadOrdersAsync();
+
+                // DEBUG: pokaż info o filtrze (usuń po naprawieniu problemu)
+                string nazwaFiltra = productId == 0 ? "Wszystkie" : (_produktLookup.ContainsKey(productId) ? _produktLookup[productId] : $"ID:{productId}");
+                this.Title = $"Panel Magazynier - Filtr: {nazwaFiltra} ({ZamowieniaList1.Count + ZamowieniaList2.Count} zamówień)";
             }
         }
 
