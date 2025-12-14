@@ -29,6 +29,8 @@ namespace Kalendarz1.WPF
         private readonly List<Button> _dayButtons = new();
         private readonly Dictionary<Button, DateTime> _dayButtonDates = new();
         private readonly Dictionary<int, (string Name, string Salesman)> _contractorsCache = new();
+        private readonly Dictionary<int, string> _productsCache = new();
+        private int? _selectedProductId = null;
         private bool _isRefreshing = false;
         private bool _pendingRefresh = false;
 
@@ -50,6 +52,7 @@ namespace Kalendarz1.WPF
             _selectedDate = DateTime.Today;
             SetupDayButtons();
             await LoadContractorsCacheAsync();
+            await LoadProductsCacheAsync();
             await RefreshDataAsync();
         }
 
@@ -202,6 +205,44 @@ namespace Kalendarz1.WPF
             catch { }
         }
 
+        private async Task LoadProductsCacheAsync()
+        {
+            _productsCache.Clear();
+            try
+            {
+                await using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync();
+                const string sql = "SELECT ID, nazwa FROM [HANDEL].[HM].[TW] WHERE aktywny = 1 ORDER BY nazwa";
+                await using var cmd = new SqlCommand(sql, cn);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    int id = reader.GetInt32(0);
+                    string name = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                    _productsCache[id] = name;
+                }
+
+                // Wypełnij ComboBox
+                cbProductFilter.Items.Clear();
+                cbProductFilter.Items.Add(new ComboBoxItem { Content = "Wszystkie towary", Tag = (int?)null });
+                foreach (var prod in _productsCache.OrderBy(p => p.Value))
+                {
+                    cbProductFilter.Items.Add(new ComboBoxItem { Content = prod.Value, Tag = prod.Key });
+                }
+                cbProductFilter.SelectedIndex = 0;
+            }
+            catch { }
+        }
+
+        private void CbProductFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (cbProductFilter.SelectedItem is ComboBoxItem item)
+            {
+                _selectedProductId = item.Tag as int?;
+                _ = RefreshDataAsync();
+            }
+        }
+
         private async Task RefreshDataAsync()
         {
             // Zapobiega równoczesnym odświeżeniom które powodują duplikaty
@@ -244,7 +285,9 @@ namespace Kalendarz1.WPF
                 // Upewnij się że kolumny istnieją
                 await EnsureColumnsExistAsync(cn);
 
-                string sql = @"
+                string productFilter = _selectedProductId.HasValue ? "AND zmt.KodTowaru = @ProductId " : "";
+
+                string sql = $@"
                     SELECT zm.Id, zm.KlientId,
                            SUM(ISNULL(zmt.Ilosc, 0)) AS IloscZamowiona,
                            SUM(ISNULL(CAST(zmt.Cena AS decimal(18,2)) * zmt.Ilosc, 0)) AS Wartosc,
@@ -259,6 +302,7 @@ namespace Kalendarz1.WPF
                     LEFT JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
                     WHERE zm.DataUboju = @Day
                       AND zm.Status <> 'Anulowane'
+                      {productFilter}
                     GROUP BY zm.Id, zm.KlientId, zm.DataZamowienia, zm.DataUboju, zm.Status, zm.IdUser,
                              zm.CzyZafakturowane, zm.NumerFaktury, zm.TransportKursID,
                              zm.CzyZmodyfikowaneDlaFaktur, zm.DataOstatniejModyfikacji, zm.ModyfikowalPrzez
@@ -266,6 +310,8 @@ namespace Kalendarz1.WPF
 
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Day", _selectedDate.Date);
+                if (_selectedProductId.HasValue)
+                    cmd.Parameters.AddWithValue("@ProductId", _selectedProductId.Value);
 
                 var kursIds = new HashSet<long>();
                 var tempList = new List<ZamowienieInfo>();
@@ -432,11 +478,16 @@ namespace Kalendarz1.WPF
                         ? $" o godz. {vm.Info.DataOstatniejModyfikacji.Value:HH:mm}" : "";
                     string ktoZmienil = !string.IsNullOrEmpty(vm.Info.ModyfikowalPrzez)
                         ? $"\nZmienił: {vm.Info.ModyfikowalPrzez}" : "";
-                    txtZmianaInfo.Text = $"Zamówienie zostało zmodyfikowane{czasZmiany}.{ktoZmienil}\nZatwierdź, że przyjmujesz do wiadomości tę zmianę.";
+                    txtZmianaInfo.Text = $"Zamówienie zostało zmodyfikowane{czasZmiany}.{ktoZmienil}";
+
+                    // Załaduj szczegóły zmian
+                    var zmiany = await LoadChangeHistoryAsync(vm.Info.Id);
+                    icZmianyList.ItemsSource = zmiany;
                 }
                 else
                 {
                     borderZmiana.Visibility = Visibility.Collapsed;
+                    icZmianyList.ItemsSource = null;
                 }
 
                 if (vm.Info.CzyZafakturowane)
@@ -454,6 +505,56 @@ namespace Kalendarz1.WPF
                 return;
             }
             ClearDetails();
+        }
+
+        private async Task<List<string>> LoadChangeHistoryAsync(int orderId)
+        {
+            var changes = new List<string>();
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Pobierz ostatnie zmiany od ostatniego zatwierdzenia (typ EDYCJA)
+                string sql = @"
+                    SELECT TOP 10 OpisZmiany, UzytkownikNazwa, DataZmiany
+                    FROM [dbo].[HistoriaZmianZamowien]
+                    WHERE ZamowienieId = @OrderId AND TypZmiany = 'EDYCJA'
+                    ORDER BY DataZmiany DESC";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@OrderId", orderId);
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                string[] polskieMiesiace = { "", "sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru" };
+
+                while (await reader.ReadAsync())
+                {
+                    string opis = reader.IsDBNull(0) ? "" : reader.GetString(0);
+                    string kto = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                    DateTime? kiedy = reader.IsDBNull(2) ? null : reader.GetDateTime(2);
+
+                    string kiedyStr = kiedy.HasValue
+                        ? $"{polskieMiesiace[kiedy.Value.Month]} {kiedy.Value.Day} {kiedy.Value:HH:mm}"
+                        : "";
+
+                    if (!string.IsNullOrEmpty(opis))
+                    {
+                        string change = $"{opis}";
+                        if (!string.IsNullOrEmpty(kiedyStr))
+                            change += $" ({kiedyStr})";
+                        changes.Add(change);
+                    }
+                }
+
+                if (changes.Count == 0)
+                    changes.Add("Brak szczegółowych informacji o zmianach");
+            }
+            catch
+            {
+                changes.Add("Nie udało się pobrać historii zmian");
+            }
+            return changes;
         }
 
         private void DgOrders_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -598,6 +699,7 @@ namespace Kalendarz1.WPF
             txtInvoiceStatus.Text = "Wybierz zamówienie z listy";
             borderTransport.Visibility = Visibility.Collapsed;
             borderZmiana.Visibility = Visibility.Collapsed;
+            icZmianyList.ItemsSource = null;
         }
 
         private async void BtnAcceptChange_Click(object sender, RoutedEventArgs e)

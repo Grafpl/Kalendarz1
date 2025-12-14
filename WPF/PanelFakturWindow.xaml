@@ -186,10 +186,13 @@
 
                 <!-- Filtry -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
-                    <TextBlock Text="Szukaj:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                    <TextBox x:Name="txtSearch" Width="150" Height="30" VerticalContentAlignment="Center"
+                    <TextBlock Text="Towar:" VerticalAlignment="Center" Margin="0,0,5,0" FontWeight="Medium"/>
+                    <ComboBox x:Name="cbProductFilter" Width="180" Height="30" VerticalContentAlignment="Center"
+                              SelectionChanged="CbProductFilter_SelectionChanged"/>
+                    <TextBlock Text="Szukaj:" VerticalAlignment="Center" Margin="15,0,5,0"/>
+                    <TextBox x:Name="txtSearch" Width="120" Height="30" VerticalContentAlignment="Center"
                              TextChanged="TxtSearch_TextChanged"/>
-                    <CheckBox x:Name="chkShowFakturowane" Content="Pokaż już zafakturowane"
+                    <CheckBox x:Name="chkShowFakturowane" Content="Pokaż zafakturowane"
                               VerticalAlignment="Center" Margin="15,0,0,0"
                               Checked="ChkShowFakturowane_Changed" Unchecked="ChkShowFakturowane_Changed"/>
                 </StackPanel>
@@ -413,7 +416,24 @@
                                     <TextBlock Text="ZMIANA W ZAMÓWIENIU" FontSize="14" FontWeight="Bold" Foreground="#E65100" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <TextBlock x:Name="txtZmianaInfo" Text="Zamówienie zostało zmodyfikowane od ostatniego zatwierdzenia."
-                                           FontSize="11" Foreground="#5D4037" TextAlignment="Center" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                                           FontSize="11" Foreground="#5D4037" TextAlignment="Center" TextWrapping="Wrap" Margin="0,0,0,6"/>
+
+                                <!-- Lista co konkretnie się zmieniło -->
+                                <Border Background="#FFFBF0" CornerRadius="4" Padding="8" Margin="0,0,0,10" MaxHeight="150">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl x:Name="icZmianyList">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                        <TextBlock Text="•" FontWeight="Bold" Foreground="#E65100" Margin="0,0,5,0"/>
+                                                        <TextBlock Text="{Binding}" FontSize="11" Foreground="#5D4037" TextWrapping="Wrap"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Border>
+
                                 <Button x:Name="btnAcceptChange" Content="✓ Przyjmuję zmianę"
                                         Style="{StaticResource SuccessButtonStyle}"
                                         Height="40" FontSize="13"
