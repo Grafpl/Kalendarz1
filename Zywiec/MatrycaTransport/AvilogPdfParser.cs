@@ -180,9 +180,9 @@ namespace Kalendarz1
                 row.Ciagnik = rejestracje[i].Numer;
                 row.Naczepa = rejestracje[i + 1].Numer;
 
-                // Wyciągnij kontekst - tekst wokół tej pary rejestracji
-                int startPos = Math.Max(0, rejestracje[i].Pos - 300);
-                int endPos = Math.Min(text.Length, rejestracje[i + 1].Pos + 400);
+                // Wyciągnij kontekst - tekst wokół tej pary rejestracji (zwiększone okno)
+                int startPos = Math.Max(0, rejestracje[i].Pos - 500);
+                int endPos = Math.Min(text.Length, rejestracje[i + 1].Pos + 600);
                 string context = text.Substring(startPos, endPos - startPos);
 
                 // Parsuj dane z kontekstu
@@ -228,32 +228,89 @@ namespace Kalendarz1
                 }
             }
 
-            // Szukaj godzin (format HH:MM)
-            var godziny = Regex.Matches(context, @"\b(\d{2}):(\d{2})\b");
-            List<TimeSpan> times = new List<TimeSpan>();
-            foreach (Match g in godziny)
+            // Szukaj godzin (format HH:MM) - w PDF są w sekwencji: WYJAZD ZAŁADUNEK POWRÓT
+            // Szukamy ciągu 3 godzin blisko siebie (w jednej linii lub blisko)
+            var godzinyMatch = Regex.Match(context, @"(\d{2}):(\d{2})\s+(\d{2}):(\d{2})\s+(\d{2}):(\d{2})");
+            if (godzinyMatch.Success)
             {
-                if (int.TryParse(g.Groups[1].Value, out int h) && int.TryParse(g.Groups[2].Value, out int m))
+                // Znaleziono sekwencję 3 godzin
+                if (int.TryParse(godzinyMatch.Groups[1].Value, out int h1) &&
+                    int.TryParse(godzinyMatch.Groups[2].Value, out int m1) &&
+                    h1 >= 0 && h1 < 24 && m1 >= 0 && m1 < 60)
                 {
-                    if (h >= 0 && h < 24 && m >= 0 && m < 60)
-                    {
-                        times.Add(new TimeSpan(h, m, 0));
-                    }
+                    row.WyjazdZaklad = DateTime.Today.Add(new TimeSpan(h1, m1, 0));
+                }
+
+                if (int.TryParse(godzinyMatch.Groups[3].Value, out int h2) &&
+                    int.TryParse(godzinyMatch.Groups[4].Value, out int m2) &&
+                    h2 >= 0 && h2 < 24 && m2 >= 0 && m2 < 60)
+                {
+                    row.PoczatekZaladunku = new TimeSpan(h2, m2, 0);
+                }
+
+                if (int.TryParse(godzinyMatch.Groups[5].Value, out int h3) &&
+                    int.TryParse(godzinyMatch.Groups[6].Value, out int m3) &&
+                    h3 >= 0 && h3 < 24 && m3 >= 0 && m3 < 60)
+                {
+                    row.PowrotZaklad = DateTime.Today.Add(new TimeSpan(h3, m3, 0));
                 }
             }
+            else
+            {
+                // Fallback - szukaj pojedynczych godzin
+                var godziny = Regex.Matches(context, @"\b(\d{2}):(\d{2})\b");
+                List<TimeSpan> times = new List<TimeSpan>();
+                foreach (Match g in godziny)
+                {
+                    if (int.TryParse(g.Groups[1].Value, out int h) && int.TryParse(g.Groups[2].Value, out int m))
+                    {
+                        if (h >= 0 && h < 24 && m >= 0 && m < 60)
+                        {
+                            times.Add(new TimeSpan(h, m, 0));
+                        }
+                    }
+                }
 
-            // Przypisz godziny
-            if (times.Count >= 1) row.WyjazdZaklad = DateTime.Today.Add(times[0]);
-            if (times.Count >= 2) row.PoczatekZaladunku = times[1];
-            if (times.Count >= 3) row.PowrotZaklad = DateTime.Today.Add(times[2]);
+                // Przypisz godziny
+                if (times.Count >= 1) row.WyjazdZaklad = DateTime.Today.Add(times[0]);
+                if (times.Count >= 2) row.PoczatekZaladunku = times[1];
+                if (times.Count >= 3) row.PowrotZaklad = DateTime.Today.Add(times[2]);
+            }
 
-            // Szukaj hodowcy - WIELKIE LITERY + Tel. : + telefon
+            // Szukaj hodowcy - WIELKIE LITERY + opcjonalnie Tel. : + telefon
+            // Wzorzec 1: NAZWISKO IMIĘ Tel. : telefon
             var hodowcaMatch = Regex.Match(context,
-                @"([A-ZŻŹĆĄŚĘŁÓŃ]+)\s+([A-ZŻŹĆĄŚĘŁÓŃ]+)\s+Tel\s*\.\s*:\s*(\d{9}|\d{3}[\s-]?\d{3}[\s-]?\d{3})");
+                @"([A-ZŻŹĆĄŚĘŁÓŃ]{3,})\s+([A-ZŻŹĆĄŚĘŁÓŃ]{3,})\s+Tel\s*\.\s*:?\s*(\d{9}|\d{3}[\s-]?\d{3}[\s-]?\d{3})");
             if (hodowcaMatch.Success)
             {
                 row.HodowcaNazwa = $"{hodowcaMatch.Groups[1].Value} {hodowcaMatch.Groups[2].Value}";
                 row.HodowcaTelefon = Regex.Replace(hodowcaMatch.Groups[3].Value, @"[\s-]+", "");
+            }
+            else
+            {
+                // Wzorzec 2: NAZWISKO IMIĘ bez telefonu (2 słowa UPPERCASE przed adresem/kodem pocztowym)
+                var hodowcaAltMatch = Regex.Match(context,
+                    @"([A-ZŻŹĆĄŚĘŁÓŃ]{3,})\s+([A-ZŻŹĆĄŚĘŁÓŃ]{3,})(?:\s+[A-Za-zżźćąśęłóń]+\s+\d|\s+\d{2}-\d{3}|\s+Tel)");
+                if (hodowcaAltMatch.Success)
+                {
+                    row.HodowcaNazwa = $"{hodowcaAltMatch.Groups[1].Value} {hodowcaAltMatch.Groups[2].Value}";
+                }
+                else
+                {
+                    // Wzorzec 3: Szukaj 2 słów UPPERCASE koło siebie (min 4 litery każde)
+                    var twoUppercaseWords = Regex.Match(context,
+                        @"([A-ZŻŹĆĄŚĘŁÓŃ]{4,})\s+([A-ZŻŹĆĄŚĘŁÓŃ]{4,})");
+                    if (twoUppercaseWords.Success)
+                    {
+                        string word1 = twoUppercaseWords.Groups[1].Value;
+                        string word2 = twoUppercaseWords.Groups[2].Value;
+                        // Pomiń jeśli to nagłówki lub słowa kluczowe
+                        if (!IsHeaderWord(word1) && !IsHeaderWord(word2))
+                        {
+                            row.HodowcaNazwa = $"{word1} {word2}";
+                        }
+                    }
+                }
             }
 
             // Szukaj kierowcy - pełne dane
@@ -284,14 +341,26 @@ namespace Kalendarz1
                 }
             }
 
-            // Wzorzec 3: Szukaj w całym kontekście - UPPERCASE słowo przed hodowcą
-            if (string.IsNullOrEmpty(kierowcaNazwisko))
+            // Wzorzec 3: Jeśli znaleziono hodowcę, szukaj słowa TUŻ PRZED hodowcą
+            if (string.IsNullOrEmpty(kierowcaNazwisko) && !string.IsNullOrEmpty(row.HodowcaNazwa))
             {
-                var altMatch = Regex.Match(context,
-                    @"([A-ZŻŹĆĄŚĘŁÓŃ]{4,})\s+(?:KIEŁBASA|MARKOWSKI|SUKIENNIK|KUBICZ|LAPIAK|Kukulski|Klimczak)");
-                if (altMatch.Success)
+                // Znajdź pozycję hodowcy w kontekście
+                int hodowcaPos = context.IndexOf(row.HodowcaNazwa);
+                if (hodowcaPos > 5)
                 {
-                    kierowcaNazwisko = altMatch.Groups[1].Value;
+                    // Weź tekst przed hodowcą
+                    string beforeHodowca = context.Substring(0, hodowcaPos).Trim();
+                    // Ostatnie słowo przed hodowcą = nazwisko kierowcy
+                    var lastWordMatch = Regex.Match(beforeHodowca, @"([A-ZŻŹĆĄŚĘŁÓŃa-zżźćąśęłóń]{3,})[\s\n]*$");
+                    if (lastWordMatch.Success)
+                    {
+                        string potentialSurname = lastWordMatch.Groups[1].Value;
+                        // Sprawdź czy to nie jest słowo kluczowe
+                        if (!IsHeaderWord(potentialSurname.ToUpper()))
+                        {
+                            kierowcaNazwisko = potentialSurname;
+                        }
+                    }
                 }
             }
 
@@ -377,6 +446,56 @@ namespace Kalendarz1
                 row.Obserwacje = "Zabierasz wózek";
             else if (context.Contains("Przywozisz wózek") || context.Contains("Przywozisz wozek"))
                 row.Obserwacje = "Przywozisz wózek";
+
+            // Szukaj telefonu kierowcy (Tel2.)
+            var tel2PhoneMatch = Regex.Match(context, @"Tel2\s*\.\s*:?\s*(\d{9}|\d{3}[\s-]?\d{3}[\s-]?\d{3})");
+            if (tel2PhoneMatch.Success)
+            {
+                row.KierowcaTelefon = Regex.Replace(tel2PhoneMatch.Groups[1].Value, @"[\s-]+", "");
+            }
+
+            // Szukaj adresu hodowcy (po nazwie hodowcy, przed kodem pocztowym)
+            if (!string.IsNullOrEmpty(row.HodowcaNazwa))
+            {
+                // Szukaj adresu: ulica/miejscowość + numer
+                var adresMatch = Regex.Match(context, row.HodowcaNazwa + @"\s+(?:Tel[^:]*:\s*\d+\s+)?([A-Za-zżźćąśęłóńŻŹĆĄŚĘŁÓŃ\s]+\s+\d+[A-Za-z]?)");
+                if (adresMatch.Success)
+                {
+                    row.HodowcaAdres = adresMatch.Groups[1].Value.Trim();
+                }
+
+                // Szukaj kodu pocztowego i miejscowości
+                var kodMiejscMatch = Regex.Match(context, @"(\d{2}-\d{3})\s+([A-ZŻŹĆĄŚĘŁÓŃ][A-ZŻŹĆĄŚĘŁÓŃa-zżźćąśęłóń]+)");
+                if (kodMiejscMatch.Success)
+                {
+                    row.HodowcaKodPocztowy = kodMiejscMatch.Groups[1].Value;
+                    row.HodowcaMiejscowosc = kodMiejscMatch.Groups[2].Value;
+                }
+            }
+
+            // Szukaj współrzędnych GPS
+            var gpsLatMatch = Regex.Match(context, @"GPS\s*Lat\.?\s*(\d+[.,]\d+)");
+            var gpsLonMatch = Regex.Match(context, @"GPS\s*Long\.?\s*(\d+[.,]\d+)");
+            if (gpsLatMatch.Success) row.HodowcaGpsLat = gpsLatMatch.Groups[1].Value;
+            if (gpsLonMatch.Success) row.HodowcaGpsLon = gpsLonMatch.Groups[1].Value;
+        }
+
+        /// <summary>
+        /// Sprawdza czy słowo to nagłówek/słowo kluczowe (nie nazwa osoby)
+        /// </summary>
+        private bool IsHeaderWord(string word)
+        {
+            if (string.IsNullOrEmpty(word)) return true;
+
+            var headerWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "KIEROWCA", "HODOWCA", "POJAZD", "AVILOG", "POLSKA", "DATA", "UBOJU",
+                "OBSERWACJE", "ZAKŁAD", "ILOŚĆ", "SZTUK", "WAGA", "GODZINA", "WYJAZD",
+                "POWRÓT", "ZAŁADUNEK", "TRANSPORT", "PLANOWANIE", "CIĄGNIK", "NACZEPA",
+                "TELEFON", "ADRES", "MIEJSCOWOŚĆ", "GPS", "LAT", "LONG", "LATITUDE", "LONGITUDE"
+            };
+
+            return headerWords.Contains(word.ToUpper());
         }
 
         /// <summary>
