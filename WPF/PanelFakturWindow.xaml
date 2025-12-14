@@ -189,23 +189,20 @@
                     </Border>
 
                     <!-- Legenda statusów -->
-                    <Border Grid.Row="1" Background="#FAFAFA" Padding="10,6" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
+                    <Border Grid.Row="1" Background="White" Padding="8,5" BorderBrush="#E8E8E8" BorderThickness="0,0,0,1">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Legenda:" FontWeight="SemiBold" Foreground="#2C3E50" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <Border Background="#FFF3E0" CornerRadius="3" Padding="6,2" Margin="0,0,8,0">
-                                <TextBlock Text="Nowe" FontSize="11" Foreground="#E65100" ToolTip="Zamówienie nowe, oczekuje na realizację"/>
+                            <TextBlock Text="Status:" FontSize="11" FontWeight="Medium" Foreground="#5D6D7E" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <Border Background="#FFF8E1" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#FFE082" BorderThickness="1">
+                                <TextBlock Text="Nowe" FontSize="10" Foreground="#F57C00" FontWeight="Medium"/>
                             </Border>
-                            <Border Background="#E3F2FD" CornerRadius="3" Padding="6,2" Margin="0,0,8,0">
-                                <TextBlock Text="W realizacji" FontSize="11" Foreground="#1565C0" ToolTip="Zamówienie jest w trakcie realizacji"/>
+                            <Border Background="#E3F2FD" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#90CAF9" BorderThickness="1">
+                                <TextBlock Text="W realizacji" FontSize="10" Foreground="#1976D2" FontWeight="Medium"/>
                             </Border>
-                            <Border Background="#E8F5E9" CornerRadius="3" Padding="6,2" Margin="0,0,8,0">
-                                <TextBlock Text="Zrealizowane" FontSize="11" Foreground="#2E7D32" ToolTip="Zamówienie zostało zrealizowane, gotowe do fakturowania"/>
+                            <Border Background="#E8F5E9" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#A5D6A7" BorderThickness="1">
+                                <TextBlock Text="Zrealizowane" FontSize="10" Foreground="#388E3C" FontWeight="Medium"/>
                             </Border>
-                            <Border Background="#C8E6C9" CornerRadius="3" Padding="6,2" Margin="0,0,8,0">
-                                <TextBlock Text="Zafakturowane" FontSize="11" Foreground="#1B5E20" FontStyle="Italic" ToolTip="Zamówienie zostało już zafakturowane"/>
-                            </Border>
-                            <Border Background="#FFEBEE" CornerRadius="3" Padding="6,2" Margin="0,0,8,0">
-                                <TextBlock Text="Anulowane" FontSize="11" Foreground="#C62828" ToolTip="Zamówienie zostało anulowane (ukryte)"/>
+                            <Border Background="#C8E6C9" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#81C784" BorderThickness="1">
+                                <TextBlock Text="Zafakturowane" FontSize="10" Foreground="#2E7D32" FontWeight="Medium" FontStyle="Italic"/>
                             </Border>
                         </StackPanel>
                     </Border>
@@ -255,16 +252,30 @@
                                 </StackPanel>
 
                                 <!-- Info o transporcie -->
-                                <Border Grid.Column="1" Background="#E3F2FD" CornerRadius="5" Padding="10,5"
-                                        x:Name="borderTransport" Visibility="Collapsed">
+                                <Border Grid.Column="1" Background="White" CornerRadius="8" Padding="12,8"
+                                        x:Name="borderTransport" Visibility="Collapsed"
+                                        BorderBrush="#90CAF9" BorderThickness="1.5">
                                     <StackPanel>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="🚛" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                            <TextBlock Text="Transport" FontSize="12" FontWeight="SemiBold" Foreground="#1565C0"/>
-                                        </StackPanel>
-                                        <TextBlock x:Name="txtGodzWyjazdu" Text="" FontSize="11" Foreground="#1976D2" Margin="0,3,0,0"/>
-                                        <TextBlock x:Name="txtKierowca" Text="" FontSize="11" Foreground="#1976D2"/>
-                                        <TextBlock x:Name="txtPojazd" Text="" FontSize="11" Foreground="#1976D2"/>
+                                        <Border Background="#1976D2" CornerRadius="4" Padding="8,3" Margin="0,0,0,6" HorizontalAlignment="Center">
+                                            <TextBlock Text="TRANSPORT" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                        </Border>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Wyjazd:" FontSize="10" Foreground="#7F8C8D" Margin="0,0,8,2"/>
+                                            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="txtGodzWyjazdu" Text="" FontSize="11" FontWeight="SemiBold" Foreground="#1565C0"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Kierowca:" FontSize="10" Foreground="#7F8C8D" Margin="0,0,8,2"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="txtKierowca" Text="" FontSize="11" Foreground="#2C3E50"/>
+                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Pojazd:" FontSize="10" Foreground="#7F8C8D" Margin="0,0,8,0"/>
+                                            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="txtPojazd" Text="" FontSize="11" Foreground="#2C3E50"/>
+                                        </Grid>
                                     </StackPanel>
                                 </Border>
                             </Grid>

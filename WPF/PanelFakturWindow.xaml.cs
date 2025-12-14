@@ -337,6 +337,9 @@ namespace Kalendarz1.WPF
         {
             if (kursIds.Count == 0) return;
 
+            // Polskie nazwy miesięcy (skrócone)
+            string[] polskieMiesiace = { "", "Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru" };
+
             try
             {
                 await using var cn = new SqlConnection(_connTransport);
@@ -345,7 +348,7 @@ namespace Kalendarz1.WPF
                 // Pobierz dane kursów z kierowcami i pojazdami
                 var kursIdsList = string.Join(",", kursIds);
                 string sql = $@"
-                    SELECT k.KursID, k.GodzWyjazdu,
+                    SELECT k.KursID, k.GodzWyjazdu, k.DataKursu,
                            ISNULL(kier.Imie + ' ' + kier.Nazwisko, '') AS Kierowca,
                            ISNULL(p.Rejestracja, '') AS Pojazd
                     FROM dbo.Kurs k
@@ -362,10 +365,22 @@ namespace Kalendarz1.WPF
                 {
                     long kursId = reader.GetInt64(0);
                     TimeSpan? godzWyjazdu = reader.IsDBNull(1) ? null : reader.GetTimeSpan(1);
-                    string kierowca = reader.IsDBNull(2) ? "" : reader.GetString(2);
-                    string pojazd = reader.IsDBNull(3) ? "" : reader.GetString(3);
+                    DateTime? dataKursu = reader.IsDBNull(2) ? null : reader.GetDateTime(2);
+                    string kierowca = reader.IsDBNull(3) ? "" : reader.GetString(3);
+                    string pojazd = reader.IsDBNull(4) ? "" : reader.GetString(4);
 
-                    string godzWyjazduStr = godzWyjazdu.HasValue ? godzWyjazdu.Value.ToString(@"hh\:mm") : "";
+                    // Format: "08:30 Sty 12"
+                    string godzWyjazduStr = "";
+                    if (godzWyjazdu.HasValue && dataKursu.HasValue)
+                    {
+                        string miesiac = polskieMiesiace[dataKursu.Value.Month];
+                        godzWyjazduStr = $"{godzWyjazdu.Value:hh\\:mm} {miesiac} {dataKursu.Value.Day}";
+                    }
+                    else if (godzWyjazdu.HasValue)
+                    {
+                        godzWyjazduStr = godzWyjazdu.Value.ToString(@"hh\:mm");
+                    }
+
                     transportInfo[kursId] = (godzWyjazduStr, kierowca, pojazd);
                 }
 
@@ -444,7 +459,7 @@ namespace Kalendarz1.WPF
             {
                 Header = "Wyjazd",
                 Binding = new System.Windows.Data.Binding("GodzWyjazdu"),
-                Width = new DataGridLength(55),
+                Width = new DataGridLength(95),
                 ElementStyle = centerStyle
             });
 
@@ -578,9 +593,9 @@ namespace Kalendarz1.WPF
                     if (!string.IsNullOrEmpty(godzWyjazdu) || !string.IsNullOrEmpty(kierowca) || !string.IsNullOrEmpty(pojazd))
                     {
                         borderTransport.Visibility = Visibility.Visible;
-                        txtGodzWyjazdu.Text = !string.IsNullOrEmpty(godzWyjazdu) ? $"Wyjazd: {godzWyjazdu}" : "";
-                        txtKierowca.Text = !string.IsNullOrEmpty(kierowca) ? $"Kierowca: {kierowca}" : "";
-                        txtPojazd.Text = !string.IsNullOrEmpty(pojazd) ? $"Pojazd: {pojazd}" : "";
+                        txtGodzWyjazdu.Text = godzWyjazdu;
+                        txtKierowca.Text = kierowca;
+                        txtPojazd.Text = pojazd;
                     }
                     else
                     {
