@@ -1462,7 +1462,7 @@ namespace Kalendarz1
                 cmdUpdate.Parameters.AddWithValue("@kid", int.Parse(_selectedKlientId!));
                 cmdUpdate.Parameters.AddWithValue("@uw", string.IsNullOrWhiteSpace(textBoxUwagi.Text) ? (object)DBNull.Value : textBoxUwagi.Text);
                 cmdUpdate.Parameters.AddWithValue("@km", UserID);
-                cmdUpdate.Parameters.AddWithValue("@fullName", Kalendarz1.WPF.App.UserFullName ?? UserID);
+                cmdUpdate.Parameters.AddWithValue("@fullName", App.UserFullName ?? UserID);
                 cmdUpdate.Parameters.AddWithValue("@id", orderId);
                 cmdUpdate.Parameters.AddWithValue("@poj", (int)Math.Round(sumaPojemnikow));
                 cmdUpdate.Parameters.AddWithValue("@pal", sumaPalet);
