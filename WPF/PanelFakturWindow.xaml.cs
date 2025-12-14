@@ -935,12 +935,12 @@ namespace Kalendarz1.WPF
 
                 try
                 {
-                    // Pobierz kolejny numer dokumentu dla serii WZ
-                    string sqlNumer = @"SELECT ISNULL(MAX(numer), 0) + 1 FROM [HANDEL].[HM].[DK] WHERE seria = 'sWZ' AND YEAR(data) = YEAR(GETDATE())";
+                    // Pobierz kolejny numer dokumentu dla serii WZ (serianr)
+                    string sqlNumer = @"SELECT ISNULL(MAX(serianr), 0) + 1 FROM [HANDEL].[HM].[DK] WHERE typ = 6 AND YEAR(data) = YEAR(GETDATE())";
                     await using var cmdNumer = new SqlCommand(sqlNumer, cn, transaction);
                     int nowyNumer = Convert.ToInt32(await cmdNumer.ExecuteScalarAsync());
 
-                    string numerDokumentu = $"WZ/{nowyNumer}/{DateTime.Now:yy}";
+                    string kodDokumentu = $"WZ/{nowyNumer}/{DateTime.Now:yy}";
 
                     // Oblicz wartości
                     decimal wartoscNetto = pozycje.Sum(p => p.Ilosc * p.Cena);
@@ -948,52 +948,61 @@ namespace Kalendarz1.WPF
                     decimal wartoscBrutto = wartoscNetto + wartoscVat;
 
                     // Utwórz nagłówek dokumentu WZ
+                    // typ = 6 (WZ - Wydanie Zewnętrzne)
+                    // subtyp = 0 (standardowy)
+                    // bufor = 1 (dokument w buforze)
                     string sqlDK = @"
                         INSERT INTO [HANDEL].[HM].[DK]
-                        (seria, numer, data, khid, wartnetto, wartbrutto, aktywny, datadod, uwagi)
+                        (typ, subtyp, serianr, kod, nazwa, data, kh, netto, vat, bufor, createdDate, modifiedDate)
                         OUTPUT INSERTED.id
                         VALUES
-                        ('sWZ', @Numer, @Data, @KhId, @WartNetto, @WartBrutto, 1, GETDATE(), @Uwagi)";
+                        (6, 0, @SeriaNr, @Kod, @Nazwa, @Data, @Kh, @Netto, @Vat, 1, GETDATE(), GETDATE())";
 
                     await using var cmdDK = new SqlCommand(sqlDK, cn, transaction);
-                    cmdDK.Parameters.AddWithValue("@Numer", nowyNumer);
+                    cmdDK.Parameters.AddWithValue("@SeriaNr", nowyNumer);
+                    cmdDK.Parameters.AddWithValue("@Kod", kodDokumentu);
+                    cmdDK.Parameters.AddWithValue("@Nazwa", $"Import z Panelu Faktur - Zam. #{_currentOrderId}");
                     cmdDK.Parameters.AddWithValue("@Data", DateTime.Today);
-                    cmdDK.Parameters.AddWithValue("@KhId", kontrahentId);
-                    cmdDK.Parameters.AddWithValue("@WartNetto", wartoscNetto);
-                    cmdDK.Parameters.AddWithValue("@WartBrutto", wartoscBrutto);
-                    cmdDK.Parameters.AddWithValue("@Uwagi", $"Import z Panelu Faktur - Zamówienie #{_currentOrderId}");
+                    cmdDK.Parameters.AddWithValue("@Kh", kontrahentId);
+                    cmdDK.Parameters.AddWithValue("@Netto", (double)wartoscNetto);
+                    cmdDK.Parameters.AddWithValue("@Vat", (double)wartoscVat);
 
                     int dokumentId = Convert.ToInt32(await cmdDK.ExecuteScalarAsync());
 
                     // Utwórz pozycje dokumentu
-                    int lp = 1;
+                    short lp = 1;
                     foreach (var poz in pozycje)
                     {
                         if (!towarySymfonia.TryGetValue(poz.KodTowaru, out var towarInfo)) continue;
 
-                        decimal wartoscPoz = poz.Ilosc * poz.Cena;
+                        decimal wartoscPozNetto = poz.Ilosc * poz.Cena;
+                        decimal wartoscPozVat = wartoscPozNetto * 0.05m; // 5% VAT
+                        decimal wartoscPozTowaru = wartoscPozNetto + wartoscPozVat;
 
                         string sqlDP = @"
                             INSERT INTO [HANDEL].[HM].[DP]
-                            (super, lp, idtw, kod, ilosc, cena, wartnetto, data)
+                            (super, lp, idtw, kod, ilosc, cena, wartNetto, wartVat, wartTowaru, jm, stvat, bufor)
                             VALUES
-                            (@Super, @Lp, @IdTw, @Kod, @Ilosc, @Cena, @WartNetto, @Data)";
+                            (@Super, @Lp, @IdTw, @Kod, @Ilosc, @Cena, @WartNetto, @WartVat, @WartTowaru, @Jm, @StVat, 1)";
 
                         await using var cmdDP = new SqlCommand(sqlDP, cn, transaction);
                         cmdDP.Parameters.AddWithValue("@Super", dokumentId);
                         cmdDP.Parameters.AddWithValue("@Lp", lp++);
                         cmdDP.Parameters.AddWithValue("@IdTw", poz.KodTowaru);
                         cmdDP.Parameters.AddWithValue("@Kod", towarInfo.Kod);
-                        cmdDP.Parameters.AddWithValue("@Ilosc", poz.Ilosc);
-                        cmdDP.Parameters.AddWithValue("@Cena", poz.Cena);
-                        cmdDP.Parameters.AddWithValue("@WartNetto", wartoscPoz);
-                        cmdDP.Parameters.AddWithValue("@Data", DateTime.Today);
+                        cmdDP.Parameters.AddWithValue("@Ilosc", (double)poz.Ilosc);
+                        cmdDP.Parameters.AddWithValue("@Cena", (double)poz.Cena);
+                        cmdDP.Parameters.AddWithValue("@WartNetto", (double)wartoscPozNetto);
+                        cmdDP.Parameters.AddWithValue("@WartVat", (double)wartoscPozVat);
+                        cmdDP.Parameters.AddWithValue("@WartTowaru", (double)wartoscPozTowaru);
+                        cmdDP.Parameters.AddWithValue("@Jm", "kg");
+                        cmdDP.Parameters.AddWithValue("@StVat", 5.0); // Stawka VAT 5%
 
                         await cmdDP.ExecuteNonQueryAsync();
                     }
 
                     transaction.Commit();
-                    return (true, numerDokumentu, "");
+                    return (true, kodDokumentu, "");
                 }
                 catch (Exception ex)
                 {
