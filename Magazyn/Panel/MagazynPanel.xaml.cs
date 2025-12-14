@@ -110,37 +110,164 @@ namespace Kalendarz1
                 return;
             }
 
-            var result = MessageBox.Show($"Czy na pewno chcesz oznaczyć zamówienie dla klienta '{selected.Klient}' jako WYDANE?",
-                "Potwierdzenie", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            // Pobierz pozycje zamówienia do dialogu
+            var pozycje = await LoadOrderPositionsForDialogAsync(selected.Info.Id);
 
-            if (result == MessageBoxResult.Yes)
+            if (!pozycje.Any())
             {
-                try
+                MessageBox.Show("Brak pozycji w zamówieniu!", "Ostrzeżenie", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Pokaż dialog wydania
+            var dialog = new WydanieDialog(selected.Info.Klient, pozycje);
+            dialog.Owner = this;
+            var dialogResult = dialog.ShowDialog();
+
+            if (dialogResult != true || !dialog.Zatwierdzone)
+            {
+                return; // Anulowano
+            }
+
+            try
+            {
+                using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Jeśli nie wszystko wydane, zapisz różnice
+                if (!dialog.WszystkoWydane)
                 {
-                    using var cn = new SqlConnection(_connLibra);
-                    await cn.OpenAsync();
-
-                    // Ustaw CzyWydane + DataWydania + KtoWydal + Status (dla kompatybilności)
-                    var cmd = new SqlCommand(@"UPDATE dbo.ZamowieniaMieso
-                                               SET CzyWydane = 1,
-                                                   DataWydania = GETDATE(),
-                                                   KtoWydal = @UserID,
-                                                   Status = 'Wydany'
-                                               WHERE Id = @Id", cn);
-                    cmd.Parameters.AddWithValue("@Id", selected.Info.Id);
-                    cmd.Parameters.AddWithValue("@UserID", UserID);
-
-                    await cmd.ExecuteNonQueryAsync();
-
-                    MessageBox.Show("Status zamówienia został zmieniony na 'Wydany'!", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-
-                    // Odśwież listę
-                    await ReloadAllAsync();
+                    await SaveWydanieRozniczeAsync(cn, selected.Info.Id, dialog.Pozycje.ToList(), dialog.UwagiWydania);
                 }
-                catch (Exception ex)
+
+                // Ustaw CzyWydane + DataWydania + KtoWydal + Status (dla kompatybilności)
+                var cmd = new SqlCommand(@"UPDATE dbo.ZamowieniaMieso
+                                           SET CzyWydane = 1,
+                                               DataWydania = GETDATE(),
+                                               KtoWydal = @UserID,
+                                               Status = 'Wydany',
+                                               CzyWszystkoWydane = @CzyWszystko,
+                                               UwagiWydania = @Uwagi
+                                           WHERE Id = @Id", cn);
+                cmd.Parameters.AddWithValue("@Id", selected.Info.Id);
+                cmd.Parameters.AddWithValue("@UserID", UserID);
+                cmd.Parameters.AddWithValue("@CzyWszystko", dialog.WszystkoWydane);
+                cmd.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(dialog.UwagiWydania) ? DBNull.Value : dialog.UwagiWydania);
+
+                await cmd.ExecuteNonQueryAsync();
+
+                string msg = dialog.WszystkoWydane
+                    ? "Zamówienie zostało oznaczone jako WYDANE (wszystko zgodnie z zamówieniem)!"
+                    : "Zamówienie zostało oznaczone jako WYDANE (z różnicami - zapisano szczegóły)!";
+                MessageBox.Show(msg, "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Odśwież listę
+                await ReloadAllAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas zmiany statusu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async Task<List<(int TowarId, string Nazwa, decimal Zamowiono)>> LoadOrderPositionsForDialogAsync(int zamowienieId)
+        {
+            var pozycje = new List<(int, string, decimal)>();
+            var towarIds = new List<int>();
+            var ilosciMap = new Dictionary<int, decimal>();
+
+            // Pobierz pozycje zamówienia z LibraNet
+            using (var cn = new SqlConnection(_connLibra))
+            {
+                await cn.OpenAsync();
+                var cmd = new SqlCommand("SELECT KodTowaru, Ilosc FROM dbo.ZamowieniaMiesoTowar WHERE ZamowienieId = @Id", cn);
+                cmd.Parameters.AddWithValue("@Id", zamowienieId);
+
+                using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
                 {
-                    MessageBox.Show($"Błąd podczas zmiany statusu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    int towarId = rd.GetInt32(0);
+                    decimal ilosc = rd.GetDecimal(1);
+                    towarIds.Add(towarId);
+                    ilosciMap[towarId] = ilosc;
                 }
+            }
+
+            if (!towarIds.Any()) return pozycje;
+
+            // Pobierz nazwy towarów z Handel
+            var nazwyMap = new Dictionary<int, string>();
+            using (var cn = new SqlConnection(_connHandel))
+            {
+                await cn.OpenAsync();
+                var cmd = new SqlCommand($"SELECT ID, kod FROM HM.TW WHERE ID IN ({string.Join(",", towarIds)})", cn);
+                using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    nazwyMap[rd.GetInt32(0)] = rd.GetString(1);
+                }
+            }
+
+            // Połącz dane
+            foreach (var towarId in towarIds)
+            {
+                string nazwa = nazwyMap.ContainsKey(towarId) ? nazwyMap[towarId] : $"Towar {towarId}";
+                pozycje.Add((towarId, nazwa, ilosciMap[towarId]));
+            }
+
+            return pozycje.OrderBy(p => p.Item2).ToList();
+        }
+
+        private async Task SaveWydanieRozniczeAsync(SqlConnection cn, int zamowienieId, List<WydanieItem> pozycje, string uwagi)
+        {
+            // Sprawdź czy tabela istnieje, jeśli nie - utwórz
+            var checkCmd = new SqlCommand("SELECT COUNT(*) FROM sys.objects WHERE name='ZamowienieWydanieRoznice' AND type='U'", cn);
+            if ((int)await checkCmd.ExecuteScalarAsync() == 0)
+            {
+                var createCmd = new SqlCommand(@"
+                    CREATE TABLE dbo.ZamowienieWydanieRoznice (
+                        Id INT IDENTITY(1,1) PRIMARY KEY,
+                        ZamowienieId INT NOT NULL,
+                        KodTowaru INT NOT NULL,
+                        IloscZamowiona DECIMAL(18,3) NOT NULL,
+                        IloscWydana DECIMAL(18,3) NOT NULL,
+                        Roznica DECIMAL(18,3) NOT NULL,
+                        DataWpisu DATETIME NOT NULL DEFAULT GETDATE()
+                    );
+                    CREATE INDEX IX_WydanieRoznice_ZamowienieId ON dbo.ZamowienieWydanieRoznice(ZamowienieId);", cn);
+                await createCmd.ExecuteNonQueryAsync();
+            }
+
+            // Sprawdź/dodaj kolumny do ZamowieniaMieso jeśli nie istnieją
+            var checkCol1 = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'CzyWszystkoWydane'", cn);
+            if ((int)await checkCol1.ExecuteScalarAsync() == 0)
+            {
+                await new SqlCommand("ALTER TABLE dbo.ZamowieniaMieso ADD CzyWszystkoWydane BIT NULL", cn).ExecuteNonQueryAsync();
+            }
+
+            var checkCol2 = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'UwagiWydania'", cn);
+            if ((int)await checkCol2.ExecuteScalarAsync() == 0)
+            {
+                await new SqlCommand("ALTER TABLE dbo.ZamowieniaMieso ADD UwagiWydania NVARCHAR(500) NULL", cn).ExecuteNonQueryAsync();
+            }
+
+            // Usuń stare różnice dla tego zamówienia
+            var delCmd = new SqlCommand("DELETE FROM dbo.ZamowienieWydanieRoznice WHERE ZamowienieId = @ZamId", cn);
+            delCmd.Parameters.AddWithValue("@ZamId", zamowienieId);
+            await delCmd.ExecuteNonQueryAsync();
+
+            // Zapisz nowe różnice (tylko te które mają różnicę)
+            foreach (var poz in pozycje.Where(p => p.Zamowiono != p.Wydano))
+            {
+                var insCmd = new SqlCommand(@"
+                    INSERT INTO dbo.ZamowienieWydanieRoznice (ZamowienieId, KodTowaru, IloscZamowiona, IloscWydana, Roznica)
+                    VALUES (@ZamId, @TowarId, @Zamowiono, @Wydano, @Roznica)", cn);
+                insCmd.Parameters.AddWithValue("@ZamId", zamowienieId);
+                insCmd.Parameters.AddWithValue("@TowarId", poz.TowarId);
+                insCmd.Parameters.AddWithValue("@Zamowiono", poz.Zamowiono);
+                insCmd.Parameters.AddWithValue("@Wydano", poz.Wydano);
+                insCmd.Parameters.AddWithValue("@Roznica", poz.Roznica);
+                await insCmd.ExecuteNonQueryAsync();
             }
         }
 
