@@ -29,7 +29,18 @@ namespace Kalendarz1
         private readonly Dictionary<int, ZamowienieInfo> _zamowienia = new();
         private bool _notesTableEnsured = false;
         private int? _filteredProductId = null;
+        private string _filteredGroupName = null; // Nazwa wybranej grupy
         private Dictionary<int, string> _produktLookup = new();
+
+        // Klasa pomocnicza dla Tag przycisku
+        private class ProductButtonTag
+        {
+            public int ProductId { get; set; }
+            public string GroupName { get; set; }
+        }
+        private Dictionary<int, string> _mapowanieScalowania = new(); // TowarId -> NazwaGrupy
+        private Dictionary<string, List<int>> _grupyDoProduktow = new(); // NazwaGrupy -> lista TowarId
+        private Dictionary<int, decimal> _konfiguracjaProduktow = new(); // TowarId -> ProcentUdzialu
         private Button _selectedProductButton = null;
         private DispatcherTimer refreshTimer;
 
@@ -206,6 +217,7 @@ namespace Kalendarz1
             string dateColumn = "DataUboju";
             var ids = new HashSet<int>();
 
+            // 1. Pobierz produkty z zamówień na dany dzień
             try
             {
                 using (var cn = new SqlConnection(_connLibra))
@@ -233,35 +245,170 @@ namespace Kalendarz1
                 await LoadProductLookupAsync(ids);
             }
 
+            // 2. Pobierz konfigurację produktów z grupami
+            await LoadKonfiguracjaProduktowAsync();
+
             // Utwórz przyciski towarów
             pnlProductButtons.Children.Clear();
 
             // Przycisk "Wszystkie"
-            var btnAll = CreateProductButton(0, "Wszystkie");
+            var btnAll = CreateProductButton(0, "Wszystkie", null);
             pnlProductButtons.Children.Add(btnAll);
-            if (!_filteredProductId.HasValue)
+            if (!_filteredProductId.HasValue && string.IsNullOrEmpty(_filteredGroupName))
             {
                 SetProductButtonSelected(btnAll);
             }
 
-            // Przyciski dla poszczególnych towarów
-            foreach (var product in _produktLookup.OrderBy(k => k.Value))
+            // Zbierz unikalne grupy z produktów które są w zamówieniach
+            var grupyWZamowieniach = new HashSet<string>();
+            var produktyBezGrupy = new List<KeyValuePair<int, string>>();
+
+            foreach (var product in _produktLookup)
             {
-                var btn = CreateProductButton(product.Key, product.Value);
+                if (_mapowanieScalowania.TryGetValue(product.Key, out var grupa))
+                {
+                    grupyWZamowieniach.Add(grupa);
+                }
+                else
+                {
+                    produktyBezGrupy.Add(product);
+                }
+            }
+
+            // Przyciski dla grup (posortowane)
+            foreach (var grupa in grupyWZamowieniach.OrderBy(g => g))
+            {
+                var btn = CreateProductButton(0, grupa, grupa);
                 pnlProductButtons.Children.Add(btn);
-                if (_filteredProductId == product.Key)
+                if (_filteredGroupName == grupa)
+                {
+                    SetProductButtonSelected(btn);
+                }
+            }
+
+            // Przyciski dla produktów bez grupy
+            foreach (var product in produktyBezGrupy.OrderBy(k => k.Value))
+            {
+                var btn = CreateProductButton(product.Key, product.Value, null);
+                pnlProductButtons.Children.Add(btn);
+                if (_filteredProductId == product.Key && string.IsNullOrEmpty(_filteredGroupName))
                 {
                     SetProductButtonSelected(btn);
                 }
             }
         }
 
-        private Button CreateProductButton(int productId, string productName)
+        private async Task LoadKonfiguracjaProduktowAsync()
+        {
+            _mapowanieScalowania.Clear();
+            _grupyDoProduktow.Clear();
+            _konfiguracjaProduktow.Clear();
+
+            try
+            {
+                using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Sprawdź czy kolumna GrupaScalowania istnieje
+                bool hasGrupaColumn = false;
+                const string checkQuery = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                                            WHERE TABLE_NAME = 'KonfiguracjaProduktow' AND COLUMN_NAME = 'GrupaScalowania'";
+                using (var checkCmd = new SqlCommand(checkQuery, cn))
+                {
+                    hasGrupaColumn = (int)await checkCmd.ExecuteScalarAsync() > 0;
+                }
+
+                string query = hasGrupaColumn
+                    ? @"SELECT kp.TowarID, kp.ProcentUdzialu, kp.GrupaScalowania
+                        FROM KonfiguracjaProduktow kp
+                        INNER JOIN (
+                            SELECT MAX(DataOd) as MaxData
+                            FROM KonfiguracjaProduktow
+                            WHERE DataOd <= @Data AND Aktywny = 1
+                        ) sub ON kp.DataOd = sub.MaxData
+                        WHERE kp.Aktywny = 1"
+                    : @"SELECT kp.TowarID, kp.ProcentUdzialu
+                        FROM KonfiguracjaProduktow kp
+                        INNER JOIN (
+                            SELECT MAX(DataOd) as MaxData
+                            FROM KonfiguracjaProduktow
+                            WHERE DataOd <= @Data AND Aktywny = 1
+                        ) sub ON kp.DataOd = sub.MaxData
+                        WHERE kp.Aktywny = 1";
+
+                using var cmd = new SqlCommand(query, cn);
+                cmd.Parameters.AddWithValue("@Data", _selectedDate.Date);
+
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    int towarId = Convert.ToInt32(reader["TowarID"]);
+                    decimal procent = Convert.ToDecimal(reader["ProcentUdzialu"]);
+                    _konfiguracjaProduktow[towarId] = procent;
+
+                    if (hasGrupaColumn)
+                    {
+                        var grupaOrdinal = reader.GetOrdinal("GrupaScalowania");
+                        if (!reader.IsDBNull(grupaOrdinal))
+                        {
+                            string grupa = reader.GetString(grupaOrdinal);
+                            if (!string.IsNullOrWhiteSpace(grupa))
+                            {
+                                _mapowanieScalowania[towarId] = grupa;
+
+                                if (!_grupyDoProduktow.ContainsKey(grupa))
+                                    _grupyDoProduktow[grupa] = new List<int>();
+                                _grupyDoProduktow[grupa].Add(towarId);
+                            }
+                        }
+                    }
+                }
+
+                // Jeśli nie ma grup, spróbuj pobrać z ScalowanieTowarow
+                if (!_mapowanieScalowania.Any())
+                {
+                    await LoadScalowanieTowarowAsync(cn);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd pobierania konfiguracji produktów: {ex.Message}");
+            }
+        }
+
+        private async Task LoadScalowanieTowarowAsync(SqlConnection cn)
+        {
+            try
+            {
+                const string checkSql = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'ScalowanieTowarow'";
+                using var checkCmd = new SqlCommand(checkSql, cn);
+                if ((int)await checkCmd.ExecuteScalarAsync() == 0) return;
+
+                const string sql = "SELECT NazwaGrupy, TowarIdtw FROM [dbo].[ScalowanieTowarow]";
+                using var cmd = new SqlCommand(sql, cn);
+                using var reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    string nazwaGrupy = reader.GetString(0);
+                    int towarIdtw = reader.GetInt32(1);
+
+                    _mapowanieScalowania[towarIdtw] = nazwaGrupy;
+
+                    if (!_grupyDoProduktow.ContainsKey(nazwaGrupy))
+                        _grupyDoProduktow[nazwaGrupy] = new List<int>();
+                    _grupyDoProduktow[nazwaGrupy].Add(towarIdtw);
+                }
+            }
+            catch { /* Ignoruj błędy */ }
+        }
+
+        private Button CreateProductButton(int productId, string productName, string groupName)
         {
             var btn = new Button
             {
                 Content = productName,
-                Tag = productId,
+                Tag = new ProductButtonTag { ProductId = productId, GroupName = groupName },
                 Height = 32,
                 MinWidth = 70,
                 Padding = new Thickness(10, 3, 10, 3),
@@ -296,9 +443,31 @@ namespace Kalendarz1
 
         private async void ProductButton_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button btn && btn.Tag is int productId)
+            if (sender is Button btn && btn.Tag is ProductButtonTag tag)
             {
-                _filteredProductId = productId == 0 ? null : productId;
+                // Jeśli ProductId = 0 i GroupName = null, to "Wszystkie"
+                // Jeśli GroupName nie jest null, to jest to przycisk grupy
+                // Jeśli ProductId > 0, to jest to pojedynczy produkt
+
+                if (tag.ProductId == 0 && string.IsNullOrEmpty(tag.GroupName))
+                {
+                    // "Wszystkie"
+                    _filteredProductId = null;
+                    _filteredGroupName = null;
+                }
+                else if (!string.IsNullOrEmpty(tag.GroupName))
+                {
+                    // Grupa
+                    _filteredGroupName = tag.GroupName;
+                    _filteredProductId = null;
+                }
+                else
+                {
+                    // Pojedynczy produkt
+                    _filteredProductId = tag.ProductId;
+                    _filteredGroupName = null;
+                }
+
                 SetProductButtonSelected(btn);
                 await LoadOrdersAsync();
                 await LoadPrzychodyInfoAsync();
@@ -1154,33 +1323,7 @@ namespace Kalendarz1
                 decimal planTuszkiA = pulaTuszki * (procentA / 100m);
                 decimal planTuszkiB = pulaTuszki * (procentB / 100m);
 
-                // 3. Pobierz konfigurację produktów (procenty udziału) - dla produktów które są w _produktLookup
-                var konfiguracjaProduktow = new Dictionary<int, decimal>();
-                if (_produktLookup.Any())
-                {
-                    using var cn = new SqlConnection(_connLibra);
-                    await cn.OpenAsync();
-
-                    // Pobierz konfigurację dla wszystkich produktów
-                    var cmdKonfig = new SqlCommand(@"SELECT kp.TowarID, kp.ProcentUdzialu
-                                                     FROM KonfiguracjaProduktow kp
-                                                     INNER JOIN (
-                                                         SELECT MAX(DataOd) as MaxData
-                                                         FROM KonfiguracjaProduktow
-                                                         WHERE DataOd <= @D AND Aktywny = 1
-                                                     ) sub ON kp.DataOd = sub.MaxData
-                                                     WHERE kp.Aktywny = 1", cn);
-                    cmdKonfig.Parameters.AddWithValue("@D", _selectedDate.Date);
-                    using var rd = await cmdKonfig.ExecuteReaderAsync();
-                    while (await rd.ReadAsync())
-                    {
-                        int produktId = rd.GetInt32(0);
-                        decimal procent = rd.IsDBNull(1) ? 0m : rd.GetDecimal(1);
-                        konfiguracjaProduktow[produktId] = procent;
-                    }
-                }
-
-                // 4. Pobierz faktyczny przychód z dokumentów produkcji
+                // 3. Pobierz faktyczny przychód z dokumentów produkcji (używamy _konfiguracjaProduktow z klasy)
                 var faktPrzychod = new Dictionary<int, decimal>();
                 using (var cn = new SqlConnection(_connHandel))
                 {
@@ -1237,19 +1380,61 @@ namespace Kalendarz1
                     }
                 }
 
-                // 7. Buduj tabelę produktów - użyj produktów z _produktLookup (te same co na przyciskach)
-                var produktyDoPokazania = _produktLookup.AsEnumerable();
-
-                // Jeśli jest filtr, pokaż tylko wybrany produkt
-                if (_filteredProductId.HasValue && _filteredProductId.Value > 0)
+                // 7. Buduj tabelę produktów
+                // Pobierz nazwy produktów z Handlu dla produktów z konfiguracji
+                var wszystkieNazwyProduktow = new Dictionary<int, string>(_produktLookup);
+                if (_konfiguracjaProduktow.Any())
                 {
-                    produktyDoPokazania = produktyDoPokazania.Where(p => p.Key == _filteredProductId.Value);
+                    var brakujaceIds = _konfiguracjaProduktow.Keys.Except(wszystkieNazwyProduktow.Keys).ToList();
+                    if (brakujaceIds.Any())
+                    {
+                        using var cn = new SqlConnection(_connHandel);
+                        await cn.OpenAsync();
+                        var cmd = new SqlCommand($"SELECT ID, kod FROM HM.TW WHERE ID IN ({string.Join(",", brakujaceIds)})", cn);
+                        using var rd = await cmd.ExecuteReaderAsync();
+                        while (await rd.ReadAsync())
+                        {
+                            wszystkieNazwyProduktow[rd.GetInt32(0)] = rd.GetString(1);
+                        }
+                    }
                 }
 
-                foreach (var kvp in produktyDoPokazania.OrderByDescending(p => zamowieniaSum.GetValueOrDefault(p.Key, 0)))
+                // Określ które produkty pokazać
+                IEnumerable<int> produktyDoPokazania;
+
+                if (!string.IsNullOrEmpty(_filteredGroupName))
                 {
-                    int produktId = kvp.Key;
-                    string nazwa = kvp.Value;
+                    // Wybrano grupę - pokaż wszystkie produkty z tej grupy (z konfiguracji)
+                    if (_grupyDoProduktow.TryGetValue(_filteredGroupName, out var produktyWGrupie))
+                    {
+                        produktyDoPokazania = produktyWGrupie;
+                    }
+                    else
+                    {
+                        produktyDoPokazania = Enumerable.Empty<int>();
+                    }
+                }
+                else if (_filteredProductId.HasValue && _filteredProductId.Value > 0)
+                {
+                    // Wybrano pojedynczy produkt
+                    produktyDoPokazania = new[] { _filteredProductId.Value };
+                }
+                else
+                {
+                    // Wszystkie - pokaż produkty z zamówień
+                    produktyDoPokazania = _produktLookup.Keys;
+                }
+
+                // Sortuj produkty - najpierw według procentu udziału (malejąco), potem według zamówień
+                var produktySortowane = produktyDoPokazania
+                    .OrderByDescending(id => _konfiguracjaProduktow.GetValueOrDefault(id, 0))
+                    .ThenByDescending(id => zamowieniaSum.GetValueOrDefault(id, 0))
+                    .ToList();
+
+                foreach (var produktId in produktySortowane)
+                {
+                    string nazwa = wszystkieNazwyProduktow.GetValueOrDefault(produktId, $"Produkt #{produktId}");
+                    decimal procentUdzialu = _konfiguracjaProduktow.GetValueOrDefault(produktId, 0m);
 
                     // Oblicz plan: dla tuszek A używamy planTuszkiA, dla innych produktów używamy planTuszkiB * procent
                     decimal plan = 0m;
@@ -1263,7 +1448,7 @@ namespace Kalendarz1
                     {
                         plan = planTuszkiB;
                     }
-                    else if (konfiguracjaProduktow.TryGetValue(produktId, out var procentUdzialu))
+                    else if (procentUdzialu > 0)
                     {
                         // Produkty rozbioru - procent z Tuszki B
                         plan = planTuszkiB * (procentUdzialu / 100m);
@@ -1276,10 +1461,23 @@ namespace Kalendarz1
                     // Bilans = (fakt lub plan) - zamówienia
                     decimal bilans = (fakt > 0 ? fakt : plan) - zam;
 
-                    // Procent realizacji
-                    string procent = plan > 0 ? $"{(fakt / plan * 100):F0}%" : "—";
+                    // Procent realizacji + procent udziału
+                    string procentTxt;
+                    if (procentUdzialu > 0)
+                    {
+                        procentTxt = plan > 0 ? $"{(fakt / plan * 100):F0}% ({procentUdzialu:F1}%)" : $"({procentUdzialu:F1}%)";
+                    }
+                    else
+                    {
+                        procentTxt = plan > 0 ? $"{(fakt / plan * 100):F0}%" : "—";
+                    }
 
-                    dtPlan.Rows.Add(nazwa, plan, fakt, zam, wyd, bilans, procent);
+                    // Dodaj prefiks dla produktów w grupie (gdy wybrano grupę)
+                    string nazwaDisplay = !string.IsNullOrEmpty(_filteredGroupName) && procentUdzialu > 0
+                        ? $"  · {nazwa}"
+                        : nazwa;
+
+                    dtPlan.Rows.Add(nazwaDisplay, plan, fakt, zam, wyd, bilans, procentTxt);
                     totalPlan += plan;
                     totalFakt += fakt;
                     totalZam += zam;
@@ -1291,7 +1489,10 @@ namespace Kalendarz1
                 if (dtPlan.Rows.Count > 1)
                 {
                     string totalProcent = totalPlan > 0 ? $"{(totalFakt / totalPlan * 100):F0}%" : "—";
-                    dtPlan.Rows.Add("═══ SUMA ═══", totalPlan, totalFakt, totalZam, totalWyd, totalBilans, totalProcent);
+                    string sumaLabel = !string.IsNullOrEmpty(_filteredGroupName)
+                        ? $"═══ SUMA {_filteredGroupName.ToUpper()} ═══"
+                        : "═══ SUMA ═══";
+                    dtPlan.Rows.Add(sumaLabel, totalPlan, totalFakt, totalZam, totalWyd, totalBilans, totalProcent);
                 }
             }
             catch (Exception ex)
