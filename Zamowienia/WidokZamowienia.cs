@@ -1443,7 +1443,7 @@ namespace Kalendarz1
             DataZamowienia = @dz, DataPrzyjazdu = @dp, KlientId = @kid, Uwagi = @uw,
             KtoMod = @km, KiedyMod = SYSDATETIME(), LiczbaPojemnikow = @poj,
             LiczbaPalet = @pal, TrybE2 = @e2, TransportStatus = @ts,
-            CzyZmodyfikowaneDlaFaktur = 1, DataOstatniejModyfikacji = SYSDATETIME(), ModyfikowalPrzez = @km";
+            CzyZmodyfikowaneDlaFaktur = 1, DataOstatniejModyfikacji = SYSDATETIME(), ModyfikowalPrzez = @fullName";
 
                 if (dataProdukcjiExists) updateSql += ", DataProdukcji = @dprod";
                 if (dataUbojuExists) updateSql += ", DataUboju = @duboj";
@@ -1462,6 +1462,7 @@ namespace Kalendarz1
                 cmdUpdate.Parameters.AddWithValue("@kid", int.Parse(_selectedKlientId!));
                 cmdUpdate.Parameters.AddWithValue("@uw", string.IsNullOrWhiteSpace(textBoxUwagi.Text) ? (object)DBNull.Value : textBoxUwagi.Text);
                 cmdUpdate.Parameters.AddWithValue("@km", UserID);
+                cmdUpdate.Parameters.AddWithValue("@fullName", App.UserFullName ?? UserID);
                 cmdUpdate.Parameters.AddWithValue("@id", orderId);
                 cmdUpdate.Parameters.AddWithValue("@poj", (int)Math.Round(sumaPojemnikow));
                 cmdUpdate.Parameters.AddWithValue("@pal", sumaPalet);

@@ -907,6 +907,7 @@ namespace Kalendarz1
                 new ModuleInfo("PrzychodMrozni", "Magazyn Mroźni", "Stany magazynowe produktów mrożonych", "Produkcja i Magazyn", "❄️"),
                 new ModuleInfo("LiczenieMagazynu", "Inwentaryzacja Magazynu", "Rejestracja stanów magazynowych", "Produkcja i Magazyn", "📦"),
                 new ModuleInfo("PanelMagazyniera", "Panel Magazyniera", "Zarządzanie wydaniami towarów", "Produkcja i Magazyn", "🗃️"),
+                new ModuleInfo("AnalizaPrzychodu", "Analiza Przychodu", "Analiza tempa produkcji i przychodu towarów", "Produkcja i Magazyn", "⏱️"),
                 new ModuleInfo("AnalizaWydajnosci", "Analiza Wydajności", "Porównanie masy żywca do tuszek", "Produkcja i Magazyn", "📈"),
 
                 // ═══════════════════════════════════════════════════════════════════════
@@ -915,6 +916,7 @@ namespace Kalendarz1
                 new ModuleInfo("CRM", "Relacje z Klientami", "Zarządzanie relacjami z odbiorcami", "Sprzedaż i CRM", "🤝"),
                 new ModuleInfo("KartotekaOdbiorcow", "Kartoteka Odbiorców", "Pełna baza danych klientów", "Sprzedaż i CRM", "👤"),
                 new ModuleInfo("ZamowieniaOdbiorcow", "Zamówienia Klientów", "Przyjmowanie zamówień", "Sprzedaż i CRM", "🛒"),
+                new ModuleInfo("DashboardHandlowca", "Dashboard Handlowca", "Kompleksowa analiza sprzedaży handlowca", "Sprzedaż i CRM", "📊"),
                 new ModuleInfo("DokumentySprzedazy", "Faktury Sprzedaży", "Przeglądanie faktur i WZ", "Sprzedaż i CRM", "🧾"),
                 new ModuleInfo("PanelFaktur", "Panel Faktur", "Tworzenie faktur w Symfonii", "Sprzedaż i CRM", "📋"),
                 new ModuleInfo("OfertaCenowa", "Kreator Ofert", "Tworzenie ofert cenowych", "Sprzedaż i CRM", "💰"),
@@ -993,7 +995,10 @@ namespace Kalendarz1
                 [32] = "PanelReklamacji",
                 [33] = "ReklamacjeJakosc",
                 [34] = "RaportyHodowcow",
-                [35] = "AdminPermissions"
+                [35] = "AdminPermissions",
+                [36] = "AnalizaPrzychodu",
+                [37] = "DashboardHandlowca",
+                [38] = "PanelFaktur"
             };
         }
 

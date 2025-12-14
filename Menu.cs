@@ -154,7 +154,9 @@ namespace Kalendarz1
                 [33] = "ReklamacjeJakosc",
                 [34] = "RaportyHodowcow",
                 [35] = "AdminPermissions",
-                [36] = "AnalizaPrzychodu"
+                [36] = "AnalizaPrzychodu",
+                [37] = "DashboardHandlowca",
+                [38] = "PanelFaktur"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)

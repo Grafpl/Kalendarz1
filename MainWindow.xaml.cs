@@ -124,7 +124,24 @@ namespace Kalendarz1
                 [18] = "ProdukcjaPodglad",
                 [19] = "OfertaCenowa",
                 [20] = "PrognozyUboju",
-                [21] = "AnalizaTygodniowa"
+                [21] = "AnalizaTygodniowa",
+                [22] = "NotatkiZeSpotkan",
+                [23] = "PlanTygodniowy",
+                [24] = "LiczenieMagazynu",
+                [25] = "PanelMagazyniera",
+                [26] = "KartotekaOdbiorcow",
+                [27] = "AnalizaWydajnosci",
+                [28] = "RezerwacjaKlas",
+                [29] = "DashboardWyczerpalnosci",
+                [30] = "ListaOfert",
+                [31] = "DashboardOfert",
+                [32] = "PanelReklamacji",
+                [33] = "ReklamacjeJakosc",
+                [34] = "RaportyHodowcow",
+                [35] = "AdminPermissions",
+                [36] = "AnalizaPrzychodu",
+                [37] = "DashboardHandlowca",
+                [38] = "PanelFaktur"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)

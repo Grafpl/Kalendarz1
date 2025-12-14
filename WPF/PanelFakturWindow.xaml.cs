@@ -29,6 +29,8 @@ namespace Kalendarz1.WPF
         private readonly List<Button> _dayButtons = new();
         private readonly Dictionary<Button, DateTime> _dayButtonDates = new();
         private readonly Dictionary<int, (string Name, string Salesman)> _contractorsCache = new();
+        private readonly Dictionary<int, string> _productsCache = new();
+        private int? _selectedProductId = null;
         private bool _isRefreshing = false;
         private bool _pendingRefresh = false;
 
@@ -50,6 +52,7 @@ namespace Kalendarz1.WPF
             _selectedDate = DateTime.Today;
             SetupDayButtons();
             await LoadContractorsCacheAsync();
+            await LoadProductsCacheAsync();
             await RefreshDataAsync();
         }
 
@@ -202,6 +205,100 @@ namespace Kalendarz1.WPF
             catch { }
         }
 
+        private async Task LoadProductsCacheAsync()
+        {
+            _productsCache.Clear();
+            try
+            {
+                await using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync();
+                // Pobierz tylko produkty z katalogów mięsnych (Świeże=67095, Mrożone=67153)
+                const string sql = @"SELECT ID, kod FROM [HANDEL].[HM].[TW]
+                                     WHERE katalog IN (67095, 67153)
+                                     ORDER BY kod";
+                await using var cmd = new SqlCommand(sql, cn);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    int id = reader.GetInt32(0);
+                    string kod = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                    if (!string.IsNullOrWhiteSpace(kod))
+                        _productsCache[id] = kod;
+                }
+
+                GenerateProductButtons();
+            }
+            catch { }
+        }
+
+        private void GenerateProductButtons()
+        {
+            pnlProductButtons.Children.Clear();
+
+            // Przycisk "Wszystkie"
+            var btnAll = new Button
+            {
+                Content = "Wszystkie",
+                Margin = new Thickness(2),
+                Padding = new Thickness(10, 5, 10, 5),
+                FontSize = 11,
+                Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Tag = (int?)null
+            };
+            btnAll.Click += ProductButton_Click;
+            pnlProductButtons.Children.Add(btnAll);
+
+            foreach (var product in _productsCache.OrderBy(x => x.Value))
+            {
+                var btn = new Button
+                {
+                    Content = product.Value,
+                    Margin = new Thickness(2),
+                    Padding = new Thickness(10, 5, 10, 5),
+                    FontSize = 11,
+                    Background = new SolidColorBrush(Color.FromRgb(236, 240, 241)),
+                    Foreground = Brushes.Black,
+                    BorderThickness = new Thickness(1),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(189, 195, 199)),
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    Tag = product.Key
+                };
+                btn.Click += ProductButton_Click;
+                pnlProductButtons.Children.Add(btn);
+            }
+        }
+
+        private async void ProductButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn)
+            {
+                // Reset wszystkich przycisków
+                foreach (var child in pnlProductButtons.Children.OfType<Button>())
+                {
+                    if (child.Tag == null)
+                    {
+                        child.Background = new SolidColorBrush(Color.FromRgb(52, 152, 219));
+                        child.Foreground = Brushes.White;
+                    }
+                    else
+                    {
+                        child.Background = new SolidColorBrush(Color.FromRgb(236, 240, 241));
+                        child.Foreground = Brushes.Black;
+                    }
+                }
+
+                // Podświetl wybrany
+                btn.Background = new SolidColorBrush(Color.FromRgb(46, 204, 113));
+                btn.Foreground = Brushes.White;
+
+                _selectedProductId = btn.Tag as int?;
+                await RefreshDataAsync();
+            }
+        }
+
         private async Task RefreshDataAsync()
         {
             // Zapobiega równoczesnym odświeżeniom które powodują duplikaty
@@ -244,7 +341,9 @@ namespace Kalendarz1.WPF
                 // Upewnij się że kolumny istnieją
                 await EnsureColumnsExistAsync(cn);
 
-                string sql = @"
+                string productFilter = _selectedProductId.HasValue ? "AND zmt.KodTowaru = @ProductId " : "";
+
+                string sql = $@"
                     SELECT zm.Id, zm.KlientId,
                            SUM(ISNULL(zmt.Ilosc, 0)) AS IloscZamowiona,
                            SUM(ISNULL(CAST(zmt.Cena AS decimal(18,2)) * zmt.Ilosc, 0)) AS Wartosc,
@@ -254,11 +353,15 @@ namespace Kalendarz1.WPF
                            zm.TransportKursID,
                            ISNULL(zm.CzyZmodyfikowaneDlaFaktur, 0) AS CzyZmodyfikowaneDlaFaktur,
                            zm.DataOstatniejModyfikacji,
-                           zm.ModyfikowalPrzez
+                           zm.ModyfikowalPrzez,
+                           CASE WHEN COUNT(zmt.Id) = 0 THEN 0
+                                WHEN SUM(CASE WHEN zmt.Cena IS NULL OR zmt.Cena = '' OR CAST(zmt.Cena AS decimal(18,2)) = 0 THEN 1 ELSE 0 END) = 0 THEN 1
+                                ELSE 0 END AS CzyMaCeny
                     FROM [dbo].[ZamowieniaMieso] zm
                     LEFT JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
                     WHERE zm.DataUboju = @Day
                       AND zm.Status <> 'Anulowane'
+                      {productFilter}
                     GROUP BY zm.Id, zm.KlientId, zm.DataZamowienia, zm.DataUboju, zm.Status, zm.IdUser,
                              zm.CzyZafakturowane, zm.NumerFaktury, zm.TransportKursID,
                              zm.CzyZmodyfikowaneDlaFaktur, zm.DataOstatniejModyfikacji, zm.ModyfikowalPrzez
@@ -266,6 +369,8 @@ namespace Kalendarz1.WPF
 
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Day", _selectedDate.Date);
+                if (_selectedProductId.HasValue)
+                    cmd.Parameters.AddWithValue("@ProductId", _selectedProductId.Value);
 
                 var kursIds = new HashSet<long>();
                 var tempList = new List<ZamowienieInfo>();
@@ -292,6 +397,7 @@ namespace Kalendarz1.WPF
                     bool czyZmodyfikowane = !reader.IsDBNull(11) && Convert.ToBoolean(reader.GetValue(11));
                     DateTime? dataModyfikacji = reader.IsDBNull(12) ? null : reader.GetDateTime(12);
                     string modyfikowalPrzez = reader.IsDBNull(13) ? "" : reader.GetString(13);
+                    bool czyMaCeny = !reader.IsDBNull(14) && Convert.ToInt32(reader.GetValue(14)) == 1;
 
                     var (name, salesman) = _contractorsCache.TryGetValue(clientId, out var c) ? c : ($"Klient {clientId}", "");
 
@@ -312,7 +418,8 @@ namespace Kalendarz1.WPF
                         TransportKursID = transportKursId,
                         CzyZmodyfikowaneDlaFaktur = czyZmodyfikowane,
                         DataOstatniejModyfikacji = dataModyfikacji,
-                        ModyfikowalPrzez = modyfikowalPrzez
+                        ModyfikowalPrzez = modyfikowalPrzez,
+                        CzyMaCeny = czyMaCeny
                     };
 
                     if (transportKursId.HasValue)
@@ -423,6 +530,7 @@ namespace Kalendarz1.WPF
                 await LoadOrderDetailsAsync(vm.Info.Id);
 
                 btnMarkFakturowane.IsEnabled = !vm.Info.CzyZafakturowane;
+                btnCofnijFakturowanie.IsEnabled = vm.Info.CzyZafakturowane;
 
                 // Pokaż/ukryj panel zmiany
                 if (vm.Info.CzyZmodyfikowaneDlaFaktur)
@@ -432,11 +540,16 @@ namespace Kalendarz1.WPF
                         ? $" o godz. {vm.Info.DataOstatniejModyfikacji.Value:HH:mm}" : "";
                     string ktoZmienil = !string.IsNullOrEmpty(vm.Info.ModyfikowalPrzez)
                         ? $"\nZmienił: {vm.Info.ModyfikowalPrzez}" : "";
-                    txtZmianaInfo.Text = $"Zamówienie zostało zmodyfikowane{czasZmiany}.{ktoZmienil}\nZatwierdź, że przyjmujesz do wiadomości tę zmianę.";
+                    txtZmianaInfo.Text = $"Zamówienie zostało zmodyfikowane{czasZmiany}.{ktoZmienil}";
+
+                    // Załaduj szczegóły zmian
+                    var zmiany = await LoadChangeHistoryAsync(vm.Info.Id);
+                    icZmianyList.ItemsSource = zmiany;
                 }
                 else
                 {
                     borderZmiana.Visibility = Visibility.Collapsed;
+                    icZmianyList.ItemsSource = null;
                 }
 
                 if (vm.Info.CzyZafakturowane)
@@ -454,6 +567,56 @@ namespace Kalendarz1.WPF
                 return;
             }
             ClearDetails();
+        }
+
+        private async Task<List<string>> LoadChangeHistoryAsync(int orderId)
+        {
+            var changes = new List<string>();
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Pobierz ostatnie zmiany od ostatniego zatwierdzenia (typ EDYCJA)
+                string sql = @"
+                    SELECT TOP 10 OpisZmiany, UzytkownikNazwa, DataZmiany
+                    FROM [dbo].[HistoriaZmianZamowien]
+                    WHERE ZamowienieId = @OrderId AND TypZmiany = 'EDYCJA'
+                    ORDER BY DataZmiany DESC";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@OrderId", orderId);
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                string[] polskieMiesiace = { "", "sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru" };
+
+                while (await reader.ReadAsync())
+                {
+                    string opis = reader.IsDBNull(0) ? "" : reader.GetString(0);
+                    string kto = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                    DateTime? kiedy = reader.IsDBNull(2) ? null : reader.GetDateTime(2);
+
+                    string kiedyStr = kiedy.HasValue
+                        ? $"{polskieMiesiace[kiedy.Value.Month]} {kiedy.Value.Day} {kiedy.Value:HH:mm}"
+                        : "";
+
+                    if (!string.IsNullOrEmpty(opis))
+                    {
+                        string change = $"{opis}";
+                        if (!string.IsNullOrEmpty(kiedyStr))
+                            change += $" ({kiedyStr})";
+                        changes.Add(change);
+                    }
+                }
+
+                if (changes.Count == 0)
+                    changes.Add("Brak szczegółowych informacji o zmianach");
+            }
+            catch
+            {
+                changes.Add("Nie udało się pobrać historii zmian");
+            }
+            return changes;
         }
 
         private void DgOrders_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -595,9 +758,11 @@ namespace Kalendarz1.WPF
             _dtDetails.Clear();
             dgDetails.ItemsSource = null;
             btnMarkFakturowane.IsEnabled = false;
+            btnCofnijFakturowanie.IsEnabled = false;
             txtInvoiceStatus.Text = "Wybierz zamówienie z listy";
             borderTransport.Visibility = Visibility.Collapsed;
             borderZmiana.Visibility = Visibility.Collapsed;
+            icZmianyList.ItemsSource = null;
         }
 
         private async void BtnAcceptChange_Click(object sender, RoutedEventArgs e)
@@ -668,6 +833,42 @@ namespace Kalendarz1.WPF
             }
         }
 
+        private async void BtnCofnijFakturowanie_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_currentOrderId.HasValue) return;
+
+            var vm = ZamowieniaList.FirstOrDefault(z => z.Info.Id == _currentOrderId.Value);
+            if (vm == null) return;
+
+            var result = MessageBox.Show(
+                $"Czy na pewno chcesz cofnąć fakturowanie zamówienia '{vm.Info.Klient}'?\n\n" +
+                "Zamówienie wróci do listy do zafakturowania.",
+                "Potwierdzenie cofnięcia fakturowania",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    await using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
+
+                    string sql = "UPDATE [dbo].[ZamowieniaMieso] SET CzyZafakturowane = 0, NumerFaktury = NULL WHERE Id = @Id";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Id", _currentOrderId.Value);
+                    await cmd.ExecuteNonQueryAsync();
+
+                    MessageBox.Show("Cofnięto fakturowanie zamówienia.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                    await RefreshDataAsync();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
         private async Task EnsureColumnsExistAsync(SqlConnection cn)
         {
             try
@@ -714,10 +915,13 @@ namespace Kalendarz1.WPF
             public bool CzyZmodyfikowaneDlaFaktur { get; set; }
             public DateTime? DataOstatniejModyfikacji { get; set; }
             public string ModyfikowalPrzez { get; set; } = "";
+            public bool CzyMaCeny { get; set; }
         }
 
         public class ZamowienieViewModel : INotifyPropertyChanged
         {
+            private static readonly string[] _polskieMiesiace = { "", "sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru" };
+
             public ZamowienieInfo Info { get; }
             public ZamowienieViewModel(ZamowienieInfo info) { Info = info; }
 
@@ -747,47 +951,62 @@ namespace Kalendarz1.WPF
                 get
                 {
                     if (Info.CzyZmodyfikowaneDlaFaktur) return Brushes.OrangeRed;
-                    if (Info.CzyZafakturowane) return Brushes.Green;
+                    if (Info.CzyZafakturowane) return new SolidColorBrush(Color.FromRgb(46, 125, 50)); // Zielony
+                    if (Info.Status == "Wydano") return new SolidColorBrush(Color.FromRgb(2, 119, 189)); // Niebieski
+                    if (Info.Status == "Zrealizowane") return new SolidColorBrush(Color.FromRgb(56, 142, 60)); // Zielony
+                    if (Info.Status == "W realizacji") return new SolidColorBrush(Color.FromRgb(25, 118, 210)); // Niebieski
+                    if (Info.Status == "Nowe") return new SolidColorBrush(Color.FromRgb(245, 124, 0)); // Pomarańczowy
                     return Brushes.Black;
                 }
             }
 
-            // Kolumna ostatniej zmiany
+            // Kolumna ostatniej zmiany - format: sty 12 12:00
             public string OstatniaZmiana
             {
                 get
                 {
                     if (!Info.CzyZmodyfikowaneDlaFaktur) return "";
                     if (Info.DataOstatniejModyfikacji.HasValue)
-                        return Info.DataOstatniejModyfikacji.Value.ToString("HH:mm dd.MM");
+                    {
+                        var d = Info.DataOstatniejModyfikacji.Value;
+                        return $"{_polskieMiesiace[d.Month]} {d.Day} {d:HH:mm}";
+                    }
                     return "Zmiana";
                 }
             }
 
-            public Brush ZmianaColor => Info.CzyZmodyfikowaneDlaFaktur ? Brushes.Orange : Brushes.Transparent;
+            public Brush ZmianaColor => Info.CzyZmodyfikowaneDlaFaktur ? Brushes.OrangeRed : Brushes.Transparent;
 
-            // Kto zmienił
+            // Kto zmienił - imię i nazwisko
             public string KtoZmienil => Info.ModyfikowalPrzez ?? "";
+
+            // Czy wszystkie towary mają ceny - ✓ lub ✗
+            public string CenaDisplay => Info.CzyMaCeny ? "✓" : "✗";
+            public Brush CenaColor => Info.CzyMaCeny
+                ? new SolidColorBrush(Color.FromRgb(46, 125, 50))   // Zielony dla ✓
+                : new SolidColorBrush(Color.FromRgb(198, 40, 40));  // Czerwony dla ✗
 
             // Wyjazd
             public string GodzWyjazdu => Info.GodzWyjazdu ?? "";
             public string Kierowca => Info.Kierowca ?? "";
             public string Pojazd => Info.Pojazd ?? "";
-            public string NumerFaktury => Info.NumerFaktury ?? "";
 
-            // Kolor tła wiersza
+            // Kolor tła wiersza - zgodny z WidokZamowienia
             public Brush RowBackground
             {
                 get
                 {
                     if (Info.CzyZmodyfikowaneDlaFaktur)
-                        return new SolidColorBrush(Color.FromRgb(255, 243, 224));
+                        return new SolidColorBrush(Color.FromRgb(255, 243, 224)); // Pomarańczowe tło dla zmian
                     if (Info.CzyZafakturowane)
-                        return new SolidColorBrush(Color.FromRgb(232, 245, 233));
+                        return new SolidColorBrush(Color.FromRgb(200, 230, 201)); // Ciemniejszy zielony
+                    if (Info.Status == "Wydano")
+                        return new SolidColorBrush(Color.FromRgb(225, 245, 254)); // Jasnoniebieski
                     if (Info.Status == "Zrealizowane")
-                        return new SolidColorBrush(Color.FromRgb(241, 248, 233));
+                        return new SolidColorBrush(Color.FromRgb(232, 245, 233)); // Jasnozielony
                     if (Info.Status == "W realizacji")
-                        return new SolidColorBrush(Color.FromRgb(227, 242, 253));
+                        return new SolidColorBrush(Color.FromRgb(227, 242, 253)); // Jasnoniebieski
+                    // Nowe - żółte tło
                     return new SolidColorBrush(Color.FromRgb(255, 248, 225));
                 }
             }

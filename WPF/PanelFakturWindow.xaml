@@ -140,6 +140,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -187,17 +188,33 @@
                 <!-- Filtry -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
                     <TextBlock Text="Szukaj:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                    <TextBox x:Name="txtSearch" Width="150" Height="30" VerticalContentAlignment="Center"
+                    <TextBox x:Name="txtSearch" Width="120" Height="30" VerticalContentAlignment="Center"
                              TextChanged="TxtSearch_TextChanged"/>
-                    <CheckBox x:Name="chkShowFakturowane" Content="Pokaż już zafakturowane"
+                    <CheckBox x:Name="chkShowFakturowane" Content="Pokaż zafakturowane"
                               VerticalAlignment="Center" Margin="15,0,0,0"
                               Checked="ChkShowFakturowane_Changed" Unchecked="ChkShowFakturowane_Changed"/>
                 </StackPanel>
             </Grid>
         </Border>
 
+        <!-- PASEK FILTROWANIA PO TOWARZE -->
+        <Border Grid.Row="2" Background="#F8F9FA" Padding="10,6" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Towar:" VerticalAlignment="Center" Margin="0,0,10,0"
+                           FontWeight="Medium" Foreground="#5D6D7E"/>
+                <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Disabled">
+                    <WrapPanel x:Name="pnlProductButtons" Orientation="Horizontal"/>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
         <!-- ZAWARTOŚĆ - dwie kolumny -->
-        <Grid Grid.Row="2">
+        <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="480"/>
@@ -232,19 +249,22 @@
                     <Border Grid.Row="1" Background="White" Padding="8,5" BorderBrush="#E8E8E8" BorderThickness="0,0,0,1">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Status:" FontSize="11" FontWeight="Medium" Foreground="#5D6D7E" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                            <Border Background="#FFF8E1" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#FFE082" BorderThickness="1">
+                            <Border Background="#FFF8E1" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#FFE082" BorderThickness="1" ToolTip="Nowe zlecenie na produkcję">
                                 <TextBlock Text="Nowe" FontSize="10" Foreground="#F57C00" FontWeight="Medium"/>
                             </Border>
-                            <Border Background="#E3F2FD" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#90CAF9" BorderThickness="1">
+                            <Border Background="#E3F2FD" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#90CAF9" BorderThickness="1" ToolTip="W trakcie realizacji przez produkcję">
                                 <TextBlock Text="W realizacji" FontSize="10" Foreground="#1976D2" FontWeight="Medium"/>
                             </Border>
-                            <Border Background="#E8F5E9" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#A5D6A7" BorderThickness="1">
+                            <Border Background="#E8F5E9" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#A5D6A7" BorderThickness="1" ToolTip="Zrealizowane przez produkcję">
                                 <TextBlock Text="Zrealizowane" FontSize="10" Foreground="#388E3C" FontWeight="Medium"/>
                             </Border>
-                            <Border Background="#C8E6C9" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#81C784" BorderThickness="1">
+                            <Border Background="#E1F5FE" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#81D4FA" BorderThickness="1" ToolTip="Wydane z magazynu (Panel Magazyniera)">
+                                <TextBlock Text="Wydano" FontSize="10" Foreground="#0277BD" FontWeight="Medium"/>
+                            </Border>
+                            <Border Background="#C8E6C9" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#81C784" BorderThickness="1" ToolTip="Zafakturowane - gotowe">
                                 <TextBlock Text="Zafakturowane" FontSize="10" Foreground="#2E7D32" FontWeight="Medium" FontStyle="Italic"/>
                             </Border>
-                            <Border Background="#FFF3E0" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#FFB74D" BorderThickness="2">
+                            <Border Background="#FFF3E0" CornerRadius="10" Padding="8,3" Margin="0,0,6,0" BorderBrush="#FFB74D" BorderThickness="2" ToolTip="Zamówienie zostało zmodyfikowane - wymaga zatwierdzenia">
                                 <TextBlock Text="⚠ Zmiana" FontSize="10" Foreground="#E65100" FontWeight="Bold"/>
                             </Border>
                         </StackPanel>
@@ -262,60 +282,67 @@
                             </Style>
                         </DataGrid.RowStyle>
                         <DataGrid.Columns>
-                            <!-- Klient z wykrzyknikiem i żółtym kolorem gdy zmiana -->
-                            <DataGridTemplateColumn Header="Odbiorca" Width="180">
+                            <!-- Klient z wykrzyknikiem i kolorem gdy zmiana -->
+                            <DataGridTemplateColumn Header="Odbiorca" Width="220">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding Klient}" Foreground="{Binding KlientColor}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="5,0"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="80"/>
-                            <DataGridTextColumn Header="Ilość [kg]" Binding="{Binding TotalIlosc, StringFormat=N0}" Width="75">
+                            <DataGridTextColumn Header="Handlowiec" Binding="{Binding Handlowiec}" Width="100"/>
+                            <DataGridTextColumn Header="Ilość [kg]" Binding="{Binding TotalIlosc, StringFormat=N0}" Width="90">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="HorizontalAlignment" Value="Right"/>
                                         <Setter Property="FontWeight" Value="Bold"/>
-                                        <Setter Property="Margin" Value="0,0,5,0"/>
+                                        <Setter Property="Margin" Value="0,0,8,0"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Wartość" Binding="{Binding Wartosc, StringFormat=N2}" Width="85">
+                            <DataGridTextColumn Header="Wartość" Binding="{Binding Wartosc, StringFormat=N2}" Width="100">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="HorizontalAlignment" Value="Right"/>
-                                        <Setter Property="Margin" Value="0,0,5,0"/>
+                                        <Setter Property="Margin" Value="0,0,8,0"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
+                            <!-- Cena - czy wszystkie towary mają cenę -->
+                            <DataGridTemplateColumn Header="Cena" Width="60">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding CenaDisplay}" Foreground="{Binding CenaColor}" FontWeight="Bold" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             <!-- Status z kolorem -->
-                            <DataGridTemplateColumn Header="Status" Width="100">
+                            <DataGridTemplateColumn Header="Status" Width="120">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding StatusDisplay}" Foreground="{Binding StatusColor}" FontWeight="Medium" VerticalAlignment="Center"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <!-- Data ostatniej zmiany -->
-                            <DataGridTemplateColumn Header="Ost. Zmiana" Width="90">
+                            <!-- Data ostatniej zmiany - format: sty 12 12:00 -->
+                            <DataGridTemplateColumn Header="Ost. Zmiana" Width="110">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding OstatniaZmiana}" Foreground="{Binding ZmianaColor}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <!-- Kto zmienił -->
-                            <DataGridTextColumn Header="Kto zmienił" Binding="{Binding KtoZmienil}" Width="80"/>
+                            <!-- Kto zmienił - imię i nazwisko -->
+                            <DataGridTextColumn Header="Kto zmienił" Binding="{Binding KtoZmienil}" Width="120"/>
                             <!-- Kolumny transportowe -->
-                            <DataGridTextColumn Header="Wyjazd" Binding="{Binding GodzWyjazdu}" Width="90">
+                            <DataGridTextColumn Header="Wyjazd" Binding="{Binding GodzWyjazdu}" Width="110">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="HorizontalAlignment" Value="Center"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Kierowca" Binding="{Binding Kierowca}" Width="90"/>
-                            <DataGridTextColumn Header="Nr faktury" Binding="{Binding NumerFaktury}" Width="90"/>
+                            <DataGridTextColumn Header="Kierowca" Binding="{Binding Kierowca}" Width="120"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
@@ -411,7 +438,24 @@
                                     <TextBlock Text="ZMIANA W ZAMÓWIENIU" FontSize="14" FontWeight="Bold" Foreground="#E65100" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <TextBlock x:Name="txtZmianaInfo" Text="Zamówienie zostało zmodyfikowane od ostatniego zatwierdzenia."
-                                           FontSize="11" Foreground="#5D4037" TextAlignment="Center" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                                           FontSize="11" Foreground="#5D4037" TextAlignment="Center" TextWrapping="Wrap" Margin="0,0,0,6"/>
+
+                                <!-- Lista co konkretnie się zmieniło -->
+                                <Border Background="#FFFBF0" CornerRadius="4" Padding="8" Margin="0,0,0,10" MaxHeight="150">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl x:Name="icZmianyList">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                        <TextBlock Text="•" FontWeight="Bold" Foreground="#E65100" Margin="0,0,5,0"/>
+                                                        <TextBlock Text="{Binding}" FontSize="11" Foreground="#5D4037" TextWrapping="Wrap"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Border>
+
                                 <Button x:Name="btnAcceptChange" Content="✓ Przyjmuję zmianę"
                                         Style="{StaticResource SuccessButtonStyle}"
                                         Height="40" FontSize="13"
@@ -431,6 +475,14 @@
                                 Height="40" Margin="0,5,0,0"
                                 Click="BtnMarkFakturowane_Click"
                                 IsEnabled="False"/>
+
+                        <Button x:Name="btnCofnijFakturowanie" Content="Cofnij fakturowanie"
+                                Style="{StaticResource ActionButtonStyle}"
+                                Background="#F57C00"
+                                Height="40" Margin="0,8,0,0"
+                                Click="BtnCofnijFakturowanie_Click"
+                                IsEnabled="False"
+                                ToolTip="Cofnij status zafakturowane (zamówienie wróci do listy)"/>
                     </StackPanel>
                 </Border>
             </Grid>
