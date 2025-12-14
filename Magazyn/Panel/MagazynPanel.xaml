@@ -547,6 +547,7 @@
                 <Grid Background="#1C1E26">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
@@ -573,11 +574,43 @@
                                     Background="#3A5A7A"
                                     Margin="10,0,0,0"
                                     Click="btnHistoriaWeek_Click"/>
+                            <Button x:Name="btnHistoriaMonth" Content="📆 Miesiąc"
+                                    Style="{StaticResource TopButtonStyle}"
+                                    Background="#3A5A7A"
+                                    Margin="10,0,0,0"
+                                    Click="btnHistoriaMonth_Click"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Filtry dodatkowe -->
+                    <Border Grid.Row="1" Background="#2A2C38" Padding="10" Margin="5,0,5,5">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="Kto wydał:" Foreground="White" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <ComboBox x:Name="cmbHistoriaUzytkownik" Width="180" Height="35" FontSize="14"
+                                      SelectionChanged="cmbHistoriaFilter_SelectionChanged"/>
+
+                            <TextBlock Text="Klient:" Foreground="White" FontSize="14" VerticalAlignment="Center" Margin="25,0,8,0"/>
+                            <ComboBox x:Name="cmbHistoriaKlient" Width="200" Height="35" FontSize="14"
+                                      SelectionChanged="cmbHistoriaFilter_SelectionChanged"/>
+
+                            <TextBlock Text="Status:" Foreground="White" FontSize="14" VerticalAlignment="Center" Margin="25,0,8,0"/>
+                            <ComboBox x:Name="cmbHistoriaStatus" Width="140" Height="35" FontSize="14"
+                                      SelectionChanged="cmbHistoriaFilter_SelectionChanged">
+                                <ComboBoxItem Content="Wszystkie" IsSelected="True"/>
+                                <ComboBoxItem Content="✅ Pełne"/>
+                                <ComboBoxItem Content="⚠️ Z różnicami"/>
+                            </ComboBox>
+
+                            <Button x:Name="btnHistoriaClearFilters" Content="✖ Wyczyść filtry"
+                                    Style="{StaticResource TopButtonStyle}"
+                                    Background="#5A4A4A"
+                                    Margin="25,0,0,0"
+                                    Click="btnHistoriaClearFilters_Click"/>
                         </StackPanel>
                     </Border>
 
                     <!-- Tabela historii wydań -->
-                    <Border Grid.Row="1" Background="#262832" CornerRadius="5" Margin="5">
+                    <Border Grid.Row="2" Background="#262832" CornerRadius="5" Margin="5">
                         <DataGrid x:Name="dgvHistoriaWydan"
                                   Style="{StaticResource CustomDataGridStyle}"
                                   IsReadOnly="True"
@@ -643,7 +676,7 @@
                     </Border>
 
                     <!-- Podsumowanie -->
-                    <Border Grid.Row="2" Background="#1E3A2A" Padding="15" Margin="5">
+                    <Border Grid.Row="3" Background="#1E3A2A" Padding="15" Margin="5">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                             <TextBlock Text="Łącznie wydań: " Foreground="White" FontSize="16" VerticalAlignment="Center"/>
                             <TextBlock x:Name="lblHistoriaCount" Text="0" Foreground="#FFD700" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>

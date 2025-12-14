@@ -772,6 +772,164 @@
                     </Grid>
                 </Grid>
             </TabItem>
+
+            <!-- TAB 4: HISTORIA REALIZACJI -->
+            <TabItem Header="📋 Historia realizacji">
+                <Grid Background="#1C1E26">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Nagłówek z filtrem dat -->
+                    <Border Grid.Row="0" Background="#262832" Padding="10" Margin="5">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="Zakres dat:" Foreground="White" FontSize="14" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <DatePicker x:Name="dpHistoriaRealizacjiOd" Width="130" Background="#3A3C48" Foreground="White"/>
+                            <TextBlock Text=" — " Foreground="White" FontSize="14" VerticalAlignment="Center"/>
+                            <DatePicker x:Name="dpHistoriaRealizacjiDo" Width="130" Background="#3A3C48" Foreground="White"/>
+                            <Button x:Name="btnLoadHistoriaRealizacji" Content="🔍 Pokaż"
+                                    Style="{StaticResource TopButtonStyle}"
+                                    Background="#4A7A5A"
+                                    Margin="15,0,0,0"
+                                    Click="btnLoadHistoriaRealizacji_Click"/>
+                            <Button x:Name="btnHistoriaRealizacjiToday" Content="📅 Dziś"
+                                    Style="{StaticResource TopButtonStyle}"
+                                    Background="#3A5A7A"
+                                    Margin="10,0,0,0"
+                                    Click="btnHistoriaRealizacjiToday_Click"/>
+                            <Button x:Name="btnHistoriaRealizacjiWeek" Content="📆 Tydzień"
+                                    Style="{StaticResource TopButtonStyle}"
+                                    Background="#3A5A7A"
+                                    Margin="10,0,0,0"
+                                    Click="btnHistoriaRealizacjiWeek_Click"/>
+                            <Button x:Name="btnHistoriaRealizacjiMonth" Content="📆 Miesiąc"
+                                    Style="{StaticResource TopButtonStyle}"
+                                    Background="#3A5A7A"
+                                    Margin="10,0,0,0"
+                                    Click="btnHistoriaRealizacjiMonth_Click"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Filtry dodatkowe -->
+                    <Border Grid.Row="1" Background="#2A2C38" Padding="10" Margin="5,0,5,5">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="Kto realizował:" Foreground="White" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <ComboBox x:Name="cmbHistoriaRealizacjiUzytkownik" Width="180" Height="35" FontSize="14"
+                                      SelectionChanged="cmbHistoriaRealizacjiFilter_SelectionChanged"/>
+
+                            <TextBlock Text="Klient:" Foreground="White" FontSize="14" VerticalAlignment="Center" Margin="25,0,8,0"/>
+                            <ComboBox x:Name="cmbHistoriaRealizacjiKlient" Width="200" Height="35" FontSize="14"
+                                      SelectionChanged="cmbHistoriaRealizacjiFilter_SelectionChanged"/>
+
+                            <TextBlock Text="Status:" Foreground="White" FontSize="14" VerticalAlignment="Center" Margin="25,0,8,0"/>
+                            <ComboBox x:Name="cmbHistoriaRealizacjiStatus" Width="160" Height="35" FontSize="14"
+                                      SelectionChanged="cmbHistoriaRealizacjiFilter_SelectionChanged">
+                                <ComboBoxItem Content="Wszystkie" IsSelected="True"/>
+                                <ComboBoxItem Content="✅ Zrealizowane"/>
+                                <ComboBoxItem Content="⏳ Częściowo"/>
+                                <ComboBoxItem Content="📝 Zmodyfikowane"/>
+                            </ComboBox>
+
+                            <Button x:Name="btnHistoriaRealizacjiClearFilters" Content="✖ Wyczyść filtry"
+                                    Style="{StaticResource TopButtonStyle}"
+                                    Background="#5A4A4A"
+                                    Margin="25,0,0,0"
+                                    Click="btnHistoriaRealizacjiClearFilters_Click"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Tabela historii realizacji -->
+                    <Border Grid.Row="2" Background="#262832" CornerRadius="5" Margin="5">
+                        <DataGrid x:Name="dgvHistoriaRealizacji"
+                                  Style="{StaticResource CustomDataGridStyle}"
+                                  IsReadOnly="True"
+                                  RowHeight="45"
+                                  Margin="5"
+                                  AutoGenerateColumns="False">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Data realizacji" Binding="{Binding DataRealizacji, StringFormat=yyyy-MM-dd HH:mm}" Width="140">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="Foreground" Value="#90CAF9"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Klient" Binding="{Binding Klient}" Width="*">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Ilość (kg)" Binding="{Binding IloscKg, StringFormat=N0}" Width="100">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Margin" Value="0,0,10,0"/>
+                                            <Setter Property="Foreground" Value="#FFD700"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Kto realizował" Binding="{Binding KtoRealizowal}" Width="150">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="Foreground" Value="#81C784"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Kto akceptował" Binding="{Binding KtoAkceptowal}" Width="150">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="Foreground" Value="#64B5F6"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Status" Binding="{Binding StatusRealizacji}" Width="130">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="*">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="Foreground" Value="#B0BEC5"/>
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+
+                    <!-- Podsumowanie -->
+                    <Border Grid.Row="3" Background="#1E3A2A" Padding="15" Margin="5">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="Łącznie realizacji: " Foreground="White" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="lblHistoriaRealizacjiCount" Text="0" Foreground="#FFD700" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <TextBlock Text="  |  Suma kg: " Foreground="White" FontSize="16" VerticalAlignment="Center" Margin="20,0,0,0"/>
+                            <TextBlock x:Name="lblHistoriaRealizacjiSumaKg" Text="0" Foreground="#4CAF50" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <TextBlock Text="  |  Pełne: " Foreground="White" FontSize="16" VerticalAlignment="Center" Margin="20,0,0,0"/>
+                            <TextBlock x:Name="lblHistoriaRealizacjiPelne" Text="0" Foreground="#81C784" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <TextBlock Text="  |  Częściowe: " Foreground="White" FontSize="16" VerticalAlignment="Center" Margin="20,0,0,0"/>
+                            <TextBlock x:Name="lblHistoriaRealizacjiCzesciowe" Text="0" Foreground="#FFCC80" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
         </TabControl>
     </Grid>
 </Window>

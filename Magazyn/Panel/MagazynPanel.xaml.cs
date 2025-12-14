@@ -50,10 +50,12 @@ namespace Kalendarz1
             StartAutoRefresh();
         }
 
+        private List<HistoriaWydaniaItem> _historiaWydanAll = new(); // Pełna lista bez filtrów
+
         private async void InitializeAsync()
         {
-            // Ustaw domyślny zakres dat dla Historii wydań - ostatnie 2 tygodnie
-            dpHistoriaOd.SelectedDate = DateTime.Today.AddDays(-14);
+            // Ustaw domyślny zakres dat dla Historii wydań - ostatnie 30 dni
+            dpHistoriaOd.SelectedDate = DateTime.Today.AddDays(-30);
             dpHistoriaDo.SelectedDate = DateTime.Today;
 
             await ReloadAllAsync();
@@ -373,9 +375,73 @@ namespace Kalendarz1
             await LoadHistoriaWydanAsync(start, end);
         }
 
+        private async void btnHistoriaMonth_Click(object sender, RoutedEventArgs e)
+        {
+            var start = DateTime.Today.AddDays(-30);
+            var end = DateTime.Today;
+            dpHistoriaOd.SelectedDate = start;
+            dpHistoriaDo.SelectedDate = end;
+            await LoadHistoriaWydanAsync(start, end);
+        }
+
+        private void cmbHistoriaFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            ApplyHistoriaFilters();
+        }
+
+        private void btnHistoriaClearFilters_Click(object sender, RoutedEventArgs e)
+        {
+            cmbHistoriaUzytkownik.SelectedIndex = 0;
+            cmbHistoriaKlient.SelectedIndex = 0;
+            cmbHistoriaStatus.SelectedIndex = 0;
+            ApplyHistoriaFilters();
+        }
+
+        private void ApplyHistoriaFilters()
+        {
+            if (_historiaWydanAll == null || !_historiaWydanAll.Any())
+            {
+                return;
+            }
+
+            var filtered = _historiaWydanAll.AsEnumerable();
+
+            // Filtr użytkownika
+            if (cmbHistoriaUzytkownik.SelectedIndex > 0 && cmbHistoriaUzytkownik.SelectedItem is string selectedUser)
+            {
+                filtered = filtered.Where(h => h.KtoWydal == selectedUser);
+            }
+
+            // Filtr klienta
+            if (cmbHistoriaKlient.SelectedIndex > 0 && cmbHistoriaKlient.SelectedItem is string selectedKlient)
+            {
+                filtered = filtered.Where(h => h.Klient == selectedKlient);
+            }
+
+            // Filtr statusu
+            if (cmbHistoriaStatus.SelectedIndex > 0)
+            {
+                var statusItem = cmbHistoriaStatus.SelectedItem as ComboBoxItem;
+                string statusFilter = statusItem?.Content?.ToString() ?? "";
+                if (statusFilter.Contains("Pełne"))
+                    filtered = filtered.Where(h => h.StatusWydania.Contains("Pełne"));
+                else if (statusFilter.Contains("różnicami"))
+                    filtered = filtered.Where(h => h.StatusWydania.Contains("różnicami"));
+            }
+
+            var result = filtered.ToList();
+            dgvHistoriaWydan.ItemsSource = result;
+
+            // Podsumowanie (dla przefiltrowanych)
+            lblHistoriaCount.Text = result.Count.ToString();
+            lblHistoriaSumaKg.Text = result.Sum(h => h.IloscKg).ToString("N0");
+            lblHistoriaPelne.Text = result.Count(h => h.StatusWydania.Contains("Pełne")).ToString();
+            lblHistoriaRoznice.Text = result.Count(h => h.StatusWydania.Contains("różnicami")).ToString();
+        }
+
         private async Task LoadHistoriaWydanAsync(DateTime dataOd, DateTime dataDo)
         {
-            var historia = new List<HistoriaWydaniaItem>();
+            _historiaWydanAll.Clear();
 
             try
             {
@@ -428,6 +494,10 @@ namespace Kalendarz1
                 if (!zamowienia.Any())
                 {
                     dgvHistoriaWydan.ItemsSource = null;
+                    cmbHistoriaUzytkownik.ItemsSource = new[] { "Wszyscy" };
+                    cmbHistoriaUzytkownik.SelectedIndex = 0;
+                    cmbHistoriaKlient.ItemsSource = new[] { "Wszyscy" };
+                    cmbHistoriaKlient.SelectedIndex = 0;
                     lblHistoriaCount.Text = "0";
                     lblHistoriaSumaKg.Text = "0";
                     lblHistoriaPelne.Text = "0";
@@ -457,7 +527,7 @@ namespace Kalendarz1
                         ktoWydalNazwa = operatorNames[opId];
                     }
 
-                    historia.Add(new HistoriaWydaniaItem
+                    _historiaWydanAll.Add(new HistoriaWydaniaItem
                     {
                         DataWydania = z.DataWydania,
                         Klient = klientNazwa,
@@ -468,13 +538,27 @@ namespace Kalendarz1
                     });
                 }
 
-                dgvHistoriaWydan.ItemsSource = historia;
+                // Wypełnij filtry
+                var uzytkownicy = new List<string> { "Wszyscy" };
+                uzytkownicy.AddRange(_historiaWydanAll.Select(h => h.KtoWydal).Where(k => !string.IsNullOrEmpty(k)).Distinct().OrderBy(k => k));
+                cmbHistoriaUzytkownik.ItemsSource = uzytkownicy;
+                cmbHistoriaUzytkownik.SelectedIndex = 0;
+
+                var klienciList = new List<string> { "Wszyscy" };
+                klienciList.AddRange(_historiaWydanAll.Select(h => h.Klient).Where(k => !string.IsNullOrEmpty(k)).Distinct().OrderBy(k => k));
+                cmbHistoriaKlient.ItemsSource = klienciList;
+                cmbHistoriaKlient.SelectedIndex = 0;
+
+                cmbHistoriaStatus.SelectedIndex = 0;
+
+                // Wyświetl wszystkie
+                dgvHistoriaWydan.ItemsSource = _historiaWydanAll;
 
                 // Podsumowanie
-                lblHistoriaCount.Text = historia.Count.ToString();
-                lblHistoriaSumaKg.Text = historia.Sum(h => h.IloscKg).ToString("N0");
-                lblHistoriaPelne.Text = historia.Count(h => h.StatusWydania.Contains("Pełne")).ToString();
-                lblHistoriaRoznice.Text = historia.Count(h => h.StatusWydania.Contains("różnicami")).ToString();
+                lblHistoriaCount.Text = _historiaWydanAll.Count.ToString();
+                lblHistoriaSumaKg.Text = _historiaWydanAll.Sum(h => h.IloscKg).ToString("N0");
+                lblHistoriaPelne.Text = _historiaWydanAll.Count(h => h.StatusWydania.Contains("Pełne")).ToString();
+                lblHistoriaRoznice.Text = _historiaWydanAll.Count(h => h.StatusWydania.Contains("różnicami")).ToString();
             }
             catch (Exception ex)
             {

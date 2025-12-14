@@ -43,6 +43,7 @@ namespace Kalendarz1
         private Dictionary<int, decimal> _konfiguracjaProduktow = new(); // TowarId -> ProcentUdzialu
         private Button _selectedProductButton = null;
         private DispatcherTimer refreshTimer;
+        private List<HistoriaRealizacjiItem> _historiaRealizacjiAll = new(); // Pełna lista historii realizacji
 
         public ObservableCollection<ZamowienieViewModel> ZamowieniaList1 { get; set; } = new();
         public ObservableCollection<ZamowienieViewModel> ZamowieniaList2 { get; set; } = new();
@@ -78,6 +79,10 @@ namespace Kalendarz1
 
         private async void InitializeAsync()
         {
+            // Ustaw domyślny zakres dat dla Historii realizacji - ostatnie 30 dni
+            dpHistoriaRealizacjiOd.SelectedDate = DateTime.Today.AddDays(-30);
+            dpHistoriaRealizacjiDo.SelectedDate = DateTime.Today;
+
             await ReloadAllAsync();
         }
 
@@ -194,6 +199,250 @@ namespace Kalendarz1
         private async void cbPokazWydaniaSymfonia_Click(object sender, RoutedEventArgs e)
         {
             await LoadOrdersAsync();
+        }
+        #endregion
+
+        #region Historia Realizacji
+        private async void btnLoadHistoriaRealizacji_Click(object sender, RoutedEventArgs e)
+        {
+            if (dpHistoriaRealizacjiOd.SelectedDate == null || dpHistoriaRealizacjiDo.SelectedDate == null)
+            {
+                MessageBox.Show("Proszę wybrać zakres dat!", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            await LoadHistoriaRealizacjiAsync(dpHistoriaRealizacjiOd.SelectedDate.Value, dpHistoriaRealizacjiDo.SelectedDate.Value);
+        }
+
+        private async void btnHistoriaRealizacjiToday_Click(object sender, RoutedEventArgs e)
+        {
+            dpHistoriaRealizacjiOd.SelectedDate = DateTime.Today;
+            dpHistoriaRealizacjiDo.SelectedDate = DateTime.Today;
+            await LoadHistoriaRealizacjiAsync(DateTime.Today, DateTime.Today);
+        }
+
+        private async void btnHistoriaRealizacjiWeek_Click(object sender, RoutedEventArgs e)
+        {
+            var start = DateTime.Today.AddDays(-7);
+            var end = DateTime.Today;
+            dpHistoriaRealizacjiOd.SelectedDate = start;
+            dpHistoriaRealizacjiDo.SelectedDate = end;
+            await LoadHistoriaRealizacjiAsync(start, end);
+        }
+
+        private async void btnHistoriaRealizacjiMonth_Click(object sender, RoutedEventArgs e)
+        {
+            var start = DateTime.Today.AddDays(-30);
+            var end = DateTime.Today;
+            dpHistoriaRealizacjiOd.SelectedDate = start;
+            dpHistoriaRealizacjiDo.SelectedDate = end;
+            await LoadHistoriaRealizacjiAsync(start, end);
+        }
+
+        private void cmbHistoriaRealizacjiFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            ApplyHistoriaRealizacjiFilters();
+        }
+
+        private void btnHistoriaRealizacjiClearFilters_Click(object sender, RoutedEventArgs e)
+        {
+            cmbHistoriaRealizacjiUzytkownik.SelectedIndex = 0;
+            cmbHistoriaRealizacjiKlient.SelectedIndex = 0;
+            cmbHistoriaRealizacjiStatus.SelectedIndex = 0;
+            ApplyHistoriaRealizacjiFilters();
+        }
+
+        private void ApplyHistoriaRealizacjiFilters()
+        {
+            if (_historiaRealizacjiAll == null || !_historiaRealizacjiAll.Any())
+            {
+                return;
+            }
+
+            var filtered = _historiaRealizacjiAll.AsEnumerable();
+
+            // Filtr użytkownika (kto realizował)
+            if (cmbHistoriaRealizacjiUzytkownik.SelectedIndex > 0 && cmbHistoriaRealizacjiUzytkownik.SelectedItem is string selectedUser)
+            {
+                filtered = filtered.Where(h => h.KtoRealizowal == selectedUser);
+            }
+
+            // Filtr klienta
+            if (cmbHistoriaRealizacjiKlient.SelectedIndex > 0 && cmbHistoriaRealizacjiKlient.SelectedItem is string selectedKlient)
+            {
+                filtered = filtered.Where(h => h.Klient == selectedKlient);
+            }
+
+            // Filtr statusu
+            if (cmbHistoriaRealizacjiStatus.SelectedIndex > 0)
+            {
+                var statusItem = cmbHistoriaRealizacjiStatus.SelectedItem as ComboBoxItem;
+                string statusFilter = statusItem?.Content?.ToString() ?? "";
+                if (statusFilter.Contains("Zrealizowane"))
+                    filtered = filtered.Where(h => h.StatusRealizacji.Contains("Zrealizowane"));
+                else if (statusFilter.Contains("Częściowo"))
+                    filtered = filtered.Where(h => h.StatusRealizacji.Contains("Częściowo"));
+                else if (statusFilter.Contains("Zmodyfikowane"))
+                    filtered = filtered.Where(h => h.StatusRealizacji.Contains("Zmodyfikowane"));
+            }
+
+            var result = filtered.ToList();
+            dgvHistoriaRealizacji.ItemsSource = result;
+
+            // Podsumowanie (dla przefiltrowanych)
+            lblHistoriaRealizacjiCount.Text = result.Count.ToString();
+            lblHistoriaRealizacjiSumaKg.Text = result.Sum(h => h.IloscKg).ToString("N0");
+            lblHistoriaRealizacjiPelne.Text = result.Count(h => h.StatusRealizacji.Contains("Zrealizowane")).ToString();
+            lblHistoriaRealizacjiCzesciowe.Text = result.Count(h => h.StatusRealizacji.Contains("Częściowo")).ToString();
+        }
+
+        private async Task LoadHistoriaRealizacjiAsync(DateTime dataOd, DateTime dataDo)
+        {
+            _historiaRealizacjiAll.Clear();
+
+            try
+            {
+                // Pobierz zamówienia zrealizowane z LibraNet
+                var zamowienia = new List<(int Id, int KlientId, DateTime? DataRealizacji, DateTime? DataAkceptacji, string KtoRealizowal, string KtoAkceptowal, decimal Ilosc, bool CzyZrealizowane, bool CzyCzesciowoZrealizowane, string Uwagi)>();
+
+                using (var cn = new SqlConnection(_connLibra))
+                {
+                    await cn.OpenAsync();
+
+                    // Sprawdź czy kolumny istnieją
+                    var checkCol1 = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'CzyCzesciowoZrealizowane'", cn);
+                    bool hasCzesciowo = (int)await checkCol1.ExecuteScalarAsync() > 0;
+
+                    var checkCol2 = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'DataAkceptacjiProdukcja'", cn);
+                    bool hasDataAkceptacji = (int)await checkCol2.ExecuteScalarAsync() > 0;
+
+                    var checkCol3 = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'KtoAkceptowalProdukcja'", cn);
+                    bool hasKtoAkceptowal = (int)await checkCol3.ExecuteScalarAsync() > 0;
+
+                    string czesciowoCol = hasCzesciowo ? "ISNULL(z.CzyCzesciowoZrealizowane, 0)" : "CAST(0 AS BIT)";
+                    string dataAkceptacjiCol = hasDataAkceptacji ? "z.DataAkceptacjiProdukcja" : "NULL";
+                    string ktoAkceptowalCol = hasKtoAkceptowal ? "ISNULL(z.KtoAkceptowalProdukcja, '')" : "''";
+
+                    string sql = $@"
+                        SELECT z.Id, z.KlientId, z.DataRealizacji, {dataAkceptacjiCol} AS DataAkceptacji,
+                               ISNULL(z.KtoRealizowal, '') AS KtoRealizowal,
+                               {ktoAkceptowalCol} AS KtoAkceptowal,
+                               (SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id) AS TotalIlosc,
+                               ISNULL(z.CzyZrealizowane, 0) AS CzyZrealizowane,
+                               {czesciowoCol} AS CzyCzesciowoZrealizowane,
+                               ISNULL(z.Uwagi, '') AS Uwagi
+                        FROM dbo.ZamowieniaMieso z
+                        WHERE (z.CzyZrealizowane = 1 OR {czesciowoCol} = 1)
+                          AND z.DataRealizacji >= @Od AND z.DataRealizacji < @DoPlus
+                        ORDER BY z.DataRealizacji DESC";
+
+                    var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Od", dataOd.Date);
+                    cmd.Parameters.AddWithValue("@DoPlus", dataDo.Date.AddDays(1));
+
+                    using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        zamowienia.Add((
+                            rd.GetInt32(0),
+                            rd.GetInt32(1),
+                            rd.IsDBNull(2) ? (DateTime?)null : rd.GetDateTime(2),
+                            rd.IsDBNull(3) ? (DateTime?)null : rd.GetDateTime(3),
+                            rd.GetString(4),
+                            rd.GetString(5),
+                            rd.IsDBNull(6) ? 0 : rd.GetDecimal(6),
+                            rd.GetBoolean(7),
+                            rd.GetBoolean(8),
+                            rd.GetString(9)
+                        ));
+                    }
+                }
+
+                if (!zamowienia.Any())
+                {
+                    dgvHistoriaRealizacji.ItemsSource = null;
+                    cmbHistoriaRealizacjiUzytkownik.ItemsSource = new[] { "Wszyscy" };
+                    cmbHistoriaRealizacjiUzytkownik.SelectedIndex = 0;
+                    cmbHistoriaRealizacjiKlient.ItemsSource = new[] { "Wszyscy" };
+                    cmbHistoriaRealizacjiKlient.SelectedIndex = 0;
+                    lblHistoriaRealizacjiCount.Text = "0";
+                    lblHistoriaRealizacjiSumaKg.Text = "0";
+                    lblHistoriaRealizacjiPelne.Text = "0";
+                    lblHistoriaRealizacjiCzesciowe.Text = "0";
+                    return;
+                }
+
+                // Pobierz nazwy operatorów
+                var operatorIds = zamowienia
+                    .SelectMany(z => new[] { z.KtoRealizowal, z.KtoAkceptowal })
+                    .Where(k => !string.IsNullOrEmpty(k) && int.TryParse(k, out _))
+                    .Select(k => int.Parse(k))
+                    .Distinct()
+                    .ToList();
+                var operatorNames = await LoadOperatorNamesAsync(operatorIds);
+
+                // Pobierz nazwy klientów
+                var klientIds = zamowienia.Select(z => z.KlientId).Distinct().ToList();
+                var klienci = await LoadContractorsAsync(klientIds);
+
+                // Połącz dane
+                foreach (var z in zamowienia)
+                {
+                    string klientNazwa = klienci.ContainsKey(z.KlientId) ? klienci[z.KlientId].Shortcut : $"KH {z.KlientId}";
+
+                    string ktoRealizowalNazwa = z.KtoRealizowal;
+                    if (!string.IsNullOrEmpty(z.KtoRealizowal) && int.TryParse(z.KtoRealizowal, out int opId1) && operatorNames.ContainsKey(opId1))
+                        ktoRealizowalNazwa = operatorNames[opId1];
+
+                    string ktoAkceptowalNazwa = z.KtoAkceptowal;
+                    if (!string.IsNullOrEmpty(z.KtoAkceptowal) && int.TryParse(z.KtoAkceptowal, out int opId2) && operatorNames.ContainsKey(opId2))
+                        ktoAkceptowalNazwa = operatorNames[opId2];
+
+                    string status;
+                    if (z.CzyZrealizowane)
+                        status = "✅ Zrealizowane";
+                    else if (z.CzyCzesciowoZrealizowane)
+                        status = "⏳ Częściowo";
+                    else
+                        status = "📝 Zmodyfikowane";
+
+                    _historiaRealizacjiAll.Add(new HistoriaRealizacjiItem
+                    {
+                        DataRealizacji = z.DataRealizacji ?? DateTime.MinValue,
+                        Klient = klientNazwa,
+                        IloscKg = z.Ilosc,
+                        KtoRealizowal = ktoRealizowalNazwa,
+                        KtoAkceptowal = ktoAkceptowalNazwa,
+                        StatusRealizacji = status,
+                        Uwagi = z.Uwagi
+                    });
+                }
+
+                // Wypełnij filtry
+                var uzytkownicy = new List<string> { "Wszyscy" };
+                uzytkownicy.AddRange(_historiaRealizacjiAll.Select(h => h.KtoRealizowal).Where(k => !string.IsNullOrEmpty(k)).Distinct().OrderBy(k => k));
+                cmbHistoriaRealizacjiUzytkownik.ItemsSource = uzytkownicy;
+                cmbHistoriaRealizacjiUzytkownik.SelectedIndex = 0;
+
+                var klienciList = new List<string> { "Wszyscy" };
+                klienciList.AddRange(_historiaRealizacjiAll.Select(h => h.Klient).Where(k => !string.IsNullOrEmpty(k)).Distinct().OrderBy(k => k));
+                cmbHistoriaRealizacjiKlient.ItemsSource = klienciList;
+                cmbHistoriaRealizacjiKlient.SelectedIndex = 0;
+
+                cmbHistoriaRealizacjiStatus.SelectedIndex = 0;
+
+                // Wyświetl wszystkie
+                dgvHistoriaRealizacji.ItemsSource = _historiaRealizacjiAll;
+
+                // Podsumowanie
+                lblHistoriaRealizacjiCount.Text = _historiaRealizacjiAll.Count.ToString();
+                lblHistoriaRealizacjiSumaKg.Text = _historiaRealizacjiAll.Sum(h => h.IloscKg).ToString("N0");
+                lblHistoriaRealizacjiPelne.Text = _historiaRealizacjiAll.Count(h => h.StatusRealizacji.Contains("Zrealizowane")).ToString();
+                lblHistoriaRealizacjiCzesciowe.Text = _historiaRealizacjiAll.Count(h => h.StatusRealizacji.Contains("Częściowo")).ToString();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas ładowania historii realizacji:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
         #endregion
 
@@ -2184,6 +2433,17 @@ namespace Kalendarz1
         {
             public int Id { get; set; }
             public string Kod { get; set; } = "";
+        }
+
+        public class HistoriaRealizacjiItem
+        {
+            public DateTime DataRealizacji { get; set; }
+            public string Klient { get; set; } = "";
+            public decimal IloscKg { get; set; }
+            public string KtoRealizowal { get; set; } = "";
+            public string KtoAkceptowal { get; set; } = "";
+            public string StatusRealizacji { get; set; } = "";
+            public string Uwagi { get; set; } = "";
         }
 
         public class ComboItem
