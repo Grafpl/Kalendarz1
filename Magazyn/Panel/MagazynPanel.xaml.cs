@@ -50,8 +50,14 @@ namespace Kalendarz1
             StartAutoRefresh();
         }
 
+        private List<HistoriaWydaniaItem> _historiaWydanAll = new(); // Pełna lista bez filtrów
+
         private async void InitializeAsync()
         {
+            // Ustaw domyślny zakres dat dla Historii wydań - ostatnie 30 dni
+            dpHistoriaOd.SelectedDate = DateTime.Today.AddDays(-30);
+            dpHistoriaDo.SelectedDate = DateTime.Today;
+
             await ReloadAllAsync();
         }
 
@@ -110,37 +116,173 @@ namespace Kalendarz1
                 return;
             }
 
-            var result = MessageBox.Show($"Czy na pewno chcesz oznaczyć zamówienie dla klienta '{selected.Klient}' jako WYDANE?",
-                "Potwierdzenie", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            // Pobierz pozycje zamówienia do dialogu (filtrowane jeśli wybrany konkretny towar)
+            var pozycje = await LoadOrderPositionsForDialogAsync(selected.Info.Id, _filteredProductId);
 
-            if (result == MessageBoxResult.Yes)
+            if (!pozycje.Any())
             {
-                try
+                MessageBox.Show("Brak pozycji w zamówieniu!", "Ostrzeżenie", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Pokaż dialog wydania
+            string tytulKlienta = _filteredProductId.HasValue && _produktLookup.ContainsKey(_filteredProductId.Value)
+                ? $"{selected.Info.Klient} ({_produktLookup[_filteredProductId.Value]})"
+                : selected.Info.Klient;
+            var dialog = new WydanieDialog(tytulKlienta, pozycje);
+            dialog.Owner = this;
+            var dialogResult = dialog.ShowDialog();
+
+            if (dialogResult != true || !dialog.Zatwierdzone)
+            {
+                return; // Anulowano
+            }
+
+            try
+            {
+                using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Jeśli nie wszystko wydane, zapisz różnice
+                if (!dialog.WszystkoWydane)
                 {
-                    using var cn = new SqlConnection(_connLibra);
-                    await cn.OpenAsync();
-
-                    // Ustaw CzyWydane + DataWydania + KtoWydal + Status (dla kompatybilności)
-                    var cmd = new SqlCommand(@"UPDATE dbo.ZamowieniaMieso
-                                               SET CzyWydane = 1,
-                                                   DataWydania = GETDATE(),
-                                                   KtoWydal = @UserID,
-                                                   Status = 'Wydany'
-                                               WHERE Id = @Id", cn);
-                    cmd.Parameters.AddWithValue("@Id", selected.Info.Id);
-                    cmd.Parameters.AddWithValue("@UserID", UserID);
-
-                    await cmd.ExecuteNonQueryAsync();
-
-                    MessageBox.Show("Status zamówienia został zmieniony na 'Wydany'!", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-
-                    // Odśwież listę
-                    await ReloadAllAsync();
+                    await SaveWydanieRozniczeAsync(cn, selected.Info.Id, dialog.Pozycje.ToList(), dialog.UwagiWydania);
                 }
-                catch (Exception ex)
+
+                // Ustaw CzyWydane + DataWydania + KtoWydal + Status (dla kompatybilności)
+                var cmd = new SqlCommand(@"UPDATE dbo.ZamowieniaMieso
+                                           SET CzyWydane = 1,
+                                               DataWydania = GETDATE(),
+                                               KtoWydal = @UserID,
+                                               Status = 'Wydany',
+                                               CzyWszystkoWydane = @CzyWszystko,
+                                               UwagiWydania = @Uwagi
+                                           WHERE Id = @Id", cn);
+                cmd.Parameters.AddWithValue("@Id", selected.Info.Id);
+                cmd.Parameters.AddWithValue("@UserID", UserID);
+                cmd.Parameters.AddWithValue("@CzyWszystko", dialog.WszystkoWydane);
+                cmd.Parameters.AddWithValue("@Uwagi", string.IsNullOrEmpty(dialog.UwagiWydania) ? DBNull.Value : dialog.UwagiWydania);
+
+                await cmd.ExecuteNonQueryAsync();
+
+                string msg = dialog.WszystkoWydane
+                    ? "Zamówienie zostało oznaczone jako WYDANE (wszystko zgodnie z zamówieniem)!"
+                    : "Zamówienie zostało oznaczone jako WYDANE (z różnicami - zapisano szczegóły)!";
+                MessageBox.Show(msg, "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Odśwież listę
+                await ReloadAllAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas zmiany statusu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async Task<List<(int TowarId, string Nazwa, decimal Zamowiono)>> LoadOrderPositionsForDialogAsync(int zamowienieId, int? filteredProductId = null)
+        {
+            var pozycje = new List<(int, string, decimal)>();
+            var towarIds = new List<int>();
+            var ilosciMap = new Dictionary<int, decimal>();
+
+            // Pobierz pozycje zamówienia z LibraNet (z opcjonalnym filtrem produktu)
+            using (var cn = new SqlConnection(_connLibra))
+            {
+                await cn.OpenAsync();
+                string sql = "SELECT KodTowaru, Ilosc FROM dbo.ZamowieniaMiesoTowar WHERE ZamowienieId = @Id";
+                if (filteredProductId.HasValue)
+                    sql += " AND KodTowaru = @ProductId";
+
+                var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@Id", zamowienieId);
+                if (filteredProductId.HasValue)
+                    cmd.Parameters.AddWithValue("@ProductId", filteredProductId.Value);
+
+                using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
                 {
-                    MessageBox.Show($"Błąd podczas zmiany statusu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    int towarId = rd.GetInt32(0);
+                    decimal ilosc = rd.GetDecimal(1);
+                    towarIds.Add(towarId);
+                    ilosciMap[towarId] = ilosc;
                 }
+            }
+
+            if (!towarIds.Any()) return pozycje;
+
+            // Pobierz nazwy towarów z Handel
+            var nazwyMap = new Dictionary<int, string>();
+            using (var cn = new SqlConnection(_connHandel))
+            {
+                await cn.OpenAsync();
+                var cmd = new SqlCommand($"SELECT ID, kod FROM HM.TW WHERE ID IN ({string.Join(",", towarIds)})", cn);
+                using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    nazwyMap[rd.GetInt32(0)] = rd.GetString(1);
+                }
+            }
+
+            // Połącz dane
+            foreach (var towarId in towarIds)
+            {
+                string nazwa = nazwyMap.ContainsKey(towarId) ? nazwyMap[towarId] : $"Towar {towarId}";
+                pozycje.Add((towarId, nazwa, ilosciMap[towarId]));
+            }
+
+            return pozycje.OrderBy(p => p.Item2).ToList();
+        }
+
+        private async Task SaveWydanieRozniczeAsync(SqlConnection cn, int zamowienieId, List<WydanieItem> pozycje, string uwagi)
+        {
+            // Sprawdź czy tabela istnieje, jeśli nie - utwórz
+            var checkCmd = new SqlCommand("SELECT COUNT(*) FROM sys.objects WHERE name='ZamowienieWydanieRoznice' AND type='U'", cn);
+            if ((int)await checkCmd.ExecuteScalarAsync() == 0)
+            {
+                var createCmd = new SqlCommand(@"
+                    CREATE TABLE dbo.ZamowienieWydanieRoznice (
+                        Id INT IDENTITY(1,1) PRIMARY KEY,
+                        ZamowienieId INT NOT NULL,
+                        KodTowaru INT NOT NULL,
+                        IloscZamowiona DECIMAL(18,3) NOT NULL,
+                        IloscWydana DECIMAL(18,3) NOT NULL,
+                        Roznica DECIMAL(18,3) NOT NULL,
+                        DataWpisu DATETIME NOT NULL DEFAULT GETDATE()
+                    );
+                    CREATE INDEX IX_WydanieRoznice_ZamowienieId ON dbo.ZamowienieWydanieRoznice(ZamowienieId);", cn);
+                await createCmd.ExecuteNonQueryAsync();
+            }
+
+            // Sprawdź/dodaj kolumny do ZamowieniaMieso jeśli nie istnieją
+            var checkCol1 = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'CzyWszystkoWydane'", cn);
+            if ((int)await checkCol1.ExecuteScalarAsync() == 0)
+            {
+                await new SqlCommand("ALTER TABLE dbo.ZamowieniaMieso ADD CzyWszystkoWydane BIT NULL", cn).ExecuteNonQueryAsync();
+            }
+
+            var checkCol2 = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'UwagiWydania'", cn);
+            if ((int)await checkCol2.ExecuteScalarAsync() == 0)
+            {
+                await new SqlCommand("ALTER TABLE dbo.ZamowieniaMieso ADD UwagiWydania NVARCHAR(500) NULL", cn).ExecuteNonQueryAsync();
+            }
+
+            // Usuń stare różnice dla tego zamówienia
+            var delCmd = new SqlCommand("DELETE FROM dbo.ZamowienieWydanieRoznice WHERE ZamowienieId = @ZamId", cn);
+            delCmd.Parameters.AddWithValue("@ZamId", zamowienieId);
+            await delCmd.ExecuteNonQueryAsync();
+
+            // Zapisz nowe różnice (tylko te które mają różnicę)
+            foreach (var poz in pozycje.Where(p => p.Zamowiono != p.Wydano))
+            {
+                var insCmd = new SqlCommand(@"
+                    INSERT INTO dbo.ZamowienieWydanieRoznice (ZamowienieId, KodTowaru, IloscZamowiona, IloscWydana, Roznica)
+                    VALUES (@ZamId, @TowarId, @Zamowiono, @Wydano, @Roznica)", cn);
+                insCmd.Parameters.AddWithValue("@ZamId", zamowienieId);
+                insCmd.Parameters.AddWithValue("@TowarId", poz.TowarId);
+                insCmd.Parameters.AddWithValue("@Zamowiono", poz.Zamowiono);
+                insCmd.Parameters.AddWithValue("@Wydano", poz.Wydano);
+                insCmd.Parameters.AddWithValue("@Roznica", poz.Roznica);
+                await insCmd.ExecuteNonQueryAsync();
             }
         }
 
@@ -204,6 +346,224 @@ namespace Kalendarz1
                 dgvZamowienia1.SelectedItem = null;
             }
             await LoadPozycjeForSelectedAsync();
+        }
+
+        // ============ HISTORIA WYDAŃ ============
+        private async void btnLoadHistoria_Click(object sender, RoutedEventArgs e)
+        {
+            if (dpHistoriaOd.SelectedDate == null || dpHistoriaDo.SelectedDate == null)
+            {
+                MessageBox.Show("Proszę wybrać zakres dat!", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            await LoadHistoriaWydanAsync(dpHistoriaOd.SelectedDate.Value, dpHistoriaDo.SelectedDate.Value);
+        }
+
+        private async void btnHistoriaToday_Click(object sender, RoutedEventArgs e)
+        {
+            dpHistoriaOd.SelectedDate = DateTime.Today;
+            dpHistoriaDo.SelectedDate = DateTime.Today;
+            await LoadHistoriaWydanAsync(DateTime.Today, DateTime.Today);
+        }
+
+        private async void btnHistoriaWeek_Click(object sender, RoutedEventArgs e)
+        {
+            var start = DateTime.Today.AddDays(-7);
+            var end = DateTime.Today;
+            dpHistoriaOd.SelectedDate = start;
+            dpHistoriaDo.SelectedDate = end;
+            await LoadHistoriaWydanAsync(start, end);
+        }
+
+        private async void btnHistoriaMonth_Click(object sender, RoutedEventArgs e)
+        {
+            var start = DateTime.Today.AddDays(-30);
+            var end = DateTime.Today;
+            dpHistoriaOd.SelectedDate = start;
+            dpHistoriaDo.SelectedDate = end;
+            await LoadHistoriaWydanAsync(start, end);
+        }
+
+        private void cmbHistoriaFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            ApplyHistoriaFilters();
+        }
+
+        private void btnHistoriaClearFilters_Click(object sender, RoutedEventArgs e)
+        {
+            cmbHistoriaUzytkownik.SelectedIndex = 0;
+            cmbHistoriaKlient.SelectedIndex = 0;
+            cmbHistoriaStatus.SelectedIndex = 0;
+            ApplyHistoriaFilters();
+        }
+
+        private void ApplyHistoriaFilters()
+        {
+            if (_historiaWydanAll == null || !_historiaWydanAll.Any())
+            {
+                return;
+            }
+
+            var filtered = _historiaWydanAll.AsEnumerable();
+
+            // Filtr użytkownika
+            if (cmbHistoriaUzytkownik.SelectedIndex > 0 && cmbHistoriaUzytkownik.SelectedItem is string selectedUser)
+            {
+                filtered = filtered.Where(h => h.KtoWydal == selectedUser);
+            }
+
+            // Filtr klienta
+            if (cmbHistoriaKlient.SelectedIndex > 0 && cmbHistoriaKlient.SelectedItem is string selectedKlient)
+            {
+                filtered = filtered.Where(h => h.Klient == selectedKlient);
+            }
+
+            // Filtr statusu
+            if (cmbHistoriaStatus.SelectedIndex > 0)
+            {
+                var statusItem = cmbHistoriaStatus.SelectedItem as ComboBoxItem;
+                string statusFilter = statusItem?.Content?.ToString() ?? "";
+                if (statusFilter.Contains("Pełne"))
+                    filtered = filtered.Where(h => h.StatusWydania.Contains("Pełne"));
+                else if (statusFilter.Contains("różnicami"))
+                    filtered = filtered.Where(h => h.StatusWydania.Contains("różnicami"));
+            }
+
+            var result = filtered.ToList();
+            dgvHistoriaWydan.ItemsSource = result;
+
+            // Podsumowanie (dla przefiltrowanych)
+            lblHistoriaCount.Text = result.Count.ToString();
+            lblHistoriaSumaKg.Text = result.Sum(h => h.IloscKg).ToString("N0");
+            lblHistoriaPelne.Text = result.Count(h => h.StatusWydania.Contains("Pełne")).ToString();
+            lblHistoriaRoznice.Text = result.Count(h => h.StatusWydania.Contains("różnicami")).ToString();
+        }
+
+        private async Task LoadHistoriaWydanAsync(DateTime dataOd, DateTime dataDo)
+        {
+            _historiaWydanAll.Clear();
+
+            try
+            {
+                // Pobierz zamówienia z wydaniami z LibraNet
+                var zamowienia = new List<(int Id, int KlientId, DateTime DataWydania, string KtoWydal, decimal Ilosc, bool CzyWszystkoWydane, string Uwagi)>();
+
+                using (var cn = new SqlConnection(_connLibra))
+                {
+                    await cn.OpenAsync();
+
+                    // Sprawdź czy kolumny istnieją
+                    var checkCol = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'CzyWszystkoWydane'", cn);
+                    bool hasCzyWszystko = (int)await checkCol.ExecuteScalarAsync() > 0;
+
+                    var checkCol2 = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'UwagiWydania'", cn);
+                    bool hasUwagiWydania = (int)await checkCol2.ExecuteScalarAsync() > 0;
+
+                    string czyWszystkoCol = hasCzyWszystko ? "ISNULL(z.CzyWszystkoWydane, 1)" : "1";
+                    string uwagiWydaniaCol = hasUwagiWydania ? "ISNULL(z.UwagiWydania, '')" : "''";
+
+                    string sql = $@"
+                        SELECT z.Id, z.KlientId, z.DataWydania, ISNULL(z.KtoWydal, '') AS KtoWydal,
+                               (SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id) AS TotalIlosc,
+                               {czyWszystkoCol} AS CzyWszystkoWydane,
+                               {uwagiWydaniaCol} AS UwagiWydania
+                        FROM dbo.ZamowieniaMieso z
+                        WHERE z.CzyWydane = 1
+                          AND z.DataWydania >= @Od AND z.DataWydania < @DoPlus
+                        ORDER BY z.DataWydania DESC";
+
+                    var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Od", dataOd.Date);
+                    cmd.Parameters.AddWithValue("@DoPlus", dataDo.Date.AddDays(1)); // Do końca dnia
+
+                    using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        zamowienia.Add((
+                            rd.GetInt32(0),
+                            rd.GetInt32(1),
+                            rd.GetDateTime(2),
+                            rd.GetString(3),
+                            rd.IsDBNull(4) ? 0 : rd.GetDecimal(4),
+                            rd.GetBoolean(5),
+                            rd.GetString(6)
+                        ));
+                    }
+                }
+
+                if (!zamowienia.Any())
+                {
+                    dgvHistoriaWydan.ItemsSource = null;
+                    cmbHistoriaUzytkownik.ItemsSource = new[] { "Wszyscy" };
+                    cmbHistoriaUzytkownik.SelectedIndex = 0;
+                    cmbHistoriaKlient.ItemsSource = new[] { "Wszyscy" };
+                    cmbHistoriaKlient.SelectedIndex = 0;
+                    lblHistoriaCount.Text = "0";
+                    lblHistoriaSumaKg.Text = "0";
+                    lblHistoriaPelne.Text = "0";
+                    lblHistoriaRoznice.Text = "0";
+                    return;
+                }
+
+                // Pobierz nazwy operatorów (kto wydał)
+                var operatorIds = zamowienia
+                    .Where(z => !string.IsNullOrEmpty(z.KtoWydal) && int.TryParse(z.KtoWydal, out _))
+                    .Select(z => int.Parse(z.KtoWydal))
+                    .Distinct()
+                    .ToList();
+                var operatorNames = await LoadOperatorNamesAsync(operatorIds);
+
+                // Pobierz nazwy klientów
+                var klientIds = zamowienia.Select(z => z.KlientId).Distinct().ToList();
+                var klienci = await LoadContractorsAsync(klientIds);
+
+                // Połącz dane
+                foreach (var z in zamowienia)
+                {
+                    string klientNazwa = klienci.ContainsKey(z.KlientId) ? klienci[z.KlientId].Shortcut : $"KH {z.KlientId}";
+                    string ktoWydalNazwa = z.KtoWydal;
+                    if (!string.IsNullOrEmpty(z.KtoWydal) && int.TryParse(z.KtoWydal, out int opId) && operatorNames.ContainsKey(opId))
+                    {
+                        ktoWydalNazwa = operatorNames[opId];
+                    }
+
+                    _historiaWydanAll.Add(new HistoriaWydaniaItem
+                    {
+                        DataWydania = z.DataWydania,
+                        Klient = klientNazwa,
+                        IloscKg = z.Ilosc,
+                        KtoWydal = ktoWydalNazwa,
+                        StatusWydania = z.CzyWszystkoWydane ? "✅ Pełne" : "⚠️ Z różnicami",
+                        Uwagi = z.Uwagi
+                    });
+                }
+
+                // Wypełnij filtry
+                var uzytkownicy = new List<string> { "Wszyscy" };
+                uzytkownicy.AddRange(_historiaWydanAll.Select(h => h.KtoWydal).Where(k => !string.IsNullOrEmpty(k)).Distinct().OrderBy(k => k));
+                cmbHistoriaUzytkownik.ItemsSource = uzytkownicy;
+                cmbHistoriaUzytkownik.SelectedIndex = 0;
+
+                var klienciList = new List<string> { "Wszyscy" };
+                klienciList.AddRange(_historiaWydanAll.Select(h => h.Klient).Where(k => !string.IsNullOrEmpty(k)).Distinct().OrderBy(k => k));
+                cmbHistoriaKlient.ItemsSource = klienciList;
+                cmbHistoriaKlient.SelectedIndex = 0;
+
+                cmbHistoriaStatus.SelectedIndex = 0;
+
+                // Wyświetl wszystkie
+                dgvHistoriaWydan.ItemsSource = _historiaWydanAll;
+
+                // Podsumowanie
+                lblHistoriaCount.Text = _historiaWydanAll.Count.ToString();
+                lblHistoriaSumaKg.Text = _historiaWydanAll.Sum(h => h.IloscKg).ToString("N0");
+                lblHistoriaPelne.Text = _historiaWydanAll.Count(h => h.StatusWydania.Contains("Pełne")).ToString();
+                lblHistoriaRoznice.Text = _historiaWydanAll.Count(h => h.StatusWydania.Contains("różnicami")).ToString();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas ładowania historii wydań:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
         #endregion
 
@@ -309,11 +669,25 @@ namespace Kalendarz1
 
         private async void ProductButton_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button btn && btn.Tag is int productId)
+            if (sender is Button btn)
             {
+                int productId = 0;
+                if (btn.Tag is int tagInt)
+                {
+                    productId = tagInt;
+                }
+                else if (btn.Tag != null && int.TryParse(btn.Tag.ToString(), out int parsed))
+                {
+                    productId = parsed;
+                }
+
                 _filteredProductId = productId == 0 ? null : productId;
                 SetProductButtonSelected(btn);
                 await LoadOrdersAsync();
+
+                // DEBUG: pokaż info o filtrze (usuń po naprawieniu problemu)
+                string nazwaFiltra = productId == 0 ? "Wszystkie" : (_produktLookup.ContainsKey(productId) ? _produktLookup[productId] : $"ID:{productId}");
+                this.Title = $"Panel Magazynier - Filtr: {nazwaFiltra} ({ZamowieniaList1.Count + ZamowieniaList2.Count} zamówień)";
             }
         }
 
@@ -590,20 +964,12 @@ namespace Kalendarz1
                     dgvZamowienia1.SelectedIndex = 0;
                 }
 
-                // Oblicz sumę kg
-                UpdateFilteredSum();
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd podczas ładowania zamówień:\n{ex.Message}",
                     "Błąd krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-        }
-
-        private void UpdateFilteredSum()
-        {
-            decimal totalSum = ZamowieniaList1.Sum(z => z.TotalIlosc) + ZamowieniaList2.Sum(z => z.TotalIlosc);
-            lblFilteredSum.Text = totalSum.ToString("N0");
         }
 
         private static string Normalize(string s) => string.IsNullOrWhiteSpace(s) ? "" : s.Trim();
@@ -1050,6 +1416,16 @@ namespace Kalendarz1
         {
             public int Id { get; set; }
             public string Kod { get; set; } = "";
+        }
+
+        public class HistoriaWydaniaItem
+        {
+            public DateTime DataWydania { get; set; }
+            public string Klient { get; set; } = "";
+            public decimal IloscKg { get; set; }
+            public string KtoWydal { get; set; } = "";
+            public string StatusWydania { get; set; } = "";
+            public string Uwagi { get; set; } = "";
         }
 
         public class ZamowienieViewModel : INotifyPropertyChanged

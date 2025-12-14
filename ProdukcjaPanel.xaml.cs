@@ -29,9 +29,21 @@ namespace Kalendarz1
         private readonly Dictionary<int, ZamowienieInfo> _zamowienia = new();
         private bool _notesTableEnsured = false;
         private int? _filteredProductId = null;
+        private string _filteredGroupName = null; // Nazwa wybranej grupy
         private Dictionary<int, string> _produktLookup = new();
+
+        // Klasa pomocnicza dla Tag przycisku
+        private class ProductButtonTag
+        {
+            public int ProductId { get; set; }
+            public string GroupName { get; set; }
+        }
+        private Dictionary<int, string> _mapowanieScalowania = new(); // TowarId -> NazwaGrupy
+        private Dictionary<string, List<int>> _grupyDoProduktow = new(); // NazwaGrupy -> lista TowarId
+        private Dictionary<int, decimal> _konfiguracjaProduktow = new(); // TowarId -> ProcentUdzialu
         private Button _selectedProductButton = null;
         private DispatcherTimer refreshTimer;
+        private List<HistoriaRealizacjiItem> _historiaRealizacjiAll = new(); // Pełna lista historii realizacji
 
         public ObservableCollection<ZamowienieViewModel> ZamowieniaList1 { get; set; } = new();
         public ObservableCollection<ZamowienieViewModel> ZamowieniaList2 { get; set; } = new();
@@ -67,6 +79,10 @@ namespace Kalendarz1
 
         private async void InitializeAsync()
         {
+            // Ustaw domyślny zakres dat dla Historii realizacji - ostatnie 30 dni
+            dpHistoriaRealizacjiOd.SelectedDate = DateTime.Today.AddDays(-30);
+            dpHistoriaRealizacjiDo.SelectedDate = DateTime.Today;
+
             await ReloadAllAsync();
         }
 
@@ -186,6 +202,256 @@ namespace Kalendarz1
         }
         #endregion
 
+        #region Historia Realizacji
+        private async void btnLoadHistoriaRealizacji_Click(object sender, RoutedEventArgs e)
+        {
+            if (dpHistoriaRealizacjiOd.SelectedDate == null || dpHistoriaRealizacjiDo.SelectedDate == null)
+            {
+                MessageBox.Show("Proszę wybrać zakres dat!", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            await LoadHistoriaRealizacjiAsync(dpHistoriaRealizacjiOd.SelectedDate.Value, dpHistoriaRealizacjiDo.SelectedDate.Value);
+        }
+
+        private async void btnHistoriaRealizacjiToday_Click(object sender, RoutedEventArgs e)
+        {
+            dpHistoriaRealizacjiOd.SelectedDate = DateTime.Today;
+            dpHistoriaRealizacjiDo.SelectedDate = DateTime.Today;
+            await LoadHistoriaRealizacjiAsync(DateTime.Today, DateTime.Today);
+        }
+
+        private async void btnHistoriaRealizacjiWeek_Click(object sender, RoutedEventArgs e)
+        {
+            var start = DateTime.Today.AddDays(-7);
+            var end = DateTime.Today;
+            dpHistoriaRealizacjiOd.SelectedDate = start;
+            dpHistoriaRealizacjiDo.SelectedDate = end;
+            await LoadHistoriaRealizacjiAsync(start, end);
+        }
+
+        private async void btnHistoriaRealizacjiMonth_Click(object sender, RoutedEventArgs e)
+        {
+            var start = DateTime.Today.AddDays(-30);
+            var end = DateTime.Today;
+            dpHistoriaRealizacjiOd.SelectedDate = start;
+            dpHistoriaRealizacjiDo.SelectedDate = end;
+            await LoadHistoriaRealizacjiAsync(start, end);
+        }
+
+        private void cmbHistoriaRealizacjiFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            ApplyHistoriaRealizacjiFilters();
+        }
+
+        private void btnHistoriaRealizacjiClearFilters_Click(object sender, RoutedEventArgs e)
+        {
+            cmbHistoriaRealizacjiUzytkownik.SelectedIndex = 0;
+            cmbHistoriaRealizacjiKlient.SelectedIndex = 0;
+            cmbHistoriaRealizacjiStatus.SelectedIndex = 0;
+            ApplyHistoriaRealizacjiFilters();
+        }
+
+        private void ApplyHistoriaRealizacjiFilters()
+        {
+            if (_historiaRealizacjiAll == null || !_historiaRealizacjiAll.Any())
+            {
+                return;
+            }
+
+            var filtered = _historiaRealizacjiAll.AsEnumerable();
+
+            // Filtr użytkownika (kto realizował)
+            if (cmbHistoriaRealizacjiUzytkownik.SelectedIndex > 0 && cmbHistoriaRealizacjiUzytkownik.SelectedItem is string selectedUser)
+            {
+                filtered = filtered.Where(h => h.KtoRealizowal == selectedUser);
+            }
+
+            // Filtr klienta
+            if (cmbHistoriaRealizacjiKlient.SelectedIndex > 0 && cmbHistoriaRealizacjiKlient.SelectedItem is string selectedKlient)
+            {
+                filtered = filtered.Where(h => h.Klient == selectedKlient);
+            }
+
+            // Filtr statusu
+            if (cmbHistoriaRealizacjiStatus.SelectedIndex > 0)
+            {
+                var statusItem = cmbHistoriaRealizacjiStatus.SelectedItem as ComboBoxItem;
+                string statusFilter = statusItem?.Content?.ToString() ?? "";
+                if (statusFilter.Contains("Zrealizowane"))
+                    filtered = filtered.Where(h => h.StatusRealizacji.Contains("Zrealizowane"));
+                else if (statusFilter.Contains("Częściowo"))
+                    filtered = filtered.Where(h => h.StatusRealizacji.Contains("Częściowo"));
+                else if (statusFilter.Contains("Zmodyfikowane"))
+                    filtered = filtered.Where(h => h.StatusRealizacji.Contains("Zmodyfikowane"));
+            }
+
+            var result = filtered.ToList();
+            dgvHistoriaRealizacji.ItemsSource = result;
+
+            // Podsumowanie (dla przefiltrowanych)
+            lblHistoriaRealizacjiCount.Text = result.Count.ToString();
+            lblHistoriaRealizacjiSumaKg.Text = result.Sum(h => h.IloscKg).ToString("N0");
+            lblHistoriaRealizacjiPelne.Text = result.Count(h => h.StatusRealizacji.Contains("Zrealizowane")).ToString();
+            lblHistoriaRealizacjiCzesciowe.Text = result.Count(h => h.StatusRealizacji.Contains("Częściowo")).ToString();
+        }
+
+        private async Task LoadHistoriaRealizacjiAsync(DateTime dataOd, DateTime dataDo)
+        {
+            _historiaRealizacjiAll.Clear();
+
+            try
+            {
+                // Pobierz zamówienia zrealizowane z LibraNet
+                var zamowienia = new List<(int Id, int KlientId, DateTime? DataRealizacji, DateTime? DataAkceptacji, string KtoRealizowal, string KtoAkceptowal, decimal Ilosc, bool CzyZrealizowane, bool CzyCzesciowoZrealizowane, string Uwagi)>();
+
+                using (var cn = new SqlConnection(_connLibra))
+                {
+                    await cn.OpenAsync();
+
+                    // Sprawdź czy kolumny istnieją
+                    var checkCol1 = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'CzyCzesciowoZrealizowane'", cn);
+                    bool hasCzesciowo = (int)await checkCol1.ExecuteScalarAsync() > 0;
+
+                    var checkCol2 = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'DataAkceptacjiProdukcja'", cn);
+                    bool hasDataAkceptacji = (int)await checkCol2.ExecuteScalarAsync() > 0;
+
+                    var checkCol3 = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('dbo.ZamowieniaMieso') AND name = 'KtoAkceptowalProdukcja'", cn);
+                    bool hasKtoAkceptowal = (int)await checkCol3.ExecuteScalarAsync() > 0;
+
+                    string czesciowoCol = hasCzesciowo ? "ISNULL(z.CzyCzesciowoZrealizowane, 0)" : "CAST(0 AS BIT)";
+                    string dataAkceptacjiCol = hasDataAkceptacji ? "z.DataAkceptacjiProdukcja" : "NULL";
+                    string ktoAkceptowalCol = hasKtoAkceptowal ? "ISNULL(z.KtoAkceptowalProdukcja, '')" : "''";
+
+                    string sql = $@"
+                        SELECT z.Id, z.KlientId, z.DataRealizacji, {dataAkceptacjiCol} AS DataAkceptacji,
+                               ISNULL(z.KtoRealizowal, '') AS KtoRealizowal,
+                               {ktoAkceptowalCol} AS KtoAkceptowal,
+                               (SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id) AS TotalIlosc,
+                               ISNULL(z.CzyZrealizowane, 0) AS CzyZrealizowane,
+                               {czesciowoCol} AS CzyCzesciowoZrealizowane,
+                               ISNULL(z.Uwagi, '') AS Uwagi
+                        FROM dbo.ZamowieniaMieso z
+                        WHERE (z.CzyZrealizowane = 1 OR {czesciowoCol} = 1)
+                          AND z.DataRealizacji >= @Od AND z.DataRealizacji < @DoPlus
+                        ORDER BY z.DataRealizacji DESC";
+
+                    var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Od", dataOd.Date);
+                    cmd.Parameters.AddWithValue("@DoPlus", dataDo.Date.AddDays(1));
+
+                    using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        zamowienia.Add((
+                            rd.GetInt32(0),
+                            rd.GetInt32(1),
+                            rd.IsDBNull(2) ? (DateTime?)null : rd.GetDateTime(2),
+                            rd.IsDBNull(3) ? (DateTime?)null : rd.GetDateTime(3),
+                            rd.GetString(4),
+                            rd.GetString(5),
+                            rd.IsDBNull(6) ? 0 : rd.GetDecimal(6),
+                            rd.GetBoolean(7),
+                            rd.GetBoolean(8),
+                            rd.GetString(9)
+                        ));
+                    }
+                }
+
+                if (!zamowienia.Any())
+                {
+                    dgvHistoriaRealizacji.ItemsSource = null;
+                    cmbHistoriaRealizacjiUzytkownik.ItemsSource = new[] { "Wszyscy" };
+                    cmbHistoriaRealizacjiUzytkownik.SelectedIndex = 0;
+                    cmbHistoriaRealizacjiKlient.ItemsSource = new[] { "Wszyscy" };
+                    cmbHistoriaRealizacjiKlient.SelectedIndex = 0;
+                    lblHistoriaRealizacjiCount.Text = "0";
+                    lblHistoriaRealizacjiSumaKg.Text = "0";
+                    lblHistoriaRealizacjiPelne.Text = "0";
+                    lblHistoriaRealizacjiCzesciowe.Text = "0";
+                    return;
+                }
+
+                // Pobierz nazwy operatorów
+                var operatorIds = zamowienia
+                    .SelectMany(z => new[] { z.KtoRealizowal, z.KtoAkceptowal })
+                    .Where(k => !string.IsNullOrEmpty(k) && int.TryParse(k, out _))
+                    .Select(k => int.Parse(k))
+                    .Distinct()
+                    .ToList();
+                var operatorNames = await LoadOperatorNamesAsync(operatorIds);
+
+                // Pobierz nazwy klientów
+                var klientIds = zamowienia.Select(z => z.KlientId).Distinct().ToList();
+                var klienci = await LoadContractorsAsync(klientIds);
+
+                // Połącz dane
+                foreach (var z in zamowienia)
+                {
+                    string klientNazwa = klienci.ContainsKey(z.KlientId) ? klienci[z.KlientId].Shortcut : $"KH {z.KlientId}";
+
+                    string ktoRealizowalNazwa = z.KtoRealizowal;
+                    if (!string.IsNullOrEmpty(z.KtoRealizowal) && int.TryParse(z.KtoRealizowal, out int opId1))
+                    {
+                        if (operatorNames.ContainsKey(opId1))
+                            ktoRealizowalNazwa = operatorNames[opId1];
+                    }
+
+                    string ktoAkceptowalNazwa = z.KtoAkceptowal;
+                    if (!string.IsNullOrEmpty(z.KtoAkceptowal) && int.TryParse(z.KtoAkceptowal, out int opId2))
+                    {
+                        if (operatorNames.ContainsKey(opId2))
+                            ktoAkceptowalNazwa = operatorNames[opId2];
+                    }
+
+                    string status;
+                    if (z.CzyZrealizowane)
+                        status = "✅ Zrealizowane";
+                    else if (z.CzyCzesciowoZrealizowane)
+                        status = "⏳ Częściowo";
+                    else
+                        status = "📝 Zmodyfikowane";
+
+                    _historiaRealizacjiAll.Add(new HistoriaRealizacjiItem
+                    {
+                        DataRealizacji = z.DataRealizacji ?? DateTime.MinValue,
+                        Klient = klientNazwa,
+                        IloscKg = z.Ilosc,
+                        KtoRealizowal = ktoRealizowalNazwa,
+                        KtoAkceptowal = ktoAkceptowalNazwa,
+                        StatusRealizacji = status,
+                        Uwagi = z.Uwagi
+                    });
+                }
+
+                // Wypełnij filtry
+                var uzytkownicy = new List<string> { "Wszyscy" };
+                uzytkownicy.AddRange(_historiaRealizacjiAll.Select(h => h.KtoRealizowal).Where(k => !string.IsNullOrEmpty(k)).Distinct().OrderBy(k => k));
+                cmbHistoriaRealizacjiUzytkownik.ItemsSource = uzytkownicy;
+                cmbHistoriaRealizacjiUzytkownik.SelectedIndex = 0;
+
+                var klienciList = new List<string> { "Wszyscy" };
+                klienciList.AddRange(_historiaRealizacjiAll.Select(h => h.Klient).Where(k => !string.IsNullOrEmpty(k)).Distinct().OrderBy(k => k));
+                cmbHistoriaRealizacjiKlient.ItemsSource = klienciList;
+                cmbHistoriaRealizacjiKlient.SelectedIndex = 0;
+
+                cmbHistoriaRealizacjiStatus.SelectedIndex = 0;
+
+                // Wyświetl wszystkie
+                dgvHistoriaRealizacji.ItemsSource = _historiaRealizacjiAll;
+
+                // Podsumowanie
+                lblHistoriaRealizacjiCount.Text = _historiaRealizacjiAll.Count.ToString();
+                lblHistoriaRealizacjiSumaKg.Text = _historiaRealizacjiAll.Sum(h => h.IloscKg).ToString("N0");
+                lblHistoriaRealizacjiPelne.Text = _historiaRealizacjiAll.Count(h => h.StatusRealizacji.Contains("Zrealizowane")).ToString();
+                lblHistoriaRealizacjiCzesciowe.Text = _historiaRealizacjiAll.Count(h => h.StatusRealizacji.Contains("Częściowo")).ToString();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas ładowania historii realizacji:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        #endregion
+
         #region Data Loading
         private async Task ReloadAllAsync()
         {
@@ -197,7 +463,7 @@ namespace Kalendarz1
             await LoadPojTuszkiAsync();
             await LoadPozycjeForSelectedAsync();
             await LoadHandlowcyStatsAsync();
-            await LoadPrzychodyInfoAsync();
+            await LoadPlanDniaAsync();
         }
 
         private async Task PopulateProductFilterAsync()
@@ -205,6 +471,7 @@ namespace Kalendarz1
             string dateColumn = "DataUboju";
             var ids = new HashSet<int>();
 
+            // 1. Pobierz produkty z zamówień na dany dzień
             try
             {
                 using (var cn = new SqlConnection(_connLibra))
@@ -232,35 +499,170 @@ namespace Kalendarz1
                 await LoadProductLookupAsync(ids);
             }
 
+            // 2. Pobierz konfigurację produktów z grupami
+            await LoadKonfiguracjaProduktowAsync();
+
             // Utwórz przyciski towarów
             pnlProductButtons.Children.Clear();
 
             // Przycisk "Wszystkie"
-            var btnAll = CreateProductButton(0, "Wszystkie");
+            var btnAll = CreateProductButton(0, "Wszystkie", null);
             pnlProductButtons.Children.Add(btnAll);
-            if (!_filteredProductId.HasValue)
+            if (!_filteredProductId.HasValue && string.IsNullOrEmpty(_filteredGroupName))
             {
                 SetProductButtonSelected(btnAll);
             }
 
-            // Przyciski dla poszczególnych towarów
-            foreach (var product in _produktLookup.OrderBy(k => k.Value))
+            // Zbierz unikalne grupy z produktów które są w zamówieniach
+            var grupyWZamowieniach = new HashSet<string>();
+            var produktyBezGrupy = new List<KeyValuePair<int, string>>();
+
+            foreach (var product in _produktLookup)
             {
-                var btn = CreateProductButton(product.Key, product.Value);
+                if (_mapowanieScalowania.TryGetValue(product.Key, out var grupa))
+                {
+                    grupyWZamowieniach.Add(grupa);
+                }
+                else
+                {
+                    produktyBezGrupy.Add(product);
+                }
+            }
+
+            // Przyciski dla grup (posortowane)
+            foreach (var grupa in grupyWZamowieniach.OrderBy(g => g))
+            {
+                var btn = CreateProductButton(0, grupa, grupa);
                 pnlProductButtons.Children.Add(btn);
-                if (_filteredProductId == product.Key)
+                if (_filteredGroupName == grupa)
+                {
+                    SetProductButtonSelected(btn);
+                }
+            }
+
+            // Przyciski dla produktów bez grupy
+            foreach (var product in produktyBezGrupy.OrderBy(k => k.Value))
+            {
+                var btn = CreateProductButton(product.Key, product.Value, null);
+                pnlProductButtons.Children.Add(btn);
+                if (_filteredProductId == product.Key && string.IsNullOrEmpty(_filteredGroupName))
                 {
                     SetProductButtonSelected(btn);
                 }
             }
         }
 
-        private Button CreateProductButton(int productId, string productName)
+        private async Task LoadKonfiguracjaProduktowAsync()
+        {
+            _mapowanieScalowania.Clear();
+            _grupyDoProduktow.Clear();
+            _konfiguracjaProduktow.Clear();
+
+            try
+            {
+                using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Sprawdź czy kolumna GrupaScalowania istnieje
+                bool hasGrupaColumn = false;
+                const string checkQuery = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                                            WHERE TABLE_NAME = 'KonfiguracjaProduktow' AND COLUMN_NAME = 'GrupaScalowania'";
+                using (var checkCmd = new SqlCommand(checkQuery, cn))
+                {
+                    hasGrupaColumn = (int)await checkCmd.ExecuteScalarAsync() > 0;
+                }
+
+                string query = hasGrupaColumn
+                    ? @"SELECT kp.TowarID, kp.ProcentUdzialu, kp.GrupaScalowania
+                        FROM KonfiguracjaProduktow kp
+                        INNER JOIN (
+                            SELECT MAX(DataOd) as MaxData
+                            FROM KonfiguracjaProduktow
+                            WHERE DataOd <= @Data AND Aktywny = 1
+                        ) sub ON kp.DataOd = sub.MaxData
+                        WHERE kp.Aktywny = 1"
+                    : @"SELECT kp.TowarID, kp.ProcentUdzialu
+                        FROM KonfiguracjaProduktow kp
+                        INNER JOIN (
+                            SELECT MAX(DataOd) as MaxData
+                            FROM KonfiguracjaProduktow
+                            WHERE DataOd <= @Data AND Aktywny = 1
+                        ) sub ON kp.DataOd = sub.MaxData
+                        WHERE kp.Aktywny = 1";
+
+                using var cmd = new SqlCommand(query, cn);
+                cmd.Parameters.AddWithValue("@Data", _selectedDate.Date);
+
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    int towarId = Convert.ToInt32(reader["TowarID"]);
+                    decimal procent = Convert.ToDecimal(reader["ProcentUdzialu"]);
+                    _konfiguracjaProduktow[towarId] = procent;
+
+                    if (hasGrupaColumn)
+                    {
+                        var grupaOrdinal = reader.GetOrdinal("GrupaScalowania");
+                        if (!reader.IsDBNull(grupaOrdinal))
+                        {
+                            string grupa = reader.GetString(grupaOrdinal);
+                            if (!string.IsNullOrWhiteSpace(grupa))
+                            {
+                                _mapowanieScalowania[towarId] = grupa;
+
+                                if (!_grupyDoProduktow.ContainsKey(grupa))
+                                    _grupyDoProduktow[grupa] = new List<int>();
+                                _grupyDoProduktow[grupa].Add(towarId);
+                            }
+                        }
+                    }
+                }
+
+                // Jeśli nie ma grup, spróbuj pobrać z ScalowanieTowarow
+                if (!_mapowanieScalowania.Any())
+                {
+                    await LoadScalowanieTowarowAsync(cn);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd pobierania konfiguracji produktów: {ex.Message}");
+            }
+        }
+
+        private async Task LoadScalowanieTowarowAsync(SqlConnection cn)
+        {
+            try
+            {
+                const string checkSql = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'ScalowanieTowarow'";
+                using var checkCmd = new SqlCommand(checkSql, cn);
+                if ((int)await checkCmd.ExecuteScalarAsync() == 0) return;
+
+                const string sql = "SELECT NazwaGrupy, TowarIdtw FROM [dbo].[ScalowanieTowarow]";
+                using var cmd = new SqlCommand(sql, cn);
+                using var reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    string nazwaGrupy = reader.GetString(0);
+                    int towarIdtw = reader.GetInt32(1);
+
+                    _mapowanieScalowania[towarIdtw] = nazwaGrupy;
+
+                    if (!_grupyDoProduktow.ContainsKey(nazwaGrupy))
+                        _grupyDoProduktow[nazwaGrupy] = new List<int>();
+                    _grupyDoProduktow[nazwaGrupy].Add(towarIdtw);
+                }
+            }
+            catch { /* Ignoruj błędy */ }
+        }
+
+        private Button CreateProductButton(int productId, string productName, string groupName)
         {
             var btn = new Button
             {
                 Content = productName,
-                Tag = productId,
+                Tag = new ProductButtonTag { ProductId = productId, GroupName = groupName },
                 Height = 32,
                 MinWidth = 70,
                 Padding = new Thickness(10, 3, 10, 3),
@@ -295,12 +697,44 @@ namespace Kalendarz1
 
         private async void ProductButton_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button btn && btn.Tag is int productId)
+            if (sender is Button btn && btn.Tag is ProductButtonTag tag)
             {
-                _filteredProductId = productId == 0 ? null : productId;
+                // Jeśli ProductId = 0 i GroupName = null, to "Wszystkie"
+                // Jeśli GroupName nie jest null, to jest to przycisk grupy
+                // Jeśli ProductId > 0, to jest to pojedynczy produkt
+
+                if (tag.ProductId == 0 && string.IsNullOrEmpty(tag.GroupName))
+                {
+                    // "Wszystkie"
+                    _filteredProductId = null;
+                    _filteredGroupName = null;
+                }
+                else if (!string.IsNullOrEmpty(tag.GroupName))
+                {
+                    // Grupa
+                    _filteredGroupName = tag.GroupName;
+                    _filteredProductId = null;
+                }
+                else
+                {
+                    // Pojedynczy produkt
+                    _filteredProductId = tag.ProductId;
+                    _filteredGroupName = null;
+                }
+
                 SetProductButtonSelected(btn);
                 await LoadOrdersAsync();
-                await LoadPrzychodyInfoAsync();
+                await LoadPlanDniaAsync();
+
+                // DEBUG: pokaż info o filtrze w tytule okna
+                string nazwaFiltra;
+                if (!string.IsNullOrEmpty(_filteredGroupName))
+                    nazwaFiltra = $"Grupa: {_filteredGroupName}";
+                else if (_filteredProductId.HasValue)
+                    nazwaFiltra = _produktLookup.ContainsKey(_filteredProductId.Value) ? _produktLookup[_filteredProductId.Value] : $"ID:{_filteredProductId.Value}";
+                else
+                    nazwaFiltra = "Wszystkie";
+                this.Title = $"Panel Produkcja - Filtr: {nazwaFiltra} ({_zamowienia.Count} zamówień)";
             }
         }
 
@@ -386,10 +820,20 @@ namespace Kalendarz1
                     // Sprawdź czy kolumny częściowej realizacji istnieją
                     bool hasPartialColumns = await CheckPartialRealizationColumnsExistAsync(cn);
 
+                    // Przygotuj listę produktów do filtrowania (dla grupy)
+                    List<int> produktyDoFiltrowania = null;
+                    if (!string.IsNullOrEmpty(_filteredGroupName) && _grupyDoProduktow.TryGetValue(_filteredGroupName, out var grpProdukty) && grpProdukty.Any())
+                    {
+                        produktyDoFiltrowania = grpProdukty;
+                    }
+
                     var sqlBuilder = new System.Text.StringBuilder();
                     sqlBuilder.Append("SELECT z.Id, z.KlientId, ISNULL(z.Uwagi,'') AS Uwagi, ISNULL(z.Status,'Nowe') AS Status, ");
                     sqlBuilder.Append("(SELECT SUM(ISNULL(t.Ilosc, 0)) FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id");
-                    if (_filteredProductId.HasValue) sqlBuilder.Append(" AND t.KodTowaru=@P");
+                    if (_filteredProductId.HasValue)
+                        sqlBuilder.Append(" AND t.KodTowaru=@P");
+                    else if (produktyDoFiltrowania != null)
+                        sqlBuilder.Append($" AND t.KodTowaru IN ({string.Join(",", produktyDoFiltrowania)})");
                     sqlBuilder.Append(") AS TotalIlosc, z.DataUtworzenia, z.TransportKursID, ");
                     sqlBuilder.Append("CAST(CASE WHEN EXISTS(SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId = z.Id AND t.Folia = 1) THEN 1 ELSE 0 END AS BIT) AS MaFolie, ");
                     sqlBuilder.Append("ISNULL(z.CzyZrealizowane, 0) AS CzyZrealizowane, ");
@@ -406,7 +850,10 @@ namespace Kalendarz1
                     else
                         sqlBuilder.Append(", CAST(0 AS BIT) AS CzyCzesciowoZrealizowane, NULL AS ProcentRealizacji");
                     sqlBuilder.Append($" FROM dbo.ZamowieniaMieso z WHERE z.{dateColumn}=@D AND ISNULL(z.Status,'Nowe') NOT IN ('Anulowane')");
-                    if (_filteredProductId.HasValue) sqlBuilder.Append(" AND EXISTS (SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId=z.Id AND t.KodTowaru=@P)");
+                    if (_filteredProductId.HasValue)
+                        sqlBuilder.Append(" AND EXISTS (SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId=z.Id AND t.KodTowaru=@P)");
+                    else if (produktyDoFiltrowania != null)
+                        sqlBuilder.Append($" AND EXISTS (SELECT 1 FROM dbo.ZamowieniaMiesoTowar t WHERE t.ZamowienieId=z.Id AND t.KodTowaru IN ({string.Join(",", produktyDoFiltrowania)}))");
 
                     var cmd = new SqlCommand(sqlBuilder.ToString(), cn);
                     cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
@@ -964,134 +1411,291 @@ namespace Kalendarz1
             dgvHandlowcyStats.ItemsSource = dt.DefaultView;
         }
 
-        private async Task LoadPrzychodyInfoAsync()
+        private async Task LoadPlanDniaAsync()
         {
-            decimal planPrzychodu = 0m;
-            decimal faktPrzychodu = 0m;
-            decimal sumaZamowien = 0m;
+            var dtPlan = new DataTable();
+            dtPlan.Columns.Add("Produkt", typeof(string));
+            dtPlan.Columns.Add("Plan", typeof(decimal));
+            dtPlan.Columns.Add("Fakt", typeof(decimal));
+            dtPlan.Columns.Add("Zamowienia", typeof(decimal));
+            dtPlan.Columns.Add("Wydania", typeof(decimal));
+            dtPlan.Columns.Add("Bilans", typeof(decimal));
+            dtPlan.Columns.Add("Procent", typeof(string));
+
+            decimal totalPlan = 0m;
+            decimal totalFakt = 0m;
+            decimal totalZam = 0m;
+            decimal totalWyd = 0m;
+            decimal totalBilans = 0m;
 
             try
             {
-                // 1. Plan - na podstawie HarmonogramDostaw i konfiguracji wydajności z bazy
+                // 1. Pobierz konfigurację wydajności
+                decimal wspolczynnikTuszki = 78m;
+                decimal procentA = 85m;
+                decimal procentB = 15m;
+
                 using (var cn = new SqlConnection(_connLibra))
                 {
                     await cn.OpenAsync();
-
-                    // Pobierz masę żywca z harmonogramu
-                    var cmdMasa = new SqlCommand(@"SELECT ISNULL(SUM(WagaDek * SztukiDek), 0)
-                                                   FROM dbo.HarmonogramDostaw
-                                                   WHERE DataOdbioru = @D AND Bufor = 'Potwierdzony'", cn);
-                    cmdMasa.Parameters.AddWithValue("@D", _selectedDate.Date);
-                    var resultMasa = await cmdMasa.ExecuteScalarAsync();
-                    decimal sumaMasyZywca = resultMasa != DBNull.Value ? Convert.ToDecimal(resultMasa) : 0m;
-
-                    // Pobierz aktywną konfigurację wydajności dla tej daty
-                    decimal wspolczynnikTuszki = 78m; // domyślna wartość w %
-                    var cmdWydajnosc = new SqlCommand(@"SELECT TOP 1 WspolczynnikTuszki
+                    var cmdWydajnosc = new SqlCommand(@"SELECT TOP 1 WspolczynnikTuszki, ProcentTuszkaA, ProcentTuszkaB
                                                         FROM KonfiguracjaWydajnosci
                                                         WHERE DataOd <= @D AND Aktywny = 1
                                                         ORDER BY DataOd DESC", cn);
                     cmdWydajnosc.Parameters.AddWithValue("@D", _selectedDate.Date);
-                    var resultWydajnosc = await cmdWydajnosc.ExecuteScalarAsync();
-                    if (resultWydajnosc != null && resultWydajnosc != DBNull.Value)
-                        wspolczynnikTuszki = Convert.ToDecimal(resultWydajnosc);
-
-                    // Jeśli wybrany konkretny produkt - pobierz jego % udziału z KonfiguracjaPodrobow
-                    if (_filteredProductId.HasValue)
+                    using var rd = await cmdWydajnosc.ExecuteReaderAsync();
+                    if (await rd.ReadAsync())
                     {
-                        var cmdUdzial = new SqlCommand(@"SELECT TOP 1 ProcentUdzialu
-                                                         FROM KonfiguracjaPodrobow
-                                                         WHERE TowarID = @T AND DataOd <= @D AND Aktywny = 1
-                                                         ORDER BY DataOd DESC", cn);
-                        cmdUdzial.Parameters.AddWithValue("@T", _filteredProductId.Value);
-                        cmdUdzial.Parameters.AddWithValue("@D", _selectedDate.Date);
-                        var resultUdzial = await cmdUdzial.ExecuteScalarAsync();
-
-                        if (resultUdzial != null && resultUdzial != DBNull.Value)
-                        {
-                            decimal procentUdzialu = Convert.ToDecimal(resultUdzial);
-                            // Plan = masa żywca * współczynnik tuszki * procent udziału produktu
-                            planPrzychodu = sumaMasyZywca * (wspolczynnikTuszki / 100m) * (procentUdzialu / 100m);
-                        }
-                        // Jeśli brak konfiguracji dla tego produktu - plan = 0
-                    }
-                    else
-                    {
-                        // Wszystkie produkty - cały przychód tuszki
-                        planPrzychodu = sumaMasyZywca * (wspolczynnikTuszki / 100m);
+                        wspolczynnikTuszki = rd.IsDBNull(0) ? 78m : Convert.ToDecimal(rd.GetValue(0));
+                        procentA = rd.IsDBNull(1) ? 85m : Convert.ToDecimal(rd.GetValue(1));
+                        procentB = rd.IsDBNull(2) ? 15m : Convert.ToDecimal(rd.GetValue(2));
                     }
                 }
 
-                // 2. Faktyczny przychód - z dokumentów sPWU (produkcja) - tylko towary z grupy mięso (katalog=67095)
+                // 2. Pobierz masę żywca z harmonogramu
+                decimal sumaMasyZywca = 0m;
+                using (var cn = new SqlConnection(_connLibra))
+                {
+                    await cn.OpenAsync();
+                    var cmdMasa = new SqlCommand(@"SELECT ISNULL(SUM(WagaDek * SztukiDek), 0)
+                                                   FROM dbo.HarmonogramDostaw
+                                                   WHERE DataOdbioru = @D AND Bufor = 'Potwierdzony'", cn);
+                    cmdMasa.Parameters.AddWithValue("@D", _selectedDate.Date);
+                    var result = await cmdMasa.ExecuteScalarAsync();
+                    sumaMasyZywca = result != DBNull.Value ? Convert.ToDecimal(result) : 0m;
+                }
+
+                decimal pulaTuszki = sumaMasyZywca * (wspolczynnikTuszki / 100m);
+                decimal planTuszkiA = pulaTuszki * (procentA / 100m);
+                decimal planTuszkiB = pulaTuszki * (procentB / 100m);
+
+                // 3. Pobierz faktyczny przychód z dokumentów produkcji (używamy _konfiguracjaProduktow z klasy)
+                var faktPrzychod = new Dictionary<int, decimal>();
                 using (var cn = new SqlConnection(_connHandel))
                 {
                     await cn.OpenAsync();
-                    string sql = @"SELECT ISNULL(SUM(ABS(MZ.ilosc)), 0)
-                                   FROM [HANDEL].[HM].[MZ] MZ
-                                   JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
-                                   JOIN [HANDEL].[HM].[TW] ON MZ.idtw = TW.id
-                                   WHERE MG.seria = 'sPWU' AND MG.aktywny = 1 AND MG.data = @D AND TW.katalog = 67095";
-                    if (_filteredProductId.HasValue)
-                        sql += " AND MZ.idtw = @P";
-
-                    var cmd = new SqlCommand(sql, cn);
-                    cmd.Parameters.AddWithValue("@D", _selectedDate.Date);
-                    if (_filteredProductId.HasValue)
-                        cmd.Parameters.AddWithValue("@P", _filteredProductId.Value);
-
-                    var result = await cmd.ExecuteScalarAsync();
-                    faktPrzychodu = result != DBNull.Value ? Convert.ToDecimal(result) : 0m;
+                    var cmd = new SqlCommand(@"SELECT MZ.idtw, SUM(ABS(MZ.ilosc))
+                        FROM [HANDEL].[HM].[MZ] MZ
+                        JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
+                        WHERE MG.seria IN ('sPWU', 'sPWP', 'PWP') AND MG.aktywny=1 AND MG.data = @Day
+                        GROUP BY MZ.idtw", cn);
+                    cmd.Parameters.AddWithValue("@Day", _selectedDate.Date);
+                    using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        faktPrzychod[rd.GetInt32(0)] = rd.IsDBNull(1) ? 0m : Convert.ToDecimal(rd.GetValue(1));
+                    }
                 }
 
-                // 3. Suma zamówień na dzień - filtrowana po produkcie jeśli wybrany
-                if (_filteredProductId.HasValue)
-                {
-                    // Pobierz sumę zamówień dla wybranego produktu
-                    var zamowieniaIds = _zamowienia.Values
-                        .Where(z => !z.IsShipmentOnly && z.Id > 0)
-                        .Select(z => z.Id)
-                        .ToList();
+                // 5. Pobierz zamówienia wg produktów
+                var zamowieniaSum = new Dictionary<int, decimal>();
+                var orderIds = _zamowienia.Values
+                    .Where(z => !z.IsShipmentOnly && z.Id > 0)
+                    .Select(z => z.Id)
+                    .ToList();
 
-                    if (zamowieniaIds.Any())
+                if (orderIds.Any())
+                {
+                    using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
+                    var sql = $"SELECT KodTowaru, SUM(Ilosc) FROM [dbo].[ZamowieniaMiesoTowar] " +
+                             $"WHERE ZamowienieId IN ({string.Join(",", orderIds)}) GROUP BY KodTowaru";
+                    using var cmd = new SqlCommand(sql, cn);
+                    using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
                     {
-                        using var cn = new SqlConnection(_connLibra);
-                        await cn.OpenAsync();
-                        var sql = $@"SELECT ISNULL(SUM(Ilosc), 0) FROM [dbo].[ZamowieniaMiesoTowar]
-                                     WHERE ZamowienieId IN ({string.Join(",", zamowieniaIds)}) AND KodTowaru = @P";
-                        using var cmd = new SqlCommand(sql, cn);
-                        cmd.Parameters.AddWithValue("@P", _filteredProductId.Value);
-                        var result = await cmd.ExecuteScalarAsync();
-                        sumaZamowien = result != DBNull.Value ? Convert.ToDecimal(result) : 0m;
+                        zamowieniaSum[rd.GetInt32(0)] = rd.IsDBNull(1) ? 0m : rd.GetDecimal(1);
                     }
+                }
+
+                // 6. Pobierz wydania (WZ)
+                var wydaniaSum = new Dictionary<int, decimal>();
+                using (var cn = new SqlConnection(_connHandel))
+                {
+                    await cn.OpenAsync();
+                    var cmd = new SqlCommand(@"SELECT MZ.idtw, SUM(ABS(MZ.ilosc))
+                        FROM [HANDEL].[HM].[MZ] MZ
+                        JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
+                        WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny=1 AND MG.data = @Day
+                        GROUP BY MZ.idtw", cn);
+                    cmd.Parameters.AddWithValue("@Day", _selectedDate.Date);
+                    using var rd = await cmd.ExecuteReaderAsync();
+                    while (await rd.ReadAsync())
+                    {
+                        wydaniaSum[rd.GetInt32(0)] = rd.IsDBNull(1) ? 0m : Convert.ToDecimal(rd.GetValue(1));
+                    }
+                }
+
+                // 7. Buduj tabelę produktów
+                // Pobierz nazwy produktów z Handlu dla produktów z konfiguracji
+                var wszystkieNazwyProduktow = new Dictionary<int, string>(_produktLookup);
+                if (_konfiguracjaProduktow.Any())
+                {
+                    var brakujaceIds = _konfiguracjaProduktow.Keys.Except(wszystkieNazwyProduktow.Keys).ToList();
+                    if (brakujaceIds.Any())
+                    {
+                        using var cn = new SqlConnection(_connHandel);
+                        await cn.OpenAsync();
+                        var cmd = new SqlCommand($"SELECT ID, kod FROM HM.TW WHERE ID IN ({string.Join(",", brakujaceIds)})", cn);
+                        using var rd = await cmd.ExecuteReaderAsync();
+                        while (await rd.ReadAsync())
+                        {
+                            wszystkieNazwyProduktow[rd.GetInt32(0)] = rd.GetString(1);
+                        }
+                    }
+                }
+
+                // Określ które produkty pokazać
+                IEnumerable<int> produktyDoPokazania;
+
+                if (!string.IsNullOrEmpty(_filteredGroupName))
+                {
+                    // Wybrano grupę - pokaż wszystkie produkty z tej grupy (z konfiguracji)
+                    if (_grupyDoProduktow.TryGetValue(_filteredGroupName, out var produktyWGrupie))
+                    {
+                        produktyDoPokazania = produktyWGrupie;
+                    }
+                    else
+                    {
+                        produktyDoPokazania = Enumerable.Empty<int>();
+                    }
+                }
+                else if (_filteredProductId.HasValue && _filteredProductId.Value > 0)
+                {
+                    // Wybrano pojedynczy produkt
+                    produktyDoPokazania = new[] { _filteredProductId.Value };
                 }
                 else
                 {
-                    sumaZamowien = _zamowienia.Values
-                        .Where(z => !z.IsShipmentOnly)
-                        .Sum(z => z.TotalIlosc);
+                    // Wszystkie - pokaż produkty z zamówień
+                    produktyDoPokazania = _produktLookup.Keys;
+                }
+
+                // Sortuj produkty - najpierw według procentu udziału (malejąco), potem według zamówień
+                var produktySortowane = produktyDoPokazania
+                    .OrderByDescending(id => _konfiguracjaProduktow.GetValueOrDefault(id, 0))
+                    .ThenByDescending(id => zamowieniaSum.GetValueOrDefault(id, 0))
+                    .ToList();
+
+                foreach (var produktId in produktySortowane)
+                {
+                    string nazwa = wszystkieNazwyProduktow.GetValueOrDefault(produktId, $"Produkt #{produktId}");
+                    decimal procentUdzialu = _konfiguracjaProduktow.GetValueOrDefault(produktId, 0m);
+
+                    // Oblicz plan: dla tuszek A używamy planTuszkiA, dla innych produktów używamy planTuszkiB * procent
+                    decimal plan = 0m;
+                    if (nazwa.Contains("Kurczak A", StringComparison.OrdinalIgnoreCase) ||
+                        nazwa.Contains("Tuszka A", StringComparison.OrdinalIgnoreCase))
+                    {
+                        plan = planTuszkiA;
+                    }
+                    else if (nazwa.Contains("Kurczak B", StringComparison.OrdinalIgnoreCase) ||
+                             nazwa.Contains("Tuszka B", StringComparison.OrdinalIgnoreCase))
+                    {
+                        plan = planTuszkiB;
+                    }
+                    else if (procentUdzialu > 0)
+                    {
+                        // Produkty rozbioru - procent z Tuszki B
+                        plan = planTuszkiB * (procentUdzialu / 100m);
+                    }
+
+                    decimal fakt = faktPrzychod.GetValueOrDefault(produktId, 0m);
+                    decimal zam = zamowieniaSum.GetValueOrDefault(produktId, 0m);
+                    decimal wyd = wydaniaSum.GetValueOrDefault(produktId, 0m);
+
+                    // Bilans = (fakt lub plan) - zamówienia
+                    decimal bilans = (fakt > 0 ? fakt : plan) - zam;
+
+                    // Procent realizacji + procent udziału
+                    string procentTxt;
+                    if (procentUdzialu > 0)
+                    {
+                        procentTxt = plan > 0 ? $"{(fakt / plan * 100):F0}% ({procentUdzialu:F1}%)" : $"({procentUdzialu:F1}%)";
+                    }
+                    else
+                    {
+                        procentTxt = plan > 0 ? $"{(fakt / plan * 100):F0}%" : "—";
+                    }
+
+                    // Dodaj prefiks dla produktów w grupie (gdy wybrano grupę)
+                    string nazwaDisplay = !string.IsNullOrEmpty(_filteredGroupName) && procentUdzialu > 0
+                        ? $"  · {nazwa}"
+                        : nazwa;
+
+                    dtPlan.Rows.Add(nazwaDisplay, plan, fakt, zam, wyd, bilans, procentTxt);
+                    totalPlan += plan;
+                    totalFakt += fakt;
+                    totalZam += zam;
+                    totalWyd += wyd;
+                    totalBilans += bilans;
+                }
+
+                // 8. Dodaj wiersz SUMA na końcu (tylko gdy więcej niż 1 produkt)
+                if (dtPlan.Rows.Count > 1)
+                {
+                    string totalProcent = totalPlan > 0 ? $"{(totalFakt / totalPlan * 100):F0}%" : "—";
+                    string sumaLabel = !string.IsNullOrEmpty(_filteredGroupName)
+                        ? $"═══ SUMA {_filteredGroupName.ToUpper()} ═══"
+                        : "═══ SUMA ═══";
+                    dtPlan.Rows.Add(sumaLabel, totalPlan, totalFakt, totalZam, totalWyd, totalBilans, totalProcent);
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Błąd ładowania przychodu: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Błąd ładowania planu dnia: {ex.Message}");
             }
 
-            // Bilans = faktyczny przychód - zamówienia
-            decimal bilans = faktPrzychodu - sumaZamowien;
+            dgvPlanDnia.ItemsSource = dtPlan.DefaultView;
+            dgvPlanDnia.LoadingRow -= DgvPlanDnia_LoadingRow;
+            dgvPlanDnia.LoadingRow += DgvPlanDnia_LoadingRow;
 
-            // Aktualizuj UI
-            lblPrzychPlan.Text = planPrzychodu > 0 ? $"{planPrzychodu:N0}" : "—";
-            lblPrzychFakt.Text = faktPrzychodu > 0 ? $"{faktPrzychodu:N0}" : "—";
-            lblPrzychZam.Text = sumaZamowien > 0 ? $"{sumaZamowien:N0}" : "—";
-            lblPrzychBilans.Text = bilans != 0 ? $"{bilans:N0}" : "—";
+            // Aktualizuj karty podsumowania
+            lblPlanDniaPlan.Text = totalPlan > 0 ? $"{totalPlan:N0}" : "0";
+            lblPlanDniaFakt.Text = totalFakt > 0 ? $"{totalFakt:N0}" : "0";
+            lblPlanDniaZam.Text = totalZam > 0 ? $"{totalZam:N0}" : "0";
+            lblPlanDniaWyd.Text = totalWyd > 0 ? $"{totalWyd:N0}" : "0";
+            lblPlanDniaBilans.Text = totalBilans != 0 ? $"{totalBilans:N0}" : "0";
 
             // Kolor bilansu
-            if (bilans > 0)
-                lblPrzychBilans.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4CAF50")); // zielony - nadwyżka
-            else if (bilans < 0)
-                lblPrzychBilans.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF5350")); // czerwony - niedobór
+            if (totalBilans > 0)
+            {
+                borderBilans.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2E7D32")); // zielony - nadwyżka
+                lblPlanDniaBilansInfo.Text = "nadwyżka";
+            }
+            else if (totalBilans < 0)
+            {
+                borderBilans.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C62828")); // czerwony - niedobór
+                lblPlanDniaBilansInfo.Text = "niedobór";
+            }
             else
-                lblPrzychBilans.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CE93D8")); // neutralny
+            {
+                borderBilans.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#37474F")); // neutralny
+                lblPlanDniaBilansInfo.Text = "zbilansowane";
+            }
+        }
+
+        private void DgvPlanDnia_LoadingRow(object sender, DataGridRowEventArgs e)
+        {
+            if (e.Row.Item is DataRowView rowView)
+            {
+                var produkt = rowView.Row.Field<string>("Produkt") ?? "";
+                var bilans = rowView.Row.Field<decimal>("Bilans");
+
+                if (produkt.StartsWith("═══"))
+                {
+                    // Wiersz SUMA
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(21, 101, 192)); // #1565C0
+                    e.Row.Foreground = Brushes.White;
+                    e.Row.FontWeight = FontWeights.Bold;
+                    e.Row.FontSize = 15;
+                }
+                else
+                {
+                    // Kolory bilansu w wierszach
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(55, 57, 70)); // #373946
+                }
+            }
         }
         #endregion
 
@@ -1163,6 +1767,26 @@ namespace Kalendarz1
             lblStatWydaneProc.Text = $"{issuedPercent:F0}%";
             lblStatSumaKg.Text = $"{sumaKg:N0}";
             lblStatSrednia.Text = $"{srednia:N0}";
+        }
+
+        private async Task<Dictionary<int, string>> LoadOperatorNamesAsync(List<int> ids)
+        {
+            var dict = new Dictionary<int, string>();
+            if (!ids.Any()) return dict;
+
+            try
+            {
+                using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                var cmd = new SqlCommand($"SELECT ID, Name FROM dbo.operators WHERE ID IN ({string.Join(',', ids)})", cn);
+                using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    dict[rd.GetInt32(0)] = rd.IsDBNull(1) ? "" : rd.GetString(1);
+                }
+            }
+            catch { /* Ignore errors, fallback to ID */ }
+            return dict;
         }
 
         private async Task<Dictionary<int, ContractorInfo>> LoadContractorsAsync(List<int> ids)
@@ -1835,6 +2459,17 @@ namespace Kalendarz1
         {
             public int Id { get; set; }
             public string Kod { get; set; } = "";
+        }
+
+        public class HistoriaRealizacjiItem
+        {
+            public DateTime DataRealizacji { get; set; }
+            public string Klient { get; set; } = "";
+            public decimal IloscKg { get; set; }
+            public string KtoRealizowal { get; set; } = "";
+            public string KtoAkceptowal { get; set; } = "";
+            public string StatusRealizacji { get; set; } = "";
+            public string Uwagi { get; set; } = "";
         }
 
         public class ComboItem

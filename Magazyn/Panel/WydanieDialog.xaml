@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window x:Class="Kalendarz1.WydanieDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Potwierdzenie wydania"
+        Width="700"
+        Height="550"
+        WindowStartupLocation="CenterOwner"
+        Background="#1C1E26"
+        ResizeMode="NoResize"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <Style x:Key="DialogButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="50"/>
+            <Setter Property="MinWidth" Value="150"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Margin" Value="10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="2"
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#464858"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Height" Value="35"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="5"/>
+        </Style>
+
+        <Style TargetType="DataGridCell">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Grid Background="{TemplateBinding Background}">
+                            <ContentPresenter VerticalAlignment="Center" Margin="5,2"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#4A5568"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="DataGridRow">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="#373946"/>
+            <Style.Triggers>
+                <Trigger Property="AlternationIndex" Value="1">
+                    <Setter Property="Background" Value="#32343F"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Pytanie główne -->
+        <TextBlock Grid.Row="0"
+                   Text="Czy wszystko zostało wydane według zamówienia?"
+                   Foreground="White"
+                   FontSize="22"
+                   FontWeight="Bold"
+                   HorizontalAlignment="Center"
+                   Margin="0,0,0,10"/>
+
+        <!-- Informacja o kliencie -->
+        <Border Grid.Row="1" Background="#2A2C38" CornerRadius="8" Padding="15" Margin="0,0,0,15">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock Text="Klient: " Foreground="LightGray" FontSize="16"/>
+                    <TextBlock x:Name="txtKlientNazwa" Text="--" Foreground="White" FontSize="16" FontWeight="Bold"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5,0,0">
+                    <TextBlock Text="Zamówienie łącznie: " Foreground="LightGray" FontSize="14"/>
+                    <TextBlock x:Name="txtSumaZamowienia" Text="0 kg" Foreground="#FFD700" FontSize="14" FontWeight="Bold"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Przyciski TAK/NIE -->
+        <StackPanel Grid.Row="2"
+                    x:Name="pnlPytanie"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Center"
+                    Margin="0,0,0,15">
+            <Button x:Name="btnTak"
+                    Content="TAK - Wszystko wydane"
+                    Style="{StaticResource DialogButtonStyle}"
+                    Background="#2A7A3A"
+                    BorderBrush="LimeGreen"
+                    Click="btnTak_Click"/>
+            <Button x:Name="btnNie"
+                    Content="NIE - Chcę poprawić"
+                    Style="{StaticResource DialogButtonStyle}"
+                    Background="#7A5A2A"
+                    BorderBrush="Orange"
+                    Click="btnNie_Click"/>
+        </StackPanel>
+
+        <!-- Tabela do edycji wydań -->
+        <Border Grid.Row="3"
+                x:Name="pnlEdycja"
+                Background="#262832"
+                CornerRadius="8"
+                Visibility="Collapsed"
+                Margin="0,0,0,10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0"
+                           Text="Wpisz rzeczywiste ilości wydane:"
+                           Foreground="Orange"
+                           FontSize="14"
+                           FontWeight="Bold"
+                           Margin="10,10,10,5"/>
+
+                <DataGrid Grid.Row="1"
+                          x:Name="dgvWydania"
+                          Background="#2D2F3E"
+                          BorderThickness="0"
+                          GridLinesVisibility="Horizontal"
+                          HorizontalGridLinesBrush="#404040"
+                          HeadersVisibility="Column"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          AutoGenerateColumns="False"
+                          SelectionMode="Single"
+                          SelectionUnit="Cell"
+                          AlternationCount="2"
+                          RowHeight="40"
+                          Margin="5">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Produkt" Binding="{Binding Produkt}" Width="2*" IsReadOnly="True">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Zamówiono (kg)" Binding="{Binding Zamowiono, StringFormat=N0}" Width="*" IsReadOnly="True">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="Margin" Value="0,0,10,0"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Wydano (kg)" Binding="{Binding Wydano, StringFormat=N0}" Width="*">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="Margin" Value="0,0,10,0"/>
+                                    <Setter Property="Foreground" Value="LimeGreen"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                            <DataGridTextColumn.EditingElementStyle>
+                                <Style TargetType="TextBox">
+                                    <Setter Property="Background" Value="#3A3C48"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Setter Property="Padding" Value="5"/>
+                                    <Setter Property="HorizontalContentAlignment" Value="Right"/>
+                                </Style>
+                            </DataGridTextColumn.EditingElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Różnica" Binding="{Binding RoznicaDisplay}" Width="0.8*" IsReadOnly="True">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="Foreground" Value="Orange"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </Border>
+
+        <!-- Pole na uwagi -->
+        <Border Grid.Row="4"
+                x:Name="pnlUwagi"
+                Background="#2A2C38"
+                CornerRadius="8"
+                Visibility="Collapsed"
+                Margin="0,0,0,10">
+            <Grid Margin="10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0"
+                           Text="Uwagi do wydania (opcjonalne):"
+                           Foreground="LightGray"
+                           FontSize="12"
+                           Margin="0,0,0,5"/>
+                <TextBox Grid.Row="1"
+                         x:Name="txtUwagiWydania"
+                         Background="#3A3C48"
+                         Foreground="White"
+                         BorderThickness="0"
+                         TextWrapping="Wrap"
+                         AcceptsReturn="True"
+                         Height="60"
+                         Padding="8"
+                         FontSize="13"/>
+            </Grid>
+        </Border>
+
+        <!-- Przyciski zatwierdzenia (pojawiają się po kliknięciu NIE) -->
+        <StackPanel Grid.Row="5"
+                    x:Name="pnlZatwierdzenie"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Center"
+                    Visibility="Collapsed">
+            <Button x:Name="btnZatwierdz"
+                    Content="Zatwierdź wydanie"
+                    Style="{StaticResource DialogButtonStyle}"
+                    Background="#2A7A3A"
+                    BorderBrush="LimeGreen"
+                    Click="btnZatwierdz_Click"/>
+            <Button x:Name="btnAnuluj"
+                    Content="Anuluj"
+                    Style="{StaticResource DialogButtonStyle}"
+                    Background="#5A3A3A"
+                    BorderBrush="#AA5555"
+                    Click="btnAnuluj_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

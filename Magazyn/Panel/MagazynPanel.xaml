@@ -134,18 +134,9 @@
 
         <!-- PRZYCISKI TOWARÓW - NAJWYŻSZY RZĄD -->
         <Border Grid.Row="0" Background="#1A3A5A" Padding="8">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <WrapPanel x:Name="pnlProductButtons" Orientation="Horizontal">
-                    <!-- Przyciski towarów zostaną dodane dynamicznie -->
-                </WrapPanel>
-                <Border Background="#2A5A8A" CornerRadius="5" Padding="15,8" Margin="20,0,0,0" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Suma: " Foreground="White" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="lblFilteredSum" Text="0" Foreground="#FFD700" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
-                        <TextBlock Text=" kg" Foreground="White" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Border>
-            </StackPanel>
+            <WrapPanel x:Name="pnlProductButtons" Orientation="Horizontal" HorizontalAlignment="Center">
+                <!-- Przyciski towarów zostaną dodane dynamicznie -->
+            </WrapPanel>
         </Border>
 
         <!-- TOP BAR -->
@@ -542,12 +533,161 @@
                         <TextBlock Grid.Row="2" Text="Notatka zamówienia" Background="#323440" Foreground="Yellow" FontWeight="Bold" FontSize="14" Padding="5"/>
 
                         <Border Grid.Row="3" Background="#343642" CornerRadius="5" Margin="0,5,0,0">
-                            <TextBox x:Name="txtUwagi" Background="Transparent" 
-                                     Foreground="White" BorderThickness="0" 
-                                     TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" 
+                            <TextBox x:Name="txtUwagi" Background="Transparent"
+                                     Foreground="White" BorderThickness="0"
+                                     TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
                                      FontSize="28" Margin="5" IsReadOnly="True"/>
                         </Border>
                     </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- TAB 2: HISTORIA WYDAŃ -->
+            <TabItem Header="📋 Historia wydań">
+                <Grid Background="#1C1E26">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Nagłówek z filtrem dat -->
+                    <Border Grid.Row="0" Background="#262832" Padding="10" Margin="5">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="Zakres dat:" Foreground="White" FontSize="14" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <DatePicker x:Name="dpHistoriaOd" Width="130" Background="#3A3C48" Foreground="White"/>
+                            <TextBlock Text=" — " Foreground="White" FontSize="14" VerticalAlignment="Center"/>
+                            <DatePicker x:Name="dpHistoriaDo" Width="130" Background="#3A3C48" Foreground="White"/>
+                            <Button x:Name="btnLoadHistoria" Content="🔍 Pokaż"
+                                    Style="{StaticResource TopButtonStyle}"
+                                    Background="#4A7A5A"
+                                    Margin="15,0,0,0"
+                                    Click="btnLoadHistoria_Click"/>
+                            <Button x:Name="btnHistoriaToday" Content="📅 Dziś"
+                                    Style="{StaticResource TopButtonStyle}"
+                                    Background="#3A5A7A"
+                                    Margin="10,0,0,0"
+                                    Click="btnHistoriaToday_Click"/>
+                            <Button x:Name="btnHistoriaWeek" Content="📆 Tydzień"
+                                    Style="{StaticResource TopButtonStyle}"
+                                    Background="#3A5A7A"
+                                    Margin="10,0,0,0"
+                                    Click="btnHistoriaWeek_Click"/>
+                            <Button x:Name="btnHistoriaMonth" Content="📆 Miesiąc"
+                                    Style="{StaticResource TopButtonStyle}"
+                                    Background="#3A5A7A"
+                                    Margin="10,0,0,0"
+                                    Click="btnHistoriaMonth_Click"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Filtry dodatkowe -->
+                    <Border Grid.Row="1" Background="#2A2C38" Padding="10" Margin="5,0,5,5">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="Kto wydał:" Foreground="White" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <ComboBox x:Name="cmbHistoriaUzytkownik" Width="180" Height="35" FontSize="14"
+                                      SelectionChanged="cmbHistoriaFilter_SelectionChanged"/>
+
+                            <TextBlock Text="Klient:" Foreground="White" FontSize="14" VerticalAlignment="Center" Margin="25,0,8,0"/>
+                            <ComboBox x:Name="cmbHistoriaKlient" Width="200" Height="35" FontSize="14"
+                                      SelectionChanged="cmbHistoriaFilter_SelectionChanged"/>
+
+                            <TextBlock Text="Status:" Foreground="White" FontSize="14" VerticalAlignment="Center" Margin="25,0,8,0"/>
+                            <ComboBox x:Name="cmbHistoriaStatus" Width="140" Height="35" FontSize="14"
+                                      SelectionChanged="cmbHistoriaFilter_SelectionChanged">
+                                <ComboBoxItem Content="Wszystkie" IsSelected="True"/>
+                                <ComboBoxItem Content="✅ Pełne"/>
+                                <ComboBoxItem Content="⚠️ Z różnicami"/>
+                            </ComboBox>
+
+                            <Button x:Name="btnHistoriaClearFilters" Content="✖ Wyczyść filtry"
+                                    Style="{StaticResource TopButtonStyle}"
+                                    Background="#5A4A4A"
+                                    Margin="25,0,0,0"
+                                    Click="btnHistoriaClearFilters_Click"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Tabela historii wydań -->
+                    <Border Grid.Row="2" Background="#262832" CornerRadius="5" Margin="5">
+                        <DataGrid x:Name="dgvHistoriaWydan"
+                                  Style="{StaticResource CustomDataGridStyle}"
+                                  IsReadOnly="True"
+                                  RowHeight="45"
+                                  Margin="5"
+                                  AutoGenerateColumns="False">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Data wydania" Binding="{Binding DataWydania, StringFormat=yyyy-MM-dd HH:mm}" Width="140">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="Foreground" Value="#90CAF9"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Klient" Binding="{Binding Klient}" Width="*">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Ilość (kg)" Binding="{Binding IloscKg, StringFormat=N0}" Width="100">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Margin" Value="0,0,10,0"/>
+                                            <Setter Property="Foreground" Value="#FFD700"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Kto wydał" Binding="{Binding KtoWydal}" Width="150">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="Foreground" Value="#81C784"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Status" Binding="{Binding StatusWydania}" Width="120">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="*">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="Foreground" Value="#B0BEC5"/>
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+
+                    <!-- Podsumowanie -->
+                    <Border Grid.Row="3" Background="#1E3A2A" Padding="15" Margin="5">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="Łącznie wydań: " Foreground="White" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="lblHistoriaCount" Text="0" Foreground="#FFD700" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <TextBlock Text="  |  Suma kg: " Foreground="White" FontSize="16" VerticalAlignment="Center" Margin="20,0,0,0"/>
+                            <TextBlock x:Name="lblHistoriaSumaKg" Text="0" Foreground="#4CAF50" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <TextBlock Text="  |  Pełne wydania: " Foreground="White" FontSize="16" VerticalAlignment="Center" Margin="20,0,0,0"/>
+                            <TextBlock x:Name="lblHistoriaPelne" Text="0" Foreground="#81C784" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <TextBlock Text="  |  Z różnicami: " Foreground="White" FontSize="16" VerticalAlignment="Center" Margin="20,0,0,0"/>
+                            <TextBlock x:Name="lblHistoriaRoznice" Text="0" Foreground="#FFCC80" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
                 </Grid>
             </TabItem>
         </TabControl>
