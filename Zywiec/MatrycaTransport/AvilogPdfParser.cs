@@ -128,88 +128,347 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Parsowanie - szuka numerów rejestracyjnych i grupuje w pary (ciągnik, naczepa)
+        /// Parsowanie - szuka wzorców "C:" i "N:" jako kotwic dla pojazdów
+        /// Dane kierowcy i hodowcy są PRZED pozycją "C:" w tekście
         /// </summary>
         private List<AvilogTransportRow> ParseTransportRowsNew(string text)
         {
             var rows = new List<AvilogTransportRow>();
+            var debugLines = new List<string>();
 
-            // Znajdź wszystkie numery rejestracyjne
-            // Wzorce polskich rejestracji: WOT51407, WPR6904T, WOT46L9, SK12345
-            // Używamy bardziej elastycznego wzorca bez word boundary
-            var rejMatches = Regex.Matches(text, @"(?<![A-Z])([A-Z]{2,3}[0-9][0-9A-Z]{3,5})(?![A-Z])");
+            // Szukaj wzorca "C: REJESTRACJA" - to oznacza ciągnik
+            // Format w PDF: "C: WOT51407" lub "C:WOT51407"
+            var ciagnikiMatches = Regex.Matches(text, @"C\s*:\s*([A-Z]{2,3}[0-9][0-9A-Z]{3,5})");
 
-            var rejestracje = new List<(string Numer, int Pos)>();
-            var debugList = new List<string>(); // dla diagnostyki
+            debugLines.Add($"Znaleziono {ciagnikiMatches.Count} ciągników (C:)");
 
-            foreach (Match m in rejMatches)
+            // Pozycje wszystkich ciągników
+            var ciagnikiPositions = new List<(string Ciagnik, int Pos)>();
+            foreach (Match m in ciagnikiMatches)
             {
-                string num = m.Groups[1].Value;
-                // Musi mieć co najmniej 2 cyfry (żeby odfiltrować słowa)
-                int digitCount = num.Count(c => char.IsDigit(c));
-                if (num.Length >= 6 && num.Length <= 9 && digitCount >= 2)
-                {
-                    // Pomiń duplikaty blisko siebie (w zakresie 50 znaków)
-                    bool isDuplicate = rejestracje.Any(r =>
-                        r.Numer == num && Math.Abs(r.Pos - m.Index) < 50);
+                ciagnikiPositions.Add((m.Groups[1].Value, m.Index));
+                debugLines.Add($"  C: {m.Groups[1].Value} @ pozycja {m.Index}");
+            }
 
-                    if (!isDuplicate)
+            // Dla każdego ciągnika znajdź odpowiednią naczepę (N:) i dane
+            for (int i = 0; i < ciagnikiPositions.Count; i++)
+            {
+                var row = new AvilogTransportRow();
+                row.Ciagnik = ciagnikiPositions[i].Ciagnik;
+                int ciagnikPos = ciagnikiPositions[i].Pos;
+
+                // Znajdź naczepę - powinna być blisko po ciągniku (w zakresie 100 znaków)
+                string afterCiagnik = text.Substring(ciagnikPos, Math.Min(150, text.Length - ciagnikPos));
+                var naczepaMatch = Regex.Match(afterCiagnik, @"N\s*:\s*([A-Z]{2,3}[0-9][0-9A-Z]{3,5})");
+                if (naczepaMatch.Success)
+                {
+                    row.Naczepa = naczepaMatch.Groups[1].Value;
+                }
+
+                // === KLUCZOWE: Wyciągnij tekst PRZED C: dla tego wiersza ===
+                // Określ początek kontekstu - albo początek tekstu, albo koniec poprzedniego wiersza
+                int startContext;
+                if (i == 0)
+                {
+                    // Dla pierwszego wiersza - szukaj od początku tabeli (po nagłówkach)
+                    var headerEnd = Regex.Match(text.Substring(0, ciagnikPos), @"OBSERWACJE", RegexOptions.IgnoreCase);
+                    startContext = headerEnd.Success ? headerEnd.Index + headerEnd.Length : Math.Max(0, ciagnikPos - 800);
+                }
+                else
+                {
+                    // Dla kolejnych wierszy - zacznij od końca poprzedniego wiersza (po jego N:)
+                    startContext = ciagnikiPositions[i - 1].Pos + 50;
+                }
+
+                // Tekst między początkiem kontekstu a C: zawiera dane kierowcy i hodowcy
+                int contextLength = ciagnikPos - startContext;
+                if (contextLength > 0 && contextLength < 2000)
+                {
+                    string beforeCiagnik = text.Substring(startContext, contextLength);
+
+                    // Znajdź też tekst PO N: dla godzin i obserwacji
+                    int naczepaEnd = ciagnikPos + (naczepaMatch.Success ? naczepaMatch.Index + naczepaMatch.Length : 50);
+                    int endContext = (i + 1 < ciagnikiPositions.Count)
+                        ? ciagnikiPositions[i + 1].Pos
+                        : Math.Min(text.Length, naczepaEnd + 400);
+
+                    string afterNaczepa = text.Substring(naczepaEnd, Math.Min(endContext - naczepaEnd, 400));
+
+                    string fullContext = beforeCiagnik + " |POJAZD| " + afterNaczepa;
+
+                    // DEBUG dla pierwszego wiersza
+                    if (i == 0)
                     {
-                        rejestracje.Add((num, m.Index));
-                        debugList.Add($"{num} @ {m.Index}");
+                        debugLines.Add($"\n=== WIERSZ 1 - ANALIZA ===");
+                        debugLines.Add($"Ciągnik: {row.Ciagnik}, Naczepa: {row.Naczepa}");
+                        debugLines.Add($"StartContext: {startContext}, CiagnikPos: {ciagnikPos}");
+                        debugLines.Add($"=== TEKST PRZED C: (kierowca + hodowca) ===\n{beforeCiagnik}\n=== KONIEC ===");
                     }
+
+                    // Parsuj dane z kontekstu (nowa metoda)
+                    ParseContextDataNew(beforeCiagnik, afterNaczepa, row);
+                }
+
+                if (!string.IsNullOrEmpty(row.Ciagnik))
+                {
+                    rows.Add(row);
                 }
             }
 
-            // Zapisz znalezione rejestracje do debug
+            // Zapisz debug
             try
             {
                 string debugPath = System.IO.Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                    "avilog_rejestracje_debug.txt");
-                System.IO.File.WriteAllText(debugPath,
-                    $"Znaleziono {rejestracje.Count} rejestracji:\n" +
-                    string.Join("\n", debugList));
+                    "avilog_parser_debug.txt");
+                System.IO.File.WriteAllText(debugPath, string.Join("\n", debugLines));
             }
             catch { }
 
-            // Grupuj rejestracje w pary: ciągnik, naczepa, ciągnik, naczepa...
-            for (int i = 0; i < rejestracje.Count - 1; i += 2)
+            return rows;
+        }
+
+        /// <summary>
+        /// Nowa metoda parsowania - osobno tekst przed C: i po N:
+        /// </summary>
+        private void ParseContextDataNew(string beforeCiagnik, string afterNaczepa, AvilogTransportRow row)
+        {
+            // === KIEROWCA ===
+            // Format: "Nazwisko Imię tel" lub "NAZWISKO IMIĘ tel"
+            // Kierowca jest na POCZĄTKU tekstu przed C:, potem jest hodowca
+
+            // Szukaj telefonu kierowcy - pierwszy 9-cyfrowy numer (nie poprzedzony "Tel.")
+            var phoneMatches = Regex.Matches(beforeCiagnik, @"(?<!Tel\s*\.?\s*:?\s*)(\d{3})\s*(\d{3})\s*(\d{3})");
+            var telColonMatch = Regex.Match(beforeCiagnik, @"Tel\s*\.?\s*:?\s*(\d{3})\s*(\d{3})\s*(\d{3})");
+
+            string kierowcaTelefon = "";
+            int kierowcaPhonePos = -1;
+
+            // Pierwszy telefon który NIE jest poprzedzony "Tel." to kierowca
+            foreach (Match phone in phoneMatches)
             {
-                var row = new AvilogTransportRow();
-                row.Ciagnik = rejestracje[i].Numer;
-                row.Naczepa = rejestracje[i + 1].Numer;
-
-                // Wyciągnij kontekst - tekst wokół tej pary rejestracji (zwiększone okno)
-                int startPos = Math.Max(0, rejestracje[i].Pos - 500);
-                int endPos = Math.Min(text.Length, rejestracje[i + 1].Pos + 600);
-                string context = text.Substring(startPos, endPos - startPos);
-
-                // DEBUG: Zapisz kontekst pierwszego wiersza do analizy
-                if (i == 0)
+                string phoneNum = phone.Groups[1].Value + phone.Groups[2].Value + phone.Groups[3].Value;
+                // Sprawdź czy to nie jest telefon hodowcy (po "Tel.")
+                if (!telColonMatch.Success || phoneNum != (telColonMatch.Groups[1].Value + telColonMatch.Groups[2].Value + telColonMatch.Groups[3].Value))
                 {
-                    try
-                    {
-                        string debugPath = System.IO.Path.Combine(
-                            Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                            "avilog_context_debug.txt");
-                        System.IO.File.WriteAllText(debugPath,
-                            $"=== CONTEXT FOR ROW 1 ===\n" +
-                            $"Ciągnik: {row.Ciagnik}, Naczepa: {row.Naczepa}\n" +
-                            $"Start: {startPos}, End: {endPos}\n" +
-                            $"=== RAW CONTEXT ===\n{context}\n" +
-                            $"=== END ===");
-                    }
-                    catch { }
+                    kierowcaTelefon = phoneNum;
+                    kierowcaPhonePos = phone.Index;
+                    row.KierowcaTelefon = kierowcaTelefon;
+                    break;
                 }
-
-                // Parsuj dane z kontekstu
-                ParseContextData(context, row);
-
-                rows.Add(row);
             }
 
-            return rows;
+            // Nazwa kierowcy - 2 słowa TUŻ PRZED jego telefonem
+            if (kierowcaPhonePos > 0)
+            {
+                string beforePhone = beforeCiagnik.Substring(0, kierowcaPhonePos).Trim();
+
+                // Szukaj 2 ostatnich słów (imię i nazwisko)
+                // Wzorzec: słowa zaczynające się wielką literą lub całe wielkimi
+                var nameWords = Regex.Matches(beforePhone, @"([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]{2,}|[A-ZŻŹĆĄŚĘŁÓŃ]{2,})");
+
+                var validNames = new List<string>();
+                foreach (Match w in nameWords)
+                {
+                    string word = w.Value;
+                    if (!IsHeaderWord(word) && word.Length >= 3)
+                    {
+                        validNames.Add(word);
+                    }
+                }
+
+                if (validNames.Count >= 2)
+                {
+                    // Weź ostatnie 2 słowa
+                    row.KierowcaNazwa = $"{validNames[validNames.Count - 2]} {validNames[validNames.Count - 1]}";
+                }
+                else if (validNames.Count == 1)
+                {
+                    row.KierowcaNazwa = validNames[0];
+                }
+            }
+
+            // === HODOWCA ===
+            // Format: "NAZWISKO IMIĘ adres GPS kod Tel.: tel"
+            // Hodowca jest PO kierowcy, przed C: (ale po telefonie kierowcy)
+
+            // Telefon hodowcy (po "Tel.")
+            if (telColonMatch.Success)
+            {
+                row.HodowcaTelefon = telColonMatch.Groups[1].Value + telColonMatch.Groups[2].Value + telColonMatch.Groups[3].Value;
+            }
+
+            // Nazwa hodowcy - szukaj WIELKICH LITER po telefonie kierowcy
+            string hodowcaContext = kierowcaPhonePos > 0
+                ? beforeCiagnik.Substring(kierowcaPhonePos)
+                : beforeCiagnik;
+
+            // Metoda 1: Szukaj 2 słów WIELKIMI LITERAMI (typowy format hodowcy)
+            var hodowcaUpperMatch = Regex.Match(hodowcaContext,
+                @"([A-ZŻŹĆĄŚĘŁÓŃ]{3,})\s+([A-ZŻŹĆĄŚĘŁÓŃ]{3,})(?:\s*/\s*[A-ZŻŹĆĄŚĘŁÓŃ]+)?");
+
+            if (hodowcaUpperMatch.Success)
+            {
+                string h1 = hodowcaUpperMatch.Groups[1].Value;
+                string h2 = hodowcaUpperMatch.Groups[2].Value;
+
+                if (!IsHeaderWord(h1) && !IsHeaderWord(h2) && !IsPlaceName(h1))
+                {
+                    row.HodowcaNazwa = $"{h1} {h2}";
+                }
+            }
+
+            // Metoda 2: Jeśli nie znaleziono, szukaj przed GPS
+            if (string.IsNullOrEmpty(row.HodowcaNazwa))
+            {
+                var gpsMatch = Regex.Match(hodowcaContext, @"(\d{2}\.\d{4,})[,\s]+(\d{2}\.\d{4,})");
+                if (gpsMatch.Success)
+                {
+                    row.HodowcaGpsLat = gpsMatch.Groups[1].Value;
+                    row.HodowcaGpsLon = gpsMatch.Groups[2].Value;
+
+                    string beforeGps = hodowcaContext.Substring(0, gpsMatch.Index);
+                    // Usuń numer adresowy z końca
+                    beforeGps = Regex.Replace(beforeGps, @"\s*\d+[A-Za-z]?\s*$", "").Trim();
+
+                    var words = Regex.Matches(beforeGps, @"([A-ZŻŹĆĄŚĘŁÓŃ]{3,})");
+                    var validWords = words.Cast<Match>()
+                        .Select(m => m.Value)
+                        .Where(w => !IsHeaderWord(w) && !IsPlaceName(w))
+                        .ToList();
+
+                    if (validWords.Count >= 2)
+                    {
+                        row.HodowcaNazwa = $"{validWords[0]} {validWords[1]}";
+                    }
+                }
+            }
+
+            // GPS (jeśli nie ustawione)
+            if (string.IsNullOrEmpty(row.HodowcaGpsLat))
+            {
+                var gpsMatch = Regex.Match(beforeCiagnik, @"(\d{2}[.,]\d{4,})[,\s]+(\d{2}[.,]\d{4,})");
+                if (gpsMatch.Success)
+                {
+                    row.HodowcaGpsLat = gpsMatch.Groups[1].Value.Replace(",", ".");
+                    row.HodowcaGpsLon = gpsMatch.Groups[2].Value.Replace(",", ".");
+                }
+            }
+
+            // Kod pocztowy i miejscowość
+            var kodMatch = Regex.Match(beforeCiagnik, @"(\d{2}-\d{3})\s+([A-ZŻŹĆĄŚĘŁÓŃ]+)");
+            if (kodMatch.Success)
+            {
+                row.HodowcaKodPocztowy = kodMatch.Groups[1].Value;
+                row.HodowcaMiejscowosc = kodMatch.Groups[2].Value;
+            }
+
+            // === DANE Z afterNaczepa (ilości, godziny, obserwacje) ===
+            ParseAfterNaczepaData(afterNaczepa, row);
+        }
+
+        /// <summary>
+        /// Parsuje dane z tekstu po naczepie (ilości, godziny, obserwacje)
+        /// </summary>
+        private void ParseAfterNaczepaData(string context, AvilogTransportRow row)
+        {
+            // ILOŚĆ SZTUK (np. "4 224" lub "5 544")
+            var sztukiMatch = Regex.Match(context, @"(\d)\s(\d{3})(?:\s|$|\n|[^0-9])");
+            if (sztukiMatch.Success)
+            {
+                string sztuki = sztukiMatch.Groups[1].Value + sztukiMatch.Groups[2].Value;
+                if (int.TryParse(sztuki, out int szt) && szt > 1000 && szt < 20000)
+                {
+                    row.Sztuki = szt;
+                }
+            }
+
+            // WYMIAR SKRZYŃ (np. "16 x 264")
+            var wymiaryMatch = Regex.Match(context, @"(\d+)\s*[xX]\s*(\d+)");
+            if (wymiaryMatch.Success)
+            {
+                row.WymiarSkrzyn = $"{wymiaryMatch.Groups[1].Value} x {wymiaryMatch.Groups[2].Value}";
+            }
+
+            // WAGA (np. "2.80 Kg")
+            var wagaMatch = Regex.Match(context, @"(\d+[.,]\d+)\s*Kg", RegexOptions.IgnoreCase);
+            if (wagaMatch.Success)
+            {
+                string waga = wagaMatch.Groups[1].Value.Replace(",", ".");
+                if (decimal.TryParse(waga, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal w))
+                {
+                    row.WagaDek = w;
+                }
+            }
+
+            // GODZINY - szukaj sekwencji 3 godzin
+            var allTimes = Regex.Matches(context, @"(\d{2}):(\d{2})");
+            List<(TimeSpan Time, int Position)> validTimes = new List<(TimeSpan, int)>();
+
+            foreach (Match g in allTimes)
+            {
+                if (int.TryParse(g.Groups[1].Value, out int h) && int.TryParse(g.Groups[2].Value, out int m))
+                {
+                    if (h >= 0 && h < 24 && m >= 0 && m < 60)
+                    {
+                        // Pomijamy godzinę jeśli jest częścią daty (np. "02/12/2025 11:37")
+                        bool isHeaderTime = false;
+                        if (g.Index >= 11)
+                        {
+                            string before = context.Substring(Math.Max(0, g.Index - 11), Math.Min(11, g.Index));
+                            if (Regex.IsMatch(before, @"\d{2}/\d{2}/\d{4}\s*$"))
+                            {
+                                isHeaderTime = true;
+                            }
+                        }
+
+                        if (!isHeaderTime)
+                        {
+                            validTimes.Add((new TimeSpan(h, m, 0), g.Index));
+                        }
+                    }
+                }
+            }
+
+            // Przypisz godziny (WYJAZD, ZAŁADUNEK, POWRÓT)
+            if (validTimes.Count >= 3)
+            {
+                row.WyjazdZaklad = DateTime.Today.Add(validTimes[0].Time);
+                row.PoczatekZaladunku = validTimes[1].Time;
+                row.PowrotZaklad = DateTime.Today.Add(validTimes[2].Time);
+            }
+            else if (validTimes.Count >= 2)
+            {
+                row.WyjazdZaklad = DateTime.Today.Add(validTimes[0].Time);
+                row.PowrotZaklad = DateTime.Today.Add(validTimes[1].Time);
+            }
+
+            // OBSERWACJE (wózek)
+            if (context.Contains("Wózek w obie strony") || context.Contains("Wozek w obie strony"))
+                row.Obserwacje = "Wózek w obie strony";
+            else if (context.Contains("Wieziesz wózek") || context.Contains("Wieziesz wozek"))
+                row.Obserwacje = "Wieziesz wózek";
+            else if (context.Contains("Zabierasz wózek") || context.Contains("Zabierasz wozek"))
+                row.Obserwacje = "Zabierasz wózek";
+            else if (context.Contains("Przywozisz wózek") || context.Contains("Przywozisz wozek"))
+                row.Obserwacje = "Przywozisz wózek";
+        }
+
+        /// <summary>
+        /// Sprawdza czy słowo to nazwa miejscowości (nie nazwisko)
+        /// </summary>
+        private bool IsPlaceName(string word)
+        {
+            // Typowe polskie nazwy miejscowości które mogą być mylone z nazwiskami
+            var placeNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "MICHAŁÓW", "MICHALOW", "KUTNO", "SŁUBICE", "SLUBICE", "STRAWCZYN",
+                "OBLEGOREK", "OBLĘGOREK", "KOLUSZKI", "GODZIANÓW", "GODZIANOW",
+                "JEŻÓW", "JEZOW", "DOBRZYKÓW", "DOBRZYKOW", "JORDANÓW", "JORDANOW",
+                "FELICJANÓW", "FELICJANOW", "ZAPADY", "STUDZIENIEC", "MOŚCISKA", "MOSCISKA"
+            };
+
+            return placeNames.Contains(word.ToUpper());
         }
 
         /// <summary>
