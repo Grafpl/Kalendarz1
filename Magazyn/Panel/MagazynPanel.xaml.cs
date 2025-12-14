@@ -110,8 +110,8 @@ namespace Kalendarz1
                 return;
             }
 
-            // Pobierz pozycje zamówienia do dialogu
-            var pozycje = await LoadOrderPositionsForDialogAsync(selected.Info.Id);
+            // Pobierz pozycje zamówienia do dialogu (filtrowane jeśli wybrany konkretny towar)
+            var pozycje = await LoadOrderPositionsForDialogAsync(selected.Info.Id, _filteredProductId);
 
             if (!pozycje.Any())
             {
@@ -120,7 +120,10 @@ namespace Kalendarz1
             }
 
             // Pokaż dialog wydania
-            var dialog = new WydanieDialog(selected.Info.Klient, pozycje);
+            string tytulKlienta = _filteredProductId.HasValue && _produktLookup.ContainsKey(_filteredProductId.Value)
+                ? $"{selected.Info.Klient} ({_produktLookup[_filteredProductId.Value]})"
+                : selected.Info.Klient;
+            var dialog = new WydanieDialog(tytulKlienta, pozycje);
             dialog.Owner = this;
             var dialogResult = dialog.ShowDialog();
 
@@ -170,18 +173,24 @@ namespace Kalendarz1
             }
         }
 
-        private async Task<List<(int TowarId, string Nazwa, decimal Zamowiono)>> LoadOrderPositionsForDialogAsync(int zamowienieId)
+        private async Task<List<(int TowarId, string Nazwa, decimal Zamowiono)>> LoadOrderPositionsForDialogAsync(int zamowienieId, int? filteredProductId = null)
         {
             var pozycje = new List<(int, string, decimal)>();
             var towarIds = new List<int>();
             var ilosciMap = new Dictionary<int, decimal>();
 
-            // Pobierz pozycje zamówienia z LibraNet
+            // Pobierz pozycje zamówienia z LibraNet (z opcjonalnym filtrem produktu)
             using (var cn = new SqlConnection(_connLibra))
             {
                 await cn.OpenAsync();
-                var cmd = new SqlCommand("SELECT KodTowaru, Ilosc FROM dbo.ZamowieniaMiesoTowar WHERE ZamowienieId = @Id", cn);
+                string sql = "SELECT KodTowaru, Ilosc FROM dbo.ZamowieniaMiesoTowar WHERE ZamowienieId = @Id";
+                if (filteredProductId.HasValue)
+                    sql += " AND KodTowaru = @ProductId";
+
+                var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Id", zamowienieId);
+                if (filteredProductId.HasValue)
+                    cmd.Parameters.AddWithValue("@ProductId", filteredProductId.Value);
 
                 using var rd = await cmd.ExecuteReaderAsync();
                 while (await rd.ReadAsync())
