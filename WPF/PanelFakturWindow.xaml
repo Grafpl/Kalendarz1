@@ -338,16 +338,16 @@
                 <Border Grid.Row="1" Background="White" CornerRadius="8"
                         BorderBrush="#E0E0E0" BorderThickness="1" Padding="15">
                     <StackPanel>
-                        <TextBlock Text="Akcje fakturowania" FontSize="14" FontWeight="SemiBold"
+                        <TextBlock Text="Import do Symfonii Handel" FontSize="14" FontWeight="SemiBold"
                                    Foreground="#2C3E50" Margin="0,0,0,10"/>
 
-                        <Button x:Name="btnCreateInvoice" Content="Utwórz fakturę w Symfonii"
+                        <Button x:Name="btnCreateInvoice" Content="Importuj do Symfonii (WZ)"
                                 Style="{StaticResource SuccessButtonStyle}"
                                 Height="45" FontSize="14"
                                 Click="BtnCreateInvoice_Click"
                                 IsEnabled="False"/>
 
-                        <TextBlock x:Name="txtInvoiceStatus" Text="Wybierz zamówienie aby utworzyć fakturę"
+                        <TextBlock x:Name="txtInvoiceStatus" Text="Wybierz zamówienie aby utworzyć dokument WZ"
                                    FontSize="11" Foreground="#7F8C8D" TextAlignment="Center" Margin="0,10,0,0"
                                    TextWrapping="Wrap"/>
 
