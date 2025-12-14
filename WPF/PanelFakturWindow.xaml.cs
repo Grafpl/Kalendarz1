@@ -261,9 +261,9 @@ namespace Kalendarz1.WPF
                     DateTime? dataZam = reader.IsDBNull(4) ? null : reader.GetDateTime(4);
                     DateTime? dataUboju = reader.IsDBNull(5) ? null : reader.GetDateTime(5);
                     string status = reader.IsDBNull(6) ? "" : reader.GetString(6);
-                    string idUser = reader.IsDBNull(7) ? "" : reader.GetString(7);
-                    bool czyZafakturowane = !reader.IsDBNull(8) && reader.GetBoolean(8);
-                    string numerFaktury = reader.IsDBNull(9) ? "" : reader.GetString(9);
+                    string idUser = reader.IsDBNull(7) ? "" : reader.GetValue(7).ToString() ?? "";
+                    bool czyZafakturowane = !reader.IsDBNull(8) && Convert.ToBoolean(reader.GetValue(8));
+                    string numerFaktury = reader.IsDBNull(9) ? "" : reader.GetValue(9).ToString() ?? "";
 
                     var (name, salesman) = _contractorsCache.TryGetValue(clientId, out var c) ? c : ($"Klient {clientId}", "");
 
