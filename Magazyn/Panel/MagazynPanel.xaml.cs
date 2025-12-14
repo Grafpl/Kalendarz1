@@ -448,7 +448,11 @@ namespace Kalendarz1
             if (sender is Button btn && btn.Tag != null)
             {
                 int productId = Convert.ToInt32(btn.Tag);
+                string productName = btn.Content?.ToString() ?? "?";
                 _filteredProductId = productId == 0 ? (int?)null : productId;
+
+                System.Diagnostics.Debug.WriteLine($"[MagazynPanel] Kliknięto: '{productName}' (ID={productId}), _filteredProductId={(_filteredProductId.HasValue ? _filteredProductId.Value.ToString() : "null")}");
+
                 SetProductButtonSelected(btn);
                 await LoadOrdersAsync();
             }
@@ -604,6 +608,8 @@ namespace Kalendarz1
                     }
                 }
 
+                System.Diagnostics.Debug.WriteLine($"[MagazynPanel] Załadowano {_zamowienia.Count} zamówień z filtrem: {(_filteredProductId.HasValue ? _filteredProductId.Value.ToString() : "BRAK")}");
+
                 // KROK 2: Pobierz dane kursów z TransportPL (kierowca, pojazd, godzina)
                 using var cnTransport = new SqlConnection(_connTransport);
                 await cnTransport.OpenAsync();
@@ -731,20 +737,12 @@ namespace Kalendarz1
                     dgvZamowienia1.SelectedIndex = 0;
                 }
 
-                // Oblicz sumę kg
-                UpdateFilteredSum();
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd podczas ładowania zamówień:\n{ex.Message}",
                     "Błąd krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-        }
-
-        private void UpdateFilteredSum()
-        {
-            decimal totalSum = ZamowieniaList1.Sum(z => z.TotalIlosc) + ZamowieniaList2.Sum(z => z.TotalIlosc);
-            lblFilteredSum.Text = totalSum.ToString("N0");
         }
 
         private static string Normalize(string s) => string.IsNullOrWhiteSpace(s) ? "" : s.Trim();
