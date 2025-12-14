@@ -390,12 +390,18 @@ namespace Kalendarz1
                     string klientNazwa = klienci.ContainsKey(z.KlientId) ? klienci[z.KlientId].Shortcut : $"KH {z.KlientId}";
 
                     string ktoRealizowalNazwa = z.KtoRealizowal;
-                    if (!string.IsNullOrEmpty(z.KtoRealizowal) && int.TryParse(z.KtoRealizowal, out int opId1) && operatorNames.ContainsKey(opId1))
-                        ktoRealizowalNazwa = operatorNames[opId1];
+                    if (!string.IsNullOrEmpty(z.KtoRealizowal) && int.TryParse(z.KtoRealizowal, out int opId1))
+                    {
+                        if (operatorNames.ContainsKey(opId1))
+                            ktoRealizowalNazwa = operatorNames[opId1];
+                    }
 
                     string ktoAkceptowalNazwa = z.KtoAkceptowal;
-                    if (!string.IsNullOrEmpty(z.KtoAkceptowal) && int.TryParse(z.KtoAkceptowal, out int opId2) && operatorNames.ContainsKey(opId2))
-                        ktoAkceptowalNazwa = operatorNames[opId2];
+                    if (!string.IsNullOrEmpty(z.KtoAkceptowal) && int.TryParse(z.KtoAkceptowal, out int opId2))
+                    {
+                        if (operatorNames.ContainsKey(opId2))
+                            ktoAkceptowalNazwa = operatorNames[opId2];
+                    }
 
                     string status;
                     if (z.CzyZrealizowane)
@@ -1761,6 +1767,26 @@ namespace Kalendarz1
             lblStatWydaneProc.Text = $"{issuedPercent:F0}%";
             lblStatSumaKg.Text = $"{sumaKg:N0}";
             lblStatSrednia.Text = $"{srednia:N0}";
+        }
+
+        private async Task<Dictionary<int, string>> LoadOperatorNamesAsync(List<int> ids)
+        {
+            var dict = new Dictionary<int, string>();
+            if (!ids.Any()) return dict;
+
+            try
+            {
+                using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+                var cmd = new SqlCommand($"SELECT ID, Name FROM dbo.operators WHERE ID IN ({string.Join(',', ids)})", cn);
+                using var rd = await cmd.ExecuteReaderAsync();
+                while (await rd.ReadAsync())
+                {
+                    dict[rd.GetInt32(0)] = rd.IsDBNull(1) ? "" : rd.GetString(1);
+                }
+            }
+            catch { /* Ignore errors, fallback to ID */ }
+            return dict;
         }
 
         private async Task<Dictionary<int, ContractorInfo>> LoadContractorsAsync(List<int> ids)
