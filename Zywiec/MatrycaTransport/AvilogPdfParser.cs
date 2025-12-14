@@ -185,6 +185,24 @@ namespace Kalendarz1
                 int endPos = Math.Min(text.Length, rejestracje[i + 1].Pos + 600);
                 string context = text.Substring(startPos, endPos - startPos);
 
+                // DEBUG: Zapisz kontekst pierwszego wiersza do analizy
+                if (i == 0)
+                {
+                    try
+                    {
+                        string debugPath = System.IO.Path.Combine(
+                            Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                            "avilog_context_debug.txt");
+                        System.IO.File.WriteAllText(debugPath,
+                            $"=== CONTEXT FOR ROW 1 ===\n" +
+                            $"Ciągnik: {row.Ciagnik}, Naczepa: {row.Naczepa}\n" +
+                            $"Start: {startPos}, End: {endPos}\n" +
+                            $"=== RAW CONTEXT ===\n{context}\n" +
+                            $"=== END ===");
+                    }
+                    catch { }
+                }
+
                 // Parsuj dane z kontekstu
                 ParseContextData(context, row);
 
@@ -275,191 +293,144 @@ namespace Kalendarz1
                 }
             }
 
-            // ============ KIEROWCA ============
-            // Struktura w PDF: Nazwisko\nImię\nTelefon\nMémo lub Tel2.
-            // Szukamy: telefon 9-cyfrowy + ewentualnie "Tel2." lub "Mémo"
-            // Przed telefonem są 2 słowa: NAZWISKO i IMIĘ
-            string kierowcaNazwisko = "";
-            string kierowcaImie = "";
+            // ============ KROK 1: Znajdź wszystkie telefony ============
+            var allPhones = Regex.Matches(context, @"(\d{3})\s*(\d{3})\s*(\d{3})");
             string kierowcaTelefon = "";
+            string hodowcaTelefon = "";
+            int kierowcaPhonePos = -1;
+            int hodowcaPhonePos = -1;
 
-            // Metoda 1: Szukaj wzorca "Imię Telefon" lub "IMIĘ Telefon" przed Mémo/Tel2
-            // Format kierowcy: "Nazwisko\nImię\n609 258 813\nMémo"
-            var kierowcaPattern = Regex.Match(context,
-                @"([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]{2,}|[A-ZŻŹĆĄŚĘŁÓŃ]{3,})\s*[\n\r]+\s*([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]{2,}|[A-ZŻŹĆĄŚĘŁÓŃ]{3,})\s*[\n\r]+\s*(\d{3}[\s]*\d{3}[\s]*\d{3})\s*[\n\r]*\s*(?:Mémo|Memo|Tel2)",
-                RegexOptions.IgnoreCase);
-
-            if (kierowcaPattern.Success)
+            // Znajdź "Tel. :" - telefon po tym to HODOWCA
+            var telColonMatch = Regex.Match(context, @"Tel\s*\.\s*:\s*(\d{3})\s*(\d{3})\s*(\d{3})");
+            if (telColonMatch.Success)
             {
-                kierowcaNazwisko = kierowcaPattern.Groups[1].Value;
-                kierowcaImie = kierowcaPattern.Groups[2].Value;
-                kierowcaTelefon = Regex.Replace(kierowcaPattern.Groups[3].Value, @"\s+", "");
+                hodowcaTelefon = telColonMatch.Groups[1].Value + telColonMatch.Groups[2].Value + telColonMatch.Groups[3].Value;
+                hodowcaPhonePos = telColonMatch.Index;
+                row.HodowcaTelefon = hodowcaTelefon;
+            }
 
-                if (!IsHeaderWord(kierowcaNazwisko) && !IsHeaderWord(kierowcaImie))
+            // Pierwszy telefon który nie jest hodowcy to KIEROWCA
+            foreach (Match phone in allPhones)
+            {
+                string phoneNum = phone.Groups[1].Value + phone.Groups[2].Value + phone.Groups[3].Value;
+                if (phoneNum != hodowcaTelefon)
                 {
-                    row.KierowcaNazwa = $"{kierowcaNazwisko} {kierowcaImie}";
+                    kierowcaTelefon = phoneNum;
+                    kierowcaPhonePos = phone.Index;
                     row.KierowcaTelefon = kierowcaTelefon;
+                    break;
                 }
             }
-            else
+
+            // ============ KROK 2: KIEROWCA - szukaj imię i nazwisko przed telefonem ============
+            if (kierowcaPhonePos > 0)
             {
-                // Metoda 2: Szukaj telefonu 9-cyfrowego i 2 słów przed nim
-                // Wzorzec: Słowo1 Słowo2 Telefon (na tej samej lub różnych liniach)
-                var altPattern = Regex.Match(context,
-                    @"([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]{2,}|[A-ZŻŹĆĄŚĘŁÓŃ]{3,})[\s\n\r]+([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]{2,}|[A-ZŻŹĆĄŚĘŁÓŃ]{3,})[\s\n\r]+(\d{3}[\s]*\d{3}[\s]*\d{3})");
+                string beforeKierowcaPhone = context.Substring(0, kierowcaPhonePos);
 
-                if (altPattern.Success)
+                // Szukaj 2 słów (imion/nazwisk) przed telefonem
+                // Wzorzec: dowolne słowa zaczynające się wielką literą
+                var nameWords = Regex.Matches(beforeKierowcaPhone, @"([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]{2,}|[A-ZŻŹĆĄŚĘŁÓŃ]{3,})");
+
+                if (nameWords.Count >= 2)
                 {
-                    string word1 = altPattern.Groups[1].Value;
-                    string word2 = altPattern.Groups[2].Value;
-                    string phone = Regex.Replace(altPattern.Groups[3].Value, @"\s+", "");
+                    // Weź ostatnie 2 słowa przed telefonem
+                    string word1 = nameWords[nameWords.Count - 2].Value;
+                    string word2 = nameWords[nameWords.Count - 1].Value;
 
-                    // Sprawdź czy to nie są słowa kluczowe i czy nie zawiera adresu hodowcy
-                    if (!IsHeaderWord(word1) && !IsHeaderWord(word2) &&
-                        !word1.ToUpper().Contains("MARCIN") && !word1.ToUpper().Contains("PIOTR") &&
-                        !word2.ToUpper().Contains("MARCIN") && !word2.ToUpper().Contains("PIOTR"))
+                    if (!IsHeaderWord(word1) && !IsHeaderWord(word2))
                     {
-                        // Upewnij się że to nie jest hodowca (hodowca ma adres za nazwiskiem)
-                        int matchEnd = altPattern.Index + altPattern.Length;
-                        if (matchEnd < context.Length)
-                        {
-                            string afterMatch = context.Substring(matchEnd, Math.Min(50, context.Length - matchEnd));
-                            // Jeśli po telefonie jest "Mémo" lub "Tel2" - to kierowca
-                            // Jeśli po telefonie jest adres/GPS - to hodowca
-                            if (!Regex.IsMatch(afterMatch, @"^\s*\d{2}\.\d+") && // nie GPS
-                                !Regex.IsMatch(afterMatch, @"^\s*ul\.")) // nie ulica
-                            {
-                                kierowcaNazwisko = word1;
-                                kierowcaImie = word2;
-                                kierowcaTelefon = phone;
-                                row.KierowcaNazwa = $"{kierowcaNazwisko} {kierowcaImie}";
-                                row.KierowcaTelefon = kierowcaTelefon;
-                            }
-                        }
+                        row.KierowcaNazwa = $"{word1} {word2}";
+                    }
+                }
+                else if (nameWords.Count == 1)
+                {
+                    string word1 = nameWords[0].Value;
+                    if (!IsHeaderWord(word1))
+                    {
+                        row.KierowcaNazwa = word1;
                     }
                 }
             }
 
-            // ============ HODOWCA ============
-            // Struktura w PDF: NAZWISKO IMIĘ\nAdres GPS\nKod Miasto\nMémo\nTel. : telefon
-            // Kluczowe: HODOWCA ma GPS (52.xxx,19.xxx) i "Tel. :" (z dwukropkiem)
+            // ============ KROK 3: HODOWCA - szukaj nazwę przed "Tel." ============
+            // Hodowca ma format: NAZWISKO IMIĘ adres GPS kod Tel. : telefon
+            // Szukaj wzorca: 2 słowa (UPPERCASE) + coś + GPS lub kod pocztowy + Tel.
 
-            // Szukaj "Tel. :" (hodowca) - z dwukropkiem
-            var telHodowcaMatch = Regex.Match(context, @"Tel\s*\.\s*:\s*(\d[\d\s-]{7,})");
-            if (telHodowcaMatch.Success)
+            // Metoda 1: Szukaj wzorca NAZWISKO IMIĘ przed adresem
+            var hodowcaPattern = Regex.Match(context,
+                @"([A-ZŻŹĆĄŚĘŁÓŃ]{3,})\s+([A-ZŻŹĆĄŚĘŁÓŃ]{3,})(?:\s*/\s*[A-ZŻŹĆĄŚĘŁÓŃ]+)?\s+[A-Za-zżźćąśęłóńŻŹĆĄŚĘŁÓŃ\s]*\d",
+                RegexOptions.None);
+
+            if (hodowcaPattern.Success)
             {
-                row.HodowcaTelefon = Regex.Replace(telHodowcaMatch.Groups[1].Value, @"[\s-]+", "");
+                string h1 = hodowcaPattern.Groups[1].Value;
+                string h2 = hodowcaPattern.Groups[2].Value;
 
-                // Szukaj GPS przed "Tel. :" - to jest część danych hodowcy
-                string beforeTelHodowca = context.Substring(0, telHodowcaMatch.Index);
-                var gpsMatch = Regex.Match(beforeTelHodowca, @"(\d{2}\.\d{4,})[,\s]+(\d{2}\.\d{4,})");
+                // Upewnij się że to nie jest kierowca
+                if (!IsHeaderWord(h1) && !IsHeaderWord(h2) &&
+                    h1.ToUpper() != row.KierowcaNazwa?.Split(' ').FirstOrDefault()?.ToUpper() &&
+                    h2.ToUpper() != row.KierowcaNazwa?.Split(' ').LastOrDefault()?.ToUpper())
+                {
+                    row.HodowcaNazwa = $"{h1} {h2}";
+                }
+            }
 
+            // Metoda 2: Jeśli nie znaleziono, szukaj mixed case przed GPS
+            if (string.IsNullOrEmpty(row.HodowcaNazwa))
+            {
+                var gpsMatch = Regex.Match(context, @"(\d{2}\.\d{4,})[,\s]+(\d{2}\.\d{4,})");
                 if (gpsMatch.Success)
                 {
-                    row.HodowcaGpsLat = gpsMatch.Groups[1].Value.Replace(",", ".");
-                    row.HodowcaGpsLon = gpsMatch.Groups[2].Value.Replace(",", ".");
+                    row.HodowcaGpsLat = gpsMatch.Groups[1].Value;
+                    row.HodowcaGpsLon = gpsMatch.Groups[2].Value;
 
-                    // Nazwa hodowcy jest PRZED GPS
-                    string beforeGps = beforeTelHodowca.Substring(0, gpsMatch.Index).Trim();
+                    string beforeGps = context.Substring(0, gpsMatch.Index);
+                    // Usuń adres (liczby na końcu)
+                    beforeGps = Regex.Replace(beforeGps, @"\s*\d+[A-Za-z]?\s*$", "").Trim();
 
-                    // Szukaj ostatnich 2-3 słów przed GPS/adresem (pomijając numer ulicy)
-                    // Usuń numer domu/ulicy z końca
-                    beforeGps = Regex.Replace(beforeGps, @"\s+\d+[A-Za-z]?\s*$", "").Trim();
-                    beforeGps = Regex.Replace(beforeGps, @"\s+ul\.\s*$", "", RegexOptions.IgnoreCase).Trim();
-
-                    // Weź ostatnie 2-3 słowa jako nazwę hodowcy
-                    var words = Regex.Matches(beforeGps, @"[A-ZŻŹĆĄŚĘŁÓŃa-zżźćąśęłóń]{2,}");
+                    // Szukaj 2 słów przed GPS
+                    var words = Regex.Matches(beforeGps, @"([A-ZŻŹĆĄŚĘŁÓŃa-zżźćąśęłóń]{3,})");
                     if (words.Count >= 2)
                     {
-                        // Bierzemy ostatnie 2 słowa (lub 3 jeśli jest "/")
-                        int startIdx = Math.Max(0, words.Count - 3);
-                        var hodowcaWords = new List<string>();
-                        for (int w = startIdx; w < words.Count; w++)
-                        {
-                            string word = words[w].Value;
-                            if (!IsHeaderWord(word) &&
-                                word.ToUpper() != kierowcaNazwisko.ToUpper() &&
-                                word.ToUpper() != kierowcaImie.ToUpper() &&
-                                word.Length >= 3)
-                            {
-                                hodowcaWords.Add(word);
-                            }
-                        }
+                        string w1 = words[words.Count - 2].Value;
+                        string w2 = words[words.Count - 1].Value;
 
-                        if (hodowcaWords.Count >= 2)
+                        // Nie bierz słów które są częścią kierowcy
+                        string kierowcaUpper = row.KierowcaNazwa?.ToUpper() ?? "";
+                        if (!IsHeaderWord(w1) && !IsHeaderWord(w2) &&
+                            !kierowcaUpper.Contains(w1.ToUpper()) &&
+                            !kierowcaUpper.Contains(w2.ToUpper()))
                         {
-                            // Sprawdź czy jest "/" w tekście między słowami (oznacza 2 osoby)
-                            if (beforeGps.Contains("/"))
-                            {
-                                // Weź tylko pierwszą osobę (przed /)
-                                int slashPos = beforeGps.LastIndexOf('/');
-                                string beforeSlash = beforeGps.Substring(0, slashPos).Trim();
-                                var wordsBeforeSlash = Regex.Matches(beforeSlash, @"[A-ZŻŹĆĄŚĘŁÓŃa-zżźćąśęłóń]{3,}");
-                                if (wordsBeforeSlash.Count >= 2)
-                                {
-                                    row.HodowcaNazwa = $"{wordsBeforeSlash[wordsBeforeSlash.Count - 2].Value} {wordsBeforeSlash[wordsBeforeSlash.Count - 1].Value}";
-                                }
-                            }
-                            else
-                            {
-                                row.HodowcaNazwa = string.Join(" ", hodowcaWords.TakeLast(2));
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    // Brak GPS - spróbuj znaleźć po kodzie pocztowym
-                    var kodMatch = Regex.Match(beforeTelHodowca, @"(\d{2}-\d{3})\s+([A-ZŻŹĆĄŚĘŁÓŃ]+)");
-                    if (kodMatch.Success)
-                    {
-                        row.HodowcaKodPocztowy = kodMatch.Groups[1].Value;
-                        row.HodowcaMiejscowosc = kodMatch.Groups[2].Value;
-
-                        string beforeKod = beforeTelHodowca.Substring(0, kodMatch.Index).Trim();
-                        // Usuń adres z końca
-                        beforeKod = Regex.Replace(beforeKod, @"\s+\d+[A-Za-z]?\s*$", "").Trim();
-
-                        var words = Regex.Matches(beforeKod, @"[A-ZŻŹĆĄŚĘŁÓŃa-zżźćąśęłóń]{3,}");
-                        if (words.Count >= 2)
-                        {
-                            string w1 = words[words.Count - 2].Value;
-                            string w2 = words[words.Count - 1].Value;
-                            if (!IsHeaderWord(w1) && !IsHeaderWord(w2) &&
-                                w1.ToUpper() != kierowcaNazwisko.ToUpper() &&
-                                w2.ToUpper() != kierowcaImie.ToUpper())
-                            {
-                                row.HodowcaNazwa = $"{w1} {w2}";
-                            }
+                            row.HodowcaNazwa = $"{w1} {w2}";
                         }
                     }
                 }
             }
 
-            // Jeśli nie znaleziono kierowcy, ale mamy hodowcę - spróbuj alternatywnej metody
-            if (string.IsNullOrEmpty(row.KierowcaNazwa) && !string.IsNullOrEmpty(row.HodowcaNazwa))
+            // Metoda 3: Szukaj po kodzie pocztowym
+            if (string.IsNullOrEmpty(row.HodowcaNazwa))
             {
-                // Szukaj telefonu przed danymi hodowcy
-                int hodowcaPos = context.IndexOf(row.HodowcaNazwa);
-                if (hodowcaPos > 20)
+                var kodMatch = Regex.Match(context, @"(\d{2}-\d{3})\s+([A-ZŻŹĆĄŚĘŁÓŃ]+)");
+                if (kodMatch.Success)
                 {
-                    string beforeHodowca = context.Substring(0, hodowcaPos);
-                    var phoneMatch = Regex.Match(beforeHodowca, @"(\d{3}[\s]*\d{3}[\s]*\d{3})[\s\n]*(?:Mémo|Memo|\s)*$");
-                    if (phoneMatch.Success)
-                    {
-                        row.KierowcaTelefon = Regex.Replace(phoneMatch.Groups[1].Value, @"\s+", "");
+                    row.HodowcaKodPocztowy = kodMatch.Groups[1].Value;
+                    row.HodowcaMiejscowosc = kodMatch.Groups[2].Value;
 
-                        // Szukaj 2 słów przed telefonem
-                        string beforePhone = beforeHodowca.Substring(0, phoneMatch.Index).Trim();
-                        var nameWords = Regex.Matches(beforePhone, @"([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]{2,}|[A-ZŻŹĆĄŚĘŁÓŃ]{3,})");
-                        if (nameWords.Count >= 2)
+                    string beforeKod = context.Substring(0, kodMatch.Index);
+                    beforeKod = Regex.Replace(beforeKod, @"\s*\d+[A-Za-z]?\s*$", "").Trim();
+
+                    var words = Regex.Matches(beforeKod, @"([A-ZŻŹĆĄŚĘŁÓŃa-zżźćąśęłóń]{3,})");
+                    if (words.Count >= 2)
+                    {
+                        string w1 = words[words.Count - 2].Value;
+                        string w2 = words[words.Count - 1].Value;
+
+                        string kierowcaUpper = row.KierowcaNazwa?.ToUpper() ?? "";
+                        if (!IsHeaderWord(w1) && !IsHeaderWord(w2) &&
+                            !kierowcaUpper.Contains(w1.ToUpper()) &&
+                            !kierowcaUpper.Contains(w2.ToUpper()))
                         {
-                            string n1 = nameWords[nameWords.Count - 2].Value;
-                            string n2 = nameWords[nameWords.Count - 1].Value;
-                            if (!IsHeaderWord(n1) && !IsHeaderWord(n2))
-                            {
-                                row.KierowcaNazwa = $"{n1} {n2}";
-                            }
+                            row.HodowcaNazwa = $"{w1} {w2}";
                         }
                     }
                 }
