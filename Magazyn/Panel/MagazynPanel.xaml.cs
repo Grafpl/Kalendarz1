@@ -13,6 +13,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Kalendarz1.SmsSprzedaz;
 
 namespace Kalendarz1
 {
@@ -23,6 +24,7 @@ namespace Kalendarz1
         private readonly string _connHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
 
         private static bool? _dataAkceptacjiMagazynColumnExists = null;
+        private readonly SmsSprzedazService _smsService = new();
 
         public string UserID { get; set; } = "Magazynier";
         private DateTime _selectedDate = DateTime.Today;
@@ -133,6 +135,12 @@ namespace Kalendarz1
                     await cmd.ExecuteNonQueryAsync();
 
                     MessageBox.Show("Status zamówienia został zmieniony na 'Wydany'!", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    // Wyślij SMS do handlowca (jeśli włączone)
+                    if (chkAutoSms.IsChecked == true)
+                    {
+                        await WyslijSmsPoWydaniuAsync(selected.Info.Id);
+                    }
 
                     // Odśwież listę
                     await ReloadAllAsync();
@@ -679,7 +687,9 @@ namespace Kalendarz1
                 txtUwagi.Text = "";
                 btnMarkAsShipped.Visibility = Visibility.Collapsed;
                 btnUndoShipment.Visibility = Visibility.Collapsed;
+                btnSmsHandlowiec.Visibility = Visibility.Collapsed;
                 txtShipmentInfo.Text = "";
+                txtSmsStatus.Text = "";
                 return;
             }
 
@@ -718,6 +728,11 @@ namespace Kalendarz1
                 btnUndoShipment.Visibility = Visibility.Collapsed;
                 txtShipmentInfo.Text = "";
             }
+
+            // Pokaż przycisk SMS jeśli jest handlowiec
+            bool maHandlowca = !string.IsNullOrEmpty(info.Handlowiec) && info.Handlowiec != "(Brak)";
+            btnSmsHandlowiec.Visibility = maHandlowca ? Visibility.Visible : Visibility.Collapsed;
+            txtSmsStatus.Text = "";
 
             // Pobierz pozycje zamówienia
             var orderPositions = new List<(int TowarId, decimal Ilosc)>();
@@ -849,6 +864,94 @@ namespace Kalendarz1
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd podczas akceptacji zmiany:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Ręczne wysłanie SMS do handlowca
+        /// </summary>
+        private async void btnSmsHandlowiec_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = (dgvZamowienia1.SelectedItem ?? dgvZamowienia2.SelectedItem) as ZamowienieViewModel;
+            if (selected == null)
+            {
+                MessageBox.Show("Nie wybrano żadnego zamówienia!", "Ostrzeżenie", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Sprawdź czy SMS już wysłany
+            var juzWyslany = await _smsService.CzySmsJuzWyslanyAsync(selected.Info.Id);
+            if (juzWyslany)
+            {
+                var potwierdz = MessageBox.Show(
+                    $"SMS dla tego zamówienia został już wysłany dzisiaj.\n\nCzy chcesz wysłać ponownie?",
+                    "SMS już wysłany",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (potwierdz != MessageBoxResult.Yes)
+                    return;
+            }
+
+            await WyslijSmsPoWydaniuAsync(selected.Info.Id);
+        }
+
+        /// <summary>
+        /// Wysyła SMS po wydaniu towaru
+        /// </summary>
+        private async Task WyslijSmsPoWydaniuAsync(int zamowienieId)
+        {
+            try
+            {
+                txtSmsStatus.Text = "Przygotowywanie SMS...";
+                txtSmsStatus.Foreground = Brushes.Orange;
+
+                // Pobierz informacje o wydaniu
+                var info = await _smsService.PobierzInfoWydaniaAsync(zamowienieId);
+
+                if (string.IsNullOrEmpty(info.Handlowiec) || info.Handlowiec == "(Brak)")
+                {
+                    txtSmsStatus.Text = "Brak przypisanego handlowca";
+                    txtSmsStatus.Foreground = Brushes.Gray;
+                    return;
+                }
+
+                // Wyślij SMS
+                var wynik = await _smsService.WyslijSmsWydaniaAsync(info, UserID);
+
+                if (wynik.Sukces)
+                {
+                    if (wynik.SkopiowaDoSchowka)
+                    {
+                        txtSmsStatus.Text = $"SMS skopiowany ({info.Handlowiec})";
+                        txtSmsStatus.Foreground = Brushes.LimeGreen;
+
+                        MessageBox.Show(
+                            $"SMS dla handlowca {info.Handlowiec} został skopiowany do schowka.\n\n" +
+                            $"Odbiorca: {info.KlientNazwa}\n" +
+                            $"Ilość: {info.IloscKg:N0} kg\n\n" +
+                            "Wklej treść SMS w aplikacji do wysyłania wiadomości.",
+                            "SMS skopiowany",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        txtSmsStatus.Text = $"SMS wysłany ({info.Handlowiec})";
+                        txtSmsStatus.Foreground = Brushes.LimeGreen;
+                    }
+                }
+                else
+                {
+                    txtSmsStatus.Text = $"Błąd SMS: {wynik.Wiadomosc}";
+                    txtSmsStatus.Foreground = Brushes.Red;
+                }
+            }
+            catch (Exception ex)
+            {
+                txtSmsStatus.Text = $"Błąd: {ex.Message}";
+                txtSmsStatus.Foreground = Brushes.Red;
+                System.Diagnostics.Debug.WriteLine($"Błąd wysyłania SMS: {ex.Message}");
             }
         }
 
