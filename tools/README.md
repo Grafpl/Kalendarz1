@@ -21,3 +21,7 @@ python tools/avilog_pdf_table_extractor.py /ścieżka/do/pliku.pdf --format csv
 
 Domyślnie plik wynikowy powstaje obok źródłowego (z rozszerzeniem `.json` lub
 `.csv`). Możesz wskazać własną lokalizację flagą `--output`.
+
+> Import w aplikacji desktopowej spróbuje uruchomić ten skrypt automatycznie
+> (jeśli Python i pdfplumber są dostępne). W przypadku braku środowiska
+> parser wróci do poprzedniego trybu tekstowego.
