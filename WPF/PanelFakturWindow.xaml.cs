@@ -491,11 +491,26 @@ namespace Kalendarz1.WPF
         {
             if (e.Row.Item is DataRowView rowView)
             {
+                string status = rowView.Row.Field<string>("Status") ?? "";
                 bool czyZafakturowane = rowView.Row.Field<bool>("CzyZafakturowane");
-                if (czyZafakturowane)
+
+                // Kolorowanie według statusu
+                if (czyZafakturowane || status == "Zafakturowane")
                 {
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(200, 255, 200));
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(232, 245, 233)); // Jasno zielony
                     e.Row.FontStyle = FontStyles.Italic;
+                }
+                else if (status == "Zrealizowane")
+                {
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(241, 248, 233)); // Bardzo jasno zielony
+                }
+                else if (status == "W realizacji")
+                {
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(227, 242, 253)); // Jasno niebieski
+                }
+                else if (status == "Nowe")
+                {
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 248, 225)); // Jasno żółty/pomarańczowy
                 }
             }
         }
