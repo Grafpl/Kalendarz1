@@ -228,11 +228,9 @@ namespace Kalendarz1
                 }
             }
 
-            // Szukaj godzin (format HH:MM) - w PDF są w sekwencji: WYJAZD ZAŁADUNEK POWRÓT
-            // UWAGA: Pomijamy godziny z nagłówka strony (np. "11:37" z "Page 1 de 2 02/12/2025 11:37")
-            // Szukamy sekwencji 3 godzin w formacie typowym dla transportu (wieczorem/nocą)
+            // Szukaj godzin (format HH:MM) - WAŻNE: kolejność w PDF to ZAŁADUNEK, WYJAZD, POWRÓT
+            // Pomijamy godziny z nagłówka strony (np. "11:37" z "Page 1 de 2 02/12/2025 11:37")
 
-            // Najpierw znajdź wszystkie godziny
             var allTimes = Regex.Matches(context, @"(\d{2}):(\d{2})");
             List<(TimeSpan Time, int Position)> validTimes = new List<(TimeSpan, int)>();
 
@@ -242,13 +240,11 @@ namespace Kalendarz1
                 {
                     if (h >= 0 && h < 24 && m >= 0 && m < 60)
                     {
-                        // Sprawdź czy ta godzina nie jest częścią daty (dd/MM/yyyy HH:mm w nagłówku)
-                        // Nagłówek ma format: "02/12/2025 11:37"
+                        // Sprawdź czy ta godzina nie jest częścią daty w nagłówku (dd/MM/yyyy HH:mm)
                         bool isHeaderTime = false;
                         if (g.Index >= 10)
                         {
                             string before = context.Substring(g.Index - 10, 10);
-                            // Jeśli przed godziną jest data w formacie dd/MM/yyyy, to to jest nagłówek
                             if (Regex.IsMatch(before, @"\d{2}/\d{2}/\d{4}\s*$"))
                             {
                                 isHeaderTime = true;
@@ -263,27 +259,29 @@ namespace Kalendarz1
                 }
             }
 
-            // Szukaj sekwencji 3 godzin blisko siebie (w zakresie 50 znaków)
+            // Szukaj sekwencji 3 godzin blisko siebie
+            // WAŻNE: W PDF kolejność to: ZAŁADUNEK (pierwsza), WYJAZD (druga), POWRÓT (trzecia)
             for (int i = 0; i < validTimes.Count - 2; i++)
             {
                 int dist1 = validTimes[i + 1].Position - validTimes[i].Position;
                 int dist2 = validTimes[i + 2].Position - validTimes[i + 1].Position;
 
-                if (dist1 < 50 && dist2 < 50)
+                if (dist1 < 80 && dist2 < 80)
                 {
-                    row.WyjazdZaklad = DateTime.Today.Add(validTimes[i].Time);
-                    row.PoczatekZaladunku = validTimes[i + 1].Time;
-                    row.PowrotZaklad = DateTime.Today.Add(validTimes[i + 2].Time);
+                    // Kolejność w tekście: ZAŁADUNEK, WYJAZD, POWRÓT
+                    row.PoczatekZaladunku = validTimes[i].Time;          // Pierwsza = ZAŁADUNEK
+                    row.WyjazdZaklad = DateTime.Today.Add(validTimes[i + 1].Time);  // Druga = WYJAZD
+                    row.PowrotZaklad = DateTime.Today.Add(validTimes[i + 2].Time);  // Trzecia = POWRÓT
                     break;
                 }
             }
 
             // Fallback - jeśli nie znaleziono sekwencji, weź 3 ostatnie godziny
-            if (row.WyjazdZaklad == null && validTimes.Count >= 3)
+            if (row.PoczatekZaladunku == null && validTimes.Count >= 3)
             {
                 int lastIdx = validTimes.Count - 1;
-                row.WyjazdZaklad = DateTime.Today.Add(validTimes[lastIdx - 2].Time);
-                row.PoczatekZaladunku = validTimes[lastIdx - 1].Time;
+                row.PoczatekZaladunku = validTimes[lastIdx - 2].Time;
+                row.WyjazdZaklad = DateTime.Today.Add(validTimes[lastIdx - 1].Time);
                 row.PowrotZaklad = DateTime.Today.Add(validTimes[lastIdx].Time);
             }
 
@@ -323,93 +321,93 @@ namespace Kalendarz1
                 }
             }
 
-            // Szukaj kierowcy - NOWA METODA
-            // Kierowca jest na POCZĄTKU bloku, PRZED hodowcą
-            // Format: "Knapkiewicz Sylwester 609 258 813" lub "JANECZEK GRZEGORZ 507129854"
-            // Wzorzec: NAZWISKO IMIĘ TELEFON (9 cyfr)
+            // Szukaj kierowcy - NOWA METODA oparta na strukturze PDF
+            // NAZWISKO kierowcy jest PRZED hodowcą (np. "Knapkiewicz MARKOWSKI KRZYSZTOF...")
+            // IMIĘ kierowcy jest PRZED "Tel2." (np. "...Sylwester Tel2. :")
+            // TELEFON kierowcy jest osobno (9 cyfr)
 
-            string kierowcaNazwa = "";
+            string kierowcaNazwisko = "";
+            string kierowcaImie = "";
             string kierowcaTelefon = "";
 
-            // Wzorzec 1: Szukaj "Nazwisko Imię telefon" PRZED hodowcą (UPPERCASE)
-            // Kierowca ma mixed case lub uppercase, po nim jest telefon 9-cyfrowy, a potem hodowca UPPERCASE
+            // Krok 1: Znajdź NAZWISKO - słowo tuż PRZED hodowcą (UPPERCASE)
             if (!string.IsNullOrEmpty(row.HodowcaNazwa))
             {
                 int hodowcaPos = context.IndexOf(row.HodowcaNazwa);
-                if (hodowcaPos > 10)
+                if (hodowcaPos > 3)
                 {
-                    string beforeHodowca = context.Substring(0, hodowcaPos);
+                    string beforeHodowca = context.Substring(0, hodowcaPos).TrimEnd();
 
-                    // Szukaj: NAZWISKO IMIĘ TELEFON przed hodowcą
-                    // Wzorzec mixed case: "Knapkiewicz Sylwester 609 258 813"
-                    var kierowcaMixedMatch = Regex.Match(beforeHodowca,
-                        @"([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]+)\s*\n?\s*([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]+)\s*\n?\s*(\d{3}\s*\d{3}\s*\d{3}|\d{9})[\s\n]*$",
-                        RegexOptions.RightToLeft);
-
-                    if (kierowcaMixedMatch.Success)
+                    // Ostatnie słowo przed hodowcą = nazwisko kierowcy
+                    // Mixed case: "Knapkiewicz"
+                    var nazwiskoMatch = Regex.Match(beforeHodowca, @"([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]{2,})[\s\n]*$");
+                    if (nazwiskoMatch.Success)
                     {
-                        kierowcaNazwa = $"{kierowcaMixedMatch.Groups[1].Value} {kierowcaMixedMatch.Groups[2].Value}";
-                        kierowcaTelefon = Regex.Replace(kierowcaMixedMatch.Groups[3].Value, @"\s+", "");
+                        kierowcaNazwisko = nazwiskoMatch.Groups[1].Value;
                     }
                     else
                     {
-                        // Wzorzec UPPERCASE: "JANECZEK GRZEGORZ 507129854"
-                        var kierowcaUpperMatch = Regex.Match(beforeHodowca,
-                            @"([A-ZŻŹĆĄŚĘŁÓŃ]{3,})\s*\n?\s*([A-ZŻŹĆĄŚĘŁÓŃ]{3,})\s*\n?\s*(\d{3}\s*\d{3}\s*\d{3}|\d{9})[\s\n]*$",
-                            RegexOptions.RightToLeft);
-
-                        if (kierowcaUpperMatch.Success)
+                        // UPPERCASE: "JANECZEK"
+                        var nazwiskoUpperMatch = Regex.Match(beforeHodowca, @"([A-ZŻŹĆĄŚĘŁÓŃ]{3,})[\s\n]*$");
+                        if (nazwiskoUpperMatch.Success && !IsHeaderWord(nazwiskoUpperMatch.Groups[1].Value))
                         {
-                            kierowcaNazwa = $"{kierowcaUpperMatch.Groups[1].Value} {kierowcaUpperMatch.Groups[2].Value}";
-                            kierowcaTelefon = Regex.Replace(kierowcaUpperMatch.Groups[3].Value, @"\s+", "");
+                            kierowcaNazwisko = nazwiskoUpperMatch.Groups[1].Value;
                         }
                     }
                 }
             }
 
-            // Fallback: jeśli nie znaleziono przed hodowcą, szukaj dowolnego wzorca NAZWISKO IMIĘ TELEFON
-            if (string.IsNullOrEmpty(kierowcaNazwa))
+            // Krok 2: Znajdź IMIĘ - słowo tuż PRZED "Tel2."
+            var tel2Match = Regex.Match(context, @"([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]{2,}|[A-ZŻŹĆĄŚĘŁÓŃ]{3,})\s+Tel2\s*\.", RegexOptions.IgnoreCase);
+            if (tel2Match.Success)
             {
-                // Mixed case z telefonem
-                var kierowcaAnyMatch = Regex.Match(context,
-                    @"([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]{2,})\s*\n?\s*([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]{2,})\s*\n?\s*(\d{3}\s*\d{3}\s*\d{3}|\d{9})");
-
-                if (kierowcaAnyMatch.Success)
+                string potentialImie = tel2Match.Groups[1].Value;
+                // Sprawdź czy to nie jest część adresu (nie zawiera cyfr w pobliżu)
+                if (!IsHeaderWord(potentialImie) && potentialImie != kierowcaNazwisko)
                 {
-                    string potentialName1 = kierowcaAnyMatch.Groups[1].Value;
-                    string potentialName2 = kierowcaAnyMatch.Groups[2].Value;
+                    kierowcaImie = potentialImie;
+                }
+            }
 
-                    // Sprawdź czy to nie są słowa kluczowe
-                    if (!IsHeaderWord(potentialName1) && !IsHeaderWord(potentialName2))
+            // Krok 3: Znajdź TELEFON kierowcy - 9 cyfr blisko nazwiska/imienia lub po "Tel2."
+            // Szukaj telefonu po Tel2.
+            var tel2PhoneMatch = Regex.Match(context, @"Tel2\s*\.\s*:?\s*(\d{3}\s*\d{3}\s*\d{3}|\d{9})");
+            if (tel2PhoneMatch.Success)
+            {
+                kierowcaTelefon = Regex.Replace(tel2PhoneMatch.Groups[1].Value, @"\s+", "");
+            }
+
+            // Fallback: szukaj telefonu blisko nazwiska (przed hodowcą)
+            if (string.IsNullOrEmpty(kierowcaTelefon) && !string.IsNullOrEmpty(kierowcaNazwisko))
+            {
+                // Szukaj 9-cyfrowego telefonu w kontekście, ale nie telefonu hodowcy
+                var allPhones = Regex.Matches(context, @"(\d{3}\s*\d{3}\s*\d{3}|\d{9})");
+                foreach (Match phone in allPhones)
+                {
+                    string phoneNum = Regex.Replace(phone.Value, @"\s+", "");
+                    // Pomiń jeśli to telefon hodowcy
+                    if (phoneNum != row.HodowcaTelefon)
                     {
-                        kierowcaNazwa = $"{potentialName1} {potentialName2}";
-                        kierowcaTelefon = Regex.Replace(kierowcaAnyMatch.Groups[3].Value, @"\s+", "");
+                        kierowcaTelefon = phoneNum;
+                        break;
                     }
                 }
             }
 
-            // Fallback 2: UPPERCASE z telefonem
-            if (string.IsNullOrEmpty(kierowcaNazwa))
+            // Złóż pełną nazwę kierowcy
+            if (!string.IsNullOrEmpty(kierowcaNazwisko) && !string.IsNullOrEmpty(kierowcaImie))
             {
-                var kierowcaUpperAnyMatch = Regex.Match(context,
-                    @"([A-ZŻŹĆĄŚĘŁÓŃ]{3,})\s*\n?\s*([A-ZŻŹĆĄŚĘŁÓŃ]{3,})\s*\n?\s*(\d{3}\s*\d{3}\s*\d{3}|\d{9})");
-
-                if (kierowcaUpperAnyMatch.Success)
-                {
-                    string potentialName1 = kierowcaUpperAnyMatch.Groups[1].Value;
-                    string potentialName2 = kierowcaUpperAnyMatch.Groups[2].Value;
-
-                    // Sprawdź czy to nie hodowca (już mamy) i nie słowa kluczowe
-                    string combined = $"{potentialName1} {potentialName2}";
-                    if (combined != row.HodowcaNazwa && !IsHeaderWord(potentialName1) && !IsHeaderWord(potentialName2))
-                    {
-                        kierowcaNazwa = combined;
-                        kierowcaTelefon = Regex.Replace(kierowcaUpperAnyMatch.Groups[3].Value, @"\s+", "");
-                    }
-                }
+                row.KierowcaNazwa = $"{kierowcaNazwisko} {kierowcaImie}";
+            }
+            else if (!string.IsNullOrEmpty(kierowcaNazwisko))
+            {
+                row.KierowcaNazwa = kierowcaNazwisko;
+            }
+            else if (!string.IsNullOrEmpty(kierowcaImie))
+            {
+                row.KierowcaNazwa = kierowcaImie;
             }
 
-            row.KierowcaNazwa = kierowcaNazwa;
             if (!string.IsNullOrEmpty(kierowcaTelefon))
             {
                 row.KierowcaTelefon = kierowcaTelefon;
@@ -424,13 +422,6 @@ namespace Kalendarz1
                 row.Obserwacje = "Zabierasz wózek";
             else if (context.Contains("Przywozisz wózek") || context.Contains("Przywozisz wozek"))
                 row.Obserwacje = "Przywozisz wózek";
-
-            // Szukaj telefonu kierowcy (Tel2.)
-            var tel2PhoneMatch = Regex.Match(context, @"Tel2\s*\.\s*:?\s*(\d{9}|\d{3}[\s-]?\d{3}[\s-]?\d{3})");
-            if (tel2PhoneMatch.Success)
-            {
-                row.KierowcaTelefon = Regex.Replace(tel2PhoneMatch.Groups[1].Value, @"[\s-]+", "");
-            }
 
             // Szukaj adresu hodowcy (po nazwie hodowcy, przed kodem pocztowym)
             if (!string.IsNullOrEmpty(row.HodowcaNazwa))
