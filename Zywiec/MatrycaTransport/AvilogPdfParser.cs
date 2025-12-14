@@ -185,6 +185,24 @@ namespace Kalendarz1
                 int endPos = Math.Min(text.Length, rejestracje[i + 1].Pos + 600);
                 string context = text.Substring(startPos, endPos - startPos);
 
+                // DEBUG: Zapisz kontekst pierwszego wiersza do analizy
+                if (i == 0)
+                {
+                    try
+                    {
+                        string debugPath = System.IO.Path.Combine(
+                            Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                            "avilog_context_debug.txt");
+                        System.IO.File.WriteAllText(debugPath,
+                            $"=== CONTEXT FOR ROW 1 ===\n" +
+                            $"Ciągnik: {row.Ciagnik}, Naczepa: {row.Naczepa}\n" +
+                            $"Start: {startPos}, End: {endPos}\n" +
+                            $"=== RAW CONTEXT ===\n{context}\n" +
+                            $"=== END ===");
+                    }
+                    catch { }
+                }
+
                 // Parsuj dane z kontekstu
                 ParseContextData(context, row);
 
@@ -199,7 +217,7 @@ namespace Kalendarz1
         /// </summary>
         private void ParseContextData(string context, AvilogTransportRow row)
         {
-            // Szukaj ilości sztuk - wzorzec: cyfra + spacja + 3 cyfry (np. "5 544", "4 224")
+            // ============ ILOŚĆ SZTUK ============
             var sztukiMatch = Regex.Match(context, @"(\d)\s(\d{3})(?:\s|$|\n|[^0-9])");
             if (sztukiMatch.Success)
             {
@@ -210,14 +228,14 @@ namespace Kalendarz1
                 }
             }
 
-            // Szukaj wymiaru skrzyń (np. "21 x 264", "16 x 264")
+            // ============ WYMIAR SKRZYŃ ============
             var wymiaryMatch = Regex.Match(context, @"(\d+)\s*x\s*(\d+)");
             if (wymiaryMatch.Success)
             {
                 row.WymiarSkrzyn = $"{wymiaryMatch.Groups[1].Value} x {wymiaryMatch.Groups[2].Value}";
             }
 
-            // Szukaj wagi (np. "2.25 Kg", "2.80 Kg")
+            // ============ WAGA ============
             var wagaMatch = Regex.Match(context, @"(\d+[.,]\d+)\s*Kg", RegexOptions.IgnoreCase);
             if (wagaMatch.Success)
             {
@@ -228,9 +246,9 @@ namespace Kalendarz1
                 }
             }
 
-            // Szukaj godzin (format HH:MM) - WAŻNE: kolejność w PDF to ZAŁADUNEK, WYJAZD, POWRÓT
-            // Pomijamy godziny z nagłówka strony (np. "11:37" z "Page 1 de 2 02/12/2025 11:37")
-
+            // ============ GODZINY ============
+            // W tekście PDF kolejność to: ZAŁADUNEK (pierwsza), WYJAZD (druga), POWRÓT (trzecia)
+            // Pomijamy godziny z nagłówka strony (dd/MM/yyyy HH:mm)
             var allTimes = Regex.Matches(context, @"(\d{2}):(\d{2})");
             List<(TimeSpan Time, int Position)> validTimes = new List<(TimeSpan, int)>();
 
@@ -240,12 +258,12 @@ namespace Kalendarz1
                 {
                     if (h >= 0 && h < 24 && m >= 0 && m < 60)
                     {
-                        // Sprawdź czy ta godzina nie jest częścią daty w nagłówku (dd/MM/yyyy HH:mm)
+                        // Pomijamy godzinę jeśli jest częścią daty (np. "02/12/2025 11:37")
                         bool isHeaderTime = false;
-                        if (g.Index >= 10)
+                        if (g.Index >= 11)
                         {
-                            string before = context.Substring(g.Index - 10, 10);
-                            if (Regex.IsMatch(before, @"\d{2}/\d{2}/\d{4}\s*$"))
+                            string before = context.Substring(g.Index - 11, 11);
+                            if (Regex.IsMatch(before, @"\d{2}/\d{2}/\d{4}\s+$"))
                             {
                                 isHeaderTime = true;
                             }
@@ -259,161 +277,166 @@ namespace Kalendarz1
                 }
             }
 
-            // Szukaj sekwencji 3 godzin blisko siebie
-            // WAŻNE: W PDF kolejność to: ZAŁADUNEK (pierwsza), WYJAZD (druga), POWRÓT (trzecia)
+            // Szukaj sekwencji 3 godzin blisko siebie (max 100 znaków)
             for (int i = 0; i < validTimes.Count - 2; i++)
             {
                 int dist1 = validTimes[i + 1].Position - validTimes[i].Position;
                 int dist2 = validTimes[i + 2].Position - validTimes[i + 1].Position;
 
-                if (dist1 < 80 && dist2 < 80)
+                if (dist1 < 100 && dist2 < 100)
                 {
                     // Kolejność w tekście: ZAŁADUNEK, WYJAZD, POWRÓT
-                    row.PoczatekZaladunku = validTimes[i].Time;          // Pierwsza = ZAŁADUNEK
-                    row.WyjazdZaklad = DateTime.Today.Add(validTimes[i + 1].Time);  // Druga = WYJAZD
-                    row.PowrotZaklad = DateTime.Today.Add(validTimes[i + 2].Time);  // Trzecia = POWRÓT
+                    row.PoczatekZaladunku = validTimes[i].Time;
+                    row.WyjazdZaklad = DateTime.Today.Add(validTimes[i + 1].Time);
+                    row.PowrotZaklad = DateTime.Today.Add(validTimes[i + 2].Time);
                     break;
                 }
             }
 
-            // Fallback - jeśli nie znaleziono sekwencji, weź 3 ostatnie godziny
-            if (row.PoczatekZaladunku == null && validTimes.Count >= 3)
-            {
-                int lastIdx = validTimes.Count - 1;
-                row.PoczatekZaladunku = validTimes[lastIdx - 2].Time;
-                row.WyjazdZaklad = DateTime.Today.Add(validTimes[lastIdx - 1].Time);
-                row.PowrotZaklad = DateTime.Today.Add(validTimes[lastIdx].Time);
-            }
-
-            // Szukaj hodowcy - WIELKIE LITERY + opcjonalnie Tel. : + telefon
-            // Wzorzec 1: NAZWISKO IMIĘ Tel. : telefon
-            var hodowcaMatch = Regex.Match(context,
-                @"([A-ZŻŹĆĄŚĘŁÓŃ]{3,})\s+([A-ZŻŹĆĄŚĘŁÓŃ]{3,})\s+Tel\s*\.\s*:?\s*(\d{9}|\d{3}[\s-]?\d{3}[\s-]?\d{3})");
-            if (hodowcaMatch.Success)
-            {
-                row.HodowcaNazwa = $"{hodowcaMatch.Groups[1].Value} {hodowcaMatch.Groups[2].Value}";
-                row.HodowcaTelefon = Regex.Replace(hodowcaMatch.Groups[3].Value, @"[\s-]+", "");
-            }
-            else
-            {
-                // Wzorzec 2: NAZWISKO IMIĘ bez telefonu (2 słowa UPPERCASE przed adresem/kodem pocztowym)
-                var hodowcaAltMatch = Regex.Match(context,
-                    @"([A-ZŻŹĆĄŚĘŁÓŃ]{3,})\s+([A-ZŻŹĆĄŚĘŁÓŃ]{3,})(?:\s+[A-Za-zżźćąśęłóń]+\s+\d|\s+\d{2}-\d{3}|\s+Tel)");
-                if (hodowcaAltMatch.Success)
-                {
-                    row.HodowcaNazwa = $"{hodowcaAltMatch.Groups[1].Value} {hodowcaAltMatch.Groups[2].Value}";
-                }
-                else
-                {
-                    // Wzorzec 3: Szukaj 2 słów UPPERCASE koło siebie (min 4 litery każde)
-                    var twoUppercaseWords = Regex.Match(context,
-                        @"([A-ZŻŹĆĄŚĘŁÓŃ]{4,})\s+([A-ZŻŹĆĄŚĘŁÓŃ]{4,})");
-                    if (twoUppercaseWords.Success)
-                    {
-                        string word1 = twoUppercaseWords.Groups[1].Value;
-                        string word2 = twoUppercaseWords.Groups[2].Value;
-                        // Pomiń jeśli to nagłówki lub słowa kluczowe
-                        if (!IsHeaderWord(word1) && !IsHeaderWord(word2))
-                        {
-                            row.HodowcaNazwa = $"{word1} {word2}";
-                        }
-                    }
-                }
-            }
-
-            // Szukaj kierowcy - NOWA METODA oparta na strukturze PDF
-            // NAZWISKO kierowcy jest PRZED hodowcą (np. "Knapkiewicz MARKOWSKI KRZYSZTOF...")
-            // IMIĘ kierowcy jest PRZED "Tel2." (np. "...Sylwester Tel2. :")
-            // TELEFON kierowcy jest osobno (9 cyfr)
-
-            string kierowcaNazwisko = "";
-            string kierowcaImie = "";
+            // ============ KROK 1: Znajdź wszystkie telefony ============
+            var allPhones = Regex.Matches(context, @"(\d{3})\s*(\d{3})\s*(\d{3})");
             string kierowcaTelefon = "";
+            string hodowcaTelefon = "";
+            int kierowcaPhonePos = -1;
+            int hodowcaPhonePos = -1;
 
-            // Krok 1: Znajdź NAZWISKO - słowo tuż PRZED hodowcą (UPPERCASE)
-            if (!string.IsNullOrEmpty(row.HodowcaNazwa))
+            // Znajdź "Tel. :" - telefon po tym to HODOWCA
+            var telColonMatch = Regex.Match(context, @"Tel\s*\.\s*:\s*(\d{3})\s*(\d{3})\s*(\d{3})");
+            if (telColonMatch.Success)
             {
-                int hodowcaPos = context.IndexOf(row.HodowcaNazwa);
-                if (hodowcaPos > 3)
-                {
-                    string beforeHodowca = context.Substring(0, hodowcaPos).TrimEnd();
+                hodowcaTelefon = telColonMatch.Groups[1].Value + telColonMatch.Groups[2].Value + telColonMatch.Groups[3].Value;
+                hodowcaPhonePos = telColonMatch.Index;
+                row.HodowcaTelefon = hodowcaTelefon;
+            }
 
-                    // Ostatnie słowo przed hodowcą = nazwisko kierowcy
-                    // Mixed case: "Knapkiewicz"
-                    var nazwiskoMatch = Regex.Match(beforeHodowca, @"([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]{2,})[\s\n]*$");
-                    if (nazwiskoMatch.Success)
+            // Pierwszy telefon który nie jest hodowcy to KIEROWCA
+            foreach (Match phone in allPhones)
+            {
+                string phoneNum = phone.Groups[1].Value + phone.Groups[2].Value + phone.Groups[3].Value;
+                if (phoneNum != hodowcaTelefon)
+                {
+                    kierowcaTelefon = phoneNum;
+                    kierowcaPhonePos = phone.Index;
+                    row.KierowcaTelefon = kierowcaTelefon;
+                    break;
+                }
+            }
+
+            // ============ KROK 2: KIEROWCA - szukaj imię i nazwisko przed telefonem ============
+            if (kierowcaPhonePos > 0)
+            {
+                string beforeKierowcaPhone = context.Substring(0, kierowcaPhonePos);
+
+                // Szukaj 2 słów (imion/nazwisk) przed telefonem
+                // Wzorzec: dowolne słowa zaczynające się wielką literą
+                var nameWords = Regex.Matches(beforeKierowcaPhone, @"([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]{2,}|[A-ZŻŹĆĄŚĘŁÓŃ]{3,})");
+
+                if (nameWords.Count >= 2)
+                {
+                    // Weź ostatnie 2 słowa przed telefonem
+                    string word1 = nameWords[nameWords.Count - 2].Value;
+                    string word2 = nameWords[nameWords.Count - 1].Value;
+
+                    if (!IsHeaderWord(word1) && !IsHeaderWord(word2))
                     {
-                        kierowcaNazwisko = nazwiskoMatch.Groups[1].Value;
+                        row.KierowcaNazwa = $"{word1} {word2}";
                     }
-                    else
+                }
+                else if (nameWords.Count == 1)
+                {
+                    string word1 = nameWords[0].Value;
+                    if (!IsHeaderWord(word1))
                     {
-                        // UPPERCASE: "JANECZEK"
-                        var nazwiskoUpperMatch = Regex.Match(beforeHodowca, @"([A-ZŻŹĆĄŚĘŁÓŃ]{3,})[\s\n]*$");
-                        if (nazwiskoUpperMatch.Success && !IsHeaderWord(nazwiskoUpperMatch.Groups[1].Value))
+                        row.KierowcaNazwa = word1;
+                    }
+                }
+            }
+
+            // ============ KROK 3: HODOWCA - szukaj nazwę przed "Tel." ============
+            // Hodowca ma format: NAZWISKO IMIĘ adres GPS kod Tel. : telefon
+            // Szukaj wzorca: 2 słowa (UPPERCASE) + coś + GPS lub kod pocztowy + Tel.
+
+            // Metoda 1: Szukaj wzorca NAZWISKO IMIĘ przed adresem
+            var hodowcaPattern = Regex.Match(context,
+                @"([A-ZŻŹĆĄŚĘŁÓŃ]{3,})\s+([A-ZŻŹĆĄŚĘŁÓŃ]{3,})(?:\s*/\s*[A-ZŻŹĆĄŚĘŁÓŃ]+)?\s+[A-Za-zżźćąśęłóńŻŹĆĄŚĘŁÓŃ\s]*\d",
+                RegexOptions.None);
+
+            if (hodowcaPattern.Success)
+            {
+                string h1 = hodowcaPattern.Groups[1].Value;
+                string h2 = hodowcaPattern.Groups[2].Value;
+
+                // Upewnij się że to nie jest kierowca
+                if (!IsHeaderWord(h1) && !IsHeaderWord(h2) &&
+                    h1.ToUpper() != row.KierowcaNazwa?.Split(' ').FirstOrDefault()?.ToUpper() &&
+                    h2.ToUpper() != row.KierowcaNazwa?.Split(' ').LastOrDefault()?.ToUpper())
+                {
+                    row.HodowcaNazwa = $"{h1} {h2}";
+                }
+            }
+
+            // Metoda 2: Jeśli nie znaleziono, szukaj mixed case przed GPS
+            if (string.IsNullOrEmpty(row.HodowcaNazwa))
+            {
+                var gpsMatch = Regex.Match(context, @"(\d{2}\.\d{4,})[,\s]+(\d{2}\.\d{4,})");
+                if (gpsMatch.Success)
+                {
+                    row.HodowcaGpsLat = gpsMatch.Groups[1].Value;
+                    row.HodowcaGpsLon = gpsMatch.Groups[2].Value;
+
+                    string beforeGps = context.Substring(0, gpsMatch.Index);
+                    // Usuń adres (liczby na końcu)
+                    beforeGps = Regex.Replace(beforeGps, @"\s*\d+[A-Za-z]?\s*$", "").Trim();
+
+                    // Szukaj 2 słów przed GPS
+                    var words = Regex.Matches(beforeGps, @"([A-ZŻŹĆĄŚĘŁÓŃa-zżźćąśęłóń]{3,})");
+                    if (words.Count >= 2)
+                    {
+                        string w1 = words[words.Count - 2].Value;
+                        string w2 = words[words.Count - 1].Value;
+
+                        // Nie bierz słów które są częścią kierowcy
+                        string kierowcaUpper = row.KierowcaNazwa?.ToUpper() ?? "";
+                        if (!IsHeaderWord(w1) && !IsHeaderWord(w2) &&
+                            !kierowcaUpper.Contains(w1.ToUpper()) &&
+                            !kierowcaUpper.Contains(w2.ToUpper()))
                         {
-                            kierowcaNazwisko = nazwiskoUpperMatch.Groups[1].Value;
+                            row.HodowcaNazwa = $"{w1} {w2}";
                         }
                     }
                 }
             }
 
-            // Krok 2: Znajdź IMIĘ - słowo tuż PRZED "Tel2."
-            var tel2Match = Regex.Match(context, @"([A-ZŻŹĆĄŚĘŁÓŃ][a-zżźćąśęłóń]{2,}|[A-ZŻŹĆĄŚĘŁÓŃ]{3,})\s+Tel2\s*\.", RegexOptions.IgnoreCase);
-            if (tel2Match.Success)
+            // Metoda 3: Szukaj po kodzie pocztowym
+            if (string.IsNullOrEmpty(row.HodowcaNazwa))
             {
-                string potentialImie = tel2Match.Groups[1].Value;
-                // Sprawdź czy to nie jest część adresu (nie zawiera cyfr w pobliżu)
-                if (!IsHeaderWord(potentialImie) && potentialImie != kierowcaNazwisko)
+                var kodMatch = Regex.Match(context, @"(\d{2}-\d{3})\s+([A-ZŻŹĆĄŚĘŁÓŃ]+)");
+                if (kodMatch.Success)
                 {
-                    kierowcaImie = potentialImie;
-                }
-            }
+                    row.HodowcaKodPocztowy = kodMatch.Groups[1].Value;
+                    row.HodowcaMiejscowosc = kodMatch.Groups[2].Value;
 
-            // Krok 3: Znajdź TELEFON kierowcy - 9 cyfr blisko nazwiska/imienia lub po "Tel2."
-            // Szukaj telefonu po Tel2.
-            var tel2PhoneMatch = Regex.Match(context, @"Tel2\s*\.\s*:?\s*(\d{3}\s*\d{3}\s*\d{3}|\d{9})");
-            if (tel2PhoneMatch.Success)
-            {
-                kierowcaTelefon = Regex.Replace(tel2PhoneMatch.Groups[1].Value, @"\s+", "");
-            }
+                    string beforeKod = context.Substring(0, kodMatch.Index);
+                    beforeKod = Regex.Replace(beforeKod, @"\s*\d+[A-Za-z]?\s*$", "").Trim();
 
-            // Fallback: szukaj telefonu blisko nazwiska (przed hodowcą)
-            if (string.IsNullOrEmpty(kierowcaTelefon) && !string.IsNullOrEmpty(kierowcaNazwisko))
-            {
-                // Szukaj 9-cyfrowego telefonu w kontekście, ale nie telefonu hodowcy
-                var allPhones = Regex.Matches(context, @"(\d{3}\s*\d{3}\s*\d{3}|\d{9})");
-                foreach (Match phone in allPhones)
-                {
-                    string phoneNum = Regex.Replace(phone.Value, @"\s+", "");
-                    // Pomiń jeśli to telefon hodowcy
-                    if (phoneNum != row.HodowcaTelefon)
+                    var words = Regex.Matches(beforeKod, @"([A-ZŻŹĆĄŚĘŁÓŃa-zżźćąśęłóń]{3,})");
+                    if (words.Count >= 2)
                     {
-                        kierowcaTelefon = phoneNum;
-                        break;
+                        string w1 = words[words.Count - 2].Value;
+                        string w2 = words[words.Count - 1].Value;
+
+                        string kierowcaUpper = row.KierowcaNazwa?.ToUpper() ?? "";
+                        if (!IsHeaderWord(w1) && !IsHeaderWord(w2) &&
+                            !kierowcaUpper.Contains(w1.ToUpper()) &&
+                            !kierowcaUpper.Contains(w2.ToUpper()))
+                        {
+                            row.HodowcaNazwa = $"{w1} {w2}";
+                        }
                     }
                 }
             }
 
-            // Złóż pełną nazwę kierowcy
-            if (!string.IsNullOrEmpty(kierowcaNazwisko) && !string.IsNullOrEmpty(kierowcaImie))
-            {
-                row.KierowcaNazwa = $"{kierowcaNazwisko} {kierowcaImie}";
-            }
-            else if (!string.IsNullOrEmpty(kierowcaNazwisko))
-            {
-                row.KierowcaNazwa = kierowcaNazwisko;
-            }
-            else if (!string.IsNullOrEmpty(kierowcaImie))
-            {
-                row.KierowcaNazwa = kierowcaImie;
-            }
-
-            if (!string.IsNullOrEmpty(kierowcaTelefon))
-            {
-                row.KierowcaTelefon = kierowcaTelefon;
-            }
-
-            // Szukaj obserwacji o wózku
+            // ============ OBSERWACJE (WÓZEK) ============
             if (context.Contains("Wózek w obie strony") || context.Contains("Wozek w obie strony"))
                 row.Obserwacje = "Wózek w obie strony";
             else if (context.Contains("Wieziesz wózek") || context.Contains("Wieziesz wozek"))
@@ -423,30 +446,28 @@ namespace Kalendarz1
             else if (context.Contains("Przywozisz wózek") || context.Contains("Przywozisz wozek"))
                 row.Obserwacje = "Przywozisz wózek";
 
-            // Szukaj adresu hodowcy (po nazwie hodowcy, przed kodem pocztowym)
-            if (!string.IsNullOrEmpty(row.HodowcaNazwa))
+            // ============ ADRES HODOWCY (uzupełnienie) ============
+            // Szukaj kodu pocztowego i miejscowości jeśli nie zostały jeszcze ustawione
+            if (string.IsNullOrEmpty(row.HodowcaKodPocztowy))
             {
-                // Szukaj adresu: ulica/miejscowość + numer
-                var adresMatch = Regex.Match(context, row.HodowcaNazwa + @"\s+(?:Tel[^:]*:\s*\d+\s+)?([A-Za-zżźćąśęłóńŻŹĆĄŚĘŁÓŃ\s]+\s+\d+[A-Za-z]?)");
-                if (adresMatch.Success)
+                var kodMiejscMatch2 = Regex.Match(context, @"(\d{2}-\d{3})\s+([A-ZŻŹĆĄŚĘŁÓŃ]+)");
+                if (kodMiejscMatch2.Success)
                 {
-                    row.HodowcaAdres = adresMatch.Groups[1].Value.Trim();
-                }
-
-                // Szukaj kodu pocztowego i miejscowości
-                var kodMiejscMatch = Regex.Match(context, @"(\d{2}-\d{3})\s+([A-ZŻŹĆĄŚĘŁÓŃ][A-ZŻŹĆĄŚĘŁÓŃa-zżźćąśęłóń]+)");
-                if (kodMiejscMatch.Success)
-                {
-                    row.HodowcaKodPocztowy = kodMiejscMatch.Groups[1].Value;
-                    row.HodowcaMiejscowosc = kodMiejscMatch.Groups[2].Value;
+                    row.HodowcaKodPocztowy = kodMiejscMatch2.Groups[1].Value;
+                    row.HodowcaMiejscowosc = kodMiejscMatch2.Groups[2].Value;
                 }
             }
 
-            // Szukaj współrzędnych GPS
-            var gpsLatMatch = Regex.Match(context, @"GPS\s*Lat\.?\s*(\d+[.,]\d+)");
-            var gpsLonMatch = Regex.Match(context, @"GPS\s*Long\.?\s*(\d+[.,]\d+)");
-            if (gpsLatMatch.Success) row.HodowcaGpsLat = gpsLatMatch.Groups[1].Value;
-            if (gpsLonMatch.Success) row.HodowcaGpsLon = gpsLonMatch.Groups[1].Value;
+            // Szukaj współrzędnych GPS jeśli nie zostały jeszcze ustawione
+            if (string.IsNullOrEmpty(row.HodowcaGpsLat))
+            {
+                var gpsMatch2 = Regex.Match(context, @"(\d{2}[.,]\d{4,})[,\s]+(\d{2}[.,]\d{4,})");
+                if (gpsMatch2.Success)
+                {
+                    row.HodowcaGpsLat = gpsMatch2.Groups[1].Value.Replace(",", ".");
+                    row.HodowcaGpsLon = gpsMatch2.Groups[2].Value.Replace(",", ".");
+                }
+            }
         }
 
         /// <summary>
