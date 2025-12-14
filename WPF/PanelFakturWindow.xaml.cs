@@ -201,6 +201,12 @@ namespace Kalendarz1.WPF
 
         private async Task LoadOrdersAsync()
         {
+            // Wyczyść RowFilter przed modyfikacją kolumn
+            if (_dtOrders.DefaultView != null)
+            {
+                _dtOrders.DefaultView.RowFilter = "";
+            }
+
             _dtOrders.Clear();
             _dtOrders.Columns.Clear();
 
