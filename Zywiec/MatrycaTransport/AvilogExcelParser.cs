@@ -34,12 +34,11 @@ namespace Kalendarz1
                 {
                     using (var reader = ExcelReaderFactory.CreateReader(stream))
                     {
-                        // Konwertuj do DataSet
                         var dataSet = reader.AsDataSet(new ExcelDataSetConfiguration()
                         {
                             ConfigureDataTable = (_) => new ExcelDataTableConfiguration()
                             {
-                                UseHeaderRow = false // Nie używaj pierwszego wiersza jako nagłówka
+                                UseHeaderRow = false
                             }
                         });
 
@@ -50,10 +49,9 @@ namespace Kalendarz1
                             return result;
                         }
 
-                        // Weź pierwszy arkusz
                         DataTable table = dataSet.Tables[0];
 
-                        // Wyciągnij datę uboju z nagłówka
+                        // Wyciągnij datę uboju
                         result.DataUboju = ExtractDataUboju(table);
 
                         // Parsuj wiersze transportowe
@@ -71,9 +69,6 @@ namespace Kalendarz1
             return result;
         }
 
-        /// <summary>
-        /// Pobiera wartość komórki jako string
-        /// </summary>
         private string GetCellValue(DataRow row, int columnIndex)
         {
             if (row == null || columnIndex < 0 || columnIndex >= row.Table.Columns.Count)
@@ -87,21 +82,44 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Wyciąga datę uboju z nagłówka Excel
+        /// Szuka tekstu we wszystkich kolumnach wiersza
         /// </summary>
+        private string FindInRow(DataRow row, string pattern, int maxCol = 30)
+        {
+            for (int col = 0; col < Math.Min(maxCol, row.Table.Columns.Count); col++)
+            {
+                string val = GetCellValue(row, col);
+                if (!string.IsNullOrEmpty(val) && Regex.IsMatch(val, pattern))
+                    return val;
+            }
+            return "";
+        }
+
+        /// <summary>
+        /// Szuka numeru rejestracyjnego w wierszu
+        /// </summary>
+        private string FindRegistrationInRow(DataRow row, int startCol = 0, int maxCol = 30)
+        {
+            for (int col = startCol; col < Math.Min(maxCol, row.Table.Columns.Count); col++)
+            {
+                string val = GetCellValue(row, col);
+                if (IsRegistrationNumber(val))
+                    return val;
+            }
+            return "";
+        }
+
         private DateTime? ExtractDataUboju(DataTable table)
         {
-            // Szukaj w pierwszych 10 wierszach
             for (int i = 0; i < Math.Min(10, table.Rows.Count); i++)
             {
                 DataRow row = table.Rows[i];
-
-                for (int col = 0; col < table.Columns.Count; col++)
+                for (int col = 0; col < Math.Min(20, table.Columns.Count); col++)
                 {
                     string value = GetCellValue(row, col);
                     if (string.IsNullOrEmpty(value)) continue;
 
-                    // Szukamy: "DATA UBOJU : poniedziałek 15 grudzień 2025"
+                    // "DATA UBOJU : poniedziałek 15 grudzień 2025"
                     var match = Regex.Match(value, @"DATA UBOJU\s*:\s*\w+\s+(\d{1,2})\s+(\w+)\s+(\d{4})", RegexOptions.IgnoreCase);
                     if (match.Success)
                     {
@@ -112,29 +130,12 @@ namespace Kalendarz1
                             int year = int.Parse(match.Groups[3].Value);
                             int month = ParsePolishMonth(monthName);
                             if (month > 0)
-                            {
                                 return new DateTime(year, month, day);
-                            }
-                        }
-                        catch { }
-                    }
-
-                    // Alternatywny format: szukaj daty w formacie dd.MM.yyyy w nagłówku
-                    var dateMatch = Regex.Match(value, @"(\d{2})\.(\d{2})\.(\d{4})");
-                    if (dateMatch.Success)
-                    {
-                        try
-                        {
-                            int day = int.Parse(dateMatch.Groups[1].Value);
-                            int month = int.Parse(dateMatch.Groups[2].Value);
-                            int year = int.Parse(dateMatch.Groups[3].Value);
-                            return new DateTime(year, month, day);
                         }
                         catch { }
                     }
                 }
             }
-
             return null;
         }
 
@@ -160,102 +161,45 @@ namespace Kalendarz1
             return months.ContainsKey(monthName) ? months[monthName] : 0;
         }
 
-        /// <summary>
-        /// Parsuje wiersze transportowe z Excel
-        /// </summary>
         private List<AvilogTransportRow> ParseTransportRows(DataTable table)
         {
             var transportRows = new List<AvilogTransportRow>();
-
-            // DEBUG: Zapisz strukturę pliku do analizy
-            try
-            {
-                var debugSb = new StringBuilder();
-                debugSb.AppendLine($"=== DEBUG AVILOG EXCEL PARSER ===");
-                debugSb.AppendLine($"Liczba wierszy: {table.Rows.Count}");
-                debugSb.AppendLine($"Liczba kolumn: {table.Columns.Count}");
-                debugSb.AppendLine();
-
-                // Pokaż pierwsze 30 wierszy
-                for (int i = 0; i < Math.Min(50, table.Rows.Count); i++)
-                {
-                    DataRow row = table.Rows[i];
-                    debugSb.Append($"Row {i + 1}: ");
-                    for (int col = 0; col < Math.Min(15, table.Columns.Count); col++)
-                    {
-                        string val = GetCellValue(row, col);
-                        if (!string.IsNullOrEmpty(val))
-                        {
-                            debugSb.Append($"[{col}:{val.Substring(0, Math.Min(25, val.Length))}] ");
-                        }
-                    }
-                    debugSb.AppendLine();
-                }
-
-                string debugPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "avilog_excel_debug.txt");
-                File.WriteAllText(debugPath, debugSb.ToString());
-            }
-            catch { }
-
-            // Znajdź indeksy wierszy gdzie zaczynają się nowe bloki kierowców
             var driverBlockStarts = new List<int>();
 
-            for (int i = 8; i < table.Rows.Count; i++)
+            // Znajdź wiersze gdzie zaczyna się nowy transport
+            // Szukamy: kolumna A ma nazwisko (tekst bez cyfr), a gdzieś w wierszu jest numer rejestracyjny
+            for (int i = 5; i < table.Rows.Count; i++)
             {
                 DataRow row = table.Rows[i];
-                string colA = GetCellValue(row, 0); // Kolumna A
-                string colB = GetCellValue(row, 1); // Kolumna B
+                string colA = GetCellValue(row, 0);
 
-                // Sprawdź czy to początek bloku kierowcy
-                // Kierowca ma nazwisko w kolumnie A (tylko litery, bez cyfr)
-                if (!string.IsNullOrEmpty(colA) &&
-                    !Regex.IsMatch(colA, @"\d") && // Nie zawiera cyfr
-                    !colA.ToUpper().Contains("SUMA") &&
-                    !colA.ToUpper().Contains("KIEROWCA") &&
-                    !colA.ToUpper().Contains("AVILOG") &&
-                    !colA.ToUpper().Contains("MOUSSET") &&
-                    colA.Length >= 3)
+                // Kolumna A powinna mieć nazwisko kierowcy
+                if (string.IsNullOrEmpty(colA)) continue;
+                if (colA.Length < 3) continue;
+                if (Regex.IsMatch(colA, @"\d")) continue; // Nie może zawierać cyfr
+                if (colA.ToUpper().Contains("SUMA")) continue;
+                if (colA.ToUpper().Contains("KIEROWCA")) continue;
+                if (colA.ToUpper().Contains("AVILOG")) continue;
+                if (colA.ToUpper().Contains("MOUSSET")) continue;
+
+                // Sprawdź czy gdzieś w wierszu jest numer rejestracyjny (oznacza nowy transport)
+                string reg = FindRegistrationInRow(row);
+                if (!string.IsNullOrEmpty(reg))
                 {
-                    // Sprawdź czy w tym samym wierszu jest też hodowca (kolumna B lub C) lub pojazd
-                    string colC = GetCellValue(row, 2); // Kolumna C
-
-                    // Szukaj numeru rejestracyjnego w wierszu
-                    bool hasVehicle = false;
-                    for (int col = 9; col < Math.Min(20, table.Columns.Count); col++)
-                    {
-                        string cellValue = GetCellValue(row, col);
-                        if (IsRegistrationNumber(cellValue))
-                        {
-                            hasVehicle = true;
-                            break;
-                        }
-                    }
-
-                    // Hodowca może być w kolumnie B lub C
-                    bool hasHodowcaB = !string.IsNullOrEmpty(colB) && colB.Length > 3 &&
-                                       !Regex.IsMatch(colB, @"^\d") &&
-                                       Regex.IsMatch(colB, @"[A-ZŻŹĆĄŚĘŁÓŃ]");
-                    bool hasHodowcaC = !string.IsNullOrEmpty(colC) && colC.Length > 3 &&
-                                       !Regex.IsMatch(colC, @"^\d") &&
-                                       Regex.IsMatch(colC, @"[A-ZŻŹĆĄŚĘŁÓŃ]");
-
-                    if (hasHodowcaB || hasHodowcaC || hasVehicle)
-                    {
-                        driverBlockStarts.Add(i);
-                    }
+                    driverBlockStarts.Add(i);
                 }
             }
 
-            // Parsuj każdy blok kierowcy
+            // Parsuj każdy blok
             for (int blockIdx = 0; blockIdx < driverBlockStarts.Count; blockIdx++)
             {
                 int startRow = driverBlockStarts[blockIdx];
                 int endRow = blockIdx < driverBlockStarts.Count - 1
                     ? driverBlockStarts[blockIdx + 1] - 1
-                    : Math.Min(startRow + 20, table.Rows.Count - 1);
+                    : Math.Min(startRow + 15, table.Rows.Count - 1);
 
                 var transport = ParseDriverBlock(table, startRow, endRow);
-                if (transport != null && (!string.IsNullOrEmpty(transport.Ciagnik) || !string.IsNullOrEmpty(transport.HodowcaNazwa)))
+                if (transport != null)
                 {
                     transportRows.Add(transport);
                 }
@@ -264,101 +208,85 @@ namespace Kalendarz1
             return transportRows;
         }
 
-        /// <summary>
-        /// Parsuje blok kierowcy (wiele wierszy Excel dla jednego transportu)
-        /// </summary>
         private AvilogTransportRow ParseDriverBlock(DataTable table, int startRowIdx, int endRowIdx)
         {
             var transport = new AvilogTransportRow();
 
             try
             {
-                DataRow firstRow = table.Rows[startRowIdx];
+                DataRow row0 = table.Rows[startRowIdx];
+                DataRow row1 = startRowIdx + 1 < table.Rows.Count ? table.Rows[startRowIdx + 1] : null;
+                DataRow row2 = startRowIdx + 2 < table.Rows.Count ? table.Rows[startRowIdx + 2] : null;
 
                 // ========== KIEROWCA ==========
-                string kierowcaNazwisko = GetCellValue(firstRow, 0); // Kolumna A
+                // Wiersz 0: Nazwisko w kolumnie A
+                // Wiersz 1: Imię w kolumnie A
+                // Wiersz 2: Telefon w kolumnie A
+                string nazwisko = GetCellValue(row0, 0);
+                string imie = row1 != null ? GetCellValue(row1, 0) : "";
 
-                // Wiersz 2: Imię w kolumnie A
-                string kierowcaImie = "";
-                if (startRowIdx + 1 < table.Rows.Count)
+                // Sprawdź czy imię nie jest telefonem
+                if (Regex.IsMatch(imie, @"\d{3}"))
                 {
-                    kierowcaImie = GetCellValue(table.Rows[startRowIdx + 1], 0);
-                    if (Regex.IsMatch(kierowcaImie, @"\d{3}"))
-                    {
-                        kierowcaImie = "";
-                    }
+                    transport.KierowcaTelefon = Regex.Replace(imie, @"\s+", "");
+                    imie = "";
                 }
 
-                transport.KierowcaNazwa = $"{kierowcaNazwisko} {kierowcaImie}".Trim();
+                transport.KierowcaNazwa = $"{nazwisko} {imie}".Trim();
 
-                // Telefon kierowcy
-                for (int i = startRowIdx + 1; i <= Math.Min(startRowIdx + 4, endRowIdx) && i < table.Rows.Count; i++)
+                // Szukaj telefonu kierowcy
+                if (string.IsNullOrEmpty(transport.KierowcaTelefon))
                 {
-                    string colA = GetCellValue(table.Rows[i], 0);
-                    var phoneMatch = Regex.Match(colA, @"(\d{3})\s*(\d{3})\s*(\d{3})");
-                    if (phoneMatch.Success)
+                    for (int i = startRowIdx + 1; i <= Math.Min(startRowIdx + 3, endRowIdx) && i < table.Rows.Count; i++)
                     {
-                        transport.KierowcaTelefon = phoneMatch.Groups[1].Value + phoneMatch.Groups[2].Value + phoneMatch.Groups[3].Value;
-                        break;
-                    }
-                    var phoneMatch2 = Regex.Match(colA, @"^(\d{9})$");
-                    if (phoneMatch2.Success)
-                    {
-                        transport.KierowcaTelefon = phoneMatch2.Groups[1].Value;
-                        break;
+                        string colA = GetCellValue(table.Rows[i], 0);
+                        var phoneMatch = Regex.Match(colA, @"(\d{3})\s*(\d{3})\s*(\d{3})");
+                        if (phoneMatch.Success)
+                        {
+                            transport.KierowcaTelefon = phoneMatch.Groups[1].Value + phoneMatch.Groups[2].Value + phoneMatch.Groups[3].Value;
+                            break;
+                        }
                     }
                 }
 
                 // ========== HODOWCA ==========
-                // Hodowca może być w kolumnie B lub C - sprawdź obie
-                string hodowcaB = GetCellValue(firstRow, 1); // B
-                string hodowcaC = GetCellValue(firstRow, 2); // C
-
-                // Wybierz kolumnę z hodowcą (ta która zawiera wielkie litery i nie jest numerem)
-                string hodowcaNazwa = "";
-                if (!string.IsNullOrEmpty(hodowcaB) && Regex.IsMatch(hodowcaB, @"[A-ZŻŹĆĄŚĘŁÓŃ]") && !Regex.IsMatch(hodowcaB, @"^\d"))
-                {
-                    hodowcaNazwa = hodowcaB;
-                }
-                else if (!string.IsNullOrEmpty(hodowcaC) && Regex.IsMatch(hodowcaC, @"[A-ZŻŹĆĄŚĘŁÓŃ]") && !Regex.IsMatch(hodowcaC, @"^\d"))
-                {
-                    hodowcaNazwa = hodowcaC;
-                }
+                // Kolumna B: Nazwa hodowcy (pierwszy wiersz), potem adres
+                string hodowcaNazwa = GetCellValue(row0, 1);
                 transport.HodowcaNazwa = hodowcaNazwa;
 
-                // Kolumna D - adres
-                string adres = GetCellValue(firstRow, 3); // D
-                if (startRowIdx + 1 < table.Rows.Count)
+                // Adres w kolumnie B lub C, wiersz 1
+                if (row1 != null)
                 {
-                    string adres2 = GetCellValue(table.Rows[startRowIdx + 1], 3);
-                    if (!string.IsNullOrEmpty(adres2) && !Regex.IsMatch(adres2, @"\d{2}\.\d+"))
+                    string adres = GetCellValue(row1, 1);
+                    if (string.IsNullOrEmpty(adres))
+                        adres = GetCellValue(row1, 2);
+                    transport.HodowcaAdres = adres;
+                }
+
+                // GPS - szukaj formatu "XX.XXXXX XX.XXXXX" lub "XX.XXXXX,XX.XXXXX"
+                for (int i = startRowIdx; i <= Math.Min(startRowIdx + 2, endRowIdx) && i < table.Rows.Count; i++)
+                {
+                    for (int col = 2; col < Math.Min(8, table.Columns.Count); col++)
                     {
-                        adres = $"{adres} {adres2}".Trim();
+                        string val = GetCellValue(table.Rows[i], col);
+                        var gpsMatch = Regex.Match(val, @"(\d{2}[.,]\d{4,})\s*[,\s]\s*(\d{2}[.,]\d{4,})");
+                        if (gpsMatch.Success)
+                        {
+                            transport.HodowcaGpsLat = gpsMatch.Groups[1].Value.Replace(",", ".");
+                            transport.HodowcaGpsLon = gpsMatch.Groups[2].Value.Replace(",", ".");
+                            break;
+                        }
                     }
-                }
-                transport.HodowcaAdres = adres;
-
-                // Kolumna E lub F - GPS
-                string gps = GetCellValue(firstRow, 4); // E
-                if (string.IsNullOrEmpty(gps))
-                {
-                    gps = GetCellValue(firstRow, 5); // F
-                }
-                var gpsMatch = Regex.Match(gps, @"(\d{2}[.,]\d{4,})[,\s]+(\d{2}[.,]\d{4,})");
-                if (gpsMatch.Success)
-                {
-                    transport.HodowcaGpsLat = gpsMatch.Groups[1].Value.Replace(",", ".");
-                    transport.HodowcaGpsLon = gpsMatch.Groups[2].Value.Replace(",", ".");
+                    if (!string.IsNullOrEmpty(transport.HodowcaGpsLat)) break;
                 }
 
-                // Telefon hodowcy - szukaj "Tel. :" lub "Tel.:"
+                // Telefon hodowcy - szukaj "Tel" + numer
                 for (int i = startRowIdx; i <= endRowIdx && i < table.Rows.Count; i++)
                 {
-                    DataRow row = table.Rows[i];
-                    for (int col = 7; col <= Math.Min(12, table.Columns.Count - 1); col++) // H-L
+                    for (int col = 0; col < Math.Min(15, table.Columns.Count); col++)
                     {
-                        string cellValue = GetCellValue(row, col);
-                        var telMatch = Regex.Match(cellValue, @"Tel\.?\s*:?\s*(\d{3})\s*(\d{3})\s*(\d{3})");
+                        string val = GetCellValue(table.Rows[i], col);
+                        var telMatch = Regex.Match(val, @"Tel[\.:\s]*(\d{3})\s*(\d{3})\s*(\d{3})");
                         if (telMatch.Success)
                         {
                             transport.HodowcaTelefon = telMatch.Groups[1].Value + telMatch.Groups[2].Value + telMatch.Groups[3].Value;
@@ -371,26 +299,25 @@ namespace Kalendarz1
                 // Kod pocztowy i miejscowość
                 for (int i = startRowIdx; i <= endRowIdx && i < table.Rows.Count; i++)
                 {
-                    DataRow row = table.Rows[i];
-                    for (int col = 1; col <= 3; col++) // B-D
+                    for (int col = 1; col < Math.Min(5, table.Columns.Count); col++)
                     {
-                        string cellValue = GetCellValue(row, col);
-                        var kodMatch = Regex.Match(cellValue, @"(\d{2}-\d{3})");
+                        string val = GetCellValue(table.Rows[i], col);
+                        var kodMatch = Regex.Match(val, @"(\d{2}-\d{3})");
                         if (kodMatch.Success)
                         {
                             transport.HodowcaKodPocztowy = kodMatch.Groups[1].Value;
-                            string pozostaly = cellValue.Substring(kodMatch.Index + kodMatch.Length).Trim();
+                            // Miejscowość może być w tej samej komórce lub następnej
+                            string pozostaly = val.Substring(kodMatch.Index + kodMatch.Length).Trim();
                             if (!string.IsNullOrEmpty(pozostaly))
                             {
                                 transport.HodowcaMiejscowosc = pozostaly;
                             }
                             else
                             {
-                                // Miejscowość może być w następnej kolumnie
-                                string nextCol = GetCellValue(row, col + 1);
-                                if (!string.IsNullOrEmpty(nextCol) && !Regex.IsMatch(nextCol, @"\d"))
+                                string nextVal = GetCellValue(table.Rows[i], col + 1);
+                                if (!string.IsNullOrEmpty(nextVal) && !Regex.IsMatch(nextVal, @"\d"))
                                 {
-                                    transport.HodowcaMiejscowosc = nextCol;
+                                    transport.HodowcaMiejscowosc = nextVal;
                                 }
                             }
                             break;
@@ -399,58 +326,35 @@ namespace Kalendarz1
                     if (!string.IsNullOrEmpty(transport.HodowcaKodPocztowy)) break;
                 }
 
-                // ========== POJAZD ==========
-                for (int i = startRowIdx; i <= Math.Min(startRowIdx + 3, endRowIdx) && i < table.Rows.Count; i++)
+                // ========== POJAZDY ==========
+                // Szukaj numerów rejestracyjnych - pierwszy to ciągnik, drugi to naczepa
+                List<string> rejestracje = new List<string>();
+                for (int i = startRowIdx; i <= Math.Min(startRowIdx + 2, endRowIdx) && i < table.Rows.Count; i++)
                 {
-                    DataRow row = table.Rows[i];
-
-                    for (int col = 10; col <= Math.Min(18, table.Columns.Count - 1); col++) // K-R
+                    for (int col = 0; col < Math.Min(25, table.Columns.Count); col++)
                     {
-                        string cellValue = GetCellValue(row, col);
-
-                        // Ciągnik - po "C:" lub bezpośrednio numer
-                        if (cellValue == "C:" && string.IsNullOrEmpty(transport.Ciagnik))
+                        string val = GetCellValue(table.Rows[i], col);
+                        if (IsRegistrationNumber(val) && !rejestracje.Contains(val))
                         {
-                            string nextCell = GetCellValue(row, col + 1);
-                            if (IsRegistrationNumber(nextCell))
-                            {
-                                transport.Ciagnik = nextCell;
-                            }
-                        }
-                        else if (string.IsNullOrEmpty(transport.Ciagnik) && IsRegistrationNumber(cellValue))
-                        {
-                            transport.Ciagnik = cellValue;
-                        }
-
-                        // Naczepa - po "N:"
-                        if (cellValue == "N:" && string.IsNullOrEmpty(transport.Naczepa))
-                        {
-                            string nextCell = GetCellValue(row, col + 1);
-                            if (IsRegistrationNumber(nextCell))
-                            {
-                                transport.Naczepa = nextCell;
-                            }
-                        }
-                        else if (!string.IsNullOrEmpty(transport.Ciagnik) &&
-                                 string.IsNullOrEmpty(transport.Naczepa) &&
-                                 IsRegistrationNumber(cellValue) &&
-                                 cellValue != transport.Ciagnik)
-                        {
-                            transport.Naczepa = cellValue;
+                            rejestracje.Add(val);
                         }
                     }
                 }
 
+                if (rejestracje.Count >= 1)
+                    transport.Ciagnik = rejestracje[0];
+                if (rejestracje.Count >= 2)
+                    transport.Naczepa = rejestracje[1];
+
                 // ========== ILOŚĆ SZTUK ==========
-                for (int i = startRowIdx; i <= Math.Min(startRowIdx + 3, endRowIdx) && i < table.Rows.Count; i++)
+                // Szukaj formatu "X XXX" (np. "4 488") lub "XXXX"
+                for (int i = startRowIdx; i <= Math.Min(startRowIdx + 2, endRowIdx) && i < table.Rows.Count; i++)
                 {
-                    DataRow row = table.Rows[i];
-
-                    for (int col = 13; col <= Math.Min(18, table.Columns.Count - 1); col++) // N-R
+                    for (int col = 0; col < Math.Min(25, table.Columns.Count); col++)
                     {
-                        string cellValue = GetCellValue(row, col);
-
-                        var sztukiMatch = Regex.Match(cellValue, @"(\d)\s?(\d{3})(?:\s|$)");
+                        string val = GetCellValue(table.Rows[i], col);
+                        // Format "4 488" lub "5 280"
+                        var sztukiMatch = Regex.Match(val, @"^(\d)\s(\d{3})$");
                         if (sztukiMatch.Success)
                         {
                             string sztuki = sztukiMatch.Groups[1].Value + sztukiMatch.Groups[2].Value;
@@ -467,11 +371,10 @@ namespace Kalendarz1
                 // ========== WAGA ==========
                 for (int i = startRowIdx; i <= endRowIdx && i < table.Rows.Count; i++)
                 {
-                    DataRow row = table.Rows[i];
-                    for (int col = 11; col <= Math.Min(20, table.Columns.Count - 1); col++)
+                    for (int col = 0; col < Math.Min(25, table.Columns.Count); col++)
                     {
-                        string cellValue = GetCellValue(row, col);
-                        var wagaMatch = Regex.Match(cellValue, @"(\d+[.,]\d+)\s*Kg", RegexOptions.IgnoreCase);
+                        string val = GetCellValue(table.Rows[i], col);
+                        var wagaMatch = Regex.Match(val, @"(\d+[.,]\d+)\s*Kg", RegexOptions.IgnoreCase);
                         if (wagaMatch.Success)
                         {
                             string waga = wagaMatch.Groups[1].Value.Replace(",", ".");
@@ -486,13 +389,12 @@ namespace Kalendarz1
                 }
 
                 // ========== WYMIAR SKRZYŃ ==========
-                for (int i = startRowIdx; i <= Math.Min(startRowIdx + 3, endRowIdx) && i < table.Rows.Count; i++)
+                for (int i = startRowIdx; i <= Math.Min(startRowIdx + 2, endRowIdx) && i < table.Rows.Count; i++)
                 {
-                    DataRow row = table.Rows[i];
-                    for (int col = 13; col <= Math.Min(20, table.Columns.Count - 1); col++)
+                    for (int col = 0; col < Math.Min(25, table.Columns.Count); col++)
                     {
-                        string cellValue = GetCellValue(row, col);
-                        var wymiaryMatch = Regex.Match(cellValue, @"(\d+)\s*x\s*(\d+)");
+                        string val = GetCellValue(table.Rows[i], col);
+                        var wymiaryMatch = Regex.Match(val, @"(\d+)\s*x\s*(\d+)");
                         if (wymiaryMatch.Success)
                         {
                             transport.WymiarSkrzyn = $"{wymiaryMatch.Groups[1].Value} x {wymiaryMatch.Groups[2].Value}";
@@ -504,18 +406,33 @@ namespace Kalendarz1
 
                 // ========== GODZINY ==========
                 List<TimeSpan> foundTimes = new List<TimeSpan>();
-                List<DateTime> foundDateTimes = new List<DateTime>();
+                DateTime? powrotDateTime = null;
 
-                for (int i = startRowIdx; i <= Math.Min(startRowIdx + 5, endRowIdx) && i < table.Rows.Count; i++)
+                for (int i = startRowIdx; i <= endRowIdx && i < table.Rows.Count; i++)
                 {
-                    DataRow row = table.Rows[i];
-
-                    for (int col = 15; col <= Math.Min(24, table.Columns.Count - 1); col++) // P-X
+                    for (int col = 0; col < Math.Min(30, table.Columns.Count); col++)
                     {
-                        string cellValue = GetCellValue(row, col);
+                        string val = GetCellValue(table.Rows[i], col);
+
+                        // Format: "HH:mm: DD.MM.YYYY" (powrót z datą)
+                        var dateTimeMatch = Regex.Match(val, @"(\d{2}):(\d{2}):\s*(\d{2})\.(\d{2})\.(\d{4})");
+                        if (dateTimeMatch.Success && powrotDateTime == null)
+                        {
+                            try
+                            {
+                                int h = int.Parse(dateTimeMatch.Groups[1].Value);
+                                int mi = int.Parse(dateTimeMatch.Groups[2].Value);
+                                int d = int.Parse(dateTimeMatch.Groups[3].Value);
+                                int mo = int.Parse(dateTimeMatch.Groups[4].Value);
+                                int y = int.Parse(dateTimeMatch.Groups[5].Value);
+                                powrotDateTime = new DateTime(y, mo, d, h, mi, 0);
+                            }
+                            catch { }
+                            continue;
+                        }
 
                         // Format: "HH:mm" lub "HH:mm:"
-                        var timeMatch = Regex.Match(cellValue, @"^(\d{2}):(\d{2}):?$");
+                        var timeMatch = Regex.Match(val, @"^(\d{2}):(\d{2}):?$");
                         if (timeMatch.Success)
                         {
                             int h = int.Parse(timeMatch.Groups[1].Value);
@@ -525,98 +442,62 @@ namespace Kalendarz1
                                 foundTimes.Add(new TimeSpan(h, m, 0));
                             }
                         }
-
-                        // Format: "HH:mm: DD.MM.YYYY"
-                        var dateTimeMatch = Regex.Match(cellValue, @"(\d{2}):(\d{2}):\s*(\d{2})\.(\d{2})\.(\d{4})");
-                        if (dateTimeMatch.Success)
-                        {
-                            try
-                            {
-                                int h = int.Parse(dateTimeMatch.Groups[1].Value);
-                                int mi = int.Parse(dateTimeMatch.Groups[2].Value);
-                                int d = int.Parse(dateTimeMatch.Groups[3].Value);
-                                int mo = int.Parse(dateTimeMatch.Groups[4].Value);
-                                int y = int.Parse(dateTimeMatch.Groups[5].Value);
-                                foundDateTimes.Add(new DateTime(y, mo, d, h, mi, 0));
-                            }
-                            catch { }
-                        }
                     }
                 }
 
+                // Przypisz godziny: pierwsza = wyjazd, druga = załadunek
                 if (foundTimes.Count >= 1)
-                {
                     transport.WyjazdZaklad = DateTime.Today.Add(foundTimes[0]);
-                }
                 if (foundTimes.Count >= 2)
-                {
                     transport.PoczatekZaladunku = foundTimes[1];
-                }
-                if (foundDateTimes.Count > 0)
-                {
-                    transport.PowrotZaklad = foundDateTimes[0];
-                }
+                if (powrotDateTime.HasValue)
+                    transport.PowrotZaklad = powrotDateTime;
                 else if (foundTimes.Count >= 3)
-                {
                     transport.PowrotZaklad = DateTime.Today.Add(foundTimes[2]);
-                }
 
                 // ========== OBSERWACJE ==========
+                string[] wozekPatterns = {
+                    "Wózek w obie strony", "Wozek w obie strony",
+                    "Wieziesz wózek", "Wieziesz wozek",
+                    "Zabierasz wózek", "Zabierasz wozek",
+                    "Przywozisz wózek", "Przywozisz wozek"
+                };
+
                 for (int i = startRowIdx; i <= endRowIdx && i < table.Rows.Count; i++)
                 {
-                    DataRow row = table.Rows[i];
-
-                    for (int col = 21; col <= Math.Min(26, table.Columns.Count - 1); col++) // V-Z
+                    for (int col = 0; col < Math.Min(30, table.Columns.Count); col++)
                     {
-                        string cellValue = GetCellValue(row, col);
+                        string val = GetCellValue(table.Rows[i], col);
+                        if (string.IsNullOrEmpty(val)) continue;
 
-                        if (string.IsNullOrEmpty(cellValue) || cellValue.Length < 5) continue;
-
-                        if (cellValue.Contains("Wózek w obie strony") || cellValue.Contains("Wozek w obie strony"))
+                        foreach (var pattern in wozekPatterns)
                         {
-                            transport.Obserwacje = "Wózek w obie strony";
-                            break;
+                            if (val.Contains(pattern))
+                            {
+                                transport.Obserwacje = pattern.Replace("ozek", "ózek"); // Normalize
+                                break;
+                            }
                         }
-                        else if (cellValue.Contains("Wieziesz wózek") || cellValue.Contains("Wieziesz wozek"))
-                        {
-                            transport.Obserwacje = "Wieziesz wózek";
-                            break;
-                        }
-                        else if (cellValue.Contains("Zabierasz wózek") || cellValue.Contains("Zabierasz wozek"))
-                        {
-                            transport.Obserwacje = "Zabierasz wózek";
-                            break;
-                        }
-                        else if (cellValue.Contains("Przywozisz wózek") || cellValue.Contains("Przywozisz wozek"))
-                        {
-                            transport.Obserwacje = "Przywozisz wózek";
-                            break;
-                        }
-                        else if (!string.IsNullOrEmpty(cellValue) && !cellValue.StartsWith("Rdv"))
-                        {
-                            transport.Obserwacje = cellValue;
-                        }
+                        if (!string.IsNullOrEmpty(transport.Obserwacje)) break;
                     }
                     if (!string.IsNullOrEmpty(transport.Obserwacje)) break;
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Błąd parsowania bloku kierowcy: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Błąd parsowania bloku: {ex.Message}");
             }
 
             return transport;
         }
 
-        /// <summary>
-        /// Sprawdza czy string wygląda jak numer rejestracyjny
-        /// </summary>
         private bool IsRegistrationNumber(string value)
         {
             if (string.IsNullOrEmpty(value)) return false;
             value = value.Trim();
 
-            // Polski numer rejestracyjny: 2-3 litery + cyfry + opcjonalnie litery
+            // Polski numer: 2-3 litery + cyfra + 3-5 znaków alfanumerycznych
+            // Przykłady: WPR6903T, WOT51407, WOT46L9, WOT97L4
             return value.Length >= 6 && value.Length <= 9 &&
                    Regex.IsMatch(value, @"^[A-Z]{2,3}\d[0-9A-Z]{3,5}$");
         }
