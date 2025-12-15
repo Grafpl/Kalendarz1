@@ -156,7 +156,8 @@ namespace Kalendarz1
                 [35] = "AdminPermissions",
                 [36] = "AnalizaPrzychodu",
                 [37] = "DashboardHandlowca",
-                [38] = "PanelFaktur"
+                [38] = "PanelFaktur",
+                [39] = "PanelPortiera"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -201,7 +202,7 @@ namespace Kalendarz1
                 "RezerwacjaKlas", "DashboardWyczerpalnosci",
                 "ListaOfert", "DashboardOfert",
                 "PanelReklamacji", "ReklamacjeJakosc", "RaportyHodowcow",
-                "AdminPermissions", "AnalizaPrzychodu"
+                "AdminPermissions", "AnalizaPrzychodu", "PanelPortiera"
             };
         }
 
@@ -246,6 +247,11 @@ namespace Kalendarz1
                         "Zaawansowane planowanie tras transportu żywca z optymalizacją załadunku i wysyłką SMS",
                         Color.FromArgb(76, 175, 80), // #4CAF50
                         () => new WidokMatrycaWPF(), "🚛"),
+
+                    new MenuItemConfig("PanelPortiera", "Panel Portiera",
+                        "Dotykowy panel do rejestracji wag brutto i tary dostaw żywca przy wjeździe",
+                        Color.FromArgb(0, 150, 136), // Teal #009688
+                        () => new PanelPortiera(), "⚖️"),
 
                     new MenuItemConfig("Specyfikacje", "Specyfikacja Surowca",
                         "Definiowanie parametrów jakościowych surowca od poszczególnych dostawców żywca",

@@ -312,7 +312,7 @@ namespace Kalendarz1
             {
                 // Tylko aktualizuj dzień tygodnia - dane wczytaj ręcznie przyciskiem
                 UpdateDayOfWeekLabel();
-                
+
                 // Wyczyść matrycę i pokaż informację
                 if (matrycaData.Count > 0)
                 {
@@ -324,7 +324,7 @@ namespace Kalendarz1
                         "Zmiana daty",
                         MessageBoxButton.YesNo,
                         MessageBoxImage.Question);
-                    
+
                     if (result == MessageBoxResult.Yes)
                     {
                         matrycaData.Clear();
@@ -332,7 +332,7 @@ namespace Kalendarz1
                         lblDataSource.Text = "-";
                     }
                 }
-                
+
                 UpdateStatus($"Data: {dateTimePicker1.SelectedDate:dd.MM.yyyy} - kliknij 'WCZYTAJ Z BAZY' lub zaimportuj dane");
             }
         }
@@ -1636,9 +1636,22 @@ namespace Kalendarz1
                                     }
                                 }
 
-                                int userId2 = row.IsFarmerCalc
-                                    ? (int.TryParse(row.CustomerGID, out int cid) ? cid : 0)
-                                    : zapytaniasql.ZnajdzIdHodowcy(row.CustomerGID);
+                                // Znajdź ID hodowcy
+                                string dostawcaId = "-1";
+                                if (row.IsFarmerCalc && !string.IsNullOrEmpty(row.CustomerGID?.Trim()) && row.CustomerGID.Trim() != "-1")
+                                {
+                                    // Dane z FarmerCalc - CustomerGID już zawiera poprawne ID
+                                    dostawcaId = row.CustomerGID.Trim();
+                                }
+                                else if (!string.IsNullOrEmpty(row.HodowcaNazwa))
+                                {
+                                    // Dane z importu - szukaj ID po nazwie hodowcy
+                                    var foundId = zapytaniasql.ZnajdzIdHodowcyString(row.HodowcaNazwa);
+                                    if (!string.IsNullOrEmpty(foundId))
+                                    {
+                                        dostawcaId = foundId;
+                                    }
+                                }
 
                                 long maxLP;
                                 string maxLPSql = "SELECT MAX(ID) AS MaxLP FROM dbo.[FarmerCalc];";
@@ -1651,7 +1664,7 @@ namespace Kalendarz1
                                 using (SqlCommand cmd = new SqlCommand(sql, conn, transaction))
                                 {
                                     cmd.Parameters.AddWithValue("@ID", maxLP);
-                                    cmd.Parameters.AddWithValue("@Dostawca", userId2);
+                                    cmd.Parameters.AddWithValue("@Dostawca", dostawcaId);
                                     cmd.Parameters.AddWithValue("@Kierowca", row.DriverGID ?? (object)DBNull.Value);
                                     cmd.Parameters.AddWithValue("@LpDostawy", string.IsNullOrEmpty(row.LpDostawy) ? DBNull.Value : row.LpDostawy);
                                     cmd.Parameters.AddWithValue("@SztPoj", row.SztPoj);
