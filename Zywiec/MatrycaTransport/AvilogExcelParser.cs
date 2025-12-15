@@ -167,6 +167,36 @@ namespace Kalendarz1
         {
             var transportRows = new List<AvilogTransportRow>();
 
+            // DEBUG: Zapisz strukturę pliku do analizy
+            try
+            {
+                var debugSb = new StringBuilder();
+                debugSb.AppendLine($"=== DEBUG AVILOG EXCEL PARSER ===");
+                debugSb.AppendLine($"Liczba wierszy: {table.Rows.Count}");
+                debugSb.AppendLine($"Liczba kolumn: {table.Columns.Count}");
+                debugSb.AppendLine();
+
+                // Pokaż pierwsze 30 wierszy
+                for (int i = 0; i < Math.Min(50, table.Rows.Count); i++)
+                {
+                    DataRow row = table.Rows[i];
+                    debugSb.Append($"Row {i + 1}: ");
+                    for (int col = 0; col < Math.Min(15, table.Columns.Count); col++)
+                    {
+                        string val = GetCellValue(row, col);
+                        if (!string.IsNullOrEmpty(val))
+                        {
+                            debugSb.Append($"[{col}:{val.Substring(0, Math.Min(25, val.Length))}] ");
+                        }
+                    }
+                    debugSb.AppendLine();
+                }
+
+                string debugPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "avilog_excel_debug.txt");
+                File.WriteAllText(debugPath, debugSb.ToString());
+            }
+            catch { }
+
             // Znajdź indeksy wierszy gdzie zaczynają się nowe bloki kierowców
             var driverBlockStarts = new List<int>();
 
@@ -174,21 +204,24 @@ namespace Kalendarz1
             {
                 DataRow row = table.Rows[i];
                 string colA = GetCellValue(row, 0); // Kolumna A
+                string colB = GetCellValue(row, 1); // Kolumna B
 
                 // Sprawdź czy to początek bloku kierowcy
+                // Kierowca ma nazwisko w kolumnie A (tylko litery, bez cyfr)
                 if (!string.IsNullOrEmpty(colA) &&
-                    !Regex.IsMatch(colA, @"^\d") && // Nie zaczyna się od cyfry
+                    !Regex.IsMatch(colA, @"\d") && // Nie zawiera cyfr
                     !colA.ToUpper().Contains("SUMA") &&
                     !colA.ToUpper().Contains("KIEROWCA") &&
-                    colA.Length >= 3 &&
-                    Regex.IsMatch(colA, @"^[A-ZŻŹĆĄŚĘŁÓŃa-zżźćąśęłóń]+$"))
+                    !colA.ToUpper().Contains("AVILOG") &&
+                    !colA.ToUpper().Contains("MOUSSET") &&
+                    colA.Length >= 3)
                 {
-                    // Sprawdź czy w tym samym wierszu jest też hodowca lub pojazd
+                    // Sprawdź czy w tym samym wierszu jest też hodowca (kolumna B lub C) lub pojazd
                     string colC = GetCellValue(row, 2); // Kolumna C
 
                     // Szukaj numeru rejestracyjnego w wierszu
                     bool hasVehicle = false;
-                    for (int col = 10; col < Math.Min(20, table.Columns.Count); col++)
+                    for (int col = 9; col < Math.Min(20, table.Columns.Count); col++)
                     {
                         string cellValue = GetCellValue(row, col);
                         if (IsRegistrationNumber(cellValue))
@@ -198,11 +231,15 @@ namespace Kalendarz1
                         }
                     }
 
-                    bool hasHodowca = !string.IsNullOrEmpty(colC) && colC.Length > 2 &&
-                                      !Regex.IsMatch(colC, @"^\d") &&
-                                      Regex.IsMatch(colC, @"[A-ZŻŹĆĄŚĘŁÓŃ]");
+                    // Hodowca może być w kolumnie B lub C
+                    bool hasHodowcaB = !string.IsNullOrEmpty(colB) && colB.Length > 3 &&
+                                       !Regex.IsMatch(colB, @"^\d") &&
+                                       Regex.IsMatch(colB, @"[A-ZŻŹĆĄŚĘŁÓŃ]");
+                    bool hasHodowcaC = !string.IsNullOrEmpty(colC) && colC.Length > 3 &&
+                                       !Regex.IsMatch(colC, @"^\d") &&
+                                       Regex.IsMatch(colC, @"[A-ZŻŹĆĄŚĘŁÓŃ]");
 
-                    if (hasHodowca || hasVehicle)
+                    if (hasHodowcaB || hasHodowcaC || hasVehicle)
                     {
                         driverBlockStarts.Add(i);
                     }
@@ -273,11 +310,19 @@ namespace Kalendarz1
                 }
 
                 // ========== HODOWCA ==========
-                // Kolumna C lub B
-                string hodowcaNazwa = GetCellValue(firstRow, 2); // C
-                if (string.IsNullOrEmpty(hodowcaNazwa))
+                // Hodowca może być w kolumnie B lub C - sprawdź obie
+                string hodowcaB = GetCellValue(firstRow, 1); // B
+                string hodowcaC = GetCellValue(firstRow, 2); // C
+
+                // Wybierz kolumnę z hodowcą (ta która zawiera wielkie litery i nie jest numerem)
+                string hodowcaNazwa = "";
+                if (!string.IsNullOrEmpty(hodowcaB) && Regex.IsMatch(hodowcaB, @"[A-ZŻŹĆĄŚĘŁÓŃ]") && !Regex.IsMatch(hodowcaB, @"^\d"))
                 {
-                    hodowcaNazwa = GetCellValue(firstRow, 1); // B
+                    hodowcaNazwa = hodowcaB;
+                }
+                else if (!string.IsNullOrEmpty(hodowcaC) && Regex.IsMatch(hodowcaC, @"[A-ZŻŹĆĄŚĘŁÓŃ]") && !Regex.IsMatch(hodowcaC, @"^\d"))
+                {
+                    hodowcaNazwa = hodowcaC;
                 }
                 transport.HodowcaNazwa = hodowcaNazwa;
 
