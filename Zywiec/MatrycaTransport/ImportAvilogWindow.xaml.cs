@@ -16,7 +16,7 @@ namespace Kalendarz1
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
         private ObservableCollection<ImportAvilogRow> importData;
-        private AvilogPdfParser parser;
+        private AvilogExcelParser excelParser;
 
         // Listy dla ComboBox
         public List<KierowcaItem> ListaKierowcow { get; set; }
@@ -35,7 +35,7 @@ namespace Kalendarz1
         public ImportAvilogWindow()
         {
             InitializeComponent();
-            parser = new AvilogPdfParser();
+            excelParser = new AvilogExcelParser();
             importData = new ObservableCollection<ImportAvilogRow>();
 
             DataContext = this;
@@ -224,14 +224,14 @@ namespace Kalendarz1
 
         #endregion
 
-        #region Wybór i parsowanie PDF
+        #region Wybór i parsowanie Excel
 
         private void BtnWybierzPlik_Click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog openFileDialog = new OpenFileDialog
             {
-                Filter = "Pliki PDF (*.pdf)|*.pdf|Wszystkie pliki (*.*)|*.*",
-                Title = "Wybierz plik PDF z planem transportu AVILOG"
+                Filter = "Pliki Excel (*.xlsx;*.xls)|*.xlsx;*.xls|Wszystkie pliki (*.*)|*.*",
+                Title = "Wybierz plik Excel z planem transportu AVILOG"
             };
 
             if (openFileDialog.ShowDialog() == true)
@@ -239,41 +239,31 @@ namespace Kalendarz1
                 string filePath = openFileDialog.FileName;
                 lblNazwaPliku.Text = System.IO.Path.GetFileName(filePath);
 
-                ParseAndLoadPdf(filePath);
+                ParseAndLoadExcel(filePath);
             }
         }
 
-        private void ParseAndLoadPdf(string filePath)
+        private void ParseAndLoadExcel(string filePath)
         {
             try
             {
-                lblStatus.Text = "Parsowanie pliku PDF...";
+                lblStatus.Text = "Parsowanie pliku Excel...";
                 importData.Clear();
 
-                var result = parser.ParsePdf(filePath);
+                var result = excelParser.ParseExcel(filePath);
 
                 if (!result.Success)
                 {
-                    MessageBox.Show($"Błąd parsowania PDF:\n{result.ErrorMessage}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show($"Błąd parsowania Excel:\n{result.ErrorMessage}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
                     lblStatus.Text = "Błąd parsowania pliku";
                     return;
                 }
 
                 if (result.Wiersze.Count == 0)
                 {
-                    // Pokaż fragment tekstu dla diagnostyki
-                    string preview = "";
-                    if (!string.IsNullOrEmpty(result.DebugText))
-                    {
-                        preview = result.DebugText.Length > 1000
-                            ? result.DebugText.Substring(0, 1000) + "..."
-                            : result.DebugText;
-                    }
-
-                    string message = "Nie znaleziono danych transportowych w pliku PDF.\n\n" +
-                        "Upewnij się, że wybrany plik to plan transportu AVILOG.\n\n" +
-                        "Tekst zapisano do pliku avilog_debug_text.txt obok PDF.\n\n" +
-                        $"Fragment tekstu z PDF:\n{preview}";
+                    string message = "Nie znaleziono danych transportowych w pliku Excel.\n\n" +
+                        "Upewnij się, że wybrany plik to plan transportu AVILOG w formacie Excel.\n\n" +
+                        "Plik powinien zawierać nagłówek 'DATA UBOJU' oraz dane kierowców i hodowców.";
 
                     MessageBox.Show(message, "Brak danych", MessageBoxButton.OK, MessageBoxImage.Warning);
                     lblStatus.Text = "Brak danych w pliku";
