@@ -53,10 +53,9 @@ namespace Kalendarz1
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             LoadComboBoxSources();
-            LoadData();
-            UpdateStatistics();
             UpdateDayOfWeekLabel();
-            UpdateStatus("Dane załadowane pomyślnie");
+            UpdateStatistics();
+            UpdateStatus("Wybierz datę i kliknij 'WCZYTAJ Z BAZY' lub zaimportuj dane z PDF/Excel");
         }
 
         #region Ładowanie danych
@@ -311,8 +310,30 @@ namespace Kalendarz1
         {
             if (dateTimePicker1.SelectedDate.HasValue)
             {
-                LoadData();
+                // Tylko aktualizuj dzień tygodnia - dane wczytaj ręcznie przyciskiem
                 UpdateDayOfWeekLabel();
+                
+                // Wyczyść matrycę i pokaż informację
+                if (matrycaData.Count > 0)
+                {
+                    // Zapytaj czy wyczyścić obecne dane
+                    var result = MessageBox.Show(
+                        $"Zmieniono datę na {dateTimePicker1.SelectedDate:dd.MM.yyyy}.\n\n" +
+                        "Czy chcesz wyczyścić obecne dane?\n" +
+                        "(Kliknij 'WCZYTAJ Z BAZY' aby załadować dane dla nowej daty)",
+                        "Zmiana daty",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+                    
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        matrycaData.Clear();
+                        UpdateStatistics();
+                        lblDataSource.Text = "-";
+                    }
+                }
+                
+                UpdateStatus($"Data: {dateTimePicker1.SelectedDate:dd.MM.yyyy} - kliknij 'WCZYTAJ Z BAZY' lub zaimportuj dane");
             }
         }
 
@@ -338,7 +359,8 @@ namespace Kalendarz1
 
         private void BtnRefresh_Click(object sender, RoutedEventArgs e)
         {
-            LoadData();
+            // Odśwież = wczytaj z bazy
+            BtnLoadFromDatabase_Click(sender, e);
         }
 
         #endregion
@@ -465,6 +487,170 @@ namespace Kalendarz1
                 MessageBox.Show($"Błąd podczas importu z AVILOG:\n{ex.Message}",
                     "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
                 UpdateStatus("Błąd importu AVILOG");
+            }
+        }
+
+        private void BtnImportExcel_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Sprawdź czy są już dane w matrycy
+                if (matrycaData.Count > 0)
+                {
+                    var result = MessageBox.Show(
+                        "W matrycy są już dane. Import z Excel zastąpi wszystkie obecne wiersze.\n\n" +
+                        "Czy chcesz kontynuować?",
+                        "Potwierdzenie",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+
+                    if (result != MessageBoxResult.Yes)
+                        return;
+                }
+
+                // Otwórz okno importu Excel
+                var importWindow = new ImportExcelWindow();
+                importWindow.Owner = this;
+
+                if (importWindow.ShowDialog() == true && importWindow.ImportSuccess)
+                {
+                    // Aktualizuj datę jeśli różna
+                    if (importWindow.ImportedDate.HasValue)
+                    {
+                        dateTimePicker1.SelectedDate = importWindow.ImportedDate.Value;
+                    }
+
+                    // Wyczyść obecne dane i załaduj zaimportowane
+                    matrycaData.Clear();
+
+                    int lpCounter = 1;
+                    DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                    foreach (var importRow in importWindow.ImportedRows)
+                    {
+                        // Pobierz dane hodowcy z bazy
+                        string hodowcaNazwa = "";
+                        string hodowcaAdres = "";
+                        string hodowcaMiejscowosc = "";
+                        string hodowcaOdleglosc = "";
+                        string hodowcaTelefon = "";
+                        string hodowcaEmail = "";
+
+                        if (!string.IsNullOrEmpty(importRow.MappedHodowcaGID))
+                        {
+                            string idDostawcy = importRow.MappedHodowcaGID;
+                            hodowcaNazwa = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "ShortName") ?? "";
+                            hodowcaAdres = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "address") ?? "";
+                            hodowcaMiejscowosc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "city") ?? "";
+                            hodowcaOdleglosc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "distance") ?? "";
+                            hodowcaTelefon = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "Phone1") ?? "";
+                            hodowcaEmail = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(idDostawcy, "email") ?? "";
+                        }
+
+                        // Przygotuj godziny z daty importu
+                        DateTime? wyjazd = null;
+                        DateTime? zaladunek = null;
+                        DateTime? przyjazd = null;
+
+                        if (importRow.WyjazdZaklad.HasValue)
+                        {
+                            wyjazd = selectedDate.Date.Add(importRow.WyjazdZaklad.Value.TimeOfDay);
+                        }
+                        if (importRow.GodzinaZaladunku.HasValue)
+                        {
+                            zaladunek = selectedDate.Date.Add(importRow.GodzinaZaladunku.Value);
+                        }
+                        if (importRow.PowrotZaklad.HasValue)
+                        {
+                            przyjazd = selectedDate.Date.Add(importRow.PowrotZaklad.Value.TimeOfDay);
+                        }
+
+                        var matrycaRow = new MatrycaRow
+                        {
+                            ID = 0,
+                            LpDostawy = lpCounter.ToString(),
+                            CustomerGID = importRow.MappedHodowcaGID ?? "",
+                            HodowcaNazwa = hodowcaNazwa,
+                            WagaDek = importRow.WagaDek,
+                            SztPoj = importRow.Sztuki,
+                            DriverGID = importRow.MappedKierowcaGID,
+                            CarID = !string.IsNullOrEmpty(importRow.MappedCiagnikID) ? importRow.MappedCiagnikID : importRow.Ciagnik,
+                            TrailerID = !string.IsNullOrEmpty(importRow.MappedNaczepaID) ? importRow.MappedNaczepaID : importRow.Naczepa,
+                            Wyjazd = wyjazd,
+                            Zaladunek = zaladunek,
+                            Przyjazd = przyjazd,
+                            NotkaWozek = importRow.Obserwacje,
+                            Adres = hodowcaAdres,
+                            Miejscowosc = hodowcaMiejscowosc,
+                            Odleglosc = hodowcaOdleglosc,
+                            Telefon = hodowcaTelefon,
+                            Email = hodowcaEmail,
+                            IsFarmerCalc = false,
+                            AutoNrUHodowcy = 1,
+                            IloscAutUHodowcy = 1
+                        };
+
+                        matrycaData.Add(matrycaRow);
+                        lpCounter++;
+                    }
+
+                    UpdateStatistics();
+                    UpdateStatus($"Zaimportowano {matrycaData.Count} wierszy z Excel. Sprawdź dane i zapisz do bazy.");
+
+                    MessageBox.Show(
+                        $"Pomyślnie zaimportowano {matrycaData.Count} wierszy z planu Excel AVILOG.\n\n" +
+                        "Dane zostały wczytane do matrycy. Sprawdź poprawność i kliknij \"ZAPISZ DO BAZY\" aby zapisać.",
+                        "Import zakończony",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas importu z Excel:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                UpdateStatus("Błąd importu Excel");
+            }
+        }
+
+        private void BtnLoadFromDatabase_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Sprawdź czy są niezapisane dane
+                if (matrycaData.Count > 0)
+                {
+                    var result = MessageBox.Show(
+                        "W matrycy są już dane. Wczytanie z bazy zastąpi wszystkie obecne wiersze.\n\n" +
+                        "Czy chcesz kontynuować?",
+                        "Potwierdzenie",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+
+                    if (result != MessageBoxResult.Yes)
+                        return;
+                }
+
+                // Wczytaj dane z bazy
+                LoadData();
+                UpdateStatistics();
+
+                if (matrycaData.Count > 0)
+                {
+                    UpdateStatus($"Wczytano {matrycaData.Count} wierszy z bazy dla {dateTimePicker1.SelectedDate:dd.MM.yyyy}");
+                    lblDataSource.Text = "Baza danych";
+                }
+                else
+                {
+                    UpdateStatus($"Brak danych w bazie dla {dateTimePicker1.SelectedDate:dd.MM.yyyy}. Zaimportuj dane z PDF/Excel.");
+                    lblDataSource.Text = "Brak danych";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas wczytywania z bazy:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                UpdateStatus("Błąd wczytywania z bazy");
             }
         }
 
