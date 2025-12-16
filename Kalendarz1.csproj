@@ -71,6 +71,7 @@
     <PackageReference Include="OxyPlot.Wpf" Version="2.2.0" />
     <PackageReference Include="PDFsharp" Version="6.0.0" />
     <PackageReference Include="QuestPDF" Version="2025.7.2" />
+    <PackageReference Include="System.IO.Ports" Version="10.0.1" />
     <PackageReference Include="Twilio" Version="7.1.0" />
     <PackageReference Include="WinForms.DataVisualization" Version="1.9.2" />
   </ItemGroup>

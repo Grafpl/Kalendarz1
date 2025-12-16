@@ -157,7 +157,8 @@ namespace Kalendarz1
                 [36] = "AnalizaPrzychodu",
                 [37] = "DashboardHandlowca",
                 [38] = "PanelFaktur",
-                [39] = "PanelPortiera"
+                [39] = "PanelPortiera",
+                [40] = "PanelLekarza"
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -202,7 +203,7 @@ namespace Kalendarz1
                 "RezerwacjaKlas", "DashboardWyczerpalnosci",
                 "ListaOfert", "DashboardOfert",
                 "PanelReklamacji", "ReklamacjeJakosc", "RaportyHodowcow",
-                "AdminPermissions", "AnalizaPrzychodu", "PanelPortiera"
+                "AdminPermissions", "AnalizaPrzychodu", "PanelPortiera", "PanelLekarza"
             };
         }
 
@@ -252,6 +253,11 @@ namespace Kalendarz1
                         "Dotykowy panel do rejestracji wag brutto i tary dostaw żywca przy wjeździe",
                         Color.FromArgb(0, 150, 136), // Teal #009688
                         () => new PanelPortiera(), "⚖️"),
+
+                    new MenuItemConfig("PanelLekarza", "Panel Lekarza",
+                        "Ocena dobrostanu drobiu - padłe, konfiskaty CH/NW/ZM dla lekarza weterynarii",
+                        Color.FromArgb(156, 39, 176), // Purple #9C27B0
+                        () => new PanelLekarza(), "🩺"),
 
                     new MenuItemConfig("Specyfikacje", "Specyfikacja Surowca",
                         "Definiowanie parametrów jakościowych surowca od poszczególnych dostawców żywca",
