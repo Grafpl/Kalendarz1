@@ -1,7 +1,11 @@
 using Microsoft.Data.SqlClient;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Printing;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
@@ -49,6 +53,9 @@ namespace Kalendarz1
             // Domyślnie aktywne pole Padłe
             SetAktywnePole(AktywnePole.Padle);
 
+            // Obsługa klawiatury
+            this.KeyDown += Window_KeyDown;
+
             // Timer auto-odświeżania co 5 minut
             autoRefreshTimer = new System.Windows.Threading.DispatcherTimer();
             autoRefreshTimer.Interval = TimeSpan.FromMinutes(5);
@@ -60,6 +67,114 @@ namespace Kalendarz1
             dateCheckTimer.Interval = TimeSpan.FromHours(1);
             dateCheckTimer.Tick += DateCheckTimer_Tick;
             dateCheckTimer.Start();
+
+            // Automatycznie wybierz pierwszą dostawę
+            if (dostawy.Count > 0)
+            {
+                WybierzDostawe(dostawy[0]);
+            }
+        }
+
+        private void Window_KeyDown(object sender, KeyEventArgs e)
+        {
+            // Obsługa klawiatury numerycznej i zwykłej
+            if (e.Key >= Key.D0 && e.Key <= Key.D9)
+            {
+                string digit = (e.Key - Key.D0).ToString();
+                AppendToActiveField(digit);
+                e.Handled = true;
+            }
+            else if (e.Key >= Key.NumPad0 && e.Key <= Key.NumPad9)
+            {
+                string digit = (e.Key - Key.NumPad0).ToString();
+                AppendToActiveField(digit);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Enter)
+            {
+                // Enter = Następne pole (auto-zapis już działa)
+                BtnEnter_Click(sender, e);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Back)
+            {
+                // Backspace
+                BtnBackspace_Click(sender, e);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Delete || e.Key == Key.C)
+            {
+                // Delete lub C = Clear
+                BtnClear_Click(sender, e);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Tab)
+            {
+                // Tab = przejdź do następnego pola
+                PrzejdzDoNastepnegoPola();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Up)
+            {
+                // Strzałka w górę - poprzednia dostawa
+                PrzejdzDoPorzedniejDostawy();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Down)
+            {
+                // Strzałka w dół - następna dostawa
+                PrzejdzDoNastepnejDostawy();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.PageUp)
+            {
+                // Page Up - przesuń dostawę w górę
+                BtnMoveUp_Click(sender, e);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.PageDown)
+            {
+                // Page Down - przesuń dostawę w dół
+                BtnMoveDown_Click(sender, e);
+                e.Handled = true;
+            }
+        }
+
+        private void PrzejdzDoNastepnegoPola()
+        {
+            switch (aktywnePole)
+            {
+                case AktywnePole.Padle: SetAktywnePole(AktywnePole.CH); break;
+                case AktywnePole.CH: SetAktywnePole(AktywnePole.NW); break;
+                case AktywnePole.NW: SetAktywnePole(AktywnePole.ZM); break;
+                case AktywnePole.ZM: SetAktywnePole(AktywnePole.Padle); break;
+            }
+        }
+
+        private void PrzejdzDoNastepnejDostawy()
+        {
+            if (wybranaDostwa == null && dostawy.Count > 0)
+            {
+                WybierzDostawe(dostawy[0]);
+                return;
+            }
+
+            int currentIndex = dostawy.IndexOf(wybranaDostwa);
+            if (currentIndex < dostawy.Count - 1)
+            {
+                WybierzDostawe(dostawy[currentIndex + 1]);
+            }
+        }
+
+        private void PrzejdzDoPorzedniejDostawy()
+        {
+            if (wybranaDostwa == null) return;
+
+            int currentIndex = dostawy.IndexOf(wybranaDostwa);
+            if (currentIndex > 0)
+            {
+                WybierzDostawe(dostawy[currentIndex - 1]);
+            }
         }
 
         private void AutoRefreshTimer_Tick(object sender, EventArgs e)
@@ -133,19 +248,23 @@ namespace Kalendarz1
                     SELECT 
                         fc.ID,
                         fc.CarLp,
-                        fc.CustomerGID,
-                        fc.DeclI1 as SztukiDek,
-                        fc.DeclI2 as Padle,
-                        fc.DeclI3 as CH,
-                        fc.DeclI4 as NW,
-                        fc.DeclI5 as ZM,
-                        fc.NettoFarmWeight,
-                        fc.LumQnt as LUMEL
+                        ISNULL(fc.CustomerGID, '') as CustomerGID,
+                        (SELECT TOP 1 ShortName FROM dbo.Dostawcy WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(fc.CustomerGID))) as HodowcaNazwa,
+                        (SELECT TOP 1 AnimNo FROM dbo.Dostawcy WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(fc.CustomerGID))) as AnimNo,
+                        (SELECT TOP 1 ISNULL(Address, '') + ', ' + ISNULL(PostalCode, '') + ' ' + ISNULL(City, '') 
+                         FROM dbo.Dostawcy WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(fc.CustomerGID))) as Adres,
+                        ISNULL(fc.CarID, '') as CarID,
+                        ISNULL(fc.TrailerID, '') as TrailerID,
+                        ISNULL(fc.DeclI1, 0) as SztukiDek,
+                        ISNULL(fc.DeclI2, 0) as Padle,
+                        ISNULL(fc.DeclI3, 0) as CH,
+                        ISNULL(fc.DeclI4, 0) as NW,
+                        ISNULL(fc.DeclI5, 0) as ZM,
+                        ISNULL(fc.NettoFarmWeight, 0) as NettoFarmWeight,
+                        ISNULL(fc.LumQnt, 0) as LUMEL
                     FROM FarmerCalc fc
-                    WHERE fc.DayD = @Data
-                    ORDER BY 
-                        CASE WHEN ISNUMERIC(fc.LpDostawy) = 1 THEN CAST(fc.LpDostawy AS INT) ELSE 999999 END,
-                        fc.ID";
+                    WHERE fc.CalcDate = @Data
+                    ORDER BY fc.CarLp, fc.ID";
 
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
@@ -161,20 +280,29 @@ namespace Kalendarz1
                             {
                                 var dostawa = new DostawaLekarza
                                 {
-                                    ID = reader.GetInt64(reader.GetOrdinal("ID")),
+                                    ID = reader["ID"] != DBNull.Value ? Convert.ToInt32(reader["ID"]) : 0,
                                     Lp = lp.ToString(),
-                                    CustomerGID = reader.IsDBNull(reader.GetOrdinal("CustomerGID")) ? null : reader.GetString(reader.GetOrdinal("CustomerGID")),
-                                    SztukiDek = reader.IsDBNull(reader.GetOrdinal("SztukiDek")) ? 0 : reader.GetInt32(reader.GetOrdinal("SztukiDek")),
-                                    Padle = reader.IsDBNull(reader.GetOrdinal("Padle")) ? 0 : reader.GetInt32(reader.GetOrdinal("Padle")),
-                                    CH = reader.IsDBNull(reader.GetOrdinal("CH")) ? 0 : reader.GetInt32(reader.GetOrdinal("CH")),
-                                    NW = reader.IsDBNull(reader.GetOrdinal("NW")) ? 0 : reader.GetInt32(reader.GetOrdinal("NW")),
-                                    ZM = reader.IsDBNull(reader.GetOrdinal("ZM")) ? 0 : reader.GetInt32(reader.GetOrdinal("ZM")),
-                                    Netto = reader.IsDBNull(reader.GetOrdinal("NettoFarmWeight")) ? 0 : Convert.ToInt32(reader.GetDecimal(reader.GetOrdinal("NettoFarmWeight"))),
-                                    LUMEL = reader.IsDBNull(reader.GetOrdinal("LUMEL")) ? 0 : reader.GetInt32(reader.GetOrdinal("LUMEL"))
+                                    CustomerGID = reader["CustomerGID"] != DBNull.Value ? reader["CustomerGID"].ToString() : null,
+                                    HodowcaNazwa = reader["HodowcaNazwa"] != DBNull.Value ? reader["HodowcaNazwa"].ToString() : "Nieprzypisany",
+                                    AnimNo = reader["AnimNo"] != DBNull.Value ? reader["AnimNo"].ToString() : "",
+                                    Adres = reader["Adres"] != DBNull.Value ? reader["Adres"].ToString().Trim() : "",
+                                    CarID = reader["CarID"] != DBNull.Value ? reader["CarID"].ToString() : "",
+                                    TrailerID = reader["TrailerID"] != DBNull.Value ? reader["TrailerID"].ToString() : "",
+                                    SztukiDek = reader["SztukiDek"] != DBNull.Value ? Convert.ToInt32(reader["SztukiDek"]) : 0,
+                                    Padle = reader["Padle"] != DBNull.Value ? Convert.ToInt32(reader["Padle"]) : 0,
+                                    CH = reader["CH"] != DBNull.Value ? Convert.ToInt32(reader["CH"]) : 0,
+                                    NW = reader["NW"] != DBNull.Value ? Convert.ToInt32(reader["NW"]) : 0,
+                                    ZM = reader["ZM"] != DBNull.Value ? Convert.ToInt32(reader["ZM"]) : 0,
+                                    Netto = reader["NettoFarmWeight"] != DBNull.Value ? Convert.ToInt32(Convert.ToDecimal(reader["NettoFarmWeight"])) : 0,
+                                    LUMEL = reader["LUMEL"] != DBNull.Value ? Convert.ToInt32(reader["LUMEL"]) : 0
                                 };
 
-                                // Pobierz nazwę hodowcy
-                                dostawa.HodowcaNazwa = GetHodowcaNazwa(dostawa.CustomerGID);
+                                // Ustaw nazwę jeśli pusta
+                                if (string.IsNullOrEmpty(dostawa.HodowcaNazwa) || dostawa.HodowcaNazwa == "Nieprzypisany")
+                                {
+                                    dostawa.HodowcaNazwa = string.IsNullOrEmpty(dostawa.CustomerGID) ? "Nieprzypisany" : $"ID: {dostawa.CustomerGID}";
+                                }
+                                
                                 dostawa.UpdateStatus();
                                 
                                 dostawy.Add(dostawa);
@@ -198,7 +326,7 @@ namespace Kalendarz1
 
             try
             {
-                string query = "SELECT ShortName FROM [LibraNet].[dbo].[Kontrahent] WHERE GID = @GID";
+                string query = "SELECT ShortName FROM [LibraNet].[dbo].[Dostawcy] WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(@GID))";
                 
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
@@ -235,7 +363,14 @@ namespace Kalendarz1
             
             // Aktualizuj panel
             lblWybranyLp.Text = $"LP: {dostawa.Lp}";
-            lblWybranyHodowca.Text = dostawa.HodowcaNazwa;
+            
+            // Pola edytowalne
+            txtHodowcaNazwa.Text = dostawa.HodowcaNazwa ?? "";
+            txtAnimNo.Text = dostawa.AnimNo ?? "";
+            txtAdres.Text = dostawa.Adres ?? "";
+            txtCiagnikEdit.Text = dostawa.CarID ?? "";
+            txtNaczepaEdit.Text = dostawa.TrailerID ?? "";
+            
             lblSztukiNetto.Text = $"Sztuki: {dostawa.SztukiDek:N0} | LUMEL: {dostawa.LUMEL:N0} | Netto: {dostawa.Netto:N0} kg";
             
             // Wczytaj zapisane wartości
@@ -246,9 +381,6 @@ namespace Kalendarz1
             
             UpdateSumaKonfiskat();
             
-            // Włącz przycisk zapisu
-            btnZapisz.IsEnabled = true;
-            
             // Ustaw aktywne pole na Padłe
             SetAktywnePole(AktywnePole.Padle);
         }
@@ -257,7 +389,11 @@ namespace Kalendarz1
         {
             wybranaDostwa = null;
             lblWybranyLp.Text = "LP: -";
-            lblWybranyHodowca.Text = "Wybierz dostawę z listy";
+            txtHodowcaNazwa.Text = "";
+            txtAnimNo.Text = "";
+            txtAdres.Text = "";
+            txtCiagnikEdit.Text = "";
+            txtNaczepaEdit.Text = "";
             lblSztukiNetto.Text = "";
             lblStatus.Text = "";
             txtPadle.Text = "0";
@@ -265,7 +401,6 @@ namespace Kalendarz1
             txtNW.Text = "0";
             txtZM.Text = "0";
             txtSumaKonfiskat.Text = "0 szt";
-            btnZapisz.IsEnabled = false;
         }
 
         private void FieldClick(object sender, MouseButtonEventArgs e)
@@ -287,28 +422,28 @@ namespace Kalendarz1
             aktywnePole = pole;
             
             // Reset wszystkich borderów
-            borderPadle.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#0F3460"));
-            borderCH.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#0F3460"));
-            borderNW.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#0F3460"));
-            borderZM.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#0F3460"));
+            borderPadle.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#3D3D3D"));
+            borderCH.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#3D3D3D"));
+            borderNW.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#3D3D3D"));
+            borderZM.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#3D3D3D"));
             
             // Podświetl aktywne pole
             switch (pole)
             {
                 case AktywnePole.Padle:
-                    borderPadle.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#E94560"));
+                    borderPadle.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#F44336"));
                     lblAktywnePole.Text = "Wprowadzasz: PADŁE";
                     break;
                 case AktywnePole.CH:
-                    borderCH.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FFA726"));
+                    borderCH.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#4CAF50"));
                     lblAktywnePole.Text = "Wprowadzasz: CH (chód)";
                     break;
                 case AktywnePole.NW:
-                    borderNW.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FFA726"));
+                    borderNW.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#4CAF50"));
                     lblAktywnePole.Text = "Wprowadzasz: NW (niedowaga)";
                     break;
                 case AktywnePole.ZM:
-                    borderZM.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FFA726"));
+                    borderZM.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#4CAF50"));
                     lblAktywnePole.Text = "Wprowadzasz: ZM (zmiany)";
                     break;
             }
@@ -349,6 +484,7 @@ namespace Kalendarz1
                 }
                 
                 UpdateSumaKonfiskat();
+                AutoZapiszOcene(); // Automatyczny zapis
             }
         }
 
@@ -359,6 +495,7 @@ namespace Kalendarz1
             {
                 activeTextBlock.Text = "0";
                 UpdateSumaKonfiskat();
+                AutoZapiszOcene(); // Automatyczny zapis
             }
         }
 
@@ -377,7 +514,154 @@ namespace Kalendarz1
                     activeTextBlock.Text = "0";
                 }
                 UpdateSumaKonfiskat();
+                AutoZapiszOcene(); // Automatyczny zapis
             }
+        }
+
+        /// <summary>
+        /// Automatyczny zapis oceny do bazy (bez komunikatu)
+        /// </summary>
+        private void AutoZapiszOcene()
+        {
+            if (wybranaDostwa == null) return;
+
+            try
+            {
+                int padle = int.Parse(txtPadle.Text);
+                int ch = int.Parse(txtCH.Text);
+                int nw = int.Parse(txtNW.Text);
+                int zm = int.Parse(txtZM.Text);
+
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string updateQuery = @"
+                        UPDATE FarmerCalc 
+                        SET DeclI2 = @Padle, 
+                            DeclI3 = @CH, 
+                            DeclI4 = @NW, 
+                            DeclI5 = @ZM
+                        WHERE ID = @ID";
+
+                    using (SqlCommand cmd = new SqlCommand(updateQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Padle", padle);
+                        cmd.Parameters.AddWithValue("@CH", ch);
+                        cmd.Parameters.AddWithValue("@NW", nw);
+                        cmd.Parameters.AddWithValue("@ZM", zm);
+                        cmd.Parameters.AddWithValue("@ID", wybranaDostwa.ID);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+
+                // Aktualizuj lokalny obiekt
+                wybranaDostwa.Padle = padle;
+                wybranaDostwa.CH = ch;
+                wybranaDostwa.NW = nw;
+                wybranaDostwa.ZM = zm;
+
+                // Aktualizuj status na liście
+                listDostawy.Items.Refresh();
+            }
+            catch
+            {
+                // Cichy błąd - nie pokazuj komunikatu przy każdym zapisie
+            }
+        }
+
+        /// <summary>
+        /// ENTER - Przejdź do następnego pola lub następnej dostawy
+        /// </summary>
+        private void BtnEnter_Click(object sender, RoutedEventArgs e)
+        {
+            if (wybranaDostwa == null)
+            {
+                // Jeśli nie wybrano dostawy, wybierz pierwszą
+                if (dostawy.Count > 0)
+                {
+                    WybierzDostawe(dostawy[0]);
+                }
+                return;
+            }
+
+            // Przejdź do następnego pola
+            switch (aktywnePole)
+            {
+                case AktywnePole.Padle:
+                    SetAktywnePole(AktywnePole.CH);
+                    break;
+                case AktywnePole.CH:
+                    SetAktywnePole(AktywnePole.NW);
+                    break;
+                case AktywnePole.NW:
+                    SetAktywnePole(AktywnePole.ZM);
+                    break;
+                case AktywnePole.ZM:
+                    // Przejdź do następnej dostawy
+                    PrzejdzDoNastepnejDostawy();
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Zapisuje ocenę do bazy - zwraca true jeśli sukces
+        /// </summary>
+        private bool ZapiszOcene()
+        {
+            if (wybranaDostwa == null) return false;
+
+            // Pobierz wartości
+            if (!int.TryParse(txtPadle.Text, out int padle)) padle = 0;
+            if (!int.TryParse(txtCH.Text, out int ch)) ch = 0;
+            if (!int.TryParse(txtNW.Text, out int nw)) nw = 0;
+            if (!int.TryParse(txtZM.Text, out int zm)) zm = 0;
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    
+                    string updateQuery = @"
+                        UPDATE FarmerCalc SET
+                            DeclI2 = @Padle,
+                            DeclI3 = @CH,
+                            DeclI4 = @NW,
+                            DeclI5 = @ZM
+                        WHERE ID = @ID";
+
+                    using (SqlCommand cmd = new SqlCommand(updateQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Padle", padle);
+                        cmd.Parameters.AddWithValue("@CH", ch);
+                        cmd.Parameters.AddWithValue("@NW", nw);
+                        cmd.Parameters.AddWithValue("@ZM", zm);
+                        cmd.Parameters.AddWithValue("@ID", wybranaDostwa.ID);
+
+                        int rowsAffected = cmd.ExecuteNonQuery();
+                        
+                        if (rowsAffected > 0)
+                        {
+                            // Aktualizuj lokalnie
+                            wybranaDostwa.Padle = padle;
+                            wybranaDostwa.CH = ch;
+                            wybranaDostwa.NW = nw;
+                            wybranaDostwa.ZM = zm;
+                            wybranaDostwa.UpdateStatus();
+
+                            // Odśwież listę
+                            listDostawy.Items.Refresh();
+                            return true;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd zapisu oceny:\n{ex.Message}", "Błąd", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            return false;
         }
 
         private TextBlock GetActiveTextBlock()
@@ -414,72 +698,568 @@ namespace Kalendarz1
                 return;
             }
 
-            // Pobierz wartości
-            if (!int.TryParse(txtPadle.Text, out int padle)) padle = 0;
-            if (!int.TryParse(txtCH.Text, out int ch)) ch = 0;
-            if (!int.TryParse(txtNW.Text, out int nw)) nw = 0;
-            if (!int.TryParse(txtZM.Text, out int zm)) zm = 0;
+            if (ZapiszOcene())
+            {
+                // Przejdź do następnej dostawy nieocenionej
+                var nastepna = dostawy.FirstOrDefault(d => 
+                    d.Status == StatusOceny.Nieoceniona && d.ID != wybranaDostwa.ID);
+                
+                if (nastepna != null)
+                {
+                    WybierzDostawe(nastepna);
+                }
+                else
+                {
+                    MessageBox.Show("Zapisano ocenę!\nWszystkie dostawy zostały ocenione.", 
+                        "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+        }
 
+        #endregion
+
+        #region Zmiana kolejności dostaw
+
+        private void BtnMoveUp_Click(object sender, RoutedEventArgs e)
+        {
+            if (wybranaDostwa == null) return;
+
+            int currentIndex = dostawy.IndexOf(wybranaDostwa);
+            if (currentIndex <= 0) return; // Już jest na górze
+
+            // Zamień miejscami z poprzednią
+            dostawy.Move(currentIndex, currentIndex - 1);
+            
+            // Przenumeruj i zapisz
+            PrzenumerujIZapiszKolejnosc();
+            
+            // Odśwież widok
+            listDostawy.Items.Refresh();
+        }
+
+        private void BtnMoveDown_Click(object sender, RoutedEventArgs e)
+        {
+            if (wybranaDostwa == null) return;
+
+            int currentIndex = dostawy.IndexOf(wybranaDostwa);
+            if (currentIndex >= dostawy.Count - 1) return; // Już jest na dole
+
+            // Zamień miejscami z następną
+            dostawy.Move(currentIndex, currentIndex + 1);
+            
+            // Przenumeruj i zapisz
+            PrzenumerujIZapiszKolejnosc();
+            
+            // Odśwież widok
+            listDostawy.Items.Refresh();
+        }
+
+        private void PrzenumerujIZapiszKolejnosc()
+        {
             try
             {
-                string userName = App.UserFullName ?? App.UserID ?? "Lekarz";
-
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
                     
-                    string updateQuery = @"
-                        UPDATE FarmerCalc SET
-                            DeclI2 = @Padle,
-                            DeclI3 = @CH,
-                            DeclI4 = @NW,
-                            DeclI5 = @ZM
-                        WHERE ID = @ID";
-
-                    using (SqlCommand cmd = new SqlCommand(updateQuery, conn))
+                    for (int i = 0; i < dostawy.Count; i++)
                     {
-                        cmd.Parameters.AddWithValue("@Padle", padle);
-                        cmd.Parameters.AddWithValue("@CH", ch);
-                        cmd.Parameters.AddWithValue("@NW", nw);
-                        cmd.Parameters.AddWithValue("@ZM", zm);
-                        cmd.Parameters.AddWithValue("@ID", wybranaDostwa.ID);
-
-                        int rowsAffected = cmd.ExecuteNonQuery();
+                        int nowyLp = i + 1;
+                        dostawy[i].Lp = nowyLp.ToString();
                         
-                        if (rowsAffected > 0)
+                        // Zapisz do bazy
+                        string updateQuery = "UPDATE FarmerCalc SET CarLp = @CarLp WHERE ID = @ID";
+                        using (SqlCommand cmd = new SqlCommand(updateQuery, conn))
                         {
-                            // Aktualizuj lokalnie
-                            wybranaDostwa.Padle = padle;
-                            wybranaDostwa.CH = ch;
-                            wybranaDostwa.NW = nw;
-                            wybranaDostwa.ZM = zm;
-                            wybranaDostwa.UpdateStatus();
-
-                            // Odśwież listę
-                            listDostawy.Items.Refresh();
-
-                            // Przejdź do następnej dostawy nieocenionej
-                            var nastepna = dostawy.FirstOrDefault(d => 
-                                d.Status == StatusOceny.Nieoceniona && d.ID != wybranaDostwa.ID);
-                            
-                            if (nastepna != null)
-                            {
-                                WybierzDostawe(nastepna);
-                            }
-                            else
-                            {
-                                MessageBox.Show("Zapisano ocenę!\nWszystkie dostawy zostały ocenione.", 
-                                    "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-                            }
+                            cmd.Parameters.AddWithValue("@CarLp", nowyLp);
+                            cmd.Parameters.AddWithValue("@ID", dostawy[i].ID);
+                            cmd.ExecuteNonQuery();
                         }
                     }
+                }
+                
+                // Aktualizuj wyświetlany LP
+                if (wybranaDostwa != null)
+                {
+                    lblWybranyLp.Text = $"LP: {wybranaDostwa.Lp}";
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd zapisu oceny:\n{ex.Message}", "Błąd", 
+                MessageBox.Show($"Błąd zapisu kolejności:\n{ex.Message}", "Błąd", 
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        #endregion
+
+        #region Zapis danych hodowcy
+
+        private void BtnZapiszDaneHodowcy_Click(object sender, RoutedEventArgs e)
+        {
+            if (wybranaDostwa == null)
+            {
+                MessageBox.Show("Wybierz dostawę!", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                string nowaNazwa = txtHodowcaNazwa.Text.Trim();
+                string staraNazwa = wybranaDostwa.HodowcaNazwa ?? "";
+                bool nazwaZmieniona = nowaNazwa != staraNazwa;
+                bool aktualizujWszystkie = false;
+
+                // Jeśli nazwa się zmieniła, zapytaj o aktualizację wszystkich
+                if (nazwaZmieniona && !string.IsNullOrEmpty(wybranaDostwa.CustomerGID))
+                {
+                    // Policz ile dostaw ma ten sam CustomerGID
+                    int iloscDostaw = dostawy.Count(d => d.CustomerGID == wybranaDostwa.CustomerGID);
+                    
+                    if (iloscDostaw > 1)
+                    {
+                        var result = MessageBox.Show(
+                            $"Nazwa hodowcy została zmieniona.\n\n" +
+                            $"Stara nazwa: {staraNazwa}\n" +
+                            $"Nowa nazwa: {nowaNazwa}\n\n" +
+                            $"Znaleziono {iloscDostaw} dostaw od tego hodowcy.\n\n" +
+                            $"Czy chcesz zaktualizować nazwę we WSZYSTKICH dostawach?",
+                            "Aktualizacja nazwy hodowcy",
+                            MessageBoxButton.YesNoCancel,
+                            MessageBoxImage.Question);
+
+                        if (result == MessageBoxResult.Cancel)
+                            return;
+
+                        aktualizujWszystkie = (result == MessageBoxResult.Yes);
+                    }
+                }
+
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // 1. Zapisz CarID i TrailerID do FarmerCalc
+                    string updateFarmerCalc = @"
+                        UPDATE FarmerCalc 
+                        SET CarID = @CarID, 
+                            TrailerID = @TrailerID 
+                        WHERE ID = @ID";
+                    
+                    using (SqlCommand cmd = new SqlCommand(updateFarmerCalc, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@CarID", txtCiagnikEdit.Text.Trim());
+                        cmd.Parameters.AddWithValue("@TrailerID", txtNaczepaEdit.Text.Trim());
+                        cmd.Parameters.AddWithValue("@ID", wybranaDostwa.ID);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // 2. Zapisz dane do tabeli Dostawcy (jeśli jest CustomerGID)
+                    if (!string.IsNullOrEmpty(wybranaDostwa.CustomerGID))
+                    {
+                        string updateDostawcy = @"
+                            UPDATE dbo.Dostawcy 
+                            SET AnimNo = @AnimNo,
+                                Address = @Address,
+                                ShortName = @ShortName,
+                                Name = @ShortName
+                            WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(@CustomerGID))";
+                        
+                        using (SqlCommand cmd = new SqlCommand(updateDostawcy, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@AnimNo", txtAnimNo.Text.Trim());
+                            cmd.Parameters.AddWithValue("@Address", txtAdres.Text.Trim());
+                            cmd.Parameters.AddWithValue("@ShortName", nowaNazwa);
+                            cmd.Parameters.AddWithValue("@CustomerGID", wybranaDostwa.CustomerGID);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    // Aktualizuj lokalny obiekt
+                    wybranaDostwa.CarID = txtCiagnikEdit.Text.Trim();
+                    wybranaDostwa.TrailerID = txtNaczepaEdit.Text.Trim();
+                    wybranaDostwa.AnimNo = txtAnimNo.Text.Trim();
+                    wybranaDostwa.Adres = txtAdres.Text.Trim();
+                    wybranaDostwa.HodowcaNazwa = nowaNazwa;
+
+                    // Jeśli użytkownik chce zaktualizować wszystkie dostawy
+                    if (aktualizujWszystkie)
+                    {
+                        foreach (var d in dostawy.Where(d => d.CustomerGID == wybranaDostwa.CustomerGID))
+                        {
+                            d.HodowcaNazwa = nowaNazwa;
+                            d.AnimNo = txtAnimNo.Text.Trim();
+                            d.Adres = txtAdres.Text.Trim();
+                        }
+                    }
+
+                    // Odśwież listę
+                    listDostawy.Items.Refresh();
+
+                    string msg = "Dane hodowcy zostały zapisane!";
+                    if (aktualizujWszystkie)
+                    {
+                        int count = dostawy.Count(d => d.CustomerGID == wybranaDostwa.CustomerGID);
+                        msg += $"\n\nZaktualizowano nazwę w {count} dostawach.";
+                    }
+
+                    MessageBox.Show(msg, "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd zapisu danych hodowcy:\n{ex.Message}", "Błąd", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        #endregion
+
+        #region Drukowanie raportu
+
+        private void BtnDrukuj_Click(object sender, RoutedEventArgs e)
+        {
+            if (dostawy.Count == 0)
+            {
+                MessageBox.Show("Brak danych do wydruku!", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                PrintDocument printDoc = new PrintDocument();
+                printDoc.PrintPage += PrintDoc_PrintPage;
+                printDoc.DocumentName = $"Raport_Lekarza_{selectedDate:yyyy-MM-dd}";
+                
+                // Ustawienie orientacji poziomej
+                printDoc.DefaultPageSettings.Landscape = true;
+
+                PrintDialog printDialog = new PrintDialog();
+                if (printDialog.ShowDialog() == true)
+                {
+                    printDoc.PrinterSettings.PrinterName = printDialog.PrintQueue.Name;
+                    printDoc.Print();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd drukowania:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void PrintDoc_PrintPage(object sender, PrintPageEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            
+            float pageWidth = e.PageBounds.Width;
+            float pageHeight = e.PageBounds.Height;
+            float leftMargin = 40;
+            float rightMargin = pageWidth - 40;
+            float tableWidth = rightMargin - leftMargin;
+            float y = 35;
+
+            // Czcionki - większe i profesjonalne
+            System.Drawing.Font fontCompany = new System.Drawing.Font("Arial", 11, System.Drawing.FontStyle.Bold);
+            System.Drawing.Font fontTitle = new System.Drawing.Font("Arial", 18, System.Drawing.FontStyle.Bold);
+            System.Drawing.Font fontSubtitle = new System.Drawing.Font("Arial", 12);
+            System.Drawing.Font fontHeader = new System.Drawing.Font("Arial", 10, System.Drawing.FontStyle.Bold);
+            System.Drawing.Font fontData = new System.Drawing.Font("Arial", 10);
+            System.Drawing.Font fontDataBold = new System.Drawing.Font("Arial", 10, System.Drawing.FontStyle.Bold);
+            System.Drawing.Font fontSummaryLabel = new System.Drawing.Font("Arial", 11);
+            System.Drawing.Font fontSummaryValue = new System.Drawing.Font("Arial", 12, System.Drawing.FontStyle.Bold);
+            System.Drawing.Font fontFooter = new System.Drawing.Font("Arial", 10);
+            System.Drawing.Font fontKonfiskatHeader = new System.Drawing.Font("Arial", 12, System.Drawing.FontStyle.Bold);
+            System.Drawing.Font fontKonfiskatValue = new System.Drawing.Font("Arial", 14, System.Drawing.FontStyle.Bold);
+
+            SolidBrush brushBlack = new SolidBrush(System.Drawing.Color.Black);
+            SolidBrush brushDarkGray = new SolidBrush(System.Drawing.Color.FromArgb(60, 60, 60));
+            SolidBrush brushHeaderBg = new SolidBrush(System.Drawing.Color.FromArgb(240, 240, 240));
+            SolidBrush brushAltRow = new SolidBrush(System.Drawing.Color.FromArgb(250, 250, 250));
+            System.Drawing.Pen penThick = new System.Drawing.Pen(System.Drawing.Color.Black, 2f);
+            System.Drawing.Pen penNormal = new System.Drawing.Pen(System.Drawing.Color.Black, 1f);
+            System.Drawing.Pen penLight = new System.Drawing.Pen(System.Drawing.Color.FromArgb(180, 180, 180), 0.5f);
+
+            // ═══════════════════════════════════════════════════════════════
+            // NAGŁÓWEK FIRMY
+            // ═══════════════════════════════════════════════════════════════
+            g.DrawString("UBOJNIA DROBIU PIÓRKOWSCY", fontCompany, brushBlack, leftMargin, y);
+            g.DrawString($"Wydruk: {DateTime.Now:dd.MM.yyyy  HH:mm}", fontSubtitle, brushDarkGray, rightMargin - 180, y);
+            y += 25;
+
+            // Linia górna
+            g.DrawLine(penThick, leftMargin, y, rightMargin, y);
+            y += 15;
+
+            // ═══════════════════════════════════════════════════════════════
+            // TYTUŁ RAPORTU
+            // ═══════════════════════════════════════════════════════════════
+            string[] dniTygodnia = { "Niedziela", "Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota" };
+            string dzienTygodnia = dniTygodnia[(int)selectedDate.DayOfWeek].ToUpper();
+            
+            string tytul = "RAPORT OCENY DOBROSTANU DROBIU";
+            SizeF tytulSize = g.MeasureString(tytul, fontTitle);
+            g.DrawString(tytul, fontTitle, brushBlack, (pageWidth - tytulSize.Width) / 2, y);
+            y += 30;
+
+            string dataRaportu = $"{selectedDate:dd MMMM yyyy} • {dzienTygodnia}";
+            SizeF dataSize = g.MeasureString(dataRaportu, fontSubtitle);
+            g.DrawString(dataRaportu, fontSubtitle, brushDarkGray, (pageWidth - dataSize.Width) / 2, y);
+            y += 30;
+
+            // ═══════════════════════════════════════════════════════════════
+            // TABELA DANYCH - Z ADRESEM
+            // ═══════════════════════════════════════════════════════════════
+            
+            // Definicja kolumn (szerokości) - szersze kolumny dla hodowcy, nr gosp, adresu
+            float[] colWidths = { 30, 220, 95, 180, 90, 90, 45, 40, 40, 40 };
+            float[] colX = new float[colWidths.Length];
+            colX[0] = leftMargin;
+            for (int i = 1; i < colWidths.Length; i++)
+            {
+                colX[i] = colX[i - 1] + colWidths[i - 1];
+            }
+
+            string[] headers = { "LP", "HODOWCA", "NR GOSP.", "ADRES", "CIĄGNIK", "NACZEPA", "PADŁE", "CH", "NW", "ZM" };
+
+            // Nagłówek tabeli - tło
+            float headerHeight = 28;
+            g.FillRectangle(brushHeaderBg, leftMargin, y, tableWidth, headerHeight);
+            g.DrawRectangle(penThick, leftMargin, y, tableWidth, headerHeight);
+
+            // Linie pionowe nagłówka i tekst
+            float headerTextY = y + 7;
+            for (int i = 0; i < headers.Length; i++)
+            {
+                if (i > 0)
+                    g.DrawLine(penNormal, colX[i], y, colX[i], y + headerHeight);
+                
+                // Wyśrodkuj tekst w kolumnie
+                SizeF textSize = g.MeasureString(headers[i], fontHeader);
+                float textX = colX[i] + (colWidths[i] - textSize.Width) / 2;
+                g.DrawString(headers[i], fontHeader, brushBlack, textX, headerTextY);
+            }
+            y += headerHeight;
+
+            // Dane wierszy
+            float rowHeight = 22;
+            int sumaPadle = 0, sumaCH = 0, sumaNW = 0, sumaZM = 0;
+            int liczbaOcenionych = 0;
+            int rowIndex = 0;
+
+            foreach (var d in dostawy)
+            {
+                if (y > pageHeight - 180)
+                    break;
+
+                // Naprzemienne tło wierszy
+                if (rowIndex % 2 == 1)
+                {
+                    g.FillRectangle(brushAltRow, leftMargin, y, tableWidth, rowHeight);
+                }
+
+                // Ramka wiersza
+                g.DrawLine(penLight, leftMargin, y + rowHeight, rightMargin, y + rowHeight);
+
+                float textY = y + 4;
+
+                // LP - wyśrodkowane
+                string lpText = d.Lp;
+                SizeF lpSize = g.MeasureString(lpText, fontData);
+                g.DrawString(lpText, fontDataBold, brushBlack, colX[0] + (colWidths[0] - lpSize.Width) / 2, textY);
+
+                // Hodowca - z lewej z marginesem (szersze)
+                string nazwaHodowcy = d.HodowcaNazwa ?? "-";
+                if (nazwaHodowcy.Length > 32) nazwaHodowcy = nazwaHodowcy.Substring(0, 30) + "...";
+                g.DrawString(nazwaHodowcy, fontData, brushBlack, colX[1] + 5, textY);
+
+                // Nr gospodarstwa - wyśrodkowane (szersze)
+                string animNo = d.AnimNo ?? "-";
+                SizeF animSize = g.MeasureString(animNo, fontData);
+                g.DrawString(animNo, fontData, brushDarkGray, colX[2] + (colWidths[2] - animSize.Width) / 2, textY);
+
+                // Adres - z lewej (szersze)
+                string adres = d.Adres ?? "-";
+                if (adres.Length > 26) adres = adres.Substring(0, 24) + "...";
+                g.DrawString(adres, fontData, brushDarkGray, colX[3] + 5, textY);
+
+                // Ciągnik - wyśrodkowane
+                string carId = !string.IsNullOrEmpty(d.CarID) ? d.CarID : "-";
+                SizeF carSize = g.MeasureString(carId, fontData);
+                g.DrawString(carId, fontData, brushDarkGray, colX[4] + (colWidths[4] - carSize.Width) / 2, textY);
+
+                // Naczepa - wyśrodkowane
+                string trailerId = !string.IsNullOrEmpty(d.TrailerID) ? d.TrailerID : "-";
+                SizeF trailerSize = g.MeasureString(trailerId, fontData);
+                g.DrawString(trailerId, fontData, brushDarkGray, colX[5] + (colWidths[5] - trailerSize.Width) / 2, textY);
+
+                // Padłe - wyśrodkowane
+                string padleText = d.Padle > 0 ? d.Padle.ToString() : "-";
+                SizeF padleSize = g.MeasureString(padleText, fontDataBold);
+                g.DrawString(padleText, fontDataBold, brushBlack, colX[6] + (colWidths[6] - padleSize.Width) / 2, textY);
+
+                // CH - wyśrodkowane
+                string chText = d.CH > 0 ? d.CH.ToString() : "-";
+                SizeF chSize = g.MeasureString(chText, fontData);
+                g.DrawString(chText, fontData, brushBlack, colX[7] + (colWidths[7] - chSize.Width) / 2, textY);
+
+                // NW - wyśrodkowane
+                string nwText = d.NW > 0 ? d.NW.ToString() : "-";
+                SizeF nwSize = g.MeasureString(nwText, fontData);
+                g.DrawString(nwText, fontData, brushBlack, colX[8] + (colWidths[8] - nwSize.Width) / 2, textY);
+
+                // ZM - wyśrodkowane
+                string zmText = d.ZM > 0 ? d.ZM.ToString() : "-";
+                SizeF zmSize = g.MeasureString(zmText, fontData);
+                g.DrawString(zmText, fontData, brushBlack, colX[9] + (colWidths[9] - zmSize.Width) / 2, textY);
+
+                // Linie pionowe
+                for (int i = 1; i < colWidths.Length; i++)
+                {
+                    g.DrawLine(penLight, colX[i], y, colX[i], y + rowHeight);
+                }
+
+                // Sumowanie
+                sumaPadle += d.Padle;
+                sumaCH += d.CH;
+                sumaNW += d.NW;
+                sumaZM += d.ZM;
+                if (d.Status == StatusOceny.Oceniona) liczbaOcenionych++;
+
+                y += rowHeight;
+                rowIndex++;
+            }
+
+            // Ramka zewnętrzna tabeli
+            g.DrawLine(penThick, leftMargin, y, rightMargin, y);
+
+            // ═══════════════════════════════════════════════════════════════
+            // WIERSZ SUMY
+            // ═══════════════════════════════════════════════════════════════
+            float sumRowHeight = 26;
+            g.FillRectangle(brushHeaderBg, leftMargin, y, tableWidth, sumRowHeight);
+            g.DrawRectangle(penThick, leftMargin, y, tableWidth, sumRowHeight);
+
+            float sumTextY = y + 5;
+            
+            g.DrawString("SUMA:", fontHeader, brushBlack, colX[1] + 5, sumTextY);
+            
+            // Sumy konfiskat - zaktualizowane indeksy
+            string sumPadleText = sumaPadle.ToString();
+            SizeF sumPadleSize = g.MeasureString(sumPadleText, fontHeader);
+            g.DrawString(sumPadleText, fontHeader, brushBlack, colX[6] + (colWidths[6] - sumPadleSize.Width) / 2, sumTextY);
+
+            string sumCHText = sumaCH.ToString();
+            SizeF sumCHSize = g.MeasureString(sumCHText, fontHeader);
+            g.DrawString(sumCHText, fontHeader, brushBlack, colX[7] + (colWidths[7] - sumCHSize.Width) / 2, sumTextY);
+
+            string sumNWText = sumaNW.ToString();
+            SizeF sumNWSize = g.MeasureString(sumNWText, fontHeader);
+            g.DrawString(sumNWText, fontHeader, brushBlack, colX[8] + (colWidths[8] - sumNWSize.Width) / 2, sumTextY);
+
+            string sumZMText = sumaZM.ToString();
+            SizeF sumZMSize = g.MeasureString(sumZMText, fontHeader);
+            g.DrawString(sumZMText, fontHeader, brushBlack, colX[9] + (colWidths[9] - sumZMSize.Width) / 2, sumTextY);
+
+            // Linie pionowe sumy
+            for (int i = 1; i < colWidths.Length; i++)
+            {
+                g.DrawLine(penNormal, colX[i], y, colX[i], y + sumRowHeight);
+            }
+
+            y += sumRowHeight + 25;
+
+            // ═══════════════════════════════════════════════════════════════
+            // ZESTAWIENIE KONFISKAT - PROFESJONALNE
+            // ═══════════════════════════════════════════════════════════════
+            int sumaKonfiskat = sumaCH + sumaNW + sumaZM;
+            int sumaWszystkich = sumaPadle + sumaKonfiskat;
+
+            // Ramka główna zestawienia
+            float konfBoxWidth = tableWidth;
+            float konfBoxHeight = 85;
+            
+            g.DrawRectangle(penThick, leftMargin, y, konfBoxWidth, konfBoxHeight);
+            
+            // Nagłówek zestawienia
+            g.FillRectangle(brushHeaderBg, leftMargin + 1, y + 1, konfBoxWidth - 2, 28);
+            g.DrawLine(penNormal, leftMargin, y + 29, rightMargin, y + 29);
+            
+            string konfTytul = "ZESTAWIENIE KONFISKAT";
+            SizeF konfTytulSize = g.MeasureString(konfTytul, fontKonfiskatHeader);
+            g.DrawString(konfTytul, fontKonfiskatHeader, brushBlack, (pageWidth - konfTytulSize.Width) / 2, y + 6);
+
+            // Wartości w 5 kolumnach
+            float konfY = y + 40;
+            float boxWidth = konfBoxWidth / 5;
+            
+            // Etykiety
+            string[] konfLabels = { "PADŁE", "CH (chód)", "NW (niedowaga)", "ZM (zmiany)", "RAZEM" };
+            int[] konfValues = { sumaPadle, sumaCH, sumaNW, sumaZM, sumaWszystkich };
+            
+            for (int i = 0; i < 5; i++)
+            {
+                float boxX = leftMargin + (i * boxWidth);
+                
+                // Linia pionowa (oprócz pierwszej)
+                if (i > 0)
+                    g.DrawLine(penLight, boxX, y + 29, boxX, y + konfBoxHeight);
+                
+                // Etykieta
+                SizeF labelSize = g.MeasureString(konfLabels[i], fontSummaryLabel);
+                g.DrawString(konfLabels[i], fontSummaryLabel, brushDarkGray, boxX + (boxWidth - labelSize.Width) / 2, konfY);
+                
+                // Wartość
+                string valueText = konfValues[i].ToString();
+                SizeF valueSize = g.MeasureString(valueText, fontKonfiskatValue);
+                g.DrawString(valueText, fontKonfiskatValue, brushBlack, boxX + (boxWidth - valueSize.Width) / 2, konfY + 22);
+            }
+
+            y += konfBoxHeight + 20;
+
+            // Podsumowanie liczby dostaw
+            g.DrawString($"Liczba dostaw: {dostawy.Count}          Ocenionych: {liczbaOcenionych}", fontSummaryLabel, brushBlack, leftMargin, y);
+
+            y += 40;
+
+            // ═══════════════════════════════════════════════════════════════
+            // STOPKA Z PODPISAMI - WIĘKSZE ODSTĘPY
+            // ═══════════════════════════════════════════════════════════════
+            g.DrawLine(penThick, leftMargin, y, rightMargin, y);
+            y += 25;
+
+            float signWidth = (tableWidth - 80) / 3;
+            
+            g.DrawString("Podpis lekarza weterynarii:", fontFooter, brushDarkGray, leftMargin, y);
+            g.DrawString("Data:", fontFooter, brushDarkGray, leftMargin + signWidth + 40, y);
+            g.DrawString("Pieczątka:", fontFooter, brushDarkGray, leftMargin + 2 * signWidth + 80, y);
+            y += 45;
+
+            g.DrawLine(penNormal, leftMargin, y, leftMargin + signWidth, y);
+            g.DrawLine(penNormal, leftMargin + signWidth + 40, y, leftMargin + 2 * signWidth + 40, y);
+            g.DrawLine(penNormal, leftMargin + 2 * signWidth + 80, y, rightMargin, y);
+
+            // Cleanup
+            fontCompany.Dispose();
+            fontTitle.Dispose();
+            fontSubtitle.Dispose();
+            fontHeader.Dispose();
+            fontData.Dispose();
+            fontDataBold.Dispose();
+            fontSummaryLabel.Dispose();
+            fontSummaryValue.Dispose();
+            fontFooter.Dispose();
+            fontKonfiskatHeader.Dispose();
+            fontKonfiskatValue.Dispose();
+            brushBlack.Dispose();
+            brushDarkGray.Dispose();
+            brushHeaderBg.Dispose();
+            brushAltRow.Dispose();
+            penThick.Dispose();
+            penNormal.Dispose();
+            penLight.Dispose();
+
+            e.HasMorePages = false;
         }
 
         #endregion
@@ -502,10 +1282,14 @@ namespace Kalendarz1
     /// </summary>
     public class DostawaLekarza : INotifyPropertyChanged
     {
-        public long ID { get; set; }
+        public int ID { get; set; }
         public string Lp { get; set; }
         public string CustomerGID { get; set; }
         public string HodowcaNazwa { get; set; }
+        public string AnimNo { get; set; }
+        public string Adres { get; set; }
+        public string CarID { get; set; }
+        public string TrailerID { get; set; }
         public int SztukiDek { get; set; }
         public int Netto { get; set; }
         public int LUMEL { get; set; }
@@ -547,7 +1331,20 @@ namespace Kalendarz1
         }
 
         // Właściwości wyświetlania
-        public string SztukiInfo => $"{SztukiDek:N0} szt / LUMEL: {LUMEL:N0}";
+        public string PojazdDisplay 
+        { 
+            get 
+            {
+                if (!string.IsNullOrEmpty(CarID) && !string.IsNullOrEmpty(TrailerID))
+                    return $"{CarID}/{TrailerID}";
+                if (!string.IsNullOrEmpty(CarID))
+                    return CarID;
+                if (!string.IsNullOrEmpty(TrailerID))
+                    return TrailerID;
+                return "-";
+            }
+        }
+        
         public string NettoDisplay => Netto > 0 ? $"{Netto:N0}" : "-";
         public string PadleDisplay => Padle > 0 ? Padle.ToString() : "-";
         public string CHDisplay => CH > 0 ? CH.ToString() : "-";
@@ -574,9 +1371,9 @@ namespace Kalendarz1
             {
                 switch (Status)
                 {
-                    case StatusOceny.Nieoceniona: return new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FFA726"));
-                    case StatusOceny.CzesciowaOcena: return new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#42A5F5"));
-                    case StatusOceny.Oceniona: return new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#66BB6A"));
+                    case StatusOceny.Nieoceniona: return new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#F44336")); // Czerwony
+                    case StatusOceny.CzesciowaOcena: return new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FF9800")); // Pomarańczowy
+                    case StatusOceny.Oceniona: return new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#4CAF50")); // Zielony
                     default: return new SolidColorBrush(Colors.Gray);
                 }
             }

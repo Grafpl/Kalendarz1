@@ -4,13 +4,13 @@
         Title="Panel Lekarza - Ocena Dobrostanu" 
         Height="800" Width="1400"
         WindowState="Maximized"
-        Background="#1A1A2E"
+        Background="#1C1C1C"
         Loaded="Window_Loaded">
 
     <Window.Resources>
         <!-- Style dla przycisków dotykowych -->
         <Style x:Key="TouchButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#16213E"/>
+            <Setter Property="Background" Value="#2D2D2D"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontSize" Value="16"/>
             <Setter Property="FontWeight" Value="Bold"/>
@@ -29,17 +29,17 @@
             </Setter>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#1F4068"/>
+                    <Setter Property="Background" Value="#3D3D3D"/>
                 </Trigger>
                 <Trigger Property="IsPressed" Value="True">
-                    <Setter Property="Background" Value="#E94560"/>
+                    <Setter Property="Background" Value="#4CAF50"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
 
         <!-- Styl przycisku sukces -->
         <Style x:Key="SuccessButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#00BFA6"/>
+            <Setter Property="Background" Value="#4CAF50"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontSize" Value="20"/>
             <Setter Property="FontWeight" Value="Bold"/>
@@ -58,46 +58,47 @@
             </Setter>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#00E5C4"/>
+                    <Setter Property="Background" Value="#66BB6A"/>
                 </Trigger>
                 <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Background" Value="#4A5568"/>
-                    <Setter Property="Foreground" Value="#718096"/>
+                    <Setter Property="Background" Value="#3D3D3D"/>
+                    <Setter Property="Foreground" Value="#666666"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
 
         <!-- Styl wiersza dostawy -->
         <Style x:Key="DeliveryRowStyle" TargetType="Border">
-            <Setter Property="Background" Value="#16213E"/>
+            <Setter Property="Background" Value="#2D2D2D"/>
             <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="15,12"/>
-            <Setter Property="Margin" Value="3,2"/>
+            <Setter Property="Padding" Value="15,14"/>
+            <Setter Property="Margin" Value="3,3"/>
             <Setter Property="BorderThickness" Value="0,0,4,0"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="MinHeight" Value="58"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#1F4068"/>
+                    <Setter Property="Background" Value="#3D3D3D"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
 
         <!-- Styl pola wpisywania wartości -->
         <Style x:Key="ValueInputStyle" TargetType="Border">
-            <Setter Property="Background" Value="#1A1A2E"/>
+            <Setter Property="Background" Value="#1C1C1C"/>
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="15,10"/>
             <Setter Property="Margin" Value="0,5"/>
             <Setter Property="BorderThickness" Value="3"/>
-            <Setter Property="BorderBrush" Value="#0F3460"/>
+            <Setter Property="BorderBrush" Value="#3D3D3D"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
 
         <!-- Styl dla numpad -->
         <Style x:Key="NumpadStyle" TargetType="Button">
-            <Setter Property="Background" Value="#16213E"/>
+            <Setter Property="Background" Value="#2D2D2D"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontSize" Value="28"/>
+            <Setter Property="FontSize" Value="36"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Margin" Value="3"/>
@@ -105,7 +106,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="8">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="10">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                     </ControlTemplate>
@@ -113,10 +114,10 @@
             </Setter>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#1F4068"/>
+                    <Setter Property="Background" Value="#3D3D3D"/>
                 </Trigger>
                 <Trigger Property="IsPressed" Value="True">
-                    <Setter Property="Background" Value="#E94560"/>
+                    <Setter Property="Background" Value="#4CAF50"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -144,13 +145,13 @@
                                        Width="30">
                                 <ScrollBar.Template>
                                     <ControlTemplate TargetType="ScrollBar">
-                                        <Grid Background="#0F3460">
+                                        <Grid Background="#2D2D2D">
                                             <Track x:Name="PART_Track" IsDirectionReversed="true">
                                                 <Track.Thumb>
                                                     <Thumb>
                                                         <Thumb.Template>
                                                             <ControlTemplate TargetType="Thumb">
-                                                                <Border Background="#42A5F5" CornerRadius="10" Margin="4"/>
+                                                                <Border Background="#4CAF50" CornerRadius="10" Margin="4"/>
                                                             </ControlTemplate>
                                                         </Thumb.Template>
                                                     </Thumb>
@@ -181,26 +182,32 @@
             </Grid.RowDefinitions>
 
             <!-- Nagłówek kolumn -->
-            <Border Grid.Row="0" Background="#0F3460" Padding="12,8" Margin="3,3,0,0">
+            <Border Grid.Row="0" Background="#2D2D2D" Padding="12,10" Margin="3,3,0,0">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="50"/>
+                        <ColumnDefinition Width="45"/>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="90"/>
+                        <ColumnDefinition Width="100"/>
+                        <ColumnDefinition Width="250"/>
+                        <ColumnDefinition Width="100"/>
+                        <ColumnDefinition Width="100"/>
+                        <ColumnDefinition Width="65"/>
+                        <ColumnDefinition Width="55"/>
+                        <ColumnDefinition Width="55"/>
+                        <ColumnDefinition Width="55"/>
                         <ColumnDefinition Width="70"/>
-                        <ColumnDefinition Width="70"/>
-                        <ColumnDefinition Width="70"/>
-                        <ColumnDefinition Width="70"/>
-                        <ColumnDefinition Width="80"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="LP" FontSize="12" FontWeight="Bold" Foreground="#94A3B8"/>
-                    <TextBlock Grid.Column="1" Text="HODOWCA" FontSize="12" FontWeight="Bold" Foreground="#94A3B8"/>
-                    <TextBlock Grid.Column="2" Text="NETTO" FontSize="12" FontWeight="Bold" Foreground="#66BB6A" HorizontalAlignment="Center"/>
-                    <TextBlock Grid.Column="3" Text="PADŁE" FontSize="12" FontWeight="Bold" Foreground="#E94560" HorizontalAlignment="Center"/>
-                    <TextBlock Grid.Column="4" Text="CH" FontSize="12" FontWeight="Bold" Foreground="#FFA726" HorizontalAlignment="Center"/>
-                    <TextBlock Grid.Column="5" Text="NW" FontSize="12" FontWeight="Bold" Foreground="#FFA726" HorizontalAlignment="Center"/>
-                    <TextBlock Grid.Column="6" Text="ZM" FontSize="12" FontWeight="Bold" Foreground="#FFA726" HorizontalAlignment="Center"/>
-                    <TextBlock Grid.Column="7" Text="STATUS" FontSize="12" FontWeight="Bold" Foreground="#94A3B8" HorizontalAlignment="Center"/>
+                    <TextBlock Grid.Column="0" Text="LP" FontSize="15" FontWeight="Bold" Foreground="#888888"/>
+                    <TextBlock Grid.Column="1" Text="HODOWCA" FontSize="15" FontWeight="Bold" Foreground="#888888"/>
+                    <TextBlock Grid.Column="2" Text="NR GOSP." FontSize="15" FontWeight="Bold" Foreground="#4CAF50" HorizontalAlignment="Center"/>
+                    <TextBlock Grid.Column="3" Text="ADRES" FontSize="15" FontWeight="Bold" Foreground="#888888" HorizontalAlignment="Center"/>
+                    <TextBlock Grid.Column="4" Text="CIĄGNIK" FontSize="15" FontWeight="Bold" Foreground="#888888" HorizontalAlignment="Center"/>
+                    <TextBlock Grid.Column="5" Text="NACZEPA" FontSize="15" FontWeight="Bold" Foreground="#888888" HorizontalAlignment="Center"/>
+                    <TextBlock Grid.Column="6" Text="PADŁE" FontSize="15" FontWeight="Bold" Foreground="#F44336" HorizontalAlignment="Center"/>
+                    <TextBlock Grid.Column="7" Text="CH" FontSize="15" FontWeight="Bold" Foreground="#FF9800" HorizontalAlignment="Center"/>
+                    <TextBlock Grid.Column="8" Text="NW" FontSize="15" FontWeight="Bold" Foreground="#FF9800" HorizontalAlignment="Center"/>
+                    <TextBlock Grid.Column="9" Text="ZM" FontSize="15" FontWeight="Bold" Foreground="#FF9800" HorizontalAlignment="Center"/>
+                    <TextBlock Grid.Column="10" Text="STATUS" FontSize="15" FontWeight="Bold" Foreground="#888888" HorizontalAlignment="Center"/>
                 </Grid>
             </Border>
 
@@ -215,61 +222,78 @@
                                     BorderBrush="{Binding StatusColor}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="50"/>
+                                        <ColumnDefinition Width="45"/>
                                         <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="90"/>
+                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="250"/>
+                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="65"/>
+                                        <ColumnDefinition Width="55"/>
+                                        <ColumnDefinition Width="55"/>
+                                        <ColumnDefinition Width="55"/>
                                         <ColumnDefinition Width="70"/>
-                                        <ColumnDefinition Width="70"/>
-                                        <ColumnDefinition Width="70"/>
-                                        <ColumnDefinition Width="70"/>
-                                        <ColumnDefinition Width="80"/>
                                     </Grid.ColumnDefinitions>
 
                                     <!-- LP -->
-                                    <Border Grid.Column="0" Background="#E94560" CornerRadius="5" 
-                                            Width="35" Height="35" HorizontalAlignment="Left">
-                                        <TextBlock Text="{Binding Lp}" FontSize="14" FontWeight="Bold" 
+                                    <Border Grid.Column="0" Background="#4CAF50" CornerRadius="6" 
+                                            Width="36" Height="36" HorizontalAlignment="Left">
+                                        <TextBlock Text="{Binding Lp}" FontSize="16" FontWeight="Bold" 
                                                    Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
 
                                     <!-- Hodowca -->
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding HodowcaNazwa}" 
-                                                   FontSize="14" FontWeight="Bold" Foreground="White"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding SztukiInfo}" 
-                                                   FontSize="10" Foreground="#64748B"/>
-                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding HodowcaNazwa}" 
+                                               FontSize="18" FontWeight="Bold" Foreground="White"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
 
-                                    <!-- Netto -->
-                                    <TextBlock Grid.Column="2" Text="{Binding NettoDisplay}" 
-                                               FontSize="14" FontWeight="Bold" Foreground="#66BB6A" 
+                                    <!-- Nr gospodarstwa -->
+                                    <TextBlock Grid.Column="2" Text="{Binding AnimNo}" 
+                                               FontSize="15" Foreground="#4CAF50" FontWeight="SemiBold"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
+                                    <!-- Adres -->
+                                    <TextBlock Grid.Column="3" Text="{Binding Adres}" 
+                                               FontSize="14" Foreground="#BBBBBB" 
+                                               HorizontalAlignment="Left" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis" Margin="5,0,0,0"/>
+
+                                    <!-- Ciągnik -->
+                                    <TextBlock Grid.Column="4" Text="{Binding CarID}" 
+                                               FontSize="14" Foreground="#BBBBBB" 
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"/>
+
+                                    <!-- Naczepa -->
+                                    <TextBlock Grid.Column="5" Text="{Binding TrailerID}" 
+                                               FontSize="14" Foreground="#BBBBBB" 
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"/>
+
                                     <!-- Padłe -->
-                                    <TextBlock Grid.Column="3" Text="{Binding PadleDisplay}" 
-                                               FontSize="14" FontWeight="Bold" Foreground="#E94560" 
+                                    <TextBlock Grid.Column="6" Text="{Binding PadleDisplay}" 
+                                               FontSize="20" FontWeight="Bold" Foreground="#F44336" 
                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
                                     <!-- CH -->
-                                    <TextBlock Grid.Column="4" Text="{Binding CHDisplay}" 
-                                               FontSize="14" FontWeight="Bold" Foreground="#FFA726" 
+                                    <TextBlock Grid.Column="7" Text="{Binding CHDisplay}" 
+                                               FontSize="20" FontWeight="Bold" Foreground="#FF9800" 
                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
                                     <!-- NW -->
-                                    <TextBlock Grid.Column="5" Text="{Binding NWDisplay}" 
-                                               FontSize="14" FontWeight="Bold" Foreground="#FFA726" 
+                                    <TextBlock Grid.Column="8" Text="{Binding NWDisplay}" 
+                                               FontSize="20" FontWeight="Bold" Foreground="#FF9800" 
                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
                                     <!-- ZM -->
-                                    <TextBlock Grid.Column="6" Text="{Binding ZMDisplay}" 
-                                               FontSize="14" FontWeight="Bold" Foreground="#FFA726" 
+                                    <TextBlock Grid.Column="9" Text="{Binding ZMDisplay}" 
+                                               FontSize="20" FontWeight="Bold" Foreground="#FF9800" 
                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
                                     <!-- Status -->
-                                    <Border Grid.Column="7" Background="{Binding StatusColor}" CornerRadius="5" 
+                                    <Border Grid.Column="10" Background="{Binding StatusColor}" CornerRadius="5" 
                                             Padding="8,4" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding StatusText}" FontSize="10" 
+                                        <TextBlock Text="{Binding StatusText}" FontSize="12" 
                                                    Foreground="White" FontWeight="SemiBold"/>
                                     </Border>
                                 </Grid>
@@ -281,22 +305,22 @@
         </Grid>
 
         <!-- PRAWA STRONA - PANEL OCENY -->
-        <Border Grid.Column="1" Background="#16213E" BorderBrush="#0F3460" BorderThickness="3,0,0,0">
+        <Border Grid.Column="1" Background="#2D2D2D" BorderBrush="#3D3D3D" BorderThickness="3,0,0,0">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
                 <!-- Nagłówek z datą -->
-                <Border Grid.Row="0" Background="#0F3460" Padding="10">
+                <Border Grid.Row="0" Background="#1C1C1C" Padding="10">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         
@@ -306,36 +330,126 @@
                         
                         <StackPanel Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <TextBlock x:Name="lblData" Text="16 GRUDNIA 2024" 
-                                       FontSize="18" FontWeight="Bold" Foreground="White" 
+                                       FontSize="18" FontWeight="Bold" Foreground="#4CAF50" 
                                        HorizontalAlignment="Center"/>
                             <TextBlock x:Name="lblDzien" Text="PONIEDZIAŁEK" 
-                                       FontSize="12" Foreground="#94A3B8" 
+                                       FontSize="12" Foreground="#888888" 
                                        HorizontalAlignment="Center"/>
                         </StackPanel>
                         
                         <Button Grid.Column="2" Content="▶" Click="BtnNextDay_Click" 
                                 Style="{StaticResource TouchButtonStyle}"
                                 Width="50" Height="40" FontSize="20"/>
+
+                        <Button Grid.Column="3" Content="🖨️" Click="BtnDrukuj_Click" 
+                                Style="{StaticResource TouchButtonStyle}"
+                                Width="50" Height="40" FontSize="20" Margin="10,0,0,0"
+                                ToolTip="Drukuj raport dzienny"/>
                     </Grid>
                 </Border>
 
                 <!-- Informacje o wybranej dostawie -->
-                <Border Grid.Row="1" Background="#1A1A2E" Padding="15" Margin="8,8,8,5" CornerRadius="8">
-                    <StackPanel>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock x:Name="lblWybranyLp" Text="LP: -" FontSize="20" Foreground="#FFA726" FontWeight="Bold"/>
-                            <TextBlock x:Name="lblStatus" Grid.Column="1" Text="" FontSize="12" Foreground="#64748B"/>
-                        </Grid>
-                        <TextBlock x:Name="lblWybranyHodowca" Text="Wybierz dostawę z listy" 
-                                   FontSize="20" FontWeight="Bold" Foreground="White" 
-                                   TextWrapping="Wrap" Margin="0,5,0,0"/>
-                        <TextBlock x:Name="lblSztukiNetto" Text="" 
-                                   FontSize="14" Foreground="#66BB6A" Margin="0,5,0,0"/>
-                    </StackPanel>
+                <Border Grid.Row="1" Background="#1C1C1C" Padding="12,10" Margin="8,5,8,3" CornerRadius="8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <StackPanel Grid.Column="0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="lblWybranyLp" Text="LP: -" FontSize="20" Foreground="#4CAF50" FontWeight="Bold"/>
+                                <TextBlock x:Name="lblStatus" Grid.Column="1" Text="" FontSize="13" Foreground="#888888"/>
+                            </Grid>
+                            
+                            <!-- Dane hodowcy - kompaktowe -->
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="75"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                
+                                <!-- Hodowca -->
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Hodowca:" 
+                                           FontSize="12" Foreground="#888888" VerticalAlignment="Center" Margin="0,0,0,4"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" x:Name="txtHodowcaNazwa" 
+                                         FontSize="16" FontWeight="Bold" Foreground="White" Background="#2D2D2D" 
+                                         BorderBrush="#4CAF50" BorderThickness="1" Padding="8,4" Margin="0,0,0,4"/>
+                                
+                                <!-- Nr gospodarstwa -->
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Nr gosp.:" 
+                                           FontSize="12" Foreground="#888888" VerticalAlignment="Center" Margin="0,0,0,4"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" x:Name="txtAnimNo" 
+                                         FontSize="14" Foreground="White" Background="#2D2D2D" 
+                                         BorderBrush="#3D3D3D" BorderThickness="1" Padding="8,4" Margin="0,0,0,4"/>
+                                
+                                <!-- Adres -->
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Adres:" 
+                                           FontSize="12" Foreground="#888888" VerticalAlignment="Center" Margin="0,0,0,4"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" x:Name="txtAdres" 
+                                         FontSize="14" Foreground="White" Background="#2D2D2D" 
+                                         BorderBrush="#3D3D3D" BorderThickness="1" Padding="8,4" Margin="0,0,0,4"/>
+                                
+                                <!-- Ciągnik i Naczepa w jednym wierszu -->
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Pojazd:" 
+                                           FontSize="12" Foreground="#888888" VerticalAlignment="Center" Margin="0,0,0,4"/>
+                                <Grid Grid.Row="3" Grid.Column="1" Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" x:Name="txtCiagnikEdit" 
+                                             FontSize="13" Foreground="White" Background="#2D2D2D" 
+                                             BorderBrush="#3D3D3D" BorderThickness="1" Padding="6,4"
+                                             ToolTip="Ciągnik"/>
+                                    <TextBox Grid.Column="2" x:Name="txtNaczepaEdit" 
+                                             FontSize="13" Foreground="White" Background="#2D2D2D" 
+                                             BorderBrush="#3D3D3D" BorderThickness="1" Padding="6,4"
+                                             ToolTip="Naczepa"/>
+                                </Grid>
+                                
+                                <!-- Przycisk zapisu + info -->
+                                <Grid Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button x:Name="btnZapiszDaneHodowcy" Content="💾 Zapisz hodowcę" 
+                                            Click="BtnZapiszDaneHodowcy_Click"
+                                            Background="#2D2D2D" Foreground="White" 
+                                            FontSize="12" Padding="10,5"
+                                            BorderThickness="0" Cursor="Hand"/>
+                                    <TextBlock Grid.Column="1" x:Name="lblSztukiNetto" Text="" 
+                                               FontSize="12" Foreground="#66BB6A" VerticalAlignment="Center"
+                                               HorizontalAlignment="Right"/>
+                                </Grid>
+                            </Grid>
+                        </StackPanel>
+                        
+                        <!-- Przyciski zmiany kolejności -->
+                        <StackPanel Grid.Column="1" VerticalAlignment="Top" Margin="8,0,0,0">
+                            <Button Content="▲" Click="BtnMoveUp_Click" 
+                                    Style="{StaticResource TouchButtonStyle}"
+                                    Width="45" Height="40" FontSize="20" Margin="0,0,0,4"
+                                    ToolTip="Przesuń w górę"/>
+                            <Button Content="▼" Click="BtnMoveDown_Click" 
+                                    Style="{StaticResource TouchButtonStyle}"
+                                    Width="45" Height="40" FontSize="20"
+                                    ToolTip="Przesuń w dół"/>
+                        </StackPanel>
+                    </Grid>
                 </Border>
 
                 <!-- Pola oceny -->
@@ -359,9 +473,9 @@
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="PADŁE:" FontSize="14" Foreground="#E94560" 
+                            <TextBlock Text="PADŁE:" FontSize="16" Foreground="#F44336" 
                                        FontWeight="Bold" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="1" x:Name="txtPadle" Text="0" FontSize="28" FontWeight="Bold" 
+                            <TextBlock Grid.Column="1" x:Name="txtPadle" Text="0" FontSize="32" FontWeight="Bold" 
                                        Foreground="White" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
@@ -374,9 +488,9 @@
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="CH:" FontSize="14" Foreground="#FFA726" 
+                            <TextBlock Text="CH:" FontSize="16" Foreground="#FF9800" 
                                        FontWeight="Bold" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="1" x:Name="txtCH" Text="0" FontSize="28" FontWeight="Bold" 
+                            <TextBlock Grid.Column="1" x:Name="txtCH" Text="0" FontSize="32" FontWeight="Bold" 
                                        Foreground="White" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
@@ -389,9 +503,9 @@
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="NW:" FontSize="14" Foreground="#FFA726" 
+                            <TextBlock Text="NW:" FontSize="16" Foreground="#FF9800" 
                                        FontWeight="Bold" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="1" x:Name="txtNW" Text="0" FontSize="28" FontWeight="Bold" 
+                            <TextBlock Grid.Column="1" x:Name="txtNW" Text="0" FontSize="32" FontWeight="Bold" 
                                        Foreground="White" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
@@ -404,43 +518,44 @@
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="ZM:" FontSize="14" Foreground="#FFA726" 
+                            <TextBlock Text="ZM:" FontSize="16" Foreground="#FF9800" 
                                        FontWeight="Bold" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="1" x:Name="txtZM" Text="0" FontSize="28" FontWeight="Bold" 
+                            <TextBlock Grid.Column="1" x:Name="txtZM" Text="0" FontSize="32" FontWeight="Bold" 
                                        Foreground="White" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
 
                     <!-- Suma konfiskat -->
-                    <Border Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Background="#0F3460" 
+                    <Border Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Background="#1C1C1C" 
                             CornerRadius="8" Padding="15,10" Margin="0,10,0,5">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="SUMA KONFISKAT (CH+NW+ZM):" FontSize="14" Foreground="#94A3B8" 
+                            <TextBlock Text="SUMA KONFISKAT (CH+NW+ZM):" FontSize="15" Foreground="#888888" 
                                        FontWeight="Bold" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="1" x:Name="txtSumaKonfiskat" Text="0 szt" FontSize="24" FontWeight="Bold" 
-                                       Foreground="#FFA726" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" x:Name="txtSumaKonfiskat" Text="0 szt" FontSize="26" FontWeight="Bold" 
+                                       Foreground="#FF9800" VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
 
                     <!-- Aktywne pole info -->
-                    <Border Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Background="#1A1A2E" 
+                    <Border Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Background="#1C1C1C" 
                             CornerRadius="5" Padding="10,5" Margin="0,5,0,0">
                         <TextBlock x:Name="lblAktywnePole" Text="Wybierz pole do edycji" 
-                                   FontSize="12" Foreground="#64748B" HorizontalAlignment="Center"/>
+                                   FontSize="14" Foreground="#4CAF50" HorizontalAlignment="Center"/>
                     </Border>
                 </Grid>
 
-                <!-- Numpad -->
-                <Grid Grid.Row="3" Margin="8,5">
+                <!-- Numpad - większy -->
+                <Grid Grid.Row="3" Margin="8,5,8,8">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="70"/>
+                        <RowDefinition Height="70"/>
+                        <RowDefinition Height="70"/>
+                        <RowDefinition Height="70"/>
+                        <RowDefinition Height="55"/>
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -461,20 +576,17 @@
                     <Button Grid.Row="2" Grid.Column="2" Content="3" Click="NumpadClick" Style="{StaticResource NumpadStyle}"/>
 
                     <Button Grid.Row="3" Grid.Column="0" Content="C" Click="BtnClear_Click" 
-                            Style="{StaticResource NumpadStyle}" Foreground="#E94560"/>
+                            Style="{StaticResource NumpadStyle}" Background="#F44336" Foreground="White"/>
                     <Button Grid.Row="3" Grid.Column="1" Content="0" Click="NumpadClick" Style="{StaticResource NumpadStyle}"/>
                     <Button Grid.Row="3" Grid.Column="2" Content="⌫" Click="BtnBackspace_Click" 
-                            Style="{StaticResource NumpadStyle}" Foreground="#FFA726"/>
-                </Grid>
+                            Style="{StaticResource NumpadStyle}" Background="#FF9800" Foreground="White"/>
 
-                <!-- Przycisk zapisz -->
-                <Border Grid.Row="4" Padding="8,5,8,8">
-                    <Button x:Name="btnZapisz" Content="✓ ZAPISZ OCENĘ" 
-                            Click="BtnZapisz_Click"
-                            Style="{StaticResource SuccessButtonStyle}"
-                            Height="60"
-                            IsEnabled="False"/>
-                </Border>
+                    <!-- ENTER - następne pole -->
+                    <Button Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Content="ENTER → Następne pole" 
+                            Click="BtnEnter_Click" 
+                            Style="{StaticResource NumpadStyle}" 
+                            Background="#4CAF50" Foreground="White" FontSize="16"/>
+                </Grid>
             </Grid>
         </Border>
     </Grid>
