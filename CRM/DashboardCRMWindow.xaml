@@ -350,12 +350,11 @@
                         </Grid>
 
                         <!-- Canvas wykresu - DARK -->
-                        <Border Grid.Row="1" Background="#0F172A" CornerRadius="8" Padding="0" Margin="0,0,0,10">
-                            <Grid Margin="50,15,25,40">
-                                <Canvas x:Name="canvasWykres" Background="Transparent" ClipToBounds="True"/>
-                                <StackPanel x:Name="panelOsY" Orientation="Vertical" HorizontalAlignment="Left" Margin="-42,0,0,0"/>
-                                <StackPanel x:Name="panelOsX" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,-32"/>
-                            </Grid>
+                        <Border Grid.Row="1" Background="#0F172A" CornerRadius="8" Padding="8" Margin="0,0,0,10">
+                            <Canvas x:Name="canvasWykres" Background="Transparent" ClipToBounds="False"/>
+                            <!-- Ukryte panele dla kompatybilności -->
+                            <StackPanel x:Name="panelOsY" Visibility="Collapsed"/>
+                            <StackPanel x:Name="panelOsX" Visibility="Collapsed"/>
                         </Border>
 
                         <!-- Legenda -->

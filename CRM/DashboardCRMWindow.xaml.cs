@@ -20,25 +20,29 @@ namespace Kalendarz1.CRM
         private bool isLoaded = false;
         private string wybranyHandlowiec = "";
 
-        // Kolory - zróżnicowane, niektóre zielone "przebijają"
+        // Kolory - maksymalnie zróżnicowane
         private readonly string[] koloryHandlowcow = new[]
         {
-            "#10B981", // zielony główny
-            "#38BDF8", // niebieski
-            "#F59E0B", // pomarańczowy
-            "#A78BFA", // fioletowy
-            "#34D399", // zielony jasny
-            "#FB7185", // różowy
-            "#22D3EE", // cyjan
-            "#FBBF24", // żółty
-            "#6EE7B7", // zielony miętowy
-            "#F472B6", // magenta
-            "#2DD4BF", // teal
-            "#E879F9", // purpura
-            "#4ADE80", // zielony lime
-            "#60A5FA", // niebieski jasny
-            "#FCD34D", // złoty
-            "#A3E635"  // limonka
+            "#FF6B6B", // czerwony
+            "#4ECDC4", // turkusowy
+            "#FFE66D", // żółty
+            "#95E1D3", // miętowy
+            "#F38181", // koralowy
+            "#AA96DA", // lawendowy
+            "#6C5CE7", // fioletowy intensywny
+            "#00B894", // zielony morski
+            "#FDCB6E", // pomarańczowy jasny
+            "#E84393", // różowy intensywny
+            "#00CEC9", // cyjan
+            "#0984E3", // niebieski
+            "#FF7675", // łososiowy
+            "#A29BFE", // fioletowy jasny
+            "#55EFC4", // zielony neonowy
+            "#FAB1A0", // brzoskwiniowy
+            "#74B9FF", // błękitny
+            "#FD79A8", // różowy
+            "#636E72", // szary
+            "#FFEAA7"  // kremowy
         };
 
         public DashboardCRMWindow(string connString)
@@ -177,7 +181,7 @@ namespace Kalendarz1.CRM
             {
                 conn.Open();
                 string filtrHandlowca = string.IsNullOrEmpty(wybranyHandlowiec) ? "" :
-                    " AND (h.KtoWykonal = @handlowiec OR o.Name = @handlowiec)";
+                    " AND o.Name = @handlowiec";
 
                 var cmdTel = new SqlCommand($@"
                     SELECT COUNT(*) FROM HistoriaZmianCRM h
@@ -208,7 +212,7 @@ namespace Kalendarz1.CRM
                 txtStatusyInfo.Text = okresDni > 1 ? $"śr. {(stat / (double)okresDni):F1}/dzień" : "zmian";
 
                 string filtrNotatki = string.IsNullOrEmpty(wybranyHandlowiec) ? "" :
-                    " AND (n.KtoDodal = @handlowiec OR o.Name = @handlowiec)";
+                    " AND o.Name = @handlowiec";
                 var cmdNot = new SqlCommand($@"
                     SELECT COUNT(*) FROM NotatkiCRM n
                     LEFT JOIN operators o ON n.KtoDodal = CAST(o.ID AS NVARCHAR)
@@ -271,12 +275,18 @@ namespace Kalendarz1.CRM
             var aktywniHandlowcy = daneHandlowcow.Where(x => x.Value.Sum() > 0)
                                                   .ToDictionary(x => x.Key, x => x.Value);
 
+            // Jeśli wybrany handlowiec, pokaż tylko jego
+            if (!string.IsNullOrEmpty(wybranyHandlowiec) && aktywniHandlowcy.ContainsKey(wybranyHandlowiec))
+            {
+                aktywniHandlowcy = new Dictionary<string, int[]> { { wybranyHandlowiec, aktywniHandlowcy[wybranyHandlowiec] } };
+            }
+
             if (aktywniHandlowcy.Count == 0 || etykietyX.Count == 0) return;
 
             int punkty = etykietyX.Count;
             double w = canvasWykres.ActualWidth;
             double h = canvasWykres.ActualHeight;
-            double ml = 10, mr = 120, mt = 15, mb = 10;
+            double ml = 45, mr = 15, mt = 20, mb = 15;
             double cw = w - ml - mr;
             double ch = h - mt - mb;
 
@@ -286,41 +296,70 @@ namespace Kalendarz1.CRM
                 int m = hd.Max();
                 if (m > maxVal) maxVal = m;
             }
-            maxVal = (int)(Math.Ceiling(maxVal / 5.0) * 5);
-            if (maxVal == 0) maxVal = 5;
+            // Lepsze zaokrąglanie dla osi Y
+            int[] ladneWartosci = { 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000 };
+            int docelowy = (int)(maxVal * 1.1);
+            maxVal = ladneWartosci.FirstOrDefault(v => v >= docelowy);
+            if (maxVal == 0) maxVal = (int)(Math.Ceiling(docelowy / 10.0) * 10);
+            if (maxVal < 5) maxVal = 5;
 
-            // Siatka pozioma
-            for (int i = 0; i <= 5; i++)
+            // Oś Y z wartościami
+            int liczbaLiniiY = 5;
+            for (int i = 0; i <= liczbaLiniiY; i++)
             {
-                double y = mt + (ch * i / 5);
+                double y = mt + (ch * i / liczbaLiniiY);
+                int wartosc = maxVal - (maxVal * i / liczbaLiniiY);
+
+                // Linia pozioma
                 canvasWykres.Children.Add(new Line
                 {
                     X1 = ml, Y1 = y, X2 = w - mr, Y2 = y,
-                    Stroke = new SolidColorBrush(i == 0 ? Color.FromArgb(60, 16, 185, 129) : Color.FromRgb(30, 41, 59)),
-                    StrokeThickness = i == 0 ? 2 : 1,
-                    StrokeDashArray = i > 0 ? new DoubleCollection { 4, 4 } : null
+                    Stroke = new SolidColorBrush(Color.FromRgb(40, 50, 70)),
+                    StrokeThickness = 1,
+                    StrokeDashArray = new DoubleCollection { 3, 3 }
                 });
-                panelOsY.Children.Add(new TextBlock
+
+                // Etykieta Y
+                var lblY = new TextBlock
                 {
-                    Text = (maxVal - maxVal * i / 5).ToString(),
-                    FontSize = 9,
-                    Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)),
-                    Margin = new Thickness(0, y - 6, 0, 0)
-                });
+                    Text = wartosc.ToString(),
+                    FontSize = 10,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(120, 140, 160)),
+                    TextAlignment = TextAlignment.Right,
+                    Width = 35
+                };
+                Canvas.SetLeft(lblY, 5);
+                Canvas.SetTop(lblY, y - 8);
+                canvasWykres.Children.Add(lblY);
             }
 
-            // Pionowe linie siatki
+            // Pionowe linie siatki i etykiety X
             double stepX = cw / punkty;
-            for (int i = 0; i <= punkty; i++)
+            for (int i = 0; i < punkty; i++)
             {
-                double x = ml + i * stepX;
+                double x = ml + (i + 0.5) * stepX;
+
+                // Linia pionowa
                 canvasWykres.Children.Add(new Line
                 {
                     X1 = x, Y1 = mt, X2 = x, Y2 = mt + ch,
-                    Stroke = new SolidColorBrush(Color.FromRgb(30, 41, 59)),
+                    Stroke = new SolidColorBrush(Color.FromRgb(40, 50, 70)),
                     StrokeThickness = 1,
-                    StrokeDashArray = new DoubleCollection { 4, 4 }
+                    StrokeDashArray = new DoubleCollection { 3, 3 }
                 });
+
+                // Etykieta X
+                var lblX = new TextBlock
+                {
+                    Text = etykietyX[i],
+                    FontSize = TrybTygodniowy ? 9 : 11,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(140, 160, 180))
+                };
+                Canvas.SetLeft(lblX, x - (TrybTygodniowy ? 18 : 12));
+                Canvas.SetTop(lblX, mt + ch + 5);
+                canvasWykres.Children.Add(lblX);
             }
 
             // Rysuj linie handlowców
@@ -344,127 +383,152 @@ namespace Kalendarz1.CRM
 
                 if (points.Count == 0) continue;
 
-                // Glow pod linią (dla zielonych)
-                if (kolorHex.Contains("B981") || kolorHex.Contains("D399") || kolorHex.Contains("E7B7") || kolorHex.Contains("DE80"))
-                {
-                    canvasWykres.Children.Add(new Polyline
-                    {
-                        Points = points,
-                        Stroke = new SolidColorBrush(Color.FromArgb(50, kolor.R, kolor.G, kolor.B)),
-                        StrokeThickness = 10,
-                        StrokeLineJoin = PenLineJoin.Round
-                    });
-                }
-
-                // Główna linia
-                canvasWykres.Children.Add(new Polyline
+                // Główna linia (grubsza, klikalna)
+                var linia = new Polyline
                 {
                     Points = points,
                     Stroke = new SolidColorBrush(kolor),
-                    StrokeThickness = 3,
-                    StrokeLineJoin = PenLineJoin.Round
-                });
+                    StrokeThickness = aktywniHandlowcy.Count == 1 ? 4 : 3,
+                    StrokeLineJoin = PenLineJoin.Round,
+                    Cursor = Cursors.Hand,
+                    Tag = nazwa,
+                    ToolTip = $"Kliknij aby zobaczyć tylko: {nazwa}"
+                };
+                linia.MouseLeftButtonUp += LiniaWykresu_Click;
+                canvasWykres.Children.Add(linia);
 
-                // Punkty
+                // Punkty (klikalne)
                 for (int i = 0; i < Math.Min(dane.Length, punkty); i++)
                 {
-                    if (dane[i] > 0)
+                    string tooltip = $"{nazwa}\n{etykietyX[i]}: {dane[i]}\n\nKliknij aby filtrować";
+                    var el = new Ellipse
                     {
-                        string tooltip = $"{nazwa}\n{etykietyX[i]}: {dane[i]}";
-                        var el = new Ellipse
+                        Width = aktywniHandlowcy.Count == 1 ? 16 : 12,
+                        Height = aktywniHandlowcy.Count == 1 ? 16 : 12,
+                        Fill = new SolidColorBrush(kolor),
+                        Stroke = new SolidColorBrush(Color.FromRgb(15, 23, 42)),
+                        StrokeThickness = 2,
+                        ToolTip = tooltip,
+                        Cursor = Cursors.Hand,
+                        Tag = nazwa
+                    };
+                    el.MouseLeftButtonUp += PunktWykresu_Click;
+                    Canvas.SetLeft(el, points[i].X - (aktywniHandlowcy.Count == 1 ? 8 : 6));
+                    Canvas.SetTop(el, points[i].Y - (aktywniHandlowcy.Count == 1 ? 8 : 6));
+                    canvasWykres.Children.Add(el);
+
+                    // Wartość nad punktem (tylko jeśli jeden handlowiec lub wartość > 0)
+                    if (aktywniHandlowcy.Count == 1 || dane[i] > 0)
+                    {
+                        var lblVal = new TextBlock
                         {
-                            Width = 12, Height = 12,
-                            Fill = new SolidColorBrush(kolor),
-                            Stroke = new SolidColorBrush(Color.FromRgb(15, 23, 42)),
-                            StrokeThickness = 2,
-                            ToolTip = tooltip
+                            Text = dane[i].ToString(),
+                            FontSize = 9,
+                            FontWeight = FontWeights.Bold,
+                            Foreground = new SolidColorBrush(kolor)
                         };
-                        Canvas.SetLeft(el, points[i].X - 6);
-                        Canvas.SetTop(el, points[i].Y - 6);
-                        canvasWykres.Children.Add(el);
+                        Canvas.SetLeft(lblVal, points[i].X - 8);
+                        Canvas.SetTop(lblVal, points[i].Y - 20);
+                        canvasWykres.Children.Add(lblVal);
                     }
                 }
 
-                kolorIndex++;
-            }
-
-            // Podpisy z tłem - rysuj na końcu (na wierzchu)
-            kolorIndex = 0;
-            double offsetY = 0;
-            foreach (var kv in posortowani)
-            {
-                string nazwa = kv.Key;
-                int[] dane = kv.Value;
-                string kolorHex = koloryHandlowcow[kolorIndex % koloryHandlowcow.Length];
-                Color kolor = (Color)ColorConverter.ConvertFromString(kolorHex);
-
-                int ostatniIndex = -1;
-                for (int i = Math.Min(dane.Length, punkty) - 1; i >= 0; i--)
+                // Legenda (klikalna)
+                var legendaItem = new Border
                 {
-                    if (dane[i] > 0) { ostatniIndex = i; break; }
-                }
+                    Background = Brushes.Transparent,
+                    Cursor = Cursors.Hand,
+                    Tag = nazwa,
+                    Margin = new Thickness(0, 0, 12, 4),
+                    Padding = new Thickness(4, 2, 4, 2),
+                    CornerRadius = new CornerRadius(3),
+                    ToolTip = $"Kliknij aby zobaczyć tylko: {nazwa}"
+                };
+                legendaItem.MouseLeftButtonUp += LegendaItem_Click;
+                legendaItem.MouseEnter += (s, e) => ((Border)s).Background = new SolidColorBrush(Color.FromRgb(40, 50, 70));
+                legendaItem.MouseLeave += (s, e) => ((Border)s).Background = Brushes.Transparent;
 
-                if (ostatniIndex >= 0)
-                {
-                    double x = ml + (ostatniIndex + 0.5) * stepX;
-                    double y = mt + ch - (dane[ostatniIndex] / (double)maxVal * ch);
-
-                    // Tło podpisu
-                    var bg = new Border
-                    {
-                        Background = new SolidColorBrush(Color.FromArgb(220, 15, 23, 42)),
-                        CornerRadius = new CornerRadius(3),
-                        Padding = new Thickness(4, 2, 4, 2),
-                        BorderBrush = new SolidColorBrush(kolor),
-                        BorderThickness = new Thickness(1),
-                        Child = new TextBlock
-                        {
-                            Text = nazwa.Length > 12 ? nazwa.Substring(0, 10) + ".." : nazwa,
-                            FontSize = 10,
-                            FontWeight = FontWeights.Bold,
-                            Foreground = new SolidColorBrush(kolor)
-                        }
-                    };
-                    Canvas.SetLeft(bg, x + 12);
-                    Canvas.SetTop(bg, y - 10 + offsetY);
-                    canvasWykres.Children.Add(bg);
-
-                    offsetY = (offsetY + 16) % 48; // Rozłóż podpisy żeby się nie nakładały
-                }
-
-                // Legenda
-                var legendaItem = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 16, 4) };
-                legendaItem.Children.Add(new Rectangle
+                var legendaStack = new StackPanel { Orientation = Orientation.Horizontal };
+                legendaStack.Children.Add(new Ellipse
                 {
                     Fill = new SolidColorBrush(kolor),
-                    Width = 16, Height = 4,
-                    RadiusX = 2, RadiusY = 2,
+                    Width = 10, Height = 10,
                     VerticalAlignment = VerticalAlignment.Center
                 });
-                legendaItem.Children.Add(new TextBlock
+                legendaStack.Children.Add(new TextBlock
                 {
                     Text = $"{nazwa} ({dane.Sum()})",
                     FontSize = 10,
-                    Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)),
+                    FontWeight = nazwa == wybranyHandlowiec ? FontWeights.Bold : FontWeights.Normal,
+                    Foreground = new SolidColorBrush(Color.FromRgb(180, 190, 200)),
                     Margin = new Thickness(6, 0, 0, 0),
                     VerticalAlignment = VerticalAlignment.Center
                 });
+                legendaItem.Child = legendaStack;
                 panelLegenda.Children.Add(legendaItem);
 
                 kolorIndex++;
             }
 
-            // Etykiety osi X
-            for (int m = 0; m < punkty; m++)
+            // Przycisk "Pokaż wszystkich" jeśli filtrowany
+            if (!string.IsNullOrEmpty(wybranyHandlowiec))
             {
-                panelOsX.Children.Add(new TextBlock
+                var btnWszyscy = new Border
                 {
-                    Text = etykietyX[m],
-                    FontSize = TrybTygodniowy ? 8 : 10,
-                    FontWeight = FontWeights.SemiBold,
-                    Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)),
-                    Margin = new Thickness(ml + (m + 0.5) * stepX - (TrybTygodniowy ? 20 : 14), 0, 0, 0)
-                });
+                    Background = new SolidColorBrush(Color.FromRgb(60, 70, 90)),
+                    Cursor = Cursors.Hand,
+                    Margin = new Thickness(0, 0, 12, 4),
+                    Padding = new Thickness(8, 4, 8, 4),
+                    CornerRadius = new CornerRadius(4)
+                };
+                btnWszyscy.MouseLeftButtonUp += (s, e) =>
+                {
+                    cmbHandlowiec.SelectedIndex = 0; // "Wszyscy"
+                };
+                btnWszyscy.MouseEnter += (s, e) => ((Border)s).Background = new SolidColorBrush(Color.FromRgb(80, 90, 110));
+                btnWszyscy.MouseLeave += (s, e) => ((Border)s).Background = new SolidColorBrush(Color.FromRgb(60, 70, 90));
+                btnWszyscy.Child = new TextBlock
+                {
+                    Text = "← Pokaż wszystkich",
+                    FontSize = 10,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(100, 200, 150))
+                };
+                panelLegenda.Children.Insert(0, btnWszyscy);
+            }
+        }
+
+        private void LiniaWykresu_Click(object sender, MouseButtonEventArgs e)
+        {
+            var linia = sender as Polyline;
+            if (linia?.Tag == null) return;
+            WybierzHandlowcaZNazwy(linia.Tag.ToString());
+        }
+
+        private void PunktWykresu_Click(object sender, MouseButtonEventArgs e)
+        {
+            var punkt = sender as Ellipse;
+            if (punkt?.Tag == null) return;
+            WybierzHandlowcaZNazwy(punkt.Tag.ToString());
+        }
+
+        private void LegendaItem_Click(object sender, MouseButtonEventArgs e)
+        {
+            var border = sender as Border;
+            if (border?.Tag == null) return;
+            WybierzHandlowcaZNazwy(border.Tag.ToString());
+        }
+
+        private void WybierzHandlowcaZNazwy(string nazwa)
+        {
+            for (int i = 0; i < cmbHandlowiec.Items.Count; i++)
+            {
+                var item = cmbHandlowiec.Items[i] as ComboBoxItem;
+                if (item?.Tag?.ToString() == nazwa || item?.Content?.ToString() == nazwa)
+                {
+                    cmbHandlowiec.SelectedIndex = i;
+                    return;
+                }
             }
         }
 
