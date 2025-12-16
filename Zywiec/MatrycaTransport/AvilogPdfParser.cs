@@ -3,8 +3,11 @@ using iTextSharp.text.pdf.parser;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace Kalendarz1
@@ -23,38 +26,24 @@ namespace Kalendarz1
 
             try
             {
-                using (PdfReader reader = new PdfReader(filePath))
+                string text = ReadPdfText(filePath, result);
+
+                // Najpierw spróbuj podejścia tabelowego (pdfplumber) – ma lepszą jakość danych niż czysty tekst
+                var tableRows = TryParseWithTableExtractor(filePath);
+
+                // Wyciągnij datę uboju z nagłówka
+                result.DataUboju = ExtractDataUboju(text);
+
+                if (tableRows.Any())
                 {
-                    StringBuilder fullText = new StringBuilder();
-
-                    // Czytaj wszystkie strony
-                    for (int page = 1; page <= reader.NumberOfPages; page++)
-                    {
-                        string pageText = PdfTextExtractor.GetTextFromPage(reader, page);
-                        fullText.AppendLine(pageText);
-                        fullText.AppendLine("---PAGE_BREAK---");
-                    }
-
-                    string text = fullText.ToString();
-
-                    // DEBUG: Zapisz tekst do pliku do analizy
-                    try
-                    {
-                        string debugPath = System.IO.Path.Combine(
-                            System.IO.Path.GetDirectoryName(filePath),
-                            "avilog_debug_text.txt");
-                        System.IO.File.WriteAllText(debugPath, text);
-                        result.DebugText = text;
-                    }
-                    catch { }
-
-                    // Wyciągnij datę uboju z nagłówka
-                    result.DataUboju = ExtractDataUboju(text);
-
-                    // Parsuj wiersze transportowe - nowa metoda
-                    result.Wiersze = ParseTransportRowsNew(text);
+                    result.Wiersze = tableRows;
                     result.Success = true;
+                    return result;
                 }
+
+                // Fallback: stary parser tekstowy
+                result.Wiersze = ParseTransportRowsNew(text);
+                result.Success = true;
             }
             catch (Exception ex)
             {
@@ -125,6 +114,166 @@ namespace Kalendarz1
 
             monthName = monthName.ToLower().Trim();
             return months.ContainsKey(monthName) ? months[monthName] : 0;
+        }
+
+        /// <summary>
+        /// Próbuje wyciągnąć dane tabelaryczne przez pythonowy ekstraktor pdfplumber.
+        /// Jeśli wystąpi błąd (brak Pythona/skryptu), zwraca pustą listę, a wyżej zadziała fallback.
+        /// </summary>
+        private List<AvilogTransportRow> TryParseWithTableExtractor(string filePath)
+        {
+            var rows = new List<AvilogTransportRow>();
+
+            try
+            {
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string scriptPath = Path.Combine(baseDir, "tools", "avilog_pdf_table_extractor.py");
+
+                if (!File.Exists(scriptPath))
+                {
+                    // Rozwój lokalny: spróbuj ścieżki względem katalogu roboczego
+                    string altPath = Path.Combine(Directory.GetCurrentDirectory(), "tools", "avilog_pdf_table_extractor.py");
+                    if (File.Exists(altPath))
+                    {
+                        scriptPath = altPath;
+                    }
+                    else
+                    {
+                        return rows;
+                    }
+                }
+
+                string tempOutput = Path.Combine(Path.GetTempPath(), $"avilog_{Guid.NewGuid():N}.json");
+
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "python",
+                    Arguments = $"\"{scriptPath}\" \"{filePath}\" --format json --output \"{tempOutput}\"",
+                    RedirectStandardError = true,
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using (var process = Process.Start(psi))
+                {
+                    if (!process.WaitForExit(30000))
+                    {
+                        process.Kill();
+                        return rows;
+                    }
+
+                    if (process.ExitCode != 0)
+                    {
+                        return rows;
+                    }
+                }
+
+                if (!File.Exists(tempOutput))
+                {
+                    return rows;
+                }
+
+                string json = File.ReadAllText(tempOutput);
+                var parsed = JsonSerializer.Deserialize<List<AvilogTableRow>>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                foreach (var r in parsed ?? new List<AvilogTableRow>())
+                {
+                    rows.Add(MapTableRow(r));
+                }
+
+                try
+                {
+                    File.Delete(tempOutput);
+                }
+                catch { }
+            }
+            catch
+            {
+                // Celowo ignorujemy – fallback na parser tekstowy
+            }
+
+            return rows;
+        }
+
+        private AvilogTransportRow MapTableRow(AvilogTableRow row)
+        {
+            return new AvilogTransportRow
+            {
+                KierowcaNazwa = row.kierowca,
+                HodowcaNazwa = row.hodowca,
+                Ciagnik = row.ciagnik,
+                Naczepa = row.naczepa,
+                Sztuki = ParseIntSafe(row.ilosc_sztuk),
+                WymiarSkrzyn = row.wymiary,
+                WyjazdZaklad = ParseNullableDateTime(row.wyjazd_zaklad),
+                PoczatekZaladunku = ParseNullableTime(row.poczatek_zaladunku),
+                PowrotZaklad = ParseNullableDateTime(row.powrot_zaklad),
+                Obserwacje = row.obserwacje
+            };
+        }
+
+        private DateTime? ParseNullableDateTime(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return null;
+
+            if (DateTime.TryParse(value, out var dt))
+            {
+                return dt;
+            }
+
+            if (TimeSpan.TryParse(value, out var ts))
+            {
+                return DateTime.Today.Add(ts);
+            }
+
+            return null;
+        }
+
+        private TimeSpan? ParseNullableTime(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return null;
+            return TimeSpan.TryParse(value, out var ts) ? ts : null;
+        }
+
+        private int ParseIntSafe(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return 0;
+            var cleaned = value.Replace(" ", "");
+            return int.TryParse(cleaned, out var v) ? v : 0;
+        }
+
+        /// <summary>
+        /// Czyta surowy tekst PDF (iText) i zapisuje do result.DebugText.
+        /// </summary>
+        private string ReadPdfText(string filePath, AvilogParseResult result)
+        {
+            using (PdfReader reader = new PdfReader(filePath))
+            {
+                StringBuilder fullText = new StringBuilder();
+
+                for (int page = 1; page <= reader.NumberOfPages; page++)
+                {
+                    string pageText = PdfTextExtractor.GetTextFromPage(reader, page);
+                    fullText.AppendLine(pageText);
+                    fullText.AppendLine("---PAGE_BREAK---");
+                }
+
+                string text = fullText.ToString();
+
+                try
+                {
+                    string debugPath = Path.Combine(Path.GetDirectoryName(filePath), "avilog_debug_text.txt");
+                    File.WriteAllText(debugPath, text);
+                    result.DebugText = text;
+                }
+                catch { }
+
+                return text;
+            }
         }
 
         /// <summary>
@@ -798,6 +947,28 @@ namespace Kalendarz1
         public DateTime? DataUboju { get; set; }
         public List<AvilogTransportRow> Wiersze { get; set; } = new List<AvilogTransportRow>();
         public string DebugText { get; set; }
+    }
+
+    /// <summary>
+    /// Struktura wiersza zwracanego przez pythonowy ekstraktor pdfplumber.
+    /// </summary>
+    public class AvilogTableRow
+    {
+        public int page { get; set; }
+        public string kierowca { get; set; }
+        public string hodowca { get; set; }
+        public string ciagnik { get; set; }
+        public string naczepa { get; set; }
+        public string ilosc_sztuk { get; set; }
+        public string wymiary { get; set; }
+        public string wyjazd_zaklad { get; set; }
+        public string przyjazd_hodowca { get; set; }
+        public string poczatek_zaladunku { get; set; }
+        public string koniec_zaladunku { get; set; }
+        public string wyjazd_hodowca { get; set; }
+        public string powrot_zaklad { get; set; }
+        public string obserwacje { get; set; }
+        public List<string> raw { get; set; } = new List<string>();
     }
 
     /// <summary>
