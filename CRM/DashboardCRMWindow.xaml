@@ -351,10 +351,12 @@
 
                         <!-- Canvas wykresu - DARK -->
                         <Border Grid.Row="1" Background="#0F172A" CornerRadius="8" Padding="8" Margin="0,0,0,10">
-                            <Canvas x:Name="canvasWykres" Background="Transparent" ClipToBounds="False"/>
-                            <!-- Ukryte panele dla kompatybilności -->
-                            <StackPanel x:Name="panelOsY" Visibility="Collapsed"/>
-                            <StackPanel x:Name="panelOsX" Visibility="Collapsed"/>
+                            <Grid>
+                                <Canvas x:Name="canvasWykres" Background="Transparent" ClipToBounds="False"/>
+                                <!-- Ukryte panele dla kompatybilności -->
+                                <StackPanel x:Name="panelOsY" Visibility="Collapsed"/>
+                                <StackPanel x:Name="panelOsX" Visibility="Collapsed"/>
+                            </Grid>
                         </Border>
 
                         <!-- Legenda -->
