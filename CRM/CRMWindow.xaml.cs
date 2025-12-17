@@ -503,11 +503,11 @@ namespace Kalendarz1.CRM
         private void BtnMapa_Click(object sender, RoutedEventArgs e) { new MapaCRMWindow(connectionString, operatorID).Show(); }
         private void BtnDodaj_Click(object sender, RoutedEventArgs e)
         {
-            var form = new FormDodajOdbiorce(connectionString, operatorID);
-            if (form.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            var okno = new OfertaCenowa.DodajOdbiorceWindow(connectionString, operatorID);
+            if (okno.ShowDialog() == true)
             {
                 // Jeśli użytkownik wybrał "Tylko moi", włącz ten filtr
-                if (form.FiltrujTylkoMoje && chkTylkoMoje != null)
+                if (okno.FiltrujTylkoMoje && chkTylkoMoje != null)
                 {
                     chkTylkoMoje.IsChecked = true;
                 }
