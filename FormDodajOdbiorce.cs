@@ -1,7 +1,8 @@
-﻿using Microsoft.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
 namespace Kalendarz1
@@ -11,21 +12,45 @@ namespace Kalendarz1
         private string connectionString;
         private string operatorID;
 
+        // Kolory ciemnego motywu
+        private readonly Color bgColor = Color.FromArgb(15, 23, 42);
+        private readonly Color panelColor = Color.FromArgb(30, 41, 59);
+        private readonly Color inputBgColor = Color.FromArgb(51, 65, 85);
+        private readonly Color textColor = Color.FromArgb(226, 232, 240);
+        private readonly Color labelColor = Color.FromArgb(148, 163, 184);
+        private readonly Color accentColor = Color.FromArgb(34, 197, 94);
+        private readonly Color warningColor = Color.FromArgb(239, 68, 68);
+
+        // Kontrolki - Dane firmy
         private TextBox textBoxNazwa;
+        private TextBox textBoxNIP;
+        private ComboBox comboBoxPKD;
+
+        // Kontrolki - Adres
         private TextBox textBoxKod;
         private TextBox textBoxMiasto;
         private TextBox textBoxUlica;
-        private TextBox textBoxTelefon;
         private ComboBox comboBoxWoj;
         private TextBox textBoxPowiat;
-        private ComboBox comboBoxPKD;
+
+        // Kontrolki - Kontakt
+        private TextBox textBoxTelefon;
+        private TextBox textBoxEmail;
+        private TextBox textBoxOsobaKontaktowa;
+        private TextBox textBoxNotatki;
+
+        // Przyciski i inne
         private Button buttonZapisz;
         private Button buttonAnuluj;
         private CheckBox checkBoxTylkoMoje;
-        private Label lblAutoInfo;
+
+        // Panel duplikatów
+        private Panel panelDuplikaty;
         private Label lblPodobniKlienci;
         private ListBox listBoxPodobni;
+        private TextBox textBoxSzukajNIP;
         private System.Windows.Forms.Timer timerSzukaj;
+        private System.Windows.Forms.Timer timerSzukajNIP;
 
         // Mapowanie prefixów kodu pocztowego do województw
         private static readonly Dictionary<string, string> kodDoWojewodztwa = new Dictionary<string, string>
@@ -62,146 +87,317 @@ namespace Kalendarz1
 
         private void InitializeComponent()
         {
-            this.Text = "Dodaj nowego odbiorcę";
-            this.Size = new Size(820, 520);
+            this.Text = "Dodaj nowego kontrahenta";
+            this.Size = new Size(1000, 700);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
+            this.BackColor = bgColor;
 
-            // Timer do opóźnionego wyszukiwania (żeby nie szukać przy każdym klawiszu)
-            timerSzukaj = new System.Windows.Forms.Timer();
-            timerSzukaj.Interval = 300;
+            // Timery do opóźnionego wyszukiwania
+            timerSzukaj = new System.Windows.Forms.Timer { Interval = 300 };
             timerSzukaj.Tick += TimerSzukaj_Tick;
 
-            int x = 20, y = 20, labelWidth = 110, controlWidth = 340;
+            timerSzukajNIP = new System.Windows.Forms.Timer { Interval = 300 };
+            timerSzukajNIP.Tick += TimerSzukajNIP_Tick;
 
-            var lblNazwa = new Label { Text = "Nazwa firmy:*", Location = new Point(x, y), Size = new Size(labelWidth, 20), Font = new Font("Segoe UI", 9, FontStyle.Bold) };
-            textBoxNazwa = new TextBox { Location = new Point(x + labelWidth, y), Size = new Size(controlWidth, 25) };
+            int leftColX = 20;
+            int rightColX = 530;
+
+            // ========== SEKCJA: DANE FIRMY ==========
+            var panelFirma = CreateSection("DANE FIRMY", leftColX, 15, 480, 165);
+            int y = 35;
+
+            AddLabel(panelFirma, "Nazwa firmy:*", 15, y);
+            textBoxNazwa = AddTextBox(panelFirma, 130, y, 320);
             textBoxNazwa.TextChanged += TextBoxNazwa_TextChanged;
 
-            y += 35;
-            var lblKod = new Label { Text = "Kod pocztowy:", Location = new Point(x, y), Size = new Size(labelWidth, 20) };
-            textBoxKod = new TextBox { Location = new Point(x + labelWidth, y), Size = new Size(100, 25) };
+            y += 38;
+            AddLabel(panelFirma, "NIP:", 15, y);
+            textBoxNIP = AddTextBox(panelFirma, 130, y, 150);
+            textBoxNIP.TextChanged += TextBoxNIP_TextChanged;
+            var lblNIPInfo = new Label
+            {
+                Text = "(szuka duplikatów)",
+                Location = new Point(290, y + 3),
+                Size = new Size(150, 20),
+                ForeColor = labelColor,
+                Font = new Font("Segoe UI", 8),
+                BackColor = Color.Transparent
+            };
+            panelFirma.Controls.Add(lblNIPInfo);
+
+            y += 38;
+            AddLabel(panelFirma, "Branża (PKD):", 15, y);
+            comboBoxPKD = new ComboBox
+            {
+                Location = new Point(130, y),
+                Size = new Size(320, 25),
+                DropDownStyle = ComboBoxStyle.DropDown,
+                AutoCompleteMode = AutoCompleteMode.SuggestAppend,
+                AutoCompleteSource = AutoCompleteSource.ListItems,
+                BackColor = inputBgColor,
+                ForeColor = textColor,
+                FlatStyle = FlatStyle.Flat
+            };
+            panelFirma.Controls.Add(comboBoxPKD);
+
+            this.Controls.Add(panelFirma);
+
+            // ========== SEKCJA: ADRES ==========
+            var panelAdres = CreateSection("ADRES", leftColX, 190, 480, 205);
+            y = 35;
+
+            AddLabel(panelAdres, "Kod pocztowy:", 15, y);
+            textBoxKod = AddTextBox(panelAdres, 130, y, 100);
             textBoxKod.TextChanged += TextBoxKod_TextChanged;
-            lblAutoInfo = new Label { Text = "(auto-uzupełni woj./miasto)", Location = new Point(x + labelWidth + 110, y + 3), Size = new Size(200, 20), ForeColor = Color.Gray, Font = new Font("Segoe UI", 8) };
+            var lblKodInfo = new Label
+            {
+                Text = "(auto-uzupełnia)",
+                Location = new Point(240, y + 3),
+                Size = new Size(120, 20),
+                ForeColor = labelColor,
+                Font = new Font("Segoe UI", 8),
+                BackColor = Color.Transparent
+            };
+            panelAdres.Controls.Add(lblKodInfo);
 
-            y += 35;
-            var lblMiasto = new Label { Text = "Miasto:", Location = new Point(x, y), Size = new Size(labelWidth, 20) };
-            textBoxMiasto = new TextBox { Location = new Point(x + labelWidth, y), Size = new Size(controlWidth, 25) };
+            y += 38;
+            AddLabel(panelAdres, "Miasto:", 15, y);
+            textBoxMiasto = AddTextBox(panelAdres, 130, y, 320);
 
-            y += 35;
-            var lblUlica = new Label { Text = "Ulica:", Location = new Point(x, y), Size = new Size(labelWidth, 20) };
-            textBoxUlica = new TextBox { Location = new Point(x + labelWidth, y), Size = new Size(controlWidth, 25) };
+            y += 38;
+            AddLabel(panelAdres, "Ulica:", 15, y);
+            textBoxUlica = AddTextBox(panelAdres, 130, y, 320);
 
-            y += 35;
-            var lblTelefon = new Label { Text = "Telefon:", Location = new Point(x, y), Size = new Size(labelWidth, 20) };
-            textBoxTelefon = new TextBox { Location = new Point(x + labelWidth, y), Size = new Size(controlWidth, 25) };
-
-            y += 35;
-            var lblWoj = new Label { Text = "Województwo:", Location = new Point(x, y), Size = new Size(labelWidth, 20) };
+            y += 38;
+            AddLabel(panelAdres, "Województwo:", 15, y);
             comboBoxWoj = new ComboBox
             {
-                Location = new Point(x + labelWidth, y),
-                Size = new Size(controlWidth, 25),
-                DropDownStyle = ComboBoxStyle.DropDownList
+                Location = new Point(130, y),
+                Size = new Size(320, 25),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                BackColor = inputBgColor,
+                ForeColor = textColor,
+                FlatStyle = FlatStyle.Flat
             };
-            comboBoxWoj.Items.Add(""); // Pusty element
+            comboBoxWoj.Items.Add("");
             comboBoxWoj.Items.AddRange(new string[] {
                 "Dolnośląskie", "Kujawsko-Pomorskie", "Lubelskie", "Lubuskie",
                 "Łódzkie", "Małopolskie", "Mazowieckie", "Opolskie",
                 "Podkarpackie", "Podlaskie", "Pomorskie", "Śląskie",
                 "Świętokrzyskie", "Warmińsko-Mazurskie", "Wielkopolskie", "Zachodniopomorskie"
             });
+            panelAdres.Controls.Add(comboBoxWoj);
 
-            y += 35;
-            var lblPowiat = new Label { Text = "Powiat:", Location = new Point(x, y), Size = new Size(labelWidth, 20) };
-            textBoxPowiat = new TextBox { Location = new Point(x + labelWidth, y), Size = new Size(controlWidth, 25) };
+            y += 38;
+            AddLabel(panelAdres, "Powiat:", 15, y);
+            textBoxPowiat = AddTextBox(panelAdres, 130, y, 320);
 
-            y += 35;
-            var lblPKD = new Label { Text = "Branża (PKD):", Location = new Point(x, y), Size = new Size(labelWidth, 20) };
-            comboBoxPKD = new ComboBox
+            this.Controls.Add(panelAdres);
+
+            // ========== SEKCJA: KONTAKT ==========
+            var panelKontakt = CreateSection("KONTAKT", leftColX, 405, 480, 205);
+            y = 35;
+
+            AddLabel(panelKontakt, "Telefon:", 15, y);
+            textBoxTelefon = AddTextBox(panelKontakt, 130, y, 200);
+
+            y += 38;
+            AddLabel(panelKontakt, "Email:", 15, y);
+            textBoxEmail = AddTextBox(panelKontakt, 130, y, 320);
+
+            y += 38;
+            AddLabel(panelKontakt, "Osoba kont.:", 15, y);
+            textBoxOsobaKontaktowa = AddTextBox(panelKontakt, 130, y, 320);
+
+            y += 38;
+            AddLabel(panelKontakt, "Notatki:", 15, y);
+            textBoxNotatki = new TextBox
             {
-                Location = new Point(x + labelWidth, y),
-                Size = new Size(controlWidth, 25),
-                DropDownStyle = ComboBoxStyle.DropDown, // Pozwala na wpisywanie
-                AutoCompleteMode = AutoCompleteMode.SuggestAppend,
-                AutoCompleteSource = AutoCompleteSource.ListItems
+                Location = new Point(130, y),
+                Size = new Size(320, 50),
+                BackColor = inputBgColor,
+                ForeColor = textColor,
+                BorderStyle = BorderStyle.FixedSingle,
+                Font = new Font("Segoe UI", 9),
+                Multiline = true
             };
+            panelKontakt.Controls.Add(textBoxNotatki);
 
-            y += 45;
+            this.Controls.Add(panelKontakt);
+
+            // ========== PANEL DUPLIKATÓW (po prawej) ==========
+            panelDuplikaty = CreateSection("SPRAWDŹ DUPLIKATY", rightColX, 15, 440, 530);
+
+            var lblSzukajNazwa = new Label
+            {
+                Text = "Wpisz nazwę lub NIP aby sprawdzić czy klient już istnieje:",
+                Location = new Point(15, 35),
+                Size = new Size(410, 20),
+                ForeColor = labelColor,
+                Font = new Font("Segoe UI", 9),
+                BackColor = Color.Transparent
+            };
+            panelDuplikaty.Controls.Add(lblSzukajNazwa);
+
+            var lblSzukajNIP = new Label
+            {
+                Text = "Szukaj po NIP:",
+                Location = new Point(15, 60),
+                Size = new Size(100, 20),
+                ForeColor = labelColor,
+                Font = new Font("Segoe UI", 9),
+                BackColor = Color.Transparent
+            };
+            panelDuplikaty.Controls.Add(lblSzukajNIP);
+
+            textBoxSzukajNIP = AddTextBox(panelDuplikaty, 115, 57, 150);
+            textBoxSzukajNIP.TextChanged += TextBoxSzukajNIP_TextChanged;
+
+            lblPodobniKlienci = new Label
+            {
+                Text = "Znalezione dopasowania:",
+                Location = new Point(15, 95),
+                Size = new Size(410, 20),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                ForeColor = warningColor,
+                BackColor = Color.Transparent,
+                Visible = false
+            };
+            panelDuplikaty.Controls.Add(lblPodobniKlienci);
+
+            listBoxPodobni = new ListBox
+            {
+                Location = new Point(15, 120),
+                Size = new Size(410, 350),
+                Font = new Font("Segoe UI", 9),
+                BorderStyle = BorderStyle.FixedSingle,
+                BackColor = Color.FromArgb(127, 29, 29),
+                ForeColor = Color.FromArgb(254, 202, 202),
+                Visible = false
+            };
+            listBoxPodobni.DoubleClick += ListBoxPodobni_DoubleClick;
+            panelDuplikaty.Controls.Add(listBoxPodobni);
+
+            // Placeholder gdy brak wyników
+            var lblBrakWynikow = new Label
+            {
+                Name = "lblBrakWynikow",
+                Text = "Zacznij wpisywać nazwę firmy lub NIP\naby sprawdzić czy klient już istnieje w bazie.",
+                Location = new Point(15, 150),
+                Size = new Size(410, 60),
+                ForeColor = labelColor,
+                Font = new Font("Segoe UI", 10),
+                BackColor = Color.Transparent,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            panelDuplikaty.Controls.Add(lblBrakWynikow);
+
+            this.Controls.Add(panelDuplikaty);
+
+            // ========== CHECKBOX I PRZYCISKI ==========
             checkBoxTylkoMoje = new CheckBox
             {
                 Text = "Po dodaniu pokaż tylko moich klientów",
-                Location = new Point(x + labelWidth, y),
-                Size = new Size(controlWidth, 20),
-                Checked = true
+                Location = new Point(leftColX + 130, 620),
+                Size = new Size(300, 20),
+                Checked = true,
+                ForeColor = textColor,
+                Font = new Font("Segoe UI", 9)
             };
+            this.Controls.Add(checkBoxTylkoMoje);
 
-            y += 40;
             buttonZapisz = new Button
             {
-                Text = "Zapisz",
-                Location = new Point(x + labelWidth, y),
-                Size = new Size(140, 38),
-                BackColor = Color.FromArgb(22, 163, 74),
+                Text = "ZAPISZ KONTRAHENTA",
+                Location = new Point(rightColX, 560),
+                Size = new Size(200, 45),
+                BackColor = accentColor,
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                FlatStyle = FlatStyle.Flat
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
             };
             buttonZapisz.FlatAppearance.BorderSize = 0;
             buttonZapisz.Click += ButtonZapisz_Click;
+            this.Controls.Add(buttonZapisz);
 
             buttonAnuluj = new Button
             {
                 Text = "Anuluj",
-                Location = new Point(x + labelWidth + 160, y),
-                Size = new Size(140, 38),
-                BackColor = Color.FromArgb(107, 114, 128),
+                Location = new Point(rightColX + 220, 560),
+                Size = new Size(120, 45),
+                BackColor = Color.FromArgb(71, 85, 105),
                 ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat
+                Font = new Font("Segoe UI", 10),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
             };
             buttonAnuluj.FlatAppearance.BorderSize = 0;
             buttonAnuluj.Click += (s, e) => this.Close();
+            this.Controls.Add(buttonAnuluj);
+        }
 
-            // Panel z podobnymi klientami (po prawej stronie)
-            int panelX = 500;
-            lblPodobniKlienci = new Label
+        private Panel CreateSection(string title, int x, int y, int width, int height)
+        {
+            var panel = new Panel
             {
-                Text = "⚠ Podobni klienci w CRM:",
-                Location = new Point(panelX, 20),
-                Size = new Size(280, 20),
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                ForeColor = Color.FromArgb(220, 38, 38)
+                Location = new Point(x, y),
+                Size = new Size(width, height),
+                BackColor = panelColor
             };
 
-            listBoxPodobni = new ListBox
+            var lblTitle = new Label
             {
-                Location = new Point(panelX, 45),
-                Size = new Size(280, 380),
+                Text = title,
+                Location = new Point(15, 8),
+                Size = new Size(width - 30, 22),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = accentColor,
+                BackColor = Color.Transparent
+            };
+            panel.Controls.Add(lblTitle);
+
+            // Linia pod tytułem
+            var line = new Panel
+            {
+                Location = new Point(15, 30),
+                Size = new Size(width - 30, 1),
+                BackColor = Color.FromArgb(51, 65, 85)
+            };
+            panel.Controls.Add(line);
+
+            return panel;
+        }
+
+        private void AddLabel(Panel parent, string text, int x, int y)
+        {
+            var lbl = new Label
+            {
+                Text = text,
+                Location = new Point(x, y + 3),
+                Size = new Size(110, 20),
+                ForeColor = labelColor,
                 Font = new Font("Segoe UI", 9),
-                BorderStyle = BorderStyle.FixedSingle,
-                BackColor = Color.FromArgb(254, 242, 242),
-                ForeColor = Color.FromArgb(127, 29, 29)
+                BackColor = Color.Transparent
             };
-            listBoxPodobni.DoubleClick += ListBoxPodobni_DoubleClick;
+            parent.Controls.Add(lbl);
+        }
 
-            // Ukryj panel do momentu znalezienia podobnych
-            lblPodobniKlienci.Visible = false;
-            listBoxPodobni.Visible = false;
-
-            this.Controls.AddRange(new Control[] {
-                lblNazwa, textBoxNazwa,
-                lblKod, textBoxKod, lblAutoInfo,
-                lblMiasto, textBoxMiasto,
-                lblUlica, textBoxUlica,
-                lblTelefon, textBoxTelefon,
-                lblWoj, comboBoxWoj,
-                lblPowiat, textBoxPowiat,
-                lblPKD, comboBoxPKD,
-                checkBoxTylkoMoje,
-                buttonZapisz, buttonAnuluj,
-                lblPodobniKlienci, listBoxPodobni
-            });
+        private TextBox AddTextBox(Panel parent, int x, int y, int width)
+        {
+            var txt = new TextBox
+            {
+                Location = new Point(x, y),
+                Size = new Size(width, 25),
+                BackColor = inputBgColor,
+                ForeColor = textColor,
+                BorderStyle = BorderStyle.FixedSingle,
+                Font = new Font("Segoe UI", 9)
+            };
+            parent.Controls.Add(txt);
+            return txt;
         }
 
         private void WczytajPKD()
@@ -232,7 +428,6 @@ namespace Kalendarz1
             {
                 string prefix = kod.Substring(0, 2);
 
-                // Auto-uzupełnij województwo na podstawie prefixu kodu
                 if (kodDoWojewodztwa.TryGetValue(prefix, out string woj))
                 {
                     int index = comboBoxWoj.Items.IndexOf(woj);
@@ -240,7 +435,6 @@ namespace Kalendarz1
                         comboBoxWoj.SelectedIndex = index;
                 }
 
-                // Spróbuj znaleźć miasto w bazie na podstawie kodu pocztowego
                 if (kod.Length >= 5)
                 {
                     try
@@ -248,7 +442,6 @@ namespace Kalendarz1
                         using (var conn = new SqlConnection(connectionString))
                         {
                             conn.Open();
-                            // Sprawdź w KodyPocztowe
                             var cmd = new SqlCommand(@"
                                 SELECT TOP 1 miej FROM KodyPocztowe
                                 WHERE REPLACE(Kod, '-', '') = @kod", conn);
@@ -260,7 +453,6 @@ namespace Kalendarz1
                                 textBoxMiasto.Text = miasto;
                             }
 
-                            // Sprawdź też w OdbiorcyCRM dla powiatu i miasta
                             var cmd2 = new SqlCommand(@"
                                 SELECT TOP 1 MIASTO, Powiat, Wojewodztwo
                                 FROM OdbiorcyCRM
@@ -276,7 +468,6 @@ namespace Kalendarz1
                                     if (string.IsNullOrEmpty(textBoxPowiat.Text) && !reader.IsDBNull(1))
                                         textBoxPowiat.Text = reader.GetString(1);
 
-                                    // Nadpisz województwo jeśli mamy dokładniejsze dane
                                     if (!reader.IsDBNull(2))
                                     {
                                         string wojDB = reader.GetString(2);
@@ -293,7 +484,6 @@ namespace Kalendarz1
             }
         }
 
-        // Właściwość publiczna do przekazania informacji o filtrowaniu
         public bool FiltrujTylkoMoje { get; private set; }
 
         private void ButtonZapisz_Click(object sender, EventArgs e)
@@ -305,6 +495,18 @@ namespace Kalendarz1
                 return;
             }
 
+            // Ostrzeżenie jeśli są duplikaty
+            if (listBoxPodobni.Visible && listBoxPodobni.Items.Count > 0)
+            {
+                var result = MessageBox.Show(
+                    $"Znaleziono {listBoxPodobni.Items.Count} podobnych klientów w bazie.\n\nCzy na pewno chcesz dodać nowego kontrahenta?",
+                    "Możliwy duplikat",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning);
+                if (result == DialogResult.No)
+                    return;
+            }
+
             using (var conn = new SqlConnection(connectionString))
             {
                 conn.Open();
@@ -312,7 +514,6 @@ namespace Kalendarz1
                 {
                     try
                     {
-                        // Najpierw sprawdź czy tabela WlascicieleOdbiorcow istnieje
                         var cmdCheckTable = new SqlCommand(@"
                             IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'WlascicieleOdbiorcow')
                             CREATE TABLE WlascicieleOdbiorcow (
@@ -323,28 +524,42 @@ namespace Kalendarz1
                             )", conn, transaction);
                         cmdCheckTable.ExecuteNonQuery();
 
-                        // Pobierz następne dostępne ID (tabela nie ma IDENTITY)
                         var cmdMaxId = new SqlCommand("SELECT ISNULL(MAX(ID), 0) + 1 FROM OdbiorcyCRM", conn, transaction);
                         int nowyID = (int)cmdMaxId.ExecuteScalar();
 
                         var cmdOdbiorca = new SqlCommand(@"
                             INSERT INTO OdbiorcyCRM
-                            (ID, Nazwa, KOD, MIASTO, Ulica, Telefon_K, Wojewodztwo, Powiat, PKD_Opis, Status)
+                            (ID, Nazwa, NIP, KOD, MIASTO, Ulica, Telefon_K, Email, OsobaKontaktowa, Wojewodztwo, Powiat, PKD_Opis, Status)
                             VALUES
-                            (@id, @nazwa, @kod, @miasto, @ulica, @tel, @woj, @pow, @pkd, 'Do zadzwonienia')",
+                            (@id, @nazwa, @nip, @kod, @miasto, @ulica, @tel, @email, @osoba, @woj, @pow, @pkd, 'Do zadzwonienia')",
                             conn, transaction);
 
                         cmdOdbiorca.Parameters.AddWithValue("@id", nowyID);
                         cmdOdbiorca.Parameters.AddWithValue("@nazwa", textBoxNazwa.Text.Trim());
+                        cmdOdbiorca.Parameters.AddWithValue("@nip", textBoxNIP.Text.Trim());
                         cmdOdbiorca.Parameters.AddWithValue("@kod", textBoxKod.Text.Trim());
                         cmdOdbiorca.Parameters.AddWithValue("@miasto", textBoxMiasto.Text.Trim());
                         cmdOdbiorca.Parameters.AddWithValue("@ulica", textBoxUlica.Text.Trim());
                         cmdOdbiorca.Parameters.AddWithValue("@tel", textBoxTelefon.Text.Trim());
+                        cmdOdbiorca.Parameters.AddWithValue("@email", textBoxEmail.Text.Trim());
+                        cmdOdbiorca.Parameters.AddWithValue("@osoba", textBoxOsobaKontaktowa.Text.Trim());
                         cmdOdbiorca.Parameters.AddWithValue("@woj", comboBoxWoj.Text ?? "");
                         cmdOdbiorca.Parameters.AddWithValue("@pow", textBoxPowiat.Text.Trim());
                         cmdOdbiorca.Parameters.AddWithValue("@pkd", comboBoxPKD.Text.Trim());
 
                         cmdOdbiorca.ExecuteNonQuery();
+
+                        // Dodaj notatkę jeśli jest
+                        if (!string.IsNullOrWhiteSpace(textBoxNotatki.Text))
+                        {
+                            var cmdNotatka = new SqlCommand(@"
+                                INSERT INTO NotatkiCRM (IDOdbiorcy, Tresc, KtoDodal)
+                                VALUES (@id, @tresc, @kto)", conn, transaction);
+                            cmdNotatka.Parameters.AddWithValue("@id", nowyID);
+                            cmdNotatka.Parameters.AddWithValue("@tresc", textBoxNotatki.Text.Trim());
+                            cmdNotatka.Parameters.AddWithValue("@kto", operatorID);
+                            cmdNotatka.ExecuteNonQuery();
+                        }
 
                         var cmdWlasciciel = new SqlCommand(@"
                             INSERT INTO WlascicieleOdbiorcow (IDOdbiorcy, OperatorID)
@@ -368,7 +583,7 @@ namespace Kalendarz1
                         transaction.Commit();
 
                         FiltrujTylkoMoje = checkBoxTylkoMoje.Checked;
-                        MessageBox.Show($"Dodano odbiorcę: {textBoxNazwa.Text}\nID: {nowyID}", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show($"Dodano kontrahenta: {textBoxNazwa.Text}\nID: {nowyID}", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         this.DialogResult = DialogResult.OK;
                         this.Close();
                     }
@@ -383,16 +598,38 @@ namespace Kalendarz1
 
         private void TextBoxNazwa_TextChanged(object sender, EventArgs e)
         {
-            // Restart timera przy każdej zmianie - szukamy dopiero po chwili nieaktywności
             timerSzukaj.Stop();
             if (textBoxNazwa.Text.Length >= 3)
             {
                 timerSzukaj.Start();
             }
-            else
+            else if (string.IsNullOrEmpty(textBoxSzukajNIP.Text) && textBoxNIP.Text.Length < 3)
             {
-                lblPodobniKlienci.Visible = false;
-                listBoxPodobni.Visible = false;
+                UkryjWyniki();
+            }
+        }
+
+        private void TextBoxNIP_TextChanged(object sender, EventArgs e)
+        {
+            timerSzukajNIP.Stop();
+            string nip = textBoxNIP.Text.Replace("-", "").Replace(" ", "").Trim();
+            if (nip.Length >= 3)
+            {
+                timerSzukajNIP.Start();
+            }
+        }
+
+        private void TextBoxSzukajNIP_TextChanged(object sender, EventArgs e)
+        {
+            timerSzukajNIP.Stop();
+            string nip = textBoxSzukajNIP.Text.Replace("-", "").Replace(" ", "").Trim();
+            if (nip.Length >= 3)
+            {
+                timerSzukajNIP.Start();
+            }
+            else if (textBoxNazwa.Text.Length < 3 && textBoxNIP.Text.Length < 3)
+            {
+                UkryjWyniki();
             }
         }
 
@@ -400,6 +637,34 @@ namespace Kalendarz1
         {
             timerSzukaj.Stop();
             SzukajPodobnychKlientow();
+        }
+
+        private void TimerSzukajNIP_Tick(object sender, EventArgs e)
+        {
+            timerSzukajNIP.Stop();
+            SzukajPoNIP();
+        }
+
+        private void UkryjWyniki()
+        {
+            lblPodobniKlienci.Visible = false;
+            listBoxPodobni.Visible = false;
+            var lblBrak = panelDuplikaty.Controls["lblBrakWynikow"];
+            if (lblBrak != null) lblBrak.Visible = true;
+        }
+
+        private void PokazWyniki(int count)
+        {
+            bool maWyniki = count > 0;
+            lblPodobniKlienci.Visible = maWyniki;
+            listBoxPodobni.Visible = maWyniki;
+            var lblBrak = panelDuplikaty.Controls["lblBrakWynikow"];
+            if (lblBrak != null) lblBrak.Visible = !maWyniki;
+
+            if (maWyniki)
+            {
+                lblPodobniKlienci.Text = $"Znaleziono {count} dopasowań:";
+            }
         }
 
         private void SzukajPodobnychKlientow()
@@ -415,13 +680,10 @@ namespace Kalendarz1
                 {
                     conn.Open();
 
-                    // Szukaj po fragmencie nazwy lub podobnym brzmieniu
                     var cmd = new SqlCommand(@"
-                        SELECT TOP 20 ID, Nazwa, MIASTO, Status
+                        SELECT TOP 30 ID, Nazwa, NIP, MIASTO, Status
                         FROM OdbiorcyCRM
                         WHERE Nazwa LIKE '%' + @szukany + '%'
-                           OR Nazwa LIKE @szukany + '%'
-                           OR Nazwa LIKE '%' + @szukany
                         ORDER BY
                             CASE
                                 WHEN Nazwa LIKE @szukany + '%' THEN 1
@@ -437,12 +699,15 @@ namespace Kalendarz1
                         {
                             int id = reader.GetInt32(0);
                             string nazwa = reader.IsDBNull(1) ? "" : reader.GetString(1);
-                            string miasto = reader.IsDBNull(2) ? "" : reader.GetString(2);
-                            string status = reader.IsDBNull(3) ? "" : reader.GetString(3);
+                            string nip = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                            string miasto = reader.IsDBNull(3) ? "" : reader.GetString(3);
+                            string status = reader.IsDBNull(4) ? "" : reader.GetString(4);
 
                             string info = $"[{id}] {nazwa}";
+                            if (!string.IsNullOrEmpty(nip))
+                                info += $" | NIP: {nip}";
                             if (!string.IsNullOrEmpty(miasto))
-                                info += $" - {miasto}";
+                                info += $" | {miasto}";
                             if (!string.IsNullOrEmpty(status))
                                 info += $" ({status})";
 
@@ -451,15 +716,58 @@ namespace Kalendarz1
                     }
                 }
 
-                // Pokaż/ukryj panel w zależności od wyników
-                bool maPodobnych = listBoxPodobni.Items.Count > 0;
-                lblPodobniKlienci.Visible = maPodobnych;
-                listBoxPodobni.Visible = maPodobnych;
+                PokazWyniki(listBoxPodobni.Items.Count);
+            }
+            catch { }
+        }
 
-                if (maPodobnych)
+        private void SzukajPoNIP()
+        {
+            string nip = textBoxSzukajNIP.Text.Replace("-", "").Replace(" ", "").Trim();
+            if (string.IsNullOrEmpty(nip))
+                nip = textBoxNIP.Text.Replace("-", "").Replace(" ", "").Trim();
+
+            if (nip.Length < 3) return;
+
+            listBoxPodobni.Items.Clear();
+
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
                 {
-                    lblPodobniKlienci.Text = $"⚠ Podobni klienci ({listBoxPodobni.Items.Count}):";
+                    conn.Open();
+
+                    var cmd = new SqlCommand(@"
+                        SELECT TOP 30 ID, Nazwa, NIP, MIASTO, Status
+                        FROM OdbiorcyCRM
+                        WHERE REPLACE(REPLACE(NIP, '-', ''), ' ', '') LIKE '%' + @nip + '%'
+                        ORDER BY Nazwa", conn);
+                    cmd.Parameters.AddWithValue("@nip", nip);
+
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            int id = reader.GetInt32(0);
+                            string nazwa = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                            string nipDb = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                            string miasto = reader.IsDBNull(3) ? "" : reader.GetString(3);
+                            string status = reader.IsDBNull(4) ? "" : reader.GetString(4);
+
+                            string info = $"[{id}] {nazwa}";
+                            if (!string.IsNullOrEmpty(nipDb))
+                                info += $" | NIP: {nipDb}";
+                            if (!string.IsNullOrEmpty(miasto))
+                                info += $" | {miasto}";
+                            if (!string.IsNullOrEmpty(status))
+                                info += $" ({status})";
+
+                            listBoxPodobni.Items.Add(info);
+                        }
+                    }
                 }
+
+                PokazWyniki(listBoxPodobni.Items.Count);
             }
             catch { }
         }
@@ -469,7 +777,6 @@ namespace Kalendarz1
             if (listBoxPodobni.SelectedItem == null) return;
 
             string wybrany = listBoxPodobni.SelectedItem.ToString();
-            // Wyciągnij ID z [ID]
             int startIdx = wybrany.IndexOf('[');
             int endIdx = wybrany.IndexOf(']');
             if (startIdx >= 0 && endIdx > startIdx)
@@ -478,7 +785,7 @@ namespace Kalendarz1
                 if (int.TryParse(idStr, out int id))
                 {
                     var result = MessageBox.Show(
-                        $"Wybrany klient już istnieje w CRM:\n\n{wybrany}\n\nCzy na pewno chcesz dodać nowego klienta?",
+                        $"Wybrany klient już istnieje w CRM:\n\n{wybrany}\n\nCzy na pewno chcesz dodać nowego kontrahenta?",
                         "Klient już istnieje",
                         MessageBoxButtons.YesNo,
                         MessageBoxIcon.Warning);
