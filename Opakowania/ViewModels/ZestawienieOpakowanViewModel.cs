@@ -282,13 +282,50 @@ namespace Kalendarz1.Opakowania.ViewModels
 
         private async Task GenerujPDFAsync()
         {
-            if (WybranyKontrahent == null) return;
-
             await ExecuteAsync(async () =>
             {
-                // TODO: Implementacja generowania PDF
-                await Task.Delay(100);
-                MessageBox.Show($"Generowanie PDF dla: {WybranyKontrahent.Kontrahent}", "PDF", MessageBoxButton.OK, MessageBoxImage.Information);
+                var generator = new OpakowaniaPDFGenerator();
+                string filePath;
+
+                if (WybranyKontrahent != null && WybranyKontrahent.KontrahentId > 0)
+                {
+                    // Generuj PDF dla wybranego kontrahenta
+                    var saldo = await _dataService.PobierzSaldaWszystkichOpakowannAsync(
+                        WybranyKontrahent.KontrahentId, DataDo);
+                    var dokumenty = await _dataService.PobierzSaldoKontrahentaAsync(
+                        WybranyKontrahent.KontrahentId, DataOd, DataDo);
+                    var potwierdzenia = await _dataService.PobierzPotwierdzeniaDlaKontrahentaAsync(
+                        WybranyKontrahent.KontrahentId);
+
+                    filePath = generator.GenerujRaportKontrahenta(
+                        WybranyKontrahent.Kontrahent,
+                        WybranyKontrahent.KontrahentId,
+                        saldo,
+                        dokumenty?.ToList(),
+                        potwierdzenia?.ToList(),
+                        DataOd,
+                        DataDo);
+                }
+                else
+                {
+                    // Generuj PDF zestawienia wszystkich kontrahentów
+                    filePath = generator.GenerujZestawienieSald(
+                        Zestawienie.ToList(),
+                        WybranyTypOpakowania,
+                        DataOd,
+                        DataDo,
+                        _handlowiecFilter);
+                }
+
+                // Otwórz wygenerowany PDF
+                if (System.IO.File.Exists(filePath))
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = filePath,
+                        UseShellExecute = true
+                    });
+                }
             }, "Generowanie PDF...");
         }
 

@@ -85,7 +85,7 @@ namespace Kalendarz1.Opakowania.Services
         #region Eksport PDF
 
         /// <summary>
-        /// Eksportuje saldo kontrahenta do PDF
+        /// Eksportuje saldo kontrahenta do PDF (używa QuestPDF)
         /// </summary>
         public async Task<string> EksportujSaldoKontrahentaDoPDFAsync(
             string kontrahent,
@@ -99,18 +99,19 @@ namespace Kalendarz1.Opakowania.Services
             {
                 try
                 {
-                    string sciezka = GetSciezkaZapisu();
-                    string nazwaPliku = GenerujNazwePliku(kontrahent, "Saldo");
-                    string pelnaSciezka = Path.Combine(sciezka, nazwaPliku);
+                    var generator = new OpakowaniaPDFGenerator();
 
-                    // Generuj HTML który zostanie przekonwertowany na PDF
-                    string html = GenerujHTMLSaldaKontrahenta(kontrahent, saldo, dokumenty, dataOd, dataDo);
-                    
-                    // Zapisz jako HTML (później można użyć biblioteki do konwersji na PDF)
-                    string htmlPath = Path.ChangeExtension(pelnaSciezka, ".html");
-                    File.WriteAllText(htmlPath, html, Encoding.UTF8);
+                    // Użyj nowego generatora QuestPDF
+                    string pdfPath = generator.GenerujRaportKontrahenta(
+                        kontrahent,
+                        kontrahentId,
+                        saldo,
+                        dokumenty,
+                        null, // Brak potwierdzeń w tym kontekście
+                        dataOd,
+                        dataDo);
 
-                    return htmlPath;
+                    return pdfPath;
                 }
                 catch (Exception ex)
                 {
@@ -120,7 +121,7 @@ namespace Kalendarz1.Opakowania.Services
         }
 
         /// <summary>
-        /// Eksportuje listę sald wszystkich kontrahentów do PDF
+        /// Eksportuje listę sald wszystkich kontrahentów do PDF (używa QuestPDF)
         /// </summary>
         public async Task<string> EksportujSaldaWszystkichDoPDFAsync(
             List<SaldoOpakowania> salda,
@@ -131,14 +132,29 @@ namespace Kalendarz1.Opakowania.Services
             {
                 try
                 {
-                    string sciezka = GetSciezkaZapisu();
-                    string nazwaPliku = $"Salda_Wszystkich_{DateTime.Now:yyyy-MM-dd_HH-mm}.html";
-                    string pelnaSciezka = Path.Combine(sciezka, nazwaPliku);
+                    // Konwertuj SaldoOpakowania na ZestawienieSalda
+                    var zestawienie = salda.Select(s => new ZestawienieSalda
+                    {
+                        Kontrahent = s.Kontrahent,
+                        KontrahentId = s.KontrahentId,
+                        Handlowiec = s.Handlowiec,
+                        IloscDrugiZakres = s.SaldoE2 + s.SaldoH1 + s.SaldoEURO + s.SaldoPCV + s.SaldoDREW,
+                        JestPotwierdzone = s.JestPotwierdzone,
+                        DataPotwierdzenia = s.OstatniePotwierdzenie,
+                        DataOstatniegoDokumentu = s.DataOstatniegoDokumentu
+                    }).ToList();
 
-                    string html = GenerujHTMLSaldaWszystkich(salda, dataDo, handlowiec);
-                    File.WriteAllText(pelnaSciezka, html, Encoding.UTF8);
+                    var generator = new OpakowaniaPDFGenerator();
 
-                    return pelnaSciezka;
+                    // Użyj nowego generatora QuestPDF
+                    string pdfPath = generator.GenerujZestawienieSald(
+                        zestawienie,
+                        TypOpakowania.WszystkieTypy[0], // Domyślnie E2
+                        dataDo.AddMonths(-2),
+                        dataDo,
+                        handlowiec);
+
+                    return pdfPath;
                 }
                 catch (Exception ex)
                 {
