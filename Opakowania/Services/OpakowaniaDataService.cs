@@ -226,6 +226,7 @@ ORDER BY [IloscDrugiZakres] DESC, [Kontrahent]";
                     await connection.OpenAsync();
                     using (var command = new SqlCommand(query, connection))
                     {
+                        command.CommandTimeout = 60; // 60 sekund timeout dla złożonego zapytania
                         command.Parameters.AddWithValue("@DataOd", dataOd);
                         command.Parameters.AddWithValue("@DataDo", dataDo);
                         command.Parameters.AddWithValue("@Towar", towar);
@@ -545,7 +546,7 @@ ORDER BY C.Shortcut";
         #region Historia dla wykresów
 
         /// <summary>
-        /// Pobiera historię salda dla wykresu
+        /// Pobiera historię salda dla wykresu - ZOPTYMALIZOWANA WERSJA (1 zapytanie zamiast N)
         /// </summary>
         public async Task<List<HistoriaSaldaPunkt>> PobierzHistorieSaldaAsync(int kontrahentId, string kodOpakowania, DateTime dataOd, DateTime dataDo)
         {
@@ -561,25 +562,31 @@ ORDER BY C.Shortcut";
                 _ => "Pojemnik Drobiowy E2"
             };
 
-            // Generuj daty w zakresie
-            var daty = new List<DateTime>();
-            var currentDate = dataOd;
-            while (currentDate <= dataDo)
-            {
-                daty.Add(currentDate);
-                currentDate = currentDate.AddDays(1);
-            }
-
-            string query = @"
-SELECT 
-    CAST(ISNULL(SUM(MZ.Ilosc), 0) AS INT) AS Saldo
+            // OPTYMALIZACJA: Pobierz saldo początkowe i wszystkie zmiany JEDNYM zapytaniem
+            string saldoPoczatkoweQuery = @"
+SELECT CAST(ISNULL(SUM(MZ.Ilosc), 0) AS INT) AS Saldo
 FROM [HANDEL].[HM].[MG] MG
 INNER JOIN [HANDEL].[HM].[MZ] MZ ON MZ.super = MG.id
 INNER JOIN [HANDEL].[HM].[TW] TW ON MZ.idtw = TW.id
 WHERE MG.khid = @KontrahentId
   AND MG.anulowany = 0
-  AND MG.data <= @Data
+  AND MG.data < @DataOd
   AND TW.nazwa = @Towar";
+
+            string zmianyQuery = @"
+SELECT
+    CAST(MG.data AS DATE) AS Data,
+    CAST(SUM(MZ.Ilosc) AS INT) AS Zmiana
+FROM [HANDEL].[HM].[MG] MG
+INNER JOIN [HANDEL].[HM].[MZ] MZ ON MZ.super = MG.id
+INNER JOIN [HANDEL].[HM].[TW] TW ON MZ.idtw = TW.id
+WHERE MG.khid = @KontrahentId
+  AND MG.anulowany = 0
+  AND MG.data >= @DataOd
+  AND MG.data <= @DataDo
+  AND TW.nazwa = @Towar
+GROUP BY CAST(MG.data AS DATE)
+ORDER BY Data";
 
             try
             {
@@ -587,23 +594,54 @@ WHERE MG.khid = @KontrahentId
                 {
                     await connection.OpenAsync();
 
-                    foreach (var data in daty)
+                    // 1. Pobierz saldo początkowe (przed zakresem)
+                    int saldoPoczatkowe = 0;
+                    using (var cmd = new SqlCommand(saldoPoczatkoweQuery, connection))
                     {
-                        using (var command = new SqlCommand(query, connection))
+                        cmd.Parameters.AddWithValue("@KontrahentId", kontrahentId);
+                        cmd.Parameters.AddWithValue("@DataOd", dataOd);
+                        cmd.Parameters.AddWithValue("@Towar", kolumna);
+                        var result = await cmd.ExecuteScalarAsync();
+                        saldoPoczatkowe = result == DBNull.Value ? 0 : Convert.ToInt32(result);
+                    }
+
+                    // 2. Pobierz wszystkie zmiany w zakresie (jedno zapytanie!)
+                    var zmianyPoDniach = new Dictionary<DateTime, int>();
+                    using (var cmd = new SqlCommand(zmianyQuery, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@KontrahentId", kontrahentId);
+                        cmd.Parameters.AddWithValue("@DataOd", dataOd);
+                        cmd.Parameters.AddWithValue("@DataDo", dataDo);
+                        cmd.Parameters.AddWithValue("@Towar", kolumna);
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
                         {
-                            command.Parameters.AddWithValue("@KontrahentId", kontrahentId);
-                            command.Parameters.AddWithValue("@Data", data);
-                            command.Parameters.AddWithValue("@Towar", kolumna);
-
-                            var result = await command.ExecuteScalarAsync();
-                            var saldo = result == DBNull.Value ? 0 : Convert.ToInt32(result);
-
-                            historia.Add(new HistoriaSaldaPunkt
+                            while (await reader.ReadAsync())
                             {
-                                Data = data,
-                                Saldo = saldo
-                            });
+                                var data = reader.GetDateTime(0);
+                                var zmiana = reader.GetInt32(1);
+                                zmianyPoDniach[data.Date] = zmiana;
+                            }
                         }
+                    }
+
+                    // 3. Oblicz saldo kumulatywne dla każdego dnia (w pamięci, bez zapytań)
+                    int biezaceSaldo = saldoPoczatkowe;
+                    var currentDate = dataOd;
+                    while (currentDate <= dataDo)
+                    {
+                        if (zmianyPoDniach.TryGetValue(currentDate.Date, out int zmiana))
+                        {
+                            biezaceSaldo += zmiana;
+                        }
+
+                        historia.Add(new HistoriaSaldaPunkt
+                        {
+                            Data = currentDate,
+                            Saldo = biezaceSaldo
+                        });
+
+                        currentDate = currentDate.AddDays(1);
                     }
                 }
             }
