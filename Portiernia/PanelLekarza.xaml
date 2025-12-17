@@ -378,6 +378,7 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
                                 
                                 <!-- Hodowca -->
@@ -394,17 +395,36 @@
                                          FontSize="14" Foreground="White" Background="#2D2D2D" 
                                          BorderBrush="#3D3D3D" BorderThickness="1" Padding="8,4" Margin="0,0,0,4"/>
                                 
-                                <!-- Adres -->
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Adres:" 
+                                <!-- Data Salmonella i Nr Św. Zdrowia w jednym wierszu -->
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Salm/Zdr:" 
                                            FontSize="12" Foreground="#888888" VerticalAlignment="Center" Margin="0,0,0,4"/>
-                                <TextBox Grid.Row="2" Grid.Column="1" x:Name="txtAdres" 
+                                <Grid Grid.Row="2" Grid.Column="1" Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" x:Name="txtDataSalmonella" 
+                                             FontSize="13" Foreground="White" Background="#2D2D2D" 
+                                             BorderBrush="#FF9800" BorderThickness="1" Padding="6,4"
+                                             ToolTip="Data badania salmonelli (np. 12.12)"/>
+                                    <TextBox Grid.Column="2" x:Name="txtNrSwZdrowia" 
+                                             FontSize="13" Foreground="White" Background="#2D2D2D" 
+                                             BorderBrush="#FF9800" BorderThickness="1" Padding="6,4"
+                                             ToolTip="Nr świadectwa zdrowia"/>
+                                </Grid>
+                                
+                                <!-- Adres -->
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Adres:" 
+                                           FontSize="12" Foreground="#888888" VerticalAlignment="Center" Margin="0,0,0,4"/>
+                                <TextBox Grid.Row="3" Grid.Column="1" x:Name="txtAdres" 
                                          FontSize="14" Foreground="White" Background="#2D2D2D" 
                                          BorderBrush="#3D3D3D" BorderThickness="1" Padding="8,4" Margin="0,0,0,4"/>
                                 
                                 <!-- Ciągnik i Naczepa w jednym wierszu -->
-                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Pojazd:" 
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Pojazd:" 
                                            FontSize="12" Foreground="#888888" VerticalAlignment="Center" Margin="0,0,0,4"/>
-                                <Grid Grid.Row="3" Grid.Column="1" Margin="0,0,0,4">
+                                <Grid Grid.Row="4" Grid.Column="1" Margin="0,0,0,4">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="10"/>
@@ -421,7 +441,7 @@
                                 </Grid>
                                 
                                 <!-- Przycisk zapisu + info -->
-                                <Grid Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,4,0,0">
+                                <Grid Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,4,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
