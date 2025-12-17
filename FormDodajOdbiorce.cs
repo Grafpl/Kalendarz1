@@ -496,6 +496,7 @@ namespace Kalendarz1
                 {
                     try
                     {
+                        // Sprawdź i utwórz tabele/kolumny jeśli nie istnieją
                         var cmdCheckTable = new SqlCommand(@"
                             IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'WlascicieleOdbiorcow')
                             CREATE TABLE WlascicieleOdbiorcow (
@@ -506,14 +507,34 @@ namespace Kalendarz1
                             )", conn, transaction);
                         cmdCheckTable.ExecuteNonQuery();
 
+                        // Sprawdź i utwórz brakujące kolumny (tak jak w EdycjaKontaktuWindow)
+                        string[] kolumny = { "Imie", "Nazwisko", "Stanowisko", "TelefonDodatkowy" };
+                        foreach (var kol in kolumny)
+                        {
+                            var cmdKol = new SqlCommand($@"
+                                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('OdbiorcyCRM') AND name = '{kol}')
+                                ALTER TABLE OdbiorcyCRM ADD {kol} NVARCHAR(200) NULL", conn, transaction);
+                            cmdKol.ExecuteNonQuery();
+                        }
+
                         var cmdMaxId = new SqlCommand("SELECT ISNULL(MAX(ID), 0) + 1 FROM OdbiorcyCRM", conn, transaction);
                         int nowyID = (int)cmdMaxId.ExecuteScalar();
 
+                        // Rozdziel osobę kontaktową na Imię i Nazwisko
+                        string osobaKontaktowa = textBoxOsobaKontaktowa.Text.Trim();
+                        string imie = "", nazwisko = "";
+                        if (!string.IsNullOrEmpty(osobaKontaktowa))
+                        {
+                            var czesci = osobaKontaktowa.Split(new[] { ' ' }, 2);
+                            imie = czesci[0];
+                            nazwisko = czesci.Length > 1 ? czesci[1] : "";
+                        }
+
                         var cmdOdbiorca = new SqlCommand(@"
                             INSERT INTO OdbiorcyCRM
-                            (ID, Nazwa, KOD, MIASTO, Ulica, Telefon_K, Email, Wojewodztwo, PKD_Opis, Status)
+                            (ID, Nazwa, KOD, MIASTO, Ulica, Telefon_K, Email, Wojewodztwo, PKD_Opis, Status, Imie, Nazwisko)
                             VALUES
-                            (@id, @nazwa, @kod, @miasto, @ulica, @tel, @email, @woj, @pkd, 'Do zadzwonienia')",
+                            (@id, @nazwa, @kod, @miasto, @ulica, @tel, @email, @woj, @pkd, 'Do zadzwonienia', @imie, @nazwisko)",
                             conn, transaction);
 
                         cmdOdbiorca.Parameters.AddWithValue("@id", nowyID);
@@ -525,6 +546,8 @@ namespace Kalendarz1
                         cmdOdbiorca.Parameters.AddWithValue("@email", textBoxEmail.Text.Trim());
                         cmdOdbiorca.Parameters.AddWithValue("@woj", comboBoxWoj.Text ?? "");
                         cmdOdbiorca.Parameters.AddWithValue("@pkd", comboBoxPKD.Text.Trim());
+                        cmdOdbiorca.Parameters.AddWithValue("@imie", imie);
+                        cmdOdbiorca.Parameters.AddWithValue("@nazwisko", nazwisko);
 
                         cmdOdbiorca.ExecuteNonQuery();
 
