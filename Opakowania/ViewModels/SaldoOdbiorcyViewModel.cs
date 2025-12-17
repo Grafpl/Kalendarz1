@@ -56,6 +56,7 @@ namespace Kalendarz1.Opakowania.ViewModels
             // Komendy
             OdswiezCommand = new AsyncRelayCommand(OdswiezAsync);
             EksportPDFCommand = new AsyncRelayCommand(EksportujPDFAsync);
+            GenerujPDFiWyslijCommand = new AsyncRelayCommand(GenerujPDFiWyslijAsync);
             EksportExcelCommand = new AsyncRelayCommand(EksportujExcelAsync);
             DrukujCommand = new AsyncRelayCommand(DrukujAsync);
             ZadzwonCommand = new RelayCommand(_ => Zadzwon(), _ => !string.IsNullOrEmpty(Telefon));
@@ -246,6 +247,7 @@ namespace Kalendarz1.Opakowania.ViewModels
 
         public ICommand OdswiezCommand { get; }
         public ICommand EksportPDFCommand { get; }
+        public ICommand GenerujPDFiWyslijCommand { get; }
         public ICommand EksportExcelCommand { get; }
         public ICommand DrukujCommand { get; }
         public ICommand ZadzwonCommand { get; }
@@ -411,6 +413,23 @@ namespace Kalendarz1.Opakowania.ViewModels
                     _exportService.OtworzPlik(sciezka);
 
             }, "Eksport do PDF...");
+        }
+
+        private async Task GenerujPDFiWyslijAsync()
+        {
+            await ExecuteAsync(async () =>
+            {
+                // Generuj PDF i otwórz email
+                await _exportService.GenerujPDFiWyslijEmailAsync(
+                    KontrahentNazwa,
+                    KontrahentId,
+                    SaldoAktualne,
+                    Dokumenty.ToList(),
+                    DataOd,
+                    DataDo,
+                    Email);
+
+            }, "Generowanie PDF i przygotowywanie emaila...");
         }
 
         private async Task EksportujExcelAsync()

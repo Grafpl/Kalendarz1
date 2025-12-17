@@ -146,6 +146,13 @@
                             ToolTip="Eksportuj do PDF" Margin="0,0,8,0" Padding="12,8">
                         <TextBlock Text="PDF" FontSize="12"/>
                     </Button>
+                    <Button Style="{StaticResource SuccessButtonStyle}" Command="{Binding GenerujPDFiWyslijCommand}"
+                            ToolTip="Generuj PDF i wyślij email" Margin="0,0,8,0" Padding="12,8">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="📧" FontSize="12" Margin="0,0,4,0"/>
+                            <TextBlock Text="PDF + Wyślij" FontSize="12"/>
+                        </StackPanel>
+                    </Button>
                     <Button Style="{StaticResource InfoButtonStyle}" Command="{Binding EksportExcelCommand}"
                             ToolTip="Eksportuj do Excel" Margin="0,0,8,0" Padding="12,8">
                         <TextBlock Text="Excel" FontSize="12"/>
