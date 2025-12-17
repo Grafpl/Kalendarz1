@@ -318,6 +318,7 @@ namespace Kalendarz1.Opakowania.ViewModels
         /// Oblicza salda tygodniowe dla wykresu - kumulatywne saldo na koniec każdej niedzieli.
         /// Pokazuje jak zmieniało się zadłużenie odbiorcy w czasie.
         /// Wykres zaczyna od Salda OD i kumulatywnie dodaje dokumenty.
+        /// Nie pokazuje przyszłych tygodni - tylko do bieżącego dnia.
         /// </summary>
         private void ObliczSaldaTygodniowe()
         {
@@ -339,9 +340,10 @@ namespace Kalendarz1.Opakowania.ViewModels
                 .OrderBy(d => d.Data)
                 .ToList() ?? new List<DokumentOpakowania>();
 
-            // 3. Ustal zakres dat
+            // 3. Ustal zakres dat - nie pokazuj przyszłych tygodni
             var dataStart = DataOd;
-            var dataKoniec = DataDo;
+            var dzisiaj = DateTime.Today;
+            var dataKoniec = DataDo > dzisiaj ? dzisiaj : DataDo; // Ograniczenie do dzisiaj
 
             // 4. Znajdź pierwszą niedzielę - cofamy się do niedzieli przed lub równej dacie początkowej
             var niedziela = dataStart;
@@ -355,7 +357,7 @@ namespace Kalendarz1.Opakowania.ViewModels
             int kumulatywnyH1 = startH1;
             int indeksOstatniegoDokumentu = 0;
 
-            // 6. Iteruj przez wszystkie niedziele aż do końca zakresu
+            // 6. Iteruj przez wszystkie niedziele aż do końca zakresu (nie dalej niż dzisiaj)
             while (niedziela <= dataKoniec)
             {
                 // Dodaj dokumenty, które mają datę <= tej niedzieli (od ostatnio przetworzonego)
@@ -368,13 +370,17 @@ namespace Kalendarz1.Opakowania.ViewModels
                     indeksOstatniegoDokumentu++;
                 }
 
-                SaldaTygodniowe.Add(new SaldoTygodniowe
+                // Dodaj tylko niedziele które już minęły lub są dzisiaj
+                if (niedziela <= dzisiaj)
                 {
-                    DataNiedziela = niedziela,
-                    SaldoE2 = kumulatywnyE2,
-                    SaldoH1 = kumulatywnyH1,
-                    NumerTygodnia = GetNumerTygodnia(niedziela)
-                });
+                    SaldaTygodniowe.Add(new SaldoTygodniowe
+                    {
+                        DataNiedziela = niedziela,
+                        SaldoE2 = kumulatywnyE2,
+                        SaldoH1 = kumulatywnyH1,
+                        NumerTygodnia = GetNumerTygodnia(niedziela)
+                    });
+                }
 
                 niedziela = niedziela.AddDays(7);
             }
