@@ -55,6 +55,7 @@ namespace Kalendarz1.Opakowania.ViewModels
             OdswiezCommand = new AsyncRelayCommand(OdswiezAsync);
             GenerujPDFCommand = new AsyncRelayCommand(GenerujPDFAsync);
             GenerujZestawieniePDFCommand = new AsyncRelayCommand(GenerujZestawieniePDFAsync);
+            GenerujPDFiWyslijCommand = new AsyncRelayCommand(GenerujPDFiWyslijAsync);
             OtworzSzczegolyCommand = new RelayCommand(OtworzSzczegoly, _ => WybranyKontrahent != null);
             DodajPotwierdzenieCommand = new RelayCommand(DodajPotwierdzenie, _ => WybranyKontrahent != null);
             WybierzTypOpakowaniCommand = new RelayCommand(WybierzTypOpakowania);
@@ -187,6 +188,7 @@ namespace Kalendarz1.Opakowania.ViewModels
         public ICommand OdswiezCommand { get; }
         public ICommand GenerujPDFCommand { get; }
         public ICommand GenerujZestawieniePDFCommand { get; }
+        public ICommand GenerujPDFiWyslijCommand { get; }
         public ICommand OtworzSzczegolyCommand { get; }
         public ICommand DodajPotwierdzenieCommand { get; }
         public ICommand WybierzTypOpakowaniCommand { get; }
@@ -345,6 +347,34 @@ namespace Kalendarz1.Opakowania.ViewModels
                     _exportService.OtworzPlik(sciezka);
 
             }, "Generowanie zestawienia PDF...");
+        }
+
+        private async Task GenerujPDFiWyslijAsync()
+        {
+            if (WybranyKontrahent == null || WybranyKontrahent.KontrahentId <= 0)
+            {
+                MessageBox.Show("Wybierz kontrahenta, aby wygenerować PDF i wysłać email.", "PDF + Email", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            await ExecuteAsync(async () =>
+            {
+                // Pobierz szczegółowe dane kontrahenta
+                var dokumenty = await _dataService.PobierzSaldoKontrahentaAsync(
+                    WybranyKontrahent.KontrahentId, DataOd, DataDo);
+                var saldo = await _dataService.PobierzSaldaWszystkichOpakowannAsync(
+                    WybranyKontrahent.KontrahentId, DataDo);
+
+                // Generuj PDF i otwórz email
+                await _exportService.GenerujPDFiWyslijEmailAsync(
+                    WybranyKontrahent.Kontrahent,
+                    WybranyKontrahent.KontrahentId,
+                    saldo,
+                    dokumenty.ToList(),
+                    DataOd,
+                    DataDo);
+
+            }, "Generowanie PDF i przygotowywanie emaila...");
         }
 
         private void OtworzSzczegoly(object parameter)

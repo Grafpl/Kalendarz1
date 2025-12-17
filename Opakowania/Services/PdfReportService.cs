@@ -333,16 +333,6 @@ namespace Kalendarz1.Opakowania.Services
                 };
                 doc.Add(signature);
 
-                // Autor - NA PIERWSZEJ STRONIE
-                var autor = new Paragraph(
-                    "\n\nOprogramowanie utworzone przez Sergiusza Piórkowskiego",
-                    _fontSmall)
-                {
-                    Alignment = Element.ALIGN_RIGHT,
-                    SpacingBefore = 50
-                };
-                doc.Add(autor);
-
                 // ============================================
                 // STRONA 2+ - SZCZEGÓŁOWA TABELA
                 // ============================================

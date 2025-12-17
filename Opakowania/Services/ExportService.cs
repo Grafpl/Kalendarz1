@@ -629,6 +629,177 @@ namespace Kalendarz1.Opakowania.Services
             }
         }
 
+        /// <summary>
+        /// Generuje PDF salda kontrahenta i otwiera email z załącznikiem
+        /// </summary>
+        public async Task<string> GenerujPDFiWyslijEmailAsync(
+            string kontrahent,
+            int kontrahentId,
+            SaldoOpakowania saldo,
+            List<DokumentOpakowania> dokumenty,
+            DateTime dataOd,
+            DateTime dataDo,
+            string emailKontrahenta = null)
+        {
+            // 1. Generuj PDF
+            string pdfPath = await EksportujSaldoKontrahentaDoPDFAsync(
+                kontrahent, kontrahentId, saldo, dokumenty, dataOd, dataDo);
+
+            // 2. Przygotuj treść emaila
+            string dataSalda = dataDo.ToString("dd.MM.yyyy");
+            string temat = $"Uzgodnienie salda opakowań zwrotnych na dzień {dataSalda} - {kontrahent}";
+
+            // Buduj treść emaila z konkretnymi danymi
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("Szanowni Państwo,");
+            sb.AppendLine();
+            sb.AppendLine($"W załączeniu przesyłamy zestawienie opakowań zwrotnych na dzień {dataSalda}.");
+            sb.AppendLine();
+            sb.AppendLine("Stan opakowań według naszej ewidencji:");
+            sb.AppendLine();
+
+            // Dodaj konkretne salda
+            if (saldo != null)
+            {
+                if (saldo.SaldoE2 != 0)
+                {
+                    string statusE2 = saldo.SaldoE2 > 0
+                        ? $"Kontrahent winny: {saldo.SaldoE2} szt."
+                        : $"Ubojnia winna: {Math.Abs(saldo.SaldoE2)} szt.";
+                    sb.AppendLine($"• Pojemniki E2: {statusE2}");
+                }
+                if (saldo.SaldoH1 != 0)
+                {
+                    string statusH1 = saldo.SaldoH1 > 0
+                        ? $"Kontrahent winny: {saldo.SaldoH1} szt."
+                        : $"Ubojnia winna: {Math.Abs(saldo.SaldoH1)} szt.";
+                    sb.AppendLine($"• Palety H1: {statusH1}");
+                }
+                if (saldo.SaldoEURO != 0)
+                {
+                    string statusEURO = saldo.SaldoEURO > 0
+                        ? $"Kontrahent winny: {saldo.SaldoEURO} szt."
+                        : $"Ubojnia winna: {Math.Abs(saldo.SaldoEURO)} szt.";
+                    sb.AppendLine($"• Palety EURO: {statusEURO}");
+                }
+                if (saldo.SaldoPCV != 0)
+                {
+                    string statusPCV = saldo.SaldoPCV > 0
+                        ? $"Kontrahent winny: {saldo.SaldoPCV} szt."
+                        : $"Ubojnia winna: {Math.Abs(saldo.SaldoPCV)} szt.";
+                    sb.AppendLine($"• Palety plastikowe: {statusPCV}");
+                }
+                if (saldo.SaldoDREW != 0)
+                {
+                    string statusDREW = saldo.SaldoDREW > 0
+                        ? $"Kontrahent winny: {saldo.SaldoDREW} szt."
+                        : $"Ubojnia winna: {Math.Abs(saldo.SaldoDREW)} szt.";
+                    sb.AppendLine($"• Palety drewniane: {statusDREW}");
+                }
+
+                // Jeśli wszystkie salda są zerowe
+                if (saldo.SaldoE2 == 0 && saldo.SaldoH1 == 0 && saldo.SaldoEURO == 0 && saldo.SaldoPCV == 0 && saldo.SaldoDREW == 0)
+                {
+                    sb.AppendLine("• Wszystkie salda są rozliczone (0)");
+                }
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("Prosimy o weryfikację powyższych danych i potwierdzenie ich zgodności.");
+            sb.AppendLine("W przypadku rozbieżności prosimy o kontakt.");
+            sb.AppendLine();
+            sb.AppendLine("W razie braku odpowiedzi w ciągu 7 dni od otrzymania niniejszej wiadomości,");
+            sb.AppendLine("saldo zostanie uznane za zgodne z naszą ewidencją.");
+            sb.AppendLine();
+            sb.AppendLine("Z poważaniem,");
+            sb.AppendLine("Magazyn Opakowań");
+            sb.AppendLine("Ubojnia Drobiu \"Piórkowscy\"");
+            sb.AppendLine("tel. 46 874 71 70, wew. 122");
+            sb.AppendLine("email: opakowania@piorkowscy.com.pl");
+
+            string tresc = sb.ToString();
+
+            // 3. Skopiuj ścieżkę PDF do schowka
+            try
+            {
+                Clipboard.SetText(pdfPath);
+            }
+            catch { }
+
+            // 4. Otwórz Outlook z załącznikiem (jeśli dostępny)
+            bool outlookOtworzony = false;
+            try
+            {
+                // Próba otwarcia Outlook z załącznikiem
+                string outlookPath = GetOutlookPath();
+                if (!string.IsNullOrEmpty(outlookPath) && File.Exists(outlookPath))
+                {
+                    string args = $"/c ipm.note /m \"{emailKontrahenta ?? ""}\" /a \"{pdfPath}\"";
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = outlookPath,
+                        Arguments = args,
+                        UseShellExecute = false
+                    });
+                    outlookOtworzony = true;
+                }
+            }
+            catch { }
+
+            // 5. Jeśli Outlook nie zadziałał, użyj mailto
+            if (!outlookOtworzony)
+            {
+                try
+                {
+                    string mailto = $"mailto:{emailKontrahenta ?? ""}?subject={Uri.EscapeDataString(temat)}&body={Uri.EscapeDataString(tresc)}";
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = mailto,
+                        UseShellExecute = true
+                    });
+
+                    // Pokaż informację o załączniku
+                    MessageBox.Show(
+                        $"Ścieżka do pliku PDF została skopiowana do schowka.\n\n" +
+                        $"Proszę załączyć plik:\n{pdfPath}\n\n" +
+                        $"(Ctrl+V w oknie wyboru pliku)",
+                        "Załącz plik PDF",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Nie można otworzyć programu email: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+
+            return pdfPath;
+        }
+
+        /// <summary>
+        /// Próbuje znaleźć ścieżkę do Outlook
+        /// </summary>
+        private string GetOutlookPath()
+        {
+            string[] possiblePaths = new[]
+            {
+                @"C:\Program Files\Microsoft Office\root\Office16\OUTLOOK.EXE",
+                @"C:\Program Files (x86)\Microsoft Office\root\Office16\OUTLOOK.EXE",
+                @"C:\Program Files\Microsoft Office\Office16\OUTLOOK.EXE",
+                @"C:\Program Files (x86)\Microsoft Office\Office16\OUTLOOK.EXE",
+                @"C:\Program Files\Microsoft Office\root\Office15\OUTLOOK.EXE",
+                @"C:\Program Files (x86)\Microsoft Office\root\Office15\OUTLOOK.EXE"
+            };
+
+            foreach (var path in possiblePaths)
+            {
+                if (File.Exists(path))
+                    return path;
+            }
+
+            return null;
+        }
+
         #endregion
     }
 }
