@@ -23,6 +23,9 @@ namespace Kalendarz1
         private Button buttonAnuluj;
         private CheckBox checkBoxTylkoMoje;
         private Label lblAutoInfo;
+        private Label lblPodobniKlienci;
+        private ListBox listBoxPodobni;
+        private System.Windows.Forms.Timer timerSzukaj;
 
         // Mapowanie prefixów kodu pocztowego do województw
         private static readonly Dictionary<string, string> kodDoWojewodztwa = new Dictionary<string, string>
@@ -60,15 +63,21 @@ namespace Kalendarz1
         private void InitializeComponent()
         {
             this.Text = "Dodaj nowego odbiorcę";
-            this.Size = new Size(520, 520);
+            this.Size = new Size(820, 520);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
+
+            // Timer do opóźnionego wyszukiwania (żeby nie szukać przy każdym klawiszu)
+            timerSzukaj = new System.Windows.Forms.Timer();
+            timerSzukaj.Interval = 300;
+            timerSzukaj.Tick += TimerSzukaj_Tick;
 
             int x = 20, y = 20, labelWidth = 110, controlWidth = 340;
 
             var lblNazwa = new Label { Text = "Nazwa firmy:*", Location = new Point(x, y), Size = new Size(labelWidth, 20), Font = new Font("Segoe UI", 9, FontStyle.Bold) };
             textBoxNazwa = new TextBox { Location = new Point(x + labelWidth, y), Size = new Size(controlWidth, 25) };
+            textBoxNazwa.TextChanged += TextBoxNazwa_TextChanged;
 
             y += 35;
             var lblKod = new Label { Text = "Kod pocztowy:", Location = new Point(x, y), Size = new Size(labelWidth, 20) };
@@ -154,6 +163,32 @@ namespace Kalendarz1
             buttonAnuluj.FlatAppearance.BorderSize = 0;
             buttonAnuluj.Click += (s, e) => this.Close();
 
+            // Panel z podobnymi klientami (po prawej stronie)
+            int panelX = 500;
+            lblPodobniKlienci = new Label
+            {
+                Text = "⚠ Podobni klienci w CRM:",
+                Location = new Point(panelX, 20),
+                Size = new Size(280, 20),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                ForeColor = Color.FromArgb(220, 38, 38)
+            };
+
+            listBoxPodobni = new ListBox
+            {
+                Location = new Point(panelX, 45),
+                Size = new Size(280, 380),
+                Font = new Font("Segoe UI", 9),
+                BorderStyle = BorderStyle.FixedSingle,
+                BackColor = Color.FromArgb(254, 242, 242),
+                ForeColor = Color.FromArgb(127, 29, 29)
+            };
+            listBoxPodobni.DoubleClick += ListBoxPodobni_DoubleClick;
+
+            // Ukryj panel do momentu znalezienia podobnych
+            lblPodobniKlienci.Visible = false;
+            listBoxPodobni.Visible = false;
+
             this.Controls.AddRange(new Control[] {
                 lblNazwa, textBoxNazwa,
                 lblKod, textBoxKod, lblAutoInfo,
@@ -164,7 +199,8 @@ namespace Kalendarz1
                 lblPowiat, textBoxPowiat,
                 lblPKD, comboBoxPKD,
                 checkBoxTylkoMoje,
-                buttonZapisz, buttonAnuluj
+                buttonZapisz, buttonAnuluj,
+                lblPodobniKlienci, listBoxPodobni
             });
         }
 
@@ -340,6 +376,117 @@ namespace Kalendarz1
                     {
                         transaction.Rollback();
                         MessageBox.Show("Błąd przy zapisie:\n" + ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
+        }
+
+        private void TextBoxNazwa_TextChanged(object sender, EventArgs e)
+        {
+            // Restart timera przy każdej zmianie - szukamy dopiero po chwili nieaktywności
+            timerSzukaj.Stop();
+            if (textBoxNazwa.Text.Length >= 3)
+            {
+                timerSzukaj.Start();
+            }
+            else
+            {
+                lblPodobniKlienci.Visible = false;
+                listBoxPodobni.Visible = false;
+            }
+        }
+
+        private void TimerSzukaj_Tick(object sender, EventArgs e)
+        {
+            timerSzukaj.Stop();
+            SzukajPodobnychKlientow();
+        }
+
+        private void SzukajPodobnychKlientow()
+        {
+            string szukany = textBoxNazwa.Text.Trim();
+            if (szukany.Length < 3) return;
+
+            listBoxPodobni.Items.Clear();
+
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Szukaj po fragmencie nazwy lub podobnym brzmieniu
+                    var cmd = new SqlCommand(@"
+                        SELECT TOP 20 ID, Nazwa, MIASTO, Status
+                        FROM OdbiorcyCRM
+                        WHERE Nazwa LIKE '%' + @szukany + '%'
+                           OR Nazwa LIKE @szukany + '%'
+                           OR Nazwa LIKE '%' + @szukany
+                        ORDER BY
+                            CASE
+                                WHEN Nazwa LIKE @szukany + '%' THEN 1
+                                WHEN Nazwa LIKE '%' + @szukany + '%' THEN 2
+                                ELSE 3
+                            END,
+                            Nazwa", conn);
+                    cmd.Parameters.AddWithValue("@szukany", szukany);
+
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            int id = reader.GetInt32(0);
+                            string nazwa = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                            string miasto = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                            string status = reader.IsDBNull(3) ? "" : reader.GetString(3);
+
+                            string info = $"[{id}] {nazwa}";
+                            if (!string.IsNullOrEmpty(miasto))
+                                info += $" - {miasto}";
+                            if (!string.IsNullOrEmpty(status))
+                                info += $" ({status})";
+
+                            listBoxPodobni.Items.Add(info);
+                        }
+                    }
+                }
+
+                // Pokaż/ukryj panel w zależności od wyników
+                bool maPodobnych = listBoxPodobni.Items.Count > 0;
+                lblPodobniKlienci.Visible = maPodobnych;
+                listBoxPodobni.Visible = maPodobnych;
+
+                if (maPodobnych)
+                {
+                    lblPodobniKlienci.Text = $"⚠ Podobni klienci ({listBoxPodobni.Items.Count}):";
+                }
+            }
+            catch { }
+        }
+
+        private void ListBoxPodobni_DoubleClick(object sender, EventArgs e)
+        {
+            if (listBoxPodobni.SelectedItem == null) return;
+
+            string wybrany = listBoxPodobni.SelectedItem.ToString();
+            // Wyciągnij ID z [ID]
+            int startIdx = wybrany.IndexOf('[');
+            int endIdx = wybrany.IndexOf(']');
+            if (startIdx >= 0 && endIdx > startIdx)
+            {
+                string idStr = wybrany.Substring(startIdx + 1, endIdx - startIdx - 1);
+                if (int.TryParse(idStr, out int id))
+                {
+                    var result = MessageBox.Show(
+                        $"Wybrany klient już istnieje w CRM:\n\n{wybrany}\n\nCzy na pewno chcesz dodać nowego klienta?",
+                        "Klient już istnieje",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning);
+
+                    if (result == DialogResult.No)
+                    {
+                        this.DialogResult = DialogResult.Cancel;
+                        this.Close();
                     }
                 }
             }
