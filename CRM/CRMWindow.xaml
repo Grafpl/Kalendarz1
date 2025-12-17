@@ -4,6 +4,7 @@
         Title="CRM Manager Pro"
         WindowState="Maximized"
         WindowStartupLocation="CenterScreen"
+        x:Name="mainWindow"
         Background="#FAFAFA"
         FontFamily="Segoe UI">
 
@@ -187,6 +188,7 @@
                     <Button Content="📈 Dashboard" Style="{StaticResource BtnIcon}" Click="BtnDashboard_Click" Foreground="#DC2626" FontWeight="Bold"/>
                     <Button x:Name="btnManager" Content="👔 Szef" Style="{StaticResource BtnIcon}" Click="BtnManager_Click" Foreground="{StaticResource DangerColor}" FontWeight="Bold"/>
                     <Button Content="🗺️ Mapa" Style="{StaticResource BtnIcon}" Click="BtnMapa_Click"/>
+                    <Button x:Name="btnTryb" Content="🌙" Style="{StaticResource BtnIcon}" Click="BtnTryb_Click" ToolTip="Zmień motyw jasny/ciemny" FontSize="16"/>
                     <Button x:Name="btnAdmin" Content="⚙️" Style="{StaticResource BtnIcon}" Click="BtnAdmin_Click" Visibility="Collapsed"/>
 
                     <Button Content="+ Nowy" Click="BtnDodaj_Click" Margin="10,0,0,0" Padding="15,8" BorderThickness="0" Cursor="Hand" Foreground="White" FontWeight="Bold">
@@ -310,8 +312,9 @@
                             <Style TargetType="DataGridColumnHeader">
                                 <Setter Property="Background" Value="#F9FAFB"/>
                                 <Setter Property="Foreground" Value="{StaticResource TextGray}"/>
-                                <Setter Property="Padding" Value="10,12"/>
+                                <Setter Property="Padding" Value="12,14"/>
                                 <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="FontSize" Value="13"/>
                                 <Setter Property="BorderThickness" Value="0,0,0,1"/>
                                 <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
                             </Style>
@@ -319,7 +322,8 @@
 
                         <DataGrid.RowStyle>
                             <Style TargetType="DataGridRow">
-                                <Setter Property="Padding" Value="0,6"/>
+                                <Setter Property="Height" Value="48"/>
+                                <Setter Property="FontSize" Value="14"/>
                                 <Style.Triggers>
                                     <Trigger Property="IsSelected" Value="True">
                                         <Setter Property="Background" Value="{StaticResource PrimaryLight}"/>
@@ -365,7 +369,7 @@
                                                 </Style>
                                             </Border.Style>
                                             <StackPanel Orientation="Horizontal">
-                                                <TextBlock VerticalAlignment="Center" FontSize="11" Margin="0,0,4,0">
+                                                <TextBlock VerticalAlignment="Center" FontSize="14" Margin="0,0,6,0">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
                                                             <Setter Property="Text" Value="📋"/>
@@ -392,7 +396,7 @@
                                                         </Style>
                                                     </TextBlock.Style>
                                                 </TextBlock>
-                                                <TextBlock Text="{Binding Status}" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Status}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
                                                             <Setter Property="Foreground" Value="#64748B"/>
@@ -430,6 +434,7 @@
                                     <Style TargetType="TextBlock">
                                         <Setter Property="VerticalAlignment" Value="Center"/>
                                         <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                        <Setter Property="FontSize" Value="14"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
@@ -475,16 +480,16 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTextColumn Header="Telefon" Binding="{Binding TELEFON_K}" Width="130">
+                            <DataGridTextColumn Header="Telefon" Binding="{Binding TELEFON_K}" Width="150">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="VerticalAlignment" Value="Center"/>
                                         <Setter Property="FontWeight" Value="Bold"/>
-                                        <Setter Property="FontSize" Value="13"/>
+                                        <Setter Property="FontSize" Value="15"/>
                                         <Setter Property="Foreground" Value="{StaticResource TextDark}"/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
-                                                <Setter Property="FontSize" Value="16"/>
+                                                <Setter Property="FontSize" Value="18"/>
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>

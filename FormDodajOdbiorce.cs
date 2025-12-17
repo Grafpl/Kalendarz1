@@ -16,7 +16,7 @@ namespace Kalendarz1
         private readonly Color panelColor = Color.FromArgb(30, 41, 59);
         private readonly Color inputBgColor = Color.FromArgb(51, 65, 85);
         private readonly Color textColor = Color.FromArgb(226, 232, 240);
-        private readonly Color labelColor = Color.FromArgb(148, 163, 184);
+        private readonly Color labelColor = Color.FromArgb(180, 190, 210);
         private readonly Color accentColor = Color.FromArgb(34, 197, 94);
         private readonly Color warningColor = Color.FromArgb(239, 68, 68);
 
@@ -84,7 +84,7 @@ namespace Kalendarz1
         private void InitializeComponent()
         {
             this.Text = "Dodaj nowego kontrahenta";
-            this.Size = new Size(1100, 750);
+            this.Size = new Size(1300, 780);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -94,74 +94,76 @@ namespace Kalendarz1
             timerSzukaj = new System.Windows.Forms.Timer { Interval = 300 };
             timerSzukaj.Tick += TimerSzukaj_Tick;
 
-            int leftColX = 25;
-            int rightColX = 560;
-            int controlHeight = 32;
-            int rowSpacing = 48;
+            int leftColX = 30;
+            int rightColX = 520;
+            int controlHeight = 36;
+            int rowSpacing = 52;
+            int labelWidth = 145;
+            int inputWidth = 300;
 
             // ========== SEKCJA: DANE FIRMY ==========
-            var panelFirma = CreateSection("DANE FIRMY", leftColX, 15, 510, 145);
-            int y = 40;
+            var panelFirma = CreateSection("DANE FIRMY", leftColX, 20, 460, 160);
+            int y = 50;
 
-            AddLabel(panelFirma, "Nazwa firmy:*", 15, y);
-            textBoxNazwa = AddTextBox(panelFirma, 140, y, 340, controlHeight);
+            AddLabel(panelFirma, "Nazwa firmy: *", 20, y, labelWidth);
+            textBoxNazwa = AddTextBox(panelFirma, labelWidth + 25, y, inputWidth, controlHeight);
             textBoxNazwa.TextChanged += TextBoxNazwa_TextChanged;
 
             y += rowSpacing;
-            AddLabel(panelFirma, "Branża (PKD):", 15, y);
+            AddLabel(panelFirma, "Branża (PKD):", 20, y, labelWidth);
             comboBoxPKD = new ComboBox
             {
-                Location = new Point(140, y),
-                Size = new Size(340, controlHeight),
+                Location = new Point(labelWidth + 25, y),
+                Size = new Size(inputWidth, controlHeight),
                 DropDownStyle = ComboBoxStyle.DropDown,
                 AutoCompleteMode = AutoCompleteMode.SuggestAppend,
                 AutoCompleteSource = AutoCompleteSource.ListItems,
                 BackColor = inputBgColor,
                 ForeColor = textColor,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 11)
+                Font = new Font("Segoe UI", 12)
             };
             panelFirma.Controls.Add(comboBoxPKD);
 
             this.Controls.Add(panelFirma);
 
             // ========== SEKCJA: ADRES ==========
-            var panelAdres = CreateSection("ADRES", leftColX, 170, 510, 260);
-            y = 40;
+            var panelAdres = CreateSection("ADRES", leftColX, 195, 460, 285);
+            y = 50;
 
-            AddLabel(panelAdres, "Kod pocztowy:", 15, y);
-            textBoxKod = AddTextBox(panelAdres, 140, y, 120, controlHeight);
+            AddLabel(panelAdres, "Kod pocztowy:", 20, y, labelWidth);
+            textBoxKod = AddTextBox(panelAdres, labelWidth + 25, y, 130, controlHeight);
             textBoxKod.TextChanged += TextBoxKod_TextChanged;
             var lblKodInfo = new Label
             {
                 Text = "(auto-uzupełnia)",
-                Location = new Point(270, y + 6),
-                Size = new Size(130, 22),
-                ForeColor = labelColor,
-                Font = new Font("Segoe UI", 9),
+                Location = new Point(labelWidth + 165, y + 8),
+                Size = new Size(130, 24),
+                ForeColor = Color.FromArgb(100, 130, 160),
+                Font = new Font("Segoe UI", 10),
                 BackColor = Color.Transparent
             };
             panelAdres.Controls.Add(lblKodInfo);
 
             y += rowSpacing;
-            AddLabel(panelAdres, "Miasto:", 15, y);
-            textBoxMiasto = AddTextBox(panelAdres, 140, y, 340, controlHeight);
+            AddLabel(panelAdres, "Miasto:", 20, y, labelWidth);
+            textBoxMiasto = AddTextBox(panelAdres, labelWidth + 25, y, inputWidth, controlHeight);
 
             y += rowSpacing;
-            AddLabel(panelAdres, "Ulica:", 15, y);
-            textBoxUlica = AddTextBox(panelAdres, 140, y, 340, controlHeight);
+            AddLabel(panelAdres, "Ulica:", 20, y, labelWidth);
+            textBoxUlica = AddTextBox(panelAdres, labelWidth + 25, y, inputWidth, controlHeight);
 
             y += rowSpacing;
-            AddLabel(panelAdres, "Województwo:", 15, y);
+            AddLabel(panelAdres, "Województwo:", 20, y, labelWidth);
             comboBoxWoj = new ComboBox
             {
-                Location = new Point(140, y),
-                Size = new Size(340, controlHeight),
+                Location = new Point(labelWidth + 25, y),
+                Size = new Size(inputWidth, controlHeight),
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 BackColor = inputBgColor,
                 ForeColor = textColor,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 11)
+                Font = new Font("Segoe UI", 12)
             };
             comboBoxWoj.Items.Add("");
             comboBoxWoj.Items.AddRange(new string[] {
@@ -173,52 +175,38 @@ namespace Kalendarz1
             panelAdres.Controls.Add(comboBoxWoj);
 
             y += rowSpacing;
-            AddLabel(panelAdres, "Powiat:", 15, y);
-            textBoxPowiat = AddTextBox(panelAdres, 140, y, 340, controlHeight);
+            AddLabel(panelAdres, "Powiat:", 20, y, labelWidth);
+            textBoxPowiat = AddTextBox(panelAdres, labelWidth + 25, y, inputWidth, controlHeight);
 
             this.Controls.Add(panelAdres);
 
             // ========== SEKCJA: KONTAKT ==========
-            var panelKontakt = CreateSection("KONTAKT", leftColX, 440, 510, 250);
-            y = 40;
+            var panelKontakt = CreateSection("KONTAKT", leftColX, 495, 460, 220);
+            y = 50;
 
-            AddLabel(panelKontakt, "Telefon:", 15, y);
-            textBoxTelefon = AddTextBox(panelKontakt, 140, y, 220, controlHeight);
-
-            y += rowSpacing;
-            AddLabel(panelKontakt, "Email:", 15, y);
-            textBoxEmail = AddTextBox(panelKontakt, 140, y, 340, controlHeight);
+            AddLabel(panelKontakt, "Telefon:", 20, y, labelWidth);
+            textBoxTelefon = AddTextBox(panelKontakt, labelWidth + 25, y, 200, controlHeight);
 
             y += rowSpacing;
-            AddLabel(panelKontakt, "Osoba kont.:", 15, y);
-            textBoxOsobaKontaktowa = AddTextBox(panelKontakt, 140, y, 340, controlHeight);
+            AddLabel(panelKontakt, "Email:", 20, y, labelWidth);
+            textBoxEmail = AddTextBox(panelKontakt, labelWidth + 25, y, inputWidth, controlHeight);
 
             y += rowSpacing;
-            AddLabel(panelKontakt, "Notatki:", 15, y);
-            textBoxNotatki = new TextBox
-            {
-                Location = new Point(140, y),
-                Size = new Size(340, 60),
-                BackColor = inputBgColor,
-                ForeColor = textColor,
-                BorderStyle = BorderStyle.FixedSingle,
-                Font = new Font("Segoe UI", 11),
-                Multiline = true
-            };
-            panelKontakt.Controls.Add(textBoxNotatki);
+            AddLabel(panelKontakt, "Osoba kontaktowa:", 20, y, labelWidth);
+            textBoxOsobaKontaktowa = AddTextBox(panelKontakt, labelWidth + 25, y, inputWidth, controlHeight);
 
             this.Controls.Add(panelKontakt);
 
-            // ========== PANEL DUPLIKATÓW (po prawej) ==========
-            panelDuplikaty = CreateSection("PODOBNI KLIENCI W BAZIE", rightColX, 15, 500, 595);
+            // ========== PANEL DUPLIKATÓW (po prawej - SZERSZY) ==========
+            panelDuplikaty = CreateSection("PODOBNI KLIENCI W BAZIE", rightColX, 20, 730, 630);
 
             var lblInfo = new Label
             {
-                Text = "Podczas wpisywania nazwy firmy automatycznie\nwyszukiwani są podobni klienci w bazie CRM.",
-                Location = new Point(15, 40),
-                Size = new Size(470, 50),
+                Text = "Podczas wpisywania nazwy firmy automatycznie wyszukiwani są podobni klienci w bazie CRM.\nPozwala to uniknąć dodawania duplikatów.",
+                Location = new Point(25, 50),
+                Size = new Size(680, 55),
                 ForeColor = labelColor,
-                Font = new Font("Segoe UI", 10),
+                Font = new Font("Segoe UI", 11),
                 BackColor = Color.Transparent
             };
             panelDuplikaty.Controls.Add(lblInfo);
@@ -226,9 +214,9 @@ namespace Kalendarz1
             lblPodobniKlienci = new Label
             {
                 Text = "Znalezione dopasowania:",
-                Location = new Point(15, 100),
-                Size = new Size(470, 25),
-                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                Location = new Point(25, 115),
+                Size = new Size(680, 30),
+                Font = new Font("Segoe UI", 13, FontStyle.Bold),
                 ForeColor = warningColor,
                 BackColor = Color.Transparent,
                 Visible = false
@@ -237,12 +225,13 @@ namespace Kalendarz1
 
             listBoxPodobni = new ListBox
             {
-                Location = new Point(15, 130),
-                Size = new Size(470, 420),
-                Font = new Font("Segoe UI", 11),
+                Location = new Point(25, 150),
+                Size = new Size(680, 450),
+                Font = new Font("Segoe UI", 12),
                 BorderStyle = BorderStyle.FixedSingle,
-                BackColor = Color.FromArgb(127, 29, 29),
-                ForeColor = Color.FromArgb(254, 202, 202),
+                BackColor = Color.FromArgb(80, 20, 20),
+                ForeColor = Color.FromArgb(255, 200, 200),
+                ItemHeight = 32,
                 Visible = false
             };
             listBoxPodobni.DoubleClick += ListBoxPodobni_DoubleClick;
@@ -253,10 +242,10 @@ namespace Kalendarz1
             {
                 Name = "lblBrakWynikow",
                 Text = "Zacznij wpisywać nazwę firmy\naby sprawdzić czy klient już istnieje w bazie.\n\n(minimum 3 znaki)",
-                Location = new Point(15, 180),
-                Size = new Size(470, 120),
+                Location = new Point(25, 200),
+                Size = new Size(680, 150),
                 ForeColor = labelColor,
-                Font = new Font("Segoe UI", 12),
+                Font = new Font("Segoe UI", 14),
                 BackColor = Color.Transparent,
                 TextAlign = ContentAlignment.MiddleCenter
             };
@@ -264,26 +253,39 @@ namespace Kalendarz1
 
             this.Controls.Add(panelDuplikaty);
 
-            // ========== CHECKBOX I PRZYCISKI ==========
-            checkBoxTylkoMoje = new CheckBox
+            // ========== NOTATKI (pod sekcją Kontakt) ==========
+            var lblNotatki = new Label
             {
-                Text = "Po dodaniu pokaż tylko moich klientów",
-                Location = new Point(leftColX + 140, 700),
-                Size = new Size(350, 25),
-                Checked = true,
-                ForeColor = textColor,
-                Font = new Font("Segoe UI", 10)
+                Text = "Notatki:",
+                Location = new Point(leftColX + 20, 725),
+                Size = new Size(100, 28),
+                ForeColor = labelColor,
+                Font = new Font("Segoe UI", 11),
+                BackColor = Color.Transparent
             };
-            this.Controls.Add(checkBoxTylkoMoje);
+            this.Controls.Add(lblNotatki);
 
+            textBoxNotatki = new TextBox
+            {
+                Location = new Point(leftColX + 130, 720),
+                Size = new Size(350, 40),
+                BackColor = inputBgColor,
+                ForeColor = textColor,
+                BorderStyle = BorderStyle.FixedSingle,
+                Font = new Font("Segoe UI", 11),
+                Multiline = true
+            };
+            this.Controls.Add(textBoxNotatki);
+
+            // ========== PRZYCISKI ==========
             buttonZapisz = new Button
             {
                 Text = "ZAPISZ KONTRAHENTA",
-                Location = new Point(rightColX, 625),
-                Size = new Size(240, 55),
+                Location = new Point(rightColX + 25, 670),
+                Size = new Size(280, 60),
                 BackColor = accentColor,
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 13, FontStyle.Bold),
+                Font = new Font("Segoe UI", 14, FontStyle.Bold),
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
@@ -294,17 +296,29 @@ namespace Kalendarz1
             buttonAnuluj = new Button
             {
                 Text = "Anuluj",
-                Location = new Point(rightColX + 260, 625),
-                Size = new Size(140, 55),
+                Location = new Point(rightColX + 330, 670),
+                Size = new Size(160, 60),
                 BackColor = Color.FromArgb(71, 85, 105),
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 12),
+                Font = new Font("Segoe UI", 13),
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
             buttonAnuluj.FlatAppearance.BorderSize = 0;
             buttonAnuluj.Click += (s, e) => this.Close();
             this.Controls.Add(buttonAnuluj);
+
+            checkBoxTylkoMoje = new CheckBox
+            {
+                Text = "Po dodaniu pokaż tylko moich klientów",
+                Location = new Point(rightColX + 520, 690),
+                Size = new Size(200, 40),
+                Checked = true,
+                ForeColor = textColor,
+                Font = new Font("Segoe UI", 9),
+                AutoSize = false
+            };
+            this.Controls.Add(checkBoxTylkoMoje);
         }
 
         private Panel CreateSection(string title, int x, int y, int width, int height)
@@ -319,9 +333,9 @@ namespace Kalendarz1
             var lblTitle = new Label
             {
                 Text = title,
-                Location = new Point(15, 10),
-                Size = new Size(width - 30, 26),
-                Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                Location = new Point(20, 12),
+                Size = new Size(width - 40, 30),
+                Font = new Font("Segoe UI", 13, FontStyle.Bold),
                 ForeColor = accentColor,
                 BackColor = Color.Transparent
             };
@@ -330,8 +344,8 @@ namespace Kalendarz1
             // Linia pod tytułem
             var line = new Panel
             {
-                Location = new Point(15, 36),
-                Size = new Size(width - 30, 1),
+                Location = new Point(20, 42),
+                Size = new Size(width - 40, 2),
                 BackColor = Color.FromArgb(51, 65, 85)
             };
             panel.Controls.Add(line);
@@ -339,15 +353,15 @@ namespace Kalendarz1
             return panel;
         }
 
-        private void AddLabel(Panel parent, string text, int x, int y)
+        private void AddLabel(Panel parent, string text, int x, int y, int width)
         {
             var lbl = new Label
             {
                 Text = text,
-                Location = new Point(x, y + 5),
-                Size = new Size(120, 24),
+                Location = new Point(x, y + 6),
+                Size = new Size(width, 28),
                 ForeColor = labelColor,
-                Font = new Font("Segoe UI", 10),
+                Font = new Font("Segoe UI", 11),
                 BackColor = Color.Transparent
             };
             parent.Controls.Add(lbl);
@@ -362,7 +376,7 @@ namespace Kalendarz1
                 BackColor = inputBgColor,
                 ForeColor = textColor,
                 BorderStyle = BorderStyle.FixedSingle,
-                Font = new Font("Segoe UI", 11)
+                Font = new Font("Segoe UI", 12)
             };
             parent.Controls.Add(txt);
             return txt;
@@ -600,7 +614,7 @@ namespace Kalendarz1
 
             if (maWyniki)
             {
-                lblPodobniKlienci.Text = $"Znaleziono {count} podobnych klientów:";
+                lblPodobniKlienci.Text = $"UWAGA! Znaleziono {count} podobnych klientów:";
             }
         }
 
@@ -639,11 +653,11 @@ namespace Kalendarz1
                             string miasto = reader.IsDBNull(2) ? "" : reader.GetString(2);
                             string status = reader.IsDBNull(3) ? "" : reader.GetString(3);
 
-                            string info = $"[{id}] {nazwa}";
+                            string info = $"[{id}]  {nazwa}";
                             if (!string.IsNullOrEmpty(miasto))
-                                info += $"  -  {miasto}";
+                                info += $"   •   {miasto}";
                             if (!string.IsNullOrEmpty(status))
-                                info += $"  ({status})";
+                                info += $"   ({status})";
 
                             listBoxPodobni.Items.Add(info);
                         }
