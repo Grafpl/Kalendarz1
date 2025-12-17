@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using iTextSharp.text;
 using iTextSharp.text.pdf;
 using Kalendarz1.Opakowania.Models;
@@ -11,16 +10,10 @@ namespace Kalendarz1.Opakowania.Services
 {
     /// <summary>
     /// Serwis do generowania raportów PDF dla systemu opakowań
+    /// Format zgodny z oryginalnym WidokPojemniki
     /// </summary>
     public class PdfReportService
     {
-        // Kolory firmy
-        private static readonly BaseColor PrimaryGreen = new BaseColor(75, 131, 60);
-        private static readonly BaseColor AccentRed = new BaseColor(204, 47, 55);
-        private static readonly BaseColor LightGray = new BaseColor(243, 244, 246);
-        private static readonly BaseColor DarkText = new BaseColor(44, 62, 80);
-        private static readonly BaseColor MediumText = new BaseColor(75, 85, 99);
-
         // Czcionki
         private Font _fontTitle;
         private Font _fontSubtitle;
@@ -28,6 +21,9 @@ namespace Kalendarz1.Opakowania.Services
         private Font _fontNormal;
         private Font _fontSmall;
         private Font _fontBold;
+        private Font _fontLarge;
+        private Font _fontFooter;
+        private BaseFont _baseFont;
 
         public PdfReportService()
         {
@@ -36,29 +32,41 @@ namespace Kalendarz1.Opakowania.Services
 
         private void InitializeFonts()
         {
-            // Użyj czcionki z systemu
+            // Użyj czcionki Arial z systemu (obsługuje polskie znaki)
             string fontPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "arial.ttf");
-            
+
             if (File.Exists(fontPath))
             {
-                BaseFont baseFont = BaseFont.CreateFont(fontPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
-                _fontTitle = new Font(baseFont, 18, Font.BOLD, DarkText);
-                _fontSubtitle = new Font(baseFont, 12, Font.NORMAL, MediumText);
-                _fontHeader = new Font(baseFont, 10, Font.BOLD, BaseColor.WHITE);
-                _fontNormal = new Font(baseFont, 9, Font.NORMAL, DarkText);
-                _fontSmall = new Font(baseFont, 8, Font.NORMAL, MediumText);
-                _fontBold = new Font(baseFont, 9, Font.BOLD, DarkText);
+                _baseFont = BaseFont.CreateFont(fontPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
             }
             else
             {
-                // Fallback do wbudowanej czcionki
-                _fontTitle = new Font(Font.FontFamily.HELVETICA, 18, Font.BOLD, DarkText);
-                _fontSubtitle = new Font(Font.FontFamily.HELVETICA, 12, Font.NORMAL, MediumText);
-                _fontHeader = new Font(Font.FontFamily.HELVETICA, 10, Font.BOLD, BaseColor.WHITE);
-                _fontNormal = new Font(Font.FontFamily.HELVETICA, 9, Font.NORMAL, DarkText);
-                _fontSmall = new Font(Font.FontFamily.HELVETICA, 8, Font.NORMAL, MediumText);
-                _fontBold = new Font(Font.FontFamily.HELVETICA, 9, Font.BOLD, DarkText);
+                // Fallback - spróbuj znaleźć inną czcionkę
+                string[] alternatywne = { "arialuni.ttf", "verdana.ttf", "tahoma.ttf" };
+                foreach (var alt in alternatywne)
+                {
+                    string altPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), alt);
+                    if (File.Exists(altPath))
+                    {
+                        _baseFont = BaseFont.CreateFont(altPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+                        break;
+                    }
+                }
+
+                if (_baseFont == null)
+                {
+                    _baseFont = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1250, BaseFont.NOT_EMBEDDED);
+                }
             }
+
+            _fontTitle = new Font(_baseFont, 18, Font.BOLD);
+            _fontSubtitle = new Font(_baseFont, 14, Font.NORMAL);
+            _fontHeader = new Font(_baseFont, 10, Font.BOLD, BaseColor.WHITE);
+            _fontNormal = new Font(_baseFont, 10, Font.NORMAL);
+            _fontSmall = new Font(_baseFont, 10, Font.ITALIC);
+            _fontBold = new Font(_baseFont, 14, Font.BOLD);
+            _fontLarge = new Font(_baseFont, 14, Font.NORMAL);
+            _fontFooter = new Font(_baseFont, 14, Font.NORMAL);
         }
 
         /// <summary>
@@ -78,43 +86,57 @@ namespace Kalendarz1.Opakowania.Services
             {
                 Document doc = new Document(PageSize.A4.Rotate(), 30, 30, 40, 40);
                 PdfWriter writer = PdfWriter.GetInstance(doc, fs);
-                
-                // Footer z numerem strony
-                writer.PageEvent = new PdfPageEventHelper();
+                writer.PageEvent = new PdfPageEventHelper(_baseFont);
 
                 doc.Open();
 
-                // Nagłówek
-                DodajNaglowekRaportu(doc, $"ZESTAWIENIE SALD OPAKOWAŃ - {typOpakowania.Nazwa.ToUpper()}", 
-                    $"Okres: {dataOd:dd.MM.yyyy} - {dataDo:dd.MM.yyyy}" + 
-                    (string.IsNullOrEmpty(handlowiec) ? "" : $" | Handlowiec: {handlowiec}"));
-
-                // Statystyki
-                var stats = new Dictionary<string, string>
+                // Nagłówek firmy
+                var header = new Paragraph(
+                    "Ubojnia Drobiu \"Piórkowscy\"\nKoziołki 40, 95-061 Dmosin\n46 874 71 70, wew 122 Magazyn Opakowań",
+                    _fontSmall)
                 {
-                    { "Liczba kontrahentów", zestawienie.Count.ToString() },
-                    { "Suma sald dodatnich", zestawienie.Where(z => z.IloscDrugiZakres > 0).Sum(z => z.IloscDrugiZakres).ToString() },
-                    { "Suma sald ujemnych", zestawienie.Where(z => z.IloscDrugiZakres < 0).Sum(z => z.IloscDrugiZakres).ToString() },
-                    { "Potwierdzone", zestawienie.Count(z => z.JestPotwierdzone).ToString() }
+                    Alignment = Element.ALIGN_LEFT,
+                    SpacingAfter = 20
                 };
-                DodajStatystyki(doc, stats);
+                doc.Add(header);
 
-                doc.Add(new Paragraph(" "));
+                // Tytuł
+                var title = new Paragraph(
+                    $"Zestawienie Sald Opakowań - {typOpakowania.Nazwa}",
+                    _fontTitle)
+                {
+                    Alignment = Element.ALIGN_CENTER,
+                    SpacingAfter = 10
+                };
+                doc.Add(title);
+
+                // Podtytuł z okresem
+                var subtitle = new Paragraph(
+                    $"Okres: {dataOd:dd.MM.yyyy} - {dataDo:dd.MM.yyyy}" +
+                    (string.IsNullOrEmpty(handlowiec) ? "" : $" | Handlowiec: {handlowiec}"),
+                    _fontSubtitle)
+                {
+                    Alignment = Element.ALIGN_CENTER,
+                    SpacingAfter = 20
+                };
+                doc.Add(subtitle);
 
                 // Tabela zestawienia
-                PdfPTable table = new PdfPTable(7);
+                PdfPTable table = new PdfPTable(6);
                 table.WidthPercentage = 100;
-                table.SetWidths(new float[] { 3, 5, 2, 2, 2, 2, 2 });
+                table.SetWidths(new float[] { 5, 3, 2, 2, 2, 2 });
 
                 // Nagłówki
-                string[] headers = { "✓", "Kontrahent", "Saldo początkowe", "Saldo końcowe", "Zmiana", "Ostatni dok.", "Potwierdzenie" };
-                foreach (var header in headers)
+                string[] headers = { "Kontrahent", "Handlowiec", "Saldo", "Ostatni dok.", "Potwierdzenie", "Status" };
+                foreach (var h in headers)
                 {
-                    PdfPCell cell = new PdfPCell(new Phrase(header, _fontHeader));
-                    cell.BackgroundColor = PrimaryGreen;
-                    cell.HorizontalAlignment = Element.ALIGN_CENTER;
-                    cell.VerticalAlignment = Element.ALIGN_MIDDLE;
-                    cell.Padding = 8;
+                    var cell = new PdfPCell(new Phrase(h, _fontHeader))
+                    {
+                        BackgroundColor = new BaseColor(75, 131, 60),
+                        HorizontalAlignment = Element.ALIGN_CENTER,
+                        VerticalAlignment = Element.ALIGN_MIDDLE,
+                        Padding = 8
+                    };
                     table.AddCell(cell);
                 }
 
@@ -122,36 +144,29 @@ namespace Kalendarz1.Opakowania.Services
                 bool alternate = false;
                 foreach (var item in zestawienie)
                 {
-                    BaseColor bgColor = alternate ? LightGray : BaseColor.WHITE;
-                    
-                    // Potwierdzenie
-                    AddCell(table, item.JestPotwierdzone ? "✓" : "", bgColor, Element.ALIGN_CENTER);
-                    
+                    var bgColor = alternate ? new BaseColor(243, 244, 246) : BaseColor.WHITE;
+
                     // Kontrahent
-                    PdfPCell kontrahentCell = new PdfPCell();
-                    kontrahentCell.AddElement(new Paragraph(item.Kontrahent, _fontBold));
-                    kontrahentCell.AddElement(new Paragraph(item.Handlowiec ?? "", _fontSmall));
-                    kontrahentCell.BackgroundColor = bgColor;
-                    kontrahentCell.Padding = 5;
-                    table.AddCell(kontrahentCell);
+                    AddCell(table, item.Kontrahent, bgColor, Element.ALIGN_LEFT);
 
-                    // Saldo początkowe
-                    AddCell(table, FormatSaldo(item.IloscPierwszyZakres), bgColor, Element.ALIGN_RIGHT, 
-                        item.IloscPierwszyZakres > 0 ? AccentRed : item.IloscPierwszyZakres < 0 ? PrimaryGreen : DarkText);
+                    // Handlowiec
+                    AddCell(table, item.Handlowiec ?? "-", bgColor, Element.ALIGN_CENTER);
 
-                    // Saldo końcowe
-                    AddCell(table, FormatSaldo(item.IloscDrugiZakres), bgColor, Element.ALIGN_RIGHT,
-                        item.IloscDrugiZakres > 0 ? AccentRed : item.IloscDrugiZakres < 0 ? PrimaryGreen : DarkText);
-
-                    // Zmiana
-                    AddCell(table, FormatSaldo(item.Roznica), bgColor, Element.ALIGN_RIGHT,
-                        item.Roznica > 0 ? AccentRed : item.Roznica < 0 ? PrimaryGreen : DarkText);
+                    // Saldo
+                    string saldoText = FormatSaldoZOpis(item.IloscDrugiZakres);
+                    var saldoColor = item.IloscDrugiZakres > 0 ? new BaseColor(204, 47, 55) :
+                                     item.IloscDrugiZakres < 0 ? new BaseColor(75, 131, 60) :
+                                     BaseColor.BLACK;
+                    AddCell(table, saldoText, bgColor, Element.ALIGN_RIGHT, saldoColor);
 
                     // Ostatni dokument
                     AddCell(table, item.DataOstatniegoDokumentu?.ToString("dd.MM.yyyy") ?? "-", bgColor, Element.ALIGN_CENTER);
 
-                    // Potwierdzenie data
+                    // Potwierdzenie
                     AddCell(table, item.DataPotwierdzenia?.ToString("dd.MM.yyyy") ?? "-", bgColor, Element.ALIGN_CENTER);
+
+                    // Status
+                    AddCell(table, item.JestPotwierdzone ? "✓" : "-", bgColor, Element.ALIGN_CENTER);
 
                     alternate = !alternate;
                 }
@@ -160,7 +175,11 @@ namespace Kalendarz1.Opakowania.Services
 
                 // Stopka
                 doc.Add(new Paragraph(" "));
-                doc.Add(new Paragraph($"Wygenerowano: {DateTime.Now:dd.MM.yyyy HH:mm:ss}", _fontSmall));
+                var footerText = new Paragraph($"Wygenerowano: {DateTime.Now:dd.MM.yyyy HH:mm:ss}", _fontSmall)
+                {
+                    Alignment = Element.ALIGN_RIGHT
+                };
+                doc.Add(footerText);
 
                 doc.Close();
             }
@@ -170,6 +189,7 @@ namespace Kalendarz1.Opakowania.Services
 
         /// <summary>
         /// Generuje raport szczegółowy salda dla kontrahenta
+        /// W formacie identycznym jak WidokPojemniki - z podsumowaniem na pierwszej stronie
         /// </summary>
         public string GenerujRaportKontrahenta(
             int kontrahentId,
@@ -185,123 +205,212 @@ namespace Kalendarz1.Opakowania.Services
 
             using (var fs = new FileStream(filePath, FileMode.Create))
             {
-                Document doc = new Document(PageSize.A4, 30, 30, 40, 40);
+                Document doc = new Document(PageSize.A4, 50, 50, 50, 50);
                 PdfWriter writer = PdfWriter.GetInstance(doc, fs);
+                writer.PageEvent = new PdfPageEventHelper(_baseFont);
 
                 doc.Open();
 
-                // Nagłówek
-                DodajNaglowekRaportu(doc, "ZESTAWIENIE SALDA OPAKOWAŃ", 
-                    $"Kontrahent: {kontrahentNazwa}");
+                // ============================================
+                // STRONA 1 - PODSUMOWANIE
+                // ============================================
 
-                doc.Add(new Paragraph($"Okres: {dataOd:dd.MM.yyyy} - {dataDo:dd.MM.yyyy}", _fontSubtitle));
-                doc.Add(new Paragraph(" "));
-
-                // Karty sald
-                PdfPTable saldaTable = new PdfPTable(5);
-                saldaTable.WidthPercentage = 100;
-                
-                string[] typy = { "E2", "H1", "EURO", "PCV", "DREW" };
-                int[] salda = { saldo?.SaldoE2 ?? 0, saldo?.SaldoH1 ?? 0, saldo?.SaldoEURO ?? 0, 
-                               saldo?.SaldoPCV ?? 0, saldo?.SaldoDREW ?? 0 };
-
-                for (int i = 0; i < typy.Length; i++)
+                // Nagłówek firmy
+                var header = new Paragraph(
+                    "Ubojnia Drobiu \"Piórkowscy\"\nKoziołki 40, 95-061 Dmosin\n46 874 71 70, wew 122 Magazyn Opakowań",
+                    _fontSmall)
                 {
-                    PdfPCell cell = new PdfPCell();
-                    cell.AddElement(new Paragraph(typy[i], _fontBold));
-                    cell.AddElement(new Paragraph(FormatSaldo(salda[i]), new Font(_fontBold) 
-                    { 
-                        Color = salda[i] > 0 ? AccentRed : salda[i] < 0 ? PrimaryGreen : DarkText,
-                        Size = 14 
-                    }));
-                    cell.BackgroundColor = LightGray;
-                    cell.Padding = 10;
-                    cell.HorizontalAlignment = Element.ALIGN_CENTER;
-                    saldaTable.AddCell(cell);
+                    Alignment = Element.ALIGN_LEFT,
+                    SpacingAfter = 20
+                };
+                doc.Add(header);
+
+                // Tytuł
+                var title = new Paragraph(
+                    $"Zestawienie Opakowań Zwrotnych dla Kontrahenta: {kontrahentNazwa}",
+                    _fontTitle)
+                {
+                    Alignment = Element.ALIGN_CENTER,
+                    SpacingAfter = 20
+                };
+                doc.Add(title);
+
+                // Tekst wyjaśniający
+                string dataSalda = dataDo.ToString("dd.MM.yyyy");
+                var introText = new Paragraph(
+                    $"W związku z koniecznością uzgodnienia salda opakowań zwrotnych na dzień {dataSalda}, " +
+                    "poniżej przedstawiamy szczegółowe zestawienie opakowań zgodnie z naszą ewidencją. " +
+                    "Prosimy o weryfikację przedstawionych danych oraz potwierdzenie ich zgodności.",
+                    _fontFooter)
+                {
+                    Alignment = Element.ALIGN_JUSTIFIED,
+                    SpacingAfter = 55,
+                    FirstLineIndent = 20f
+                };
+                doc.Add(introText);
+
+                // Tabela podsumowania sald
+                PdfPTable summaryTable = new PdfPTable(2)
+                {
+                    WidthPercentage = 85,
+                    HorizontalAlignment = Element.ALIGN_CENTER
+                };
+                summaryTable.SetWidths(new float[] { 5f, 5f });
+
+                // Dane opakowań
+                var opakowania = new Dictionary<string, (string Nazwa, int Wartosc)>
+                {
+                    { "E2", ("Pojemniki E2", saldo?.SaldoE2 ?? 0) },
+                    { "H1", ("Palety H1", saldo?.SaldoH1 ?? 0) },
+                    { "EURO", ("Palety EURO", saldo?.SaldoEURO ?? 0) },
+                    { "PCV", ("Palety plastikowe", saldo?.SaldoPCV ?? 0) },
+                    { "DREW", ("Palety drewniane (bez zwrotne)", saldo?.SaldoDREW ?? 0) }
+                };
+
+                foreach (var opakowanie in opakowania)
+                {
+                    string nazwaOpakowania = opakowanie.Value.Nazwa;
+                    int wartosc = opakowanie.Value.Wartosc;
+
+                    string wartoscText;
+                    if (wartosc < 0)
+                    {
+                        wartoscText = $"Ubojnia winna : {Math.Abs(wartosc)}";
+                    }
+                    else if (wartosc > 0)
+                    {
+                        wartoscText = $"Kontrahent winny : {wartosc}";
+                    }
+                    else
+                    {
+                        wartoscText = "0";
+                    }
+
+                    var nazwaCell = new PdfPCell(new Phrase(nazwaOpakowania, _fontLarge))
+                    {
+                        HorizontalAlignment = Element.ALIGN_CENTER,
+                        VerticalAlignment = Element.ALIGN_MIDDLE,
+                        Padding = 10
+                    };
+                    summaryTable.AddCell(nazwaCell);
+
+                    var wartoscCell = new PdfPCell(new Phrase(wartoscText, _fontLarge))
+                    {
+                        HorizontalAlignment = Element.ALIGN_LEFT,
+                        VerticalAlignment = Element.ALIGN_MIDDLE,
+                        Padding = 10
+                    };
+                    summaryTable.AddCell(wartoscCell);
                 }
-                doc.Add(saldaTable);
 
-                doc.Add(new Paragraph(" "));
-                doc.Add(new Paragraph("HISTORIA DOKUMENTÓW", _fontTitle));
-                doc.Add(new Paragraph(" "));
+                doc.Add(summaryTable);
 
-                // Tabela dokumentów
+                // Informacja o potwierdzeniu
+                var footerInfo = new Paragraph(
+                    "Prosimy o przesłanie potwierdzenia zgodności danych na adres e-mail: opakowania@piorkowscy.com.pl. " +
+                    "W przypadku braku odpowiedzi w ciągu 7 dni od daty otrzymania niniejszego dokumentu, " +
+                    "saldo przedstawione przez naszą firmę zostanie uznane za zgodne. " +
+                    "W razie jakichkolwiek pytań lub wątpliwości prosimy o kontakt telefoniczny z naszym magazynem " +
+                    "opakowań pod numerem 46 874 71 70, wew. 122. Dziękujemy za współpracę.",
+                    _fontFooter)
+                {
+                    Alignment = Element.ALIGN_JUSTIFIED,
+                    SpacingBefore = 50,
+                    SpacingAfter = 20,
+                    FirstLineIndent = 20f
+                };
+                doc.Add(footerInfo);
+
+                // Miejsce na podpis
+                var signature = new Paragraph(
+                    "\n\n\nPodpis kontrahenta: .......................................................",
+                    _fontLarge)
+                {
+                    Alignment = Element.ALIGN_CENTER,
+                    SpacingBefore = 30
+                };
+                doc.Add(signature);
+
+                // Autor
+                var autor = new Paragraph(
+                    "\nOprogramowanie utworzone przez Sergiusza Piórkowskiego",
+                    _fontSmall)
+                {
+                    Alignment = Element.ALIGN_RIGHT,
+                    SpacingBefore = 30
+                };
+                doc.Add(autor);
+
+                // ============================================
+                // STRONA 2 - SZCZEGÓŁOWA TABELA
+                // ============================================
+
                 if (dokumenty != null && dokumenty.Any())
                 {
-                    PdfPTable docsTable = new PdfPTable(9);
-                    docsTable.WidthPercentage = 100;
-                    docsTable.SetWidths(new float[] { 2, 2, 3, 3, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f });
+                    doc.NewPage();
 
-                    string[] docHeaders = { "Data", "Dzień", "Nr dok.", "Opis", "E2", "H1", "EURO", "PCV", "DREW" };
+                    // Notka
+                    var note = new Paragraph(
+                        "- wydanie do odbiorcy, + przyjęcie na ubojnię",
+                        _fontSmall)
+                    {
+                        Alignment = Element.ALIGN_RIGHT,
+                        SpacingAfter = 10
+                    };
+                    doc.Add(new Paragraph(" "));
+                    doc.Add(note);
+
+                    // Tabela szczegółowa
+                    PdfPTable detailTable = new PdfPTable(8);
+                    detailTable.WidthPercentage = 100;
+                    detailTable.SetWidths(new float[] { 2f, 3f, 3f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f });
+
+                    // Nagłówki
+                    string[] docHeaders = { "Data", "Nr dok.", "Dokumenty", "E2", "H1", "EURO", "PCV", "Drew" };
                     foreach (var h in docHeaders)
                     {
-                        PdfPCell cell = new PdfPCell(new Phrase(h, _fontHeader));
-                        cell.BackgroundColor = PrimaryGreen;
-                        cell.HorizontalAlignment = Element.ALIGN_CENTER;
-                        cell.Padding = 6;
-                        docsTable.AddCell(cell);
+                        var headerCell = new PdfPCell(new Phrase(h, _fontHeader))
+                        {
+                            BackgroundColor = BaseColor.LIGHT_GRAY,
+                            HorizontalAlignment = Element.ALIGN_CENTER,
+                            VerticalAlignment = Element.ALIGN_MIDDLE,
+                            FixedHeight = 20f
+                        };
+                        detailTable.AddCell(headerCell);
                     }
 
-                    bool alt = false;
+                    // Dane
                     foreach (var dok in dokumenty)
                     {
-                        BaseColor bg = alt ? LightGray : BaseColor.WHITE;
-                        
-                        AddCell(docsTable, dok.Data?.ToString("dd.MM.yyyy") ?? "-", bg, Element.ALIGN_CENTER);
-                        AddCell(docsTable, dok.DzienTyg, bg, Element.ALIGN_CENTER);
-                        AddCell(docsTable, dok.NrDok ?? "", bg, Element.ALIGN_LEFT);
-                        AddCell(docsTable, dok.Dokumenty ?? "", bg, Element.ALIGN_LEFT);
-                        AddSaldoCell(docsTable, dok.E2, bg);
-                        AddSaldoCell(docsTable, dok.H1, bg);
-                        AddSaldoCell(docsTable, dok.EURO, bg);
-                        AddSaldoCell(docsTable, dok.PCV, bg);
-                        AddSaldoCell(docsTable, dok.DREW, bg);
+                        // Data
+                        string dataText = dok.Data?.ToString("yyyy-MM-dd") ?? "";
+                        AddDetailCell(detailTable, dataText);
 
-                        alt = !alt;
-                    }
-                    doc.Add(docsTable);
-                }
-                else
-                {
-                    doc.Add(new Paragraph("Brak dokumentów w wybranym okresie.", _fontNormal));
-                }
+                        // Nr dok
+                        AddDetailCell(detailTable, dok.NrDok ?? "");
 
-                // Potwierdzenia
-                if (potwierdzenia != null && potwierdzenia.Any())
-                {
-                    doc.Add(new Paragraph(" "));
-                    doc.Add(new Paragraph("HISTORIA POTWIERDZEŃ", _fontTitle));
-                    doc.Add(new Paragraph(" "));
+                        // Dokumenty (opis)
+                        AddDetailCell(detailTable, dok.Dokumenty ?? "");
 
-                    PdfPTable potTable = new PdfPTable(6);
-                    potTable.WidthPercentage = 100;
-                    potTable.SetWidths(new float[] { 2, 2, 2, 2, 2, 3 });
+                        // E2
+                        AddDetailCell(detailTable, dok.E2.ToString());
 
-                    string[] potHeaders = { "Data", "Typ", "Potwierdzone", "W systemie", "Różnica", "Status" };
-                    foreach (var h in potHeaders)
-                    {
-                        PdfPCell cell = new PdfPCell(new Phrase(h, _fontHeader));
-                        cell.BackgroundColor = PrimaryGreen;
-                        cell.HorizontalAlignment = Element.ALIGN_CENTER;
-                        cell.Padding = 6;
-                        potTable.AddCell(cell);
+                        // H1
+                        AddDetailCell(detailTable, dok.H1.ToString());
+
+                        // EURO
+                        AddDetailCell(detailTable, dok.EURO.ToString());
+
+                        // PCV
+                        AddDetailCell(detailTable, dok.PCV.ToString());
+
+                        // Drew
+                        AddDetailCell(detailTable, dok.DREW.ToString());
                     }
 
-                    foreach (var pot in potwierdzenia)
-                    {
-                        AddCell(potTable, pot.DataPotwierdzenia.ToString("dd.MM.yyyy"), BaseColor.WHITE, Element.ALIGN_CENTER);
-                        AddCell(potTable, pot.KodOpakowania, BaseColor.WHITE, Element.ALIGN_CENTER);
-                        AddCell(potTable, pot.IloscPotwierdzona.ToString(), BaseColor.WHITE, Element.ALIGN_RIGHT);
-                        AddCell(potTable, pot.SaldoSystemowe.ToString(), BaseColor.WHITE, Element.ALIGN_RIGHT);
-                        AddSaldoCell(potTable, pot.Roznica, BaseColor.WHITE);
-                        AddCell(potTable, pot.StatusPotwierdzenia, BaseColor.WHITE, Element.ALIGN_CENTER);
-                    }
-                    doc.Add(potTable);
+                    detailTable.HeaderRows = 1;
+                    doc.Add(detailTable);
                 }
-
-                // Stopka
-                doc.Add(new Paragraph(" "));
-                doc.Add(new Paragraph($"Wygenerowano: {DateTime.Now:dd.MM.yyyy HH:mm:ss}", _fontSmall));
 
                 doc.Close();
             }
@@ -311,82 +420,41 @@ namespace Kalendarz1.Opakowania.Services
 
         #region Helper Methods
 
-        private void DodajNaglowekRaportu(Document doc, string tytul, string podtytul)
-        {
-            // Logo/Nazwa firmy
-            Paragraph firma = new Paragraph("PRONOVA SP. Z O.O.", _fontTitle);
-            firma.Alignment = Element.ALIGN_CENTER;
-            doc.Add(firma);
-
-            // Tytuł raportu
-            Paragraph title = new Paragraph(tytul, _fontTitle);
-            title.Alignment = Element.ALIGN_CENTER;
-            title.SpacingBefore = 10;
-            doc.Add(title);
-
-            // Podtytuł
-            Paragraph subtitle = new Paragraph(podtytul, _fontSubtitle);
-            subtitle.Alignment = Element.ALIGN_CENTER;
-            subtitle.SpacingAfter = 20;
-            doc.Add(subtitle);
-
-            // Linia oddzielająca
-            PdfPTable line = new PdfPTable(1);
-            line.WidthPercentage = 100;
-            PdfPCell lineCell = new PdfPCell();
-            lineCell.BorderWidthTop = 2;
-            lineCell.BorderColorTop = PrimaryGreen;
-            lineCell.BorderWidthBottom = 0;
-            lineCell.BorderWidthLeft = 0;
-            lineCell.BorderWidthRight = 0;
-            lineCell.FixedHeight = 5;
-            line.AddCell(lineCell);
-            doc.Add(line);
-        }
-
-        private void DodajStatystyki(Document doc, Dictionary<string, string> stats)
-        {
-            PdfPTable statsTable = new PdfPTable(stats.Count);
-            statsTable.WidthPercentage = 100;
-            statsTable.SpacingBefore = 15;
-            statsTable.SpacingAfter = 15;
-
-            foreach (var stat in stats)
-            {
-                PdfPCell cell = new PdfPCell();
-                cell.AddElement(new Paragraph(stat.Key, _fontSmall));
-                cell.AddElement(new Paragraph(stat.Value, new Font(_fontBold) { Size = 14 }));
-                cell.BackgroundColor = LightGray;
-                cell.Padding = 10;
-                cell.HorizontalAlignment = Element.ALIGN_CENTER;
-                cell.Border = Rectangle.NO_BORDER;
-                statsTable.AddCell(cell);
-            }
-
-            doc.Add(statsTable);
-        }
-
         private void AddCell(PdfPTable table, string text, BaseColor bgColor, int alignment, BaseColor textColor = null)
         {
-            Font font = textColor != null ? new Font(_fontNormal) { Color = textColor } : _fontNormal;
-            PdfPCell cell = new PdfPCell(new Phrase(text, font));
-            cell.BackgroundColor = bgColor;
-            cell.HorizontalAlignment = alignment;
-            cell.VerticalAlignment = Element.ALIGN_MIDDLE;
-            cell.Padding = 5;
+            var font = textColor != null ? new Font(_baseFont, 10, Font.NORMAL, textColor) : _fontNormal;
+            var cell = new PdfPCell(new Phrase(text, font))
+            {
+                BackgroundColor = bgColor,
+                HorizontalAlignment = alignment,
+                VerticalAlignment = Element.ALIGN_MIDDLE,
+                Padding = 5
+            };
             table.AddCell(cell);
         }
 
-        private void AddSaldoCell(PdfPTable table, int value, BaseColor bgColor)
+        private void AddDetailCell(PdfPTable table, string text)
         {
-            BaseColor textColor = value > 0 ? AccentRed : value < 0 ? PrimaryGreen : DarkText;
-            AddCell(table, FormatSaldo(value), bgColor, Element.ALIGN_RIGHT, textColor);
+            var cell = new PdfPCell(new Phrase(text, _fontNormal))
+            {
+                HorizontalAlignment = Element.ALIGN_CENTER,
+                VerticalAlignment = Element.ALIGN_MIDDLE,
+                FixedHeight = 20f
+            };
+            table.AddCell(cell);
         }
 
         private string FormatSaldo(int value)
         {
             if (value == 0) return "0";
             return value > 0 ? $"+{value}" : value.ToString();
+        }
+
+        private string FormatSaldoZOpis(int value)
+        {
+            if (value == 0) return "0";
+            if (value > 0) return $"+{value}";
+            return value.ToString();
         }
 
         #endregion
@@ -397,14 +465,21 @@ namespace Kalendarz1.Opakowania.Services
     /// </summary>
     public class PdfPageEventHelper : iTextSharp.text.pdf.PdfPageEventHelper
     {
+        private readonly BaseFont _baseFont;
+
+        public PdfPageEventHelper(BaseFont baseFont = null)
+        {
+            _baseFont = baseFont;
+        }
+
         public override void OnEndPage(PdfWriter writer, Document document)
         {
             PdfContentByte cb = writer.DirectContent;
-            BaseFont bf = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
+            BaseFont bf = _baseFont ?? BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
             cb.SetFontAndSize(bf, 9);
             cb.BeginText();
             string text = $"Strona {writer.PageNumber}";
-            cb.ShowTextAligned(PdfContentByte.ALIGN_CENTER, text, 
+            cb.ShowTextAligned(PdfContentByte.ALIGN_CENTER, text,
                 document.PageSize.Width / 2, document.PageSize.GetBottom(20), 0);
             cb.EndText();
         }
