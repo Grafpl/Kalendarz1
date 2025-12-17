@@ -518,25 +518,6 @@ namespace Kalendarz1.CRM
         private void ChkTylkoMoje_Changed(object sender, RoutedEventArgs e) => WczytajDane();
         private void BtnAdmin_Click(object sender, RoutedEventArgs e) { }
 
-        private bool ciemnyMotyw = false;
-        private void BtnTryb_Click(object sender, RoutedEventArgs e)
-        {
-            ciemnyMotyw = !ciemnyMotyw;
-            if (ciemnyMotyw)
-            {
-                // Ciemny motyw
-                mainWindow.Background = new SolidColorBrush(Color.FromRgb(15, 23, 42));
-                btnTryb.Content = "☀️";
-                btnTryb.ToolTip = "Zmień na motyw jasny";
-            }
-            else
-            {
-                // Jasny motyw
-                mainWindow.Background = new SolidColorBrush(Color.FromRgb(250, 250, 250));
-                btnTryb.Content = "🌙";
-                btnTryb.ToolTip = "Zmień na motyw ciemny";
-            }
-        }
 
         private string aktywnyChip = "";
 

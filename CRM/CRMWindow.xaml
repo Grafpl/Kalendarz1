@@ -104,7 +104,6 @@
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="350"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
@@ -119,20 +118,7 @@
                     </StackPanel>
                 </StackPanel>
 
-                <Border Grid.Column="1" Background="#F3F4F6" CornerRadius="8" VerticalAlignment="Center" Height="42">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="40"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="🔍" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource TextGray}"/>
-                        <TextBox x:Name="txtSzukaj" Grid.Column="1" Background="Transparent" BorderThickness="0" 
-                                 VerticalContentAlignment="Center" FontSize="14" Padding="0,0,10,0"
-                                 TextChanged="TxtSzukaj_TextChanged" Tag="Szukaj firmy..."/>
-                    </Grid>
-                </Border>
-
-                <Border Grid.Column="2" Margin="20,0" Padding="20,0" BorderBrush="{StaticResource BorderColor}" BorderThickness="1,0,0,0">
+                <Border Grid.Column="1" Margin="20,0" Padding="20,0" BorderBrush="{StaticResource BorderColor}" BorderThickness="1,0,0,0">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -170,7 +156,7 @@
                     </Grid>
                 </Border>
 
-                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
 
                     <StackPanel VerticalAlignment="Center" Margin="0,0,20,0" Width="120">
                         <Grid Margin="0,0,0,4">
@@ -188,7 +174,6 @@
                     <Button Content="📈 Dashboard" Style="{StaticResource BtnIcon}" Click="BtnDashboard_Click" Foreground="#DC2626" FontWeight="Bold"/>
                     <Button x:Name="btnManager" Content="👔 Szef" Style="{StaticResource BtnIcon}" Click="BtnManager_Click" Foreground="{StaticResource DangerColor}" FontWeight="Bold"/>
                     <Button Content="🗺️ Mapa" Style="{StaticResource BtnIcon}" Click="BtnMapa_Click"/>
-                    <Button x:Name="btnTryb" Content="🌙" Style="{StaticResource BtnIcon}" Click="BtnTryb_Click" ToolTip="Zmień motyw jasny/ciemny" FontSize="16"/>
                     <Button x:Name="btnAdmin" Content="⚙️" Style="{StaticResource BtnIcon}" Click="BtnAdmin_Click" Visibility="Collapsed"/>
 
                     <Button Content="+ Nowy" Click="BtnDodaj_Click" Margin="10,0,0,0" Padding="15,8" BorderThickness="0" Cursor="Hand" Foreground="White" FontWeight="Bold">
@@ -296,8 +281,25 @@
                     </Grid.RowDefinitions>
 
                     <Grid Margin="16,12" Grid.Row="0">
-                        <TextBlock Text="Baza Odbiorców" FontWeight="Bold" FontSize="16" Foreground="{StaticResource TextDark}"/>
-                        <TextBlock x:Name="txtLiczbaWynikow" Text="0 klientów" HorizontalAlignment="Right" FontSize="12" Foreground="{StaticResource TextGray}" VerticalAlignment="Center"/>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Baza Odbiorców" FontWeight="Bold" FontSize="16" Foreground="{StaticResource TextDark}" VerticalAlignment="Center"/>
+                        <Border Grid.Column="1" Background="#F3F4F6" CornerRadius="8" VerticalAlignment="Center" Height="36" Margin="20,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="36"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="🔍" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource TextGray}" FontSize="14"/>
+                                <TextBox x:Name="txtSzukaj" Grid.Column="1" Background="Transparent" BorderThickness="0"
+                                         VerticalContentAlignment="Center" FontSize="13" Padding="0,0,10,0"
+                                         TextChanged="TxtSzukaj_TextChanged" Tag="Szukaj firmy..."/>
+                            </Grid>
+                        </Border>
+                        <TextBlock x:Name="txtLiczbaWynikow" Grid.Column="2" Text="0 klientów" HorizontalAlignment="Right" FontSize="12" Foreground="{StaticResource TextGray}" VerticalAlignment="Center"/>
                     </Grid>
 
                     <DataGrid x:Name="dgKontakty" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True" 
@@ -317,8 +319,24 @@
                                 <Setter Property="FontSize" Value="13"/>
                                 <Setter Property="BorderThickness" Value="0,0,0,1"/>
                                 <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+                                <Setter Property="HorizontalContentAlignment" Value="Center"/>
                             </Style>
                         </DataGrid.ColumnHeaderStyle>
+
+                        <DataGrid.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="TextBlock.TextAlignment" Value="Center"/>
+                                <Setter Property="TextBlock.TextWrapping" Value="Wrap"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.CellStyle>
 
                         <DataGrid.RowStyle>
                             <Style TargetType="DataGridRow">
@@ -326,8 +344,8 @@
                                 <Setter Property="FontSize" Value="14"/>
                                 <Style.Triggers>
                                     <Trigger Property="IsSelected" Value="True">
-                                        <Setter Property="Background" Value="{StaticResource PrimaryLight}"/>
-                                        <Setter Property="Foreground" Value="{StaticResource PrimaryColor}"/>
+                                        <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
+                                        <Setter Property="Foreground" Value="White"/>
                                     </Trigger>
                                     <DataTrigger Binding="{Binding CzyZaniedbany}" Value="True">
                                         <DataTrigger.EnterActions>
@@ -433,7 +451,9 @@
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="VerticalAlignment" Value="Center"/>
-                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="TextAlignment" Value="Center"/>
+                                        <Setter Property="TextWrapping" Value="Wrap"/>
                                         <Setter Property="FontSize" Value="14"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
@@ -443,7 +463,7 @@
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding OstatniHandlowiec}" FontSize="10" Foreground="#6366F1" FontWeight="SemiBold"
-                                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                                   TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                    ToolTip="{Binding OstatniHandlowiec}"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
@@ -452,20 +472,31 @@
                             <DataGridTemplateColumn Header="Tagi" Width="Auto">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Border Background="#FEF3C7" CornerRadius="4" Padding="6,2" Margin="0,0,10,0" HorizontalAlignment="Left" Visibility="{Binding MaTagi, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                            <TextBlock Text="{Binding Tagi}" FontSize="10" Foreground="#92400E" FontWeight="Bold"/>
+                                        <Border Background="#FEF3C7" CornerRadius="4" Padding="6,2" HorizontalAlignment="Center" Visibility="{Binding MaTagi, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <TextBlock Text="{Binding Tagi}" FontSize="10" Foreground="#92400E" FontWeight="Bold" TextAlignment="Center"/>
                                         </Border>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTextColumn Header="Miasto" Binding="{Binding MIASTO}" Width="100" Foreground="{StaticResource TextGray}"/>
+                            <DataGridTextColumn Header="Miasto" Binding="{Binding MIASTO}" Width="100" Foreground="{StaticResource TextGray}">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="TextAlignment" Value="Center"/>
+                                        <Setter Property="TextWrapping" Value="Wrap"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
 
                             <DataGridTextColumn Header="Woj." Binding="{Binding Wojewodztwo}" Width="90" Foreground="{StaticResource TextGray}">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="VerticalAlignment" Value="Center"/>
-                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="TextAlignment" Value="Center"/>
+                                        <Setter Property="TextWrapping" Value="Wrap"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
@@ -474,7 +505,7 @@
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding PKD_Opis}" FontSize="10" Foreground="#6B7280"
-                                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                                   TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                    ToolTip="{Binding PKD_Opis}"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
@@ -484,12 +515,15 @@
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="TextAlignment" Value="Center"/>
                                         <Setter Property="FontWeight" Value="Bold"/>
                                         <Setter Property="FontSize" Value="15"/>
                                         <Setter Property="Foreground" Value="{StaticResource TextDark}"/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
                                                 <Setter Property="FontSize" Value="18"/>
+                                                <Setter Property="Foreground" Value="White"/>
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -500,7 +534,9 @@
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="VerticalAlignment" Value="Center"/>
-                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="TextAlignment" Value="Center"/>
+                                        <Setter Property="TextWrapping" Value="Wrap"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
@@ -509,14 +545,23 @@
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="VerticalAlignment" Value="Center"/>
-                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="TextAlignment" Value="Center"/>
                                         <Setter Property="FontWeight" Value="SemiBold"/>
                                         <Setter Property="Foreground" Value="#2563EB"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
-                            <DataGridTextColumn Header="Ost. Zmiana" Binding="{Binding OstatniaZmiana, StringFormat=dd.MM.yyyy}" Width="90"/>
+                            <DataGridTextColumn Header="Ost. Zmiana" Binding="{Binding OstatniaZmiana, StringFormat=dd.MM.yyyy}" Width="90">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="TextAlignment" Value="Center"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
                         </DataGrid.Columns>
 
                         <DataGrid.ContextMenu>
@@ -615,14 +660,14 @@
                                 </Grid.RowDefinitions>
 
                                 <!-- Nagłówek kompaktowy -->
-                                <Grid Margin="0,0,0,6">
+                                <Grid Margin="0,0,0,10">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock x:Name="txtRankingTytul" Text="RANKING" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextGray}" VerticalAlignment="Center"/>
-                                        <TextBlock Text=" (30 dni)" FontSize="9" Foreground="#9CA3AF" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="txtRankingTytul" Text="RANKING AKTYWNOŚCI" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextGray}" VerticalAlignment="Center"/>
+                                        <TextBlock Text=" (30 dni)" FontSize="12" Foreground="#9CA3AF" VerticalAlignment="Center"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <RadioButton x:Name="rb30Dni" Content="30d" IsChecked="True" GroupName="OkresRankingu" Margin="0,0,6,0" FontSize="9" Checked="RbOkresRankingu_Checked"/>
-                                        <RadioButton x:Name="rbWszystkie" Content="Wszystko" GroupName="OkresRankingu" FontSize="9" Checked="RbOkresRankingu_Checked"/>
+                                        <RadioButton x:Name="rb30Dni" Content="30d" IsChecked="True" GroupName="OkresRankingu" Margin="0,0,6,0" FontSize="12" Checked="RbOkresRankingu_Checked"/>
+                                        <RadioButton x:Name="rbWszystkie" Content="Wszystko" GroupName="OkresRankingu" FontSize="12" Checked="RbOkresRankingu_Checked"/>
                                     </StackPanel>
                                 </Grid>
 
@@ -632,66 +677,66 @@
                                          ScrollViewer.VerticalScrollBarVisibility="Auto">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Background="#FAFAFA" CornerRadius="6" Padding="6,5" Margin="0,0,0,4" BorderBrush="#E5E7EB" BorderThickness="1">
+                                            <Border Background="#FAFAFA" CornerRadius="8" Padding="10,8" Margin="0,0,0,6" BorderBrush="#E5E7EB" BorderThickness="1">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="22"/>
+                                                        <ColumnDefinition Width="30"/>
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
 
                                                     <!-- Pozycja -->
-                                                    <Border Background="{StaticResource PrimaryLight}" Width="18" Height="18" CornerRadius="9" VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding Pozycja}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="9" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}"/>
+                                                    <Border Background="{StaticResource PrimaryLight}" Width="26" Height="26" CornerRadius="13" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Pozycja}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}"/>
                                                     </Border>
 
                                                     <!-- Nazwa i statystyki w jednym wierszu -->
-                                                    <StackPanel Grid.Column="1" Margin="6,0,0,0" VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding Operator}" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextDark}" TextTrimming="CharacterEllipsis"/>
-                                                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                                                            <Border Background="#F1F5F9" CornerRadius="3" Padding="3,1" Margin="0,0,2,0" ToolTip="Do zadzwonienia">
+                                                    <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Operator}" FontWeight="SemiBold" FontSize="14" Foreground="{StaticResource TextDark}" TextTrimming="CharacterEllipsis"/>
+                                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                            <Border Background="#F1F5F9" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Do zadzwonienia">
                                                                 <StackPanel Orientation="Horizontal">
-                                                                    <TextBlock Text="📞" FontSize="8"/>
-                                                                    <TextBlock Text="{Binding DoZadzwonienia}" FontSize="8" FontWeight="Bold" Foreground="#64748B" Margin="2,0,0,0"/>
+                                                                    <TextBlock Text="📞" FontSize="12"/>
+                                                                    <TextBlock Text="{Binding DoZadzwonienia}" FontSize="11" FontWeight="Bold" Foreground="#64748B" Margin="3,0,0,0"/>
                                                                 </StackPanel>
                                                             </Border>
-                                                            <Border Background="#FFEDD5" CornerRadius="3" Padding="3,1" Margin="0,0,2,0" ToolTip="Próba">
+                                                            <Border Background="#FFEDD5" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Próba">
                                                                 <StackPanel Orientation="Horizontal">
-                                                                    <TextBlock Text="⏳" FontSize="8"/>
-                                                                    <TextBlock Text="{Binding Proby}" FontSize="8" FontWeight="Bold" Foreground="#9A3412" Margin="2,0,0,0"/>
+                                                                    <TextBlock Text="⏳" FontSize="12"/>
+                                                                    <TextBlock Text="{Binding Proby}" FontSize="11" FontWeight="Bold" Foreground="#9A3412" Margin="3,0,0,0"/>
                                                                 </StackPanel>
                                                             </Border>
-                                                            <Border Background="#DCFCE7" CornerRadius="3" Padding="3,1" Margin="0,0,2,0" ToolTip="Nawiązano">
+                                                            <Border Background="#DCFCE7" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Nawiązano">
                                                                 <StackPanel Orientation="Horizontal">
-                                                                    <TextBlock Text="✅" FontSize="8"/>
-                                                                    <TextBlock Text="{Binding Nawiazano}" FontSize="8" FontWeight="Bold" Foreground="#166534" Margin="2,0,0,0"/>
+                                                                    <TextBlock Text="✅" FontSize="12"/>
+                                                                    <TextBlock Text="{Binding Nawiazano}" FontSize="11" FontWeight="Bold" Foreground="#166534" Margin="3,0,0,0"/>
                                                                 </StackPanel>
                                                             </Border>
-                                                            <Border Background="#CCFBF1" CornerRadius="3" Padding="3,1" Margin="0,0,2,0" ToolTip="Zgoda">
+                                                            <Border Background="#CCFBF1" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Zgoda">
                                                                 <StackPanel Orientation="Horizontal">
-                                                                    <TextBlock Text="🤝" FontSize="8"/>
-                                                                    <TextBlock Text="{Binding Zgoda}" FontSize="8" FontWeight="Bold" Foreground="#0D9488" Margin="2,0,0,0"/>
+                                                                    <TextBlock Text="🤝" FontSize="12"/>
+                                                                    <TextBlock Text="{Binding Zgoda}" FontSize="11" FontWeight="Bold" Foreground="#0D9488" Margin="3,0,0,0"/>
                                                                 </StackPanel>
                                                             </Border>
-                                                            <Border Background="#DBEAFE" CornerRadius="3" Padding="3,1" Margin="0,0,2,0" ToolTip="Oferta">
+                                                            <Border Background="#DBEAFE" CornerRadius="4" Padding="5,2" Margin="0,0,4,0" ToolTip="Oferta">
                                                                 <StackPanel Orientation="Horizontal">
-                                                                    <TextBlock Text="📄" FontSize="8"/>
-                                                                    <TextBlock Text="{Binding Oferty}" FontSize="8" FontWeight="Bold" Foreground="#1E40AF" Margin="2,0,0,0"/>
+                                                                    <TextBlock Text="📄" FontSize="12"/>
+                                                                    <TextBlock Text="{Binding Oferty}" FontSize="11" FontWeight="Bold" Foreground="#1E40AF" Margin="3,0,0,0"/>
                                                                 </StackPanel>
                                                             </Border>
-                                                            <Border Background="#FEE2E2" CornerRadius="3" Padding="3,1" ToolTip="Odmowa">
+                                                            <Border Background="#FEE2E2" CornerRadius="4" Padding="5,2" ToolTip="Odmowa">
                                                                 <StackPanel Orientation="Horizontal">
-                                                                    <TextBlock Text="❌" FontSize="8"/>
-                                                                    <TextBlock Text="{Binding NieZainteresowany}" FontSize="8" FontWeight="Bold" Foreground="#991B1B" Margin="2,0,0,0"/>
+                                                                    <TextBlock Text="❌" FontSize="12"/>
+                                                                    <TextBlock Text="{Binding NieZainteresowany}" FontSize="11" FontWeight="Bold" Foreground="#991B1B" Margin="3,0,0,0"/>
                                                                 </StackPanel>
                                                             </Border>
                                                         </StackPanel>
                                                     </StackPanel>
 
                                                     <!-- Suma -->
-                                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="6,0,0,0">
-                                                        <TextBlock Text="{Binding Suma}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}" HorizontalAlignment="Center"/>
-                                                        <TextBlock Text="SUMA" FontSize="7" Foreground="{StaticResource TextGray}" HorizontalAlignment="Center" FontWeight="Bold"/>
+                                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="10,0,0,0">
+                                                        <TextBlock Text="{Binding Suma}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}" HorizontalAlignment="Center"/>
+                                                        <TextBlock Text="SUMA" FontSize="10" Foreground="{StaticResource TextGray}" HorizontalAlignment="Center" FontWeight="Bold"/>
                                                     </StackPanel>
                                                 </Grid>
                                             </Border>
