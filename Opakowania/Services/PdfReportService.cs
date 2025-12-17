@@ -86,7 +86,7 @@ namespace Kalendarz1.Opakowania.Services
             {
                 Document doc = new Document(PageSize.A4.Rotate(), 30, 30, 40, 40);
                 PdfWriter writer = PdfWriter.GetInstance(doc, fs);
-                writer.PageEvent = new PdfPageEventHelper(_baseFont);
+                writer.PageEvent = new PdfFooterWithNote(_baseFont, "- wydanie do odbiorcy, + przyjęcie na ubojnię");
 
                 doc.Open();
 
@@ -207,7 +207,9 @@ namespace Kalendarz1.Opakowania.Services
             {
                 Document doc = new Document(PageSize.A4, 50, 50, 50, 50);
                 PdfWriter writer = PdfWriter.GetInstance(doc, fs);
-                writer.PageEvent = new PdfPageEventHelper(_baseFont);
+
+                // Dodaj stopkę z notatką na każdej stronie
+                writer.PageEvent = new PdfFooterWithNote(_baseFont, "- wydanie do odbiorcy, + przyjęcie na ubojnię");
 
                 doc.Open();
 
@@ -227,7 +229,7 @@ namespace Kalendarz1.Opakowania.Services
 
                 // Tytuł
                 var title = new Paragraph(
-                    $"Zestawienie Opakowań Zwrotnych dla Kontrahenta: {kontrahentNazwa}",
+                    $"Zestawienie Opakowań Zwrotnych dla Kontrahenta:\n{kontrahentNazwa}",
                     _fontTitle)
                 {
                     Alignment = Element.ALIGN_CENTER,
@@ -244,7 +246,7 @@ namespace Kalendarz1.Opakowania.Services
                     _fontFooter)
                 {
                     Alignment = Element.ALIGN_JUSTIFIED,
-                    SpacingAfter = 55,
+                    SpacingAfter = 30,
                     FirstLineIndent = 20f
                 };
                 doc.Add(introText);
@@ -315,55 +317,54 @@ namespace Kalendarz1.Opakowania.Services
                     _fontFooter)
                 {
                     Alignment = Element.ALIGN_JUSTIFIED,
-                    SpacingBefore = 50,
+                    SpacingBefore = 30,
                     SpacingAfter = 20,
                     FirstLineIndent = 20f
                 };
                 doc.Add(footerInfo);
 
-                // Miejsce na podpis
+                // Miejsce na podpis - NA PIERWSZEJ STRONIE
                 var signature = new Paragraph(
-                    "\n\n\nPodpis kontrahenta: .......................................................",
+                    "\n\nPodpis kontrahenta: .......................................................",
                     _fontLarge)
                 {
                     Alignment = Element.ALIGN_CENTER,
-                    SpacingBefore = 30
+                    SpacingBefore = 40
                 };
                 doc.Add(signature);
 
-                // Autor
+                // Autor - NA PIERWSZEJ STRONIE
                 var autor = new Paragraph(
-                    "\nOprogramowanie utworzone przez Sergiusza Piórkowskiego",
+                    "\n\nOprogramowanie utworzone przez Sergiusza Piórkowskiego",
                     _fontSmall)
                 {
                     Alignment = Element.ALIGN_RIGHT,
-                    SpacingBefore = 30
+                    SpacingBefore = 50
                 };
                 doc.Add(autor);
 
                 // ============================================
-                // STRONA 2 - SZCZEGÓŁOWA TABELA
+                // STRONA 2+ - SZCZEGÓŁOWA TABELA
                 // ============================================
 
                 if (dokumenty != null && dokumenty.Any())
                 {
                     doc.NewPage();
 
-                    // Notka
-                    var note = new Paragraph(
+                    // Notka na górze tabeli (dodatkowo do stopki)
+                    var noteTop = new Paragraph(
                         "- wydanie do odbiorcy, + przyjęcie na ubojnię",
                         _fontSmall)
                     {
                         Alignment = Element.ALIGN_RIGHT,
-                        SpacingAfter = 10
+                        SpacingAfter = 15
                     };
-                    doc.Add(new Paragraph(" "));
-                    doc.Add(note);
+                    doc.Add(noteTop);
 
                     // Tabela szczegółowa
                     PdfPTable detailTable = new PdfPTable(8);
                     detailTable.WidthPercentage = 100;
-                    detailTable.SetWidths(new float[] { 2f, 3f, 3f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f });
+                    detailTable.SetWidths(new float[] { 2f, 2.5f, 3f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f });
 
                     // Nagłówki
                     string[] docHeaders = { "Data", "Nr dok.", "Dokumenty", "E2", "H1", "EURO", "PCV", "Drew" };
@@ -374,37 +375,73 @@ namespace Kalendarz1.Opakowania.Services
                             BackgroundColor = BaseColor.LIGHT_GRAY,
                             HorizontalAlignment = Element.ALIGN_CENTER,
                             VerticalAlignment = Element.ALIGN_MIDDLE,
-                            FixedHeight = 20f
+                            Padding = 6
                         };
                         detailTable.AddCell(headerCell);
                     }
 
-                    // Dane
-                    foreach (var dok in dokumenty)
+                    // Przygotuj dane - posortowane od najnowszych
+                    var dokumentyPosortowane = dokumenty
+                        .Where(d => !d.Dokumenty?.StartsWith("Saldo") ?? true)
+                        .OrderByDescending(d => d.Data)
+                        .ToList();
+
+                    // Znajdź saldo początkowe i końcowe
+                    var saldoPoczatkowe = dokumenty.FirstOrDefault(d => d.Dokumenty?.Contains("Saldo") == true && d.Data <= dataOd);
+                    var saldoKoncowe = dokumenty.FirstOrDefault(d => d.Dokumenty?.Contains("Saldo") == true && d.Data >= dataDo);
+
+                    // Jeśli nie ma salda końcowego, stwórz je z aktualnych sald
+                    if (saldoKoncowe == null && saldo != null)
                     {
-                        // Data
-                        string dataText = dok.Data?.ToString("yyyy-MM-dd") ?? "";
-                        AddDetailCell(detailTable, dataText);
+                        saldoKoncowe = new DokumentOpakowania
+                        {
+                            Data = dataDo,
+                            NrDok = "",
+                            Dokumenty = $"Saldo na",
+                            E2 = saldo.SaldoE2,
+                            H1 = saldo.SaldoH1,
+                            EURO = saldo.SaldoEURO,
+                            PCV = saldo.SaldoPCV,
+                            DREW = saldo.SaldoDREW
+                        };
+                    }
 
-                        // Nr dok
+                    // 1. PIERWSZY WIERSZ - Saldo końcowe (na datę DO)
+                    if (saldoKoncowe != null)
+                    {
+                        AddDetailCell(detailTable, dataDo.ToString("yyyy-MM-dd"), true);
+                        AddDetailCell(detailTable, "", true);
+                        AddDetailCell(detailTable, "Saldo na", true);
+                        AddDetailCell(detailTable, saldoKoncowe.E2.ToString(), true);
+                        AddDetailCell(detailTable, saldoKoncowe.H1.ToString(), true);
+                        AddDetailCell(detailTable, saldoKoncowe.EURO.ToString(), true);
+                        AddDetailCell(detailTable, saldoKoncowe.PCV.ToString(), true);
+                        AddDetailCell(detailTable, saldoKoncowe.DREW.ToString(), true);
+                    }
+
+                    // 2. DRUGI WIERSZ - Saldo początkowe (na datę OD)
+                    if (saldoPoczatkowe != null)
+                    {
+                        AddDetailCell(detailTable, dataOd.ToString("yyyy-MM-dd"), true);
+                        AddDetailCell(detailTable, "", true);
+                        AddDetailCell(detailTable, "Saldo na", true);
+                        AddDetailCell(detailTable, saldoPoczatkowe.E2.ToString(), true);
+                        AddDetailCell(detailTable, saldoPoczatkowe.H1.ToString(), true);
+                        AddDetailCell(detailTable, saldoPoczatkowe.EURO.ToString(), true);
+                        AddDetailCell(detailTable, saldoPoczatkowe.PCV.ToString(), true);
+                        AddDetailCell(detailTable, saldoPoczatkowe.DREW.ToString(), true);
+                    }
+
+                    // 3. Dokumenty - od najnowszego do najstarszego
+                    foreach (var dok in dokumentyPosortowane)
+                    {
+                        AddDetailCell(detailTable, dok.Data?.ToString("yyyy-MM-dd") ?? "");
                         AddDetailCell(detailTable, dok.NrDok ?? "");
-
-                        // Dokumenty (opis)
                         AddDetailCell(detailTable, dok.Dokumenty ?? "");
-
-                        // E2
                         AddDetailCell(detailTable, dok.E2.ToString());
-
-                        // H1
                         AddDetailCell(detailTable, dok.H1.ToString());
-
-                        // EURO
                         AddDetailCell(detailTable, dok.EURO.ToString());
-
-                        // PCV
                         AddDetailCell(detailTable, dok.PCV.ToString());
-
-                        // Drew
                         AddDetailCell(detailTable, dok.DREW.ToString());
                     }
 
@@ -433,13 +470,15 @@ namespace Kalendarz1.Opakowania.Services
             table.AddCell(cell);
         }
 
-        private void AddDetailCell(PdfPTable table, string text)
+        private void AddDetailCell(PdfPTable table, string text, bool isBold = false)
         {
-            var cell = new PdfPCell(new Phrase(text, _fontNormal))
+            var font = isBold ? new Font(_baseFont, 10, Font.BOLD) : _fontNormal;
+            var cell = new PdfPCell(new Phrase(text, font))
             {
                 HorizontalAlignment = Element.ALIGN_CENTER,
                 VerticalAlignment = Element.ALIGN_MIDDLE,
-                FixedHeight = 20f
+                Padding = 5,
+                MinimumHeight = 20f
             };
             table.AddCell(cell);
         }
@@ -461,27 +500,41 @@ namespace Kalendarz1.Opakowania.Services
     }
 
     /// <summary>
-    /// Helper do dodawania numerów stron
+    /// Helper do dodawania numerów stron i notatki na każdej stronie
     /// </summary>
-    public class PdfPageEventHelper : iTextSharp.text.pdf.PdfPageEventHelper
+    public class PdfFooterWithNote : PdfPageEventHelper
     {
         private readonly BaseFont _baseFont;
+        private readonly string _noteText;
 
-        public PdfPageEventHelper(BaseFont baseFont = null)
+        public PdfFooterWithNote(BaseFont baseFont = null, string noteText = null)
         {
             _baseFont = baseFont;
+            _noteText = noteText;
         }
 
         public override void OnEndPage(PdfWriter writer, Document document)
         {
             PdfContentByte cb = writer.DirectContent;
             BaseFont bf = _baseFont ?? BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
+
+            // Numer strony na dole
             cb.SetFontAndSize(bf, 9);
             cb.BeginText();
-            string text = $"Strona {writer.PageNumber}";
-            cb.ShowTextAligned(PdfContentByte.ALIGN_CENTER, text,
+            string pageText = $"Strona {writer.PageNumber}";
+            cb.ShowTextAligned(PdfContentByte.ALIGN_CENTER, pageText,
                 document.PageSize.Width / 2, document.PageSize.GetBottom(20), 0);
             cb.EndText();
+
+            // Notatka na górze każdej strony (po prawej)
+            if (!string.IsNullOrEmpty(_noteText))
+            {
+                cb.BeginText();
+                cb.SetFontAndSize(bf, 10);
+                cb.ShowTextAligned(PdfContentByte.ALIGN_RIGHT, _noteText,
+                    document.PageSize.Width - 50, document.PageSize.GetTop(30), 0);
+                cb.EndText();
+            }
         }
     }
 }
