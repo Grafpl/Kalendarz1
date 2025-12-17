@@ -180,60 +180,7 @@ namespace Kalendarz1.CRM
 
         private void WczytajStatystyki()
         {
-            if (txtTelefonyTotal == null) return;
-
-            using (var conn = new SqlConnection(connectionString))
-            {
-                conn.Open();
-                string filtrHandlowca = string.IsNullOrEmpty(wybranyHandlowiec) ? "" :
-                    " AND o.Name = @handlowiec";
-
-                var cmdTel = new SqlCommand($@"
-                    SELECT COUNT(*) FROM HistoriaZmianCRM h
-                    LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
-                    WHERE h.TypZmiany = 'Zmiana statusu'
-                    AND h.WartoscNowa IN ('Próba kontaktu', 'Nawiązano kontakt')
-                    AND h.DataZmiany >= @dataOd AND h.DataZmiany < @dataDo {filtrHandlowca}", conn);
-                cmdTel.Parameters.AddWithValue("@dataOd", dataOd);
-                cmdTel.Parameters.AddWithValue("@dataDo", dataDo);
-                if (!string.IsNullOrEmpty(wybranyHandlowiec))
-                    cmdTel.Parameters.AddWithValue("@handlowiec", wybranyHandlowiec);
-                int tel = (int)cmdTel.ExecuteScalar();
-                txtTelefonyTotal.Text = tel.ToString();
-                txtTelefonyInfo.Text = okresDni > 1 ? $"śr. {(tel / (double)okresDni):F1}/dzień" : "połączeń";
-
-                var cmdStat = new SqlCommand($@"
-                    SELECT COUNT(*) FROM HistoriaZmianCRM h
-                    LEFT JOIN operators o ON h.KtoWykonal = CAST(o.ID AS NVARCHAR)
-                    WHERE h.TypZmiany = 'Zmiana statusu'
-                    AND h.WartoscNowa NOT IN ('Próba kontaktu', 'Nawiązano kontakt', 'Do zadzwonienia')
-                    AND h.DataZmiany >= @dataOd AND h.DataZmiany < @dataDo {filtrHandlowca}", conn);
-                cmdStat.Parameters.AddWithValue("@dataOd", dataOd);
-                cmdStat.Parameters.AddWithValue("@dataDo", dataDo);
-                if (!string.IsNullOrEmpty(wybranyHandlowiec))
-                    cmdStat.Parameters.AddWithValue("@handlowiec", wybranyHandlowiec);
-                int stat = (int)cmdStat.ExecuteScalar();
-                txtStatusyTotal.Text = stat.ToString();
-                txtStatusyInfo.Text = okresDni > 1 ? $"śr. {(stat / (double)okresDni):F1}/dzień" : "zmian";
-
-                string filtrNotatki = string.IsNullOrEmpty(wybranyHandlowiec) ? "" :
-                    " AND o.Name = @handlowiec";
-                var cmdNot = new SqlCommand($@"
-                    SELECT COUNT(*) FROM NotatkiCRM n
-                    LEFT JOIN operators o ON n.KtoDodal = CAST(o.ID AS NVARCHAR)
-                    WHERE n.DataUtworzenia >= @dataOd AND n.DataUtworzenia < @dataDo {filtrNotatki}", conn);
-                cmdNot.Parameters.AddWithValue("@dataOd", dataOd);
-                cmdNot.Parameters.AddWithValue("@dataDo", dataDo);
-                if (!string.IsNullOrEmpty(wybranyHandlowiec))
-                    cmdNot.Parameters.AddWithValue("@handlowiec", wybranyHandlowiec);
-                int not = (int)cmdNot.ExecuteScalar();
-                txtNotatkiTotal.Text = not.ToString();
-                txtNotatkiInfo.Text = okresDni > 1 ? $"śr. {(not / (double)okresDni):F1}/dzień" : "dodanych";
-
-                int suma = tel + stat + not;
-                txtAktywnoscTotal.Text = suma.ToString();
-                txtAktywnoscInfo.Text = okresDni > 1 ? $"śr. {(suma / (double)okresDni):F1}/dzień" : "akcji";
-            }
+            // Statystyki są teraz wyświetlane w tabeli danych - metoda pusta
         }
 
         private bool TrybTygodniowy => rbTygodnie?.IsChecked == true;
@@ -749,7 +696,7 @@ namespace Kalendarz1.CRM
                 h.StatsTekst = $"T:{h.Telefony} S:{h.Statusy} N:{h.Notatki}";
             }
 
-            listaHandlowcy.ItemsSource = lista;
+            // Lista handlowców została usunięta - dane są wyświetlane w tabeli
         }
 
         private void WypelnijTabele()
