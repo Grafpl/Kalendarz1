@@ -477,14 +477,20 @@ namespace Kalendarz1.Opakowania.Services
                 // Nagłówki
                 table.Header(header =>
                 {
-                    DodajKomorkeNaglowka(header, "Lp.");
-                    DodajKomorkeNaglowka(header, "Kontrahent");
-                    DodajKomorkeNaglowka(header, "Handlowiec");
-                    DodajKomorkeNaglowka(header, "Saldo pocz.");
-                    DodajKomorkeNaglowka(header, "Saldo końc.");
-                    DodajKomorkeNaglowka(header, "Zmiana");
-                    DodajKomorkeNaglowka(header, "Ostatni dok.");
-                    DodajKomorkeNaglowka(header, "Potwierdz.");
+                    Action<string> naglowek = text =>
+                    {
+                        header.Cell().Background(ColorGreen).Padding(5).AlignCenter()
+                            .Text(text).FontColor("#FFFFFF").Bold().FontSize(8);
+                    };
+
+                    naglowek("Lp.");
+                    naglowek("Kontrahent");
+                    naglowek("Handlowiec");
+                    naglowek("Saldo pocz.");
+                    naglowek("Saldo końc.");
+                    naglowek("Zmiana");
+                    naglowek("Ostatni dok.");
+                    naglowek("Potwierdz.");
                 });
 
                 int lp = 1;
@@ -560,14 +566,20 @@ namespace Kalendarz1.Opakowania.Services
                 // Nagłówki
                 table.Header(header =>
                 {
-                    DodajKomorkeNaglowka(header, "Data");
-                    DodajKomorkeNaglowka(header, "Dzień");
-                    DodajKomorkeNaglowka(header, "Nr dokumentu");
-                    DodajKomorkeNaglowka(header, "E2");
-                    DodajKomorkeNaglowka(header, "H1");
-                    DodajKomorkeNaglowka(header, "EURO");
-                    DodajKomorkeNaglowka(header, "PCV");
-                    DodajKomorkeNaglowka(header, "DREW");
+                    Action<string> naglowek = text =>
+                    {
+                        header.Cell().Background(ColorGreen).Padding(5).AlignCenter()
+                            .Text(text).FontColor("#FFFFFF").Bold().FontSize(8);
+                    };
+
+                    naglowek("Data");
+                    naglowek("Dzień");
+                    naglowek("Nr dokumentu");
+                    naglowek("E2");
+                    naglowek("H1");
+                    naglowek("EURO");
+                    naglowek("PCV");
+                    naglowek("DREW");
                 });
 
                 bool alternate = false;
@@ -613,13 +625,19 @@ namespace Kalendarz1.Opakowania.Services
                 // Nagłówki
                 table.Header(header =>
                 {
-                    DodajKomorkeNaglowka(header, "Data");
-                    DodajKomorkeNaglowka(header, "Typ");
-                    DodajKomorkeNaglowka(header, "Potwierdzone");
-                    DodajKomorkeNaglowka(header, "W systemie");
-                    DodajKomorkeNaglowka(header, "Różnica");
-                    DodajKomorkeNaglowka(header, "Status");
-                    DodajKomorkeNaglowka(header, "Wprowadził");
+                    Action<string> naglowek = text =>
+                    {
+                        header.Cell().Background(ColorGreen).Padding(5).AlignCenter()
+                            .Text(text).FontColor("#FFFFFF").Bold().FontSize(8);
+                    };
+
+                    naglowek("Data");
+                    naglowek("Typ");
+                    naglowek("Potwierdzone");
+                    naglowek("W systemie");
+                    naglowek("Różnica");
+                    naglowek("Status");
+                    naglowek("Wprowadził");
                 });
 
                 bool alternate = false;
@@ -657,12 +675,6 @@ namespace Kalendarz1.Opakowania.Services
                     alternate = !alternate;
                 }
             });
-        }
-
-        private void DodajKomorkeNaglowka(TableHeaderDescriptor header, string tekst)
-        {
-            header.Cell().Background(ColorGreen).Padding(5).AlignCenter()
-                .Text(tekst).FontColor("#FFFFFF").Bold().FontSize(8);
         }
 
         private void DodajKomorkeSalda(TableDescriptor table, int wartosc, string bgColor)
