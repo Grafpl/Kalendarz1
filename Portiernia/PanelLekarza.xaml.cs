@@ -22,11 +22,11 @@ namespace Kalendarz1
     public partial class PanelLekarza : Window
     {
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
-        
+
         private ObservableCollection<DostawaLekarza> dostawy;
         private DostawaLekarza wybranaDostwa;
         private DateTime selectedDate = DateTime.Today;
-        
+
         // Aktywne pole wprowadzania
         private enum AktywnePole { Padle, CH, NW, ZM }
         private AktywnePole aktywnePole = AktywnePole.Padle;
@@ -49,7 +49,7 @@ namespace Kalendarz1
         {
             UpdateDateDisplay();
             LoadDostawy();
-            
+
             // Domyślnie aktywne pole Padłe
             SetAktywnePole(AktywnePole.Padle);
 
@@ -180,7 +180,7 @@ namespace Kalendarz1
         private void AutoRefreshTimer_Tick(object sender, EventArgs e)
         {
             LoadDostawy();
-            
+
             if (wybranaDostwa != null)
             {
                 var odswiezona = dostawy.FirstOrDefault(d => d.ID == wybranaDostwa.ID);
@@ -308,9 +308,9 @@ namespace Kalendarz1
                                 {
                                     dostawa.HodowcaNazwa = string.IsNullOrEmpty(dostawa.CustomerGID) ? "Nieprzypisany" : $"ID: {dostawa.CustomerGID}";
                                 }
-                                
+
                                 dostawa.UpdateStatus();
-                                
+
                                 dostawy.Add(dostawa);
                                 lp++;
                             }
@@ -320,7 +320,7 @@ namespace Kalendarz1
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd ładowania danych:\n{ex.Message}", "Błąd", 
+                MessageBox.Show($"Błąd ładowania danych:\n{ex.Message}", "Błąd",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -333,7 +333,7 @@ namespace Kalendarz1
             try
             {
                 string query = "SELECT ShortName FROM [LibraNet].[dbo].[Dostawcy] WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(@GID))";
-                
+
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
@@ -366,10 +366,10 @@ namespace Kalendarz1
         private void WybierzDostawe(DostawaLekarza dostawa)
         {
             wybranaDostwa = dostawa;
-            
+
             // Aktualizuj panel
             lblWybranyLp.Text = $"LP: {dostawa.Lp}";
-            
+
             // Pola edytowalne
             txtHodowcaNazwa.Text = dostawa.HodowcaNazwa ?? "";
             txtAnimNo.Text = dostawa.AnimNo ?? "";
@@ -378,17 +378,17 @@ namespace Kalendarz1
             txtNaczepaEdit.Text = dostawa.TrailerID ?? "";
             txtDataSalmonella.Text = dostawa.DataSalmonella ?? "";
             txtNrSwZdrowia.Text = dostawa.NrSwZdrowia ?? "";
-            
+
             lblSztukiNetto.Text = $"Szt: {dostawa.SztukiDek:N0} | ID: {dostawa.ZdatneID}";
-            
+
             // Wczytaj zapisane wartości
             txtPadle.Text = dostawa.Padle.ToString();
             txtCH.Text = dostawa.CH.ToString();
             txtNW.Text = dostawa.NW.ToString();
             txtZM.Text = dostawa.ZM.ToString();
-            
+
             UpdateSumaKonfiskat();
-            
+
             // Ustaw aktywne pole na Padłe
             SetAktywnePole(AktywnePole.Padle);
         }
@@ -430,13 +430,13 @@ namespace Kalendarz1
         private void SetAktywnePole(AktywnePole pole)
         {
             aktywnePole = pole;
-            
+
             // Reset wszystkich borderów
             borderPadle.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#3D3D3D"));
             borderCH.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#3D3D3D"));
             borderNW.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#3D3D3D"));
             borderZM.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#3D3D3D"));
-            
+
             // Podświetl aktywne pole
             switch (pole)
             {
@@ -478,7 +478,7 @@ namespace Kalendarz1
             if (activeTextBlock != null)
             {
                 string currentValue = activeTextBlock.Text;
-                
+
                 // Jeśli aktualna wartość to "0", zastąp ją
                 if (currentValue == "0")
                 {
@@ -492,7 +492,7 @@ namespace Kalendarz1
                         activeTextBlock.Text = currentValue + digit;
                     }
                 }
-                
+
                 UpdateSumaKonfiskat();
                 AutoZapiszOcene(); // Automatyczny zapis
             }
@@ -631,7 +631,7 @@ namespace Kalendarz1
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    
+
                     string updateQuery = @"
                         UPDATE FarmerCalc SET
                             DeclI2 = @Padle,
@@ -649,7 +649,7 @@ namespace Kalendarz1
                         cmd.Parameters.AddWithValue("@ID", wybranaDostwa.ID);
 
                         int rowsAffected = cmd.ExecuteNonQuery();
-                        
+
                         if (rowsAffected > 0)
                         {
                             // Aktualizuj lokalnie
@@ -668,7 +668,7 @@ namespace Kalendarz1
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd zapisu oceny:\n{ex.Message}", "Błąd", 
+                MessageBox.Show($"Błąd zapisu oceny:\n{ex.Message}", "Błąd",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
             return false;
@@ -691,7 +691,7 @@ namespace Kalendarz1
             int ch = int.TryParse(txtCH.Text, out int chVal) ? chVal : 0;
             int nw = int.TryParse(txtNW.Text, out int nwVal) ? nwVal : 0;
             int zm = int.TryParse(txtZM.Text, out int zmVal) ? zmVal : 0;
-            
+
             int suma = ch + nw + zm;
             txtSumaKonfiskat.Text = $"{suma:N0} szt";
         }
@@ -711,16 +711,16 @@ namespace Kalendarz1
             if (ZapiszOcene())
             {
                 // Przejdź do następnej dostawy nieocenionej
-                var nastepna = dostawy.FirstOrDefault(d => 
+                var nastepna = dostawy.FirstOrDefault(d =>
                     d.Status == StatusOceny.Nieoceniona && d.ID != wybranaDostwa.ID);
-                
+
                 if (nastepna != null)
                 {
                     WybierzDostawe(nastepna);
                 }
                 else
                 {
-                    MessageBox.Show("Zapisano ocenę!\nWszystkie dostawy zostały ocenione.", 
+                    MessageBox.Show("Zapisano ocenę!\nWszystkie dostawy zostały ocenione.",
                         "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
@@ -739,10 +739,10 @@ namespace Kalendarz1
 
             // Zamień miejscami z poprzednią
             dostawy.Move(currentIndex, currentIndex - 1);
-            
+
             // Przenumeruj i zapisz
             PrzenumerujIZapiszKolejnosc();
-            
+
             // Odśwież widok
             listDostawy.Items.Refresh();
         }
@@ -756,10 +756,10 @@ namespace Kalendarz1
 
             // Zamień miejscami z następną
             dostawy.Move(currentIndex, currentIndex + 1);
-            
+
             // Przenumeruj i zapisz
             PrzenumerujIZapiszKolejnosc();
-            
+
             // Odśwież widok
             listDostawy.Items.Refresh();
         }
@@ -771,12 +771,12 @@ namespace Kalendarz1
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    
+
                     for (int i = 0; i < dostawy.Count; i++)
                     {
                         int nowyLp = i + 1;
                         dostawy[i].Lp = nowyLp.ToString();
-                        
+
                         // Zapisz do bazy
                         string updateQuery = "UPDATE FarmerCalc SET CarLp = @CarLp WHERE ID = @ID";
                         using (SqlCommand cmd = new SqlCommand(updateQuery, conn))
@@ -787,7 +787,7 @@ namespace Kalendarz1
                         }
                     }
                 }
-                
+
                 // Aktualizuj wyświetlany LP
                 if (wybranaDostwa != null)
                 {
@@ -796,7 +796,7 @@ namespace Kalendarz1
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd zapisu kolejności:\n{ex.Message}", "Błąd", 
+                MessageBox.Show($"Błąd zapisu kolejności:\n{ex.Message}", "Błąd",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -825,7 +825,7 @@ namespace Kalendarz1
                 {
                     // Policz ile dostaw ma ten sam CustomerGID
                     int iloscDostaw = dostawy.Count(d => d.CustomerGID == wybranaDostwa.CustomerGID);
-                    
+
                     if (iloscDostaw > 1)
                     {
                         var result = MessageBox.Show(
@@ -857,7 +857,7 @@ namespace Kalendarz1
                             VetNo = @VetNo,
                             VetComment = @VetComment
                         WHERE ID = @ID";
-                    
+
                     using (SqlCommand cmd = new SqlCommand(updateFarmerCalc, conn))
                     {
                         cmd.Parameters.AddWithValue("@CarID", txtCiagnikEdit.Text.Trim());
@@ -878,7 +878,7 @@ namespace Kalendarz1
                                 ShortName = @ShortName,
                                 Name = @ShortName
                             WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(@CustomerGID))";
-                        
+
                         using (SqlCommand cmd = new SqlCommand(updateDostawcy, conn))
                         {
                             cmd.Parameters.AddWithValue("@AnimNo", txtAnimNo.Text.Trim());
@@ -924,7 +924,7 @@ namespace Kalendarz1
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd zapisu danych hodowcy:\n{ex.Message}", "Błąd", 
+                MessageBox.Show($"Błąd zapisu danych hodowcy:\n{ex.Message}", "Błąd",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -946,7 +946,7 @@ namespace Kalendarz1
                 PrintDocument printDoc = new PrintDocument();
                 printDoc.PrintPage += PrintDoc_PrintPage;
                 printDoc.DocumentName = $"Raport_Lekarza_{selectedDate:yyyy-MM-dd}";
-                
+
                 // Ustawienie orientacji poziomej
                 printDoc.DefaultPageSettings.Landscape = true;
 
@@ -967,46 +967,54 @@ namespace Kalendarz1
         {
             Graphics g = e.Graphics;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            
+
             float pageWidth = e.PageBounds.Width;
             float pageHeight = e.PageBounds.Height;
-            float leftMargin = 25;
-            float rightMargin = pageWidth - 25;
+            float leftMargin = 8;
+            float rightMargin = pageWidth - 8;
             float tableWidth = rightMargin - leftMargin;
-            float y = 30;
+            float y = 12;
 
-            // Czcionki
-            System.Drawing.Font fontTitle = new System.Drawing.Font("Arial", 14, System.Drawing.FontStyle.Bold);
-            System.Drawing.Font fontSubtitle = new System.Drawing.Font("Arial", 10);
-            System.Drawing.Font fontHeader = new System.Drawing.Font("Arial", 7, System.Drawing.FontStyle.Bold);
-            System.Drawing.Font fontData = new System.Drawing.Font("Arial", 8);
-            System.Drawing.Font fontDataBold = new System.Drawing.Font("Arial", 8, System.Drawing.FontStyle.Bold);
-            System.Drawing.Font fontSummary = new System.Drawing.Font("Arial", 9, System.Drawing.FontStyle.Bold);
+            // Czcionki - MAKSYMALNIE DUŻE
+            System.Drawing.Font fontTitle = new System.Drawing.Font("Arial", 16, System.Drawing.FontStyle.Bold);
+            System.Drawing.Font fontDate = new System.Drawing.Font("Arial", 14, System.Drawing.FontStyle.Bold);
+            System.Drawing.Font fontHeader = new System.Drawing.Font("Arial", 9, System.Drawing.FontStyle.Bold);
+            System.Drawing.Font fontKonfiskaty = new System.Drawing.Font("Arial", 8, System.Drawing.FontStyle.Bold);
+            System.Drawing.Font fontData = new System.Drawing.Font("Arial", 11);
+            System.Drawing.Font fontDataBold = new System.Drawing.Font("Arial", 11, System.Drawing.FontStyle.Bold);
+            System.Drawing.Font fontSummary = new System.Drawing.Font("Arial", 12, System.Drawing.FontStyle.Bold);
 
             SolidBrush brushBlack = new SolidBrush(System.Drawing.Color.Black);
-            SolidBrush brushGray = new SolidBrush(System.Drawing.Color.FromArgb(80, 80, 80));
-            SolidBrush brushHeaderBg = new SolidBrush(System.Drawing.Color.FromArgb(230, 230, 230));
-            System.Drawing.Pen penThick = new System.Drawing.Pen(System.Drawing.Color.Black, 1.5f);
-            System.Drawing.Pen penNormal = new System.Drawing.Pen(System.Drawing.Color.Black, 0.5f);
+            SolidBrush brushGray = new SolidBrush(System.Drawing.Color.FromArgb(40, 40, 40));
+            SolidBrush brushHeaderBg = new SolidBrush(System.Drawing.Color.FromArgb(200, 200, 200));
+            SolidBrush brushAltRow = new SolidBrush(System.Drawing.Color.FromArgb(235, 235, 235));
+            System.Drawing.Pen penThick = new System.Drawing.Pen(System.Drawing.Color.Black, 2.5f);
+            System.Drawing.Pen penMedium = new System.Drawing.Pen(System.Drawing.Color.Black, 1.5f);
+            System.Drawing.Pen penThin = new System.Drawing.Pen(System.Drawing.Color.FromArgb(60, 60, 60), 0.8f);
 
             // ═══════════════════════════════════════════════════════════════
-            // NAGŁÓWEK - STYL PŁACHTY
+            // NAGŁÓWEK
             // ═══════════════════════════════════════════════════════════════
             string[] dniTygodnia = { "NIEDZIELA", "PONIEDZIAŁEK", "WTOREK", "ŚRODA", "CZWARTEK", "PIĄTEK", "SOBOTA" };
             string dzienTygodnia = dniTygodnia[(int)selectedDate.DayOfWeek];
-            
-            // Tytuł z lewej - data i dzień
-            g.DrawString($"S K U P", fontTitle, brushBlack, leftMargin, y);
-            g.DrawString($"{selectedDate:dd}. GRU. {selectedDate:yyyy}", fontSubtitle, brushBlack, leftMargin + 80, y + 5);
-            
-            y += 35;
+
+            g.DrawString("S K U P", fontTitle, brushBlack, leftMargin, y);
+            g.DrawString($"{selectedDate:dd}. {selectedDate:MMMM} {selectedDate:yyyy} - {dzienTygodnia}", fontDate, brushBlack, leftMargin + 95, y + 3);
+
+            y += 34;
 
             // ═══════════════════════════════════════════════════════════════
-            // TABELA - FORMAT PŁACHTY WETERYNARYJNEJ
+            // TABELA - 15 KOLUMN - PEŁNA SZEROKOŚĆ STRONY
             // ═══════════════════════════════════════════════════════════════
-            
-            // Kolumny: LP | POZ DZ | OD KOGO | DATA SALM | NR ŚW.ZDR | NR GOSP | ILOŚĆ | WPR AUTO | PADŁE | ZDATNE | CH | NW | ZM | RAZEM
-            float[] colWidths = { 25, 40, 140, 55, 65, 85, 45, 65, 40, 55, 35, 35, 35, 40 };
+
+            // Proporcje kolumn - SUMA = 100%, CH=NW=ZM=RAZ równe
+            float[] colPercent = { 2.5f, 3.5f, 15f, 8f, 9f, 10.5f, 4.5f, 9f, 9f, 5f, 6f, 4.25f, 4.25f, 4.25f, 4.25f };
+            float[] colWidths = new float[colPercent.Length];
+            for (int i = 0; i < colPercent.Length; i++)
+            {
+                colWidths[i] = tableWidth * colPercent[i] / 100f;
+            }
+
             float[] colX = new float[colWidths.Length];
             colX[0] = leftMargin;
             for (int i = 1; i < colWidths.Length; i++)
@@ -1015,23 +1023,23 @@ namespace Kalendarz1
             }
 
             // Nagłówki dwuwierszowe
-            string[] headers1 = { "Lp", "POZ", "OD KOGO", "DATA BAD.", "NR ŚW.", "NR", "ILOŚĆ", "WPR", "PADŁE", "ZDATNE", "", "KONFISKATY", "", "" };
-            string[] headers2 = { "", "DZ.", "", "SALMONELI", "ZDROWIA", "GOSPODARSTWA", "", "AUTO", "", "I + II", "CH", "NW", "ZM", "RAZEM" };
+            string[] headers1 = { "Lp", "POZ", "OD KOGO", "DATA BAD.", "NR ŚW.", "NR", "ILOŚĆ", "WPR", "WPR", "PADŁE", "ID", "", "", "", "" };
+            string[] headers2 = { "", "DZ.", "", "SALMONELI", "ZDROWIA", "GOSPODARSTWA", "", "CIĄGNIK", "NACZEPA", "", "HODOWCY", "CH", "NW", "ZM", "RAZ." };
 
-            // Nagłówek tabeli - tło
-            float headerHeight = 35;
+            // Nagłówek tabeli - WYSOKI
+            float headerHeight = 46;
             g.FillRectangle(brushHeaderBg, leftMargin, y, tableWidth, headerHeight);
             g.DrawRectangle(penThick, leftMargin, y, tableWidth, headerHeight);
 
-            // Tekst nagłówka - linia 1
-            float headerTextY1 = y + 5;
-            float headerTextY2 = y + 18;
-            
-            for (int i = 0; i < headers1.Length; i++)
+            float headerTextY1 = y + 7;
+            float headerTextY2 = y + 26;
+
+            // Rysuj nagłówki kolumn 0-10 (przed KONFISKATY)
+            for (int i = 0; i < 11; i++)
             {
                 if (i > 0)
-                    g.DrawLine(penNormal, colX[i], y, colX[i], y + headerHeight);
-                
+                    g.DrawLine(penMedium, colX[i], y, colX[i], y + headerHeight);
+
                 if (!string.IsNullOrEmpty(headers1[i]))
                 {
                     SizeF textSize = g.MeasureString(headers1[i], fontHeader);
@@ -1045,37 +1053,67 @@ namespace Kalendarz1
                     g.DrawString(headers2[i], fontHeader, brushBlack, textX, headerTextY2);
                 }
             }
-            
-            // Linia pozioma w nagłówku KONFISKATY
-            g.DrawLine(penNormal, colX[10], y + 17, rightMargin, y + 17);
-            
+
+            // Linia przed KONFISKATY
+            g.DrawLine(penMedium, colX[11], y, colX[11], y + headerHeight);
+
+            // KONFISKATY - nagłówek grupowy (bez krat wewnątrz w górnej części)
+            float konfWidth = colWidths[11] + colWidths[12] + colWidths[13] + colWidths[14];
+            string konfText = "KONFISKATY";
+            SizeF konfSize = g.MeasureString(konfText, fontKonfiskaty);
+            g.DrawString(konfText, fontKonfiskaty, brushBlack, colX[11] + (konfWidth - konfSize.Width) / 2, headerTextY1);
+
+            // Linia pozioma pod "KONFISKATY"
+            g.DrawLine(penThin, colX[11], y + 22, rightMargin, y + 22);
+
+            // Nagłówki CH, NW, ZM, RAZ. w dolnej części
+            for (int i = 11; i < 15; i++)
+            {
+                // Linie pionowe tylko w dolnej części (pod KONFISKATY)
+                if (i > 11)
+                    g.DrawLine(penThin, colX[i], y + 22, colX[i], y + headerHeight);
+
+                SizeF textSize = g.MeasureString(headers2[i], fontHeader);
+                float textX = colX[i] + (colWidths[i] - textSize.Width) / 2;
+                g.DrawString(headers2[i], fontHeader, brushBlack, textX, headerTextY2);
+            }
+
             y += headerHeight;
 
+            // Oblicz wysokość wiersza - WYPEŁNIJ CAŁĄ STRONĘ - WYŻSZE WIERSZE
+            float availableHeight = pageHeight - y - 55;
+            float rowHeight = availableHeight / dostawy.Count;
+            if (rowHeight > 45) rowHeight = 45;
+            if (rowHeight < 36) rowHeight = 36;
+
             // Dane wierszy
-            float rowHeight = 22;
             int sumaPadle = 0, sumaCH = 0, sumaNW = 0, sumaZM = 0;
             int sumaIlosc = 0;
+            int rowIndex = 0;
 
             foreach (var d in dostawy)
             {
-                if (y > pageHeight - 80)
+                if (y > pageHeight - 60)
                     break;
 
-                // Ramka wiersza
-                g.DrawRectangle(penNormal, leftMargin, y, tableWidth, rowHeight);
+                // Naprzemienne tło
+                if (rowIndex % 2 == 1)
+                {
+                    g.FillRectangle(brushAltRow, leftMargin + 1, y + 1, tableWidth - 2, rowHeight - 1);
+                }
 
-                float textY = y + 5;
+                float textY = y + (rowHeight - 15) / 2;
 
                 // LP
                 DrawCenteredText(g, d.Lp, fontDataBold, brushBlack, colX[0], colWidths[0], textY);
 
-                // POZ DZ. (puste na razie)
+                // POZ DZ.
                 DrawCenteredText(g, "", fontData, brushGray, colX[1], colWidths[1], textY);
 
-                // OD KOGO (nazwa hodowcy)
+                // OD KOGO - pełna nazwa
                 string nazwa = d.HodowcaNazwa ?? "-";
-                if (nazwa.Length > 22) nazwa = nazwa.Substring(0, 20) + "...";
-                g.DrawString(nazwa, fontData, brushBlack, colX[2] + 3, textY);
+                if (nazwa.Length > 22) nazwa = nazwa.Substring(0, 20) + "..";
+                g.DrawString(nazwa, fontData, brushBlack, colX[2] + 4, textY);
 
                 // DATA BAD. SALMONELI
                 DrawCenteredText(g, d.DataSalmonella ?? "", fontData, brushGray, colX[3], colWidths[3], textY);
@@ -1084,45 +1122,52 @@ namespace Kalendarz1
                 DrawCenteredText(g, d.NrSwZdrowia ?? "", fontData, brushGray, colX[4], colWidths[4], textY);
 
                 // NR GOSPODARSTWA
-                DrawCenteredText(g, d.AnimNo ?? "", fontData, brushBlack, colX[5], colWidths[5], textY);
+                string animNo = d.AnimNo ?? "";
+                DrawCenteredText(g, animNo, fontDataBold, brushBlack, colX[5], colWidths[5], textY);
 
                 // ILOŚĆ
                 DrawCenteredText(g, d.SztukiDek.ToString(), fontDataBold, brushBlack, colX[6], colWidths[6], textY);
 
-                // WPR AUTO (CarID)
+                // WPR CIĄGNIK
                 string carId = d.CarID ?? "";
-                if (carId.Length > 10) carId = carId.Substring(0, 10);
                 DrawCenteredText(g, carId, fontData, brushGray, colX[7], colWidths[7], textY);
+
+                // WPR NACZEPA
+                string trailerId = d.TrailerID ?? "";
+                DrawCenteredText(g, trailerId, fontData, brushGray, colX[8], colWidths[8], textY);
 
                 // PADŁE
                 string padleText = d.Padle > 0 ? d.Padle.ToString() : "-";
-                DrawCenteredText(g, padleText, fontDataBold, brushBlack, colX[8], colWidths[8], textY);
+                DrawCenteredText(g, padleText, fontDataBold, brushBlack, colX[9], colWidths[9], textY);
 
-                // ZDATNE I+II (ID z Dostawcy)
-                DrawCenteredText(g, d.ZdatneID ?? "", fontData, brushGray, colX[9], colWidths[9], textY);
+                // ID HODOWCY
+                DrawCenteredText(g, d.ZdatneID ?? "", fontData, brushGray, colX[10], colWidths[10], textY);
 
                 // CH
                 string chText = d.CH > 0 ? d.CH.ToString() : "-";
-                DrawCenteredText(g, chText, fontData, brushBlack, colX[10], colWidths[10], textY);
+                DrawCenteredText(g, chText, fontDataBold, brushBlack, colX[11], colWidths[11], textY);
 
                 // NW
                 string nwText = d.NW > 0 ? d.NW.ToString() : "-";
-                DrawCenteredText(g, nwText, fontData, brushBlack, colX[11], colWidths[11], textY);
+                DrawCenteredText(g, nwText, fontDataBold, brushBlack, colX[12], colWidths[12], textY);
 
                 // ZM
                 string zmText = d.ZM > 0 ? d.ZM.ToString() : "-";
-                DrawCenteredText(g, zmText, fontData, brushBlack, colX[12], colWidths[12], textY);
+                DrawCenteredText(g, zmText, fontDataBold, brushBlack, colX[13], colWidths[13], textY);
 
                 // RAZEM
                 int razem = d.CH + d.NW + d.ZM;
                 string razemText = razem > 0 ? razem.ToString() : "-";
-                DrawCenteredText(g, razemText, fontDataBold, brushBlack, colX[13], colWidths[13], textY);
+                DrawCenteredText(g, razemText, fontDataBold, brushBlack, colX[14], colWidths[14], textY);
 
                 // Linie pionowe
                 for (int i = 1; i < colWidths.Length; i++)
                 {
-                    g.DrawLine(penNormal, colX[i], y, colX[i], y + rowHeight);
+                    g.DrawLine(penThin, colX[i], y, colX[i], y + rowHeight);
                 }
+
+                // Linia pozioma dolna
+                g.DrawLine(penThin, leftMargin, y + rowHeight, rightMargin, y + rowHeight);
 
                 // Sumowanie
                 sumaPadle += d.Padle;
@@ -1132,56 +1177,54 @@ namespace Kalendarz1
                 sumaIlosc += d.SztukiDek;
 
                 y += rowHeight;
+                rowIndex++;
             }
+
+            // Ramka zewnętrzna tabeli danych
+            float tableStartY = y - (rowIndex * rowHeight) - headerHeight;
+            g.DrawRectangle(penThick, leftMargin, tableStartY, tableWidth, (rowIndex * rowHeight) + headerHeight);
 
             // ═══════════════════════════════════════════════════════════════
             // WIERSZ SUMY
             // ═══════════════════════════════════════════════════════════════
-            float sumRowHeight = 25;
+            float sumRowHeight = 40;
             g.FillRectangle(brushHeaderBg, leftMargin, y, tableWidth, sumRowHeight);
             g.DrawRectangle(penThick, leftMargin, y, tableWidth, sumRowHeight);
 
-            float sumTextY = y + 6;
-            
-            g.DrawString("SUMA:", fontSummary, brushBlack, colX[2] + 3, sumTextY);
-            
-            // Suma ILOŚĆ
+            float sumTextY = y + 11;
+
+            g.DrawString("SUMA:", fontSummary, brushBlack, colX[2] + 4, sumTextY);
+
             DrawCenteredText(g, sumaIlosc.ToString(), fontSummary, brushBlack, colX[6], colWidths[6], sumTextY);
-            
-            // Suma PADŁE
-            DrawCenteredText(g, sumaPadle.ToString(), fontSummary, brushBlack, colX[8], colWidths[8], sumTextY);
-            
-            // Suma CH
-            DrawCenteredText(g, sumaCH.ToString(), fontSummary, brushBlack, colX[10], colWidths[10], sumTextY);
-            
-            // Suma NW
-            DrawCenteredText(g, sumaNW.ToString(), fontSummary, brushBlack, colX[11], colWidths[11], sumTextY);
-            
-            // Suma ZM
-            DrawCenteredText(g, sumaZM.ToString(), fontSummary, brushBlack, colX[12], colWidths[12], sumTextY);
-            
-            // Suma RAZEM
+            DrawCenteredText(g, sumaPadle.ToString(), fontSummary, brushBlack, colX[9], colWidths[9], sumTextY);
+            DrawCenteredText(g, sumaCH.ToString(), fontSummary, brushBlack, colX[11], colWidths[11], sumTextY);
+            DrawCenteredText(g, sumaNW.ToString(), fontSummary, brushBlack, colX[12], colWidths[12], sumTextY);
+            DrawCenteredText(g, sumaZM.ToString(), fontSummary, brushBlack, colX[13], colWidths[13], sumTextY);
+
             int sumaRazem = sumaCH + sumaNW + sumaZM;
-            DrawCenteredText(g, sumaRazem.ToString(), fontSummary, brushBlack, colX[13], colWidths[13], sumTextY);
+            DrawCenteredText(g, sumaRazem.ToString(), fontSummary, brushBlack, colX[14], colWidths[14], sumTextY);
 
             // Linie pionowe sumy
             for (int i = 1; i < colWidths.Length; i++)
             {
-                g.DrawLine(penNormal, colX[i], y, colX[i], y + sumRowHeight);
+                g.DrawLine(penMedium, colX[i], y, colX[i], y + sumRowHeight);
             }
 
             // Cleanup
             fontTitle.Dispose();
-            fontSubtitle.Dispose();
+            fontDate.Dispose();
             fontHeader.Dispose();
+            fontKonfiskaty.Dispose();
             fontData.Dispose();
             fontDataBold.Dispose();
             fontSummary.Dispose();
             brushBlack.Dispose();
             brushGray.Dispose();
             brushHeaderBg.Dispose();
+            brushAltRow.Dispose();
             penThick.Dispose();
-            penNormal.Dispose();
+            penMedium.Dispose();
+            penThin.Dispose();
 
             e.HasMorePages = false;
         }
@@ -1223,12 +1266,12 @@ namespace Kalendarz1
         public int SztukiDek { get; set; }
         public int Netto { get; set; }
         public int LUMEL { get; set; }
-        
+
         // Nowe pola dla płachty
         public string DataSalmonella { get; set; }  // Data badania salmonelli
         public string NrSwZdrowia { get; set; }     // Nr świadectwa zdrowia
         public string ZdatneID { get; set; }        // ID z tabeli Dostawcy (ZDATNE I+II)
-        
+
         private int _padle;
         private int _ch;
         private int _nw;
@@ -1266,9 +1309,9 @@ namespace Kalendarz1
         }
 
         // Właściwości wyświetlania
-        public string PojazdDisplay 
-        { 
-            get 
+        public string PojazdDisplay
+        {
+            get
             {
                 if (!string.IsNullOrEmpty(CarID) && !string.IsNullOrEmpty(TrailerID))
                     return $"{CarID}/{TrailerID}";
@@ -1279,7 +1322,7 @@ namespace Kalendarz1
                 return "-";
             }
         }
-        
+
         public string NettoDisplay => Netto > 0 ? $"{Netto:N0}" : "-";
         public string PadleDisplay => Padle > 0 ? Padle.ToString() : "-";
         public string CHDisplay => CH > 0 ? CH.ToString() : "-";
@@ -1320,7 +1363,7 @@ namespace Kalendarz1
             // Ocena jest kompletna gdy mamy Padłe LUB jakiekolwiek konfiskaty
             bool maPadle = Padle > 0;
             bool maKonfiskaty = CH > 0 || NW > 0 || ZM > 0;
-            
+
             if (maPadle || maKonfiskaty)
                 Status = StatusOceny.Oceniona;
             else

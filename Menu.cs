@@ -1,8 +1,9 @@
-﻿using Kalendarz1.AnalizaPrzychoduProdukcji;
+using Kalendarz1.AnalizaPrzychoduProdukcji;
 using Kalendarz1.HandlowiecDashboard.Views;
 using Kalendarz1.OfertaCenowa;
-using Kalendarz1.Opakowania.Views;  // Nowe okna opakowań WPF
+using Kalendarz1.Opakowania.Views;
 using Kalendarz1.Reklamacje;
+using Kalendarz1.KontrolaGodzin;
 using Kalendarz1.Zywiec.RaportyStatystyki;
 using Microsoft.Data.SqlClient;
 using System;
@@ -158,7 +159,8 @@ namespace Kalendarz1
                 [37] = "DashboardHandlowca",
                 [38] = "PanelFaktur",
                 [39] = "PanelPortiera",
-                [40] = "PanelLekarza"
+                [40] = "PanelLekarza",
+                [41] = "KontrolaGodzin"  // <-- NOWY MODUŁ
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -203,7 +205,8 @@ namespace Kalendarz1
                 "RezerwacjaKlas", "DashboardWyczerpalnosci",
                 "ListaOfert", "DashboardOfert",
                 "PanelReklamacji", "ReklamacjeJakosc", "RaportyHodowcow",
-                "AdminPermissions", "AnalizaPrzychodu", "PanelPortiera", "PanelLekarza"
+                "AdminPermissions", "AnalizaPrzychodu", "PanelPortiera", "PanelLekarza",
+                "KontrolaGodzin"  // <-- NOWY MODUŁ
             };
         }
 
@@ -220,6 +223,7 @@ namespace Kalendarz1
             // OPAKOWANIA/TRANSPORT - Odcienie turkusowego (od jasnego do ciemnego)
             // FINANSE/ZARZĄDZANIE - Odcienie szaroniebieskiego (od jasnego do ciemnego)
             // ADMINISTRACJA - Odcienie czerwonego (od jasnego do ciemnego)
+            // KADRY/HR - Odcienie fioletowo-różowe (NOWE)
             // ══════════════════════════════════════════════════════════════════════════════
 
             var leftColumnCategories = new Dictionary<string, List<MenuItemConfig>>
@@ -506,6 +510,17 @@ namespace Kalendarz1
                         "Rejestr notatek ze spotkań biznesowych, ustaleń i zadań do wykonania",
                         Color.FromArgb(38, 50, 56), // Ciemny szaroniebieski #263238
                         () => new Kalendarz1.NotatkiZeSpotkan.NotatkirGlownyWindow(App.UserID), "📝")
+                },
+
+                // ═══════════════════════════════════════════════════════════════════════════
+                // NOWA KATEGORIA: KADRY I HR - KOLOR INDYGO/FIOLETOWY
+                // ═══════════════════════════════════════════════════════════════════════════
+                ["KADRY I HR"] = new List<MenuItemConfig>
+                {
+                    new MenuItemConfig("KontrolaGodzin", "Kontrola Czasu Pracy",
+                        "System UNICARD - rejestracja wejść/wyjść, godziny pracy, obecności i raporty agencji",
+                        Color.FromArgb(126, 87, 194), // Indygo #7E57C2
+                        () => new KontrolaGodzinWindow(), "⏱️")
                 }
             };
 
