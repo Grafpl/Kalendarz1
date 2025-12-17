@@ -128,6 +128,11 @@ namespace Kalendarz1.CRM
             WczytajDane();
         }
 
+        private void BtnOdswiez_Click(object sender, RoutedEventArgs e)
+        {
+            WczytajDane();
+        }
+
         private void CmbZakres_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (!isLoaded) return;
@@ -848,6 +853,9 @@ namespace Kalendarz1.CRM
         public int Notatki { get; set; }
         public int Suma { get; set; }
         public string StatsTekst { get; set; }
+        public string TelefonyTekst => $"T: {Telefony}";
+        public string StatusyTekst => $"S: {Statusy}";
+        public string NotatkiTekst => $"N: {Notatki}";
         public SolidColorBrush KolorPozycji { get; set; }
         public SolidColorBrush TloKarty { get; set; }
         public SolidColorBrush KolorRamki { get; set; }
