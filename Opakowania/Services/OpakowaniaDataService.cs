@@ -218,6 +218,9 @@ ORDER BY [IloscDrugiZakres] DESC, [Kontrahent]";
 
             try
             {
+                // OPTYMALIZACJA: Pobierz wszystkie potwierdzenia JEDNYM zapytaniem (zamiast N+1)
+                var potwierdzenia = await PobierzWszystkiePotwierdzenia(towar);
+
                 using (var connection = new SqlConnection(_connectionStringHandel))
                 {
                     await connection.OpenAsync();
@@ -240,18 +243,17 @@ ORDER BY [IloscDrugiZakres] DESC, [Kontrahent]";
                                     IloscDrugiZakres = Convert.ToInt32(reader["IloscDrugiZakres"]),
                                     Roznica = Convert.ToInt32(reader["Roznica"]),
                                     Handlowiec = reader.GetString(reader.GetOrdinal("Handlowiec")),
-                                    DataOstatniegoDokumentu = reader.IsDBNull(reader.GetOrdinal("DataOstatniegoDokumentu")) 
+                                    DataOstatniegoDokumentu = reader.IsDBNull(reader.GetOrdinal("DataOstatniegoDokumentu"))
                                         ? null : reader.GetDateTime(reader.GetOrdinal("DataOstatniegoDokumentu")),
-                                    TowarZDokumentu = reader.IsDBNull(reader.GetOrdinal("TowarZDokumentu")) 
+                                    TowarZDokumentu = reader.IsDBNull(reader.GetOrdinal("TowarZDokumentu"))
                                         ? null : reader.GetString(reader.GetOrdinal("TowarZDokumentu"))
                                 };
 
-                                // Sprawdź potwierdzenie
-                                if (item.KontrahentId > 0)
+                                // Sprawdź potwierdzenie z słownika (zamiast N+1 zapytań do bazy!)
+                                if (item.KontrahentId > 0 && potwierdzenia.TryGetValue(item.KontrahentId, out var potw))
                                 {
-                                    var potwierdzenie = await SprawdzPotwierdzenie(item.KontrahentId, towar);
-                                    item.JestPotwierdzone = potwierdzenie.Item1;
-                                    item.DataPotwierdzenia = potwierdzenie.Item2;
+                                    item.JestPotwierdzone = potw.JestPotwierdzone;
+                                    item.DataPotwierdzenia = potw.DataPotwierdzenia;
                                 }
 
                                 zestawienie.Add(item);
@@ -616,6 +618,50 @@ WHERE MG.khid = @KontrahentId
         #endregion
 
         #region Potwierdzenia
+
+        /// <summary>
+        /// Pobiera WSZYSTKIE potwierdzenia dla danego typu opakowania jednym zapytaniem (rozwiązanie problemu N+1)
+        /// </summary>
+        private async Task<Dictionary<int, (bool JestPotwierdzone, DateTime? DataPotwierdzenia)>> PobierzWszystkiePotwierdzenia(string typOpakowania)
+        {
+            var wyniki = new Dictionary<int, (bool, DateTime?)>();
+
+            string query = @"
+SELECT KontrahentId, MAX(DataPotwierdzenia) AS DataPotwierdzenia
+FROM [LibraNet].[dbo].[PotwierdzeniaSaldaOpakowan]
+WHERE TypOpakowania = @TypOpakowania
+  AND StatusPotwierdzenia = 'Potwierdzone'
+  AND DataPotwierdzenia >= DATEADD(DAY, -30, GETDATE())
+GROUP BY KontrahentId";
+
+            try
+            {
+                using (var connection = new SqlConnection(_connectionStringLibraNet))
+                {
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand(query, connection))
+                    {
+                        command.Parameters.AddWithValue("@TypOpakowania", typOpakowania);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                var kontrahentId = reader.GetInt32(0);
+                                var dataPotwierdzenia = reader.GetDateTime(1);
+                                wyniki[kontrahentId] = (true, dataPotwierdzenia);
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Ignoruj błędy - tabela może nie istnieć
+            }
+
+            return wyniki;
+        }
 
         /// <summary>
         /// Sprawdza czy kontrahent ma potwierdzenie dla danego typu opakowania
