@@ -20,6 +20,9 @@ namespace Kalendarz1.CRM
         private bool isLoaded = false;
         private string wybranyHandlowiec = "";
 
+        // DataGrid nie jest używany w obecnym widoku dashboardu
+        private readonly DataGrid tabelaDane = null;
+
         // Kolory - maksymalnie zróżnicowane
         private readonly string[] koloryHandlowcow = new[]
         {
