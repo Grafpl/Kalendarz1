@@ -17,15 +17,18 @@ namespace Kalendarz1.Opakowania.Services
     {
         private readonly string _sciezkaPDF1 = @"\\192.168.0.170\Public\Salda Opakowan";
         private readonly string _sciezkaPDF2 = @"\\192.168.0.171\Public\Salda Opakowan";
+        private readonly PdfReportService _pdfService;
 
         public ExportService()
         {
+            _pdfService = new PdfReportService();
         }
 
         public ExportService(string sciezkaPDF1, string sciezkaPDF2)
         {
             _sciezkaPDF1 = sciezkaPDF1;
             _sciezkaPDF2 = sciezkaPDF2;
+            _pdfService = new PdfReportService();
         }
 
         #region Ścieżki zapisu
@@ -99,18 +102,30 @@ namespace Kalendarz1.Opakowania.Services
             {
                 try
                 {
-                    string sciezka = GetSciezkaZapisu();
+                    // Użyj PdfReportService do wygenerowania prawdziwego PDF
+                    string pdfPath = _pdfService.GenerujRaportKontrahenta(
+                        kontrahentId,
+                        kontrahent,
+                        saldo,
+                        dokumenty,
+                        null, // potwierdzenia - można dodać później
+                        dataOd,
+                        dataDo);
+
+                    // Przenieś plik do właściwego folderu
+                    string sciezkaDocelowa = GetSciezkaZapisu();
                     string nazwaPliku = GenerujNazwePliku(kontrahent, "Saldo");
-                    string pelnaSciezka = Path.Combine(sciezka, nazwaPliku);
+                    string pelnaSciezkaDocelowa = Path.Combine(sciezkaDocelowa, nazwaPliku);
 
-                    // Generuj HTML który zostanie przekonwertowany na PDF
-                    string html = GenerujHTMLSaldaKontrahenta(kontrahent, saldo, dokumenty, dataOd, dataDo);
-                    
-                    // Zapisz jako HTML (później można użyć biblioteki do konwersji na PDF)
-                    string htmlPath = Path.ChangeExtension(pelnaSciezka, ".html");
-                    File.WriteAllText(htmlPath, html, Encoding.UTF8);
+                    // Skopiuj plik z lokalizacji tymczasowej do docelowej
+                    if (File.Exists(pdfPath))
+                    {
+                        File.Copy(pdfPath, pelnaSciezkaDocelowa, true);
+                        File.Delete(pdfPath); // Usuń plik tymczasowy
+                        return pelnaSciezkaDocelowa;
+                    }
 
-                    return htmlPath;
+                    return pdfPath;
                 }
                 catch (Exception ex)
                 {
@@ -143,6 +158,50 @@ namespace Kalendarz1.Opakowania.Services
                 catch (Exception ex)
                 {
                     throw new Exception($"Błąd podczas eksportu do PDF: {ex.Message}", ex);
+                }
+            });
+        }
+
+        /// <summary>
+        /// Eksportuje zestawienie sald do prawdziwego PDF
+        /// </summary>
+        public async Task<string> EksportujZestawienieDoPDFAsync(
+            List<ZestawienieSalda> zestawienie,
+            TypOpakowania typOpakowania,
+            DateTime dataOd,
+            DateTime dataDo,
+            string handlowiec = null)
+        {
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    // Użyj PdfReportService do wygenerowania prawdziwego PDF
+                    string pdfPath = _pdfService.GenerujRaportZestawienia(
+                        zestawienie,
+                        typOpakowania,
+                        dataOd,
+                        dataDo,
+                        handlowiec);
+
+                    // Przenieś plik do właściwego folderu
+                    string sciezkaDocelowa = GetSciezkaZapisu();
+                    string nazwaPliku = $"Zestawienie_{typOpakowania.Kod}_{DateTime.Now:yyyy-MM-dd_HH-mm}.pdf";
+                    string pelnaSciezkaDocelowa = Path.Combine(sciezkaDocelowa, nazwaPliku);
+
+                    // Skopiuj plik z lokalizacji tymczasowej do docelowej
+                    if (File.Exists(pdfPath))
+                    {
+                        File.Copy(pdfPath, pelnaSciezkaDocelowa, true);
+                        File.Delete(pdfPath); // Usuń plik tymczasowy
+                        return pelnaSciezkaDocelowa;
+                    }
+
+                    return pdfPath;
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Błąd podczas eksportu zestawienia do PDF: {ex.Message}", ex);
                 }
             });
         }

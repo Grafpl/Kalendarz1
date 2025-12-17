@@ -15,6 +15,7 @@ namespace Kalendarz1.Opakowania.ViewModels
     public class ZestawienieOpakowanViewModel : ViewModelBase
     {
         private readonly OpakowaniaDataService _dataService;
+        private readonly ExportService _exportService;
         private readonly string _userId;
         private string _handlowiecFilter;
 
@@ -39,6 +40,7 @@ namespace Kalendarz1.Opakowania.ViewModels
         {
             _userId = userId;
             _dataService = new OpakowaniaDataService();
+            _exportService = new ExportService();
 
             // Domyślne wartości - OD = 2 miesiące wstecz, DO = dzisiaj
             var (dataOd, dataDo) = UstawieniaService.GetDomyslnyOkres();
@@ -51,7 +53,8 @@ namespace Kalendarz1.Opakowania.ViewModels
 
             // Komendy
             OdswiezCommand = new AsyncRelayCommand(OdswiezAsync);
-            GenerujPDFCommand = new AsyncRelayCommand(GenerujPDFAsync, () => WybranyKontrahent != null);
+            GenerujPDFCommand = new AsyncRelayCommand(GenerujPDFAsync);
+            GenerujZestawieniePDFCommand = new AsyncRelayCommand(GenerujZestawieniePDFAsync);
             OtworzSzczegolyCommand = new RelayCommand(OtworzSzczegoly, _ => WybranyKontrahent != null);
             DodajPotwierdzenieCommand = new RelayCommand(DodajPotwierdzenie, _ => WybranyKontrahent != null);
             WybierzTypOpakowaniCommand = new RelayCommand(WybierzTypOpakowania);
@@ -183,6 +186,7 @@ namespace Kalendarz1.Opakowania.ViewModels
 
         public ICommand OdswiezCommand { get; }
         public ICommand GenerujPDFCommand { get; }
+        public ICommand GenerujZestawieniePDFCommand { get; }
         public ICommand OtworzSzczegolyCommand { get; }
         public ICommand DodajPotwierdzenieCommand { get; }
         public ICommand WybierzTypOpakowaniCommand { get; }
@@ -282,14 +286,65 @@ namespace Kalendarz1.Opakowania.ViewModels
 
         private async Task GenerujPDFAsync()
         {
-            if (WybranyKontrahent == null) return;
+            if (WybranyKontrahent == null || WybranyKontrahent.KontrahentId <= 0)
+            {
+                MessageBox.Show("Wybierz kontrahenta, aby wygenerować PDF.", "Generowanie PDF", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
 
             await ExecuteAsync(async () =>
             {
-                // TODO: Implementacja generowania PDF
-                await Task.Delay(100);
-                MessageBox.Show($"Generowanie PDF dla: {WybranyKontrahent.Kontrahent}", "PDF", MessageBoxButton.OK, MessageBoxImage.Information);
+                // Pobierz szczegółowe dane kontrahenta
+                var dokumenty = await _dataService.PobierzSaldoKontrahentaAsync(
+                    WybranyKontrahent.KontrahentId, DataOd, DataDo);
+                var saldo = await _dataService.PobierzSaldaWszystkichOpakowannAsync(
+                    WybranyKontrahent.KontrahentId, DataDo);
+
+                // Generuj PDF
+                var sciezka = await _exportService.EksportujSaldoKontrahentaDoPDFAsync(
+                    WybranyKontrahent.Kontrahent,
+                    WybranyKontrahent.KontrahentId,
+                    saldo,
+                    dokumenty.ToList(),
+                    DataOd,
+                    DataDo);
+
+                var result = MessageBox.Show(
+                    $"Raport PDF zapisany:\n{sciezka}\n\nCzy chcesz otworzyć plik?",
+                    "Eksport PDF", MessageBoxButton.YesNo, MessageBoxImage.Information);
+
+                if (result == MessageBoxResult.Yes)
+                    _exportService.OtworzPlik(sciezka);
+
             }, "Generowanie PDF...");
+        }
+
+        private async Task GenerujZestawieniePDFAsync()
+        {
+            if (ZestawienieFiltrowane == null || !ZestawienieFiltrowane.Any())
+            {
+                MessageBox.Show("Brak danych do eksportu.", "Generowanie PDF", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            await ExecuteAsync(async () =>
+            {
+                // Generuj PDF zestawienia
+                var sciezka = await _exportService.EksportujZestawienieDoPDFAsync(
+                    ZestawienieFiltrowane.ToList(),
+                    WybranyTypOpakowania,
+                    DataOd,
+                    DataDo,
+                    _handlowiecFilter);
+
+                var result = MessageBox.Show(
+                    $"Zestawienie PDF zapisane:\n{sciezka}\n\nCzy chcesz otworzyć plik?",
+                    "Eksport PDF", MessageBoxButton.YesNo, MessageBoxImage.Information);
+
+                if (result == MessageBoxResult.Yes)
+                    _exportService.OtworzPlik(sciezka);
+
+            }, "Generowanie zestawienia PDF...");
         }
 
         private void OtworzSzczegoly(object parameter)
