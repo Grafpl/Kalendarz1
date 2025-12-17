@@ -1047,7 +1047,7 @@ namespace Kalendarz1
             }
             
             // Linia pozioma w nagłówku KONFISKATY
-            g.DrawLine(penNormal, colX[10], y + 17, colX[14], y + 17);
+            g.DrawLine(penNormal, colX[10], y + 17, rightMargin, y + 17);
             
             y += headerHeight;
 
