@@ -2,7 +2,6 @@ using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
 namespace Kalendarz1
@@ -23,7 +22,6 @@ namespace Kalendarz1
 
         // Kontrolki - Dane firmy
         private TextBox textBoxNazwa;
-        private TextBox textBoxNIP;
         private ComboBox comboBoxPKD;
 
         // Kontrolki - Adres
@@ -48,9 +46,7 @@ namespace Kalendarz1
         private Panel panelDuplikaty;
         private Label lblPodobniKlienci;
         private ListBox listBoxPodobni;
-        private TextBox textBoxSzukajNIP;
         private System.Windows.Forms.Timer timerSzukaj;
-        private System.Windows.Forms.Timer timerSzukajNIP;
 
         // Mapowanie prefixów kodu pocztowego do województw
         private static readonly Dictionary<string, string> kodDoWojewodztwa = new Dictionary<string, string>
@@ -88,98 +84,84 @@ namespace Kalendarz1
         private void InitializeComponent()
         {
             this.Text = "Dodaj nowego kontrahenta";
-            this.Size = new Size(1000, 700);
+            this.Size = new Size(1100, 750);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.BackColor = bgColor;
 
-            // Timery do opóźnionego wyszukiwania
+            // Timer do opóźnionego wyszukiwania
             timerSzukaj = new System.Windows.Forms.Timer { Interval = 300 };
             timerSzukaj.Tick += TimerSzukaj_Tick;
 
-            timerSzukajNIP = new System.Windows.Forms.Timer { Interval = 300 };
-            timerSzukajNIP.Tick += TimerSzukajNIP_Tick;
-
-            int leftColX = 20;
-            int rightColX = 530;
+            int leftColX = 25;
+            int rightColX = 560;
+            int controlHeight = 32;
+            int rowSpacing = 48;
 
             // ========== SEKCJA: DANE FIRMY ==========
-            var panelFirma = CreateSection("DANE FIRMY", leftColX, 15, 480, 165);
-            int y = 35;
+            var panelFirma = CreateSection("DANE FIRMY", leftColX, 15, 510, 145);
+            int y = 40;
 
             AddLabel(panelFirma, "Nazwa firmy:*", 15, y);
-            textBoxNazwa = AddTextBox(panelFirma, 130, y, 320);
+            textBoxNazwa = AddTextBox(panelFirma, 140, y, 340, controlHeight);
             textBoxNazwa.TextChanged += TextBoxNazwa_TextChanged;
 
-            y += 38;
-            AddLabel(panelFirma, "NIP:", 15, y);
-            textBoxNIP = AddTextBox(panelFirma, 130, y, 150);
-            textBoxNIP.TextChanged += TextBoxNIP_TextChanged;
-            var lblNIPInfo = new Label
-            {
-                Text = "(szuka duplikatów)",
-                Location = new Point(290, y + 3),
-                Size = new Size(150, 20),
-                ForeColor = labelColor,
-                Font = new Font("Segoe UI", 8),
-                BackColor = Color.Transparent
-            };
-            panelFirma.Controls.Add(lblNIPInfo);
-
-            y += 38;
+            y += rowSpacing;
             AddLabel(panelFirma, "Branża (PKD):", 15, y);
             comboBoxPKD = new ComboBox
             {
-                Location = new Point(130, y),
-                Size = new Size(320, 25),
+                Location = new Point(140, y),
+                Size = new Size(340, controlHeight),
                 DropDownStyle = ComboBoxStyle.DropDown,
                 AutoCompleteMode = AutoCompleteMode.SuggestAppend,
                 AutoCompleteSource = AutoCompleteSource.ListItems,
                 BackColor = inputBgColor,
                 ForeColor = textColor,
-                FlatStyle = FlatStyle.Flat
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 11)
             };
             panelFirma.Controls.Add(comboBoxPKD);
 
             this.Controls.Add(panelFirma);
 
             // ========== SEKCJA: ADRES ==========
-            var panelAdres = CreateSection("ADRES", leftColX, 190, 480, 205);
-            y = 35;
+            var panelAdres = CreateSection("ADRES", leftColX, 170, 510, 260);
+            y = 40;
 
             AddLabel(panelAdres, "Kod pocztowy:", 15, y);
-            textBoxKod = AddTextBox(panelAdres, 130, y, 100);
+            textBoxKod = AddTextBox(panelAdres, 140, y, 120, controlHeight);
             textBoxKod.TextChanged += TextBoxKod_TextChanged;
             var lblKodInfo = new Label
             {
                 Text = "(auto-uzupełnia)",
-                Location = new Point(240, y + 3),
-                Size = new Size(120, 20),
+                Location = new Point(270, y + 6),
+                Size = new Size(130, 22),
                 ForeColor = labelColor,
-                Font = new Font("Segoe UI", 8),
+                Font = new Font("Segoe UI", 9),
                 BackColor = Color.Transparent
             };
             panelAdres.Controls.Add(lblKodInfo);
 
-            y += 38;
+            y += rowSpacing;
             AddLabel(panelAdres, "Miasto:", 15, y);
-            textBoxMiasto = AddTextBox(panelAdres, 130, y, 320);
+            textBoxMiasto = AddTextBox(panelAdres, 140, y, 340, controlHeight);
 
-            y += 38;
+            y += rowSpacing;
             AddLabel(panelAdres, "Ulica:", 15, y);
-            textBoxUlica = AddTextBox(panelAdres, 130, y, 320);
+            textBoxUlica = AddTextBox(panelAdres, 140, y, 340, controlHeight);
 
-            y += 38;
+            y += rowSpacing;
             AddLabel(panelAdres, "Województwo:", 15, y);
             comboBoxWoj = new ComboBox
             {
-                Location = new Point(130, y),
-                Size = new Size(320, 25),
+                Location = new Point(140, y),
+                Size = new Size(340, controlHeight),
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 BackColor = inputBgColor,
                 ForeColor = textColor,
-                FlatStyle = FlatStyle.Flat
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 11)
             };
             comboBoxWoj.Items.Add("");
             comboBoxWoj.Items.AddRange(new string[] {
@@ -190,37 +172,37 @@ namespace Kalendarz1
             });
             panelAdres.Controls.Add(comboBoxWoj);
 
-            y += 38;
+            y += rowSpacing;
             AddLabel(panelAdres, "Powiat:", 15, y);
-            textBoxPowiat = AddTextBox(panelAdres, 130, y, 320);
+            textBoxPowiat = AddTextBox(panelAdres, 140, y, 340, controlHeight);
 
             this.Controls.Add(panelAdres);
 
             // ========== SEKCJA: KONTAKT ==========
-            var panelKontakt = CreateSection("KONTAKT", leftColX, 405, 480, 205);
-            y = 35;
+            var panelKontakt = CreateSection("KONTAKT", leftColX, 440, 510, 250);
+            y = 40;
 
             AddLabel(panelKontakt, "Telefon:", 15, y);
-            textBoxTelefon = AddTextBox(panelKontakt, 130, y, 200);
+            textBoxTelefon = AddTextBox(panelKontakt, 140, y, 220, controlHeight);
 
-            y += 38;
+            y += rowSpacing;
             AddLabel(panelKontakt, "Email:", 15, y);
-            textBoxEmail = AddTextBox(panelKontakt, 130, y, 320);
+            textBoxEmail = AddTextBox(panelKontakt, 140, y, 340, controlHeight);
 
-            y += 38;
+            y += rowSpacing;
             AddLabel(panelKontakt, "Osoba kont.:", 15, y);
-            textBoxOsobaKontaktowa = AddTextBox(panelKontakt, 130, y, 320);
+            textBoxOsobaKontaktowa = AddTextBox(panelKontakt, 140, y, 340, controlHeight);
 
-            y += 38;
+            y += rowSpacing;
             AddLabel(panelKontakt, "Notatki:", 15, y);
             textBoxNotatki = new TextBox
             {
-                Location = new Point(130, y),
-                Size = new Size(320, 50),
+                Location = new Point(140, y),
+                Size = new Size(340, 60),
                 BackColor = inputBgColor,
                 ForeColor = textColor,
                 BorderStyle = BorderStyle.FixedSingle,
-                Font = new Font("Segoe UI", 9),
+                Font = new Font("Segoe UI", 11),
                 Multiline = true
             };
             panelKontakt.Controls.Add(textBoxNotatki);
@@ -228,39 +210,25 @@ namespace Kalendarz1
             this.Controls.Add(panelKontakt);
 
             // ========== PANEL DUPLIKATÓW (po prawej) ==========
-            panelDuplikaty = CreateSection("SPRAWDŹ DUPLIKATY", rightColX, 15, 440, 530);
+            panelDuplikaty = CreateSection("PODOBNI KLIENCI W BAZIE", rightColX, 15, 500, 595);
 
-            var lblSzukajNazwa = new Label
+            var lblInfo = new Label
             {
-                Text = "Wpisz nazwę lub NIP aby sprawdzić czy klient już istnieje:",
-                Location = new Point(15, 35),
-                Size = new Size(410, 20),
+                Text = "Podczas wpisywania nazwy firmy automatycznie\nwyszukiwani są podobni klienci w bazie CRM.",
+                Location = new Point(15, 40),
+                Size = new Size(470, 50),
                 ForeColor = labelColor,
-                Font = new Font("Segoe UI", 9),
+                Font = new Font("Segoe UI", 10),
                 BackColor = Color.Transparent
             };
-            panelDuplikaty.Controls.Add(lblSzukajNazwa);
-
-            var lblSzukajNIP = new Label
-            {
-                Text = "Szukaj po NIP:",
-                Location = new Point(15, 60),
-                Size = new Size(100, 20),
-                ForeColor = labelColor,
-                Font = new Font("Segoe UI", 9),
-                BackColor = Color.Transparent
-            };
-            panelDuplikaty.Controls.Add(lblSzukajNIP);
-
-            textBoxSzukajNIP = AddTextBox(panelDuplikaty, 115, 57, 150);
-            textBoxSzukajNIP.TextChanged += TextBoxSzukajNIP_TextChanged;
+            panelDuplikaty.Controls.Add(lblInfo);
 
             lblPodobniKlienci = new Label
             {
                 Text = "Znalezione dopasowania:",
-                Location = new Point(15, 95),
-                Size = new Size(410, 20),
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                Location = new Point(15, 100),
+                Size = new Size(470, 25),
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
                 ForeColor = warningColor,
                 BackColor = Color.Transparent,
                 Visible = false
@@ -269,9 +237,9 @@ namespace Kalendarz1
 
             listBoxPodobni = new ListBox
             {
-                Location = new Point(15, 120),
-                Size = new Size(410, 350),
-                Font = new Font("Segoe UI", 9),
+                Location = new Point(15, 130),
+                Size = new Size(470, 420),
+                Font = new Font("Segoe UI", 11),
                 BorderStyle = BorderStyle.FixedSingle,
                 BackColor = Color.FromArgb(127, 29, 29),
                 ForeColor = Color.FromArgb(254, 202, 202),
@@ -284,11 +252,11 @@ namespace Kalendarz1
             var lblBrakWynikow = new Label
             {
                 Name = "lblBrakWynikow",
-                Text = "Zacznij wpisywać nazwę firmy lub NIP\naby sprawdzić czy klient już istnieje w bazie.",
-                Location = new Point(15, 150),
-                Size = new Size(410, 60),
+                Text = "Zacznij wpisywać nazwę firmy\naby sprawdzić czy klient już istnieje w bazie.\n\n(minimum 3 znaki)",
+                Location = new Point(15, 180),
+                Size = new Size(470, 120),
                 ForeColor = labelColor,
-                Font = new Font("Segoe UI", 10),
+                Font = new Font("Segoe UI", 12),
                 BackColor = Color.Transparent,
                 TextAlign = ContentAlignment.MiddleCenter
             };
@@ -300,22 +268,22 @@ namespace Kalendarz1
             checkBoxTylkoMoje = new CheckBox
             {
                 Text = "Po dodaniu pokaż tylko moich klientów",
-                Location = new Point(leftColX + 130, 620),
-                Size = new Size(300, 20),
+                Location = new Point(leftColX + 140, 700),
+                Size = new Size(350, 25),
                 Checked = true,
                 ForeColor = textColor,
-                Font = new Font("Segoe UI", 9)
+                Font = new Font("Segoe UI", 10)
             };
             this.Controls.Add(checkBoxTylkoMoje);
 
             buttonZapisz = new Button
             {
                 Text = "ZAPISZ KONTRAHENTA",
-                Location = new Point(rightColX, 560),
-                Size = new Size(200, 45),
+                Location = new Point(rightColX, 625),
+                Size = new Size(240, 55),
                 BackColor = accentColor,
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                Font = new Font("Segoe UI", 13, FontStyle.Bold),
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
@@ -326,11 +294,11 @@ namespace Kalendarz1
             buttonAnuluj = new Button
             {
                 Text = "Anuluj",
-                Location = new Point(rightColX + 220, 560),
-                Size = new Size(120, 45),
+                Location = new Point(rightColX + 260, 625),
+                Size = new Size(140, 55),
                 BackColor = Color.FromArgb(71, 85, 105),
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 10),
+                Font = new Font("Segoe UI", 12),
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
@@ -351,9 +319,9 @@ namespace Kalendarz1
             var lblTitle = new Label
             {
                 Text = title,
-                Location = new Point(15, 8),
-                Size = new Size(width - 30, 22),
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Location = new Point(15, 10),
+                Size = new Size(width - 30, 26),
+                Font = new Font("Segoe UI", 12, FontStyle.Bold),
                 ForeColor = accentColor,
                 BackColor = Color.Transparent
             };
@@ -362,7 +330,7 @@ namespace Kalendarz1
             // Linia pod tytułem
             var line = new Panel
             {
-                Location = new Point(15, 30),
+                Location = new Point(15, 36),
                 Size = new Size(width - 30, 1),
                 BackColor = Color.FromArgb(51, 65, 85)
             };
@@ -376,25 +344,25 @@ namespace Kalendarz1
             var lbl = new Label
             {
                 Text = text,
-                Location = new Point(x, y + 3),
-                Size = new Size(110, 20),
+                Location = new Point(x, y + 5),
+                Size = new Size(120, 24),
                 ForeColor = labelColor,
-                Font = new Font("Segoe UI", 9),
+                Font = new Font("Segoe UI", 10),
                 BackColor = Color.Transparent
             };
             parent.Controls.Add(lbl);
         }
 
-        private TextBox AddTextBox(Panel parent, int x, int y, int width)
+        private TextBox AddTextBox(Panel parent, int x, int y, int width, int height)
         {
             var txt = new TextBox
             {
                 Location = new Point(x, y),
-                Size = new Size(width, 25),
+                Size = new Size(width, height),
                 BackColor = inputBgColor,
                 ForeColor = textColor,
                 BorderStyle = BorderStyle.FixedSingle,
-                Font = new Font("Segoe UI", 9)
+                Font = new Font("Segoe UI", 11)
             };
             parent.Controls.Add(txt);
             return txt;
@@ -529,14 +497,13 @@ namespace Kalendarz1
 
                         var cmdOdbiorca = new SqlCommand(@"
                             INSERT INTO OdbiorcyCRM
-                            (ID, Nazwa, NIP, KOD, MIASTO, Ulica, Telefon_K, Email, OsobaKontaktowa, Wojewodztwo, Powiat, PKD_Opis, Status)
+                            (ID, Nazwa, KOD, MIASTO, Ulica, Telefon_K, Email, OsobaKontaktowa, Wojewodztwo, Powiat, PKD_Opis, Status)
                             VALUES
-                            (@id, @nazwa, @nip, @kod, @miasto, @ulica, @tel, @email, @osoba, @woj, @pow, @pkd, 'Do zadzwonienia')",
+                            (@id, @nazwa, @kod, @miasto, @ulica, @tel, @email, @osoba, @woj, @pow, @pkd, 'Do zadzwonienia')",
                             conn, transaction);
 
                         cmdOdbiorca.Parameters.AddWithValue("@id", nowyID);
                         cmdOdbiorca.Parameters.AddWithValue("@nazwa", textBoxNazwa.Text.Trim());
-                        cmdOdbiorca.Parameters.AddWithValue("@nip", textBoxNIP.Text.Trim());
                         cmdOdbiorca.Parameters.AddWithValue("@kod", textBoxKod.Text.Trim());
                         cmdOdbiorca.Parameters.AddWithValue("@miasto", textBoxMiasto.Text.Trim());
                         cmdOdbiorca.Parameters.AddWithValue("@ulica", textBoxUlica.Text.Trim());
@@ -603,31 +570,7 @@ namespace Kalendarz1
             {
                 timerSzukaj.Start();
             }
-            else if (string.IsNullOrEmpty(textBoxSzukajNIP.Text) && textBoxNIP.Text.Length < 3)
-            {
-                UkryjWyniki();
-            }
-        }
-
-        private void TextBoxNIP_TextChanged(object sender, EventArgs e)
-        {
-            timerSzukajNIP.Stop();
-            string nip = textBoxNIP.Text.Replace("-", "").Replace(" ", "").Trim();
-            if (nip.Length >= 3)
-            {
-                timerSzukajNIP.Start();
-            }
-        }
-
-        private void TextBoxSzukajNIP_TextChanged(object sender, EventArgs e)
-        {
-            timerSzukajNIP.Stop();
-            string nip = textBoxSzukajNIP.Text.Replace("-", "").Replace(" ", "").Trim();
-            if (nip.Length >= 3)
-            {
-                timerSzukajNIP.Start();
-            }
-            else if (textBoxNazwa.Text.Length < 3 && textBoxNIP.Text.Length < 3)
+            else
             {
                 UkryjWyniki();
             }
@@ -637,12 +580,6 @@ namespace Kalendarz1
         {
             timerSzukaj.Stop();
             SzukajPodobnychKlientow();
-        }
-
-        private void TimerSzukajNIP_Tick(object sender, EventArgs e)
-        {
-            timerSzukajNIP.Stop();
-            SzukajPoNIP();
         }
 
         private void UkryjWyniki()
@@ -663,7 +600,7 @@ namespace Kalendarz1
 
             if (maWyniki)
             {
-                lblPodobniKlienci.Text = $"Znaleziono {count} dopasowań:";
+                lblPodobniKlienci.Text = $"Znaleziono {count} podobnych klientów:";
             }
         }
 
@@ -681,7 +618,7 @@ namespace Kalendarz1
                     conn.Open();
 
                     var cmd = new SqlCommand(@"
-                        SELECT TOP 30 ID, Nazwa, NIP, MIASTO, Status
+                        SELECT TOP 50 ID, Nazwa, MIASTO, Status
                         FROM OdbiorcyCRM
                         WHERE Nazwa LIKE '%' + @szukany + '%'
                         ORDER BY
@@ -699,68 +636,14 @@ namespace Kalendarz1
                         {
                             int id = reader.GetInt32(0);
                             string nazwa = reader.IsDBNull(1) ? "" : reader.GetString(1);
-                            string nip = reader.IsDBNull(2) ? "" : reader.GetString(2);
-                            string miasto = reader.IsDBNull(3) ? "" : reader.GetString(3);
-                            string status = reader.IsDBNull(4) ? "" : reader.GetString(4);
+                            string miasto = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                            string status = reader.IsDBNull(3) ? "" : reader.GetString(3);
 
                             string info = $"[{id}] {nazwa}";
-                            if (!string.IsNullOrEmpty(nip))
-                                info += $" | NIP: {nip}";
                             if (!string.IsNullOrEmpty(miasto))
-                                info += $" | {miasto}";
+                                info += $"  -  {miasto}";
                             if (!string.IsNullOrEmpty(status))
-                                info += $" ({status})";
-
-                            listBoxPodobni.Items.Add(info);
-                        }
-                    }
-                }
-
-                PokazWyniki(listBoxPodobni.Items.Count);
-            }
-            catch { }
-        }
-
-        private void SzukajPoNIP()
-        {
-            string nip = textBoxSzukajNIP.Text.Replace("-", "").Replace(" ", "").Trim();
-            if (string.IsNullOrEmpty(nip))
-                nip = textBoxNIP.Text.Replace("-", "").Replace(" ", "").Trim();
-
-            if (nip.Length < 3) return;
-
-            listBoxPodobni.Items.Clear();
-
-            try
-            {
-                using (var conn = new SqlConnection(connectionString))
-                {
-                    conn.Open();
-
-                    var cmd = new SqlCommand(@"
-                        SELECT TOP 30 ID, Nazwa, NIP, MIASTO, Status
-                        FROM OdbiorcyCRM
-                        WHERE REPLACE(REPLACE(NIP, '-', ''), ' ', '') LIKE '%' + @nip + '%'
-                        ORDER BY Nazwa", conn);
-                    cmd.Parameters.AddWithValue("@nip", nip);
-
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            int id = reader.GetInt32(0);
-                            string nazwa = reader.IsDBNull(1) ? "" : reader.GetString(1);
-                            string nipDb = reader.IsDBNull(2) ? "" : reader.GetString(2);
-                            string miasto = reader.IsDBNull(3) ? "" : reader.GetString(3);
-                            string status = reader.IsDBNull(4) ? "" : reader.GetString(4);
-
-                            string info = $"[{id}] {nazwa}";
-                            if (!string.IsNullOrEmpty(nipDb))
-                                info += $" | NIP: {nipDb}";
-                            if (!string.IsNullOrEmpty(miasto))
-                                info += $" | {miasto}";
-                            if (!string.IsNullOrEmpty(status))
-                                info += $" ({status})";
+                                info += $"  ({status})";
 
                             listBoxPodobni.Items.Add(info);
                         }
