@@ -4,44 +4,41 @@
         Title="Dashboard Motywacyjny - Aktywność Zespołu"
         Width="1500" Height="950"
         WindowStartupLocation="CenterScreen"
-        Background="#F8FAFC"
+        Background="#0F172A"
         FontFamily="Segoe UI">
 
     <Window.Resources>
-        <SolidColorBrush x:Key="PrimaryColor" Color="#16A34A"/>
+        <SolidColorBrush x:Key="PrimaryColor" Color="#10B981"/>
         <SolidColorBrush x:Key="PhoneColor" Color="#3B82F6"/>
         <SolidColorBrush x:Key="StatusColor" Color="#8B5CF6"/>
         <SolidColorBrush x:Key="NoteColor" Color="#F59E0B"/>
-        <SolidColorBrush x:Key="TextDark" Color="#1E293B"/>
-        <SolidColorBrush x:Key="TextGray" Color="#64748B"/>
-        <SolidColorBrush x:Key="BorderColor" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="TextLight" Color="#F1F5F9"/>
+        <SolidColorBrush x:Key="TextDark" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="TextGray" Color="#94A3B8"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#334155"/>
+        <SolidColorBrush x:Key="CardBackground" Color="#1E293B"/>
 
         <Style x:Key="CardStyle" TargetType="Border">
-            <Setter Property="Background" Value="White"/>
+            <Setter Property="Background" Value="#1E293B"/>
             <Setter Property="CornerRadius" Value="16"/>
             <Setter Property="Padding" Value="20"/>
-            <Setter Property="Effect">
-                <Setter.Value>
-                    <DropShadowEffect Color="#000000" Opacity="0.06" BlurRadius="24" ShadowDepth="4" Direction="270"/>
-                </Setter.Value>
-            </Setter>
+            <Setter Property="BorderBrush" Value="#334155"/>
+            <Setter Property="BorderThickness" Value="1"/>
         </Style>
 
         <Style x:Key="StatBadge" TargetType="Border">
+            <Setter Property="Background" Value="#1E293B"/>
             <Setter Property="CornerRadius" Value="16"/>
             <Setter Property="Padding" Value="20,16"/>
             <Setter Property="Margin" Value="0,0,16,0"/>
-            <Setter Property="Effect">
-                <Setter.Value>
-                    <DropShadowEffect Color="#000000" Opacity="0.04" BlurRadius="12" ShadowDepth="2" Direction="270"/>
-                </Setter.Value>
-            </Setter>
+            <Setter Property="BorderBrush" Value="#334155"/>
+            <Setter Property="BorderThickness" Value="1"/>
         </Style>
 
         <Style x:Key="GlowText" TargetType="TextBlock">
             <Setter Property="Effect">
                 <Setter.Value>
-                    <DropShadowEffect Color="#16A34A" Opacity="0.3" BlurRadius="8" ShadowDepth="0"/>
+                    <DropShadowEffect Color="#10B981" Opacity="0.5" BlurRadius="12" ShadowDepth="0"/>
                 </Setter.Value>
             </Setter>
         </Style>
@@ -58,9 +55,9 @@
             <Border CornerRadius="20" Padding="28,20">
                 <Border.Background>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Color="#16A34A" Offset="0"/>
-                        <GradientStop Color="#059669" Offset="0.5"/>
-                        <GradientStop Color="#0D9488" Offset="1"/>
+                        <GradientStop Color="#065F46" Offset="0"/>
+                        <GradientStop Color="#047857" Offset="0.5"/>
+                        <GradientStop Color="#0F766E" Offset="1"/>
                     </LinearGradientBrush>
                 </Border.Background>
                 <Grid>
@@ -73,12 +70,12 @@
                         <TextBlock Text="🏆" FontSize="42" VerticalAlignment="Center" Margin="0,0,16,0"/>
                         <StackPanel>
                             <TextBlock Text="DASHBOARD MOTYWACYJNY" FontSize="28" FontWeight="Bold" Foreground="White" Style="{StaticResource GlowText}"/>
-                            <TextBlock x:Name="txtPodtytul" Text="Razem osiągamy więcej! Śledź postępy zespołu." FontSize="14" Foreground="#DCFCE7" Margin="0,4,0,0"/>
+                            <TextBlock x:Name="txtPodtytul" Text="Razem osiągamy więcej! Śledź postępy zespołu." FontSize="14" Foreground="#A7F3D0" Margin="0,4,0,0"/>
                         </StackPanel>
                     </StackPanel>
 
                     <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                        <Border Background="White" CornerRadius="12" Padding="4">
+                        <Border Background="#1E293B" CornerRadius="12" Padding="4">
                             <ComboBox x:Name="cmbOkres" Width="160" Padding="12,10" FontSize="13" BorderThickness="0" SelectionChanged="CmbOkres_SelectionChanged">
                                 <ComboBoxItem Content="📅 Dzisiaj" IsSelected="True"/>
                                 <ComboBoxItem Content="📅 Ostatnie 7 dni"/>
@@ -88,8 +85,8 @@
                                 <ComboBoxItem Content="📅 Poprzedni miesiąc"/>
                             </ComboBox>
                         </Border>
-                        <Button Content="🔄 Odśwież" Padding="18,12" Margin="12,0,0,0" Background="White"
-                                Foreground="#16A34A" FontWeight="Bold" BorderThickness="0" Cursor="Hand" Click="BtnOdswiez_Click" FontSize="13">
+                        <Button Content="🔄 Odśwież" Padding="18,12" Margin="12,0,0,0" Background="#10B981"
+                                Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand" Click="BtnOdswiez_Click" FontSize="13">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
                                     <Border Background="{TemplateBinding Background}" CornerRadius="12">
@@ -102,14 +99,14 @@
 
                     <!-- Filtry zakresu wykresu -->
                     <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,16,0,0">
-                        <TextBlock Text="Wykres:" FontSize="13" Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <TextBlock Text="Wykres:" FontSize="13" Foreground="#A7F3D0" VerticalAlignment="Center" Margin="0,0,10,0"/>
 
-                        <Border Background="White" CornerRadius="8" Padding="4" Margin="0,0,8,0">
+                        <Border Background="#1E293B" CornerRadius="8" Padding="4" Margin="0,0,8,0">
                             <ComboBox x:Name="cmbRok" Width="80" Padding="8,6" FontSize="12" BorderThickness="0" SelectionChanged="CmbZakres_SelectionChanged"/>
                         </Border>
 
-                        <TextBlock Text="od:" FontSize="13" Foreground="White" VerticalAlignment="Center" Margin="8,0,8,0"/>
-                        <Border Background="White" CornerRadius="8" Padding="4">
+                        <TextBlock Text="od:" FontSize="13" Foreground="#A7F3D0" VerticalAlignment="Center" Margin="8,0,8,0"/>
+                        <Border Background="#1E293B" CornerRadius="8" Padding="4">
                             <ComboBox x:Name="cmbMiesiacOd" Width="100" Padding="8,6" FontSize="12" BorderThickness="0" SelectionChanged="CmbZakres_SelectionChanged">
                                 <ComboBoxItem Content="Styczeń" Tag="1"/>
                                 <ComboBoxItem Content="Luty" Tag="2"/>
@@ -126,8 +123,8 @@
                             </ComboBox>
                         </Border>
 
-                        <TextBlock Text="do:" FontSize="13" Foreground="White" VerticalAlignment="Center" Margin="8,0,8,0"/>
-                        <Border Background="White" CornerRadius="8" Padding="4">
+                        <TextBlock Text="do:" FontSize="13" Foreground="#A7F3D0" VerticalAlignment="Center" Margin="8,0,8,0"/>
+                        <Border Background="#1E293B" CornerRadius="8" Padding="4">
                             <ComboBox x:Name="cmbMiesiacDo" Width="100" Padding="8,6" FontSize="12" BorderThickness="0" SelectionChanged="CmbZakres_SelectionChanged">
                                 <ComboBoxItem Content="Styczeń" Tag="1"/>
                                 <ComboBoxItem Content="Luty" Tag="2"/>
@@ -144,16 +141,16 @@
                             </ComboBox>
                         </Border>
 
-                        <TextBlock Text="Handlowiec:" FontSize="13" Foreground="White" VerticalAlignment="Center" Margin="20,0,10,0"/>
-                        <Border Background="White" CornerRadius="8" Padding="4">
+                        <TextBlock Text="Handlowiec:" FontSize="13" Foreground="#A7F3D0" VerticalAlignment="Center" Margin="20,0,10,0"/>
+                        <Border Background="#1E293B" CornerRadius="8" Padding="4">
                             <ComboBox x:Name="cmbHandlowiec" Width="150" Padding="8,6" FontSize="12" BorderThickness="0" SelectionChanged="CmbHandlowiec_SelectionChanged">
                                 <ComboBoxItem Content="Wszyscy" Tag="" IsSelected="True"/>
                             </ComboBox>
                         </Border>
 
                         <StackPanel Orientation="Horizontal" Margin="20,0,0,0">
-                            <RadioButton x:Name="rbMiesiace" Content="Miesiące" Foreground="White" FontSize="12" VerticalAlignment="Center" IsChecked="True" GroupName="WidokWykresu" Checked="RbWidok_Checked"/>
-                            <RadioButton x:Name="rbTygodnie" Content="Tygodnie" Foreground="White" FontSize="12" VerticalAlignment="Center" Margin="16,0,0,0" GroupName="WidokWykresu" Checked="RbWidok_Checked"/>
+                            <RadioButton x:Name="rbMiesiace" Content="Miesiące" Foreground="#A7F3D0" FontSize="12" VerticalAlignment="Center" IsChecked="True" GroupName="WidokWykresu" Checked="RbWidok_Checked"/>
+                            <RadioButton x:Name="rbTygodnie" Content="Tygodnie" Foreground="#A7F3D0" FontSize="12" VerticalAlignment="Center" Margin="16,0,0,0" GroupName="WidokWykresu" Checked="RbWidok_Checked"/>
                         </StackPanel>
                     </StackPanel>
                 </Grid>
@@ -168,17 +165,17 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Style="{StaticResource StatBadge}" Background="White">
+            <Border Grid.Column="0" Style="{StaticResource StatBadge}">
                 <Grid>
-                    <Border Background="#DBEAFE" CornerRadius="50" Width="70" Height="70" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-5,-5,0,0" Opacity="0.5"/>
+                    <Border Background="#1E3A5F" CornerRadius="50" Width="70" Height="70" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-5,-5,0,0" Opacity="0.5"/>
                     <StackPanel Margin="10,0,0,0">
                         <StackPanel Orientation="Horizontal">
                             <Border Background="#3B82F6" CornerRadius="12" Width="48" Height="48" Margin="0,0,14,0">
                                 <TextBlock Text="📞" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                             <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="TELEFONY" FontSize="11" FontWeight="Bold" Foreground="#64748B"/>
-                                <TextBlock x:Name="txtTelefonyTotal" Text="0" FontSize="36" FontWeight="Bold" Foreground="#1E40AF" Margin="0,-4,0,0"/>
+                                <TextBlock Text="TELEFONY" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
+                                <TextBlock x:Name="txtTelefonyTotal" Text="0" FontSize="36" FontWeight="Bold" Foreground="#60A5FA" Margin="0,-4,0,0"/>
                             </StackPanel>
                         </StackPanel>
                         <TextBlock x:Name="txtTelefonyInfo" Text="wykonanych połączeń" FontSize="12" Foreground="#3B82F6" Margin="0,8,0,0"/>
@@ -186,17 +183,17 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Column="1" Style="{StaticResource StatBadge}" Background="White">
+            <Border Grid.Column="1" Style="{StaticResource StatBadge}">
                 <Grid>
-                    <Border Background="#EDE9FE" CornerRadius="50" Width="70" Height="70" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-5,-5,0,0" Opacity="0.5"/>
+                    <Border Background="#2E1065" CornerRadius="50" Width="70" Height="70" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-5,-5,0,0" Opacity="0.5"/>
                     <StackPanel Margin="10,0,0,0">
                         <StackPanel Orientation="Horizontal">
                             <Border Background="#8B5CF6" CornerRadius="12" Width="48" Height="48" Margin="0,0,14,0">
                                 <TextBlock Text="🔄" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                             <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="STATUSY" FontSize="11" FontWeight="Bold" Foreground="#64748B"/>
-                                <TextBlock x:Name="txtStatusyTotal" Text="0" FontSize="36" FontWeight="Bold" Foreground="#5B21B6" Margin="0,-4,0,0"/>
+                                <TextBlock Text="STATUSY" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
+                                <TextBlock x:Name="txtStatusyTotal" Text="0" FontSize="36" FontWeight="Bold" Foreground="#A78BFA" Margin="0,-4,0,0"/>
                             </StackPanel>
                         </StackPanel>
                         <TextBlock x:Name="txtStatusyInfo" Text="zmian statusów" FontSize="12" Foreground="#8B5CF6" Margin="0,8,0,0"/>
@@ -204,17 +201,17 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Column="2" Style="{StaticResource StatBadge}" Background="White">
+            <Border Grid.Column="2" Style="{StaticResource StatBadge}">
                 <Grid>
-                    <Border Background="#FEF3C7" CornerRadius="50" Width="70" Height="70" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-5,-5,0,0" Opacity="0.5"/>
+                    <Border Background="#451A03" CornerRadius="50" Width="70" Height="70" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-5,-5,0,0" Opacity="0.5"/>
                     <StackPanel Margin="10,0,0,0">
                         <StackPanel Orientation="Horizontal">
                             <Border Background="#F59E0B" CornerRadius="12" Width="48" Height="48" Margin="0,0,14,0">
                                 <TextBlock Text="📝" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                             <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="NOTATKI" FontSize="11" FontWeight="Bold" Foreground="#64748B"/>
-                                <TextBlock x:Name="txtNotatkiTotal" Text="0" FontSize="36" FontWeight="Bold" Foreground="#B45309" Margin="0,-4,0,0"/>
+                                <TextBlock Text="NOTATKI" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
+                                <TextBlock x:Name="txtNotatkiTotal" Text="0" FontSize="36" FontWeight="Bold" Foreground="#FBBF24" Margin="0,-4,0,0"/>
                             </StackPanel>
                         </StackPanel>
                         <TextBlock x:Name="txtNotatkiInfo" Text="dodanych notatek" FontSize="12" Foreground="#F59E0B" Margin="0,8,0,0"/>
@@ -225,22 +222,22 @@
             <Border Grid.Column="3" Style="{StaticResource StatBadge}" Margin="0">
                 <Border.Background>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Color="#DCFCE7" Offset="0"/>
-                        <GradientStop Color="#BBF7D0" Offset="1"/>
+                        <GradientStop Color="#064E3B" Offset="0"/>
+                        <GradientStop Color="#065F46" Offset="1"/>
                     </LinearGradientBrush>
                 </Border.Background>
                 <Grid>
                     <StackPanel Margin="10,0,0,0">
                         <StackPanel Orientation="Horizontal">
-                            <Border Background="#16A34A" CornerRadius="12" Width="48" Height="48" Margin="0,0,14,0">
+                            <Border Background="#10B981" CornerRadius="12" Width="48" Height="48" Margin="0,0,14,0">
                                 <TextBlock Text="⚡" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                             <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="RAZEM" FontSize="11" FontWeight="Bold" Foreground="#166534"/>
-                                <TextBlock x:Name="txtAktywnoscTotal" Text="0" FontSize="36" FontWeight="Bold" Foreground="#166534" Margin="0,-4,0,0"/>
+                                <TextBlock Text="RAZEM" FontSize="11" FontWeight="Bold" Foreground="#6EE7B7"/>
+                                <TextBlock x:Name="txtAktywnoscTotal" Text="0" FontSize="36" FontWeight="Bold" Foreground="#34D399" Margin="0,-4,0,0"/>
                             </StackPanel>
                         </StackPanel>
-                        <TextBlock x:Name="txtAktywnoscInfo" Text="wszystkich akcji" FontSize="12" Foreground="#16A34A" Margin="0,8,0,0" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="txtAktywnoscInfo" Text="wszystkich akcji" FontSize="12" Foreground="#10B981" Margin="0,8,0,0" FontWeight="SemiBold"/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -251,12 +248,8 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="380"/>
             </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="220"/>
-            </Grid.RowDefinitions>
 
-            <Border Grid.Column="0" Grid.Row="0" Style="{StaticResource CardStyle}" Margin="0,0,16,16">
+            <Border Grid.Column="0" Style="{StaticResource CardStyle}" Margin="0,0,16,0">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -266,7 +259,7 @@
 
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
                         <TextBlock Text="📈" FontSize="20" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                        <TextBlock Text="Trendy miesięczne" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextDark}"/>
+                        <TextBlock Text="Trendy miesięczne" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextLight}"/>
                         <TextBlock Text=" - aktywność zespołu w czasie" FontSize="14" Foreground="{StaticResource TextGray}" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
                     </StackPanel>
 
@@ -280,7 +273,7 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Column="1" Grid.Row="0" Grid.RowSpan="2" Style="{StaticResource CardStyle}">
+            <Border Grid.Column="1" Style="{StaticResource CardStyle}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -290,7 +283,7 @@
 
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
                         <TextBlock Text="🏅" FontSize="20" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                        <TextBlock Text="Ranking zespołu" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextDark}"/>
+                        <TextBlock Text="Ranking zespołu" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextLight}"/>
                     </StackPanel>
 
                     <Grid Grid.Row="1" Margin="0,0,0,20" Height="140">
@@ -301,21 +294,21 @@
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Grid.Column="0" VerticalAlignment="Bottom" HorizontalAlignment="Center">
-                            <TextBlock x:Name="txtTop2Nazwa" Text="-" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextDark}" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90"/>
-                            <TextBlock x:Name="txtTop2Punkty" Text="0" FontSize="16" FontWeight="Bold" Foreground="#64748B" HorizontalAlignment="Center"/>
-                            <Border Background="#E2E8F0" Height="60" Width="80" CornerRadius="8,8,0,0" Margin="0,4,0,0">
+                            <TextBlock x:Name="txtTop2Nazwa" Text="-" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextLight}" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90"/>
+                            <TextBlock x:Name="txtTop2Punkty" Text="0" FontSize="16" FontWeight="Bold" Foreground="#94A3B8" HorizontalAlignment="Center"/>
+                            <Border Background="#475569" Height="60" Width="80" CornerRadius="8,8,0,0" Margin="0,4,0,0">
                                 <TextBlock Text="🥈" FontSize="32" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                         </StackPanel>
 
                         <StackPanel Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Center">
-                            <TextBlock x:Name="txtTop1Nazwa" Text="-" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextDark}" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90"/>
-                            <TextBlock x:Name="txtTop1Punkty" Text="0" FontSize="18" FontWeight="Bold" Foreground="#16A34A" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="txtTop1Nazwa" Text="-" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextLight}" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90"/>
+                            <TextBlock x:Name="txtTop1Punkty" Text="0" FontSize="18" FontWeight="Bold" Foreground="#10B981" HorizontalAlignment="Center"/>
                             <Border Height="90" Width="90" CornerRadius="8,8,0,0" Margin="0,4,0,0">
                                 <Border.Background>
                                     <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                        <GradientStop Color="#FEF3C7" Offset="0"/>
-                                        <GradientStop Color="#FDE68A" Offset="1"/>
+                                        <GradientStop Color="#854D0E" Offset="0"/>
+                                        <GradientStop Color="#A16207" Offset="1"/>
                                     </LinearGradientBrush>
                                 </Border.Background>
                                 <TextBlock Text="🥇" FontSize="40" HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -323,9 +316,9 @@
                         </StackPanel>
 
                         <StackPanel Grid.Column="2" VerticalAlignment="Bottom" HorizontalAlignment="Center">
-                            <TextBlock x:Name="txtTop3Nazwa" Text="-" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextDark}" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90"/>
-                            <TextBlock x:Name="txtTop3Punkty" Text="0" FontSize="16" FontWeight="Bold" Foreground="#92400E" HorizontalAlignment="Center"/>
-                            <Border Background="#FFEDD5" Height="45" Width="80" CornerRadius="8,8,0,0" Margin="0,4,0,0">
+                            <TextBlock x:Name="txtTop3Nazwa" Text="-" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextLight}" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="90"/>
+                            <TextBlock x:Name="txtTop3Punkty" Text="0" FontSize="16" FontWeight="Bold" Foreground="#D97706" HorizontalAlignment="Center"/>
+                            <Border Background="#78350F" Height="45" Width="80" CornerRadius="8,8,0,0" Margin="0,4,0,0">
                                 <TextBlock Text="🥉" FontSize="28" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                         </StackPanel>
@@ -349,16 +342,16 @@
                                             </Border>
 
                                             <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding Nazwa}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextDark}" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding Nazwa}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextLight}" TextTrimming="CharacterEllipsis"/>
                                                 <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
-                                                    <Border Background="#DBEAFE" CornerRadius="4" Padding="5,1" Margin="0,0,4,0">
-                                                        <TextBlock Text="{Binding TelefonyTekst}" FontSize="9" Foreground="#1E40AF" FontWeight="SemiBold"/>
+                                                    <Border Background="#1E3A5F" CornerRadius="4" Padding="5,1" Margin="0,0,4,0">
+                                                        <TextBlock Text="{Binding TelefonyTekst}" FontSize="9" Foreground="#60A5FA" FontWeight="SemiBold"/>
                                                     </Border>
-                                                    <Border Background="#EDE9FE" CornerRadius="4" Padding="5,1" Margin="0,0,4,0">
-                                                        <TextBlock Text="{Binding StatusyTekst}" FontSize="9" Foreground="#5B21B6" FontWeight="SemiBold"/>
+                                                    <Border Background="#2E1065" CornerRadius="4" Padding="5,1" Margin="0,0,4,0">
+                                                        <TextBlock Text="{Binding StatusyTekst}" FontSize="9" Foreground="#A78BFA" FontWeight="SemiBold"/>
                                                     </Border>
-                                                    <Border Background="#FEF3C7" CornerRadius="4" Padding="5,1">
-                                                        <TextBlock Text="{Binding NotatkiTekst}" FontSize="9" Foreground="#B45309" FontWeight="SemiBold"/>
+                                                    <Border Background="#451A03" CornerRadius="4" Padding="5,1">
+                                                        <TextBlock Text="{Binding NotatkiTekst}" FontSize="9" Foreground="#FBBF24" FontWeight="SemiBold"/>
                                                     </Border>
                                                 </StackPanel>
                                             </StackPanel>
@@ -373,63 +366,6 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
-                </Grid>
-            </Border>
-
-            <Border Grid.Column="0" Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,16,0">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
-                        <TextBlock Text="📊" FontSize="18" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                        <TextBlock Text="Aktywność ostatnich dni" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextDark}"/>
-                    </StackPanel>
-
-                    <ItemsControl Grid.Row="1" x:Name="listaAktywnoscDni">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <UniformGrid Rows="1"/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Background="{Binding TloKarty}" CornerRadius="12" Padding="12,10" Margin="4,0">
-                                    <StackPanel HorizontalAlignment="Center">
-                                        <TextBlock Text="{Binding DzienSkrot}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextGray}" HorizontalAlignment="Center"/>
-                                        <TextBlock Text="{Binding Data}" FontSize="10" Foreground="{StaticResource TextGray}" HorizontalAlignment="Center" Margin="0,2,0,8"/>
-
-                                        <Grid Height="80" Width="50">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Border Grid.Column="0" Background="#3B82F6" CornerRadius="3,3,0,0" Height="{Binding WysokoscTelefony}" VerticalAlignment="Bottom" Margin="1,0">
-                                                <Border.ToolTip>
-                                                    <TextBlock Text="{Binding TooltipTelefony}"/>
-                                                </Border.ToolTip>
-                                            </Border>
-                                            <Border Grid.Column="1" Background="#8B5CF6" CornerRadius="3,3,0,0" Height="{Binding WysokoscStatusy}" VerticalAlignment="Bottom" Margin="1,0">
-                                                <Border.ToolTip>
-                                                    <TextBlock Text="{Binding TooltipStatusy}"/>
-                                                </Border.ToolTip>
-                                            </Border>
-                                            <Border Grid.Column="2" Background="#F59E0B" CornerRadius="3,3,0,0" Height="{Binding WysokoscNotatki}" VerticalAlignment="Bottom" Margin="1,0">
-                                                <Border.ToolTip>
-                                                    <TextBlock Text="{Binding TooltipNotatki}"/>
-                                                </Border.ToolTip>
-                                            </Border>
-                                        </Grid>
-
-                                        <TextBlock Text="{Binding Suma}" FontSize="14" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}" HorizontalAlignment="Center" Margin="0,6,0,0"/>
-                                    </StackPanel>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
                 </Grid>
             </Border>
         </Grid>
