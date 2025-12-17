@@ -511,9 +511,9 @@ namespace Kalendarz1
 
                         var cmdOdbiorca = new SqlCommand(@"
                             INSERT INTO OdbiorcyCRM
-                            (ID, Nazwa, KOD, MIASTO, Ulica, Telefon_K, Email, OsobaKontaktowa, Wojewodztwo, Powiat, PKD_Opis, Status)
+                            (ID, Nazwa, KOD, MIASTO, Ulica, Telefon_K, Email, Wojewodztwo, PKD_Opis, Status)
                             VALUES
-                            (@id, @nazwa, @kod, @miasto, @ulica, @tel, @email, @osoba, @woj, @pow, @pkd, 'Do zadzwonienia')",
+                            (@id, @nazwa, @kod, @miasto, @ulica, @tel, @email, @woj, @pkd, 'Do zadzwonienia')",
                             conn, transaction);
 
                         cmdOdbiorca.Parameters.AddWithValue("@id", nowyID);
@@ -523,9 +523,7 @@ namespace Kalendarz1
                         cmdOdbiorca.Parameters.AddWithValue("@ulica", textBoxUlica.Text.Trim());
                         cmdOdbiorca.Parameters.AddWithValue("@tel", textBoxTelefon.Text.Trim());
                         cmdOdbiorca.Parameters.AddWithValue("@email", textBoxEmail.Text.Trim());
-                        cmdOdbiorca.Parameters.AddWithValue("@osoba", textBoxOsobaKontaktowa.Text.Trim());
                         cmdOdbiorca.Parameters.AddWithValue("@woj", comboBoxWoj.Text ?? "");
-                        cmdOdbiorca.Parameters.AddWithValue("@pow", textBoxPowiat.Text.Trim());
                         cmdOdbiorca.Parameters.AddWithValue("@pkd", comboBoxPKD.Text.Trim());
 
                         cmdOdbiorca.ExecuteNonQuery();
