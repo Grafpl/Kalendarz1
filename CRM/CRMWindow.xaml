@@ -340,7 +340,7 @@
 
                         <DataGrid.RowStyle>
                             <Style TargetType="DataGridRow">
-                                <Setter Property="Height" Value="48"/>
+                                <Setter Property="Height" Value="60"/>
                                 <Setter Property="FontSize" Value="14"/>
                                 <Style.Triggers>
                                     <Trigger Property="IsSelected" Value="True">
@@ -479,7 +479,7 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTextColumn Header="Miasto" Binding="{Binding MIASTO}" Width="100" Foreground="{StaticResource TextGray}">
+                            <DataGridTextColumn Header="Miasto" Binding="{Binding MIASTO}" Width="100" Foreground="{StaticResource TextDark}">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="VerticalAlignment" Value="Center"/>
@@ -490,7 +490,7 @@
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
-                            <DataGridTextColumn Header="Woj." Binding="{Binding Wojewodztwo}" Width="90" Foreground="{StaticResource TextGray}">
+                            <DataGridTextColumn Header="Woj." Binding="{Binding Wojewodztwo}" Width="90" Foreground="{StaticResource TextDark}">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="VerticalAlignment" Value="Center"/>
@@ -504,7 +504,7 @@
                             <DataGridTemplateColumn Header="Branża" Width="140">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding PKD_Opis}" FontSize="10" Foreground="#6B7280"
+                                        <TextBlock Text="{Binding PKD_Opis}" FontSize="10" Foreground="{StaticResource TextDark}"
                                                    TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                    ToolTip="{Binding PKD_Opis}"/>
                                     </DataTemplate>
