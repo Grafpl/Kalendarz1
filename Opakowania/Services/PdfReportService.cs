@@ -208,8 +208,8 @@ namespace Kalendarz1.Opakowania.Services
                 Document doc = new Document(PageSize.A4, 50, 50, 50, 50);
                 PdfWriter writer = PdfWriter.GetInstance(doc, fs);
 
-                // Dodaj stopkę z notatką na każdej stronie
-                writer.PageEvent = new PdfFooterWithNote(_baseFont, "- wydanie do odbiorcy, + przyjęcie na ubojnię");
+                // Dodaj stopkę z numerem strony i notatką (notatka tylko na stronach z tabelą)
+                writer.PageEvent = new PdfFooterWithNote(_baseFont, "- wydanie do odbiorcy, + przyjęcie na ubojnię", skipFirstPage: true);
 
                 doc.Open();
 
@@ -351,16 +351,6 @@ namespace Kalendarz1.Opakowania.Services
                 {
                     doc.NewPage();
 
-                    // Notka na górze tabeli (dodatkowo do stopki)
-                    var noteTop = new Paragraph(
-                        "- wydanie do odbiorcy, + przyjęcie na ubojnię",
-                        _fontSmall)
-                    {
-                        Alignment = Element.ALIGN_RIGHT,
-                        SpacingAfter = 15
-                    };
-                    doc.Add(noteTop);
-
                     // Tabela szczegółowa
                     PdfPTable detailTable = new PdfPTable(8);
                     detailTable.WidthPercentage = 100;
@@ -419,20 +409,7 @@ namespace Kalendarz1.Opakowania.Services
                         AddDetailCell(detailTable, saldoKoncowe.DREW.ToString(), true);
                     }
 
-                    // 2. DRUGI WIERSZ - Saldo początkowe (na datę OD)
-                    if (saldoPoczatkowe != null)
-                    {
-                        AddDetailCell(detailTable, dataOd.ToString("yyyy-MM-dd"), true);
-                        AddDetailCell(detailTable, "", true);
-                        AddDetailCell(detailTable, "Saldo na", true);
-                        AddDetailCell(detailTable, saldoPoczatkowe.E2.ToString(), true);
-                        AddDetailCell(detailTable, saldoPoczatkowe.H1.ToString(), true);
-                        AddDetailCell(detailTable, saldoPoczatkowe.EURO.ToString(), true);
-                        AddDetailCell(detailTable, saldoPoczatkowe.PCV.ToString(), true);
-                        AddDetailCell(detailTable, saldoPoczatkowe.DREW.ToString(), true);
-                    }
-
-                    // 3. Dokumenty - od najnowszego do najstarszego
+                    // 2. Dokumenty - od najnowszego do najstarszego
                     foreach (var dok in dokumentyPosortowane)
                     {
                         AddDetailCell(detailTable, dok.Data?.ToString("yyyy-MM-dd") ?? "");
@@ -443,6 +420,19 @@ namespace Kalendarz1.Opakowania.Services
                         AddDetailCell(detailTable, dok.EURO.ToString());
                         AddDetailCell(detailTable, dok.PCV.ToString());
                         AddDetailCell(detailTable, dok.DREW.ToString());
+                    }
+
+                    // 3. OSTATNI WIERSZ - Saldo początkowe (na datę OD)
+                    if (saldoPoczatkowe != null)
+                    {
+                        AddDetailCell(detailTable, dataOd.ToString("yyyy-MM-dd"), true);
+                        AddDetailCell(detailTable, "", true);
+                        AddDetailCell(detailTable, "Saldo na", true);
+                        AddDetailCell(detailTable, saldoPoczatkowe.E2.ToString(), true);
+                        AddDetailCell(detailTable, saldoPoczatkowe.H1.ToString(), true);
+                        AddDetailCell(detailTable, saldoPoczatkowe.EURO.ToString(), true);
+                        AddDetailCell(detailTable, saldoPoczatkowe.PCV.ToString(), true);
+                        AddDetailCell(detailTable, saldoPoczatkowe.DREW.ToString(), true);
                     }
 
                     detailTable.HeaderRows = 1;
@@ -506,11 +496,13 @@ namespace Kalendarz1.Opakowania.Services
     {
         private readonly BaseFont _baseFont;
         private readonly string _noteText;
+        private readonly bool _skipFirstPage;
 
-        public PdfFooterWithNote(BaseFont baseFont = null, string noteText = null)
+        public PdfFooterWithNote(BaseFont baseFont = null, string noteText = null, bool skipFirstPage = false)
         {
             _baseFont = baseFont;
             _noteText = noteText;
+            _skipFirstPage = skipFirstPage;
         }
 
         public override void OnEndPage(PdfWriter writer, Document document)
@@ -526,8 +518,8 @@ namespace Kalendarz1.Opakowania.Services
                 document.PageSize.Width / 2, document.PageSize.GetBottom(20), 0);
             cb.EndText();
 
-            // Notatka na górze każdej strony (po prawej)
-            if (!string.IsNullOrEmpty(_noteText))
+            // Notatka na górze strony (po prawej) - pomijaj pierwszą stronę jeśli skipFirstPage=true
+            if (!string.IsNullOrEmpty(_noteText) && (!_skipFirstPage || writer.PageNumber > 1))
             {
                 cb.BeginText();
                 cb.SetFontAndSize(bf, 10);
