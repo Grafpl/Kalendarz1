@@ -20,9 +20,6 @@ namespace Kalendarz1.CRM
         private bool isLoaded = false;
         private string wybranyHandlowiec = "";
 
-        // DataGrid nie jest używany w obecnym widoku dashboardu
-        private readonly DataGrid tabelaDane = null;
-
         // Kolory - maksymalnie zróżnicowane
         private readonly string[] koloryHandlowcow = new[]
         {
@@ -304,11 +301,10 @@ namespace Kalendarz1.CRM
                 int m = hd.Max();
                 if (m > maxVal) maxVal = m;
             }
-            // Lepsze zaokrąglanie dla osi Y
-            int[] ladneWartosci = { 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000 };
-            int docelowy = (int)(maxVal * 1.1);
-            maxVal = ladneWartosci.FirstOrDefault(v => v >= docelowy);
-            if (maxVal == 0) maxVal = (int)(Math.Ceiling(docelowy / 10.0) * 10);
+            // Skalowanie osi Y do rzeczywistych danych (minimalna przestrzeń nad maksymalną wartością)
+            int rzeczywistyMax = maxVal;
+            int krok = rzeczywistyMax <= 10 ? 1 : rzeczywistyMax <= 50 ? 5 : rzeczywistyMax <= 100 ? 10 : rzeczywistyMax <= 500 ? 25 : 50;
+            maxVal = (int)(Math.Ceiling((rzeczywistyMax + krok * 0.5) / (double)krok) * krok);
             if (maxVal < 5) maxVal = 5;
 
             // Oś Y z wartościami
