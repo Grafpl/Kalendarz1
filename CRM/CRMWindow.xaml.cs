@@ -573,11 +573,6 @@ namespace Kalendarz1.CRM
             chipZalegle.BorderThickness = new Thickness(0);
         }
 
-        private void FabButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button btn) btn.ContextMenu.IsOpen = true;
-        }
-
         private void BtnKlientZadzwon_Click(object sender, RoutedEventArgs e)
         {
             if (txtHeaderTelefon == null) return;

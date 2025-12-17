@@ -302,9 +302,8 @@
                         <TextBlock x:Name="txtLiczbaWynikow" Grid.Column="2" Text="0 klientów" HorizontalAlignment="Right" FontSize="12" Foreground="{StaticResource TextGray}" VerticalAlignment="Center"/>
                     </Grid>
 
-                    <DataGrid x:Name="dgKontakty" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True" 
-                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                              HorizontalGridLinesBrush="#F3F4F6" VerticalGridLinesBrush="Transparent"
+                    <DataGrid x:Name="dgKontakty" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column" GridLinesVisibility="None"
                               BorderThickness="0" Background="White" RowHeaderWidth="0"
                               SelectionMode="Single" SelectionUnit="FullRow"
                               SelectionChanged="DgKontakty_SelectionChanged"
@@ -327,8 +326,21 @@
                             <Style TargetType="DataGridCell">
                                 <Setter Property="TextBlock.TextAlignment" Value="Center"/>
                                 <Setter Property="TextBlock.TextWrapping" Value="Wrap"/>
-                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="VerticalAlignment" Value="Stretch"/>
+                                <Setter Property="VerticalContentAlignment" Value="Center"/>
                                 <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextDark}"/>
+                                <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="DataGridCell">
+                                            <Border Background="{TemplateBinding Background}" BorderThickness="0" Padding="8,4">
+                                                <ContentPresenter VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
                                 <Style.Triggers>
                                     <Trigger Property="IsSelected" Value="True">
                                         <Setter Property="Background" Value="Transparent"/>
@@ -342,10 +354,16 @@
                             <Style TargetType="DataGridRow">
                                 <Setter Property="Height" Value="60"/>
                                 <Setter Property="FontSize" Value="14"/>
+                                <Setter Property="Background" Value="White"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextDark}"/>
+                                <Setter Property="BorderThickness" Value="0"/>
                                 <Style.Triggers>
                                     <Trigger Property="IsSelected" Value="True">
                                         <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
                                         <Setter Property="Foreground" Value="White"/>
+                                    </Trigger>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#F0FDF4"/>
                                     </Trigger>
                                     <DataTrigger Binding="{Binding CzyZaniedbany}" Value="True">
                                         <DataTrigger.EnterActions>
@@ -602,8 +620,8 @@
 
                         <Border Style="{StaticResource CardStyle}" Padding="12,10" Margin="0,0,0,10">
                             <StackPanel>
-                                <TextBlock Text="NOTATKI / HISTORIA" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextGray}" Margin="0,0,0,8"/>
-                                <Border Background="#F9FAFB" CornerRadius="6" Height="180" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" Padding="4">
+                                <TextBlock Text="NOTATKI / HISTORIA" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextGray}" Margin="0,0,0,10"/>
+                                <Border Background="#F9FAFB" CornerRadius="6" Height="320" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" Padding="4">
                                     <ScrollViewer>
                                         <ItemsControl x:Name="listaNotatek">
                                             <ItemsControl.ItemTemplate>
@@ -777,41 +795,6 @@
             </StackPanel>
         </Border>
 
-        <!-- Floating Action Button - GRADIENT -->
-        <Button x:Name="fabButton" Grid.Row="2"
-                Width="56" Height="56"
-                VerticalAlignment="Bottom" HorizontalAlignment="Right"
-                Margin="0,0,30,30"
-                Click="FabButton_Click"
-                Cursor="Hand">
-            <Button.Template>
-                <ControlTemplate TargetType="Button">
-                    <Grid>
-                        <Ellipse x:Name="ellipse" Fill="#16A34A">
-                            <Ellipse.Effect>
-                                <DropShadowEffect Color="Black" Opacity="0.3" BlurRadius="15" ShadowDepth="3"/>
-                            </Ellipse.Effect>
-                        </Ellipse>
-                        <TextBlock Text="+" FontSize="28" FontWeight="Light" Foreground="White"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/>
-                    </Grid>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="Opacity" Value="0.9"/>
-                        </Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Button.Template>
-            <Button.ContextMenu>
-                <ContextMenu>
-                    <MenuItem Header="📞 Nowy kontakt" Click="BtnDodaj_Click"/>
-                    <MenuItem Header="🗺️ Mapa" Click="BtnMapa_Click"/>
-                    <MenuItem Header="📊 Kanban" Click="BtnKanban_Click"/>
-                    <Separator/>
-                    <MenuItem Header="🔄 Odśwież" Click="BtnOdswiez_Click"/>
-                </ContextMenu>
-            </Button.ContextMenu>
-        </Button>
 
         <Border x:Name="loadingOverlay" Grid.RowSpan="3" Background="#95FFFFFF" Visibility="Collapsed">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
