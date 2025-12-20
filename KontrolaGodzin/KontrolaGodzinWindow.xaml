@@ -2,223 +2,436 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Kontrola Czasu Pracy - UNICARD" 
-        Height="900" Width="1500"
+        Height="900" Width="1400"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
-        Background="#F5F7FA"
+        Background="#1e1e2e"
         FontFamily="Segoe UI"
         Loaded="Window_Loaded">
 
-    <Grid Margin="12">
+    <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- NAGLOWEK -->
-        <Border Grid.Row="0" Background="#263238" CornerRadius="8" Padding="20,15" Margin="0,0,0,12">
+        <!-- NAGŁÓWEK -->
+        <Border Grid.Row="0" Background="#11111b" Padding="25,18">
             <Grid>
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="⏱️" FontSize="32" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="⏱" FontSize="28" Foreground="#cba6f7" VerticalAlignment="Center" Margin="0,0,15,0"/>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="KONTROLA CZASU PRACY" FontSize="22" FontWeight="Bold" Foreground="White"/>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="System UNICARD" FontSize="12" Foreground="#B0BEC5" Margin="0,3,0,0"/>
-                            <TextBlock Text=" | " FontSize="12" Foreground="#546E7A" Margin="0,3,0,0"/>
-                            <TextBlock x:Name="txtZakresDat" Text="Dane z: dziś" FontSize="12" Foreground="#4FC3F7" Margin="0,3,0,0" FontWeight="SemiBold"/>
-                        </StackPanel>
+                        <TextBlock Text="KONTROLA CZASU PRACY" FontSize="20" FontWeight="Bold" Foreground="#cdd6f4"/>
+                        <TextBlock x:Name="txtZakresDat" Text="System UNICARD • Zakres: dziś" FontSize="11" Foreground="#6c7086"/>
                     </StackPanel>
                 </StackPanel>
+                
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <TextBlock x:Name="txtAktualnaData" Text="" FontSize="12" Foreground="#B0BEC5" VerticalAlignment="Center" Margin="0,0,20,0"/>
-                    <TextBlock x:Name="txtAktualnaGodzina" Text="" FontSize="18" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                    <StackPanel Margin="0,0,25,0" HorizontalAlignment="Right">
+                        <TextBlock x:Name="txtAktualnaData" Text="" FontSize="11" Foreground="#6c7086" HorizontalAlignment="Right"/>
+                        <TextBlock x:Name="txtAktualnaGodzina" Text="" FontSize="26" Foreground="#cdd6f4" HorizontalAlignment="Right"/>
+                    </StackPanel>
+                    <Border Background="#a6e3a1" CornerRadius="15" Padding="15,8">
+                        <TextBlock x:Name="txtLiczbaObecnych" Text="0 obecnych" FontSize="13" Foreground="#1e1e2e" FontWeight="Bold"/>
+                    </Border>
                 </StackPanel>
             </Grid>
         </Border>
 
         <!-- FILTRY -->
-        <Border Grid.Row="1" Background="White" CornerRadius="8" Padding="15" Margin="0,0,0,12">
-            <Grid>
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Od:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <DatePicker x:Name="dpOd" Width="120" VerticalAlignment="Center"
-                                SelectedDateChanged="DpOd_SelectedDateChanged"/>
-
-                    <TextBlock Text="Do:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="20,0,8,0"/>
-                    <DatePicker x:Name="dpDo" Width="120" VerticalAlignment="Center"
-                                SelectedDateChanged="DpDo_SelectedDateChanged"/>
-
-                    <CheckBox x:Name="chkTylkoDzisiaj" Content="Tylko dziś" IsChecked="True" 
-                              VerticalAlignment="Center" Margin="20,0,0,0" FontWeight="SemiBold"
-                              Checked="ChkTylkoDzisiaj_Changed" Unchecked="ChkTylkoDzisiaj_Changed"/>
-
-                    <Button Content="Wczoraj" Padding="8,4" Margin="15,0,0,0" FontSize="11"
-                            Background="#ECEFF1" BorderThickness="0" Click="BtnWczoraj_Click"/>
-                    <Button Content="Tydzień" Padding="8,4" Margin="5,0,0,0" FontSize="11"
-                            Background="#ECEFF1" BorderThickness="0" Click="BtnTydzien_Click"/>
-                    <Button Content="Miesiąc" Padding="8,4" Margin="5,0,0,0" FontSize="11"
-                            Background="#ECEFF1" BorderThickness="0" Click="BtnMiesiac_Click"/>
-
-                    <TextBlock Text="Grupa:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="30,0,8,0"/>
-                    <ComboBox x:Name="cmbGrupa" Width="220" VerticalAlignment="Center"
-                              SelectionChanged="CmbGrupa_SelectionChanged"/>
-
-                    <TextBlock Text="Szukaj:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="20,0,8,0"/>
-                    <TextBox x:Name="txtSzukaj" Width="150" VerticalAlignment="Center" Padding="8,6"
-                             TextChanged="TxtSzukaj_TextChanged"/>
-                    <Button Content="✕" Padding="6,4" Margin="3,0,0,0" FontSize="10"
-                            Background="#FFCDD2" BorderThickness="0" Click="BtnWyczyscSzukaj_Click"
-                            ToolTip="Wyczyść filtr"/>
-                </StackPanel>
-
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button x:Name="btnOdswiez" Content="Odśwież" Padding="15,8" Margin="0,0,10,0"
-                            Background="#2196F3" Foreground="White" FontWeight="SemiBold"
-                            BorderThickness="0" Click="BtnOdswiez_Click"/>
-                    <Button x:Name="btnExport" Content="Export CSV" Padding="15,8"
-                            Background="#4CAF50" Foreground="White" FontWeight="SemiBold"
-                            BorderThickness="0" Click="BtnExport_Click"/>
-                </StackPanel>
-            </Grid>
+        <Border Grid.Row="1" Background="#181825" Padding="20,12">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Od:" Foreground="#cdd6f4" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <DatePicker x:Name="dpOd" Width="120" SelectedDateChanged="DpOd_SelectedDateChanged"/>
+                <TextBlock Text="Do:" Foreground="#cdd6f4" VerticalAlignment="Center" Margin="15,0,8,0"/>
+                <DatePicker x:Name="dpDo" Width="120" SelectedDateChanged="DpDo_SelectedDateChanged"/>
+                
+                <CheckBox x:Name="chkTylkoDzisiaj" Content="Tylko dziś" IsChecked="True" 
+                          Foreground="#cdd6f4" VerticalAlignment="Center" Margin="20,0,0,0"
+                          Checked="ChkTylkoDzisiaj_Changed" Unchecked="ChkTylkoDzisiaj_Changed"/>
+                
+                <Button Content="Wczoraj" Padding="12,6" Margin="15,0,5,0" Click="BtnWczoraj_Click"/>
+                <Button Content="Tydzień" Padding="12,6" Margin="0,0,5,0" Click="BtnTydzien_Click"/>
+                <Button Content="Miesiąc" Padding="12,6" Click="BtnMiesiac_Click"/>
+                
+                <TextBlock Text="Dział:" Foreground="#cdd6f4" VerticalAlignment="Center" Margin="20,0,8,0"/>
+                <ComboBox x:Name="cmbGrupa" Width="200" SelectionChanged="CmbGrupa_SelectionChanged"/>
+                
+                <TextBlock Text="Szukaj:" Foreground="#cdd6f4" VerticalAlignment="Center" Margin="20,0,8,0"/>
+                <TextBox x:Name="txtSzukaj" Width="150" TextChanged="TxtSzukaj_TextChanged"/>
+                <Button Content="✕" Padding="8,6" Margin="5,0,0,0" Click="BtnWyczyscSzukaj_Click"/>
+                
+                <Button x:Name="btnOdswiez" Content="⟳ Odśwież" Padding="15,6" Margin="20,0,0,0" 
+                        Background="#89b4fa" Foreground="#1e1e2e" FontWeight="Bold" Click="BtnOdswiez_Click"/>
+                <Button x:Name="btnExport" Content="📥 Export" Padding="15,6" Margin="10,0,0,0"
+                        Background="#a6e3a1" Foreground="#1e1e2e" FontWeight="Bold" Click="BtnExport_Click"/>
+            </StackPanel>
         </Border>
 
-        <!-- STATYSTYKI -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,12">
-            <Border Background="White" CornerRadius="8" Padding="15" Margin="0,0,12,0" Width="160">
-                <StackPanel>
-                    <TextBlock Text="Rejestracji" FontSize="11" Foreground="#78909C"/>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock x:Name="txtStatRejestracje" Text="0" FontSize="24" FontWeight="Bold" Foreground="#2196F3"/>
-                        <TextBlock x:Name="txtStatRejestracjeFiltr" Text="" FontSize="12" Foreground="#90A4AE" VerticalAlignment="Bottom" Margin="5,0,0,3"/>
+        <!-- ZAKŁADKI -->
+        <TabControl x:Name="tabControl" Grid.Row="2" Margin="15" Background="#1e1e2e" BorderThickness="0">
+            
+            <!-- REJESTRACJE -->
+            <TabItem Header="📋 Rejestracje">
+                <DataGrid x:Name="gridRejestracje" Margin="10" AutoGenerateColumns="False" 
+                          IsReadOnly="True" CanUserAddRows="False" Background="#1e1e2e"
+                          RowBackground="#1e1e2e" AlternatingRowBackground="#181825"
+                          GridLinesVisibility="None" BorderThickness="0"
+                          MouseDoubleClick="GridRejestracje_MouseDoubleClick">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Data" Binding="{Binding DataCzas, StringFormat=dd.MM.yyyy}" Width="90"/>
+                        <DataGridTextColumn Header="Godzina" Binding="{Binding Godzina}" Width="80"/>
+                        <DataGridTextColumn Header="Typ" Binding="{Binding Typ}" Width="80"/>
+                        <DataGridTextColumn Header="Pracownik" Binding="{Binding Pracownik}" Width="200"/>
+                        <DataGridTextColumn Header="Dział" Binding="{Binding Grupa}" Width="180"/>
+                        <DataGridTextColumn Header="Punkt dostępu" Binding="{Binding PunktDostepu}" Width="180"/>
+                        <DataGridTextColumn Header="Rodzaj" Binding="{Binding TypPunktu}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+            <!-- GODZINY PRACY -->
+            <TabItem Header="⏰ Godziny Pracy">
+                <DataGrid x:Name="gridGodzinyPracy" Margin="10" AutoGenerateColumns="False" 
+                          IsReadOnly="True" CanUserAddRows="False" Background="#1e1e2e"
+                          RowBackground="#1e1e2e" AlternatingRowBackground="#181825"
+                          GridLinesVisibility="None" BorderThickness="0"
+                          MouseDoubleClick="GridGodzinyPracy_MouseDoubleClick">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat=dd.MM.yyyy}" Width="90"/>
+                        <DataGridTextColumn Header="Pracownik" Binding="{Binding Pracownik}" Width="200"/>
+                        <DataGridTextColumn Header="Dział" Binding="{Binding Grupa}" Width="150"/>
+                        <DataGridTextColumn Header="Wejście" Binding="{Binding PierwszeWejscie}" Width="80"/>
+                        <DataGridTextColumn Header="Wyjście" Binding="{Binding OstatnieWyjscie}" Width="80"/>
+                        <DataGridTextColumn Header="Na miejscu" Binding="{Binding CzasPracy}" Width="90"/>
+                        <DataGridTextColumn Header="Przerwy" Binding="{Binding LiczbaPrzerw}" Width="60"/>
+                        <DataGridTextColumn Header="Czas przerw" Binding="{Binding CzasPrzerw}" Width="90"/>
+                        <DataGridTextColumn Header="Efektywnie" Binding="{Binding CzasEfektywny}" Width="90"/>
+                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+            <!-- OBECNI -->
+            <TabItem Header="🟢 Obecni">
+                <DataGrid x:Name="gridObecni" Margin="10" AutoGenerateColumns="False" 
+                          IsReadOnly="True" CanUserAddRows="False" Background="#1e1e2e"
+                          RowBackground="#1e1e2e" AlternatingRowBackground="#181825"
+                          GridLinesVisibility="None" BorderThickness="0">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Pracownik" Binding="{Binding Pracownik}" Width="220"/>
+                        <DataGridTextColumn Header="Dział" Binding="{Binding Grupa}" Width="180"/>
+                        <DataGridTextColumn Header="Wejście" Binding="{Binding Godzina}" Width="100"/>
+                        <DataGridTextColumn Header="Czas na terenie" Binding="{Binding CzasNaTerenie}" Width="130"/>
+                        <DataGridTextColumn Header="Ostatni punkt" Binding="{Binding PunktDostepu}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+            <!-- PODSUMOWANIE -->
+            <TabItem Header="📊 Podsumowanie">
+                <DataGrid x:Name="gridPodsumowanie" Margin="10" AutoGenerateColumns="False" 
+                          IsReadOnly="True" CanUserAddRows="False" Background="#1e1e2e"
+                          RowBackground="#1e1e2e" AlternatingRowBackground="#181825"
+                          GridLinesVisibility="None" BorderThickness="0">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Dział" Binding="{Binding Grupa}" Width="200"/>
+                        <DataGridTextColumn Header="Pracowników" Binding="{Binding LiczbaPracownikow}" Width="100"/>
+                        <DataGridTextColumn Header="Suma godzin" Binding="{Binding SumaGodzin, StringFormat=N1}" Width="100"/>
+                        <DataGridTextColumn Header="Średnia/os." Binding="{Binding SredniaGodzin, StringFormat=N2}" Width="100"/>
+                        <DataGridTextColumn Header="Przerwy (h)" Binding="{Binding SumaPrzerw, StringFormat=N1}" Width="100"/>
+                        <DataGridTextColumn Header="Obecnie" Binding="{Binding Obecni}" Width="80"/>
+                        <DataGridTextColumn Header="Braki wyjść" Binding="{Binding BrakiWyjsc}" Width="90"/>
+                        <DataGridTextColumn Header="Problemy" Binding="{Binding Przekroczenia}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+            <!-- ALERTY -->
+            <TabItem Header="⚠️ Alerty">
+                <DataGrid x:Name="gridAlerty" Margin="10" AutoGenerateColumns="False" 
+                          IsReadOnly="True" CanUserAddRows="False" Background="#1e1e2e"
+                          RowBackground="#1e1e2e" AlternatingRowBackground="#181825"
+                          GridLinesVisibility="None" BorderThickness="0">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Typ alertu" Binding="{Binding Typ}" Width="150"/>
+                        <DataGridTextColumn Header="Priorytet" Binding="{Binding Priorytet}" Width="100"/>
+                        <DataGridTextColumn Header="Pracownik" Binding="{Binding Pracownik}" Width="200"/>
+                        <DataGridTextColumn Header="Dział" Binding="{Binding Grupa}" Width="150"/>
+                        <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat=dd.MM.yyyy}" Width="100"/>
+                        <DataGridTextColumn Header="Opis" Binding="{Binding Opis}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+            <!-- RANKING -->
+            <TabItem Header="🏆 Ranking">
+                <DataGrid x:Name="gridRanking" Margin="10" AutoGenerateColumns="False" 
+                          IsReadOnly="True" CanUserAddRows="False" Background="#1e1e2e"
+                          RowBackground="#1e1e2e" AlternatingRowBackground="#181825"
+                          GridLinesVisibility="None" BorderThickness="0"
+                          MouseDoubleClick="GridRanking_MouseDoubleClick">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="#" Binding="{Binding Pozycja}" Width="50"/>
+                        <DataGridTextColumn Header="Pracownik" Binding="{Binding Pracownik}" Width="200"/>
+                        <DataGridTextColumn Header="Dział" Binding="{Binding Grupa}" Width="150"/>
+                        <DataGridTextColumn Header="Dni pracy" Binding="{Binding DniPracy}" Width="80"/>
+                        <DataGridTextColumn Header="Suma godz." Binding="{Binding SumaGodzin, StringFormat=N1}" Width="100"/>
+                        <DataGridTextColumn Header="Śr./dzień" Binding="{Binding SredniaGodzin, StringFormat=N2}" Width="90"/>
+                        <DataGridTextColumn Header="Przerwy" Binding="{Binding SumaPrzerw, StringFormat=N1}" Width="80"/>
+                        <DataGridTextColumn Header="Punktualność" Binding="{Binding Punktualnosc}" Width="100"/>
+                        <DataGridTextColumn Header="Ocena" Binding="{Binding Ocena}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+            <!-- RAPORT MIESIĘCZNY -->
+            <TabItem Header="📅 Raport Miesięczny">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                        <TextBlock Text="Miesiąc:" Foreground="#cdd6f4" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="cmbMiesiac" Width="130"/>
+                        <TextBlock Text="Rok:" Foreground="#cdd6f4" VerticalAlignment="Center" Margin="15,0,8,0"/>
+                        <ComboBox x:Name="cmbRok" Width="80"/>
+                        <Button Content="📊 Generuj raport" Padding="15,6" Margin="20,0,0,0" Click="BtnGenerujRaportMiesieczny_Click"/>
+                        <Button Content="🖨️ Drukuj" Padding="15,6" Margin="10,0,0,0" Click="BtnDrukujRaport_Click"/>
                     </StackPanel>
-                </StackPanel>
-            </Border>
-
-            <Border Background="White" CornerRadius="8" Padding="15" Margin="0,0,12,0" Width="160">
-                <StackPanel>
-                    <TextBlock Text="Obecnych" FontSize="11" Foreground="#78909C"/>
-                    <TextBlock x:Name="txtStatObecni" Text="0" FontSize="24" FontWeight="Bold" Foreground="#4CAF50"/>
-                </StackPanel>
-            </Border>
-
-            <Border Background="White" CornerRadius="8" Padding="15" Margin="0,0,12,0" Width="160">
-                <StackPanel>
-                    <TextBlock Text="Godz. efektywne" FontSize="11" Foreground="#78909C"/>
-                    <TextBlock x:Name="txtStatGodziny" Text="0h" FontSize="24" FontWeight="Bold" Foreground="#FF9800"/>
-                </StackPanel>
-            </Border>
-
-            <Border Background="White" CornerRadius="8" Padding="15" Margin="0,0,12,0" Width="160">
-                <StackPanel>
-                    <TextBlock Text="Pracowników" FontSize="11" Foreground="#78909C"/>
-                    <TextBlock x:Name="txtStatPracownicy" Text="0" FontSize="24" FontWeight="Bold" Foreground="#9C27B0"/>
-                </StackPanel>
-            </Border>
-
-            <Border Background="White" CornerRadius="8" Padding="15" Margin="0,0,12,0" Width="160">
-                <StackPanel>
-                    <TextBlock Text="Alertów" FontSize="11" Foreground="#78909C"/>
-                    <TextBlock x:Name="txtStatAlerty" Text="0" FontSize="24" FontWeight="Bold" Foreground="#F44336"/>
-                </StackPanel>
-            </Border>
-
-            <Border x:Name="panelLadowanie" Background="White" CornerRadius="8" Padding="15" Width="160" Visibility="Collapsed">
-                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <TextBlock Text="Ładowanie..." FontSize="11" Foreground="#78909C" HorizontalAlignment="Center"/>
-                </StackPanel>
-            </Border>
-        </StackPanel>
-
-        <!-- ZAKLADKI -->
-        <Border Grid.Row="3" Background="White" CornerRadius="8" Padding="5">
-            <TabControl x:Name="tabControl" BorderThickness="0">
-                
-                <TabItem Header="Rejestracje">
-                    <DataGrid x:Name="gridRejestracje" AutoGenerateColumns="False" IsReadOnly="True"
-                              CanUserAddRows="False" RowHeaderWidth="0" GridLinesVisibility="Horizontal"
-                              BorderThickness="0">
+                    
+                    <DataGrid x:Name="gridRaportMiesieczny" Grid.Row="1" AutoGenerateColumns="False" 
+                              IsReadOnly="True" CanUserAddRows="False" Background="#1e1e2e"
+                              RowBackground="#1e1e2e" AlternatingRowBackground="#181825"
+                              GridLinesVisibility="None" BorderThickness="0"
+                              MouseDoubleClick="GridRaportMiesieczny_MouseDoubleClick">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Data" Binding="{Binding DataCzas, StringFormat=dd.MM}" Width="55"/>
-                            <DataGridTextColumn Header="Godzina" Binding="{Binding Godzina}" Width="70"/>
-                            <DataGridTextColumn Header="Typ" Binding="{Binding Typ}" Width="65"/>
-                            <DataGridTextColumn Header="Pracownik" Binding="{Binding Pracownik}" Width="170"/>
-                            <DataGridTextColumn Header="Dział / Agencja" Binding="{Binding Grupa}" Width="140"/>
-                            <DataGridTextColumn Header="Punkt dostępu" Binding="{Binding PunktDostepu}" Width="140"/>
-                            <DataGridTextColumn Header="Rodzaj" Binding="{Binding TypPunktu}" Width="*"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </TabItem>
-
-                <TabItem Header="Godziny Pracy">
-                    <DataGrid x:Name="gridGodzinyPracy" AutoGenerateColumns="False" IsReadOnly="True"
-                              CanUserAddRows="False" RowHeaderWidth="0" GridLinesVisibility="Horizontal"
-                              BorderThickness="0">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Pracownik" Binding="{Binding Pracownik}" Width="160"/>
-                            <DataGridTextColumn Header="Dział" Binding="{Binding Grupa}" Width="100"/>
-                            <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat=dd.MM}" Width="50"/>
-                            <DataGridTextColumn Header="Wejście" Binding="{Binding PierwszeWejscie}" Width="55"/>
-                            <DataGridTextColumn Header="Wyjście" Binding="{Binding OstatnieWyjscie}" Width="55"/>
-                            <DataGridTextColumn Header="Na miejscu" Binding="{Binding CzasPracy}" Width="75"/>
-                            <DataGridTextColumn Header="Przerwy" Binding="{Binding LiczbaPrzerw}" Width="50"/>
-                            <DataGridTextColumn Header="Czas przerw" Binding="{Binding CzasPrzerw}" Width="75"/>
-                            <DataGridTextColumn Header="Efektywnie" Binding="{Binding CzasEfektywny}" Width="75"/>
-                            <DataGridTextColumn Header="We" Binding="{Binding LiczbaWejsc}" Width="35"/>
-                            <DataGridTextColumn Header="Wy" Binding="{Binding LiczbaWyjsc}" Width="35"/>
+                            <DataGridTextColumn Header="Pracownik" Binding="{Binding Pracownik}" Width="200"/>
+                            <DataGridTextColumn Header="Dział" Binding="{Binding Grupa}" Width="150"/>
+                            <DataGridTextColumn Header="Dni pracy" Binding="{Binding DniPracy}" Width="80"/>
+                            <DataGridTextColumn Header="Godz. efekt." Binding="{Binding GodzinyEfektywne, StringFormat=N1}" Width="100"/>
+                            <DataGridTextColumn Header="Godz. przerw" Binding="{Binding GodzinyPrzerw, StringFormat=N1}" Width="100"/>
+                            <DataGridTextColumn Header="Śr./dzień" Binding="{Binding SredniaDzien, StringFormat=N2}" Width="90"/>
+                            <DataGridTextColumn Header="Najwcześniej" Binding="{Binding NajwczesniejszeWejscie}" Width="100"/>
+                            <DataGridTextColumn Header="Najpóźniej" Binding="{Binding NajpozniejWyjscie}" Width="100"/>
+                            <DataGridTextColumn Header="Braki" Binding="{Binding Braki}" Width="60"/>
                             <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*"/>
                         </DataGrid.Columns>
                     </DataGrid>
-                </TabItem>
+                </Grid>
+            </TabItem>
 
-                <TabItem Header="Obecnie na Terenie">
-                    <DataGrid x:Name="gridObecni" AutoGenerateColumns="False" IsReadOnly="True"
-                              CanUserAddRows="False" RowHeaderWidth="0" GridLinesVisibility="Horizontal"
-                              BorderThickness="0">
+            <!-- PORÓWNANIE AGENCJI -->
+            <TabItem Header="🔄 Porównanie">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                        <Button Content="🔄 Odśwież porównanie" Padding="15,6" Click="BtnOdswiezPorownanie_Click"/>
+                        <Button Content="🖨️ Drukuj" Padding="15,6" Margin="10,0,0,0" Click="BtnDrukujPorownanie_Click"/>
+                    </StackPanel>
+                    
+                    <DataGrid x:Name="gridPorownanie" Grid.Row="1" AutoGenerateColumns="False" 
+                              IsReadOnly="True" CanUserAddRows="False" Background="#1e1e2e"
+                              RowBackground="#1e1e2e" AlternatingRowBackground="#181825"
+                              GridLinesVisibility="None" BorderThickness="0">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Pracownik" Binding="{Binding Pracownik}" Width="180"/>
-                            <DataGridTextColumn Header="Dział / Agencja" Binding="{Binding Grupa}" Width="160"/>
-                            <DataGridTextColumn Header="Wejście" Binding="{Binding Godzina}" Width="90"/>
-                            <DataGridTextColumn Header="Na terenie" Binding="{Binding CzasNaTerenie}" Width="100"/>
-                            <DataGridTextColumn Header="Punkt dostępu" Binding="{Binding PunktDostepu}" Width="*"/>
+                            <DataGridTextColumn Header="#" Binding="{Binding Pozycja}" Width="50"/>
+                            <DataGridTextColumn Header="Agencja" Binding="{Binding Grupa}" Width="200"/>
+                            <DataGridTextColumn Header="Pracowników" Binding="{Binding LiczbaPracownikow}" Width="100"/>
+                            <DataGridTextColumn Header="Suma godz." Binding="{Binding SumaGodzin, StringFormat=N1}" Width="100"/>
+                            <DataGridTextColumn Header="Śr./osoba" Binding="{Binding SredniaNaOsobe, StringFormat=N2}" Width="90"/>
+                            <DataGridTextColumn Header="Frekwencja" Binding="{Binding Frekwencja}" Width="90"/>
+                            <DataGridTextColumn Header="Punktualność" Binding="{Binding Punktualnosc}" Width="100"/>
+                            <DataGridTextColumn Header="Przerwy/os." Binding="{Binding SredniePrzerwy, StringFormat=N2}" Width="90"/>
+                            <DataGridTextColumn Header="Problemy" Binding="{Binding Problemy}" Width="80"/>
+                            <DataGridTextColumn Header="Ocena" Binding="{Binding Ocena}" Width="*"/>
                         </DataGrid.Columns>
                     </DataGrid>
-                </TabItem>
+                </Grid>
+            </TabItem>
 
-                <TabItem Header="Podsumowanie Agencji">
-                    <DataGrid x:Name="gridPodsumowanie" AutoGenerateColumns="False" IsReadOnly="True"
-                              CanUserAddRows="False" RowHeaderWidth="0" GridLinesVisibility="Horizontal"
-                              BorderThickness="0">
+            <!-- NADGODZINY -->
+            <TabItem Header="⏱️ Nadgodziny">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    
+                    <Border Grid.Row="0" Background="#313244" Padding="15" Margin="0,0,0,10" CornerRadius="8">
+                        <TextBlock Text="📋 KODEKS PRACY: Max 150h nadliczbowych rocznie • Max 8h nadliczbowych tygodniowo • Dobowy czas pracy max 13h" 
+                                   Foreground="#f5c2e7" FontSize="12"/>
+                    </Border>
+                    
+                    <DataGrid x:Name="gridNadgodziny" Grid.Row="1" AutoGenerateColumns="False" 
+                              IsReadOnly="True" CanUserAddRows="False" Background="#1e1e2e"
+                              RowBackground="#1e1e2e" AlternatingRowBackground="#181825"
+                              GridLinesVisibility="None" BorderThickness="0">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Dział / Agencja" Binding="{Binding Grupa}" Width="160"/>
-                            <DataGridTextColumn Header="Pracownicy" Binding="{Binding LiczbaPracownikow}" Width="80"/>
-                            <DataGridTextColumn Header="Godz. efekt." Binding="{Binding SumaGodzin, StringFormat=N1}" Width="90"/>
-                            <DataGridTextColumn Header="Średnia/os." Binding="{Binding SredniaGodzin, StringFormat=N1}" Width="80"/>
-                            <DataGridTextColumn Header="Godz. przerw" Binding="{Binding SumaPrzerw, StringFormat=N1}" Width="90"/>
-                            <DataGridTextColumn Header="Teraz obecni" Binding="{Binding Obecni}" Width="90"/>
-                            <DataGridTextColumn Header="Braki wyjść" Binding="{Binding BrakiWyjsc}" Width="80"/>
-                            <DataGridTextColumn Header="Problemy" Binding="{Binding Przekroczenia}" Width="*"/>
+                            <DataGridTextColumn Header="Pracownik" Binding="{Binding Pracownik}" Width="200"/>
+                            <DataGridTextColumn Header="Dział" Binding="{Binding Grupa}" Width="150"/>
+                            <DataGridTextColumn Header="Dziś >8h" Binding="{Binding NadgodzinyDzien, StringFormat=N1}" Width="90"/>
+                            <DataGridTextColumn Header="Tydzień >40h" Binding="{Binding NadgodzinyTydzien, StringFormat=N1}" Width="110"/>
+                            <DataGridTextColumn Header="Miesiąc" Binding="{Binding NadgodzinyMiesiac, StringFormat=N1}" Width="90"/>
+                            <DataGridTextColumn Header="Rok (limit 150h)" Binding="{Binding NadgodzinyRok, StringFormat=N1}" Width="120"/>
+                            <DataGridTextColumn Header="% limitu" Binding="{Binding ProcentLimitu, StringFormat=N0}" Width="80"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding StatusLimitu}" Width="*"/>
                         </DataGrid.Columns>
                     </DataGrid>
-                </TabItem>
+                </Grid>
+            </TabItem>
 
-                <TabItem Header="Alerty">
-                    <DataGrid x:Name="gridAlerty" AutoGenerateColumns="False" IsReadOnly="True"
-                              CanUserAddRows="False" RowHeaderWidth="0" GridLinesVisibility="Horizontal"
-                              BorderThickness="0">
+            <!-- KARTA EWIDENCJI -->
+            <TabItem Header="📄 Karta Ewidencji">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                        <TextBlock Text="Pracownik:" Foreground="#cdd6f4" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="cmbPracownikEwidencja" Width="280" SelectionChanged="CmbPracownikEwidencja_SelectionChanged"/>
+                        <TextBlock Text="Miesiąc:" Foreground="#cdd6f4" VerticalAlignment="Center" Margin="15,0,8,0"/>
+                        <ComboBox x:Name="cmbMiesiacEwidencja" Width="120"/>
+                        <TextBlock Text="Rok:" Foreground="#cdd6f4" VerticalAlignment="Center" Margin="15,0,8,0"/>
+                        <ComboBox x:Name="cmbRokEwidencja" Width="80"/>
+                        <Button Content="📄 Generuj kartę" Padding="15,6" Margin="20,0,0,0" Click="BtnGenerujKarteEwidencji_Click"/>
+                        <Button Content="🖨️ Drukuj" Padding="15,6" Margin="10,0,0,0" Click="BtnDrukujKarteEwidencji_Click"/>
+                    </StackPanel>
+                    
+                    <DataGrid x:Name="gridKartaEwidencji" Grid.Row="1" AutoGenerateColumns="False" 
+                              IsReadOnly="True" CanUserAddRows="False" Background="#1e1e2e"
+                              RowBackground="#1e1e2e" AlternatingRowBackground="#181825"
+                              GridLinesVisibility="None" BorderThickness="0">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Typ alertu" Binding="{Binding Typ}" Width="140"/>
-                            <DataGridTextColumn Header="Priorytet" Binding="{Binding Priorytet}" Width="80"/>
-                            <DataGridTextColumn Header="Pracownik" Binding="{Binding Pracownik}" Width="160"/>
-                            <DataGridTextColumn Header="Dział / Agencja" Binding="{Binding Grupa}" Width="140"/>
-                            <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat=dd.MM.yyyy}" Width="90"/>
-                            <DataGridTextColumn Header="Opis problemu" Binding="{Binding Opis}" Width="*"/>
+                            <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat=dd.MM}" Width="70"/>
+                            <DataGridTextColumn Header="Dz." Binding="{Binding DzienTygodnia}" Width="45"/>
+                            <DataGridTextColumn Header="Wejście" Binding="{Binding Wejscie}" Width="80"/>
+                            <DataGridTextColumn Header="Wyjście" Binding="{Binding Wyjscie}" Width="80"/>
+                            <DataGridTextColumn Header="Normalne" Binding="{Binding GodzinyNormalne, StringFormat=N1}" Width="90"/>
+                            <DataGridTextColumn Header="Nadgodziny" Binding="{Binding Nadgodziny, StringFormat=N1}" Width="90"/>
+                            <DataGridTextColumn Header="Nocne" Binding="{Binding GodzinyNocne, StringFormat=N1}" Width="70"/>
+                            <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="*"/>
                         </DataGrid.Columns>
                     </DataGrid>
-                </TabItem>
-                
-            </TabControl>
-        </Border>
+                    
+                    <Border Grid.Row="2" Background="#313244" Padding="20" Margin="0,10,0,0" CornerRadius="8">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <StackPanel Margin="0,0,50,0">
+                                <TextBlock Text="Dni pracy" Foreground="#89b4fa" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="txtEwidencjaDni" Text="0" FontSize="28" Foreground="#cdd6f4" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,50,0">
+                                <TextBlock Text="Godziny normalne" Foreground="#a6e3a1" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="txtEwidencjaNormalne" Text="0h" FontSize="28" Foreground="#a6e3a1" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,50,0">
+                                <TextBlock Text="Nadgodziny" Foreground="#f9e2af" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="txtEwidencjaNadgodziny" Text="0h" FontSize="28" Foreground="#f9e2af" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="Godziny nocne" Foreground="#cba6f7" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="txtEwidencjaNocne" Text="0h" FontSize="28" Foreground="#cba6f7" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- PUNKTUALNOŚĆ -->
+            <TabItem Header="⏰ Punktualność">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    
+                    <Border Grid.Row="0" Background="#313244" Padding="15" Margin="0,0,0,10" CornerRadius="8">
+                        <TextBlock Text="📋 Spóźnienie = wejście po 06:00 • Wcześniejsze wyjście = przed końcem zmiany • Ocena: ⭐⭐⭐ ponad 95% | ⭐⭐ ponad 85% | ⭐ ponad 70%" 
+                                   Foreground="#74c7ec" FontSize="12"/>
+                    </Border>
+                    
+                    <DataGrid x:Name="gridPunktualnosc" Grid.Row="1" AutoGenerateColumns="False" 
+                              IsReadOnly="True" CanUserAddRows="False" Background="#1e1e2e"
+                              RowBackground="#1e1e2e" AlternatingRowBackground="#181825"
+                              GridLinesVisibility="None" BorderThickness="0"
+                              MouseDoubleClick="GridPunktualnosc_MouseDoubleClick">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Pracownik" Binding="{Binding Pracownik}" Width="200"/>
+                            <DataGridTextColumn Header="Dział" Binding="{Binding Grupa}" Width="150"/>
+                            <DataGridTextColumn Header="Dni pracy" Binding="{Binding DniPracy}" Width="80"/>
+                            <DataGridTextColumn Header="Spóźnienia" Binding="{Binding Spoznienia}" Width="90"/>
+                            <DataGridTextColumn Header="Suma (min)" Binding="{Binding SumaSpoznienMin}" Width="100"/>
+                            <DataGridTextColumn Header="Wcz. wyjścia" Binding="{Binding WczesniejszeWyjscia}" Width="100"/>
+                            <DataGridTextColumn Header="Punktualność" Binding="{Binding ProcentPunktualnosci, StringFormat={}{0:N0}%}" Width="100"/>
+                            <DataGridTextColumn Header="Trend" Binding="{Binding Trend}" Width="70"/>
+                            <DataGridTextColumn Header="Ocena" Binding="{Binding Ocena}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <!-- NIEOBECNOŚCI -->
+            <TabItem Header="📅 Nieobecności">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    
+                    <Border Grid.Row="0" Background="#313244" Padding="15" Margin="0,0,0,10" CornerRadius="8">
+                        <TextBlock Text="📋 System wykrywa dni robocze bez rejestracji • Weekendy i święta pomijane • Urlop | Choroba | Nieusprawiedliwiona" 
+                                   Foreground="#f5c2e7" FontSize="12"/>
+                    </Border>
+                    
+                    <DataGrid x:Name="gridNieobecnosci" Grid.Row="1" AutoGenerateColumns="False" 
+                              IsReadOnly="True" CanUserAddRows="False" Background="#1e1e2e"
+                              RowBackground="#1e1e2e" AlternatingRowBackground="#181825"
+                              GridLinesVisibility="None" BorderThickness="0">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat=dd.MM.yyyy}" Width="100"/>
+                            <DataGridTextColumn Header="Dzień" Binding="{Binding Data, StringFormat=ddd}" Width="70"/>
+                            <DataGridTextColumn Header="Pracownik" Binding="{Binding Pracownik}" Width="200"/>
+                            <DataGridTextColumn Header="Dział" Binding="{Binding Grupa}" Width="150"/>
+                            <DataGridTextColumn Header="Typ" Binding="{Binding TypNieobecnosci}" Width="180"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="130"/>
+                            <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
+                        <Border Background="#f38ba8" CornerRadius="8" Padding="20,10" Margin="0,0,15,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Nieusprawiedliwione: " Foreground="White" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="txtNieobecnosciNieusp" Text="0" Foreground="White" FontWeight="Bold" FontSize="16"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#fab387" CornerRadius="8" Padding="20,10" Margin="0,0,15,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Chorobowe: " Foreground="White" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="txtNieobecnosciChoroba" Text="0" Foreground="White" FontWeight="Bold" FontSize="16"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#a6e3a1" CornerRadius="8" Padding="20,10">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Urlopy: " Foreground="#1e1e2e" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="txtNieobecnosciUrlop" Text="0" Foreground="#1e1e2e" FontWeight="Bold" FontSize="16"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
+        </TabControl>
     </Grid>
 </Window>

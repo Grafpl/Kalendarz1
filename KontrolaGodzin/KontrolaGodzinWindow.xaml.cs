@@ -1,108 +1,61 @@
-using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Threading;
 
 namespace Kalendarz1.KontrolaGodzin
 {
     public partial class KontrolaGodzinWindow : Window
     {
-        // Connection string do UNICARD
-        private const string connectionUnicard = "Server=192.168.0.23\\SQLEXPRESS;Database=UNISYSTEM;User Id=sa;Password=UniRCPAdmin123$;TrustServerCertificate=True";
+        private const string ConnectionString = @"Server=192.168.0.23\SQLEXPRESS;Database=UNISYSTEM;User Id=sa;Password=UniRCPAdmin123$;TrustServerCertificate=True;";
+        private DispatcherTimer clockTimer;
+        private bool isLoading = false;
 
+        // Kolekcje danych
         private ObservableCollection<RejestrKarty> rejestracje = new ObservableCollection<RejestrKarty>();
         private ObservableCollection<DzienPracy> godzinyPracy = new ObservableCollection<DzienPracy>();
         private ObservableCollection<StatusObecnosci> obecni = new ObservableCollection<StatusObecnosci>();
         private ObservableCollection<PodsumowanieAgencji> podsumowania = new ObservableCollection<PodsumowanieAgencji>();
         private ObservableCollection<AlertCzasuPracy> alerty = new ObservableCollection<AlertCzasuPracy>();
+        private ObservableCollection<RankingPracownika> ranking = new ObservableCollection<RankingPracownika>();
+        private ObservableCollection<RaportMiesiecznyPracownika> raportMiesieczny = new ObservableCollection<RaportMiesiecznyPracownika>();
+        private ObservableCollection<PorownanieAgencjiModel> porownanieAgencji = new ObservableCollection<PorownanieAgencjiModel>();
+        private ObservableCollection<NadgodzinyPracownika> nadgodziny = new ObservableCollection<NadgodzinyPracownika>();
+        private ObservableCollection<DzienEwidencji> kartaEwidencji = new ObservableCollection<DzienEwidencji>();
+        private ObservableCollection<AnalizaPunktualnosci> analizaPunktualnosci = new ObservableCollection<AnalizaPunktualnosci>();
+        private ObservableCollection<Nieobecnosc> nieobecnosci = new ObservableCollection<Nieobecnosc>();
         private List<GrupaUnicard> grupy = new List<GrupaUnicard>();
 
-        private const string SQL_REJESTRACJE = @"
-            WITH RejestracjeBezDuplikatow AS (
-                SELECT 
-                    KDINAR_REGISTRTN_ID,
-                    KDINAR_REGISTRTN_DATETIME,
-                    CASE KDINAR_REGISTRTN_TYPE WHEN 1 THEN 'Wejście' WHEN 2 THEN 'Wyjście' ELSE 'Nieznany' END AS Typ,
-                    KDINAR_EMPLOYEE_ID AS IdPracownika,
-                    KDINAR_EMPLOYEE_NAME AS Imie,
-                    KDINAR_EMPLOYEE_SURNAME AS Nazwisko,
-                    KDINAR_EMPLOYEE_GROUP_ID AS IdGrupy,
-                    KDINAR_ACCESS_POINT_NAME AS PunktDostepu,
-                    CASE 
-                        WHEN KDINAR_ACCESS_POINT_NAME LIKE '%Portiernia%' THEN 'Portiernia'
-                        WHEN KDINAR_ACCESS_POINT_NAME LIKE '%Produkcja%' THEN 'Produkcja'
-                        ELSE 'Inny'
-                    END AS TypPunktu,
-                    ROW_NUMBER() OVER (
-                        PARTITION BY KDINAR_EMPLOYEE_ID, 
-                                     CONVERT(DATE, KDINAR_REGISTRTN_DATETIME),
-                                     DATEPART(HOUR, KDINAR_REGISTRTN_DATETIME),
-                                     DATEPART(MINUTE, KDINAR_REGISTRTN_DATETIME),
-                                     KDINAR_REGISTRTN_TYPE
-                        ORDER BY KDINAR_REGISTRTN_ID
-                    ) AS rn
-                FROM V_KDINAR_ALL_REGISTRATIONS
-                WHERE KDINAR_REGISTRTN_DATETIME >= @odDaty 
-                  AND KDINAR_REGISTRTN_DATETIME < @doDaty
-                  AND KDINAR_EMPLOYEE_ID IS NOT NULL
-            )
-            SELECT * FROM RejestracjeBezDuplikatow WHERE rn = 1
-            ORDER BY KDINAR_REGISTRTN_DATETIME DESC";
-
-        private const string SQL_OBECNI = @"
-            WITH OstatnieZdarzenia AS (
-                SELECT 
-                    KDINAR_EMPLOYEE_ID,
-                    KDINAR_EMPLOYEE_NAME,
-                    KDINAR_EMPLOYEE_SURNAME,
-                    KDINAR_EMPLOYEE_GROUP_ID,
-                    KDINAR_REGISTRTN_DATETIME,
-                    KDINAR_REGISTRTN_TYPE,
-                    KDINAR_ACCESS_POINT_NAME,
-                    CASE 
-                        WHEN KDINAR_ACCESS_POINT_NAME LIKE '%Portiernia%' THEN 'Portiernia'
-                        WHEN KDINAR_ACCESS_POINT_NAME LIKE '%Produkcja%' THEN 'Produkcja'
-                        ELSE 'Inny'
-                    END AS TypPunktu,
-                    ROW_NUMBER() OVER (PARTITION BY KDINAR_EMPLOYEE_ID ORDER BY KDINAR_REGISTRTN_DATETIME DESC) AS rn
-                FROM V_KDINAR_ALL_REGISTRATIONS
-                WHERE CONVERT(DATE, KDINAR_REGISTRTN_DATETIME) = CONVERT(DATE, GETDATE())
-                  AND KDINAR_EMPLOYEE_ID IS NOT NULL
-            )
-            SELECT * FROM OstatnieZdarzenia
-            WHERE rn = 1 AND KDINAR_REGISTRTN_TYPE = 1
-            ORDER BY KDINAR_EMPLOYEE_SURNAME, KDINAR_EMPLOYEE_NAME";
-
-        private readonly Dictionary<int, string> nazwyGrup = new Dictionary<int, string>
-        {
-            { 10003, "CZYSTA" }, { 10004, "BIURO" }, { 10005, "SPRZEDAWCA" },
-            { 10006, "KIEROWCA" }, { 10007, "MAGAZYN" }, { 10008, "MASARNIA" },
-            { 10009, "MROZNIA" }, { 10010, "MECHANIK" }, { 10012, "ODPADY" },
-            { 10014, "MYJKA" }, { 10015, "Avilog" }, { 10016, "SPRZATACZKA" },
-            { 10017, "PORTIERZY" }, { 10019, "OCHRONA" }, { 10020, "AGENCJA GURAVO" },
-            { 10023, "TYMCZASOWI" }, { 10024, "AGENCJA STAR-POL" },
-            { 10027, "AGENCJA IMPULS" }, { 10028, "AGENCJA ROB-JOB" },
-            { 10029, "AGENCJA ECO-MEN" }, { 10030, "AGENCJA (Moldawianie)" }
-        };
-
-        private DispatcherTimer clockTimer;
-        private bool isInitialized = false;
-        private bool isLoading = false;
+        private readonly List<DateTime> swietaPolskie = new List<DateTime>();
+        private TimeSpan godzinaPoczatkuPracy = new TimeSpan(6, 0, 0);
+        private TimeSpan godzinaKoncaPracy = new TimeSpan(14, 0, 0);
 
         public KontrolaGodzinWindow()
         {
             InitializeComponent();
+
             gridRejestracje.ItemsSource = rejestracje;
             gridGodzinyPracy.ItemsSource = godzinyPracy;
             gridObecni.ItemsSource = obecni;
             gridPodsumowanie.ItemsSource = podsumowania;
             gridAlerty.ItemsSource = alerty;
+            gridRanking.ItemsSource = ranking;
+            gridRaportMiesieczny.ItemsSource = raportMiesieczny;
+            gridPorownanie.ItemsSource = porownanieAgencji;
+            gridNadgodziny.ItemsSource = nadgodziny;
+            gridKartaEwidencji.ItemsSource = kartaEwidencji;
+            gridPunktualnosc.ItemsSource = analizaPunktualnosci;
+            gridNieobecnosci.ItemsSource = nieobecnosci;
+
+            InicjalizujSwieta();
+            InicjalizujComboBoxMiesiace();
 
             clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             clockTimer.Tick += (s, e) =>
@@ -113,435 +66,355 @@ namespace Kalendarz1.KontrolaGodzin
             clockTimer.Start();
         }
 
+        private void InicjalizujSwieta()
+        {
+            int[] lata = { DateTime.Now.Year, DateTime.Now.Year + 1 };
+            foreach (var rok in lata)
+            {
+                swietaPolskie.Add(new DateTime(rok, 1, 1));
+                swietaPolskie.Add(new DateTime(rok, 1, 6));
+                swietaPolskie.Add(new DateTime(rok, 5, 1));
+                swietaPolskie.Add(new DateTime(rok, 5, 3));
+                swietaPolskie.Add(new DateTime(rok, 8, 15));
+                swietaPolskie.Add(new DateTime(rok, 11, 1));
+                swietaPolskie.Add(new DateTime(rok, 11, 11));
+                swietaPolskie.Add(new DateTime(rok, 12, 25));
+                swietaPolskie.Add(new DateTime(rok, 12, 26));
+            }
+        }
+
+        private void InicjalizujComboBoxMiesiace()
+        {
+            var miesiace = new[] { "Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec",
+                                   "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień" };
+
+            for (int i = 0; i < 12; i++)
+            {
+                var item = new ComboBoxItem { Content = miesiace[i], Tag = i + 1 };
+                cmbMiesiac.Items.Add(item);
+                cmbMiesiacEwidencja.Items.Add(new ComboBoxItem { Content = miesiace[i], Tag = i + 1 });
+            }
+            cmbMiesiac.SelectedIndex = DateTime.Now.Month - 1;
+            cmbMiesiacEwidencja.SelectedIndex = DateTime.Now.Month - 1;
+
+            for (int r = DateTime.Now.Year; r >= DateTime.Now.Year - 2; r--)
+            {
+                cmbRok.Items.Add(r);
+                cmbRokEwidencja.Items.Add(r);
+            }
+            cmbRok.SelectedIndex = 0;
+            cmbRokEwidencja.SelectedIndex = 0;
+        }
+
         private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            isLoading = true;
             dpOd.SelectedDate = DateTime.Today;
             dpDo.SelectedDate = DateTime.Today;
-            dpOd.IsEnabled = false;
-            dpDo.IsEnabled = false;
-            LoadGrupy();
-            isLoading = false;
-            isInitialized = true;
+            await LoadGrupy();
             await LoadAllData();
         }
 
-        private async void ChkTylkoDzisiaj_Changed(object sender, RoutedEventArgs e)
+        private async Task LoadGrupy()
         {
-            if (!isInitialized) return;
-            
-            if (chkTylkoDzisiaj.IsChecked == true)
+            try
             {
-                isLoading = true;
-                dpOd.SelectedDate = DateTime.Today;
-                dpDo.SelectedDate = DateTime.Today;
-                dpOd.IsEnabled = false;
-                dpDo.IsEnabled = false;
-                isLoading = false;
-                await LoadAllData();
+                grupy.Clear();
+                grupy.Add(new GrupaUnicard { Id = 0, Nazwa = "— Wszystkie działy —" });
+
+                using (var conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync();
+                    string sql = @"SELECT DISTINCT ine_numer, ine_nazwa FROM V_RCINE_EMPLOYEES WHERE ine_nazwa IS NOT NULL ORDER BY ine_nazwa";
+                    using (var cmd = new SqlCommand(sql, conn))
+                    using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            grupy.Add(new GrupaUnicard
+                            {
+                                Id = reader.GetInt32(0),
+                                Nazwa = reader.GetString(1)
+                            });
+                        }
+                    }
+                }
+
+                cmbGrupa.ItemsSource = grupy;
+                cmbGrupa.DisplayMemberPath = "Nazwa";
+                cmbGrupa.SelectedIndex = 0;
             }
-            else
+            catch (Exception ex)
             {
-                dpOd.IsEnabled = true;
-                dpDo.IsEnabled = true;
+                MessageBox.Show($"Błąd ładowania grup:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-        }
-
-        private async void DpOd_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (!isInitialized || isLoading || chkTylkoDzisiaj.IsChecked == true) return;
-            if (!dpOd.SelectedDate.HasValue || !dpDo.SelectedDate.HasValue) return;
-            
-            // Jeśli data Od > Do, ustaw Do = Od
-            if (dpOd.SelectedDate > dpDo.SelectedDate)
-                dpDo.SelectedDate = dpOd.SelectedDate;
-            else
-                await LoadAllData();
-        }
-
-        private async void DpDo_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (!isInitialized || isLoading || chkTylkoDzisiaj.IsChecked == true) return;
-            if (!dpOd.SelectedDate.HasValue || !dpDo.SelectedDate.HasValue) return;
-            
-            // Jeśli data Do < Od, ustaw Od = Do
-            if (dpDo.SelectedDate < dpOd.SelectedDate)
-                dpOd.SelectedDate = dpDo.SelectedDate;
-            else
-                await LoadAllData();
-        }
-
-        private void CmbGrupa_SelectionChanged(object sender, SelectionChangedEventArgs e) => ApplyFilters();
-        private void TxtSzukaj_TextChanged(object sender, TextChangedEventArgs e) => ApplyFilters();
-        private async void BtnOdswiez_Click(object sender, RoutedEventArgs e) => await LoadAllData();
-        private void BtnExport_Click(object sender, RoutedEventArgs e) => ExportToExcel();
-        
-        private void BtnWyczyscSzukaj_Click(object sender, RoutedEventArgs e)
-        {
-            txtSzukaj.Text = "";
-            cmbGrupa.SelectedIndex = 0;
-        }
-
-        private async void BtnWczoraj_Click(object sender, RoutedEventArgs e)
-        {
-            isLoading = true;
-            chkTylkoDzisiaj.IsChecked = false;
-            dpOd.SelectedDate = DateTime.Today.AddDays(-1);
-            dpDo.SelectedDate = DateTime.Today.AddDays(-1);
-            isLoading = false;
-            await LoadAllData();
-        }
-
-        private async void BtnTydzien_Click(object sender, RoutedEventArgs e)
-        {
-            isLoading = true;
-            chkTylkoDzisiaj.IsChecked = false;
-            // Początek tygodnia (poniedziałek)
-            var dzisiaj = DateTime.Today;
-            var poczatekTygodnia = dzisiaj.AddDays(-(int)dzisiaj.DayOfWeek + (int)DayOfWeek.Monday);
-            if (dzisiaj.DayOfWeek == DayOfWeek.Sunday) poczatekTygodnia = poczatekTygodnia.AddDays(-7);
-            dpOd.SelectedDate = poczatekTygodnia;
-            dpDo.SelectedDate = dzisiaj;
-            isLoading = false;
-            await LoadAllData();
-        }
-
-        private async void BtnMiesiac_Click(object sender, RoutedEventArgs e)
-        {
-            isLoading = true;
-            chkTylkoDzisiaj.IsChecked = false;
-            var dzisiaj = DateTime.Today;
-            dpOd.SelectedDate = new DateTime(dzisiaj.Year, dzisiaj.Month, 1);
-            dpDo.SelectedDate = dzisiaj;
-            isLoading = false;
-            await LoadAllData();
-        }
-
-        private void LoadGrupy()
-        {
-            cmbGrupa.Items.Clear();
-            cmbGrupa.Items.Add(new GrupaUnicard { IdGrupy = 0, NazwaGrupy = "-- Wszystkie grupy --" });
-            foreach (var g in nazwyGrup)
-            {
-                var grupa = new GrupaUnicard { IdGrupy = g.Key, NazwaGrupy = g.Value };
-                grupy.Add(grupa);
-                cmbGrupa.Items.Add(grupa);
-            }
-            cmbGrupa.SelectedIndex = 0;
         }
 
         private async Task LoadAllData()
         {
             if (isLoading) return;
             isLoading = true;
-            
-            btnOdswiez.IsEnabled = false;
-            btnOdswiez.Content = "Ładowanie...";
-            panelLadowanie.Visibility = Visibility.Visible;
 
             try
             {
-                await Task.WhenAll(LoadRejestracje(), LoadObecni());
+                var dataOd = dpOd.SelectedDate ?? DateTime.Today;
+                var dataDo = dpDo.SelectedDate ?? DateTime.Today;
+
+                rejestracje.Clear();
+                godzinyPracy.Clear();
+                obecni.Clear();
+                podsumowania.Clear();
+                alerty.Clear();
+
+                using (var conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync();
+
+                    string sql = @"
+                        SELECT 
+                            kdi_czas,
+                            CASE WHEN kdi_wejscie = 1 THEN 'Wejście' ELSE 'Wyjście' END as Typ,
+                            kdi_id_pracownika,
+                            kdi_nazwa_pracownika,
+                            kdi_nazwa_grupy,
+                            kdi_nazwa_dostepu,
+                            kdi_id_karty
+                        FROM V_KDINAR_ALL_REGISTRATIONS
+                        WHERE CAST(kdi_czas AS DATE) >= @dataOd 
+                          AND CAST(kdi_czas AS DATE) <= @dataDo
+                        ORDER BY kdi_czas DESC";
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@dataOd", dataOd.Date);
+                        cmd.Parameters.AddWithValue("@dataDo", dataDo.Date);
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            var tempList = new List<RejestrKarty>();
+                            while (await reader.ReadAsync())
+                            {
+                                tempList.Add(new RejestrKarty
+                                {
+                                    DataCzas = reader.GetDateTime(0),
+                                    Godzina = reader.GetDateTime(0).ToString("HH:mm:ss"),
+                                    Typ = reader.GetString(1),
+                                    IdPracownika = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                                    Pracownik = reader.IsDBNull(3) ? "Nieznany" : reader.GetString(3),
+                                    Grupa = reader.IsDBNull(4) ? "Brak" : reader.GetString(4),
+                                    PunktDostepu = reader.IsDBNull(5) ? "" : reader.GetString(5),
+                                    IdKarty = reader.IsDBNull(6) ? "" : reader.GetString(6)
+                                });
+                            }
+
+                            var deduplicated = tempList
+                                .GroupBy(r => new { r.IdPracownika, r.Typ, Minuta = new DateTime(r.DataCzas.Year, r.DataCzas.Month, r.DataCzas.Day, r.DataCzas.Hour, r.DataCzas.Minute, 0) })
+                                .Select(g => g.First())
+                                .OrderByDescending(r => r.DataCzas);
+
+                            foreach (var r in deduplicated)
+                            {
+                                r.TypPunktu = OkreslTypPunktu(r.PunktDostepu);
+                                rejestracje.Add(r);
+                            }
+                        }
+                    }
+                }
+
                 ObliczGodzinyPracy();
-                GenerujPodsumowanie();
+                ObliczObecnych();
+                ObliczPodsumowania();
                 GenerujAlerty();
                 UpdateStats();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd podczas ładowania danych:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Błąd ładowania danych:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
-                btnOdswiez.IsEnabled = true;
-                btnOdswiez.Content = "Odśwież";
-                panelLadowanie.Visibility = Visibility.Collapsed;
                 isLoading = false;
             }
         }
 
-        private async Task LoadRejestracje()
+        private string OkreslTypPunktu(string nazwa)
         {
-            var lista = new List<RejestrKarty>();
-            try
-            {
-                using (var conn = new SqlConnection(connectionUnicard))
-                {
-                    await conn.OpenAsync();
-                    using (var cmd = new SqlCommand(SQL_REJESTRACJE, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@odDaty", dpOd.SelectedDate ?? DateTime.Today);
-                        // Data Do włącznie - dodajemy 1 dzień aby objąć cały dzień "Do"
-                        cmd.Parameters.AddWithValue("@doDaty", (dpDo.SelectedDate ?? DateTime.Today).AddDays(1));
-                        using (var reader = await cmd.ExecuteReaderAsync())
-                        {
-                            while (await reader.ReadAsync())
-                            {
-                                var idGrupy = reader["IdGrupy"] != DBNull.Value ? Convert.ToInt32(reader["IdGrupy"]) : 0;
-                                var nazwaGrupy = nazwyGrup.ContainsKey(idGrupy) ? nazwyGrup[idGrupy] : $"Grupa {idGrupy}";
-                                var imie = reader["Imie"]?.ToString() ?? "";
-                                var nazwisko = reader["Nazwisko"]?.ToString() ?? "";
-                                var dataCzas = (DateTime)reader["KDINAR_REGISTRTN_DATETIME"];
-
-                                lista.Add(new RejestrKarty
-                                {
-                                    Id = Convert.ToInt32(reader["KDINAR_REGISTRTN_ID"]),
-                                    DataCzas = dataCzas,
-                                    Godzina = dataCzas.ToString("HH:mm:ss"),
-                                    Typ = reader["Typ"].ToString(),
-                                    IdPracownika = Convert.ToInt32(reader["IdPracownika"]),
-                                    Pracownik = $"{imie} {nazwisko}".Trim(),
-                                    IdGrupy = idGrupy,
-                                    Grupa = nazwaGrupy,
-                                    PunktDostepu = reader["PunktDostepu"]?.ToString() ?? "",
-                                    TypPunktu = reader["TypPunktu"]?.ToString() ?? "Inny"
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd ładowania rejestracji:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
-
-            await Dispatcher.InvokeAsync(() =>
-            {
-                rejestracje.Clear();
-                foreach (var r in lista) rejestracje.Add(r);
-            });
-        }
-
-        private async Task LoadObecni()
-        {
-            var lista = new List<StatusObecnosci>();
-            try
-            {
-                using (var conn = new SqlConnection(connectionUnicard))
-                {
-                    await conn.OpenAsync();
-                    using (var cmd = new SqlCommand(SQL_OBECNI, conn))
-                    {
-                        using (var reader = await cmd.ExecuteReaderAsync())
-                        {
-                            while (await reader.ReadAsync())
-                            {
-                                var idGrupy = reader["KDINAR_EMPLOYEE_GROUP_ID"] != DBNull.Value ? Convert.ToInt32(reader["KDINAR_EMPLOYEE_GROUP_ID"]) : 0;
-                                var nazwaGrupy = nazwyGrup.ContainsKey(idGrupy) ? nazwyGrup[idGrupy] : $"Grupa {idGrupy}";
-                                var imie = reader["KDINAR_EMPLOYEE_NAME"]?.ToString() ?? "";
-                                var nazwisko = reader["KDINAR_EMPLOYEE_SURNAME"]?.ToString() ?? "";
-                                var ostatnie = (DateTime)reader["KDINAR_REGISTRTN_DATETIME"];
-                                var czasNaTerenie = DateTime.Now - ostatnie;
-
-                                lista.Add(new StatusObecnosci
-                                {
-                                    IdPracownika = Convert.ToInt32(reader["KDINAR_EMPLOYEE_ID"]),
-                                    Pracownik = $"{imie} {nazwisko}".Trim(),
-                                    IdGrupy = idGrupy,
-                                    Grupa = nazwaGrupy,
-                                    Godzina = ostatnie.ToString("HH:mm"),
-                                    CzasNaTerenie = $"{(int)czasNaTerenie.TotalHours}h {czasNaTerenie.Minutes}m",
-                                    PunktDostepu = reader["KDINAR_ACCESS_POINT_NAME"]?.ToString() ?? ""
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd ładowania obecnych:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
-
-            await Dispatcher.InvokeAsync(() =>
-            {
-                obecni.Clear();
-                foreach (var o in lista) obecni.Add(o);
-            });
+            if (string.IsNullOrEmpty(nazwa)) return "Inny";
+            var lower = nazwa.ToLower();
+            if (lower.Contains("portier") || lower.Contains("brama") || lower.Contains("wejście") || lower.Contains("główn"))
+                return "Portiernia";
+            if (lower.Contains("produk") || lower.Contains("hala") || lower.Contains("wydział"))
+                return "Produkcja";
+            return "Inny";
         }
 
         private void ObliczGodzinyPracy()
         {
-            godzinyPracy.Clear();
-            if (rejestracje.Count == 0) return;
+            var grupowane = rejestracje
+                .GroupBy(r => new { r.IdPracownika, Data = r.DataCzas.Date })
+                .OrderByDescending(g => g.Key.Data);
 
-            var grupowane = rejestracje.GroupBy(r => new { r.IdPracownika, Data = r.DataCzas.Date });
             foreach (var grupa in grupowane)
             {
-                var rejestracjeGrupy = grupa.OrderBy(r => r.DataCzas).ToList();
-                var pierwsza = rejestracjeGrupy.First();
-                
-                // Wszystkie wejścia i wyjścia
-                var wszystkieWejscia = rejestracjeGrupy.Where(r => r.Typ == "Wejście").OrderBy(r => r.DataCzas).ToList();
-                var wszystkieWyjscia = rejestracjeGrupy.Where(r => r.Typ == "Wyjście").OrderBy(r => r.DataCzas).ToList();
+                var rej = grupa.OrderBy(r => r.DataCzas).ToList();
+                var pierwsza = rej.First();
 
-                // Dla godzin pracy - pierwsze wejście i ostatnie wyjście (przez Portiernię jeśli dostępne)
-                var wejsciaPortiernia = wszystkieWejscia.Where(r => r.TypPunktu == "Portiernia").ToList();
-                var wyjsciaPortiernia = wszystkieWyjscia.Where(r => r.TypPunktu == "Portiernia").ToList();
-                
-                var wejsciaDoPracy = wejsciaPortiernia.Any() ? wejsciaPortiernia : wszystkieWejscia;
-                var wyjsciaDoPracy = wyjsciaPortiernia.Any() ? wyjsciaPortiernia : wszystkieWyjscia;
+                var portierniaRej = rej.Where(r => r.TypPunktu == "Portiernia").ToList();
+                var wejscia = (portierniaRej.Any() ? portierniaRej : rej).Where(r => r.Typ == "Wejście").ToList();
+                var wyjscia = (portierniaRej.Any() ? portierniaRej : rej).Where(r => r.Typ == "Wyjście").ToList();
 
-                var pierwszeWejscie = wejsciaDoPracy.Any() ? wejsciaDoPracy.First().DataCzas : (DateTime?)null;
-                var ostatnieWyjscie = wyjsciaDoPracy.Any() ? wyjsciaDoPracy.Last().DataCzas : (DateTime?)null;
+                string pierwszeWejscie = wejscia.Any() ? wejscia.First().DataCzas.ToString("HH:mm") : "-";
+                string ostatnieWyjscie = wyjscia.Any() ? wyjscia.Last().DataCzas.ToString("HH:mm") : "-";
 
-                // Oblicz przerwy - szukamy par: Wyjście -> Wejście (między pierwszym wejściem a ostatnim wyjściem)
+                decimal godzinyNaMiejscu = 0;
+                decimal godzinyPrzerw = 0;
                 int liczbaPrzerw = 0;
-                TimeSpan sumaPrzerw = TimeSpan.Zero;
 
-                if (pierwszeWejscie.HasValue && ostatnieWyjscie.HasValue)
+                if (wejscia.Any() && wyjscia.Any())
                 {
-                    // Posortuj wszystkie zdarzenia chronologicznie
-                    var zdarzeniaWDniu = rejestracjeGrupy
-                        .Where(r => r.DataCzas >= pierwszeWejscie.Value && r.DataCzas <= ostatnieWyjscie.Value)
-                        .OrderBy(r => r.DataCzas)
-                        .ToList();
+                    var start = wejscia.First().DataCzas;
+                    var koniec = wyjscia.Last().DataCzas;
+                    godzinyNaMiejscu = (decimal)(koniec - start).TotalHours;
 
-                    // Znajdź przerwy: Wyjście -> następne Wejście
-                    for (int i = 0; i < zdarzeniaWDniu.Count - 1; i++)
+                    var wszystkie = (portierniaRej.Any() ? portierniaRej : rej).OrderBy(r => r.DataCzas).ToList();
+                    for (int i = 0; i < wszystkie.Count - 1; i++)
                     {
-                        if (zdarzeniaWDniu[i].Typ == "Wyjście" && zdarzeniaWDniu[i + 1].Typ == "Wejście")
+                        if (wszystkie[i].Typ == "Wyjście" && wszystkie[i + 1].Typ == "Wejście")
                         {
-                            var czasPrzerwy = zdarzeniaWDniu[i + 1].DataCzas - zdarzeniaWDniu[i].DataCzas;
-                            // Liczymy tylko przerwy krótsze niż 4 godziny (dłuższe to pewnie błąd danych)
-                            if (czasPrzerwy.TotalHours < 4)
+                            var przerwa = (decimal)(wszystkie[i + 1].DataCzas - wszystkie[i].DataCzas).TotalHours;
+                            if (przerwa > 0.05m && przerwa < 2)
                             {
+                                godzinyPrzerw += przerwa;
                                 liczbaPrzerw++;
-                                sumaPrzerw += czasPrzerwy;
                             }
                         }
                     }
                 }
 
-                TimeSpan? czasPracy = null;
-                TimeSpan? czasEfektywny = null;
-                string status = "OK";
+                var godzinyEfektywne = Math.Max(0, godzinyNaMiejscu - godzinyPrzerw);
 
-                if (pierwszeWejscie.HasValue && ostatnieWyjscie.HasValue && ostatnieWyjscie > pierwszeWejscie)
-                {
-                    czasPracy = ostatnieWyjscie.Value - pierwszeWejscie.Value;
-                    czasEfektywny = czasPracy.Value - sumaPrzerw;
-                    
-                    if (czasPracy.Value.TotalHours > 14) status = "Ponad 14h";
-                    else if (sumaPrzerw.TotalHours > 2) status = "Długie przerwy";
-                }
-                else if (!pierwszeWejscie.HasValue) status = "Brak wejścia";
-                else if (!ostatnieWyjscie.HasValue) status = "Brak wyjścia";
-                else status = "Błąd danych";
+                string status = "OK";
+                if (!wyjscia.Any()) status = "⚠️ Brak wyjścia";
+                else if (!wejscia.Any()) status = "⚠️ Brak wejścia";
+                else if (godzinyEfektywne > 12) status = "⚠️ >12h";
+                else if (godzinyEfektywne < 4 && godzinyEfektywne > 0) status = "⚡ <4h";
 
                 godzinyPracy.Add(new DzienPracy
                 {
+                    Data = grupa.Key.Data,
                     IdPracownika = grupa.Key.IdPracownika,
                     Pracownik = pierwsza.Pracownik,
-                    IdGrupy = pierwsza.IdGrupy,
                     Grupa = pierwsza.Grupa,
-                    Data = grupa.Key.Data,
-                    PierwszeWejscie = pierwszeWejscie?.ToString("HH:mm") ?? "-",
-                    OstatnieWyjscie = ostatnieWyjscie?.ToString("HH:mm") ?? "-",
-                    CzasPracy = czasPracy.HasValue ? $"{(int)czasPracy.Value.TotalHours}h {czasPracy.Value.Minutes}m" : "-",
-                    GodzinyDziesietne = czasPracy.HasValue ? (decimal)czasPracy.Value.TotalHours : 0,
-                    LiczbaWejsc = wszystkieWejscia.Count,
-                    LiczbaWyjsc = wszystkieWyjscia.Count,
+                    PierwszeWejscie = pierwszeWejscie,
+                    OstatnieWyjscie = ostatnieWyjscie,
+                    GodzinyNaMiejscu = Math.Round(godzinyNaMiejscu, 2),
+                    CzasPracy = FormatGodziny(godzinyNaMiejscu),
                     LiczbaPrzerw = liczbaPrzerw,
-                    CzasPrzerw = liczbaPrzerw > 0 ? $"{(int)sumaPrzerw.TotalHours}h {sumaPrzerw.Minutes}m" : "-",
-                    GodzinyPrzerw = (decimal)sumaPrzerw.TotalHours,
-                    CzasEfektywny = czasEfektywny.HasValue ? $"{(int)czasEfektywny.Value.TotalHours}h {czasEfektywny.Value.Minutes}m" : "-",
-                    GodzinyEfektywne = czasEfektywny.HasValue ? (decimal)czasEfektywny.Value.TotalHours : 0,
+                    GodzinyPrzerw = Math.Round(godzinyPrzerw, 2),
+                    CzasPrzerw = FormatGodziny(godzinyPrzerw),
+                    GodzinyEfektywne = Math.Round(godzinyEfektywne, 2),
+                    CzasEfektywny = FormatGodziny(godzinyEfektywne),
                     Status = status
                 });
             }
         }
 
-        private void GenerujPodsumowanie()
+        private string FormatGodziny(decimal godziny)
         {
-            podsumowania.Clear();
-            if (godzinyPracy.Count == 0) return;
+            var h = (int)godziny;
+            var m = (int)((godziny - h) * 60);
+            return $"{h}h {m:D2}m";
+        }
 
-            foreach (var grupa in godzinyPracy.GroupBy(r => r.Grupa))
+        private void ObliczObecnych()
+        {
+            var dzisiaj = DateTime.Today;
+            var ostatnieWejscia = rejestracje
+                .Where(r => r.DataCzas.Date == dzisiaj && r.TypPunktu == "Portiernia")
+                .GroupBy(r => r.IdPracownika)
+                .Select(g => g.OrderByDescending(r => r.DataCzas).First())
+                .Where(r => r.Typ == "Wejście");
+
+            foreach (var r in ostatnieWejscia)
             {
-                var pracownicy = grupa.Select(r => r.IdPracownika).Distinct().Count();
-                var sumaGodzin = grupa.Sum(r => r.GodzinyEfektywne);
-                var sumaPrzerw = grupa.Sum(r => r.GodzinyPrzerw);
+                var czasNaTerenie = DateTime.Now - r.DataCzas;
+                obecni.Add(new StatusObecnosci
+                {
+                    IdPracownika = r.IdPracownika,
+                    Pracownik = r.Pracownik,
+                    Grupa = r.Grupa,
+                    Godzina = r.Godzina,
+                    CzasNaTerenie = $"{(int)czasNaTerenie.TotalHours}h {czasNaTerenie.Minutes:D2}m",
+                    PunktDostepu = r.PunktDostepu
+                });
+            }
+
+            txtLiczbaObecnych.Text = $"{obecni.Count} obecnych";
+        }
+
+        private void ObliczPodsumowania()
+        {
+            var grupowane = godzinyPracy.GroupBy(g => g.Grupa);
+            foreach (var grupa in grupowane)
+            {
+                var pracownicy = grupa.Select(g => g.IdPracownika).Distinct().Count();
+                var sumaGodzin = grupa.Sum(g => g.GodzinyEfektywne);
+                var sumaPrzerw = grupa.Sum(g => g.GodzinyPrzerw);
+                var obecnychTeraz = obecni.Count(o => o.Grupa == grupa.Key);
+                var brakiWyjsc = grupa.Count(g => g.Status.Contains("Brak wyjścia"));
+                var przekroczenia = grupa.Count(g => g.Status.Contains(">12h"));
 
                 podsumowania.Add(new PodsumowanieAgencji
                 {
                     Grupa = grupa.Key,
                     LiczbaPracownikow = pracownicy,
-                    SumaGodzin = Math.Round(sumaGodzin, 1),
-                    SredniaGodzin = pracownicy > 0 ? Math.Round(sumaGodzin / pracownicy, 1) : 0,
-                    SumaPrzerw = Math.Round(sumaPrzerw, 1),
-                    Obecni = obecni.Count(r => r.Grupa == grupa.Key),
-                    BrakiWyjsc = grupa.Count(r => r.Status.Contains("Brak wyjścia")),
-                    Przekroczenia = grupa.Count(r => r.Status.Contains("14h") || r.Status.Contains("przerwy"))
+                    SumaGodzin = sumaGodzin,
+                    SredniaGodzin = pracownicy > 0 ? sumaGodzin / pracownicy : 0,
+                    SumaPrzerw = sumaPrzerw,
+                    Obecni = obecnychTeraz,
+                    BrakiWyjsc = brakiWyjsc,
+                    Przekroczenia = przekroczenia
                 });
             }
         }
 
         private void GenerujAlerty()
         {
-            alerty.Clear();
-            foreach (var dzien in godzinyPracy.Where(d => d.Status != "OK"))
+            foreach (var d in godzinyPracy.Where(g => g.Status != "OK"))
             {
-                string typ = dzien.Status.Contains("Brak wejścia") ? "Brak wejścia" :
-                             dzien.Status.Contains("Brak wyjścia") ? "Brak wyjścia" :
-                             dzien.Status.Contains("14h") ? "Przekroczenie czasu" :
-                             dzien.Status.Contains("przerwy") ? "Długie przerwy" : "Inny problem";
-                string priorytet = dzien.Status.Contains("Brak wejścia") ? "Wysoki" :
-                                   dzien.Status.Contains("Brak wyjścia") ? "Średni" :
-                                   dzien.Status.Contains("przerwy") ? "Niski" : "Niski";
-                string opis = dzien.Status;
-                if (dzien.LiczbaPrzerw > 0)
-                {
-                    opis += $" | {dzien.LiczbaPrzerw} przerw ({dzien.CzasPrzerw})";
-                }
-
                 alerty.Add(new AlertCzasuPracy
                 {
-                    Typ = typ, Priorytet = priorytet, Pracownik = dzien.Pracownik,
-                    Grupa = dzien.Grupa, Data = dzien.Data, Opis = opis
+                    Typ = d.Status.Contains("Brak") ? "Brak rejestracji" : "Przekroczenie czasu",
+                    Priorytet = d.Status.Contains(">12h") ? "🔴 Wysoki" : "🟡 Średni",
+                    Pracownik = d.Pracownik,
+                    Grupa = d.Grupa,
+                    Data = d.Data,
+                    Opis = d.Status
                 });
             }
         }
 
         private void UpdateStats()
         {
-            txtStatRejestracje.Text = rejestracje.Count.ToString();
-            txtStatRejestracjeFiltr.Text = "";
-            txtStatObecni.Text = obecni.Count.ToString();
-            
-            // Pokaż godziny efektywne (bez przerw)
-            var sumaEfektywna = godzinyPracy.Sum(g => g.GodzinyEfektywne);
-            txtStatGodziny.Text = $"{Math.Round(sumaEfektywna, 1)}h";
-            
-            txtStatPracownicy.Text = godzinyPracy.Select(g => g.IdPracownika).Distinct().Count().ToString();
-            txtStatAlerty.Text = alerty.Count.ToString();
             UpdateDateRangeDisplay();
-            
-            // Zastosuj filtry po załadowaniu danych
+            GenerujRanking();
+            GenerujPorownanieAgencji();
+            GenerujNadgodziny();
+            GenerujAnalizePunktualnosci();
+            GenerujNieobecnosci();
+            AktualizujListePracownikow();
             ApplyFilters();
         }
 
         private void UpdateDateRangeDisplay()
         {
-            if (dpOd.SelectedDate.HasValue && dpDo.SelectedDate.HasValue)
-            {
-                var od = dpOd.SelectedDate.Value;
-                var doo = dpDo.SelectedDate.Value;
-                
-                if (od.Date == DateTime.Today && doo.Date == DateTime.Today)
-                {
-                    txtZakresDat.Text = "Dane z: dziś";
-                }
-                else if (od.Date == doo.Date)
-                {
-                    txtZakresDat.Text = $"Dane z: {od:dd.MM.yyyy}";
-                }
-                else
-                {
-                    txtZakresDat.Text = $"Dane z: {od:dd.MM.yyyy} - {doo:dd.MM.yyyy}";
-                }
-            }
+            var od = dpOd.SelectedDate ?? DateTime.Today;
+            var doo = dpDo.SelectedDate ?? DateTime.Today;
+            if (od == doo && od == DateTime.Today)
+                txtZakresDat.Text = "Zakres: dziś";
+            else if (od == doo)
+                txtZakresDat.Text = $"Zakres: {od:dd.MM.yyyy}";
+            else
+                txtZakresDat.Text = $"Zakres: {od:dd.MM} — {doo:dd.MM.yyyy}";
         }
 
         private void ApplyFilters()
@@ -549,113 +422,639 @@ namespace Kalendarz1.KontrolaGodzin
             var wybranaGrupa = cmbGrupa.SelectedItem as GrupaUnicard;
             var szukaj = txtSzukaj.Text?.ToLower() ?? "";
 
-            var filteredRejestracje = rejestracje.Where(r =>
-                (wybranaGrupa == null || wybranaGrupa.IdGrupy == 0 || r.IdGrupy == wybranaGrupa.IdGrupy) &&
-                (string.IsNullOrEmpty(szukaj) || r.Pracownik.ToLower().Contains(szukaj))).ToList();
-            gridRejestracje.ItemsSource = filteredRejestracje;
+            var filteredRej = rejestracje.AsEnumerable();
+            if (wybranaGrupa != null && wybranaGrupa.Id != 0)
+                filteredRej = filteredRej.Where(r => r.Grupa == wybranaGrupa.Nazwa);
+            if (!string.IsNullOrEmpty(szukaj))
+                filteredRej = filteredRej.Where(r => r.Pracownik.ToLower().Contains(szukaj) || r.Grupa.ToLower().Contains(szukaj));
+            gridRejestracje.ItemsSource = new ObservableCollection<RejestrKarty>(filteredRej);
 
-            var filteredGodziny = godzinyPracy.Where(g =>
-                (wybranaGrupa == null || wybranaGrupa.IdGrupy == 0 || g.IdGrupy == wybranaGrupa.IdGrupy) &&
-                (string.IsNullOrEmpty(szukaj) || g.Pracownik.ToLower().Contains(szukaj))).ToList();
-            gridGodzinyPracy.ItemsSource = filteredGodziny;
+            var filteredGodz = godzinyPracy.AsEnumerable();
+            if (wybranaGrupa != null && wybranaGrupa.Id != 0)
+                filteredGodz = filteredGodz.Where(g => g.Grupa == wybranaGrupa.Nazwa);
+            if (!string.IsNullOrEmpty(szukaj))
+                filteredGodz = filteredGodz.Where(g => g.Pracownik.ToLower().Contains(szukaj) || g.Grupa.ToLower().Contains(szukaj));
+            gridGodzinyPracy.ItemsSource = new ObservableCollection<DzienPracy>(filteredGodz);
+        }
 
-            var filteredObecni = obecni.Where(o =>
-                (wybranaGrupa == null || wybranaGrupa.IdGrupy == 0 || o.IdGrupy == wybranaGrupa.IdGrupy) &&
-                (string.IsNullOrEmpty(szukaj) || o.Pracownik.ToLower().Contains(szukaj))).ToList();
-            gridObecni.ItemsSource = filteredObecni;
-
-            // Pokaż info o filtrze
-            bool maFiltr = !string.IsNullOrEmpty(szukaj) || (wybranaGrupa != null && wybranaGrupa.IdGrupy != 0);
-            if (maFiltr)
+        // Event handlers
+        private void ChkTylkoDzisiaj_Changed(object sender, RoutedEventArgs e)
+        {
+            if (chkTylkoDzisiaj.IsChecked == true)
             {
-                txtStatRejestracjeFiltr.Text = $"(z {rejestracje.Count})";
-                txtStatRejestracje.Text = filteredRejestracje.Count.ToString();
-            }
-            else
-            {
-                txtStatRejestracjeFiltr.Text = "";
-                txtStatRejestracje.Text = rejestracje.Count.ToString();
+                isLoading = true;
+                dpOd.SelectedDate = DateTime.Today;
+                dpDo.SelectedDate = DateTime.Today;
+                isLoading = false;
+                _ = LoadAllData();
             }
         }
 
-        private void ExportToExcel()
+        private async void DpOd_SelectedDateChanged(object sender, SelectionChangedEventArgs e) { if (!isLoading) { chkTylkoDzisiaj.IsChecked = false; await LoadAllData(); } }
+        private async void DpDo_SelectedDateChanged(object sender, SelectionChangedEventArgs e) { if (!isLoading) { chkTylkoDzisiaj.IsChecked = false; await LoadAllData(); } }
+        private void CmbGrupa_SelectionChanged(object sender, SelectionChangedEventArgs e) => ApplyFilters();
+        private void TxtSzukaj_TextChanged(object sender, TextChangedEventArgs e) => ApplyFilters();
+        private void BtnWyczyscSzukaj_Click(object sender, RoutedEventArgs e) { txtSzukaj.Text = ""; cmbGrupa.SelectedIndex = 0; }
+        private async void BtnOdswiez_Click(object sender, RoutedEventArgs e) => await LoadAllData();
+
+        private async void BtnWczoraj_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new Microsoft.Win32.SaveFileDialog
+            isLoading = true;
+            dpOd.SelectedDate = DateTime.Today.AddDays(-1);
+            dpDo.SelectedDate = DateTime.Today.AddDays(-1);
+            chkTylkoDzisiaj.IsChecked = false;
+            isLoading = false;
+            await LoadAllData();
+        }
+
+        private async void BtnTydzien_Click(object sender, RoutedEventArgs e)
+        {
+            isLoading = true;
+            dpOd.SelectedDate = DateTime.Today.AddDays(-7);
+            dpDo.SelectedDate = DateTime.Today;
+            chkTylkoDzisiaj.IsChecked = false;
+            isLoading = false;
+            await LoadAllData();
+        }
+
+        private async void BtnMiesiac_Click(object sender, RoutedEventArgs e)
+        {
+            isLoading = true;
+            dpOd.SelectedDate = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+            dpDo.SelectedDate = DateTime.Today;
+            chkTylkoDzisiaj.IsChecked = false;
+            isLoading = false;
+            await LoadAllData();
+        }
+
+        private void CmbMiesiac_SelectionChanged(object sender, SelectionChangedEventArgs e) { }
+        private void CmbRok_SelectionChanged(object sender, SelectionChangedEventArgs e) { }
+
+        private void GenerujRanking()
+        {
+            ranking.Clear();
+            if (godzinyPracy.Count == 0) return;
+
+            var grupowane = godzinyPracy.GroupBy(g => g.IdPracownika);
+            var lista = new List<RankingPracownika>();
+
+            foreach (var osoba in grupowane)
             {
-                Filter = "Plik CSV|*.csv", FileName = $"KontrolaGodzin_{DateTime.Now:yyyy-MM-dd_HHmm}.csv"
+                var dni = osoba.ToList();
+                var pierwsza = dni.First();
+                var dniOK = dni.Count(d => d.Status == "OK");
+                var punktualnosc = dni.Count > 0 ? (dniOK * 100.0 / dni.Count) : 100;
+
+                string ocena;
+                if (punktualnosc >= 95 && dni.Average(d => (double)d.GodzinyEfektywne) >= 7.5) ocena = "⭐⭐⭐ Wzorowy";
+                else if (punktualnosc >= 80 && dni.Average(d => (double)d.GodzinyEfektywne) >= 6) ocena = "⭐⭐ Dobry";
+                else if (punktualnosc >= 60) ocena = "⭐ Przeciętny";
+                else ocena = "⚠️ Wymaga uwagi";
+
+                lista.Add(new RankingPracownika
+                {
+                    IdPracownika = osoba.Key,
+                    Pracownik = pierwsza.Pracownik,
+                    Grupa = pierwsza.Grupa,
+                    DniPracy = dni.Count,
+                    SumaGodzin = dni.Sum(d => d.GodzinyEfektywne),
+                    SredniaGodzin = dni.Average(d => d.GodzinyEfektywne),
+                    SumaPrzerw = dni.Sum(d => d.GodzinyPrzerw),
+                    Punktualnosc = $"{punktualnosc:N0}%",
+                    Ocena = ocena
+                });
+            }
+
+            int poz = 1;
+            foreach (var r in lista.OrderByDescending(r => r.SumaGodzin))
+            {
+                r.Pozycja = poz++;
+                ranking.Add(r);
+            }
+        }
+
+        private void GenerujPorownanieAgencji()
+        {
+            porownanieAgencji.Clear();
+            if (godzinyPracy.Count == 0) return;
+
+            var grupowane = godzinyPracy.GroupBy(g => g.Grupa);
+            var lista = new List<PorownanieAgencjiModel>();
+
+            foreach (var agencja in grupowane)
+            {
+                var dni = agencja.ToList();
+                var pracownicy = dni.Select(d => d.IdPracownika).Distinct().Count();
+                var dniOK = dni.Count(d => d.Status == "OK");
+                var punktualnosc = dni.Count > 0 ? (dniOK * 100.0 / dni.Count) : 100;
+                var sredniaGodzin = pracownicy > 0 ? dni.Sum(d => d.GodzinyEfektywne) / pracownicy : 0;
+
+                string ocena;
+                if (punktualnosc >= 90 && (double)sredniaGodzin >= 7) ocena = "⭐⭐⭐ Świetna";
+                else if (punktualnosc >= 75 && (double)sredniaGodzin >= 6) ocena = "⭐⭐ Dobra";
+                else if (punktualnosc >= 50) ocena = "⭐ Przeciętna";
+                else ocena = "⚠️ Słaba";
+
+                lista.Add(new PorownanieAgencjiModel
+                {
+                    Grupa = agencja.Key,
+                    LiczbaPracownikow = pracownicy,
+                    SumaGodzin = dni.Sum(d => d.GodzinyEfektywne),
+                    SredniaNaOsobe = sredniaGodzin,
+                    Frekwencja = "100%",
+                    Punktualnosc = $"{punktualnosc:N0}%",
+                    SredniePrzerwy = pracownicy > 0 ? dni.Sum(d => d.GodzinyPrzerw) / pracownicy : 0,
+                    Problemy = dni.Count(d => d.Status != "OK"),
+                    Ocena = ocena
+                });
+            }
+
+            int poz = 1;
+            foreach (var p in lista.OrderByDescending(p => p.SumaGodzin))
+            {
+                p.Pozycja = poz++;
+                porownanieAgencji.Add(p);
+            }
+        }
+
+        private void BtnOdswiezPorownanie_Click(object sender, RoutedEventArgs e) => GenerujPorownanieAgencji();
+
+        private void GenerujNadgodziny()
+        {
+            nadgodziny.Clear();
+            if (godzinyPracy.Count == 0) return;
+
+            var grupowane = godzinyPracy.GroupBy(g => g.IdPracownika);
+
+            foreach (var osoba in grupowane)
+            {
+                var dni = osoba.ToList();
+                var pierwsza = dni.First();
+
+                decimal nadgodzinyDzien = dni.Where(d => d.GodzinyEfektywne > 8).Sum(d => d.GodzinyEfektywne - 8);
+                decimal nadgodzinyTydzien = 0;
+
+                var tygodnie = dni.GroupBy(d => System.Globalization.CultureInfo.CurrentCulture.Calendar.GetWeekOfYear(
+                    d.Data, System.Globalization.CalendarWeekRule.FirstDay, DayOfWeek.Monday));
+                foreach (var tydzien in tygodnie)
+                {
+                    var suma = tydzien.Sum(d => d.GodzinyEfektywne);
+                    if (suma > 40) nadgodzinyTydzien += suma - 40;
+                }
+
+                var nadgodzinyOkres = Math.Max(nadgodzinyDzien, nadgodzinyTydzien);
+                var procentLimitu = (nadgodzinyOkres / 150m) * 100m;
+
+                string status;
+                if (procentLimitu >= 100) status = "❌ PRZEKROCZONY!";
+                else if (procentLimitu >= 80) status = "⚠️ Blisko limitu";
+                else if (procentLimitu >= 50) status = "⚡ Monitorować";
+                else status = "✅ OK";
+
+                if (nadgodzinyOkres > 0)
+                {
+                    nadgodziny.Add(new NadgodzinyPracownika
+                    {
+                        IdPracownika = osoba.Key,
+                        Pracownik = pierwsza.Pracownik,
+                        Grupa = pierwsza.Grupa,
+                        NadgodzinyDzien = nadgodzinyDzien,
+                        NadgodzinyTydzien = nadgodzinyTydzien,
+                        NadgodzinyMiesiac = nadgodzinyOkres,
+                        NadgodzinyRok = nadgodzinyOkres,
+                        ProcentLimitu = procentLimitu,
+                        StatusLimitu = status
+                    });
+                }
+            }
+        }
+
+        private void GenerujAnalizePunktualnosci()
+        {
+            analizaPunktualnosci.Clear();
+            if (godzinyPracy.Count == 0) return;
+
+            var grupowane = godzinyPracy.GroupBy(g => g.IdPracownika);
+
+            foreach (var osoba in grupowane)
+            {
+                var dni = osoba.ToList();
+                var pierwsza = dni.First();
+
+                int spoznienia = 0, sumaSpoznienMin = 0, wczesniejszeWyjscia = 0;
+
+                foreach (var dzien in dni)
+                {
+                    if (dzien.PierwszeWejscie != "-" && TimeSpan.TryParse(dzien.PierwszeWejscie, out var wejscie))
+                    {
+                        if (wejscie > godzinaPoczatkuPracy)
+                        {
+                            spoznienia++;
+                            sumaSpoznienMin += (int)(wejscie - godzinaPoczatkuPracy).TotalMinutes;
+                        }
+                    }
+                    if (dzien.OstatnieWyjscie != "-" && TimeSpan.TryParse(dzien.OstatnieWyjscie, out var wyjscie))
+                    {
+                        if (wyjscie < godzinaKoncaPracy && dzien.GodzinyEfektywne < 8) wczesniejszeWyjscia++;
+                    }
+                }
+
+                var dniOK = dni.Count - spoznienia - wczesniejszeWyjscia;
+                var punktualnosc = dni.Count > 0 ? (dniOK * 100m / dni.Count) : 100;
+
+                string ocena;
+                if (punktualnosc >= 95) ocena = "⭐⭐⭐ Wzorowa";
+                else if (punktualnosc >= 85) ocena = "⭐⭐ Dobra";
+                else if (punktualnosc >= 70) ocena = "⭐ Przeciętna";
+                else ocena = "⚠️ Wymaga poprawy";
+
+                string trend = spoznienia == 0 ? "📈" : spoznienia <= 2 ? "➡️" : "📉";
+
+                analizaPunktualnosci.Add(new AnalizaPunktualnosci
+                {
+                    IdPracownika = osoba.Key,
+                    Pracownik = pierwsza.Pracownik,
+                    Grupa = pierwsza.Grupa,
+                    DniPracy = dni.Count,
+                    Spoznienia = spoznienia,
+                    SumaSpoznienMin = sumaSpoznienMin,
+                    WczesniejszeWyjscia = wczesniejszeWyjscia,
+                    ProcentPunktualnosci = punktualnosc,
+                    Ocena = ocena,
+                    Trend = trend
+                });
+            }
+        }
+
+        private void GenerujNieobecnosci()
+        {
+            nieobecnosci.Clear();
+            if (godzinyPracy.Count == 0 || !dpOd.SelectedDate.HasValue || !dpDo.SelectedDate.HasValue) return;
+
+            var wszyscy = godzinyPracy.Select(g => new { g.IdPracownika, g.Pracownik, g.Grupa }).Distinct().ToList();
+
+            for (var data = dpOd.SelectedDate.Value; data <= dpDo.SelectedDate.Value; data = data.AddDays(1))
+            {
+                if (data.DayOfWeek == DayOfWeek.Saturday || data.DayOfWeek == DayOfWeek.Sunday || swietaPolskie.Contains(data.Date))
+                    continue;
+
+                var obecniDnia = godzinyPracy.Where(g => g.Data.Date == data.Date).Select(g => g.IdPracownika).ToHashSet();
+
+                foreach (var prac in wszyscy.Where(p => !obecniDnia.Contains(p.IdPracownika)))
+                {
+                    nieobecnosci.Add(new Nieobecnosc
+                    {
+                        IdPracownika = prac.IdPracownika,
+                        Pracownik = prac.Pracownik,
+                        Grupa = prac.Grupa,
+                        Data = data,
+                        TypNieobecnosci = "❓ Nieusprawiedliwiona",
+                        Status = "Do wyjaśnienia",
+                        Uwagi = "Brak rejestracji"
+                    });
+                }
+            }
+
+            txtNieobecnosciNieusp.Text = nieobecnosci.Count(n => n.TypNieobecnosci.Contains("Nieusprawiedliwiona")).ToString();
+            txtNieobecnosciChoroba.Text = nieobecnosci.Count(n => n.TypNieobecnosci.Contains("Choroba")).ToString();
+            txtNieobecnosciUrlop.Text = nieobecnosci.Count(n => n.TypNieobecnosci.Contains("Urlop")).ToString();
+        }
+
+        private void AktualizujListePracownikow()
+        {
+            cmbPracownikEwidencja.Items.Clear();
+            var pracownicy = godzinyPracy.Select(g => new { g.IdPracownika, g.Pracownik, g.Grupa }).Distinct().OrderBy(p => p.Pracownik);
+            foreach (var p in pracownicy) cmbPracownikEwidencja.Items.Add(new ComboBoxItem { Content = p.Pracownik, Tag = p.IdPracownika });
+            if (cmbPracownikEwidencja.Items.Count > 0) cmbPracownikEwidencja.SelectedIndex = 0;
+        }
+
+        private void CmbPracownikEwidencja_SelectionChanged(object sender, SelectionChangedEventArgs e) { }
+
+        private async void BtnGenerujKarteEwidencji_Click(object sender, RoutedEventArgs e)
+        {
+            if (cmbPracownikEwidencja.SelectedItem == null) return;
+
+            var pracownikItem = cmbPracownikEwidencja.SelectedItem as ComboBoxItem;
+            var miesiacItem = cmbMiesiacEwidencja.SelectedItem as ComboBoxItem;
+            if (pracownikItem == null || miesiacItem == null || cmbRokEwidencja.SelectedItem == null) return;
+
+            int idPracownika = (int)pracownikItem.Tag;
+            int numMies = (int)miesiacItem.Tag;
+            int rok = (int)cmbRokEwidencja.SelectedItem;
+
+            var pierwszyDzien = new DateTime(rok, numMies, 1);
+            var ostatniDzien = pierwszyDzien.AddMonths(1).AddDays(-1);
+
+            isLoading = true;
+            dpOd.SelectedDate = pierwszyDzien;
+            dpDo.SelectedDate = ostatniDzien;
+            chkTylkoDzisiaj.IsChecked = false;
+            isLoading = false;
+
+            await LoadAllData();
+            GenerujKarteEwidencjiDane(idPracownika, pierwszyDzien, ostatniDzien);
+        }
+
+        private void GenerujKarteEwidencjiDane(int idPracownika, DateTime odDaty, DateTime doDaty)
+        {
+            kartaEwidencji.Clear();
+            var dniPrac = godzinyPracy.Where(g => g.IdPracownika == idPracownika).ToDictionary(g => g.Data.Date);
+            var dnTyg = new[] { "Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "Sb" };
+
+            decimal sumaNorm = 0, sumaNadg = 0, sumaNoc = 0;
+
+            for (var data = odDaty; data <= doDaty; data = data.AddDays(1))
+            {
+                var dzien = new DzienEwidencji
+                {
+                    Data = data,
+                    DzienTygodnia = dnTyg[(int)data.DayOfWeek],
+                    Weekend = data.DayOfWeek == DayOfWeek.Saturday || data.DayOfWeek == DayOfWeek.Sunday,
+                    Swieto = swietaPolskie.Contains(data.Date)
+                };
+
+                if (dniPrac.TryGetValue(data.Date, out var dp))
+                {
+                    dzien.Wejscie = dp.PierwszeWejscie;
+                    dzien.Wyjscie = dp.OstatnieWyjscie;
+                    dzien.GodzinyNormalne = Math.Min(dp.GodzinyEfektywne, 8);
+                    dzien.Nadgodziny = Math.Max(0, dp.GodzinyEfektywne - 8);
+                    dzien.GodzinyNocne = 0;
+                    if (dzien.Weekend) dzien.Uwagi = "Weekend";
+                    else if (dzien.Swieto) dzien.Uwagi = "Święto";
+                    else if (dp.Status != "OK") dzien.Uwagi = dp.Status;
+
+                    sumaNorm += dzien.GodzinyNormalne;
+                    sumaNadg += dzien.Nadgodziny;
+                }
+                else
+                {
+                    dzien.Wejscie = "-";
+                    dzien.Wyjscie = "-";
+                    if (dzien.Weekend) dzien.Uwagi = "Weekend";
+                    else if (dzien.Swieto) dzien.Uwagi = "Święto";
+                    else dzien.Uwagi = "Nieobecność";
+                }
+
+                kartaEwidencji.Add(dzien);
+            }
+
+            txtEwidencjaDni.Text = kartaEwidencji.Count(k => k.GodzinyNormalne > 0).ToString();
+            txtEwidencjaNormalne.Text = $"{sumaNorm:N1}h";
+            txtEwidencjaNadgodziny.Text = $"{sumaNadg:N1}h";
+            txtEwidencjaNocne.Text = $"{sumaNoc:N1}h";
+        }
+
+        private async void BtnGenerujRaportMiesieczny_Click(object sender, RoutedEventArgs e)
+        {
+            var miesiacItem = cmbMiesiac.SelectedItem as ComboBoxItem;
+            if (miesiacItem == null || cmbRok.SelectedItem == null) return;
+
+            int numMies = (int)miesiacItem.Tag;
+            int rok = (int)cmbRok.SelectedItem;
+            var pierwszyDzien = new DateTime(rok, numMies, 1);
+            var ostatniDzien = pierwszyDzien.AddMonths(1).AddDays(-1);
+
+            isLoading = true;
+            dpOd.SelectedDate = pierwszyDzien;
+            dpDo.SelectedDate = ostatniDzien;
+            chkTylkoDzisiaj.IsChecked = false;
+            isLoading = false;
+
+            await LoadAllData();
+            GenerujRaportMiesiecznyDane();
+        }
+
+        private void GenerujRaportMiesiecznyDane()
+        {
+            raportMiesieczny.Clear();
+            if (godzinyPracy.Count == 0) return;
+
+            var grupowane = godzinyPracy.GroupBy(g => g.IdPracownika);
+
+            foreach (var osoba in grupowane)
+            {
+                var dni = osoba.ToList();
+                var pierwsza = dni.First();
+                var braki = dni.Count(d => d.Status != "OK");
+
+                string status;
+                if (braki == 0) status = "✅ Kompletny";
+                else if (braki <= 2) status = $"⚠️ {braki} braki";
+                else status = $"❌ {braki} problemów";
+
+                raportMiesieczny.Add(new RaportMiesiecznyPracownika
+                {
+                    IdPracownika = osoba.Key,
+                    Pracownik = pierwsza.Pracownik,
+                    Grupa = pierwsza.Grupa,
+                    DniPracy = dni.Count,
+                    GodzinyEfektywne = dni.Sum(d => d.GodzinyEfektywne),
+                    GodzinyPrzerw = dni.Sum(d => d.GodzinyPrzerw),
+                    SredniaDzien = dni.Average(d => d.GodzinyEfektywne),
+                    NajwczesniejszeWejscie = dni.Where(d => d.PierwszeWejscie != "-").OrderBy(d => d.PierwszeWejscie).FirstOrDefault()?.PierwszeWejscie ?? "-",
+                    NajpozniejWyjscie = dni.Where(d => d.OstatnieWyjscie != "-").OrderByDescending(d => d.OstatnieWyjscie).FirstOrDefault()?.OstatnieWyjscie ?? "-",
+                    Braki = braki,
+                    Status = status
+                });
+            }
+        }
+
+        // Double-click handlers
+        private void GridRejestracje_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (gridRejestracje.SelectedItem is RejestrKarty r) PokazSzczegolyPracownika(r.IdPracownika, r.Pracownik);
+        }
+
+        private void GridGodzinyPracy_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (gridGodzinyPracy.SelectedItem is DzienPracy d) PokazSzczegolyPracownika(d.IdPracownika, d.Pracownik);
+        }
+
+        private void GridRanking_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (gridRanking.SelectedItem is RankingPracownika r) PokazSzczegolyPracownika(r.IdPracownika, r.Pracownik);
+        }
+
+        private void GridRaportMiesieczny_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (gridRaportMiesieczny.SelectedItem is RaportMiesiecznyPracownika r) PokazSzczegolyPracownika(r.IdPracownika, r.Pracownik);
+        }
+
+        private void GridPunktualnosc_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (gridPunktualnosc.SelectedItem is AnalizaPunktualnosci a) PokazSzczegolyPracownika(a.IdPracownika, a.Pracownik);
+        }
+
+        private void PokazSzczegolyPracownika(int idPracownika, string nazwaPracownika)
+        {
+            var dniPracownika = godzinyPracy.Where(g => g.IdPracownika == idPracownika).OrderBy(g => g.Data).ToList();
+            var rejPracownika = rejestracje.Where(r => r.IdPracownika == idPracownika).OrderByDescending(r => r.DataCzas).ToList();
+
+            if (!dniPracownika.Any() && !rejPracownika.Any())
+            {
+                MessageBox.Show("Brak danych dla tego pracownika.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"═══════════════════════════════════════════════════════════════");
+            sb.AppendLine($"  {nazwaPracownika.ToUpper()}");
+            sb.AppendLine($"═══════════════════════════════════════════════════════════════");
+            sb.AppendLine();
+
+            if (dniPracownika.Any())
+            {
+                var pierwsza = dniPracownika.First();
+                sb.AppendLine($"  Dział:          {pierwsza.Grupa}");
+                sb.AppendLine($"  Okres:          {dpOd.SelectedDate:dd.MM.yyyy} — {dpDo.SelectedDate:dd.MM.yyyy}");
+                sb.AppendLine($"  Dni pracy:      {dniPracownika.Count}");
+                sb.AppendLine($"  Godz. efekt.:   {dniPracownika.Sum(d => d.GodzinyEfektywne):N1}h");
+                sb.AppendLine($"  Godz. przerw:   {dniPracownika.Sum(d => d.GodzinyPrzerw):N1}h");
+                sb.AppendLine($"  Średnia/dzień:  {dniPracownika.Average(d => d.GodzinyEfektywne):N2}h");
+                sb.AppendLine();
+                sb.AppendLine($"  {"DATA",-12} {"WEJŚCIE",-10} {"WYJŚCIE",-10} {"EFEKT.",-10} {"STATUS"}");
+                sb.AppendLine($"  ─────────────────────────────────────────────────────────────");
+
+                foreach (var d in dniPracownika)
+                    sb.AppendLine($"  {d.Data:dd.MM.yyyy}   {d.PierwszeWejscie,-10} {d.OstatnieWyjscie,-10} {d.CzasEfektywny,-10} {d.Status}");
+            }
+
+            var window = new Window
+            {
+                Title = $"Szczegóły: {nazwaPracownika}",
+                Width = 750, Height = 600,
+                Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#1e1e2e")),
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this
             };
+
+            var textBox = new TextBox
+            {
+                Text = sb.ToString(),
+                IsReadOnly = true,
+                FontFamily = new System.Windows.Media.FontFamily("Consolas"),
+                FontSize = 12,
+                Background = System.Windows.Media.Brushes.Transparent,
+                Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#cdd6f4")),
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(20),
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
+            };
+
+            window.Content = textBox;
+            window.ShowDialog();
+        }
+
+        // Print and export
+        private void DrukujTekst(string tekst, string tytul)
+        {
+            var printDialog = new PrintDialog();
+            if (printDialog.ShowDialog() == true)
+            {
+                var flowDoc = new FlowDocument
+                {
+                    PageWidth = printDialog.PrintableAreaWidth,
+                    PageHeight = printDialog.PrintableAreaHeight,
+                    PagePadding = new Thickness(40),
+                    FontFamily = new System.Windows.Media.FontFamily("Consolas"),
+                    FontSize = 9
+                };
+                flowDoc.Blocks.Add(new Paragraph(new Run(tekst)));
+                printDialog.PrintDocument(((IDocumentPaginatorSource)flowDoc).DocumentPaginator, tytul);
+            }
+        }
+
+        private void BtnDrukujRaport_Click(object sender, RoutedEventArgs e)
+        {
+            if (raportMiesieczny.Count == 0) { MessageBox.Show("Najpierw wygeneruj raport.", "Info", MessageBoxButton.OK, MessageBoxImage.Information); return; }
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("RAPORT MIESIĘCZNY");
+            sb.AppendLine($"{"Pracownik",-25} {"Dział",-15} {"Dni",-5} {"Godz.",-8} {"Status"}");
+            sb.AppendLine(new string('─', 70));
+            foreach (var r in raportMiesieczny)
+                sb.AppendLine($"{r.Pracownik,-25} {r.Grupa,-15} {r.DniPracy,-5} {r.GodzinyEfektywne,-8:N1} {r.Status}");
+            DrukujTekst(sb.ToString(), "Raport Miesięczny");
+        }
+
+        private void BtnDrukujPorownanie_Click(object sender, RoutedEventArgs e)
+        {
+            if (porownanieAgencji.Count == 0) { MessageBox.Show("Brak danych.", "Info", MessageBoxButton.OK, MessageBoxImage.Information); return; }
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("PORÓWNANIE AGENCJI");
+            sb.AppendLine($"{"#",-3} {"Agencja",-20} {"Prac.",-6} {"Godz.",-8} {"Ocena"}");
+            sb.AppendLine(new string('─', 50));
+            foreach (var a in porownanieAgencji)
+                sb.AppendLine($"{a.Pozycja,-3} {a.Grupa,-20} {a.LiczbaPracownikow,-6} {a.SumaGodzin,-8:N1} {a.Ocena}");
+            DrukujTekst(sb.ToString(), "Porównanie Agencji");
+        }
+
+        private void BtnDrukujKarteEwidencji_Click(object sender, RoutedEventArgs e)
+        {
+            if (kartaEwidencji.Count == 0) { MessageBox.Show("Najpierw wygeneruj kartę.", "Info", MessageBoxButton.OK, MessageBoxImage.Information); return; }
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("KARTA EWIDENCJI CZASU PRACY");
+            sb.AppendLine($"{"Data",-10} {"Dz.",-4} {"Wej.",-8} {"Wyj.",-8} {"Norm.",-8} {"Nadg.",-8} {"Uwagi"}");
+            sb.AppendLine(new string('─', 70));
+            foreach (var d in kartaEwidencji)
+                sb.AppendLine($"{d.Data:dd.MM}     {d.DzienTygodnia,-4} {d.Wejscie,-8} {d.Wyjscie,-8} {d.GodzinyNormalne,-8:N1} {d.Nadgodziny,-8:N1} {d.Uwagi}");
+            sb.AppendLine();
+            sb.AppendLine($"Dni: {txtEwidencjaDni.Text} | Normalne: {txtEwidencjaNormalne.Text} | Nadgodziny: {txtEwidencjaNadgodziny.Text}");
+            DrukujTekst(sb.ToString(), "Karta Ewidencji");
+        }
+
+        private void BtnExport_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new Microsoft.Win32.SaveFileDialog { Filter = "CSV|*.csv", FileName = $"CzasPracy_{DateTime.Now:yyyyMMdd}.csv" };
             if (dialog.ShowDialog() == true)
             {
                 try
                 {
                     using (var writer = new StreamWriter(dialog.FileName, false, System.Text.Encoding.UTF8))
                     {
-                        switch (tabControl.SelectedIndex)
-                        {
-                            case 0:
-                                writer.WriteLine("Data;Godzina;Typ;Pracownik;Grupa;Punkt dostępu;Rodzaj");
-                                foreach (var r in rejestracje) writer.WriteLine($"{r.DataCzas:dd.MM.yyyy};{r.Godzina};{r.Typ};{r.Pracownik};{r.Grupa};{r.PunktDostepu};{r.TypPunktu}");
-                                break;
-                            case 1:
-                                writer.WriteLine("Pracownik;Grupa;Data;Wejście;Wyjście;Na miejscu;Godziny;Przerwy;Czas przerw;Godz. przerw;Efektywnie;Godz. efekt.;Wejść;Wyjść;Status");
-                                foreach (var g in godzinyPracy) writer.WriteLine($"{g.Pracownik};{g.Grupa};{g.Data:dd.MM.yyyy};{g.PierwszeWejscie};{g.OstatnieWyjscie};{g.CzasPracy};{g.GodzinyDziesietne:N2};{g.LiczbaPrzerw};{g.CzasPrzerw};{g.GodzinyPrzerw:N2};{g.CzasEfektywny};{g.GodzinyEfektywne:N2};{g.LiczbaWejsc};{g.LiczbaWyjsc};{g.Status}");
-                                break;
-                            case 2:
-                                writer.WriteLine("Pracownik;Grupa;Wejście;Na terenie;Punkt dostępu");
-                                foreach (var o in obecni) writer.WriteLine($"{o.Pracownik};{o.Grupa};{o.Godzina};{o.CzasNaTerenie};{o.PunktDostepu}");
-                                break;
-                            case 3:
-                                writer.WriteLine("Grupa;Pracownicy;Godz. efektywne;Średnia/os.;Godz. przerw;Obecni;Braki wyjść;Problemy");
-                                foreach (var p in podsumowania) writer.WriteLine($"{p.Grupa};{p.LiczbaPracownikow};{p.SumaGodzin:N1};{p.SredniaGodzin:N1};{p.SumaPrzerw:N1};{p.Obecni};{p.BrakiWyjsc};{p.Przekroczenia}");
-                                break;
-                            case 4:
-                                writer.WriteLine("Typ;Priorytet;Pracownik;Grupa;Data;Opis");
-                                foreach (var a in alerty) writer.WriteLine($"{a.Typ};{a.Priorytet};{a.Pracownik};{a.Grupa};{a.Data:dd.MM.yyyy};{a.Opis}");
-                                break;
-                        }
+                        writer.WriteLine("Data;Pracownik;Dział;Wejście;Wyjście;Na miejscu;Przerwy;Efektywnie;Status");
+                        foreach (var g in godzinyPracy)
+                            writer.WriteLine($"{g.Data:dd.MM.yyyy};{g.Pracownik};{g.Grupa};{g.PierwszeWejscie};{g.OstatnieWyjscie};{g.CzasPracy};{g.CzasPrzerw};{g.CzasEfektywny};{g.Status}");
                     }
-                    MessageBox.Show($"Wyeksportowano do:\n{dialog.FileName}", "Eksport", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show($"Wyeksportowano do:\n{dialog.FileName}", "Export", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
-                catch (Exception ex) { MessageBox.Show($"Błąd eksportu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error); }
+                catch (Exception ex) { MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error); }
             }
         }
-
-        protected override void OnClosed(EventArgs e) { clockTimer?.Stop(); base.OnClosed(e); }
     }
 
-    // KLASY MODELI
+    // Models
+    public class GrupaUnicard { public int Id { get; set; } public string Nazwa { get; set; } }
+
     public class RejestrKarty
     {
-        public int Id { get; set; }
         public DateTime DataCzas { get; set; }
         public string Godzina { get; set; }
         public string Typ { get; set; }
         public int IdPracownika { get; set; }
         public string Pracownik { get; set; }
-        public int IdGrupy { get; set; }
         public string Grupa { get; set; }
         public string PunktDostepu { get; set; }
-        public string TypPunktu { get; set; } // Portiernia, Produkcja, Inny
+        public string IdKarty { get; set; }
+        public string TypPunktu { get; set; }
     }
 
     public class DzienPracy
     {
+        public DateTime Data { get; set; }
         public int IdPracownika { get; set; }
         public string Pracownik { get; set; }
-        public int IdGrupy { get; set; }
         public string Grupa { get; set; }
-        public DateTime Data { get; set; }
         public string PierwszeWejscie { get; set; }
         public string OstatnieWyjscie { get; set; }
+        public decimal GodzinyNaMiejscu { get; set; }
         public string CzasPracy { get; set; }
-        public decimal GodzinyDziesietne { get; set; }
-        public int LiczbaWejsc { get; set; }
-        public int LiczbaWyjsc { get; set; }
         public int LiczbaPrzerw { get; set; }
-        public string CzasPrzerw { get; set; }
         public decimal GodzinyPrzerw { get; set; }
-        public string CzasEfektywny { get; set; }
+        public string CzasPrzerw { get; set; }
         public decimal GodzinyEfektywne { get; set; }
+        public string CzasEfektywny { get; set; }
         public string Status { get; set; }
     }
 
@@ -663,7 +1062,6 @@ namespace Kalendarz1.KontrolaGodzin
     {
         public int IdPracownika { get; set; }
         public string Pracownik { get; set; }
-        public int IdGrupy { get; set; }
         public string Grupa { get; set; }
         public string Godzina { get; set; }
         public string CzasNaTerenie { get; set; }
@@ -692,10 +1090,98 @@ namespace Kalendarz1.KontrolaGodzin
         public string Opis { get; set; }
     }
 
-    public class GrupaUnicard
+    public class RankingPracownika
     {
-        public int IdGrupy { get; set; }
-        public string NazwaGrupy { get; set; }
-        public override string ToString() => NazwaGrupy;
+        public int Pozycja { get; set; }
+        public int IdPracownika { get; set; }
+        public string Pracownik { get; set; }
+        public string Grupa { get; set; }
+        public int DniPracy { get; set; }
+        public decimal SumaGodzin { get; set; }
+        public decimal SredniaGodzin { get; set; }
+        public decimal SumaPrzerw { get; set; }
+        public string Punktualnosc { get; set; }
+        public string Ocena { get; set; }
+    }
+
+    public class RaportMiesiecznyPracownika
+    {
+        public int IdPracownika { get; set; }
+        public string Pracownik { get; set; }
+        public string Grupa { get; set; }
+        public int DniPracy { get; set; }
+        public decimal GodzinyEfektywne { get; set; }
+        public decimal GodzinyPrzerw { get; set; }
+        public decimal SredniaDzien { get; set; }
+        public string NajwczesniejszeWejscie { get; set; }
+        public string NajpozniejWyjscie { get; set; }
+        public int Braki { get; set; }
+        public string Status { get; set; }
+    }
+
+    public class PorownanieAgencjiModel
+    {
+        public int Pozycja { get; set; }
+        public string Grupa { get; set; }
+        public int LiczbaPracownikow { get; set; }
+        public decimal SumaGodzin { get; set; }
+        public decimal SredniaNaOsobe { get; set; }
+        public string Frekwencja { get; set; }
+        public string Punktualnosc { get; set; }
+        public decimal SredniePrzerwy { get; set; }
+        public int Problemy { get; set; }
+        public string Ocena { get; set; }
+    }
+
+    public class NadgodzinyPracownika
+    {
+        public int IdPracownika { get; set; }
+        public string Pracownik { get; set; }
+        public string Grupa { get; set; }
+        public decimal NadgodzinyDzien { get; set; }
+        public decimal NadgodzinyTydzien { get; set; }
+        public decimal NadgodzinyMiesiac { get; set; }
+        public decimal NadgodzinyRok { get; set; }
+        public decimal ProcentLimitu { get; set; }
+        public string StatusLimitu { get; set; }
+    }
+
+    public class DzienEwidencji
+    {
+        public DateTime Data { get; set; }
+        public string DzienTygodnia { get; set; }
+        public string Wejscie { get; set; }
+        public string Wyjscie { get; set; }
+        public decimal GodzinyNormalne { get; set; }
+        public decimal Nadgodziny { get; set; }
+        public decimal GodzinyNocne { get; set; }
+        public bool Weekend { get; set; }
+        public bool Swieto { get; set; }
+        public string Uwagi { get; set; }
+    }
+
+    public class AnalizaPunktualnosci
+    {
+        public int IdPracownika { get; set; }
+        public string Pracownik { get; set; }
+        public string Grupa { get; set; }
+        public int DniPracy { get; set; }
+        public int Spoznienia { get; set; }
+        public int SumaSpoznienMin { get; set; }
+        public int WczesniejszeWyjscia { get; set; }
+        public decimal ProcentPunktualnosci { get; set; }
+        public string Ocena { get; set; }
+        public string Trend { get; set; }
+    }
+
+    public class Nieobecnosc
+    {
+        public int IdPracownika { get; set; }
+        public string Pracownik { get; set; }
+        public string Grupa { get; set; }
+        public DateTime Data { get; set; }
+        public string TypNieobecnosci { get; set; }
+        public string Status { get; set; }
+        public string Uwagi { get; set; }
     }
 }
