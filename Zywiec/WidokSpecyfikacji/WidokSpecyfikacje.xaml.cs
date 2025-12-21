@@ -1654,7 +1654,10 @@ namespace Kalendarz1
 
                 decimal sredniaWagaSuma = sumaSztWszystkie > 0 ? sumaNetto / sumaSztWszystkie : 0;
                 decimal avgCena = sumaKGShort > 0 ? sumaWartoscShort / sumaKGShort : 0;
-                int terminZaplatyDni = zapytaniasql.GetTerminZaplaty(customerRealGID);
+
+                // Pobierz termin zapłaty z FarmerCalc (TerminDni), lub domyślny z Dostawcy
+                int? terminDniFromCalc = zapytaniasql.PobierzInformacjeZBazyDanych<int?>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "TerminDni");
+                int terminZaplatyDni = terminDniFromCalc ?? zapytaniasql.GetTerminZaplaty(customerRealGID);
                 DateTime terminPlatnosci = dzienUbojowy.AddDays(terminZaplatyDni);
 
                 // === GŁÓWNE DANE - DUŻY BOX ===
@@ -1977,8 +1980,9 @@ namespace Kalendarz1
                 string sellerKod = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "PostalCode") ?? "";
                 string sellerMiejsc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "City") ?? "";
 
-                // Pobierz termin zapłaty hodowcy (domyślnie 14 dni)
-                int terminZaplatyDni = zapytaniasql.GetTerminZaplaty(customerRealGID);
+                // Pobierz termin zapłaty z FarmerCalc (TerminDni), lub domyślny z Dostawcy
+                int? terminDniFromCalc = zapytaniasql.PobierzInformacjeZBazyDanych<int?>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "TerminDni");
+                int terminZaplatyDni = terminDniFromCalc ?? zapytaniasql.GetTerminZaplaty(customerRealGID);
 
                 DateTime terminPlatnosci = dzienUbojowy.AddDays(terminZaplatyDni);
 
@@ -2146,6 +2150,8 @@ namespace Kalendarz1
                 decimal sumaBrutto = 0, sumaTara = 0, sumaNetto = 0, sumaPadleKG = 0, sumaKonfiskatyKG = 0, sumaOpasienieKG = 0, sumaKlasaB = 0;
                 int sumaSztWszystkie = 0, sumaPadle = 0, sumaKonfiskaty = 0, sumaSztZdatne = 0;
                 decimal sredniaWagaSuma = 0;
+                bool czyByloUbytku = false;
+                decimal sumaUbytekKG = 0; // Suma kg odliczonych przez Ubytek %
 
                 // Dane tabeli
                 for (int i = 0; i < ids.Count; i++)
@@ -2182,14 +2188,27 @@ namespace Kalendarz1
                     decimal opasienieKG = Math.Round(zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Opasienie"), 0);
                     decimal klasaB = Math.Round(zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "KlasaB"), 0);
 
-                    decimal doZaplaty = czyPiK
+                    // Obliczenie DoZaplaty: Netto - (PiK ? 0 : Padłe+Konf) - Opasienie - KlasaB, potem * (1 - Ubytek%)
+                    decimal bazaDoZaplaty = czyPiK
                         ? wagaNetto - opasienieKG - klasaB
                         : wagaNetto - padleKG - konfiskatyKG - opasienieKG - klasaB;
+
+                    // Zastosowanie ubytku procentowego (zgodnie z modelem)
+                    decimal doZaplaty = ubytek > 0
+                        ? Math.Round(bazaDoZaplaty * (1 - ubytek / 100), 0)
+                        : bazaDoZaplaty;
 
                     decimal cenaBase = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Price");
                     decimal dodatek = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Addition");
                     decimal cena = cenaBase + dodatek; // Cena zawiera dodatek
                     decimal wartosc = cena * doZaplaty;
+
+                    // Śledzenie Ubytku
+                    if (ubytek > 0)
+                    {
+                        czyByloUbytku = true;
+                        sumaUbytekKG += bazaDoZaplaty - doZaplaty; // różnica = ile kg odliczono przez ubytek
+                    }
 
                     // Sumowanie
                     sumaWartosc += wartosc;
@@ -2289,10 +2308,19 @@ namespace Kalendarz1
                 formula5.Add(new Chunk($"{sumaKonfiskaty} × {sredniaWagaSuma:N2} = {sumaKonfiskatyKG:N0} kg", legendaFont));
                 formulaCell.AddElement(formula5);
 
-                // 6. Do zapłaty = Netto - Padłe[kg] - Konfiskaty[kg] - Opasienie - Klasa B
+                // 6. Do zapłaty = Netto - Padłe[kg] - Konfiskaty[kg] - Opasienie - Klasa B - Ubytek%
                 Paragraph formula6 = new Paragraph();
-                formula6.Add(new Chunk("Do zapł. = Netto - Padłe - Konf. - Opas. - Kl.B: ", legendaBoldFont));
-                formula6.Add(new Chunk($"{sumaNetto:N0} - {sumaPadleKG:N0} - {sumaKonfiskatyKG:N0} - {sumaOpasienieKG:N0} - {sumaKlasaB:N0} = {sumaKG:N0} kg", legendaFont));
+                if (czyByloUbytku)
+                {
+                    decimal bazaBezUbytku = sumaKG + sumaUbytekKG;
+                    formula6.Add(new Chunk("Do zapł. = (Netto - Padłe - Konf. - Opas. - Kl.B) × (1 - Ubytek%): ", legendaBoldFont));
+                    formula6.Add(new Chunk($"({sumaNetto:N0} - {sumaPadleKG:N0} - {sumaKonfiskatyKG:N0} - {sumaOpasienieKG:N0} - {sumaKlasaB:N0}) - {sumaUbytekKG:N0} = {sumaKG:N0} kg", legendaFont));
+                }
+                else
+                {
+                    formula6.Add(new Chunk("Do zapł. = Netto - Padłe - Konf. - Opas. - Kl.B: ", legendaBoldFont));
+                    formula6.Add(new Chunk($"{sumaNetto:N0} - {sumaPadleKG:N0} - {sumaKonfiskatyKG:N0} - {sumaOpasienieKG:N0} - {sumaKlasaB:N0} = {sumaKG:N0} kg", legendaFont));
+                }
                 formulaCell.AddElement(formula6);
 
                 // 7. Wartość = Kilogramy × Cena
