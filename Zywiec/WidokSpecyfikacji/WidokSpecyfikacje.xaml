@@ -60,6 +60,16 @@
             </Style.Triggers>
         </Style>
 
+        <!-- === STYL: TextBox numeryczny - SelectAll przy fokusie === -->
+        <Style x:Key="NumericTextBoxStyle" TargetType="TextBox">
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <EventSetter Event="GotFocus" Handler="NumericTextBox_GotFocus"/>
+        </Style>
+
         <!-- === STYL: Komórka - czarna czcionka przy zaznaczeniu === -->
         <Style TargetType="DataGridCell">
             <Setter Property="Foreground" Value="Black"/>
@@ -472,12 +482,8 @@
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBox Text="{Binding SztukiDek, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         HorizontalAlignment="Stretch"
-                                         VerticalAlignment="Center"
-                                         HorizontalContentAlignment="Center"
-                                         FontWeight="SemiBold"
-                                         BorderThickness="0"
-                                         Background="Transparent"/>
+                                         Style="{StaticResource NumericTextBoxStyle}"
+                                         FontWeight="SemiBold"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
@@ -493,11 +499,7 @@
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBox Text="{Binding Padle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         HorizontalAlignment="Stretch"
-                                         VerticalAlignment="Center"
-                                         HorizontalContentAlignment="Center"
-                                         BorderThickness="0"
-                                         Background="Transparent"
+                                         Style="{StaticResource NumericTextBoxStyle}"
                                          Foreground="#BF360C"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
@@ -514,11 +516,7 @@
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBox Text="{Binding CH, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         HorizontalAlignment="Stretch"
-                                         VerticalAlignment="Center"
-                                         HorizontalContentAlignment="Center"
-                                         BorderThickness="0"
-                                         Background="Transparent"/>
+                                         Style="{StaticResource NumericTextBoxStyle}"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
@@ -534,11 +532,7 @@
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBox Text="{Binding NW, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         HorizontalAlignment="Stretch"
-                                         VerticalAlignment="Center"
-                                         HorizontalContentAlignment="Center"
-                                         BorderThickness="0"
-                                         Background="Transparent"/>
+                                         Style="{StaticResource NumericTextBoxStyle}"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
@@ -554,11 +548,7 @@
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBox Text="{Binding ZM, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         HorizontalAlignment="Stretch"
-                                         VerticalAlignment="Center"
-                                         HorizontalContentAlignment="Center"
-                                         BorderThickness="0"
-                                         Background="Transparent"/>
+                                         Style="{StaticResource NumericTextBoxStyle}"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
@@ -574,13 +564,9 @@
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBox Text="{Binding LUMEL, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         HorizontalAlignment="Stretch"
-                                         VerticalAlignment="Center"
-                                         HorizontalContentAlignment="Center"
+                                         Style="{StaticResource NumericTextBoxStyle}"
                                          FontWeight="Bold"
-                                         Foreground="#7B1FA2"
-                                         BorderThickness="0"
-                                         Background="Transparent"/>
+                                         Foreground="#7B1FA2"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>

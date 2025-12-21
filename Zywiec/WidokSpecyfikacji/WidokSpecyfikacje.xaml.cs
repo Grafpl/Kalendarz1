@@ -742,6 +742,16 @@ namespace Kalendarz1
             }
         }
 
+        // === SELECTALL: Zaznacz całą zawartość TextBox przy fokusie ===
+        private void NumericTextBox_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox textBox)
+            {
+                // Zaznacz całą zawartość - wpisanie cyfry zastąpi wartość
+                textBox.SelectAll();
+            }
+        }
+
         private static T FindVisualParent<T>(DependencyObject child) where T : DependencyObject
         {
             var parentObject = VisualTreeHelper.GetParent(child);
