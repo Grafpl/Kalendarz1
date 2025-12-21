@@ -424,35 +424,13 @@ namespace Kalendarz1
             }
         }
 
-        // === EXCEL-LIKE: Natychmiastowa edycja przy zmianie komórki (strzałki/klik) ===
+        // === CurrentCellChanged: Aktualizacja wybranego wiersza ===
         private void DataGridView1_CurrentCellChanged(object sender, EventArgs e)
         {
-            if (dataGridView1.CurrentCell.Column == null) return;
-
-            // Opóźnij fokus aby DataGrid zdążył zaktualizować UI
-            Dispatcher.BeginInvoke(new Action(() =>
+            if (dataGridView1.CurrentCell.Item != null)
             {
-                var cellInfo = dataGridView1.CurrentCell;
-                if (cellInfo.Column == null) return;
-
-                var cell = GetDataGridCell(cellInfo);
-                if (cell == null) return;
-
-                // Znajdź TextBox lub ComboBox w komórce
-                var textBox = FindVisualChild<TextBox>(cell);
-                if (textBox != null)
-                {
-                    textBox.Focus();
-                    textBox.SelectAll();
-                    return;
-                }
-
-                var comboBox = FindVisualChild<ComboBox>(cell);
-                if (comboBox != null)
-                {
-                    comboBox.Focus();
-                }
-            }), System.Windows.Threading.DispatcherPriority.Background);
+                selectedRow = dataGridView1.CurrentCell.Item as SpecyfikacjaRow;
+            }
         }
 
         // === DRAG & DROP: Rozpoczęcie przeciągania ===

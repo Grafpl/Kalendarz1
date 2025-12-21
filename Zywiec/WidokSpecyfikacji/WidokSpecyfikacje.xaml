@@ -655,44 +655,80 @@
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
 
-                    <!-- WYBIJAK -->
-                    <DataGridTextColumn Header="Szt.Wyb" Binding="{Binding SztukiWybijak, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        Width="65" HeaderStyle="{StaticResource WybijakHeaderStyle}"
-                                        CellStyle="{StaticResource CellStylePurple}">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                <Setter Property="VerticalAlignment" Value="Center"/>
+                    <!-- WYBIJAK - Szt.Wyb z ZeroToEmpty -->
+                    <DataGridTemplateColumn Header="Szt.Wyb" Width="65" HeaderStyle="{StaticResource WybijakHeaderStyle}">
+                        <DataGridTemplateColumn.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Background" Value="#E1BEE7"/>
+                                <Setter Property="BorderThickness" Value="0"/>
                             </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
+                        </DataGridTemplateColumn.CellStyle>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding SztukiWybijak, Converter={StaticResource ZeroToEmptyConverter}}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding SztukiWybijak, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
+                                         Style="{StaticResource NumericTextBoxStyle}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
 
-                    <DataGridTextColumn Header="KG Wyb" Binding="{Binding KilogramyWybijak, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F0}}"
-                                        Width="70" HeaderStyle="{StaticResource WybijakHeaderStyle}"
-                                        CellStyle="{StaticResource CellStylePurple}">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="Padding" Value="0,0,8,0"/>
+                    <!-- KG Wyb z ZeroToEmpty -->
+                    <DataGridTemplateColumn Header="KG Wyb" Width="70" HeaderStyle="{StaticResource WybijakHeaderStyle}">
+                        <DataGridTemplateColumn.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Background" Value="#E1BEE7"/>
+                                <Setter Property="BorderThickness" Value="0"/>
                             </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
+                        </DataGridTemplateColumn.CellStyle>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding KilogramyWybijak, Converter={StaticResource ZeroToEmptyConverter}}"
+                                           HorizontalAlignment="Right"
+                                           VerticalAlignment="Center"
+                                           Padding="0,0,8,0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding KilogramyWybijak, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
+                                         Style="{StaticResource NumericTextBoxStyle}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
 
-                    <!-- CENA -->
-                    <DataGridTextColumn Header="Cena" Binding="{Binding Cena, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F2}}"
-                                        Width="70" HeaderStyle="{StaticResource CenaHeaderStyle}"
-                                        CellStyle="{StaticResource CellStyleBlue}">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="Padding" Value="0,0,8,0"/>
-                                <Setter Property="FontWeight" Value="Bold"/>
-                                <Setter Property="Foreground" Value="#1565C0"/>
+                    <!-- CENA z ZeroToEmpty -->
+                    <DataGridTemplateColumn Header="Cena" Width="70" HeaderStyle="{StaticResource CenaHeaderStyle}">
+                        <DataGridTemplateColumn.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Background" Value="#BBDEFB"/>
+                                <Setter Property="BorderThickness" Value="0"/>
                             </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
+                        </DataGridTemplateColumn.CellStyle>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Cena, Converter={StaticResource ZeroToEmptyConverter}}"
+                                           HorizontalAlignment="Right"
+                                           VerticalAlignment="Center"
+                                           Padding="0,0,8,0"
+                                           FontWeight="Bold"
+                                           Foreground="#1565C0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding Cena, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
+                                         Style="{StaticResource NumericTextBoxStyle}"
+                                         FontWeight="Bold"
+                                         Foreground="#1565C0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
 
                     <!-- DODATEK - używa konwertera aby pokazać puste gdy 0 -->
                     <DataGridTemplateColumn Header="Dodatek" Width="70"
@@ -801,35 +837,45 @@
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
 
-                    <!-- Do zapłaty [kg] - obliczane, tylko do odczytu -->
-                    <DataGridTextColumn Header="Do zapł." Binding="{Binding DoZaplaty, StringFormat={}{0:N0}}"
-                                        Width="75" IsReadOnly="True" HeaderStyle="{StaticResource CenaHeaderStyle}"
-                                        CellStyle="{StaticResource CellStyleGreenDark}">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="Padding" Value="0,0,8,0"/>
-                                <Setter Property="FontWeight" Value="Bold"/>
-                                <Setter Property="Foreground" Value="#2E7D32"/>
+                    <!-- Do zapłaty [kg] - z ZeroToEmpty -->
+                    <DataGridTemplateColumn Header="Do zapł." Width="75" IsReadOnly="True" HeaderStyle="{StaticResource CenaHeaderStyle}">
+                        <DataGridTemplateColumn.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Background" Value="#A5D6A7"/>
+                                <Setter Property="BorderThickness" Value="0"/>
                             </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
+                        </DataGridTemplateColumn.CellStyle>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding DoZaplaty, Converter={StaticResource ZeroToEmptyConverter}}"
+                                           HorizontalAlignment="Right"
+                                           VerticalAlignment="Center"
+                                           Padding="0,0,8,0"
+                                           FontWeight="Bold"
+                                           Foreground="#2E7D32"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
 
-                    <!-- Wartość -->
-                    <DataGridTextColumn Header="Wartość" Binding="{Binding Wartosc, StringFormat={}{0:N0} zł}"
-                                        Width="100" IsReadOnly="True" HeaderStyle="{StaticResource CenaHeaderStyle}"
-                                        CellStyle="{StaticResource CellStyleGreenDark}">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="Padding" Value="0,0,8,0"/>
-                                <Setter Property="FontWeight" Value="Bold"/>
-                                <Setter Property="Foreground" Value="#1B5E20"/>
+                    <!-- Wartość z ZeroToEmpty -->
+                    <DataGridTemplateColumn Header="Wartość" Width="100" IsReadOnly="True" HeaderStyle="{StaticResource CenaHeaderStyle}">
+                        <DataGridTemplateColumn.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Background" Value="#A5D6A7"/>
+                                <Setter Property="BorderThickness" Value="0"/>
                             </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
+                        </DataGridTemplateColumn.CellStyle>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Wartosc, Converter={StaticResource ZeroToEmptyConverter}}"
+                                           HorizontalAlignment="Right"
+                                           VerticalAlignment="Center"
+                                           Padding="0,0,8,0"
+                                           FontWeight="Bold"
+                                           Foreground="#1B5E20"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
 
                     <!-- Termin płatności [dni] - edytowalne -->
                     <DataGridTextColumn Header="Termin" Binding="{Binding TerminDni, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
