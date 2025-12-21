@@ -66,6 +66,9 @@ namespace Kalendarz1
         // === HISTORIA: Log zmian ===
         private List<ChangeLogEntry> _changeLog = new List<ChangeLogEntry>();
 
+        // === TRANSPORT: Dane transportowe ===
+        private ObservableCollection<TransportRow> transportData;
+
         public WidokSpecyfikacje()
         {
             InitializeComponent();
@@ -84,6 +87,11 @@ namespace Kalendarz1
 
             specyfikacjeData = new ObservableCollection<SpecyfikacjaRow>();
             dataGridView1.ItemsSource = specyfikacjeData;
+
+            // Inicjalizuj dane transportowe
+            transportData = new ObservableCollection<TransportRow>();
+            dataGridTransport.ItemsSource = transportData;
+
             dateTimePicker1.SelectedDate = DateTime.Today;
 
             // Dodaj obsługę skrótów klawiszowych
@@ -206,10 +214,104 @@ namespace Kalendarz1
         {
             LoadData(dateTimePicker1.SelectedDate ?? DateTime.Today);
             UpdateFullDateLabel();
+            UpdateTransportDateLabel();
             UpdateStatus("Dane załadowane pomyślnie");
 
             // Odśwież cache dostawców w tle (async)
             _ = LoadDostawcyAsync();
+        }
+
+        // === TRANSPORT: Handlery dla karty Transport ===
+        private void MainTabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (e.Source is TabControl)
+            {
+                // Ukryj panel LUMEL gdy nie jesteśmy na karcie Specyfikacje
+                if (mainTabControl.SelectedIndex == 0)
+                {
+                    // Karta Specyfikacje - LUMEL panel może być widoczny
+                }
+                else
+                {
+                    // Inna karta - ukryj LUMEL panel
+                    lumelPanel.Visibility = Visibility.Collapsed;
+                }
+            }
+        }
+
+        private void UpdateTransportDateLabel()
+        {
+            if (dateTimePicker1.SelectedDate.HasValue)
+            {
+                lblTransportDate.Text = dateTimePicker1.SelectedDate.Value.ToString("dd.MM.yyyy (dddd)", new System.Globalization.CultureInfo("pl-PL"));
+            }
+        }
+
+        private void BtnAddTransport_Click(object sender, RoutedEventArgs e)
+        {
+            // Dodaj nowy wiersz transportu
+            var newTransport = new TransportRow
+            {
+                Nr = transportData.Count + 1,
+                Status = "Oczekuje",
+                GodzinaWyjazdu = DateTime.Today.AddHours(6), // Domyślnie 6:00
+            };
+            transportData.Add(newTransport);
+            dataGridTransport.SelectedItem = newTransport;
+            dataGridTransport.ScrollIntoView(newTransport);
+        }
+
+        private void BtnRefreshTransport_Click(object sender, RoutedEventArgs e)
+        {
+            LoadTransportData();
+            UpdateStatus("Dane transportowe odświeżone");
+        }
+
+        private void LoadTransportData()
+        {
+            // TODO: Załaduj dane transportowe z bazy danych
+            // Na razie przykładowe dane
+            transportData.Clear();
+
+            // Przykładowe dane testowe
+            transportData.Add(new TransportRow
+            {
+                Nr = 1,
+                Kierowca = "Jan Kowalski",
+                Samochod = "Mercedes Actros",
+                NrRejestracyjny = "WGR 12345",
+                GodzinaWyjazdu = DateTime.Today.AddHours(5).AddMinutes(30),
+                GodzinaPrzyjazdu = DateTime.Today.AddHours(8),
+                Trasa = "Kowalski, Nowak, Wiśniewski",
+                IloscSkrzynek = 450,
+                Sztuki = 4500,
+                Kilogramy = 12500,
+                Status = "Zakończony"
+            });
+            transportData.Add(new TransportRow
+            {
+                Nr = 2,
+                Kierowca = "Piotr Nowak",
+                Samochod = "Scania R450",
+                NrRejestracyjny = "WGR 54321",
+                GodzinaWyjazdu = DateTime.Today.AddHours(6),
+                Trasa = "Malinowski, Zieliński",
+                IloscSkrzynek = 380,
+                Sztuki = 3800,
+                Kilogramy = 10200,
+                Status = "W trasie"
+            });
+            transportData.Add(new TransportRow
+            {
+                Nr = 3,
+                Kierowca = "Adam Wiśniewski",
+                Samochod = "Volvo FH",
+                NrRejestracyjny = "WGR 99999",
+                GodzinaWyjazdu = DateTime.Today.AddHours(7),
+                Trasa = "Kowalczyk",
+                IloscSkrzynek = 200,
+                Status = "Oczekuje"
+            });
         }
 
         private void UpdateFullDateLabel()
@@ -292,6 +394,7 @@ namespace Kalendarz1
             {
                 LoadData(dateTimePicker1.SelectedDate.Value);
                 UpdateFullDateLabel();
+                UpdateTransportDateLabel();
             }
         }
 
@@ -3745,6 +3848,103 @@ namespace Kalendarz1
             }
 
             return 0;
+        }
+    }
+
+    /// <summary>
+    /// Model danych dla wiersza transportu
+    /// </summary>
+    public class TransportRow : INotifyPropertyChanged
+    {
+        private int _nr;
+        private string _kierowca;
+        private string _samochod;
+        private string _nrRejestracyjny;
+        private DateTime? _godzinaWyjazdu;
+        private DateTime? _godzinaPrzyjazdu;
+        private string _trasa;
+        private int _iloscSkrzynek;
+        private int _sztuki;
+        private decimal _kilogramy;
+        private string _status;
+        private string _uwagi;
+
+        public int Nr
+        {
+            get => _nr;
+            set { _nr = value; OnPropertyChanged(nameof(Nr)); }
+        }
+
+        public string Kierowca
+        {
+            get => _kierowca;
+            set { _kierowca = value; OnPropertyChanged(nameof(Kierowca)); }
+        }
+
+        public string Samochod
+        {
+            get => _samochod;
+            set { _samochod = value; OnPropertyChanged(nameof(Samochod)); }
+        }
+
+        public string NrRejestracyjny
+        {
+            get => _nrRejestracyjny;
+            set { _nrRejestracyjny = value; OnPropertyChanged(nameof(NrRejestracyjny)); }
+        }
+
+        public DateTime? GodzinaWyjazdu
+        {
+            get => _godzinaWyjazdu;
+            set { _godzinaWyjazdu = value; OnPropertyChanged(nameof(GodzinaWyjazdu)); }
+        }
+
+        public DateTime? GodzinaPrzyjazdu
+        {
+            get => _godzinaPrzyjazdu;
+            set { _godzinaPrzyjazdu = value; OnPropertyChanged(nameof(GodzinaPrzyjazdu)); }
+        }
+
+        public string Trasa
+        {
+            get => _trasa;
+            set { _trasa = value; OnPropertyChanged(nameof(Trasa)); }
+        }
+
+        public int IloscSkrzynek
+        {
+            get => _iloscSkrzynek;
+            set { _iloscSkrzynek = value; OnPropertyChanged(nameof(IloscSkrzynek)); }
+        }
+
+        public int Sztuki
+        {
+            get => _sztuki;
+            set { _sztuki = value; OnPropertyChanged(nameof(Sztuki)); }
+        }
+
+        public decimal Kilogramy
+        {
+            get => _kilogramy;
+            set { _kilogramy = value; OnPropertyChanged(nameof(Kilogramy)); }
+        }
+
+        public string Status
+        {
+            get => _status;
+            set { _status = value; OnPropertyChanged(nameof(Status)); }
+        }
+
+        public string Uwagi
+        {
+            get => _uwagi;
+            set { _uwagi = value; OnPropertyChanged(nameof(Uwagi)); }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 }
