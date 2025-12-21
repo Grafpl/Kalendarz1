@@ -9,10 +9,15 @@ using System.Data;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Reflection;
+using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Threading;
 
 namespace Kalendarz1
 {
@@ -22,8 +27,14 @@ namespace Kalendarz1
         private ZapytaniaSQL zapytaniasql = new ZapytaniaSQL();
         private ObservableCollection<SpecyfikacjaRow> specyfikacjeData;
         private SpecyfikacjaRow selectedRow;
-        private List<DostawcaItem> listaDostawcow;
-        private List<string> listaTypowCen = new List<string> { "wolnyrynek", "rolnicza", "łączona", "ministerialna" };
+
+        // Publiczne właściwości dla ComboBox binding
+        public List<DostawcaItem> ListaDostawcow { get; set; }
+        public List<string> ListaTypowCen { get; set; } = new List<string> { "wolnyrynek", "rolnicza", "łączona", "ministerialna" };
+
+        // Backwards compatibility
+        private List<DostawcaItem> listaDostawcow { get => ListaDostawcow; set => ListaDostawcow = value; }
+        private List<string> listaTypowCen { get => ListaTypowCen; set => ListaTypowCen = value; }
 
         // Ustawienia PDF
         private static string defaultPdfPath = @"\\192.168.0.170\Public\Przel\";
@@ -31,23 +42,125 @@ namespace Kalendarz1
         private decimal sumaWartosc = 0;
         private decimal sumaKG = 0;
 
+        // Drag & Drop
+        private Point _dragStartPoint;
+        private bool _isDragging = false;
+        private SpecyfikacjaRow _draggedRow = null;
+        private DataGridRow _lastHighlightedRow = null;
+        private Brush _originalRowBackground = null;
+
+        // === WYDAJNOŚĆ: Cache dostawców (static - współdzielony między oknami) ===
+        private static List<DostawcaItem> _cachedDostawcy = null;
+        private static DateTime _cacheTimestamp = DateTime.MinValue;
+        private static readonly TimeSpan CacheExpiration = TimeSpan.FromMinutes(5);
+
+        // === WYDAJNOŚĆ: Debounce dla auto-zapisu ===
+        private DispatcherTimer _debounceTimer;
+        private HashSet<int> _pendingSaveIds = new HashSet<int>();
+        private const int DebounceDelayMs = 500;
+
+        // === UNDO: Stos zmian do cofnięcia ===
+        private Stack<UndoAction> _undoStack = new Stack<UndoAction>();
+        private const int MaxUndoHistory = 50;
+
+        // === HISTORIA: Log zmian ===
+        private List<ChangeLogEntry> _changeLog = new List<ChangeLogEntry>();
+
+        // === TRANSPORT: Dane transportowe ===
+        private ObservableCollection<TransportRow> transportData;
+
         public WidokSpecyfikacje()
         {
             InitializeComponent();
+
+            // Inicjalizuj timer debounce
+            _debounceTimer = new DispatcherTimer();
+            _debounceTimer.Interval = TimeSpan.FromMilliseconds(DebounceDelayMs);
+            _debounceTimer.Tick += DebounceTimer_Tick;
+
+            // WAŻNE: Załaduj listy PRZED ustawieniem DataContext
+            // aby binding do ListaDostawcow i ListaTypowCen działał poprawnie
+            LoadDostawcyFromCache();
+
+            // Ustaw DataContext na this - teraz ListaDostawcow jest już wypełniona
+            DataContext = this;
+
             specyfikacjeData = new ObservableCollection<SpecyfikacjaRow>();
             dataGridView1.ItemsSource = specyfikacjeData;
+
+            // Inicjalizuj dane transportowe
+            transportData = new ObservableCollection<TransportRow>();
+            dataGridTransport.ItemsSource = transportData;
+
             dateTimePicker1.SelectedDate = DateTime.Today;
 
             // Dodaj obsługę skrótów klawiszowych
             this.KeyDown += Window_KeyDown;
+        }
 
-            // Załaduj listę dostawców
+        // === WYDAJNOŚĆ: Ładowanie dostawców z cache ===
+        private void LoadDostawcyFromCache()
+        {
+            // Sprawdź czy cache jest aktualny
+            if (_cachedDostawcy != null && DateTime.Now - _cacheTimestamp < CacheExpiration)
+            {
+                // Użyj cache
+                ListaDostawcow = new List<DostawcaItem>(_cachedDostawcy);
+                return;
+            }
+
+            // Ładuj z bazy i zapisz do cache
             LoadDostawcy();
+            _cachedDostawcy = new List<DostawcaItem>(ListaDostawcow);
+            _cacheTimestamp = DateTime.Now;
+        }
+
+        // === WYDAJNOŚĆ: Async ładowanie dostawców (do odświeżenia cache w tle) ===
+        private async Task LoadDostawcyAsync()
+        {
+            var newList = new List<DostawcaItem>();
+            newList.Add(new DostawcaItem { GID = null, ShortName = "(nie wybrano)" });
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    using (SqlConnection connection = new SqlConnection(connectionString))
+                    {
+                        connection.Open();
+                        string query = "SELECT ID AS GID, ShortName FROM dbo.Dostawcy WHERE halt = 0 ORDER BY ShortName";
+                        using (SqlCommand cmd = new SqlCommand(query, connection))
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                newList.Add(new DostawcaItem
+                                {
+                                    GID = reader["GID"]?.ToString()?.Trim() ?? "",
+                                    ShortName = reader["ShortName"]?.ToString() ?? ""
+                                });
+                            }
+                        }
+                    }
+                });
+
+                // Aktualizuj cache i listę
+                _cachedDostawcy = newList;
+                _cacheTimestamp = DateTime.Now;
+                ListaDostawcow = new List<DostawcaItem>(newList);
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Błąd odświeżania dostawców: {ex.Message}");
+            }
         }
 
         private void LoadDostawcy()
         {
-            listaDostawcow = new List<DostawcaItem>();
+            ListaDostawcow = new List<DostawcaItem>();
+            // Dodaj pustą opcję na początku (jak w ImportAvilogWindow)
+            ListaDostawcow.Add(new DostawcaItem { GID = null, ShortName = "(nie wybrano)" });
+
             try
             {
                 using (SqlConnection connection = new SqlConnection(connectionString))
@@ -59,9 +172,9 @@ namespace Kalendarz1
                     {
                         while (reader.Read())
                         {
-                            listaDostawcow.Add(new DostawcaItem
+                            ListaDostawcow.Add(new DostawcaItem
                             {
-                                GID = reader["GID"].ToString(),
+                                GID = reader["GID"]?.ToString()?.Trim() ?? "",
                                 ShortName = reader["ShortName"]?.ToString() ?? ""
                             });
                         }
@@ -74,11 +187,112 @@ namespace Kalendarz1
             }
         }
 
+        // === WYDAJNOŚĆ: Debounce Timer - zapisuje zmiany po 500ms nieaktywności ===
+        private void DebounceTimer_Tick(object sender, EventArgs e)
+        {
+            _debounceTimer.Stop();
+
+            if (_pendingSaveIds.Count > 0)
+            {
+                var idsToSave = _pendingSaveIds.ToList();
+                _pendingSaveIds.Clear();
+
+                // Zapisz wszystkie oczekujące zmiany w jednym batch
+                SaveRowsBatch(idsToSave);
+            }
+        }
+
+        // === WYDAJNOŚĆ: Dodaj wiersz do kolejki zapisu (debounce) ===
+        private void QueueRowForSave(int rowId)
+        {
+            _pendingSaveIds.Add(rowId);
+            _debounceTimer.Stop();
+            _debounceTimer.Start();
+        }
+
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             LoadData(dateTimePicker1.SelectedDate ?? DateTime.Today);
             UpdateFullDateLabel();
+            UpdateTransportDateLabel();
             UpdateStatus("Dane załadowane pomyślnie");
+
+            // Odśwież cache dostawców w tle (async)
+            _ = LoadDostawcyAsync();
+        }
+
+        // === TRANSPORT: Handlery dla karty Transport ===
+        private void MainTabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (e.Source is TabControl)
+            {
+                // Ukryj panel LUMEL gdy nie jesteśmy na karcie Specyfikacje
+                if (mainTabControl.SelectedIndex == 0)
+                {
+                    // Karta Specyfikacje - LUMEL panel może być widoczny
+                }
+                else
+                {
+                    // Inna karta - ukryj LUMEL panel
+                    lumelPanel.Visibility = Visibility.Collapsed;
+                }
+            }
+        }
+
+        private void UpdateTransportDateLabel()
+        {
+            if (dateTimePicker1.SelectedDate.HasValue)
+            {
+                lblTransportDate.Text = dateTimePicker1.SelectedDate.Value.ToString("dd.MM.yyyy (dddd)", new System.Globalization.CultureInfo("pl-PL"));
+            }
+        }
+
+        private void BtnAddTransport_Click(object sender, RoutedEventArgs e)
+        {
+            // Dodaj nowy wiersz transportu
+            var newTransport = new TransportRow
+            {
+                Nr = transportData.Count + 1,
+                Status = "Oczekuje",
+                GodzinaWyjazdu = DateTime.Today.AddHours(6), // Domyślnie 6:00
+            };
+            transportData.Add(newTransport);
+            dataGridTransport.SelectedItem = newTransport;
+            dataGridTransport.ScrollIntoView(newTransport);
+        }
+
+        private void BtnRefreshTransport_Click(object sender, RoutedEventArgs e)
+        {
+            LoadTransportData();
+            UpdateStatus("Dane transportowe odświeżone");
+        }
+
+        private void LoadTransportData()
+        {
+            transportData.Clear();
+
+            if (specyfikacjeData == null || specyfikacjeData.Count == 0)
+                return;
+
+            // Wyświetl każdą specyfikację jako wiersz transportowy z danymi z FarmerCalc + Driver
+            int nr = 1;
+            foreach (var spec in specyfikacjeData)
+            {
+                var transportRow = new TransportRow
+                {
+                    Nr = nr++,
+                    Kierowca = spec.KierowcaNazwa ?? "",
+                    Samochod = spec.CarID ?? "",
+                    NrRejestracyjny = spec.TrailerID ?? "",
+                    GodzinaPrzyjazdu = spec.ArrivalTime,
+                    Trasa = spec.Dostawca ?? spec.RealDostawca ?? "",
+                    Sztuki = spec.SztukiDek,
+                    Kilogramy = spec.NettoUbojniValue,
+                    Status = spec.ArrivalTime.HasValue ? "Zakończony" : "Oczekuje"
+                };
+
+                transportData.Add(transportRow);
+            }
         }
 
         private void UpdateFullDateLabel()
@@ -123,6 +337,18 @@ namespace Kalendarz1
                 Button1_Click(null, null);
                 e.Handled = true;
             }
+            // Ctrl + Z - Cofnij zmianę
+            else if (e.Key == Key.Z && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                UndoLastChange();
+                e.Handled = true;
+            }
+            // Delete - Usuń zaznaczony wiersz
+            else if (e.Key == Key.Delete && selectedRow != null)
+            {
+                DeleteSelectedRow();
+                e.Handled = true;
+            }
             // F5 - Odśwież
             else if (e.Key == Key.F5)
             {
@@ -149,6 +375,7 @@ namespace Kalendarz1
             {
                 LoadData(dateTimePicker1.SelectedDate.Value);
                 UpdateFullDateLabel();
+                UpdateTransportDateLabel();
             }
         }
 
@@ -162,12 +389,16 @@ namespace Kalendarz1
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
-                    string query = @"SELECT ID, CarLp, CustomerGID, CustomerRealGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5,
-                                    LumQnt, ProdQnt, ProdWgt, FullFarmWeight, EmptyFarmWeight, NettoFarmWeight,
-                                    FullWeight, EmptyWeight, NettoWeight, Price, Addition, PriceTypeID, IncDeadConf, Loss
-                                    FROM [LibraNet].[dbo].[FarmerCalc]
-                                    WHERE CalcDate = @SelectedDate
-                                    ORDER BY CarLP";
+                    string query = @"SELECT fc.ID, fc.CarLp, fc.CustomerGID, fc.CustomerRealGID, fc.DeclI1, fc.DeclI2, fc.DeclI3, fc.DeclI4, fc.DeclI5,
+                                    fc.LumQnt, fc.ProdQnt, fc.ProdWgt, fc.FullFarmWeight, fc.EmptyFarmWeight, fc.NettoFarmWeight,
+                                    fc.FullWeight, fc.EmptyWeight, fc.NettoWeight, fc.Price, fc.Addition, fc.PriceTypeID, fc.IncDeadConf, fc.Loss,
+                                    fc.Opasienie, fc.KlasaB, fc.TerminDni, fc.CalcDate,
+                                    fc.DriverGID, fc.CarID, fc.TrailerID, fc.Przyjazd,
+                                    d.Name AS DriverName
+                                    FROM [LibraNet].[dbo].[FarmerCalc] fc
+                                    LEFT JOIN [LibraNet].[dbo].[Driver] d ON fc.DriverGID = d.GID
+                                    WHERE fc.CalcDate = @SelectedDate
+                                    ORDER BY fc.CarLP";
 
                     SqlCommand command = new SqlCommand(query, connection);
                     command.Parameters.AddWithValue("@SelectedDate", selectedDate);
@@ -180,7 +411,8 @@ namespace Kalendarz1
                     {
                         foreach (DataRow row in dataTable.Rows)
                         {
-                            string customerGID = ZapytaniaSQL.GetValueOrDefault<string>(row, "CustomerGID", "-1");
+                            // WAŻNE: Trim() usuwa spacje z nchar(10) - bez tego ComboBox nie znajdzie dopasowania
+                            string customerGID = ZapytaniaSQL.GetValueOrDefault<string>(row, "CustomerGID", "-1")?.Trim();
                             decimal nettoUbojniValue = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "NettoWeight", 0);
 
                             var specRow = new SpecyfikacjaRow
@@ -211,17 +443,30 @@ namespace Kalendarz1
                                 TypCeny = zapytaniasql.ZnajdzNazweCenyPoID(
                                     ZapytaniaSQL.GetValueOrDefault<int>(row, "PriceTypeID", -1)),
                                 PiK = row["IncDeadConf"] != DBNull.Value && Convert.ToBoolean(row["IncDeadConf"]),
-                                Ubytek = Math.Round(ZapytaniaSQL.GetValueOrDefault<decimal>(row, "Loss", 0) * 100, 2)
+                                Ubytek = Math.Round(ZapytaniaSQL.GetValueOrDefault<decimal>(row, "Loss", 0) * 100, 2),
+                                // Nowe pola
+                                Opasienie = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "Opasienie", 0),
+                                KlasaB = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "KlasaB", 0),
+                                TerminDni = ZapytaniaSQL.GetValueOrDefault<int>(row, "TerminDni", 35),
+                                DataUboju = ZapytaniaSQL.GetValueOrDefault<DateTime>(row, "CalcDate", DateTime.Today),
+                                // Pola transportowe
+                                DriverGID = row["DriverGID"] != DBNull.Value ? (int?)Convert.ToInt32(row["DriverGID"]) : null,
+                                CarID = ZapytaniaSQL.GetValueOrDefault<string>(row, "CarID", "")?.Trim(),
+                                TrailerID = ZapytaniaSQL.GetValueOrDefault<string>(row, "TrailerID", "")?.Trim(),
+                                ArrivalTime = row["Przyjazd"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["Przyjazd"]) : null,
+                                KierowcaNazwa = ZapytaniaSQL.GetValueOrDefault<string>(row, "DriverName", "")?.Trim()
                             };
 
                             specyfikacjeData.Add(specRow);
                         }
                         UpdateStatistics();
+                        LoadTransportData(); // Załaduj dane transportowe
                         UpdateStatus($"Załadowano {dataTable.Rows.Count} rekordów");
                     }
                     else
                     {
                         UpdateStatistics();
+                        LoadTransportData(); // Wyczyść dane transportowe
                         UpdateStatus("Brak danych dla wybranej daty");
                     }
                 }
@@ -242,27 +487,23 @@ namespace Kalendarz1
             return string.Empty;
         }
 
-        // Event handler dla ComboBox Dostawcy - automatyczne rozwijanie
+        // Event handler dla ComboBox Dostawcy - ustawienie listy
         private void CboDostawca_Loaded(object sender, RoutedEventArgs e)
         {
             var comboBox = sender as ComboBox;
-            if (comboBox != null)
+            if (comboBox != null && comboBox.ItemsSource == null)
             {
-                comboBox.ItemsSource = listaDostawcow;
-                // Automatyczne rozwinięcie listy
-                comboBox.IsDropDownOpen = true;
+                comboBox.ItemsSource = ListaDostawcow;
             }
         }
 
-        // Event handler dla ComboBox Typ Ceny - automatyczne rozwijanie
+        // Event handler dla ComboBox Typ Ceny - ustawienie listy
         private void CboTypCeny_Loaded(object sender, RoutedEventArgs e)
         {
             var comboBox = sender as ComboBox;
-            if (comboBox != null)
+            if (comboBox != null && comboBox.ItemsSource == null)
             {
                 comboBox.ItemsSource = listaTypowCen;
-                // Automatyczne rozwinięcie listy
-                comboBox.IsDropDownOpen = true;
             }
         }
 
@@ -278,57 +519,229 @@ namespace Kalendarz1
             }
         }
 
-        // Edycja po jednym kliknięciu
-        private void DataGridView1_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        // === CurrentCellChanged: Aktualizacja wybranego wiersza ===
+        private void DataGridView1_CurrentCellChanged(object sender, EventArgs e)
         {
-            var cell = FindVisualParent<DataGridCell>(e.OriginalSource as DependencyObject);
-            if (cell == null || cell.IsEditing) return;
-
-            // Sprawdź czy kolumna jest edytowalna (sprawdź kolumnę, nie komórkę)
-            var column = cell.Column;
-            if (column == null) return;
-
-            // Dla DataGridTemplateColumn sprawdź czy ma CellEditingTemplate
-            bool isEditable = !column.IsReadOnly;
-            if (column is DataGridTemplateColumn templateColumn)
+            if (dataGridView1.CurrentCell.Item != null)
             {
-                isEditable = templateColumn.CellEditingTemplate != null;
+                selectedRow = dataGridView1.CurrentCell.Item as SpecyfikacjaRow;
             }
+        }
 
-            if (!isEditable) return;
+        // === DRAG & DROP: Rozpoczęcie przeciągania ===
+        private void DataGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            _dragStartPoint = e.GetPosition(null);
+            _isDragging = false;
 
-            // Pobierz wiersz i ustaw CurrentCell
-            var row = FindVisualParent<DataGridRow>(cell);
+            // Znajdź wiersz pod kursorem
+            var row = FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject);
             if (row != null)
             {
-                dataGridView1.CurrentCell = new DataGridCellInfo(row.Item, cell.Column);
-                selectedRow = row.Item as SpecyfikacjaRow;
-            }
+                _draggedRow = row.Item as SpecyfikacjaRow;
+                dataGridView1.SelectedItem = _draggedRow;
+                selectedRow = _draggedRow;
 
-            if (!cell.IsFocused)
-            {
-                cell.Focus();
-            }
-
-            // Rozpocznij edycję z opóźnieniem
-            Dispatcher.BeginInvoke(new Action(() =>
-            {
-                if (!cell.IsEditing)
+                // === SINGLE-CLICK EDIT: Rozpocznij edycję po kliknięciu na komórkę ===
+                var cell = FindVisualParent<DataGridCell>(e.OriginalSource as DependencyObject);
+                if (cell != null && !cell.IsReadOnly && !cell.IsEditing)
                 {
-                    dataGridView1.BeginEdit();
-
-                    // Dla template columns - znajdź i aktywuj TextBox
+                    // Opóźnij edycję aby drag & drop miał szansę się rozpocząć
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        var textBox = FindVisualChild<TextBox>(cell);
-                        if (textBox != null)
+                        if (!_isDragging)
                         {
-                            textBox.Focus();
-                            textBox.SelectAll();
+                            cell.Focus();
+                            dataGridView1.BeginEdit();
                         }
-                    }), System.Windows.Threading.DispatcherPriority.Input);
+                    }), System.Windows.Threading.DispatcherPriority.Background);
                 }
-            }), System.Windows.Threading.DispatcherPriority.Background);
+            }
+        }
+
+        // === DRAG & DROP: Wykrycie ruchu myszy ===
+        private void DataGrid_PreviewMouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed || _draggedRow == null)
+                return;
+
+            Point currentPosition = e.GetPosition(null);
+            Vector diff = _dragStartPoint - currentPosition;
+
+            // Rozpocznij przeciąganie po przesunięciu o min. 5 pikseli
+            if (Math.Abs(diff.X) > 5 || Math.Abs(diff.Y) > 5)
+            {
+                _isDragging = true;
+                DataObject dragData = new DataObject("SpecyfikacjaRow", _draggedRow);
+                DragDrop.DoDragDrop(dataGridView1, dragData, DragDropEffects.Move);
+                _isDragging = false;
+                _draggedRow = null;
+            }
+        }
+
+        // === DRAG & DROP: Podgląd miejsca upuszczenia z podświetleniem ===
+        private void DataGrid_DragOver(object sender, DragEventArgs e)
+        {
+            if (!e.Data.GetDataPresent("SpecyfikacjaRow"))
+            {
+                e.Effects = DragDropEffects.None;
+                return;
+            }
+
+            e.Effects = DragDropEffects.Move;
+
+            // Znajdź wiersz pod kursorem i podświetl go
+            var targetRow = FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject);
+            if (targetRow != null && targetRow != _lastHighlightedRow)
+            {
+                // Przywróć poprzedni wiersz
+                ResetHighlightedRow();
+
+                // Podświetl nowy wiersz
+                _lastHighlightedRow = targetRow;
+                _originalRowBackground = targetRow.Background;
+                targetRow.Background = new SolidColorBrush(Color.FromRgb(144, 238, 144)); // LightGreen
+                targetRow.BorderBrush = new SolidColorBrush(Color.FromRgb(76, 175, 80));
+                targetRow.BorderThickness = new Thickness(2);
+            }
+
+            e.Handled = true;
+        }
+
+        // === Przywróć wygląd podświetlonego wiersza ===
+        private void ResetHighlightedRow()
+        {
+            if (_lastHighlightedRow != null)
+            {
+                _lastHighlightedRow.Background = _originalRowBackground ?? Brushes.Transparent;
+                _lastHighlightedRow.BorderThickness = new Thickness(0);
+                _lastHighlightedRow = null;
+                _originalRowBackground = null;
+            }
+        }
+
+        // === DRAG & DROP: Opuszczenie obszaru - reset podświetlenia ===
+        private void DataGrid_DragLeave(object sender, DragEventArgs e)
+        {
+            ResetHighlightedRow();
+        }
+
+        // === DRAG & DROP: Upuszczenie wiersza z auto-zapisem ===
+        private void DataGrid_Drop(object sender, DragEventArgs e)
+        {
+            // Przywróć podświetlenie
+            ResetHighlightedRow();
+
+            if (!e.Data.GetDataPresent("SpecyfikacjaRow"))
+                return;
+
+            var draggedItem = e.Data.GetData("SpecyfikacjaRow") as SpecyfikacjaRow;
+            if (draggedItem == null) return;
+
+            // Znajdź wiersz docelowy
+            var targetRow = FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject);
+            if (targetRow == null) return;
+
+            var targetItem = targetRow.Item as SpecyfikacjaRow;
+            if (targetItem == null || targetItem == draggedItem) return;
+
+            int oldIndex = specyfikacjeData.IndexOf(draggedItem);
+            int newIndex = specyfikacjeData.IndexOf(targetItem);
+
+            if (oldIndex < 0 || newIndex < 0) return;
+
+            // Przenieś wiersz
+            specyfikacjeData.Move(oldIndex, newIndex);
+
+            // Zaktualizuj numery LP
+            UpdateRowNumbers();
+
+            // Zaznacz przeniesiony wiersz
+            dataGridView1.SelectedItem = draggedItem;
+            selectedRow = draggedItem;
+
+            // AUTO-ZAPIS: Zapisz pozycje wszystkich wierszy
+            SaveAllRowPositions();
+
+            e.Handled = true;
+        }
+
+        // === WYDAJNOŚĆ: Auto-zapis pozycji - używa async batch update ===
+        private void SaveAllRowPositions()
+        {
+            // Użyj async wersji dla lepszej wydajności (nie blokuje UI)
+            _ = SaveAllRowPositionsAsync();
+        }
+
+        // === Aktualizacja numerów LP po przeciągnięciu ===
+        private void UpdateRowNumbers()
+        {
+            for (int i = 0; i < specyfikacjeData.Count; i++)
+            {
+                specyfikacjeData[i].Nr = i + 1;
+            }
+        }
+
+        // === ComboBox: Automatyczne zaznaczenie wiersza przy otwarciu ===
+        private void CboDostawca_DropDownOpened(object sender, EventArgs e)
+        {
+            var comboBox = sender as ComboBox;
+            if (comboBox != null)
+            {
+                var row = FindVisualParent<DataGridRow>(comboBox);
+                if (row != null)
+                {
+                    var item = row.Item as SpecyfikacjaRow;
+                    if (item != null)
+                    {
+                        dataGridView1.SelectedItem = item;
+                        selectedRow = item;
+                    }
+                }
+            }
+        }
+
+        // === Natychmiastowy zapis przy zmianie ComboBox Dostawca ===
+        private void ComboBox_Dostawca_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var comboBox = sender as ComboBox;
+            if (comboBox == null || e.AddedItems.Count == 0) return;
+
+            // Znajdź wiersz danych
+            var row = FindVisualParent<DataGridRow>(comboBox);
+            if (row == null) return;
+
+            var specRow = row.Item as SpecyfikacjaRow;
+            if (specRow == null) return;
+
+            // Pobierz wybrany element
+            var selected = e.AddedItems[0] as DostawcaItem;
+            if (selected != null)
+            {
+                // Aktualizuj nazwę dostawcy
+                specRow.Dostawca = selected.ShortName;
+
+                // Natychmiastowy zapis do bazy
+                try
+                {
+                    using (SqlConnection connection = new SqlConnection(connectionString))
+                    {
+                        connection.Open();
+                        string query = "UPDATE dbo.FarmerCalc SET CustomerGID = @GID WHERE ID = @ID";
+                        using (SqlCommand cmd = new SqlCommand(query, connection))
+                        {
+                            cmd.Parameters.AddWithValue("@GID", (object)selected.GID ?? DBNull.Value);
+                            cmd.Parameters.AddWithValue("@ID", specRow.ID);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                    UpdateStatus($"Zmieniono dostawcę: {selected.ShortName}");
+                }
+                catch (Exception ex)
+                {
+                    UpdateStatus($"Błąd zapisu dostawcy: {ex.Message}");
+                }
+            }
         }
 
         private static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
@@ -354,11 +767,11 @@ namespace Kalendarz1
             var cellInfo = dataGridView1.CurrentCell;
             if (cellInfo.Column == null) return;
 
-            // Sprawdź czy kolumna jest edytowalna (tak samo jak w PreviewMouseLeftButtonDown)
+            // Sprawdź czy kolumna jest edytowalna
             bool isEditable = !cellInfo.Column.IsReadOnly;
             if (cellInfo.Column is DataGridTemplateColumn templateColumn)
             {
-                isEditable = templateColumn.CellEditingTemplate != null;
+                isEditable = templateColumn.CellEditingTemplate != null || templateColumn.CellTemplate != null;
             }
 
             if (!isEditable) return;
@@ -366,8 +779,9 @@ namespace Kalendarz1
             var dataGridCell = GetDataGridCell(cellInfo);
             if (dataGridCell != null && !dataGridCell.IsEditing)
             {
-                // Sprawdź czy to jest klawisz alfanumeryczny
-                if ((e.Key >= Key.D0 && e.Key <= Key.D9) ||
+                // Sprawdź czy to jest klawisz alfanumeryczny lub F2
+                if (e.Key == Key.F2 ||
+                    (e.Key >= Key.D0 && e.Key <= Key.D9) ||
                     (e.Key >= Key.NumPad0 && e.Key <= Key.NumPad9) ||
                     (e.Key >= Key.A && e.Key <= Key.Z) ||
                     e.Key == Key.OemComma || e.Key == Key.OemPeriod ||
@@ -382,10 +796,63 @@ namespace Kalendarz1
                         if (textBox != null)
                         {
                             textBox.Focus();
-                            textBox.SelectAll();
+                            // Dla F2 - zaznacz wszystko, dla innych klawiszy - wyczyść i zacznij od nowa
+                            if (e.Key == Key.F2)
+                            {
+                                textBox.SelectAll();
+                            }
+                            else
+                            {
+                                textBox.Clear();
+                            }
                         }
                     }), System.Windows.Threading.DispatcherPriority.Input);
                 }
+            }
+        }
+
+        // === NATYCHMIASTOWA EDYCJA: Wpisywanie znaków od razu ===
+        private void DataGridView1_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        {
+            var cellInfo = dataGridView1.CurrentCell;
+            if (cellInfo.Column == null) return;
+
+            // Sprawdź czy kolumna jest edytowalna
+            bool isEditable = !cellInfo.Column.IsReadOnly;
+            if (cellInfo.Column is DataGridTemplateColumn templateColumn)
+            {
+                isEditable = templateColumn.CellEditingTemplate != null || templateColumn.CellTemplate != null;
+            }
+
+            if (!isEditable) return;
+
+            var dataGridCell = GetDataGridCell(cellInfo);
+            if (dataGridCell != null && !dataGridCell.IsEditing)
+            {
+                // Rozpocznij edycję
+                dataGridView1.BeginEdit();
+
+                // Wstaw wpisany znak do TextBoxa
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    var textBox = FindVisualChild<TextBox>(dataGridCell);
+                    if (textBox != null)
+                    {
+                        textBox.Focus();
+                        textBox.Text = e.Text;
+                        textBox.CaretIndex = textBox.Text.Length;
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Input);
+            }
+        }
+
+        // === SELECTALL: Zaznacz całą zawartość TextBox przy fokusie ===
+        private void NumericTextBox_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox textBox)
+            {
+                // Zaznacz całą zawartość - wpisanie cyfry zastąpi wartość
+                textBox.SelectAll();
             }
         }
 
@@ -417,16 +884,15 @@ namespace Kalendarz1
                 var row = e.Row.Item as SpecyfikacjaRow;
                 if (row != null)
                 {
-                    // Zapisz zmiany do bazy danych po zakończeniu edycji
+                    // === WYDAJNOŚĆ: Użyj debounce zamiast natychmiastowego zapisu ===
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
                         string columnHeader = e.Column.Header?.ToString() ?? "";
-                        UpdateDatabaseRow(row, columnHeader);
 
                         // Aktualizuj nazwę dostawcy jeśli zmieniono GID
                         if (columnHeader == "Dostawca" && !string.IsNullOrEmpty(row.DostawcaGID))
                         {
-                            var dostawca = listaDostawcow.FirstOrDefault(d => d.GID == row.DostawcaGID);
+                            var dostawca = ListaDostawcow.FirstOrDefault(d => d.GID == row.DostawcaGID);
                             if (dostawca != null)
                             {
                                 row.Dostawca = dostawca.ShortName;
@@ -436,6 +902,10 @@ namespace Kalendarz1
                         // Przelicz wartość po każdej zmianie
                         row.RecalculateWartosc();
                         UpdateStatistics();
+
+                        // Dodaj do kolejki debounce zamiast natychmiastowego zapisu
+                        QueueRowForSave(row.ID);
+
                     }), System.Windows.Threading.DispatcherPriority.Background);
                 }
             }
@@ -492,7 +962,11 @@ namespace Kalendarz1
                 { "Dodatek", "Addition" },
                 { "Typ Ceny", "PriceTypeID" },
                 { "PiK", "IncDeadConf" },
-                { "Ubytek%", "Loss" }
+                { "Ubytek%", "Loss" },
+                // Nowe kolumny
+                { "Opas.", "Opasienie" },
+                { "K.I.B", "KlasaB" },
+                { "Termin", "TerminDni" }
             };
 
             return mapping.ContainsKey(displayName) ? mapping[displayName] : string.Empty;
@@ -517,6 +991,10 @@ namespace Kalendarz1
                 case "Typ Ceny": return zapytaniasql.ZnajdzIdCeny(row.TypCeny ?? "");
                 case "PiK": return row.PiK;
                 case "Ubytek%": return row.Ubytek / 100; // Konwersja na wartość dla bazy
+                // Nowe kolumny
+                case "Opas.": return row.Opasienie;
+                case "K.I.B": return row.KlasaB;
+                case "Termin": return row.TerminDni;
                 default: return null;
             }
         }
@@ -528,6 +1006,7 @@ namespace Kalendarz1
                 lblRecordCount.Text = "0";
                 lblSumaNetto.Text = "0 kg";
                 lblSumaSztuk.Text = "0";
+                lblSumaDoZaplaty.Text = "0 kg";
                 lblSumaWartosc.Text = "0 zł";
                 return;
             }
@@ -541,6 +1020,10 @@ namespace Kalendarz1
             // Suma sztuk LUMEL
             int sumaSztuk = specyfikacjeData.Sum(r => r.LUMEL);
             lblSumaSztuk.Text = sumaSztuk.ToString("N0");
+
+            // Suma do zapłaty
+            decimal sumaDoZaplaty = specyfikacjeData.Sum(r => r.DoZaplaty);
+            lblSumaDoZaplaty.Text = $"{sumaDoZaplaty:N0} kg";
 
             // Suma wartości
             decimal sumaWartosc = specyfikacjeData.Sum(r => r.Wartosc);
@@ -597,7 +1080,13 @@ namespace Kalendarz1
                     Price = @Cena,
                     PriceTypeID = @PriceTypeID,
                     Loss = @Ubytek,
-                    IncDeadConf = @PiK
+                    IncDeadConf = @PiK,
+                    Opasienie = @Opasienie,
+                    KlasaB = @KlasaB,
+                    TerminDni = @TerminDni,
+                    AvgWgt = @AvgWgt,
+                    PayWgt = @PayWgt,
+                    PayNet = @PayNet
                     WHERE ID = @ID";
 
                 using (SqlCommand cmd = new SqlCommand(query, connection))
@@ -617,9 +1106,161 @@ namespace Kalendarz1
                     cmd.Parameters.AddWithValue("@PriceTypeID", priceTypeId > 0 ? priceTypeId : (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@Ubytek", row.Ubytek / 100); // Konwertuj procent na ułamek
                     cmd.Parameters.AddWithValue("@PiK", row.PiK);
+                    // Nowe pola
+                    cmd.Parameters.AddWithValue("@Opasienie", row.Opasienie);
+                    cmd.Parameters.AddWithValue("@KlasaB", row.KlasaB);
+                    cmd.Parameters.AddWithValue("@TerminDni", row.TerminDni);
+                    cmd.Parameters.AddWithValue("@AvgWgt", row.SredniaWaga);
+                    cmd.Parameters.AddWithValue("@PayWgt", row.DoZaplaty);
+                    cmd.Parameters.AddWithValue("@PayNet", row.Wartosc);
 
                     cmd.ExecuteNonQuery();
                 }
+            }
+        }
+
+        // === WYDAJNOŚĆ: Batch zapis wielu wierszy w jednej transakcji ===
+        private void SaveRowsBatch(List<int> rowIds)
+        {
+            if (rowIds == null || rowIds.Count == 0) return;
+
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        try
+                        {
+                            foreach (var id in rowIds)
+                            {
+                                var row = specyfikacjeData.FirstOrDefault(r => r.ID == id);
+                                if (row == null) continue;
+
+                                // Znajdź ID typu ceny
+                                int priceTypeId = -1;
+                                if (!string.IsNullOrEmpty(row.TypCeny))
+                                {
+                                    priceTypeId = zapytaniasql.ZnajdzIdCeny(row.TypCeny);
+                                }
+
+                                string query = @"UPDATE dbo.FarmerCalc SET
+                                    CarLp = @Nr,
+                                    CustomerGID = @DostawcaGID,
+                                    DeclI1 = @SztukiDek,
+                                    DeclI2 = @Padle,
+                                    DeclI3 = @CH,
+                                    DeclI4 = @NW,
+                                    DeclI5 = @ZM,
+                                    LumQnt = @LUMEL,
+                                    ProdQnt = @SztukiWybijak,
+                                    ProdWgt = @KgWybijak,
+                                    Price = @Cena,
+                                    PriceTypeID = @PriceTypeID,
+                                    Loss = @Ubytek,
+                                    IncDeadConf = @PiK,
+                                    Opasienie = @Opasienie,
+                                    KlasaB = @KlasaB,
+                                    TerminDni = @TerminDni,
+                                    AvgWgt = @AvgWgt,
+                                    PayWgt = @PayWgt,
+                                    PayNet = @PayNet
+                                    WHERE ID = @ID";
+
+                                using (SqlCommand cmd = new SqlCommand(query, connection, transaction))
+                                {
+                                    cmd.Parameters.AddWithValue("@ID", row.ID);
+                                    cmd.Parameters.AddWithValue("@Nr", row.Nr);
+                                    cmd.Parameters.AddWithValue("@DostawcaGID", (object)row.DostawcaGID ?? DBNull.Value);
+                                    cmd.Parameters.AddWithValue("@SztukiDek", row.SztukiDek);
+                                    cmd.Parameters.AddWithValue("@Padle", row.Padle);
+                                    cmd.Parameters.AddWithValue("@CH", row.CH);
+                                    cmd.Parameters.AddWithValue("@NW", row.NW);
+                                    cmd.Parameters.AddWithValue("@ZM", row.ZM);
+                                    cmd.Parameters.AddWithValue("@LUMEL", row.LUMEL);
+                                    cmd.Parameters.AddWithValue("@SztukiWybijak", row.SztukiWybijak);
+                                    cmd.Parameters.AddWithValue("@KgWybijak", row.KilogramyWybijak);
+                                    cmd.Parameters.AddWithValue("@Cena", row.Cena);
+                                    cmd.Parameters.AddWithValue("@PriceTypeID", priceTypeId > 0 ? priceTypeId : (object)DBNull.Value);
+                                    cmd.Parameters.AddWithValue("@Ubytek", row.Ubytek / 100);
+                                    cmd.Parameters.AddWithValue("@PiK", row.PiK);
+                                    cmd.Parameters.AddWithValue("@Opasienie", row.Opasienie);
+                                    cmd.Parameters.AddWithValue("@KlasaB", row.KlasaB);
+                                    cmd.Parameters.AddWithValue("@TerminDni", row.TerminDni);
+                                    cmd.Parameters.AddWithValue("@AvgWgt", row.SredniaWaga);
+                                    cmd.Parameters.AddWithValue("@PayWgt", row.DoZaplaty);
+                                    cmd.Parameters.AddWithValue("@PayNet", row.Wartosc);
+                                    cmd.ExecuteNonQuery();
+                                }
+                            }
+
+                            transaction.Commit();
+                            UpdateStatus($"Zapisano {rowIds.Count} zmian");
+                        }
+                        catch
+                        {
+                            transaction.Rollback();
+                            throw;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Błąd batch zapisu: {ex.Message}");
+            }
+        }
+
+        // === WYDAJNOŚĆ: Async batch zapis pozycji wierszy ===
+        private async Task SaveAllRowPositionsAsync()
+        {
+            try
+            {
+                await Task.Run(() =>
+                {
+                    using (SqlConnection connection = new SqlConnection(connectionString))
+                    {
+                        connection.Open();
+                        using (var transaction = connection.BeginTransaction())
+                        {
+                            try
+                            {
+                                // Buduj jeden duży UPDATE z CASE
+                                var rows = specyfikacjeData.ToList();
+                                if (rows.Count == 0) return;
+
+                                StringBuilder sb = new StringBuilder();
+                                sb.Append("UPDATE dbo.FarmerCalc SET CarLp = CASE ID ");
+                                foreach (var row in rows)
+                                {
+                                    sb.Append($"WHEN {row.ID} THEN {row.Nr} ");
+                                }
+                                sb.Append("END WHERE ID IN (");
+                                sb.Append(string.Join(",", rows.Select(r => r.ID)));
+                                sb.Append(")");
+
+                                using (SqlCommand cmd = new SqlCommand(sb.ToString(), connection, transaction))
+                                {
+                                    cmd.ExecuteNonQuery();
+                                }
+
+                                transaction.Commit();
+                            }
+                            catch
+                            {
+                                transaction.Rollback();
+                                throw;
+                            }
+                        }
+                    }
+                });
+
+                Dispatcher.Invoke(() => UpdateStatus("Pozycje zapisane"));
+            }
+            catch (Exception ex)
+            {
+                Dispatcher.Invoke(() => UpdateStatus($"Błąd zapisu pozycji: {ex.Message}"));
             }
         }
 
@@ -914,7 +1555,29 @@ namespace Kalendarz1
             }
         }
 
-        // === NOWY: Przycisk skróconego PDF ===
+        // === Checkbox: Pokaż/ukryj kolumnę Opasienie ===
+        private void ChkShowOpasienie_Changed(object sender, RoutedEventArgs e)
+        {
+            if (colOpasienie != null)
+            {
+                colOpasienie.Visibility = chkShowOpasienie.IsChecked == true
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
+        }
+
+        // === Checkbox: Pokaż/ukryj kolumnę Klasa B ===
+        private void ChkShowKlasaB_Changed(object sender, RoutedEventArgs e)
+        {
+            if (colKlasaB != null)
+            {
+                colKlasaB.Visibility = chkShowKlasaB.IsChecked == true
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
+        }
+
+        // === NOWY: Przycisk skróconego PDF (ukryty, ale metoda pozostaje dla email) ===
         private void BtnShortPdf_Click(object sender, RoutedEventArgs e)
         {
             if (dataGridView1.SelectedCells.Count == 0)
@@ -1622,7 +2285,10 @@ namespace Kalendarz1
 
                 decimal sredniaWagaSuma = sumaSztWszystkie > 0 ? sumaNetto / sumaSztWszystkie : 0;
                 decimal avgCena = sumaKGShort > 0 ? sumaWartoscShort / sumaKGShort : 0;
-                int terminZaplatyDni = zapytaniasql.GetTerminZaplaty(customerRealGID);
+
+                // Pobierz termin zapłaty z FarmerCalc (TerminDni), lub domyślny z Dostawcy
+                int? terminDniFromCalc = zapytaniasql.PobierzInformacjeZBazyDanych<int?>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "TerminDni");
+                int terminZaplatyDni = terminDniFromCalc ?? zapytaniasql.GetTerminZaplaty(customerRealGID);
                 DateTime terminPlatnosci = dzienUbojowy.AddDays(terminZaplatyDni);
 
                 // === GŁÓWNE DANE - DUŻY BOX ===
@@ -1945,8 +2611,9 @@ namespace Kalendarz1
                 string sellerKod = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "PostalCode") ?? "";
                 string sellerMiejsc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "City") ?? "";
 
-                // Pobierz termin zapłaty hodowcy (domyślnie 14 dni)
-                int terminZaplatyDni = zapytaniasql.GetTerminZaplaty(customerRealGID);
+                // Pobierz termin zapłaty z FarmerCalc (TerminDni), lub domyślny z Dostawcy
+                int? terminDniFromCalc = zapytaniasql.PobierzInformacjeZBazyDanych<int?>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "TerminDni");
+                int terminZaplatyDni = terminDniFromCalc ?? zapytaniasql.GetTerminZaplaty(customerRealGID);
 
                 DateTime terminPlatnosci = dzienUbojowy.AddDays(terminZaplatyDni);
 
@@ -2114,6 +2781,8 @@ namespace Kalendarz1
                 decimal sumaBrutto = 0, sumaTara = 0, sumaNetto = 0, sumaPadleKG = 0, sumaKonfiskatyKG = 0, sumaOpasienieKG = 0, sumaKlasaB = 0;
                 int sumaSztWszystkie = 0, sumaPadle = 0, sumaKonfiskaty = 0, sumaSztZdatne = 0;
                 decimal sredniaWagaSuma = 0;
+                bool czyByloUbytku = false;
+                decimal sumaUbytekKG = 0; // Suma kg odliczonych przez Ubytek %
 
                 // Dane tabeli
                 for (int i = 0; i < ids.Count; i++)
@@ -2150,14 +2819,27 @@ namespace Kalendarz1
                     decimal opasienieKG = Math.Round(zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Opasienie"), 0);
                     decimal klasaB = Math.Round(zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "KlasaB"), 0);
 
-                    decimal doZaplaty = czyPiK
+                    // Obliczenie DoZaplaty: Netto - (PiK ? 0 : Padłe+Konf) - Opasienie - KlasaB, potem * (1 - Ubytek%)
+                    decimal bazaDoZaplaty = czyPiK
                         ? wagaNetto - opasienieKG - klasaB
                         : wagaNetto - padleKG - konfiskatyKG - opasienieKG - klasaB;
+
+                    // Zastosowanie ubytku procentowego (zgodnie z modelem)
+                    decimal doZaplaty = ubytek > 0
+                        ? Math.Round(bazaDoZaplaty * (1 - ubytek / 100), 0)
+                        : bazaDoZaplaty;
 
                     decimal cenaBase = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Price");
                     decimal dodatek = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Addition");
                     decimal cena = cenaBase + dodatek; // Cena zawiera dodatek
                     decimal wartosc = cena * doZaplaty;
+
+                    // Śledzenie Ubytku
+                    if (ubytek > 0)
+                    {
+                        czyByloUbytku = true;
+                        sumaUbytekKG += bazaDoZaplaty - doZaplaty; // różnica = ile kg odliczono przez ubytek
+                    }
 
                     // Sumowanie
                     sumaWartosc += wartosc;
@@ -2257,10 +2939,19 @@ namespace Kalendarz1
                 formula5.Add(new Chunk($"{sumaKonfiskaty} × {sredniaWagaSuma:N2} = {sumaKonfiskatyKG:N0} kg", legendaFont));
                 formulaCell.AddElement(formula5);
 
-                // 6. Do zapłaty = Netto - Padłe[kg] - Konfiskaty[kg] - Opasienie - Klasa B
+                // 6. Do zapłaty = Netto - Padłe[kg] - Konfiskaty[kg] - Opasienie - Klasa B - Ubytek%
                 Paragraph formula6 = new Paragraph();
-                formula6.Add(new Chunk("Do zapł. = Netto - Padłe - Konf. - Opas. - Kl.B: ", legendaBoldFont));
-                formula6.Add(new Chunk($"{sumaNetto:N0} - {sumaPadleKG:N0} - {sumaKonfiskatyKG:N0} - {sumaOpasienieKG:N0} - {sumaKlasaB:N0} = {sumaKG:N0} kg", legendaFont));
+                if (czyByloUbytku)
+                {
+                    decimal bazaBezUbytku = sumaKG + sumaUbytekKG;
+                    formula6.Add(new Chunk("Do zapł. = (Netto - Padłe - Konf. - Opas. - Kl.B) × (1 - Ubytek%): ", legendaBoldFont));
+                    formula6.Add(new Chunk($"({sumaNetto:N0} - {sumaPadleKG:N0} - {sumaKonfiskatyKG:N0} - {sumaOpasienieKG:N0} - {sumaKlasaB:N0}) - {sumaUbytekKG:N0} = {sumaKG:N0} kg", legendaFont));
+                }
+                else
+                {
+                    formula6.Add(new Chunk("Do zapł. = Netto - Padłe - Konf. - Opas. - Kl.B: ", legendaBoldFont));
+                    formula6.Add(new Chunk($"{sumaNetto:N0} - {sumaPadleKG:N0} - {sumaKonfiskatyKG:N0} - {sumaOpasienieKG:N0} - {sumaKlasaB:N0} = {sumaKG:N0} kg", legendaFont));
+                }
                 formulaCell.AddElement(formula6);
 
                 // 7. Wartość = Kilogramy × Cena
@@ -2461,6 +3152,298 @@ namespace Kalendarz1
                 table.AddCell(cell);
             }
         }
+
+        #region === DELETE / UNDO / SHAKE / HISTORIA ===
+
+        // === DELETE: Usuwanie zaznaczonego wiersza ===
+        private void DeleteSelectedRow()
+        {
+            if (selectedRow == null)
+            {
+                ShakeWindow();
+                UpdateStatus("Nie zaznaczono wiersza do usunięcia");
+                return;
+            }
+
+            var result = MessageBox.Show(
+                $"Czy na pewno chcesz usunąć wiersz LP {selectedRow.Nr}?\n\nDostawca: {selectedRow.Dostawca}\nNetto: {selectedRow.NettoUbojni}",
+                "Potwierdzenie usunięcia",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    // Zapisz do historii i undo
+                    RecordChange(selectedRow.ID, "DELETE", "Cały wiersz", selectedRow.ToString(), null);
+                    PushUndo(new UndoAction
+                    {
+                        ActionType = "DELETE",
+                        RowId = selectedRow.ID,
+                        RowData = CloneRow(selectedRow),
+                        RowIndex = specyfikacjeData.IndexOf(selectedRow)
+                    });
+
+                    // Usuń z bazy
+                    using (SqlConnection connection = new SqlConnection(connectionString))
+                    {
+                        connection.Open();
+                        string query = "DELETE FROM dbo.FarmerCalc WHERE ID = @ID";
+                        using (SqlCommand cmd = new SqlCommand(query, connection))
+                        {
+                            cmd.Parameters.AddWithValue("@ID", selectedRow.ID);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    // Usuń z kolekcji
+                    specyfikacjeData.Remove(selectedRow);
+                    UpdateRowNumbers();
+                    UpdateStatistics();
+                    UpdateStatus($"Usunięto wiersz. Ctrl+Z aby cofnąć.");
+                    selectedRow = null;
+                }
+                catch (Exception ex)
+                {
+                    ShakeWindow();
+                    UpdateStatus($"Błąd usuwania: {ex.Message}");
+                }
+            }
+        }
+
+        // === UNDO: Cofanie ostatniej zmiany ===
+        private void UndoLastChange()
+        {
+            if (_undoStack.Count == 0)
+            {
+                ShakeWindow();
+                UpdateStatus("Brak zmian do cofnięcia");
+                return;
+            }
+
+            var action = _undoStack.Pop();
+
+            try
+            {
+                switch (action.ActionType)
+                {
+                    case "DELETE":
+                        // Przywróć usunięty wiersz
+                        RestoreDeletedRow(action);
+                        break;
+
+                    case "EDIT":
+                        // Przywróć poprzednią wartość
+                        RestoreEditedValue(action);
+                        break;
+                }
+
+                UpdateStatus($"Cofnięto: {action.ActionType}. Pozostało {_undoStack.Count} zmian.");
+            }
+            catch (Exception ex)
+            {
+                ShakeWindow();
+                UpdateStatus($"Błąd cofania: {ex.Message}");
+            }
+        }
+
+        private void RestoreDeletedRow(UndoAction action)
+        {
+            if (action.RowData == null) return;
+
+            // Przywróć do bazy
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                // INSERT z IDENTITY_INSERT
+                string query = @"SET IDENTITY_INSERT dbo.FarmerCalc ON;
+                    INSERT INTO dbo.FarmerCalc (ID, CarLp, CustomerGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5,
+                        LumQnt, ProdQnt, ProdWgt, Price, Loss, IncDeadConf, Opasienie, KlasaB, TerminDni)
+                    VALUES (@ID, @Nr, @GID, @SztDek, @Padle, @CH, @NW, @ZM,
+                        @LUMEL, @SztWyb, @KgWyb, @Cena, @Ubytek, @PiK, @Opas, @KlasaB, @Termin);
+                    SET IDENTITY_INSERT dbo.FarmerCalc OFF;";
+
+                using (SqlCommand cmd = new SqlCommand(query, connection))
+                {
+                    var row = action.RowData;
+                    cmd.Parameters.AddWithValue("@ID", row.ID);
+                    cmd.Parameters.AddWithValue("@Nr", row.Nr);
+                    cmd.Parameters.AddWithValue("@GID", (object)row.DostawcaGID ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@SztDek", row.SztukiDek);
+                    cmd.Parameters.AddWithValue("@Padle", row.Padle);
+                    cmd.Parameters.AddWithValue("@CH", row.CH);
+                    cmd.Parameters.AddWithValue("@NW", row.NW);
+                    cmd.Parameters.AddWithValue("@ZM", row.ZM);
+                    cmd.Parameters.AddWithValue("@LUMEL", row.LUMEL);
+                    cmd.Parameters.AddWithValue("@SztWyb", row.SztukiWybijak);
+                    cmd.Parameters.AddWithValue("@KgWyb", row.KilogramyWybijak);
+                    cmd.Parameters.AddWithValue("@Cena", row.Cena);
+                    cmd.Parameters.AddWithValue("@Ubytek", row.Ubytek / 100);
+                    cmd.Parameters.AddWithValue("@PiK", row.PiK);
+                    cmd.Parameters.AddWithValue("@Opas", row.Opasienie);
+                    cmd.Parameters.AddWithValue("@KlasaB", row.KlasaB);
+                    cmd.Parameters.AddWithValue("@Termin", row.TerminDni);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+
+            // Przywróć do kolekcji
+            int index = Math.Min(action.RowIndex, specyfikacjeData.Count);
+            specyfikacjeData.Insert(index, action.RowData);
+            UpdateRowNumbers();
+            UpdateStatistics();
+        }
+
+        private void RestoreEditedValue(UndoAction action)
+        {
+            var row = specyfikacjeData.FirstOrDefault(r => r.ID == action.RowId);
+            if (row == null) return;
+
+            // Przywróć wartość w obiekcie
+            var property = typeof(SpecyfikacjaRow).GetProperty(action.PropertyName);
+            if (property != null)
+            {
+                var oldValue = Convert.ChangeType(action.OldValue, property.PropertyType);
+                property.SetValue(row, oldValue);
+            }
+
+            // Zapisz do bazy
+            SaveRowToDatabase(row);
+        }
+
+        // === SHAKE: Animacja błędu ===
+        private void ShakeWindow()
+        {
+            try
+            {
+                var storyboard = (System.Windows.Media.Animation.Storyboard)FindResource("ShakeAnimation");
+                if (this.RenderTransform == null || !(this.RenderTransform is TranslateTransform))
+                {
+                    this.RenderTransform = new TranslateTransform();
+                }
+                storyboard.Begin(this);
+            }
+            catch
+            {
+                // Fallback - dźwięk systemowy
+                System.Media.SystemSounds.Exclamation.Play();
+            }
+        }
+
+        // === HISTORIA: Rejestrowanie zmian ===
+        private void RecordChange(int rowId, string action, string property, string oldValue, string newValue)
+        {
+            _changeLog.Add(new ChangeLogEntry
+            {
+                Timestamp = DateTime.Now,
+                RowId = rowId,
+                Action = action,
+                PropertyName = property,
+                OldValue = oldValue,
+                NewValue = newValue,
+                UserName = App.UserID ?? Environment.UserName
+            });
+
+            // Ogranicz historię do 1000 wpisów
+            if (_changeLog.Count > 1000)
+            {
+                _changeLog.RemoveAt(0);
+            }
+        }
+
+        // === UNDO: Dodaj do stosu ===
+        private void PushUndo(UndoAction action)
+        {
+            _undoStack.Push(action);
+            if (_undoStack.Count > MaxUndoHistory)
+            {
+                // Usuń najstarsze (konwertuj na listę, usuń ostatni, odtwórz stos)
+                var list = _undoStack.ToList();
+                list.RemoveAt(list.Count - 1);
+                _undoStack = new Stack<UndoAction>(list.AsEnumerable().Reverse());
+            }
+        }
+
+        // === HELPER: Kopia wiersza dla undo ===
+        private SpecyfikacjaRow CloneRow(SpecyfikacjaRow source)
+        {
+            return new SpecyfikacjaRow
+            {
+                ID = source.ID,
+                Nr = source.Nr,
+                DostawcaGID = source.DostawcaGID,
+                Dostawca = source.Dostawca,
+                SztukiDek = source.SztukiDek,
+                Padle = source.Padle,
+                CH = source.CH,
+                NW = source.NW,
+                ZM = source.ZM,
+                LUMEL = source.LUMEL,
+                SztukiWybijak = source.SztukiWybijak,
+                KilogramyWybijak = source.KilogramyWybijak,
+                Cena = source.Cena,
+                Dodatek = source.Dodatek,
+                TypCeny = source.TypCeny,
+                Ubytek = source.Ubytek,
+                PiK = source.PiK,
+                Opasienie = source.Opasienie,
+                KlasaB = source.KlasaB,
+                TerminDni = source.TerminDni
+            };
+        }
+
+        // === HISTORIA: Pokaż historię zmian (można wywołać przyciskiem) ===
+        public void ShowChangeHistory()
+        {
+            if (_changeLog.Count == 0)
+            {
+                MessageBox.Show("Brak zmian w historii.", "Historia zmian", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendLine("Ostatnie zmiany:");
+            sb.AppendLine(new string('-', 50));
+
+            foreach (var entry in _changeLog.TakeLast(20).Reverse())
+            {
+                sb.AppendLine($"[{entry.Timestamp:HH:mm:ss}] {entry.Action} - Wiersz {entry.RowId}");
+                sb.AppendLine($"   {entry.PropertyName}: {entry.OldValue} → {entry.NewValue}");
+                sb.AppendLine($"   Użytkownik: {entry.UserName}");
+                sb.AppendLine();
+            }
+
+            MessageBox.Show(sb.ToString(), "Historia zmian", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        #endregion
+    }
+
+    // === KLASY POMOCNICZE ===
+
+    // Klasa dla akcji undo
+    public class UndoAction
+    {
+        public string ActionType { get; set; } // DELETE, EDIT
+        public int RowId { get; set; }
+        public string PropertyName { get; set; }
+        public object OldValue { get; set; }
+        public object NewValue { get; set; }
+        public SpecyfikacjaRow RowData { get; set; } // Kopia całego wiersza dla DELETE
+        public int RowIndex { get; set; }
+    }
+
+    // Klasa dla wpisu w historii zmian
+    public class ChangeLogEntry
+    {
+        public DateTime Timestamp { get; set; }
+        public int RowId { get; set; }
+        public string Action { get; set; }
+        public string PropertyName { get; set; }
+        public string OldValue { get; set; }
+        public string NewValue { get; set; }
+        public string UserName { get; set; }
     }
 
     // Klasa dla elementu dostawcy w ComboBox
@@ -2499,6 +3482,18 @@ namespace Kalendarz1
         private bool _piK;
         private decimal _ubytek;
         private bool _wydrukowano;
+        // Nowe pola
+        private decimal _opasienie;
+        private decimal _klasaB;
+        private int _terminDni;
+        private DateTime _dataUboju;
+
+        // Pola transportowe
+        private int? _driverGID;
+        private string _carID;
+        private string _trailerID;
+        private DateTime? _arrivalTime;
+        private string _kierowcaNazwa;
 
         public bool Wydrukowano
         {
@@ -2551,19 +3546,19 @@ namespace Kalendarz1
         public int CH
         {
             get => _ch;
-            set { _ch = value; OnPropertyChanged(nameof(CH)); }
+            set { _ch = value; OnPropertyChanged(nameof(CH)); RecalculateWartosc(); }
         }
 
         public int NW
         {
             get => _nw;
-            set { _nw = value; OnPropertyChanged(nameof(NW)); }
+            set { _nw = value; OnPropertyChanged(nameof(NW)); RecalculateWartosc(); }
         }
 
         public int ZM
         {
             get => _zm;
-            set { _zm = value; OnPropertyChanged(nameof(ZM)); }
+            set { _zm = value; OnPropertyChanged(nameof(ZM)); RecalculateWartosc(); }
         }
 
         public string BruttoHodowcy
@@ -2656,27 +3651,144 @@ namespace Kalendarz1
             set { _ubytek = value; OnPropertyChanged(nameof(Ubytek)); RecalculateWartosc(); }
         }
 
-        // Obliczona wartość - Cena * NettoUbojni
-        // Gdy PiK = true (padłe i konfiskaty wliczone) - nie odejmujemy nic
-        // Gdy PiK = false - padłe i konfiskaty są odejmowane (normalne zachowanie)
+        // === NOWE WŁAŚCIWOŚCI ===
+
+        public decimal Opasienie
+        {
+            get => _opasienie;
+            set { _opasienie = value; OnPropertyChanged(nameof(Opasienie)); RecalculateWartosc(); }
+        }
+
+        public decimal KlasaB
+        {
+            get => _klasaB;
+            set { _klasaB = value; OnPropertyChanged(nameof(KlasaB)); RecalculateWartosc(); }
+        }
+
+        public int TerminDni
+        {
+            get => _terminDni;
+            set { _terminDni = value; OnPropertyChanged(nameof(TerminDni)); OnPropertyChanged(nameof(TerminPlatnosci)); }
+        }
+
+        public DateTime DataUboju
+        {
+            get => _dataUboju;
+            set { _dataUboju = value; OnPropertyChanged(nameof(DataUboju)); OnPropertyChanged(nameof(TerminPlatnosci)); }
+        }
+
+        // === WŁAŚCIWOŚCI TRANSPORTOWE ===
+        public int? DriverGID
+        {
+            get => _driverGID;
+            set { _driverGID = value; OnPropertyChanged(nameof(DriverGID)); }
+        }
+
+        public string CarID
+        {
+            get => _carID;
+            set { _carID = value; OnPropertyChanged(nameof(CarID)); }
+        }
+
+        public string TrailerID
+        {
+            get => _trailerID;
+            set { _trailerID = value; OnPropertyChanged(nameof(TrailerID)); }
+        }
+
+        public DateTime? ArrivalTime
+        {
+            get => _arrivalTime;
+            set { _arrivalTime = value; OnPropertyChanged(nameof(ArrivalTime)); }
+        }
+
+        public string KierowcaNazwa
+        {
+            get => _kierowcaNazwa;
+            set { _kierowcaNazwa = value; OnPropertyChanged(nameof(KierowcaNazwa)); }
+        }
+
+        // === WŁAŚCIWOŚCI OBLICZANE ===
+
+        /// <summary>
+        /// Suma konfiskat: CH + NW + ZM [szt]
+        /// </summary>
+        public int Konfiskaty => CH + NW + ZM;
+
+        /// <summary>
+        /// Średnia waga: Netto / SztukiDek [kg/szt]
+        /// </summary>
+        public decimal SredniaWaga => SztukiDek > 0 ? Math.Round(NettoUbojniValue / SztukiDek, 2) : 0;
+
+        /// <summary>
+        /// Sztuki zdatne: SztukiDek - Padłe - Konfiskaty [szt]
+        /// </summary>
+        public int Zdatne => SztukiDek - Padle - Konfiskaty;
+
+        /// <summary>
+        /// Padłe w kg: Padłe * Średnia waga [kg]
+        /// </summary>
+        public decimal PadleKg => Math.Round(Padle * SredniaWaga, 0);
+
+        /// <summary>
+        /// Konfiskaty w kg: Konfiskaty * Średnia waga [kg]
+        /// </summary>
+        public decimal KonfiskatyKg => Math.Round(Konfiskaty * SredniaWaga, 0);
+
+        /// <summary>
+        /// Do zapłaty [kg]: Netto - Padłe[kg] - Konf[kg] - Opas - KlasaB (z uwzględnieniem PiK i ubytku)
+        /// </summary>
+        public decimal DoZaplaty
+        {
+            get
+            {
+                decimal bazaKg = NettoUbojniValue;
+
+                // Jeśli PiK = false, odejmujemy padłe i konfiskaty
+                if (!PiK)
+                {
+                    bazaKg -= PadleKg;
+                    bazaKg -= KonfiskatyKg;
+                }
+
+                // Zawsze odejmujemy opasienie i klasę B
+                bazaKg -= Opasienie;
+                bazaKg -= KlasaB;
+
+                // Zastosowanie ubytku procentowego
+                decimal poUbytku = bazaKg * (1 - Ubytek / 100);
+
+                return Math.Round(poUbytku, 0);
+            }
+        }
+
+        /// <summary>
+        /// Termin płatności (data)
+        /// </summary>
+        public DateTime TerminPlatnosci => DataUboju.AddDays(TerminDni);
+
+        // === WARTOŚĆ KOŃCOWA ===
+
+        /// <summary>
+        /// Wartość końcowa = DoZaplaty * (Cena + Dodatek)
+        /// </summary>
         public decimal Wartosc
         {
             get
             {
-                // Podstawowa wartość: (Cena + Dodatek) * NettoUbojni
                 decimal cenaZDodatkiem = Cena + Dodatek;
-                decimal wartoscBazowa = cenaZDodatkiem * NettoUbojniValue;
-
-                // Uwzględnienie ubytku
-                decimal ubytek = wartoscBazowa * (Ubytek / 100);
-                decimal wartoscPoUbytku = wartoscBazowa - ubytek;
-
-                return Math.Round(wartoscPoUbytku, 0);
+                return Math.Round(DoZaplaty * cenaZDodatkiem, 0);
             }
         }
 
         public void RecalculateWartosc()
         {
+            OnPropertyChanged(nameof(Konfiskaty));
+            OnPropertyChanged(nameof(SredniaWaga));
+            OnPropertyChanged(nameof(Zdatne));
+            OnPropertyChanged(nameof(PadleKg));
+            OnPropertyChanged(nameof(KonfiskatyKg));
+            OnPropertyChanged(nameof(DoZaplaty));
             OnPropertyChanged(nameof(Wartosc));
         }
 
@@ -2700,14 +3812,28 @@ namespace Kalendarz1
             if (value == null)
                 return string.Empty;
 
+            // Obsługa int
+            if (value is int intValue)
+            {
+                if (intValue == 0)
+                    return string.Empty;
+                return intValue.ToString();
+            }
+
+            // Obsługa decimal
             if (value is decimal decValue)
             {
-                // Jeśli wartość = 0, pokaż puste pole
                 if (decValue == 0)
                     return string.Empty;
-
-                // Formatuj z 2 miejscami po przecinku
                 return decValue.ToString("F2", culture);
+            }
+
+            // Obsługa double
+            if (value is double dblValue)
+            {
+                if (dblValue == 0)
+                    return string.Empty;
+                return dblValue.ToString();
             }
 
             return value.ToString();
@@ -2716,21 +3842,139 @@ namespace Kalendarz1
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
             if (value == null || string.IsNullOrWhiteSpace(value.ToString()))
-                return 0m;
-
-            string input = value.ToString().Trim();
-
-            // Zamień przecinek na kropkę dla parsowania
-            input = input.Replace(',', '.');
-
-            // Spróbuj sparsować jako decimal
-            if (decimal.TryParse(input, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal result))
             {
-                return result;
+                // Zwróć odpowiedni typ zera
+                if (targetType == typeof(int)) return 0;
+                if (targetType == typeof(decimal)) return 0m;
+                if (targetType == typeof(double)) return 0.0;
+                return 0;
             }
 
-            // Jeśli nie udało się sparsować, zwróć 0
-            return 0m;
+            string input = value.ToString().Trim();
+            input = input.Replace(',', '.');
+
+            // Dla int
+            if (targetType == typeof(int))
+            {
+                if (int.TryParse(input, out int intResult))
+                    return intResult;
+                return 0;
+            }
+
+            // Dla decimal
+            if (targetType == typeof(decimal))
+            {
+                if (decimal.TryParse(input, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal decResult))
+                    return decResult;
+                return 0m;
+            }
+
+            // Dla double
+            if (targetType == typeof(double))
+            {
+                if (double.TryParse(input, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double dblResult))
+                    return dblResult;
+                return 0.0;
+            }
+
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// Model danych dla wiersza transportu
+    /// </summary>
+    public class TransportRow : INotifyPropertyChanged
+    {
+        private int _nr;
+        private string _kierowca;
+        private string _samochod;
+        private string _nrRejestracyjny;
+        private DateTime? _godzinaWyjazdu;
+        private DateTime? _godzinaPrzyjazdu;
+        private string _trasa;
+        private int _iloscSkrzynek;
+        private int _sztuki;
+        private decimal _kilogramy;
+        private string _status;
+        private string _uwagi;
+
+        public int Nr
+        {
+            get => _nr;
+            set { _nr = value; OnPropertyChanged(nameof(Nr)); }
+        }
+
+        public string Kierowca
+        {
+            get => _kierowca;
+            set { _kierowca = value; OnPropertyChanged(nameof(Kierowca)); }
+        }
+
+        public string Samochod
+        {
+            get => _samochod;
+            set { _samochod = value; OnPropertyChanged(nameof(Samochod)); }
+        }
+
+        public string NrRejestracyjny
+        {
+            get => _nrRejestracyjny;
+            set { _nrRejestracyjny = value; OnPropertyChanged(nameof(NrRejestracyjny)); }
+        }
+
+        public DateTime? GodzinaWyjazdu
+        {
+            get => _godzinaWyjazdu;
+            set { _godzinaWyjazdu = value; OnPropertyChanged(nameof(GodzinaWyjazdu)); }
+        }
+
+        public DateTime? GodzinaPrzyjazdu
+        {
+            get => _godzinaPrzyjazdu;
+            set { _godzinaPrzyjazdu = value; OnPropertyChanged(nameof(GodzinaPrzyjazdu)); }
+        }
+
+        public string Trasa
+        {
+            get => _trasa;
+            set { _trasa = value; OnPropertyChanged(nameof(Trasa)); }
+        }
+
+        public int IloscSkrzynek
+        {
+            get => _iloscSkrzynek;
+            set { _iloscSkrzynek = value; OnPropertyChanged(nameof(IloscSkrzynek)); }
+        }
+
+        public int Sztuki
+        {
+            get => _sztuki;
+            set { _sztuki = value; OnPropertyChanged(nameof(Sztuki)); }
+        }
+
+        public decimal Kilogramy
+        {
+            get => _kilogramy;
+            set { _kilogramy = value; OnPropertyChanged(nameof(Kilogramy)); }
+        }
+
+        public string Status
+        {
+            get => _status;
+            set { _status = value; OnPropertyChanged(nameof(Status)); }
+        }
+
+        public string Uwagi
+        {
+            get => _uwagi;
+            set { _uwagi = value; OnPropertyChanged(nameof(Uwagi)); }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 }

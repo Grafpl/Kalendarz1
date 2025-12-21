@@ -10,12 +10,76 @@
         FontFamily="Segoe UI"
         Loaded="Window_Loaded">
 
+    <!-- RenderTransform dla animacji shake -->
+    <Window.RenderTransform>
+        <TranslateTransform/>
+    </Window.RenderTransform>
+
     <Window.Resources>
         <!-- BooleanToVisibility converter -->
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
         <!-- Converter dla Dodatek - pokazuje puste gdy 0 -->
         <local:ZeroToEmptyConverter x:Key="ZeroToEmptyConverter"/>
+
+        <!-- === ANIMACJA: Shake on error === -->
+        <Storyboard x:Key="ShakeAnimation">
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)">
+                <EasingDoubleKeyFrame KeyTime="0:0:0.05" Value="10"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:0.1" Value="-10"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:0.15" Value="8"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:0.2" Value="-8"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:0.25" Value="5"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:0.3" Value="-5"/>
+                <EasingDoubleKeyFrame KeyTime="0:0:0.35" Value="0"/>
+            </DoubleAnimationUsingKeyFrames>
+        </Storyboard>
+
+        <!-- === STYL: Row hover highlight === -->
+        <Style x:Key="DataGridRowHoverStyle" TargetType="DataGridRow">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="Black"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#E3F2FD"/>
+                    <Setter Property="Foreground" Value="Black"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#BBDEFB"/>
+                    <Setter Property="Foreground" Value="Black"/>
+                </Trigger>
+                <MultiTrigger>
+                    <MultiTrigger.Conditions>
+                        <Condition Property="IsMouseOver" Value="True"/>
+                        <Condition Property="IsSelected" Value="True"/>
+                    </MultiTrigger.Conditions>
+                    <Setter Property="Background" Value="#90CAF9"/>
+                    <Setter Property="Foreground" Value="Black"/>
+                </MultiTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- === STYL: TextBox numeryczny - SelectAll przy fokusie === -->
+        <Style x:Key="NumericTextBoxStyle" TargetType="TextBox">
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <EventSetter Event="GotFocus" Handler="NumericTextBox_GotFocus"/>
+        </Style>
+
+        <!-- === STYL: Komórka - czarna czcionka przy zaznaczeniu === -->
+        <Style TargetType="DataGridCell">
+            <Setter Property="Foreground" Value="Black"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Foreground" Value="Black"/>
+                    <Setter Property="Background" Value="Transparent"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
 
         <!-- Główny styl przycisków -->
         <Style x:Key="MainButtonStyle" TargetType="Button">
@@ -197,13 +261,7 @@
 
                 <!-- Tytuł i data -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="SPECYFIKACJA DOSTAW"
-                               FontSize="22"
-                               FontWeight="Bold"
-                               Foreground="White"
-                               VerticalAlignment="Center"/>
-
-                    <Border Background="#4B732F" CornerRadius="6" Padding="15,8" Margin="30,0,0,0">
+                    <Border Background="#4B732F" CornerRadius="6" Padding="15,8">
                         <StackPanel Orientation="Horizontal">
                             <!-- Strzałka wstecz -->
                             <Button Content="◀"
@@ -248,20 +306,32 @@
                                        Margin="15,0,0,0"/>
                         </StackPanel>
                     </Border>
+
+                    <!-- Separator -->
+                    <Border Width="1" Background="#4B732F" Margin="15,5"/>
+
+                    <!-- Checkboxy Opasienie i Klasa B -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                        <CheckBox x:Name="chkShowOpasienie"
+                                  Content="Opasienie"
+                                  Foreground="White"
+                                  FontSize="12"
+                                  VerticalAlignment="Center"
+                                  Checked="ChkShowOpasienie_Changed"
+                                  Unchecked="ChkShowOpasienie_Changed"
+                                  Margin="0,0,15,0"/>
+                        <CheckBox x:Name="chkShowKlasaB"
+                                  Content="Klasa B"
+                                  Foreground="White"
+                                  FontSize="12"
+                                  VerticalAlignment="Center"
+                                  Checked="ChkShowKlasaB_Changed"
+                                  Unchecked="ChkShowKlasaB_Changed"/>
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- Przyciski akcji -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
-                    <Button Content="W GÓRĘ"
-                            x:Name="buttonUP"
-                            Click="ButtonUP_Click"
-                            Style="{StaticResource SecondaryButtonStyle}"
-                            Padding="12,8"/>
-                    <Button Content="W DÓŁ"
-                            x:Name="buttonDown"
-                            Click="ButtonDown_Click"
-                            Style="{StaticResource SecondaryButtonStyle}"
-                            Padding="12,8"/>
                     <Button Content="AVILOG"
                             x:Name="buttonBon"
                             Click="ButtonBon_Click"
@@ -291,12 +361,6 @@
                             FontSize="16"
                             Padding="10,8"
                             ToolTip="Ustawienia lokalizacji PDF"/>
-                    <Button Content="PDF SKRÓCONY"
-                            x:Name="btnShortPdf"
-                            Click="BtnShortPdf_Click"
-                            Style="{StaticResource MainButtonStyle}"
-                            Background="#8E44AD"
-                            ToolTip="Generuj skróconą wersję PDF (1 strona)"/>
                     <Button Content="📱 SMS"
                             x:Name="btnSendSms"
                             Click="BtnSendSms_Click"
@@ -315,25 +379,60 @@
                             Style="{StaticResource MainButtonStyle}"
                             Background="#E74C3C"
                             ToolTip="Wyślij email z PDF w załączniku"/>
-                    <Button Content="ZAPISZ WSZYSTKO"
-                            x:Name="btnSaveAll"
-                            Click="BtnSaveAll_Click"
-                            Style="{StaticResource MainButtonStyle}"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- GŁÓWNA TABELA -->
-        <Border Grid.Row="1" Background="White" CornerRadius="10" Margin="20,15,20,10">
-            <Border.Effect>
-                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="15"/>
-            </Border.Effect>
-            <DataGrid x:Name="dataGridView1"
+        <!-- TABCONTROL Z KARTAMI -->
+        <TabControl Grid.Row="1" Margin="20,15,20,10" x:Name="mainTabControl" SelectionChanged="MainTabControl_SelectionChanged">
+            <TabControl.Resources>
+                <Style TargetType="TabItem">
+                    <Setter Property="FontSize" Value="14"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                    <Setter Property="Padding" Value="20,10"/>
+                    <Setter Property="Background" Value="#ECEFF1"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="TabItem">
+                                <Border x:Name="Border"
+                                        Background="{TemplateBinding Background}"
+                                        BorderThickness="1,1,1,0"
+                                        BorderBrush="#CFD8DC"
+                                        CornerRadius="8,8,0,0"
+                                        Margin="2,0,2,0"
+                                        Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter ContentSource="Header"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter TargetName="Border" Property="Background" Value="White"/>
+                                        <Setter Property="Foreground" Value="#5C8A3A"/>
+                                    </Trigger>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Border" Property="Background" Value="#E8F5E9"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </TabControl.Resources>
+
+            <!-- ===== KARTA 1: SPECYFIKACJE ===== -->
+            <TabItem Header="📋 Specyfikacje">
+                <Border Background="White" CornerRadius="0,10,10,10">
+                    <Border.Effect>
+                        <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="15"/>
+                    </Border.Effect>
+                    <DataGrid x:Name="dataGridView1"
                       AutoGenerateColumns="False"
                       CanUserAddRows="False"
                       CanUserDeleteRows="False"
+                      CanUserReorderColumns="False"
                       SelectionMode="Single"
-                      SelectionUnit="Cell"
+                      SelectionUnit="CellOrRowHeader"
                       GridLinesVisibility="All"
                       HorizontalGridLinesBrush="#E0E0E0"
                       VerticalGridLinesBrush="#EEEEEE"
@@ -343,10 +442,23 @@
                       FontSize="12"
                       AlternatingRowBackground="#FAFAFA"
                       ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+                      RowStyle="{StaticResource DataGridRowHoverStyle}"
                       CellEditEnding="DataGridView1_CellEditEnding"
                       SelectionChanged="DataGridView1_SelectionChanged"
-                      PreviewMouseLeftButtonDown="DataGridView1_PreviewMouseLeftButtonDown"
-                      PreviewKeyDown="DataGridView1_PreviewKeyDown">
+                      CurrentCellChanged="DataGridView1_CurrentCellChanged"
+                      PreviewKeyDown="DataGridView1_PreviewKeyDown"
+                      PreviewTextInput="DataGridView1_PreviewTextInput"
+                      AllowDrop="True"
+                      PreviewMouseLeftButtonDown="DataGrid_PreviewMouseLeftButtonDown"
+                      PreviewMouseMove="DataGrid_PreviewMouseMove"
+                      Drop="DataGrid_Drop"
+                      DragOver="DataGrid_DragOver"
+                      DragLeave="DataGrid_DragLeave"
+                      EnableRowVirtualization="True"
+                      EnableColumnVirtualization="True"
+                      VirtualizingPanel.IsVirtualizing="True"
+                      VirtualizingPanel.VirtualizationMode="Recycling"
+                      VirtualizingPanel.ScrollUnit="Pixel">
 
                 <DataGrid.Columns>
                     <!-- LP -->
@@ -376,8 +488,8 @@
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
 
-                    <!-- Dostawca - ComboBox -->
-                    <DataGridTemplateColumn Header="Dostawca" Width="150">
+                    <!-- Dostawca - ComboBox zawsze widoczny -->
+                    <DataGridTemplateColumn Header="Dostawca" Width="160">
                         <DataGridTemplateColumn.CellStyle>
                             <Style TargetType="DataGridCell">
                                 <Setter Property="Background" Value="#E8F5E9"/>
@@ -386,37 +498,36 @@
                         </DataGridTemplateColumn.CellStyle>
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding Dostawca}"
-                                           VerticalAlignment="Center"
-                                           Padding="5,0"
-                                           FontWeight="SemiBold"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                        <DataGridTemplateColumn.CellEditingTemplate>
-                            <DataTemplate>
-                                <ComboBox x:Name="cboDostawca"
-                                          SelectedValue="{Binding DostawcaGID, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=DataContext.ListaDostawcow}"
+                                          SelectedValue="{Binding DostawcaGID, UpdateSourceTrigger=PropertyChanged}"
                                           SelectedValuePath="GID"
                                           DisplayMemberPath="ShortName"
-                                          Loaded="CboDostawca_Loaded"/>
+                                          SelectionChanged="ComboBox_Dostawca_SelectionChanged"
+                                          Background="#E8F5E9"
+                                          Padding="5"
+                                          VerticalContentAlignment="Center"/>
                             </DataTemplate>
-                        </DataGridTemplateColumn.CellEditingTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
 
-                    <!-- Szt.Dek -->
-                    <DataGridTextColumn Header="Szt.Dek" Binding="{Binding SztukiDek, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        Width="65" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}"
-                                        CellStyle="{StaticResource CellStyleOrange}">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="FontWeight" Value="SemiBold"/>
+                    <!-- Szt.Dek - TextBox zawsze widoczny -->
+                    <DataGridTemplateColumn Header="Szt.Dek" Width="65" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">
+                        <DataGridTemplateColumn.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Background" Value="#FFE0B2"/>
+                                <Setter Property="BorderThickness" Value="0"/>
                             </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
+                        </DataGridTemplateColumn.CellStyle>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding SztukiDek, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
+                                         Style="{StaticResource NumericTextBoxStyle}"
+                                         FontWeight="SemiBold"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
 
-                    <!-- Padłe - skreślone gdy PiK -->
+                    <!-- Padłe - TextBox zawsze widoczny, skreślone gdy PiK -->
                     <DataGridTemplateColumn Header="Padłe" Width="55" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">
                         <DataGridTemplateColumn.CellStyle>
                             <Style TargetType="DataGridCell">
@@ -426,34 +537,14 @@
                         </DataGridTemplateColumn.CellStyle>
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding Padle}"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="#BF360C"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding PiK}" Value="True">
-                                                    <Setter Property="TextDecorations" Value="Strikethrough"/>
-                                                    <Setter Property="Foreground" Value="#C62828"/>
-                                                    <Setter Property="FontWeight" Value="Bold"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
+                                <TextBox Text="{Binding Padle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
+                                         Style="{StaticResource NumericTextBoxStyle}"
+                                         Foreground="#BF360C"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
-                        <DataGridTemplateColumn.CellEditingTemplate>
-                            <DataTemplate>
-                                <TextBox Text="{Binding Padle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         HorizontalAlignment="Stretch" VerticalAlignment="Center"
-                                         HorizontalContentAlignment="Center"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
 
-                    <!-- CH - skreślone gdy PiK -->
+                    <!-- CH - TextBox zawsze widoczny -->
                     <DataGridTemplateColumn Header="CH" Width="45" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">
                         <DataGridTemplateColumn.CellStyle>
                             <Style TargetType="DataGridCell">
@@ -463,33 +554,13 @@
                         </DataGridTemplateColumn.CellStyle>
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding CH}"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding PiK}" Value="True">
-                                                    <Setter Property="TextDecorations" Value="Strikethrough"/>
-                                                    <Setter Property="Foreground" Value="#C62828"/>
-                                                    <Setter Property="FontWeight" Value="Bold"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
+                                <TextBox Text="{Binding CH, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
+                                         Style="{StaticResource NumericTextBoxStyle}"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
-                        <DataGridTemplateColumn.CellEditingTemplate>
-                            <DataTemplate>
-                                <TextBox Text="{Binding CH, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         HorizontalAlignment="Stretch" VerticalAlignment="Center"
-                                         HorizontalContentAlignment="Center"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
 
-                    <!-- NW - skreślone gdy PiK -->
+                    <!-- NW - TextBox zawsze widoczny -->
                     <DataGridTemplateColumn Header="NW" Width="45" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">
                         <DataGridTemplateColumn.CellStyle>
                             <Style TargetType="DataGridCell">
@@ -499,33 +570,13 @@
                         </DataGridTemplateColumn.CellStyle>
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding NW}"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding PiK}" Value="True">
-                                                    <Setter Property="TextDecorations" Value="Strikethrough"/>
-                                                    <Setter Property="Foreground" Value="#C62828"/>
-                                                    <Setter Property="FontWeight" Value="Bold"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
+                                <TextBox Text="{Binding NW, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
+                                         Style="{StaticResource NumericTextBoxStyle}"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
-                        <DataGridTemplateColumn.CellEditingTemplate>
-                            <DataTemplate>
-                                <TextBox Text="{Binding NW, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         HorizontalAlignment="Stretch" VerticalAlignment="Center"
-                                         HorizontalContentAlignment="Center"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
 
-                    <!-- ZM - skreślone gdy PiK -->
+                    <!-- ZM - TextBox zawsze widoczny -->
                     <DataGridTemplateColumn Header="ZM" Width="45" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">
                         <DataGridTemplateColumn.CellStyle>
                             <Style TargetType="DataGridCell">
@@ -535,45 +586,29 @@
                         </DataGridTemplateColumn.CellStyle>
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding ZM}"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding PiK}" Value="True">
-                                                    <Setter Property="TextDecorations" Value="Strikethrough"/>
-                                                    <Setter Property="Foreground" Value="#C62828"/>
-                                                    <Setter Property="FontWeight" Value="Bold"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
+                                <TextBox Text="{Binding ZM, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
+                                         Style="{StaticResource NumericTextBoxStyle}"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
-                        <DataGridTemplateColumn.CellEditingTemplate>
-                            <DataTemplate>
-                                <TextBox Text="{Binding ZM, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         HorizontalAlignment="Stretch" VerticalAlignment="Center"
-                                         HorizontalContentAlignment="Center"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
 
-                    <!-- LUMEL -->
-                    <DataGridTextColumn Header="LUMEL" Binding="{Binding LUMEL, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        Width="65" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}"
-                                        CellStyle="{StaticResource CellStylePurple}">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="FontWeight" Value="Bold"/>
-                                <Setter Property="Foreground" Value="#7B1FA2"/>
+                    <!-- LUMEL - TextBox zawsze widoczny -->
+                    <DataGridTemplateColumn Header="LUMEL" Width="65" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">
+                        <DataGridTemplateColumn.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Background" Value="#E1BEE7"/>
+                                <Setter Property="BorderThickness" Value="0"/>
                             </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
+                        </DataGridTemplateColumn.CellStyle>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding LUMEL, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
+                                         Style="{StaticResource NumericTextBoxStyle}"
+                                         FontWeight="Bold"
+                                         Foreground="#7B1FA2"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
 
                     <!-- WAGI HODOWCY -->
                     <DataGridTextColumn Header="Brutto H" Binding="{Binding BruttoHodowcy}" Width="80"
@@ -658,44 +693,80 @@
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
 
-                    <!-- WYBIJAK -->
-                    <DataGridTextColumn Header="Szt.Wyb" Binding="{Binding SztukiWybijak, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        Width="65" HeaderStyle="{StaticResource WybijakHeaderStyle}"
-                                        CellStyle="{StaticResource CellStylePurple}">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                <Setter Property="VerticalAlignment" Value="Center"/>
+                    <!-- WYBIJAK - Szt.Wyb z ZeroToEmpty -->
+                    <DataGridTemplateColumn Header="Szt.Wyb" Width="65" HeaderStyle="{StaticResource WybijakHeaderStyle}">
+                        <DataGridTemplateColumn.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Background" Value="#E1BEE7"/>
+                                <Setter Property="BorderThickness" Value="0"/>
                             </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
+                        </DataGridTemplateColumn.CellStyle>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding SztukiWybijak, Converter={StaticResource ZeroToEmptyConverter}}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding SztukiWybijak, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
+                                         Style="{StaticResource NumericTextBoxStyle}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
 
-                    <DataGridTextColumn Header="KG Wyb" Binding="{Binding KilogramyWybijak, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F0}}"
-                                        Width="70" HeaderStyle="{StaticResource WybijakHeaderStyle}"
-                                        CellStyle="{StaticResource CellStylePurple}">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="Padding" Value="0,0,8,0"/>
+                    <!-- KG Wyb z ZeroToEmpty -->
+                    <DataGridTemplateColumn Header="KG Wyb" Width="70" HeaderStyle="{StaticResource WybijakHeaderStyle}">
+                        <DataGridTemplateColumn.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Background" Value="#E1BEE7"/>
+                                <Setter Property="BorderThickness" Value="0"/>
                             </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
+                        </DataGridTemplateColumn.CellStyle>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding KilogramyWybijak, Converter={StaticResource ZeroToEmptyConverter}}"
+                                           HorizontalAlignment="Right"
+                                           VerticalAlignment="Center"
+                                           Padding="0,0,8,0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding KilogramyWybijak, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
+                                         Style="{StaticResource NumericTextBoxStyle}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
 
-                    <!-- CENA -->
-                    <DataGridTextColumn Header="Cena" Binding="{Binding Cena, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F2}}"
-                                        Width="70" HeaderStyle="{StaticResource CenaHeaderStyle}"
-                                        CellStyle="{StaticResource CellStyleBlue}">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="Padding" Value="0,0,8,0"/>
-                                <Setter Property="FontWeight" Value="Bold"/>
-                                <Setter Property="Foreground" Value="#1565C0"/>
+                    <!-- CENA z ZeroToEmpty -->
+                    <DataGridTemplateColumn Header="Cena" Width="70" HeaderStyle="{StaticResource CenaHeaderStyle}">
+                        <DataGridTemplateColumn.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Background" Value="#BBDEFB"/>
+                                <Setter Property="BorderThickness" Value="0"/>
                             </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
+                        </DataGridTemplateColumn.CellStyle>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Cena, Converter={StaticResource ZeroToEmptyConverter}}"
+                                           HorizontalAlignment="Right"
+                                           VerticalAlignment="Center"
+                                           Padding="0,0,8,0"
+                                           FontWeight="Bold"
+                                           Foreground="#1565C0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding Cena, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
+                                         Style="{StaticResource NumericTextBoxStyle}"
+                                         FontWeight="Bold"
+                                         Foreground="#1565C0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
 
                     <!-- DODATEK - używa konwertera aby pokazać puste gdy 0 -->
                     <DataGridTemplateColumn Header="Dodatek" Width="70"
@@ -727,8 +798,8 @@
                         </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
 
-                    <!-- Typ Ceny - ComboBox -->
-                    <DataGridTemplateColumn Header="Typ Ceny" Width="100" HeaderStyle="{StaticResource CenaHeaderStyle}">
+                    <!-- Typ Ceny - ComboBox zawsze widoczny -->
+                    <DataGridTemplateColumn Header="Typ Ceny" Width="105" HeaderStyle="{StaticResource CenaHeaderStyle}">
                         <DataGridTemplateColumn.CellStyle>
                             <Style TargetType="DataGridCell">
                                 <Setter Property="Background" Value="#BBDEFB"/>
@@ -737,18 +808,13 @@
                         </DataGridTemplateColumn.CellStyle>
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding TypCeny}"
-                                           VerticalAlignment="Center"
-                                           HorizontalAlignment="Center"
-                                           FontSize="11"/>
+                                <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ListaTypowCen}"
+                                          SelectedItem="{Binding TypCeny, UpdateSourceTrigger=PropertyChanged}"
+                                          Background="#BBDEFB"
+                                          Padding="5"
+                                          VerticalContentAlignment="Center"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
-                        <DataGridTemplateColumn.CellEditingTemplate>
-                            <DataTemplate>
-                                <ComboBox SelectedItem="{Binding TypCeny, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                          Loaded="CboTypCeny_Loaded"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
 
                     <!-- Ubytek -->
@@ -777,23 +843,337 @@
                         </DataGridCheckBoxColumn.ElementStyle>
                     </DataGridCheckBoxColumn>
 
-                    <!-- Wartość -->
-                    <DataGridTextColumn Header="Wartość" Binding="{Binding Wartosc, StringFormat={}{0:N0} zł}"
-                                        Width="100" IsReadOnly="True" HeaderStyle="{StaticResource CenaHeaderStyle}"
-                                        CellStyle="{StaticResource CellStyleGreenDark}">
+                    <!-- === NOWE KOLUMNY (ukrywane przez checkbox) === -->
+
+                    <!-- Opasienie [kg] - edytowalne, domyślnie ukryte -->
+                    <DataGridTextColumn x:Name="colOpasienie" Header="Opas."
+                                        Binding="{Binding Opasienie, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F0}}"
+                                        Width="60" HeaderStyle="{StaticResource CenaHeaderStyle}"
+                                        CellStyle="{StaticResource CellStyleYellow}"
+                                        Visibility="Collapsed">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                 <Setter Property="VerticalAlignment" Value="Center"/>
                                 <Setter Property="Padding" Value="0,0,8,0"/>
-                                <Setter Property="FontWeight" Value="Bold"/>
-                                <Setter Property="Foreground" Value="#1B5E20"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+
+                    <!-- Klasa B / K.I.B [kg] - edytowalne, domyślnie ukryte -->
+                    <DataGridTextColumn x:Name="colKlasaB" Header="K.I.B"
+                                        Binding="{Binding KlasaB, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F0}}"
+                                        Width="55" HeaderStyle="{StaticResource CenaHeaderStyle}"
+                                        CellStyle="{StaticResource CellStyleYellow}"
+                                        Visibility="Collapsed">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="Padding" Value="0,0,8,0"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+
+                    <!-- Do zapłaty [kg] - z ZeroToEmpty -->
+                    <DataGridTemplateColumn Header="Do zapł." Width="75" IsReadOnly="True" HeaderStyle="{StaticResource CenaHeaderStyle}">
+                        <DataGridTemplateColumn.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Background" Value="#A5D6A7"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                            </Style>
+                        </DataGridTemplateColumn.CellStyle>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding DoZaplaty, Converter={StaticResource ZeroToEmptyConverter}}"
+                                           HorizontalAlignment="Right"
+                                           VerticalAlignment="Center"
+                                           Padding="0,0,8,0"
+                                           FontWeight="Bold"
+                                           Foreground="#2E7D32"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- Wartość z ZeroToEmpty -->
+                    <DataGridTemplateColumn Header="Wartość" Width="100" IsReadOnly="True" HeaderStyle="{StaticResource CenaHeaderStyle}">
+                        <DataGridTemplateColumn.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Background" Value="#A5D6A7"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                            </Style>
+                        </DataGridTemplateColumn.CellStyle>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Wartosc, Converter={StaticResource ZeroToEmptyConverter}}"
+                                           HorizontalAlignment="Right"
+                                           VerticalAlignment="Center"
+                                           Padding="0,0,8,0"
+                                           FontWeight="Bold"
+                                           Foreground="#1B5E20"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- Termin płatności [dni] - edytowalne -->
+                    <DataGridTextColumn Header="Termin" Binding="{Binding TerminDni, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        Width="55" HeaderStyle="{StaticResource CenaHeaderStyle}"
+                                        CellStyle="{StaticResource CellStyleBlue}">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
                 </DataGrid.Columns>
-            </DataGrid>
-        </Border>
+                    </DataGrid>
+                </Border>
+            </TabItem>
+
+            <!-- ===== KARTA 2: TRANSPORT ===== -->
+            <TabItem Header="🚛 Transport">
+                <Border Background="White" CornerRadius="0,10,10,10">
+                    <Border.Effect>
+                        <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="15"/>
+                    </Border.Effect>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Nagłówek Transport -->
+                        <Border Grid.Row="0" Background="#3498DB" Padding="15,10" CornerRadius="0,10,0,0">
+                            <Grid>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Dane transportowe na dzień: "
+                                               FontSize="14"
+                                               FontWeight="SemiBold"
+                                               Foreground="White"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="lblTransportDate"
+                                               Text=""
+                                               FontSize="14"
+                                               FontWeight="Bold"
+                                               Foreground="White"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <Button Content="➕ Dodaj transport"
+                                            x:Name="btnAddTransport"
+                                            Click="BtnAddTransport_Click"
+                                            Style="{StaticResource MainButtonStyle}"
+                                            Background="#27AE60"
+                                            Padding="15,8"
+                                            Margin="0,0,10,0"/>
+                                    <Button Content="🔄 Odśwież"
+                                            x:Name="btnRefreshTransport"
+                                            Click="BtnRefreshTransport_Click"
+                                            Style="{StaticResource MainButtonStyle}"
+                                            Background="#2980B9"
+                                            Padding="15,8"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- DataGrid Transport -->
+                        <DataGrid Grid.Row="1"
+                                  x:Name="dataGridTransport"
+                                  AutoGenerateColumns="False"
+                                  CanUserAddRows="False"
+                                  CanUserDeleteRows="False"
+                                  SelectionMode="Single"
+                                  GridLinesVisibility="All"
+                                  HorizontalGridLinesBrush="#E0E0E0"
+                                  VerticalGridLinesBrush="#EEEEEE"
+                                  RowHeight="40"
+                                  Background="White"
+                                  BorderThickness="0"
+                                  FontSize="12"
+                                  AlternatingRowBackground="#FAFAFA"
+                                  ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+                                  RowStyle="{StaticResource DataGridRowHoverStyle}"
+                                  EnableRowVirtualization="True">
+
+                            <DataGrid.Columns>
+                                <!-- LP -->
+                                <DataGridTextColumn Header="LP" Binding="{Binding Nr}" Width="45" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Kierowca -->
+                                <DataGridTextColumn Header="Kierowca" Binding="{Binding Kierowca, Mode=TwoWay}" Width="150">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="5,0"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Samochód -->
+                                <DataGridTextColumn Header="Samochód" Binding="{Binding Samochod, Mode=TwoWay}" Width="120">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="5,0"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Nr rejestracyjny -->
+                                <DataGridTextColumn Header="Nr rej." Binding="{Binding NrRejestracyjny, Mode=TwoWay}" Width="100">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Godzina wyjazdu -->
+                                <DataGridTextColumn Header="Wyjazd" Binding="{Binding GodzinaWyjazdu, Mode=TwoWay, StringFormat=HH:mm}" Width="70">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
+                                            <Setter Property="Background" Value="#27AE60"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Foreground" Value="#27AE60"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Godzina przyjazdu -->
+                                <DataGridTextColumn Header="Przyjazd" Binding="{Binding GodzinaPrzyjazdu, Mode=TwoWay, StringFormat=HH:mm}" Width="70">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
+                                            <Setter Property="Background" Value="#E67E22"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Foreground" Value="#E67E22"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Trasa/Dostawcy -->
+                                <DataGridTextColumn Header="Trasa / Dostawcy" Binding="{Binding Trasa, Mode=TwoWay}" Width="*">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="5,0"/>
+                                            <Setter Property="TextWrapping" Value="Wrap"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Ilość skrzynek -->
+                                <DataGridTextColumn Header="Skrzynki" Binding="{Binding IloscSkrzynek, Mode=TwoWay}" Width="70">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
+                                            <Setter Property="Background" Value="#9B59B6"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Sztuki -->
+                                <DataGridTextColumn Header="Sztuki" Binding="{Binding Sztuki, Mode=TwoWay}" Width="70">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
+                                            <Setter Property="Background" Value="#F57C00"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Foreground" Value="#F57C00"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- KG -->
+                                <DataGridTextColumn Header="KG" Binding="{Binding Kilogramy, Mode=TwoWay, StringFormat={}{0:N0}}" Width="80">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
+                                            <Setter Property="Background" Value="#388E3C"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Padding" Value="0,0,8,0"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Foreground" Value="#388E3C"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Status -->
+                                <DataGridTemplateColumn Header="Status" Width="100">
+                                    <DataGridTemplateColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
+                                            <Setter Property="Background" Value="#1976D2"/>
+                                        </Style>
+                                    </DataGridTemplateColumn.HeaderStyle>
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ComboBox SelectedItem="{Binding Status, UpdateSourceTrigger=PropertyChanged}"
+                                                      Padding="5"
+                                                      VerticalContentAlignment="Center">
+                                                <ComboBoxItem Content="Oczekuje"/>
+                                                <ComboBoxItem Content="W trasie"/>
+                                                <ComboBoxItem Content="Załadowany"/>
+                                                <ComboBoxItem Content="Zakończony"/>
+                                            </ComboBox>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- Uwagi -->
+                                <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi, Mode=TwoWay}" Width="150">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="5,0"/>
+                                            <Setter Property="FontStyle" Value="Italic"/>
+                                            <Setter Property="Foreground" Value="#7F8C8D"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+            </TabItem>
+        </TabControl>
 
         <!-- PANEL LUMEL -->
         <Border x:Name="lumelPanel"
@@ -876,6 +1256,12 @@
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Suma LUMEL: " FontWeight="SemiBold" Foreground="#F57C00"/>
                             <TextBlock x:Name="lblSumaSztuk" Text="0" FontWeight="Bold" Foreground="#F57C00"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#A5D6A7" CornerRadius="6" Padding="15,8" Margin="0,0,15,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Do zapł.: " FontWeight="SemiBold" Foreground="#2E7D32"/>
+                            <TextBlock x:Name="lblSumaDoZaplaty" Text="0 kg" FontWeight="Bold" Foreground="#2E7D32"/>
                         </StackPanel>
                     </Border>
                     <Border Background="#C8E6C9" CornerRadius="6" Padding="15,8" Margin="0,0,15,0">
