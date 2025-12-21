@@ -422,6 +422,24 @@ namespace Kalendarz1
             {
                 selectedRow = dataGridView1.CurrentCell.Item as SpecyfikacjaRow;
             }
+
+            // === AUTO-FOCUS: Fokusuj TextBox w zaznaczonej komórce ===
+            if (dataGridView1.CurrentCell.Column != null)
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    var cell = GetDataGridCell(dataGridView1.CurrentCell);
+                    if (cell != null)
+                    {
+                        var textBox = FindVisualChild<TextBox>(cell);
+                        if (textBox != null)
+                        {
+                            textBox.Focus();
+                            textBox.SelectAll();
+                        }
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Input);
+            }
         }
 
         // === DRAG & DROP: Rozpoczęcie przeciągania ===
@@ -3670,14 +3688,28 @@ namespace Kalendarz1
             if (value == null)
                 return string.Empty;
 
+            // Obsługa int
+            if (value is int intValue)
+            {
+                if (intValue == 0)
+                    return string.Empty;
+                return intValue.ToString();
+            }
+
+            // Obsługa decimal
             if (value is decimal decValue)
             {
-                // Jeśli wartość = 0, pokaż puste pole
                 if (decValue == 0)
                     return string.Empty;
-
-                // Formatuj z 2 miejscami po przecinku
                 return decValue.ToString("F2", culture);
+            }
+
+            // Obsługa double
+            if (value is double dblValue)
+            {
+                if (dblValue == 0)
+                    return string.Empty;
+                return dblValue.ToString();
             }
 
             return value.ToString();
@@ -3686,21 +3718,42 @@ namespace Kalendarz1
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
             if (value == null || string.IsNullOrWhiteSpace(value.ToString()))
-                return 0m;
-
-            string input = value.ToString().Trim();
-
-            // Zamień przecinek na kropkę dla parsowania
-            input = input.Replace(',', '.');
-
-            // Spróbuj sparsować jako decimal
-            if (decimal.TryParse(input, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal result))
             {
-                return result;
+                // Zwróć odpowiedni typ zera
+                if (targetType == typeof(int)) return 0;
+                if (targetType == typeof(decimal)) return 0m;
+                if (targetType == typeof(double)) return 0.0;
+                return 0;
             }
 
-            // Jeśli nie udało się sparsować, zwróć 0
-            return 0m;
+            string input = value.ToString().Trim();
+            input = input.Replace(',', '.');
+
+            // Dla int
+            if (targetType == typeof(int))
+            {
+                if (int.TryParse(input, out int intResult))
+                    return intResult;
+                return 0;
+            }
+
+            // Dla decimal
+            if (targetType == typeof(decimal))
+            {
+                if (decimal.TryParse(input, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal decResult))
+                    return decResult;
+                return 0m;
+            }
+
+            // Dla double
+            if (targetType == typeof(double))
+            {
+                if (double.TryParse(input, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double dblResult))
+                    return dblResult;
+                return 0.0;
+            }
+
+            return 0;
         }
     }
 }
