@@ -315,10 +315,6 @@
                             Style="{StaticResource MainButtonStyle}"
                             Background="#E74C3C"
                             ToolTip="Wyślij email z PDF w załączniku"/>
-                    <Button Content="ZAPISZ WSZYSTKO"
-                            x:Name="btnSaveAll"
-                            Click="BtnSaveAll_Click"
-                            Style="{StaticResource MainButtonStyle}"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -351,7 +347,8 @@
                       PreviewMouseLeftButtonDown="DataGrid_PreviewMouseLeftButtonDown"
                       PreviewMouseMove="DataGrid_PreviewMouseMove"
                       Drop="DataGrid_Drop"
-                      DragOver="DataGrid_DragOver">
+                      DragOver="DataGrid_DragOver"
+                      DragLeave="DataGrid_DragLeave">
 
                 <DataGrid.Columns>
                     <!-- LP -->

@@ -41,24 +41,31 @@ namespace Kalendarz1
         private Point _dragStartPoint;
         private bool _isDragging = false;
         private SpecyfikacjaRow _draggedRow = null;
+        private DataGridRow _lastHighlightedRow = null;
+        private Brush _originalRowBackground = null;
 
         public WidokSpecyfikacje()
         {
             InitializeComponent();
+
+            // WAŻNE: Załaduj listy PRZED ustawieniem DataContext
+            // aby binding do ListaDostawcow i ListaTypowCen działał poprawnie
+            LoadDostawcy();
+
+            // Ustaw DataContext na this - teraz ListaDostawcow jest już wypełniona
+            DataContext = this;
+
             specyfikacjeData = new ObservableCollection<SpecyfikacjaRow>();
             dataGridView1.ItemsSource = specyfikacjeData;
             dateTimePicker1.SelectedDate = DateTime.Today;
 
             // Dodaj obsługę skrótów klawiszowych
             this.KeyDown += Window_KeyDown;
-
-            // Załaduj listę dostawców
-            LoadDostawcy();
         }
 
         private void LoadDostawcy()
         {
-            listaDostawcow = new List<DostawcaItem>();
+            ListaDostawcow = new List<DostawcaItem>();
             try
             {
                 using (SqlConnection connection = new SqlConnection(connectionString))
@@ -70,7 +77,7 @@ namespace Kalendarz1
                     {
                         while (reader.Read())
                         {
-                            listaDostawcow.Add(new DostawcaItem
+                            ListaDostawcow.Add(new DostawcaItem
                             {
                                 GID = reader["GID"].ToString(),
                                 ShortName = reader["ShortName"]?.ToString() ?? ""
@@ -265,7 +272,7 @@ namespace Kalendarz1
             var comboBox = sender as ComboBox;
             if (comboBox != null && comboBox.ItemsSource == null)
             {
-                comboBox.ItemsSource = listaDostawcow;
+                comboBox.ItemsSource = ListaDostawcow;
             }
         }
 
@@ -327,7 +334,7 @@ namespace Kalendarz1
             }
         }
 
-        // === DRAG & DROP: Podgląd miejsca upuszczenia ===
+        // === DRAG & DROP: Podgląd miejsca upuszczenia z podświetleniem ===
         private void DataGrid_DragOver(object sender, DragEventArgs e)
         {
             if (!e.Data.GetDataPresent("SpecyfikacjaRow"))
@@ -337,12 +344,49 @@ namespace Kalendarz1
             }
 
             e.Effects = DragDropEffects.Move;
+
+            // Znajdź wiersz pod kursorem i podświetl go
+            var targetRow = FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject);
+            if (targetRow != null && targetRow != _lastHighlightedRow)
+            {
+                // Przywróć poprzedni wiersz
+                ResetHighlightedRow();
+
+                // Podświetl nowy wiersz
+                _lastHighlightedRow = targetRow;
+                _originalRowBackground = targetRow.Background;
+                targetRow.Background = new SolidColorBrush(Color.FromRgb(144, 238, 144)); // LightGreen
+                targetRow.BorderBrush = new SolidColorBrush(Color.FromRgb(76, 175, 80));
+                targetRow.BorderThickness = new Thickness(2);
+            }
+
             e.Handled = true;
         }
 
-        // === DRAG & DROP: Upuszczenie wiersza ===
+        // === Przywróć wygląd podświetlonego wiersza ===
+        private void ResetHighlightedRow()
+        {
+            if (_lastHighlightedRow != null)
+            {
+                _lastHighlightedRow.Background = _originalRowBackground ?? Brushes.Transparent;
+                _lastHighlightedRow.BorderThickness = new Thickness(0);
+                _lastHighlightedRow = null;
+                _originalRowBackground = null;
+            }
+        }
+
+        // === DRAG & DROP: Opuszczenie obszaru - reset podświetlenia ===
+        private void DataGrid_DragLeave(object sender, DragEventArgs e)
+        {
+            ResetHighlightedRow();
+        }
+
+        // === DRAG & DROP: Upuszczenie wiersza z auto-zapisem ===
         private void DataGrid_Drop(object sender, DragEventArgs e)
         {
+            // Przywróć podświetlenie
+            ResetHighlightedRow();
+
             if (!e.Data.GetDataPresent("SpecyfikacjaRow"))
                 return;
 
@@ -371,7 +415,37 @@ namespace Kalendarz1
             dataGridView1.SelectedItem = draggedItem;
             selectedRow = draggedItem;
 
+            // AUTO-ZAPIS: Zapisz pozycje wszystkich wierszy
+            SaveAllRowPositions();
+
             e.Handled = true;
+        }
+
+        // === Auto-zapis pozycji wszystkich wierszy po przeciągnięciu ===
+        private void SaveAllRowPositions()
+        {
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    foreach (var row in specyfikacjeData)
+                    {
+                        string query = "UPDATE dbo.FarmerCalc SET CarLp = @Nr WHERE ID = @ID";
+                        using (SqlCommand cmd = new SqlCommand(query, connection))
+                        {
+                            cmd.Parameters.AddWithValue("@Nr", row.Nr);
+                            cmd.Parameters.AddWithValue("@ID", row.ID);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                }
+                UpdateStatus("Pozycje zapisane");
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Błąd zapisu pozycji: {ex.Message}");
+            }
         }
 
         // === Aktualizacja numerów LP po przeciągnięciu ===
@@ -497,7 +571,7 @@ namespace Kalendarz1
                         // Aktualizuj nazwę dostawcy jeśli zmieniono GID
                         if (columnHeader == "Dostawca" && !string.IsNullOrEmpty(row.DostawcaGID))
                         {
-                            var dostawca = listaDostawcow.FirstOrDefault(d => d.GID == row.DostawcaGID);
+                            var dostawca = ListaDostawcow.FirstOrDefault(d => d.GID == row.DostawcaGID);
                             if (dostawca != null)
                             {
                                 row.Dostawca = dostawca.ShortName;
