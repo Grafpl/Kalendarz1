@@ -197,13 +197,7 @@
 
                 <!-- Tytuł i data -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="SPECYFIKACJA DOSTAW"
-                               FontSize="22"
-                               FontWeight="Bold"
-                               Foreground="White"
-                               VerticalAlignment="Center"/>
-
-                    <Border Background="#4B732F" CornerRadius="6" Padding="15,8" Margin="30,0,0,0">
+                    <Border Background="#4B732F" CornerRadius="6" Padding="15,8">
                         <StackPanel Orientation="Horizontal">
                             <!-- Strzałka wstecz -->
                             <Button Content="◀"
@@ -248,20 +242,50 @@
                                        Margin="15,0,0,0"/>
                         </StackPanel>
                     </Border>
+
+                    <!-- Separator -->
+                    <Border Width="1" Background="#4B732F" Margin="15,5"/>
+
+                    <!-- Checkboxy Opasienie i Klasa B -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                        <CheckBox x:Name="chkShowOpasienie"
+                                  Content="Opasienie"
+                                  Foreground="White"
+                                  FontSize="12"
+                                  VerticalAlignment="Center"
+                                  Checked="ChkShowOpasienie_Changed"
+                                  Unchecked="ChkShowOpasienie_Changed"
+                                  Margin="0,0,15,0"/>
+                        <CheckBox x:Name="chkShowKlasaB"
+                                  Content="Klasa B"
+                                  Foreground="White"
+                                  FontSize="12"
+                                  VerticalAlignment="Center"
+                                  Checked="ChkShowKlasaB_Changed"
+                                  Unchecked="ChkShowKlasaB_Changed"/>
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- Przyciski akcji -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
-                    <Button Content="W GÓRĘ"
+                    <Button Content="↑"
                             x:Name="buttonUP"
                             Click="ButtonUP_Click"
                             Style="{StaticResource SecondaryButtonStyle}"
-                            Padding="12,8"/>
-                    <Button Content="W DÓŁ"
+                            FontSize="18"
+                            FontWeight="Bold"
+                            Padding="8,4"
+                            Margin="2"
+                            ToolTip="Przesuń w górę"/>
+                    <Button Content="↓"
                             x:Name="buttonDown"
                             Click="ButtonDown_Click"
                             Style="{StaticResource SecondaryButtonStyle}"
-                            Padding="12,8"/>
+                            FontSize="18"
+                            FontWeight="Bold"
+                            Padding="8,4"
+                            Margin="2"
+                            ToolTip="Przesuń w dół"/>
                     <Button Content="AVILOG"
                             x:Name="buttonBon"
                             Click="ButtonBon_Click"
@@ -291,12 +315,6 @@
                             FontSize="16"
                             Padding="10,8"
                             ToolTip="Ustawienia lokalizacji PDF"/>
-                    <Button Content="PDF SKRÓCONY"
-                            x:Name="btnShortPdf"
-                            Click="BtnShortPdf_Click"
-                            Style="{StaticResource MainButtonStyle}"
-                            Background="#8E44AD"
-                            ToolTip="Generuj skróconą wersję PDF (1 strona)"/>
                     <Button Content="📱 SMS"
                             x:Name="btnSendSms"
                             Click="BtnSendSms_Click"
@@ -777,12 +795,14 @@
                         </DataGridCheckBoxColumn.ElementStyle>
                     </DataGridCheckBoxColumn>
 
-                    <!-- === NOWE KOLUMNY === -->
+                    <!-- === NOWE KOLUMNY (ukrywane przez checkbox) === -->
 
-                    <!-- Opasienie [kg] - edytowalne -->
-                    <DataGridTextColumn Header="Opas." Binding="{Binding Opasienie, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F0}}"
+                    <!-- Opasienie [kg] - edytowalne, domyślnie ukryte -->
+                    <DataGridTextColumn x:Name="colOpasienie" Header="Opas."
+                                        Binding="{Binding Opasienie, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F0}}"
                                         Width="60" HeaderStyle="{StaticResource CenaHeaderStyle}"
-                                        CellStyle="{StaticResource CellStyleYellow}">
+                                        CellStyle="{StaticResource CellStyleYellow}"
+                                        Visibility="Collapsed">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -792,10 +812,12 @@
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
 
-                    <!-- Klasa B / K.I.B [kg] - edytowalne -->
-                    <DataGridTextColumn Header="K.I.B" Binding="{Binding KlasaB, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F0}}"
+                    <!-- Klasa B / K.I.B [kg] - edytowalne, domyślnie ukryte -->
+                    <DataGridTextColumn x:Name="colKlasaB" Header="K.I.B"
+                                        Binding="{Binding KlasaB, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F0}}"
                                         Width="55" HeaderStyle="{StaticResource CenaHeaderStyle}"
-                                        CellStyle="{StaticResource CellStyleYellow}">
+                                        CellStyle="{StaticResource CellStyleYellow}"
+                                        Visibility="Collapsed">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Right"/>

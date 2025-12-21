@@ -946,7 +946,29 @@ namespace Kalendarz1
             }
         }
 
-        // === NOWY: Przycisk skróconego PDF ===
+        // === Checkbox: Pokaż/ukryj kolumnę Opasienie ===
+        private void ChkShowOpasienie_Changed(object sender, RoutedEventArgs e)
+        {
+            if (colOpasienie != null)
+            {
+                colOpasienie.Visibility = chkShowOpasienie.IsChecked == true
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
+        }
+
+        // === Checkbox: Pokaż/ukryj kolumnę Klasa B ===
+        private void ChkShowKlasaB_Changed(object sender, RoutedEventArgs e)
+        {
+            if (colKlasaB != null)
+            {
+                colKlasaB.Visibility = chkShowKlasaB.IsChecked == true
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
+        }
+
+        // === NOWY: Przycisk skróconego PDF (ukryty, ale metoda pozostaje dla email) ===
         private void BtnShortPdf_Click(object sender, RoutedEventArgs e)
         {
             if (dataGridView1.SelectedCells.Count == 0)
