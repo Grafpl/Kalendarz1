@@ -422,24 +422,37 @@ namespace Kalendarz1
             {
                 selectedRow = dataGridView1.CurrentCell.Item as SpecyfikacjaRow;
             }
+        }
 
-            // === AUTO-FOCUS: Fokusuj TextBox w zaznaczonej komórce ===
-            if (dataGridView1.CurrentCell.Column != null)
+        // === EXCEL-LIKE: Natychmiastowa edycja przy zmianie komórki (strzałki/klik) ===
+        private void DataGridView1_CurrentCellChanged(object sender, EventArgs e)
+        {
+            if (dataGridView1.CurrentCell.Column == null) return;
+
+            // Opóźnij fokus aby DataGrid zdążył zaktualizować UI
+            Dispatcher.BeginInvoke(new Action(() =>
             {
-                Dispatcher.BeginInvoke(new Action(() =>
+                var cellInfo = dataGridView1.CurrentCell;
+                if (cellInfo.Column == null) return;
+
+                var cell = GetDataGridCell(cellInfo);
+                if (cell == null) return;
+
+                // Znajdź TextBox lub ComboBox w komórce
+                var textBox = FindVisualChild<TextBox>(cell);
+                if (textBox != null)
                 {
-                    var cell = GetDataGridCell(dataGridView1.CurrentCell);
-                    if (cell != null)
-                    {
-                        var textBox = FindVisualChild<TextBox>(cell);
-                        if (textBox != null)
-                        {
-                            textBox.Focus();
-                            textBox.SelectAll();
-                        }
-                    }
-                }), System.Windows.Threading.DispatcherPriority.Input);
-            }
+                    textBox.Focus();
+                    textBox.SelectAll();
+                    return;
+                }
+
+                var comboBox = FindVisualChild<ComboBox>(cell);
+                if (comboBox != null)
+                {
+                    comboBox.Focus();
+                }
+            }), System.Windows.Threading.DispatcherPriority.Background);
         }
 
         // === DRAG & DROP: Rozpoczęcie przeciągania ===
