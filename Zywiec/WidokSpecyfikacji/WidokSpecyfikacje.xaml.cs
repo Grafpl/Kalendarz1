@@ -269,49 +269,56 @@ namespace Kalendarz1
 
         private void LoadTransportData()
         {
-            // TODO: Załaduj dane transportowe z bazy danych
-            // Na razie przykładowe dane
             transportData.Clear();
 
-            // Przykładowe dane testowe
-            transportData.Add(new TransportRow
+            if (specyfikacjeData == null || specyfikacjeData.Count == 0)
+                return;
+
+            // Grupuj specyfikacje po CarID (samochód)
+            var grupyPoSamochodach = specyfikacjeData
+                .Where(s => !string.IsNullOrEmpty(s.CarID))
+                .GroupBy(s => s.CarID)
+                .OrderBy(g => g.First().ArrivalTime ?? DateTime.MaxValue)
+                .ToList();
+
+            int nr = 1;
+            foreach (var grupa in grupyPoSamochodach)
             {
-                Nr = 1,
-                Kierowca = "Jan Kowalski",
-                Samochod = "Mercedes Actros",
-                NrRejestracyjny = "WGR 12345",
-                GodzinaWyjazdu = DateTime.Today.AddHours(5).AddMinutes(30),
-                GodzinaPrzyjazdu = DateTime.Today.AddHours(8),
-                Trasa = "Kowalski, Nowak, Wiśniewski",
-                IloscSkrzynek = 450,
-                Sztuki = 4500,
-                Kilogramy = 12500,
-                Status = "Zakończony"
-            });
-            transportData.Add(new TransportRow
+                var pierwszyRekord = grupa.First();
+                var listaDostawcow = string.Join(", ", grupa.Select(s => s.Dostawca ?? s.RealDostawca).Where(d => !string.IsNullOrEmpty(d)));
+
+                var transportRow = new TransportRow
+                {
+                    Nr = nr++,
+                    Kierowca = pierwszyRekord.KierowcaNazwa ?? "",
+                    Samochod = pierwszyRekord.CarID ?? "",
+                    NrRejestracyjny = pierwszyRekord.TrailerID ?? "",
+                    GodzinaPrzyjazdu = pierwszyRekord.ArrivalTime,
+                    Trasa = listaDostawcow,
+                    Sztuki = grupa.Sum(s => s.SztukiDek),
+                    Kilogramy = grupa.Sum(s => s.NettoUbojniValue),
+                    Status = pierwszyRekord.ArrivalTime.HasValue ? "Zakończony" : "Oczekuje"
+                };
+
+                transportData.Add(transportRow);
+            }
+
+            // Dodaj specyfikacje bez przypisanego samochodu
+            var bezSamochodu = specyfikacjeData.Where(s => string.IsNullOrEmpty(s.CarID)).ToList();
+            if (bezSamochodu.Any())
             {
-                Nr = 2,
-                Kierowca = "Piotr Nowak",
-                Samochod = "Scania R450",
-                NrRejestracyjny = "WGR 54321",
-                GodzinaWyjazdu = DateTime.Today.AddHours(6),
-                Trasa = "Malinowski, Zieliński",
-                IloscSkrzynek = 380,
-                Sztuki = 3800,
-                Kilogramy = 10200,
-                Status = "W trasie"
-            });
-            transportData.Add(new TransportRow
-            {
-                Nr = 3,
-                Kierowca = "Adam Wiśniewski",
-                Samochod = "Volvo FH",
-                NrRejestracyjny = "WGR 99999",
-                GodzinaWyjazdu = DateTime.Today.AddHours(7),
-                Trasa = "Kowalczyk",
-                IloscSkrzynek = 200,
-                Status = "Oczekuje"
-            });
+                var transportRow = new TransportRow
+                {
+                    Nr = nr,
+                    Kierowca = "(Nieprzypisane)",
+                    Samochod = "-",
+                    Trasa = string.Join(", ", bezSamochodu.Select(s => s.Dostawca ?? s.RealDostawca).Where(d => !string.IsNullOrEmpty(d))),
+                    Sztuki = bezSamochodu.Sum(s => s.SztukiDek),
+                    Kilogramy = bezSamochodu.Sum(s => s.NettoUbojniValue),
+                    Status = "Nieprzypisane"
+                };
+                transportData.Add(transportRow);
+            }
         }
 
         private void UpdateFullDateLabel()
@@ -411,7 +418,8 @@ namespace Kalendarz1
                     string query = @"SELECT ID, CarLp, CustomerGID, CustomerRealGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5,
                                     LumQnt, ProdQnt, ProdWgt, FullFarmWeight, EmptyFarmWeight, NettoFarmWeight,
                                     FullWeight, EmptyWeight, NettoWeight, Price, Addition, PriceTypeID, IncDeadConf, Loss,
-                                    Opasienie, KlasaB, TerminDni, CalcDate
+                                    Opasienie, KlasaB, TerminDni, CalcDate,
+                                    DriverGID, CarID, TrailerID, ArrivalTime
                                     FROM [LibraNet].[dbo].[FarmerCalc]
                                     WHERE CalcDate = @SelectedDate
                                     ORDER BY CarLP";
@@ -464,17 +472,30 @@ namespace Kalendarz1
                                 Opasienie = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "Opasienie", 0),
                                 KlasaB = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "KlasaB", 0),
                                 TerminDni = ZapytaniaSQL.GetValueOrDefault<int>(row, "TerminDni", 35),
-                                DataUboju = ZapytaniaSQL.GetValueOrDefault<DateTime>(row, "CalcDate", DateTime.Today)
+                                DataUboju = ZapytaniaSQL.GetValueOrDefault<DateTime>(row, "CalcDate", DateTime.Today),
+                                // Pola transportowe
+                                DriverGID = row["DriverGID"] != DBNull.Value ? (int?)Convert.ToInt32(row["DriverGID"]) : null,
+                                CarID = ZapytaniaSQL.GetValueOrDefault<string>(row, "CarID", "")?.Trim(),
+                                TrailerID = ZapytaniaSQL.GetValueOrDefault<string>(row, "TrailerID", "")?.Trim(),
+                                ArrivalTime = row["ArrivalTime"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["ArrivalTime"]) : null
                             };
+
+                            // Pobierz nazwę kierowcy jeśli DriverGID jest ustawiony
+                            if (specRow.DriverGID.HasValue)
+                            {
+                                specRow.KierowcaNazwa = zapytaniasql.ZnajdzNazweKierowcy(specRow.DriverGID.Value);
+                            }
 
                             specyfikacjeData.Add(specRow);
                         }
                         UpdateStatistics();
+                        LoadTransportData(); // Załaduj dane transportowe
                         UpdateStatus($"Załadowano {dataTable.Rows.Count} rekordów");
                     }
                     else
                     {
                         UpdateStatistics();
+                        LoadTransportData(); // Wyczyść dane transportowe
                         UpdateStatus("Brak danych dla wybranej daty");
                     }
                 }
@@ -3496,6 +3517,13 @@ namespace Kalendarz1
         private int _terminDni;
         private DateTime _dataUboju;
 
+        // Pola transportowe
+        private int? _driverGID;
+        private string _carID;
+        private string _trailerID;
+        private DateTime? _arrivalTime;
+        private string _kierowcaNazwa;
+
         public bool Wydrukowano
         {
             get => _wydrukowano;
@@ -3676,6 +3704,37 @@ namespace Kalendarz1
         {
             get => _dataUboju;
             set { _dataUboju = value; OnPropertyChanged(nameof(DataUboju)); OnPropertyChanged(nameof(TerminPlatnosci)); }
+        }
+
+        // === WŁAŚCIWOŚCI TRANSPORTOWE ===
+        public int? DriverGID
+        {
+            get => _driverGID;
+            set { _driverGID = value; OnPropertyChanged(nameof(DriverGID)); }
+        }
+
+        public string CarID
+        {
+            get => _carID;
+            set { _carID = value; OnPropertyChanged(nameof(CarID)); }
+        }
+
+        public string TrailerID
+        {
+            get => _trailerID;
+            set { _trailerID = value; OnPropertyChanged(nameof(TrailerID)); }
+        }
+
+        public DateTime? ArrivalTime
+        {
+            get => _arrivalTime;
+            set { _arrivalTime = value; OnPropertyChanged(nameof(ArrivalTime)); }
+        }
+
+        public string KierowcaNazwa
+        {
+            get => _kierowcaNazwa;
+            set { _kierowcaNazwa = value; OnPropertyChanged(nameof(KierowcaNazwa)); }
         }
 
         // === WŁAŚCIWOŚCI OBLICZANE ===
