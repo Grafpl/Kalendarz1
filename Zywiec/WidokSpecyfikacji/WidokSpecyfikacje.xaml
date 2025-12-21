@@ -387,24 +387,17 @@
                             <Style TargetType="DataGridCell">
                                 <Setter Property="Background" Value="#E8F5E9"/>
                                 <Setter Property="BorderThickness" Value="0"/>
-                                <Setter Property="Padding" Value="2"/>
                             </Style>
                         </DataGridTemplateColumn.CellStyle>
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ListaDostawcow}"
-                                          SelectedValue="{Binding DostawcaGID, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                          SelectedValue="{Binding DostawcaGID, UpdateSourceTrigger=PropertyChanged}"
                                           SelectedValuePath="GID"
                                           DisplayMemberPath="ShortName"
-                                          IsEditable="True"
-                                          IsTextSearchEnabled="True"
-                                          IsTextSearchCaseSensitive="False"
-                                          FontWeight="SemiBold"
-                                          FontSize="12"
-                                          Background="Transparent"
-                                          BorderThickness="0"
-                                          Padding="4,2"
-                                          DropDownOpened="CboDostawca_DropDownOpened"/>
+                                          Background="#E8F5E9"
+                                          Padding="5"
+                                          VerticalContentAlignment="Center"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
@@ -739,18 +732,15 @@
                             <Style TargetType="DataGridCell">
                                 <Setter Property="Background" Value="#BBDEFB"/>
                                 <Setter Property="BorderThickness" Value="0"/>
-                                <Setter Property="Padding" Value="2"/>
                             </Style>
                         </DataGridTemplateColumn.CellStyle>
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ListaTypowCen}"
-                                          SelectedItem="{Binding TypCeny, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                          FontSize="11"
-                                          Background="Transparent"
-                                          BorderThickness="0"
-                                          Padding="4,2"
-                                          HorizontalContentAlignment="Center"/>
+                                          SelectedItem="{Binding TypCeny, UpdateSourceTrigger=PropertyChanged}"
+                                          Background="#BBDEFB"
+                                          Padding="5"
+                                          VerticalContentAlignment="Center"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
