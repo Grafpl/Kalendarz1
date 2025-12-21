@@ -31,6 +31,11 @@ namespace Kalendarz1
         private decimal sumaWartosc = 0;
         private decimal sumaKG = 0;
 
+        // Drag & Drop
+        private Point _dragStartPoint;
+        private bool _isDragging = false;
+        private SpecyfikacjaRow _draggedRow = null;
+
         public WidokSpecyfikacje()
         {
             InitializeComponent();
@@ -284,57 +289,115 @@ namespace Kalendarz1
             }
         }
 
-        // Edycja po jednym kliknięciu
-        private void DataGridView1_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        // === DRAG & DROP: Rozpoczęcie przeciągania ===
+        private void DataGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            var cell = FindVisualParent<DataGridCell>(e.OriginalSource as DependencyObject);
-            if (cell == null || cell.IsEditing) return;
+            _dragStartPoint = e.GetPosition(null);
+            _isDragging = false;
 
-            // Sprawdź czy kolumna jest edytowalna (sprawdź kolumnę, nie komórkę)
-            var column = cell.Column;
-            if (column == null) return;
-
-            // Dla DataGridTemplateColumn sprawdź czy ma CellEditingTemplate
-            bool isEditable = !column.IsReadOnly;
-            if (column is DataGridTemplateColumn templateColumn)
-            {
-                isEditable = templateColumn.CellEditingTemplate != null;
-            }
-
-            if (!isEditable) return;
-
-            // Pobierz wiersz i ustaw CurrentCell
-            var row = FindVisualParent<DataGridRow>(cell);
+            // Znajdź wiersz pod kursorem
+            var row = FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject);
             if (row != null)
             {
-                dataGridView1.CurrentCell = new DataGridCellInfo(row.Item, cell.Column);
-                selectedRow = row.Item as SpecyfikacjaRow;
+                _draggedRow = row.Item as SpecyfikacjaRow;
+                dataGridView1.SelectedItem = _draggedRow;
+                selectedRow = _draggedRow;
+            }
+        }
+
+        // === DRAG & DROP: Wykrycie ruchu myszy ===
+        private void DataGrid_PreviewMouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed || _draggedRow == null)
+                return;
+
+            Point currentPosition = e.GetPosition(null);
+            Vector diff = _dragStartPoint - currentPosition;
+
+            // Rozpocznij przeciąganie po przesunięciu o min. 5 pikseli
+            if (Math.Abs(diff.X) > 5 || Math.Abs(diff.Y) > 5)
+            {
+                _isDragging = true;
+                DataObject dragData = new DataObject("SpecyfikacjaRow", _draggedRow);
+                DragDrop.DoDragDrop(dataGridView1, dragData, DragDropEffects.Move);
+                _isDragging = false;
+                _draggedRow = null;
+            }
+        }
+
+        // === DRAG & DROP: Podgląd miejsca upuszczenia ===
+        private void DataGrid_DragOver(object sender, DragEventArgs e)
+        {
+            if (!e.Data.GetDataPresent("SpecyfikacjaRow"))
+            {
+                e.Effects = DragDropEffects.None;
+                return;
             }
 
-            if (!cell.IsFocused)
-            {
-                cell.Focus();
-            }
+            e.Effects = DragDropEffects.Move;
+            e.Handled = true;
+        }
 
-            // Rozpocznij edycję z opóźnieniem
-            Dispatcher.BeginInvoke(new Action(() =>
+        // === DRAG & DROP: Upuszczenie wiersza ===
+        private void DataGrid_Drop(object sender, DragEventArgs e)
+        {
+            if (!e.Data.GetDataPresent("SpecyfikacjaRow"))
+                return;
+
+            var draggedItem = e.Data.GetData("SpecyfikacjaRow") as SpecyfikacjaRow;
+            if (draggedItem == null) return;
+
+            // Znajdź wiersz docelowy
+            var targetRow = FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject);
+            if (targetRow == null) return;
+
+            var targetItem = targetRow.Item as SpecyfikacjaRow;
+            if (targetItem == null || targetItem == draggedItem) return;
+
+            int oldIndex = specyfikacjeData.IndexOf(draggedItem);
+            int newIndex = specyfikacjeData.IndexOf(targetItem);
+
+            if (oldIndex < 0 || newIndex < 0) return;
+
+            // Przenieś wiersz
+            specyfikacjeData.Move(oldIndex, newIndex);
+
+            // Zaktualizuj numery LP
+            UpdateRowNumbers();
+
+            // Zaznacz przeniesiony wiersz
+            dataGridView1.SelectedItem = draggedItem;
+            selectedRow = draggedItem;
+
+            e.Handled = true;
+        }
+
+        // === Aktualizacja numerów LP po przeciągnięciu ===
+        private void UpdateRowNumbers()
+        {
+            for (int i = 0; i < specyfikacjeData.Count; i++)
             {
-                if (!cell.IsEditing)
+                specyfikacjeData[i].Nr = i + 1;
+            }
+        }
+
+        // === ComboBox: Automatyczne zaznaczenie wiersza przy otwarciu ===
+        private void CboDostawca_DropDownOpened(object sender, EventArgs e)
+        {
+            var comboBox = sender as ComboBox;
+            if (comboBox != null)
+            {
+                var row = FindVisualParent<DataGridRow>(comboBox);
+                if (row != null)
                 {
-                    dataGridView1.BeginEdit();
-
-                    // Dla template columns - znajdź i aktywuj TextBox
-                    Dispatcher.BeginInvoke(new Action(() =>
+                    var item = row.Item as SpecyfikacjaRow;
+                    if (item != null)
                     {
-                        var textBox = FindVisualChild<TextBox>(cell);
-                        if (textBox != null)
-                        {
-                            textBox.Focus();
-                            textBox.SelectAll();
-                        }
-                    }), System.Windows.Threading.DispatcherPriority.Input);
+                        dataGridView1.SelectedItem = item;
+                        selectedRow = item;
+                    }
                 }
-            }), System.Windows.Threading.DispatcherPriority.Background);
+            }
         }
 
         private static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject

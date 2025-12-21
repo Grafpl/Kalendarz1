@@ -268,24 +268,6 @@
 
                 <!-- Przyciski akcji -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
-                    <Button Content="↑"
-                            x:Name="buttonUP"
-                            Click="ButtonUP_Click"
-                            Style="{StaticResource SecondaryButtonStyle}"
-                            FontSize="18"
-                            FontWeight="Bold"
-                            Padding="8,4"
-                            Margin="2"
-                            ToolTip="Przesuń w górę"/>
-                    <Button Content="↓"
-                            x:Name="buttonDown"
-                            Click="ButtonDown_Click"
-                            Style="{StaticResource SecondaryButtonStyle}"
-                            FontSize="18"
-                            FontWeight="Bold"
-                            Padding="8,4"
-                            Margin="2"
-                            ToolTip="Przesuń w dół"/>
                     <Button Content="AVILOG"
                             x:Name="buttonBon"
                             Click="ButtonBon_Click"
@@ -350,8 +332,9 @@
                       AutoGenerateColumns="False"
                       CanUserAddRows="False"
                       CanUserDeleteRows="False"
+                      CanUserReorderColumns="False"
                       SelectionMode="Single"
-                      SelectionUnit="Cell"
+                      SelectionUnit="FullRow"
                       GridLinesVisibility="All"
                       HorizontalGridLinesBrush="#E0E0E0"
                       VerticalGridLinesBrush="#EEEEEE"
@@ -363,8 +346,12 @@
                       ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
                       CellEditEnding="DataGridView1_CellEditEnding"
                       SelectionChanged="DataGridView1_SelectionChanged"
-                      PreviewMouseLeftButtonDown="DataGridView1_PreviewMouseLeftButtonDown"
-                      PreviewKeyDown="DataGridView1_PreviewKeyDown">
+                      PreviewKeyDown="DataGridView1_PreviewKeyDown"
+                      AllowDrop="True"
+                      PreviewMouseLeftButtonDown="DataGrid_PreviewMouseLeftButtonDown"
+                      PreviewMouseMove="DataGrid_PreviewMouseMove"
+                      Drop="DataGrid_Drop"
+                      DragOver="DataGrid_DragOver">
 
                 <DataGrid.Columns>
                     <!-- LP -->
@@ -394,31 +381,32 @@
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
 
-                    <!-- Dostawca - ComboBox -->
-                    <DataGridTemplateColumn Header="Dostawca" Width="150">
+                    <!-- Dostawca - ComboBox zawsze widoczny -->
+                    <DataGridTemplateColumn Header="Dostawca" Width="160">
                         <DataGridTemplateColumn.CellStyle>
                             <Style TargetType="DataGridCell">
                                 <Setter Property="Background" Value="#E8F5E9"/>
                                 <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="Padding" Value="2"/>
                             </Style>
                         </DataGridTemplateColumn.CellStyle>
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding Dostawca}"
-                                           VerticalAlignment="Center"
-                                           Padding="5,0"
-                                           FontWeight="SemiBold"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                        <DataGridTemplateColumn.CellEditingTemplate>
-                            <DataTemplate>
-                                <ComboBox x:Name="cboDostawca"
-                                          SelectedValue="{Binding DostawcaGID, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                <ComboBox SelectedValue="{Binding DostawcaGID, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                           SelectedValuePath="GID"
                                           DisplayMemberPath="ShortName"
-                                          Loaded="CboDostawca_Loaded"/>
+                                          IsEditable="True"
+                                          IsTextSearchEnabled="True"
+                                          StaysOpenOnEdit="True"
+                                          FontWeight="SemiBold"
+                                          FontSize="12"
+                                          Background="Transparent"
+                                          BorderThickness="0"
+                                          Padding="4,2"
+                                          Loaded="CboDostawca_Loaded"
+                                          DropDownOpened="CboDostawca_DropDownOpened"/>
                             </DataTemplate>
-                        </DataGridTemplateColumn.CellEditingTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
 
                     <!-- Szt.Dek -->
