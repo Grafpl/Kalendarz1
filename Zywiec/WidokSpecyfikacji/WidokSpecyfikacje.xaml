@@ -379,6 +379,12 @@
                             Style="{StaticResource MainButtonStyle}"
                             Background="#E74C3C"
                             ToolTip="Wyślij email z PDF w załączniku"/>
+                    <Button Content="🔍 DB INFO"
+                            x:Name="btnDbInfo"
+                            Click="BtnDbInfo_Click"
+                            Style="{StaticResource MainButtonStyle}"
+                            Background="#9C27B0"
+                            ToolTip="Pokaż strukturę bazy danych"/>
                 </StackPanel>
             </Grid>
         </Border>
