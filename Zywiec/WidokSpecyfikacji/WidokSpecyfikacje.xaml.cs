@@ -274,49 +274,24 @@ namespace Kalendarz1
             if (specyfikacjeData == null || specyfikacjeData.Count == 0)
                 return;
 
-            // Grupuj specyfikacje po CarID (samochód)
-            var grupyPoSamochodach = specyfikacjeData
-                .Where(s => !string.IsNullOrEmpty(s.CarID))
-                .GroupBy(s => s.CarID)
-                .OrderBy(g => g.First().ArrivalTime ?? DateTime.MaxValue)
-                .ToList();
-
+            // Na razie wyświetl każdą specyfikację jako osobny wiersz transportowy
+            // TODO: Pobierz dane transportowe z odpowiedniej tabeli w bazie
             int nr = 1;
-            foreach (var grupa in grupyPoSamochodach)
+            foreach (var spec in specyfikacjeData)
             {
-                var pierwszyRekord = grupa.First();
-                var listaDostawcow = string.Join(", ", grupa.Select(s => s.Dostawca ?? s.RealDostawca).Where(d => !string.IsNullOrEmpty(d)));
-
                 var transportRow = new TransportRow
                 {
                     Nr = nr++,
-                    Kierowca = pierwszyRekord.KierowcaNazwa ?? "",
-                    Samochod = pierwszyRekord.CarID ?? "",
-                    NrRejestracyjny = pierwszyRekord.TrailerID ?? "",
-                    GodzinaPrzyjazdu = pierwszyRekord.ArrivalTime,
-                    Trasa = listaDostawcow,
-                    Sztuki = grupa.Sum(s => s.SztukiDek),
-                    Kilogramy = grupa.Sum(s => s.NettoUbojniValue),
-                    Status = pierwszyRekord.ArrivalTime.HasValue ? "Zakończony" : "Oczekuje"
+                    Kierowca = spec.KierowcaNazwa ?? "",
+                    Samochod = spec.CarID ?? "",
+                    NrRejestracyjny = spec.TrailerID ?? "",
+                    GodzinaPrzyjazdu = spec.ArrivalTime,
+                    Trasa = spec.Dostawca ?? spec.RealDostawca ?? "",
+                    Sztuki = spec.SztukiDek,
+                    Kilogramy = spec.NettoUbojniValue,
+                    Status = spec.ArrivalTime.HasValue ? "Zakończony" : "Oczekuje"
                 };
 
-                transportData.Add(transportRow);
-            }
-
-            // Dodaj specyfikacje bez przypisanego samochodu
-            var bezSamochodu = specyfikacjeData.Where(s => string.IsNullOrEmpty(s.CarID)).ToList();
-            if (bezSamochodu.Any())
-            {
-                var transportRow = new TransportRow
-                {
-                    Nr = nr,
-                    Kierowca = "(Nieprzypisane)",
-                    Samochod = "-",
-                    Trasa = string.Join(", ", bezSamochodu.Select(s => s.Dostawca ?? s.RealDostawca).Where(d => !string.IsNullOrEmpty(d))),
-                    Sztuki = bezSamochodu.Sum(s => s.SztukiDek),
-                    Kilogramy = bezSamochodu.Sum(s => s.NettoUbojniValue),
-                    Status = "Nieprzypisane"
-                };
                 transportData.Add(transportRow);
             }
         }
@@ -418,8 +393,7 @@ namespace Kalendarz1
                     string query = @"SELECT ID, CarLp, CustomerGID, CustomerRealGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5,
                                     LumQnt, ProdQnt, ProdWgt, FullFarmWeight, EmptyFarmWeight, NettoFarmWeight,
                                     FullWeight, EmptyWeight, NettoWeight, Price, Addition, PriceTypeID, IncDeadConf, Loss,
-                                    Opasienie, KlasaB, TerminDni, CalcDate,
-                                    DriverGID, CarID, TrailerID, ArrivalTime
+                                    Opasienie, KlasaB, TerminDni, CalcDate
                                     FROM [LibraNet].[dbo].[FarmerCalc]
                                     WHERE CalcDate = @SelectedDate
                                     ORDER BY CarLP";
@@ -472,19 +446,8 @@ namespace Kalendarz1
                                 Opasienie = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "Opasienie", 0),
                                 KlasaB = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "KlasaB", 0),
                                 TerminDni = ZapytaniaSQL.GetValueOrDefault<int>(row, "TerminDni", 35),
-                                DataUboju = ZapytaniaSQL.GetValueOrDefault<DateTime>(row, "CalcDate", DateTime.Today),
-                                // Pola transportowe
-                                DriverGID = row["DriverGID"] != DBNull.Value ? (int?)Convert.ToInt32(row["DriverGID"]) : null,
-                                CarID = ZapytaniaSQL.GetValueOrDefault<string>(row, "CarID", "")?.Trim(),
-                                TrailerID = ZapytaniaSQL.GetValueOrDefault<string>(row, "TrailerID", "")?.Trim(),
-                                ArrivalTime = row["ArrivalTime"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["ArrivalTime"]) : null
+                                DataUboju = ZapytaniaSQL.GetValueOrDefault<DateTime>(row, "CalcDate", DateTime.Today)
                             };
-
-                            // Pobierz nazwę kierowcy jeśli DriverGID jest ustawiony
-                            if (specRow.DriverGID.HasValue)
-                            {
-                                specRow.KierowcaNazwa = zapytaniasql.ZnajdzNazweKierowcy(specRow.DriverGID.Value);
-                            }
 
                             specyfikacjeData.Add(specRow);
                         }
