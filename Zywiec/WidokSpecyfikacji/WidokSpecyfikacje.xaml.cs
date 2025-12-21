@@ -22,8 +22,14 @@ namespace Kalendarz1
         private ZapytaniaSQL zapytaniasql = new ZapytaniaSQL();
         private ObservableCollection<SpecyfikacjaRow> specyfikacjeData;
         private SpecyfikacjaRow selectedRow;
-        private List<DostawcaItem> listaDostawcow;
-        private List<string> listaTypowCen = new List<string> { "wolnyrynek", "rolnicza", "łączona", "ministerialna" };
+
+        // Publiczne właściwości dla ComboBox binding
+        public List<DostawcaItem> ListaDostawcow { get; set; }
+        public List<string> ListaTypowCen { get; set; } = new List<string> { "wolnyrynek", "rolnicza", "łączona", "ministerialna" };
+
+        // Backwards compatibility
+        private List<DostawcaItem> listaDostawcow { get => ListaDostawcow; set => ListaDostawcow = value; }
+        private List<string> listaTypowCen { get => ListaTypowCen; set => ListaTypowCen = value; }
 
         // Ustawienia PDF
         private static string defaultPdfPath = @"\\192.168.0.170\Public\Przel\";
@@ -253,27 +259,23 @@ namespace Kalendarz1
             return string.Empty;
         }
 
-        // Event handler dla ComboBox Dostawcy - automatyczne rozwijanie
+        // Event handler dla ComboBox Dostawcy - ustawienie listy
         private void CboDostawca_Loaded(object sender, RoutedEventArgs e)
         {
             var comboBox = sender as ComboBox;
-            if (comboBox != null)
+            if (comboBox != null && comboBox.ItemsSource == null)
             {
                 comboBox.ItemsSource = listaDostawcow;
-                // Automatyczne rozwinięcie listy
-                comboBox.IsDropDownOpen = true;
             }
         }
 
-        // Event handler dla ComboBox Typ Ceny - automatyczne rozwijanie
+        // Event handler dla ComboBox Typ Ceny - ustawienie listy
         private void CboTypCeny_Loaded(object sender, RoutedEventArgs e)
         {
             var comboBox = sender as ComboBox;
-            if (comboBox != null)
+            if (comboBox != null && comboBox.ItemsSource == null)
             {
                 comboBox.ItemsSource = listaTypowCen;
-                // Automatyczne rozwinięcie listy
-                comboBox.IsDropDownOpen = true;
             }
         }
 

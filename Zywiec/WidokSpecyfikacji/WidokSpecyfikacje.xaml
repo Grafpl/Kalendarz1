@@ -392,18 +392,18 @@
                         </DataGridTemplateColumn.CellStyle>
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <ComboBox SelectedValue="{Binding DostawcaGID, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ListaDostawcow}"
+                                          SelectedValue="{Binding DostawcaGID, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                           SelectedValuePath="GID"
                                           DisplayMemberPath="ShortName"
                                           IsEditable="True"
                                           IsTextSearchEnabled="True"
-                                          StaysOpenOnEdit="True"
+                                          IsTextSearchCaseSensitive="False"
                                           FontWeight="SemiBold"
                                           FontSize="12"
                                           Background="Transparent"
                                           BorderThickness="0"
                                           Padding="4,2"
-                                          Loaded="CboDostawca_Loaded"
                                           DropDownOpened="CboDostawca_DropDownOpened"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
@@ -733,28 +733,26 @@
                         </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
 
-                    <!-- Typ Ceny - ComboBox -->
-                    <DataGridTemplateColumn Header="Typ Ceny" Width="100" HeaderStyle="{StaticResource CenaHeaderStyle}">
+                    <!-- Typ Ceny - ComboBox zawsze widoczny -->
+                    <DataGridTemplateColumn Header="Typ Ceny" Width="105" HeaderStyle="{StaticResource CenaHeaderStyle}">
                         <DataGridTemplateColumn.CellStyle>
                             <Style TargetType="DataGridCell">
                                 <Setter Property="Background" Value="#BBDEFB"/>
                                 <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="Padding" Value="2"/>
                             </Style>
                         </DataGridTemplateColumn.CellStyle>
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding TypCeny}"
-                                           VerticalAlignment="Center"
-                                           HorizontalAlignment="Center"
-                                           FontSize="11"/>
+                                <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ListaTypowCen}"
+                                          SelectedItem="{Binding TypCeny, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                          FontSize="11"
+                                          Background="Transparent"
+                                          BorderThickness="0"
+                                          Padding="4,2"
+                                          HorizontalContentAlignment="Center"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
-                        <DataGridTemplateColumn.CellEditingTemplate>
-                            <DataTemplate>
-                                <ComboBox SelectedItem="{Binding TypCeny, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                          Loaded="CboTypCeny_Loaded"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
 
                     <!-- Ubytek -->
