@@ -9,10 +9,13 @@ using System.Data;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace Kalendarz1
 {
@@ -44,13 +47,28 @@ namespace Kalendarz1
         private DataGridRow _lastHighlightedRow = null;
         private Brush _originalRowBackground = null;
 
+        // === WYDAJNOŚĆ: Cache dostawców (static - współdzielony między oknami) ===
+        private static List<DostawcaItem> _cachedDostawcy = null;
+        private static DateTime _cacheTimestamp = DateTime.MinValue;
+        private static readonly TimeSpan CacheExpiration = TimeSpan.FromMinutes(5);
+
+        // === WYDAJNOŚĆ: Debounce dla auto-zapisu ===
+        private DispatcherTimer _debounceTimer;
+        private HashSet<int> _pendingSaveIds = new HashSet<int>();
+        private const int DebounceDelayMs = 500;
+
         public WidokSpecyfikacje()
         {
             InitializeComponent();
 
+            // Inicjalizuj timer debounce
+            _debounceTimer = new DispatcherTimer();
+            _debounceTimer.Interval = TimeSpan.FromMilliseconds(DebounceDelayMs);
+            _debounceTimer.Tick += DebounceTimer_Tick;
+
             // WAŻNE: Załaduj listy PRZED ustawieniem DataContext
             // aby binding do ListaDostawcow i ListaTypowCen działał poprawnie
-            LoadDostawcy();
+            LoadDostawcyFromCache();
 
             // Ustaw DataContext na this - teraz ListaDostawcow jest już wypełniona
             DataContext = this;
@@ -61,6 +79,63 @@ namespace Kalendarz1
 
             // Dodaj obsługę skrótów klawiszowych
             this.KeyDown += Window_KeyDown;
+        }
+
+        // === WYDAJNOŚĆ: Ładowanie dostawców z cache ===
+        private void LoadDostawcyFromCache()
+        {
+            // Sprawdź czy cache jest aktualny
+            if (_cachedDostawcy != null && DateTime.Now - _cacheTimestamp < CacheExpiration)
+            {
+                // Użyj cache
+                ListaDostawcow = new List<DostawcaItem>(_cachedDostawcy);
+                return;
+            }
+
+            // Ładuj z bazy i zapisz do cache
+            LoadDostawcy();
+            _cachedDostawcy = new List<DostawcaItem>(ListaDostawcow);
+            _cacheTimestamp = DateTime.Now;
+        }
+
+        // === WYDAJNOŚĆ: Async ładowanie dostawców (do odświeżenia cache w tle) ===
+        private async Task LoadDostawcyAsync()
+        {
+            var newList = new List<DostawcaItem>();
+            newList.Add(new DostawcaItem { GID = null, ShortName = "(nie wybrano)" });
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    using (SqlConnection connection = new SqlConnection(connectionString))
+                    {
+                        connection.Open();
+                        string query = "SELECT ID AS GID, ShortName FROM dbo.Dostawcy WHERE halt = 0 ORDER BY ShortName";
+                        using (SqlCommand cmd = new SqlCommand(query, connection))
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                newList.Add(new DostawcaItem
+                                {
+                                    GID = reader["GID"]?.ToString()?.Trim() ?? "",
+                                    ShortName = reader["ShortName"]?.ToString() ?? ""
+                                });
+                            }
+                        }
+                    }
+                });
+
+                // Aktualizuj cache i listę
+                _cachedDostawcy = newList;
+                _cacheTimestamp = DateTime.Now;
+                ListaDostawcow = new List<DostawcaItem>(newList);
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Błąd odświeżania dostawców: {ex.Message}");
+            }
         }
 
         private void LoadDostawcy()
@@ -82,7 +157,7 @@ namespace Kalendarz1
                         {
                             ListaDostawcow.Add(new DostawcaItem
                             {
-                                GID = reader["GID"]?.ToString() ?? "",
+                                GID = reader["GID"]?.ToString()?.Trim() ?? "",
                                 ShortName = reader["ShortName"]?.ToString() ?? ""
                             });
                         }
@@ -95,11 +170,37 @@ namespace Kalendarz1
             }
         }
 
+        // === WYDAJNOŚĆ: Debounce Timer - zapisuje zmiany po 500ms nieaktywności ===
+        private void DebounceTimer_Tick(object sender, EventArgs e)
+        {
+            _debounceTimer.Stop();
+
+            if (_pendingSaveIds.Count > 0)
+            {
+                var idsToSave = _pendingSaveIds.ToList();
+                _pendingSaveIds.Clear();
+
+                // Zapisz wszystkie oczekujące zmiany w jednym batch
+                SaveRowsBatch(idsToSave);
+            }
+        }
+
+        // === WYDAJNOŚĆ: Dodaj wiersz do kolejki zapisu (debounce) ===
+        private void QueueRowForSave(int rowId)
+        {
+            _pendingSaveIds.Add(rowId);
+            _debounceTimer.Stop();
+            _debounceTimer.Start();
+        }
+
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             LoadData(dateTimePicker1.SelectedDate ?? DateTime.Today);
             UpdateFullDateLabel();
             UpdateStatus("Dane załadowane pomyślnie");
+
+            // Odśwież cache dostawców w tle (async)
+            _ = LoadDostawcyAsync();
         }
 
         private void UpdateFullDateLabel()
@@ -425,31 +526,11 @@ namespace Kalendarz1
             e.Handled = true;
         }
 
-        // === Auto-zapis pozycji wszystkich wierszy po przeciągnięciu ===
+        // === WYDAJNOŚĆ: Auto-zapis pozycji - używa async batch update ===
         private void SaveAllRowPositions()
         {
-            try
-            {
-                using (SqlConnection connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-                    foreach (var row in specyfikacjeData)
-                    {
-                        string query = "UPDATE dbo.FarmerCalc SET CarLp = @Nr WHERE ID = @ID";
-                        using (SqlCommand cmd = new SqlCommand(query, connection))
-                        {
-                            cmd.Parameters.AddWithValue("@Nr", row.Nr);
-                            cmd.Parameters.AddWithValue("@ID", row.ID);
-                            cmd.ExecuteNonQuery();
-                        }
-                    }
-                }
-                UpdateStatus("Pozycje zapisane");
-            }
-            catch (Exception ex)
-            {
-                UpdateStatus($"Błąd zapisu pozycji: {ex.Message}");
-            }
+            // Użyj async wersji dla lepszej wydajności (nie blokuje UI)
+            _ = SaveAllRowPositionsAsync();
         }
 
         // === Aktualizacja numerów LP po przeciągnięciu ===
@@ -566,11 +647,10 @@ namespace Kalendarz1
                 var row = e.Row.Item as SpecyfikacjaRow;
                 if (row != null)
                 {
-                    // Zapisz zmiany do bazy danych po zakończeniu edycji
+                    // === WYDAJNOŚĆ: Użyj debounce zamiast natychmiastowego zapisu ===
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
                         string columnHeader = e.Column.Header?.ToString() ?? "";
-                        UpdateDatabaseRow(row, columnHeader);
 
                         // Aktualizuj nazwę dostawcy jeśli zmieniono GID
                         if (columnHeader == "Dostawca" && !string.IsNullOrEmpty(row.DostawcaGID))
@@ -585,6 +665,10 @@ namespace Kalendarz1
                         // Przelicz wartość po każdej zmianie
                         row.RecalculateWartosc();
                         UpdateStatistics();
+
+                        // Dodaj do kolejki debounce zamiast natychmiastowego zapisu
+                        QueueRowForSave(row.ID);
+
                     }), System.Windows.Threading.DispatcherPriority.Background);
                 }
             }
@@ -795,6 +879,151 @@ namespace Kalendarz1
 
                     cmd.ExecuteNonQuery();
                 }
+            }
+        }
+
+        // === WYDAJNOŚĆ: Batch zapis wielu wierszy w jednej transakcji ===
+        private void SaveRowsBatch(List<int> rowIds)
+        {
+            if (rowIds == null || rowIds.Count == 0) return;
+
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        try
+                        {
+                            foreach (var id in rowIds)
+                            {
+                                var row = specyfikacjeData.FirstOrDefault(r => r.ID == id);
+                                if (row == null) continue;
+
+                                // Znajdź ID typu ceny
+                                int priceTypeId = -1;
+                                if (!string.IsNullOrEmpty(row.TypCeny))
+                                {
+                                    priceTypeId = zapytaniasql.ZnajdzIdCeny(row.TypCeny);
+                                }
+
+                                string query = @"UPDATE dbo.FarmerCalc SET
+                                    CarLp = @Nr,
+                                    CustomerGID = @DostawcaGID,
+                                    DeclI1 = @SztukiDek,
+                                    DeclI2 = @Padle,
+                                    DeclI3 = @CH,
+                                    DeclI4 = @NW,
+                                    DeclI5 = @ZM,
+                                    LumQnt = @LUMEL,
+                                    ProdQnt = @SztukiWybijak,
+                                    ProdWgt = @KgWybijak,
+                                    Price = @Cena,
+                                    PriceTypeID = @PriceTypeID,
+                                    Loss = @Ubytek,
+                                    IncDeadConf = @PiK,
+                                    Opasienie = @Opasienie,
+                                    KlasaB = @KlasaB,
+                                    TerminDni = @TerminDni,
+                                    AvgWgt = @AvgWgt,
+                                    PayWgt = @PayWgt,
+                                    PayNet = @PayNet
+                                    WHERE ID = @ID";
+
+                                using (SqlCommand cmd = new SqlCommand(query, connection, transaction))
+                                {
+                                    cmd.Parameters.AddWithValue("@ID", row.ID);
+                                    cmd.Parameters.AddWithValue("@Nr", row.Nr);
+                                    cmd.Parameters.AddWithValue("@DostawcaGID", (object)row.DostawcaGID ?? DBNull.Value);
+                                    cmd.Parameters.AddWithValue("@SztukiDek", row.SztukiDek);
+                                    cmd.Parameters.AddWithValue("@Padle", row.Padle);
+                                    cmd.Parameters.AddWithValue("@CH", row.CH);
+                                    cmd.Parameters.AddWithValue("@NW", row.NW);
+                                    cmd.Parameters.AddWithValue("@ZM", row.ZM);
+                                    cmd.Parameters.AddWithValue("@LUMEL", row.LUMEL);
+                                    cmd.Parameters.AddWithValue("@SztukiWybijak", row.SztukiWybijak);
+                                    cmd.Parameters.AddWithValue("@KgWybijak", row.KilogramyWybijak);
+                                    cmd.Parameters.AddWithValue("@Cena", row.Cena);
+                                    cmd.Parameters.AddWithValue("@PriceTypeID", priceTypeId > 0 ? priceTypeId : (object)DBNull.Value);
+                                    cmd.Parameters.AddWithValue("@Ubytek", row.Ubytek / 100);
+                                    cmd.Parameters.AddWithValue("@PiK", row.PiK);
+                                    cmd.Parameters.AddWithValue("@Opasienie", row.Opasienie);
+                                    cmd.Parameters.AddWithValue("@KlasaB", row.KlasaB);
+                                    cmd.Parameters.AddWithValue("@TerminDni", row.TerminDni);
+                                    cmd.Parameters.AddWithValue("@AvgWgt", row.SredniaWaga);
+                                    cmd.Parameters.AddWithValue("@PayWgt", row.DoZaplaty);
+                                    cmd.Parameters.AddWithValue("@PayNet", row.Wartosc);
+                                    cmd.ExecuteNonQuery();
+                                }
+                            }
+
+                            transaction.Commit();
+                            UpdateStatus($"Zapisano {rowIds.Count} zmian");
+                        }
+                        catch
+                        {
+                            transaction.Rollback();
+                            throw;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Błąd batch zapisu: {ex.Message}");
+            }
+        }
+
+        // === WYDAJNOŚĆ: Async batch zapis pozycji wierszy ===
+        private async Task SaveAllRowPositionsAsync()
+        {
+            try
+            {
+                await Task.Run(() =>
+                {
+                    using (SqlConnection connection = new SqlConnection(connectionString))
+                    {
+                        connection.Open();
+                        using (var transaction = connection.BeginTransaction())
+                        {
+                            try
+                            {
+                                // Buduj jeden duży UPDATE z CASE
+                                var rows = specyfikacjeData.ToList();
+                                if (rows.Count == 0) return;
+
+                                StringBuilder sb = new StringBuilder();
+                                sb.Append("UPDATE dbo.FarmerCalc SET CarLp = CASE ID ");
+                                foreach (var row in rows)
+                                {
+                                    sb.Append($"WHEN {row.ID} THEN {row.Nr} ");
+                                }
+                                sb.Append("END WHERE ID IN (");
+                                sb.Append(string.Join(",", rows.Select(r => r.ID)));
+                                sb.Append(")");
+
+                                using (SqlCommand cmd = new SqlCommand(sb.ToString(), connection, transaction))
+                                {
+                                    cmd.ExecuteNonQuery();
+                                }
+
+                                transaction.Commit();
+                            }
+                            catch
+                            {
+                                transaction.Rollback();
+                                throw;
+                            }
+                        }
+                    }
+                });
+
+                Dispatcher.Invoke(() => UpdateStatus("Pozycje zapisane"));
+            }
+            catch (Exception ex)
+            {
+                Dispatcher.Invoke(() => UpdateStatus($"Błąd zapisu pozycji: {ex.Message}"));
             }
         }
 

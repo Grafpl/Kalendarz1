@@ -348,7 +348,12 @@
                       PreviewMouseMove="DataGrid_PreviewMouseMove"
                       Drop="DataGrid_Drop"
                       DragOver="DataGrid_DragOver"
-                      DragLeave="DataGrid_DragLeave">
+                      DragLeave="DataGrid_DragLeave"
+                      EnableRowVirtualization="True"
+                      EnableColumnVirtualization="True"
+                      VirtualizingPanel.IsVirtualizing="True"
+                      VirtualizingPanel.VirtualizationMode="Recycling"
+                      VirtualizingPanel.ScrollUnit="Pixel">
 
                 <DataGrid.Columns>
                     <!-- LP -->
