@@ -437,6 +437,21 @@ namespace Kalendarz1
                 _draggedRow = row.Item as SpecyfikacjaRow;
                 dataGridView1.SelectedItem = _draggedRow;
                 selectedRow = _draggedRow;
+
+                // === SINGLE-CLICK EDIT: Rozpocznij edycję po kliknięciu na komórkę ===
+                var cell = FindVisualParent<DataGridCell>(e.OriginalSource as DependencyObject);
+                if (cell != null && !cell.IsReadOnly && !cell.IsEditing)
+                {
+                    // Opóźnij edycję aby drag & drop miał szansę się rozpocząć
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        if (!_isDragging)
+                        {
+                            cell.Focus();
+                            dataGridView1.BeginEdit();
+                        }
+                    }), System.Windows.Threading.DispatcherPriority.Background);
+                }
             }
         }
 
@@ -648,11 +663,11 @@ namespace Kalendarz1
             var cellInfo = dataGridView1.CurrentCell;
             if (cellInfo.Column == null) return;
 
-            // Sprawdź czy kolumna jest edytowalna (tak samo jak w PreviewMouseLeftButtonDown)
+            // Sprawdź czy kolumna jest edytowalna
             bool isEditable = !cellInfo.Column.IsReadOnly;
             if (cellInfo.Column is DataGridTemplateColumn templateColumn)
             {
-                isEditable = templateColumn.CellEditingTemplate != null;
+                isEditable = templateColumn.CellEditingTemplate != null || templateColumn.CellTemplate != null;
             }
 
             if (!isEditable) return;
@@ -660,8 +675,9 @@ namespace Kalendarz1
             var dataGridCell = GetDataGridCell(cellInfo);
             if (dataGridCell != null && !dataGridCell.IsEditing)
             {
-                // Sprawdź czy to jest klawisz alfanumeryczny
-                if ((e.Key >= Key.D0 && e.Key <= Key.D9) ||
+                // Sprawdź czy to jest klawisz alfanumeryczny lub F2
+                if (e.Key == Key.F2 ||
+                    (e.Key >= Key.D0 && e.Key <= Key.D9) ||
                     (e.Key >= Key.NumPad0 && e.Key <= Key.NumPad9) ||
                     (e.Key >= Key.A && e.Key <= Key.Z) ||
                     e.Key == Key.OemComma || e.Key == Key.OemPeriod ||
@@ -676,10 +692,53 @@ namespace Kalendarz1
                         if (textBox != null)
                         {
                             textBox.Focus();
-                            textBox.SelectAll();
+                            // Dla F2 - zaznacz wszystko, dla innych klawiszy - wyczyść i zacznij od nowa
+                            if (e.Key == Key.F2)
+                            {
+                                textBox.SelectAll();
+                            }
+                            else
+                            {
+                                textBox.Clear();
+                            }
                         }
                     }), System.Windows.Threading.DispatcherPriority.Input);
                 }
+            }
+        }
+
+        // === NATYCHMIASTOWA EDYCJA: Wpisywanie znaków od razu ===
+        private void DataGridView1_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        {
+            var cellInfo = dataGridView1.CurrentCell;
+            if (cellInfo.Column == null) return;
+
+            // Sprawdź czy kolumna jest edytowalna
+            bool isEditable = !cellInfo.Column.IsReadOnly;
+            if (cellInfo.Column is DataGridTemplateColumn templateColumn)
+            {
+                isEditable = templateColumn.CellEditingTemplate != null || templateColumn.CellTemplate != null;
+            }
+
+            if (!isEditable) return;
+
+            var dataGridCell = GetDataGridCell(cellInfo);
+            if (dataGridCell != null && !dataGridCell.IsEditing)
+            {
+                // Rozpocznij edycję
+                dataGridView1.BeginEdit();
+
+                // Wstaw wpisany znak do TextBoxa
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    var textBox = FindVisualChild<TextBox>(dataGridCell);
+                    if (textBox != null)
+                    {
+                        textBox.Focus();
+                        textBox.Text = e.Text;
+                        textBox.CaretIndex = textBox.Text.Length;
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Input);
             }
         }
 

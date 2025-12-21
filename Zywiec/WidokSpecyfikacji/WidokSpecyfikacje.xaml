@@ -38,13 +38,16 @@
         <!-- === STYL: Row hover highlight === -->
         <Style x:Key="DataGridRowHoverStyle" TargetType="DataGridRow">
             <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="Black"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="#E3F2FD"/>
+                    <Setter Property="Foreground" Value="Black"/>
                 </Trigger>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="#BBDEFB"/>
+                    <Setter Property="Foreground" Value="Black"/>
                 </Trigger>
                 <MultiTrigger>
                     <MultiTrigger.Conditions>
@@ -52,7 +55,19 @@
                         <Condition Property="IsSelected" Value="True"/>
                     </MultiTrigger.Conditions>
                     <Setter Property="Background" Value="#90CAF9"/>
+                    <Setter Property="Foreground" Value="Black"/>
                 </MultiTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- === STYL: Komórka - czarna czcionka przy zaznaczeniu === -->
+        <Style TargetType="DataGridCell">
+            <Setter Property="Foreground" Value="Black"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Foreground" Value="Black"/>
+                    <Setter Property="Background" Value="Transparent"/>
+                </Trigger>
             </Style.Triggers>
         </Style>
 
@@ -369,7 +384,7 @@
                       CanUserDeleteRows="False"
                       CanUserReorderColumns="False"
                       SelectionMode="Single"
-                      SelectionUnit="FullRow"
+                      SelectionUnit="CellOrRowHeader"
                       GridLinesVisibility="All"
                       HorizontalGridLinesBrush="#E0E0E0"
                       VerticalGridLinesBrush="#EEEEEE"
@@ -383,6 +398,7 @@
                       CellEditEnding="DataGridView1_CellEditEnding"
                       SelectionChanged="DataGridView1_SelectionChanged"
                       PreviewKeyDown="DataGridView1_PreviewKeyDown"
+                      PreviewTextInput="DataGridView1_PreviewTextInput"
                       AllowDrop="True"
                       PreviewMouseLeftButtonDown="DataGrid_PreviewMouseLeftButtonDown"
                       PreviewMouseMove="DataGrid_PreviewMouseMove"
