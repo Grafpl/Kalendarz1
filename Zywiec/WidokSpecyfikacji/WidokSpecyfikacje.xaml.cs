@@ -274,8 +274,7 @@ namespace Kalendarz1
             if (specyfikacjeData == null || specyfikacjeData.Count == 0)
                 return;
 
-            // Na razie wyświetl każdą specyfikację jako osobny wiersz transportowy
-            // TODO: Pobierz dane transportowe z odpowiedniej tabeli w bazie
+            // Wyświetl każdą specyfikację jako wiersz transportowy z danymi z FarmerCalc + Driver
             int nr = 1;
             foreach (var spec in specyfikacjeData)
             {
@@ -390,13 +389,16 @@ namespace Kalendarz1
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
-                    string query = @"SELECT ID, CarLp, CustomerGID, CustomerRealGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5,
-                                    LumQnt, ProdQnt, ProdWgt, FullFarmWeight, EmptyFarmWeight, NettoFarmWeight,
-                                    FullWeight, EmptyWeight, NettoWeight, Price, Addition, PriceTypeID, IncDeadConf, Loss,
-                                    Opasienie, KlasaB, TerminDni, CalcDate
-                                    FROM [LibraNet].[dbo].[FarmerCalc]
-                                    WHERE CalcDate = @SelectedDate
-                                    ORDER BY CarLP";
+                    string query = @"SELECT fc.ID, fc.CarLp, fc.CustomerGID, fc.CustomerRealGID, fc.DeclI1, fc.DeclI2, fc.DeclI3, fc.DeclI4, fc.DeclI5,
+                                    fc.LumQnt, fc.ProdQnt, fc.ProdWgt, fc.FullFarmWeight, fc.EmptyFarmWeight, fc.NettoFarmWeight,
+                                    fc.FullWeight, fc.EmptyWeight, fc.NettoWeight, fc.Price, fc.Addition, fc.PriceTypeID, fc.IncDeadConf, fc.Loss,
+                                    fc.Opasienie, fc.KlasaB, fc.TerminDni, fc.CalcDate,
+                                    fc.DriverGID, fc.CarID, fc.TrailerID, fc.Przyjazd,
+                                    d.Name AS DriverName
+                                    FROM [LibraNet].[dbo].[FarmerCalc] fc
+                                    LEFT JOIN [LibraNet].[dbo].[Driver] d ON fc.DriverGID = d.GID
+                                    WHERE fc.CalcDate = @SelectedDate
+                                    ORDER BY fc.CarLP";
 
                     SqlCommand command = new SqlCommand(query, connection);
                     command.Parameters.AddWithValue("@SelectedDate", selectedDate);
@@ -446,7 +448,13 @@ namespace Kalendarz1
                                 Opasienie = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "Opasienie", 0),
                                 KlasaB = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "KlasaB", 0),
                                 TerminDni = ZapytaniaSQL.GetValueOrDefault<int>(row, "TerminDni", 35),
-                                DataUboju = ZapytaniaSQL.GetValueOrDefault<DateTime>(row, "CalcDate", DateTime.Today)
+                                DataUboju = ZapytaniaSQL.GetValueOrDefault<DateTime>(row, "CalcDate", DateTime.Today),
+                                // Pola transportowe
+                                DriverGID = row["DriverGID"] != DBNull.Value ? (int?)Convert.ToInt32(row["DriverGID"]) : null,
+                                CarID = ZapytaniaSQL.GetValueOrDefault<string>(row, "CarID", "")?.Trim(),
+                                TrailerID = ZapytaniaSQL.GetValueOrDefault<string>(row, "TrailerID", "")?.Trim(),
+                                ArrivalTime = row["Przyjazd"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["Przyjazd"]) : null,
+                                KierowcaNazwa = ZapytaniaSQL.GetValueOrDefault<string>(row, "DriverName", "")?.Trim()
                             };
 
                             specyfikacjeData.Add(specRow);
@@ -477,109 +485,6 @@ namespace Kalendarz1
                 return value.ToString("#,0");
             }
             return string.Empty;
-        }
-
-        // === METODA DIAGNOSTYCZNA - SPRAWDZENIE STRUKTURY BAZY DANYCH ===
-        private void ShowDatabaseStructure()
-        {
-            try
-            {
-                StringBuilder sb = new StringBuilder();
-
-                using (SqlConnection connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-
-                    // 1. Wszystkie kolumny z FarmerCalc
-                    sb.AppendLine("=== KOLUMNY TABELI FarmerCalc ===");
-                    string queryColumns = @"SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, IS_NULLABLE
-                                           FROM INFORMATION_SCHEMA.COLUMNS
-                                           WHERE TABLE_NAME = 'FarmerCalc'
-                                           ORDER BY ORDINAL_POSITION";
-
-                    using (SqlCommand cmd = new SqlCommand(queryColumns, connection))
-                    using (SqlDataReader reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            string colName = reader["COLUMN_NAME"].ToString();
-                            string dataType = reader["DATA_TYPE"].ToString();
-                            string maxLen = reader["CHARACTER_MAXIMUM_LENGTH"] != DBNull.Value ?
-                                          $"({reader["CHARACTER_MAXIMUM_LENGTH"]})" : "";
-                            string nullable = reader["IS_NULLABLE"].ToString();
-                            sb.AppendLine($"  {colName} - {dataType}{maxLen} - Nullable: {nullable}");
-                        }
-                    }
-
-                    // 2. Lista wszystkich tabel w bazie
-                    sb.AppendLine("\n=== WSZYSTKIE TABELE W BAZIE LibraNet ===");
-                    string queryTables = @"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
-                                          WHERE TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME";
-
-                    using (SqlCommand cmd = new SqlCommand(queryTables, connection))
-                    using (SqlDataReader reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            sb.AppendLine($"  {reader["TABLE_NAME"]}");
-                        }
-                    }
-
-                    // 3. Szukaj tabel z 'Transport', 'Car', 'Driver', 'Trailer' w nazwie
-                    sb.AppendLine("\n=== TABELE ZWIĄZANE Z TRANSPORTEM ===");
-                    string queryTransport = @"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
-                                             WHERE TABLE_TYPE = 'BASE TABLE'
-                                             AND (TABLE_NAME LIKE '%Transport%'
-                                                  OR TABLE_NAME LIKE '%Car%'
-                                                  OR TABLE_NAME LIKE '%Driver%'
-                                                  OR TABLE_NAME LIKE '%Trailer%'
-                                                  OR TABLE_NAME LIKE '%Vehicle%'
-                                                  OR TABLE_NAME LIKE '%Route%'
-                                                  OR TABLE_NAME LIKE '%Kierowca%'
-                                                  OR TABLE_NAME LIKE '%Samochod%'
-                                                  OR TABLE_NAME LIKE '%Auto%')
-                                             ORDER BY TABLE_NAME";
-
-                    using (SqlCommand cmd = new SqlCommand(queryTransport, connection))
-                    using (SqlDataReader reader = cmd.ExecuteReader())
-                    {
-                        bool found = false;
-                        while (reader.Read())
-                        {
-                            found = true;
-                            sb.AppendLine($"  {reader["TABLE_NAME"]}");
-                        }
-                        if (!found) sb.AppendLine("  (brak tabel transportowych)");
-                    }
-
-                    // 4. Przykładowy rekord z FarmerCalc z WSZYSTKIMI kolumnami
-                    sb.AppendLine("\n=== PRZYKŁADOWY REKORD Z FarmerCalc (SELECT TOP 1 *) ===");
-                    string querySample = @"SELECT TOP 1 * FROM [LibraNet].[dbo].[FarmerCalc] ORDER BY ID DESC";
-
-                    using (SqlCommand cmd = new SqlCommand(querySample, connection))
-                    using (SqlDataReader reader = cmd.ExecuteReader())
-                    {
-                        if (reader.Read())
-                        {
-                            for (int i = 0; i < reader.FieldCount; i++)
-                            {
-                                string colName = reader.GetName(i);
-                                object val = reader.GetValue(i);
-                                string valStr = val == DBNull.Value ? "(NULL)" : val.ToString();
-                                if (valStr.Length > 50) valStr = valStr.Substring(0, 50) + "...";
-                                sb.AppendLine($"  {colName} = {valStr}");
-                            }
-                        }
-                    }
-                }
-
-                // Wyświetl w MessageBox
-                MessageBox.Show(sb.ToString(), "Struktura bazy danych", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
         }
 
         // Event handler dla ComboBox Dostawcy - ustawienie listy
@@ -1998,12 +1903,6 @@ namespace Kalendarz1
             {
                 return "";
             }
-        }
-
-        // === Przycisk DB INFO - diagnostyka struktury bazy danych ===
-        private void BtnDbInfo_Click(object sender, RoutedEventArgs e)
-        {
-            ShowDatabaseStructure();
         }
 
         // === Przycisk EMAIL - wysyłka z PDF w załączniku ===
