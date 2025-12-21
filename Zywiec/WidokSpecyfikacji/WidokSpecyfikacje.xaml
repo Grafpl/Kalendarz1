@@ -461,20 +461,28 @@
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
 
-                    <!-- Szt.Dek -->
-                    <DataGridTextColumn Header="Szt.Dek" Binding="{Binding SztukiDek, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        Width="65" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}"
-                                        CellStyle="{StaticResource CellStyleOrange}">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="FontWeight" Value="SemiBold"/>
+                    <!-- Szt.Dek - TextBox zawsze widoczny -->
+                    <DataGridTemplateColumn Header="Szt.Dek" Width="65" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">
+                        <DataGridTemplateColumn.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Background" Value="#FFE0B2"/>
+                                <Setter Property="BorderThickness" Value="0"/>
                             </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
+                        </DataGridTemplateColumn.CellStyle>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding SztukiDek, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         HorizontalAlignment="Stretch"
+                                         VerticalAlignment="Center"
+                                         HorizontalContentAlignment="Center"
+                                         FontWeight="SemiBold"
+                                         BorderThickness="0"
+                                         Background="Transparent"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
 
-                    <!-- Padłe - skreślone gdy PiK -->
+                    <!-- Padłe - TextBox zawsze widoczny, skreślone gdy PiK -->
                     <DataGridTemplateColumn Header="Padłe" Width="55" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">
                         <DataGridTemplateColumn.CellStyle>
                             <Style TargetType="DataGridCell">
@@ -484,34 +492,18 @@
                         </DataGridTemplateColumn.CellStyle>
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding Padle}"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="#BF360C"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding PiK}" Value="True">
-                                                    <Setter Property="TextDecorations" Value="Strikethrough"/>
-                                                    <Setter Property="Foreground" Value="#C62828"/>
-                                                    <Setter Property="FontWeight" Value="Bold"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
+                                <TextBox Text="{Binding Padle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         HorizontalAlignment="Stretch"
+                                         VerticalAlignment="Center"
+                                         HorizontalContentAlignment="Center"
+                                         BorderThickness="0"
+                                         Background="Transparent"
+                                         Foreground="#BF360C"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
-                        <DataGridTemplateColumn.CellEditingTemplate>
-                            <DataTemplate>
-                                <TextBox Text="{Binding Padle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         HorizontalAlignment="Stretch" VerticalAlignment="Center"
-                                         HorizontalContentAlignment="Center"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
 
-                    <!-- CH - skreślone gdy PiK -->
+                    <!-- CH - TextBox zawsze widoczny -->
                     <DataGridTemplateColumn Header="CH" Width="45" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">
                         <DataGridTemplateColumn.CellStyle>
                             <Style TargetType="DataGridCell">
@@ -521,33 +513,17 @@
                         </DataGridTemplateColumn.CellStyle>
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding CH}"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding PiK}" Value="True">
-                                                    <Setter Property="TextDecorations" Value="Strikethrough"/>
-                                                    <Setter Property="Foreground" Value="#C62828"/>
-                                                    <Setter Property="FontWeight" Value="Bold"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
+                                <TextBox Text="{Binding CH, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         HorizontalAlignment="Stretch"
+                                         VerticalAlignment="Center"
+                                         HorizontalContentAlignment="Center"
+                                         BorderThickness="0"
+                                         Background="Transparent"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
-                        <DataGridTemplateColumn.CellEditingTemplate>
-                            <DataTemplate>
-                                <TextBox Text="{Binding CH, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         HorizontalAlignment="Stretch" VerticalAlignment="Center"
-                                         HorizontalContentAlignment="Center"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
 
-                    <!-- NW - skreślone gdy PiK -->
+                    <!-- NW - TextBox zawsze widoczny -->
                     <DataGridTemplateColumn Header="NW" Width="45" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">
                         <DataGridTemplateColumn.CellStyle>
                             <Style TargetType="DataGridCell">
@@ -557,33 +533,17 @@
                         </DataGridTemplateColumn.CellStyle>
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding NW}"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding PiK}" Value="True">
-                                                    <Setter Property="TextDecorations" Value="Strikethrough"/>
-                                                    <Setter Property="Foreground" Value="#C62828"/>
-                                                    <Setter Property="FontWeight" Value="Bold"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
+                                <TextBox Text="{Binding NW, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         HorizontalAlignment="Stretch"
+                                         VerticalAlignment="Center"
+                                         HorizontalContentAlignment="Center"
+                                         BorderThickness="0"
+                                         Background="Transparent"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
-                        <DataGridTemplateColumn.CellEditingTemplate>
-                            <DataTemplate>
-                                <TextBox Text="{Binding NW, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         HorizontalAlignment="Stretch" VerticalAlignment="Center"
-                                         HorizontalContentAlignment="Center"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
 
-                    <!-- ZM - skreślone gdy PiK -->
+                    <!-- ZM - TextBox zawsze widoczny -->
                     <DataGridTemplateColumn Header="ZM" Width="45" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">
                         <DataGridTemplateColumn.CellStyle>
                             <Style TargetType="DataGridCell">
@@ -593,45 +553,37 @@
                         </DataGridTemplateColumn.CellStyle>
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding ZM}"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding PiK}" Value="True">
-                                                    <Setter Property="TextDecorations" Value="Strikethrough"/>
-                                                    <Setter Property="Foreground" Value="#C62828"/>
-                                                    <Setter Property="FontWeight" Value="Bold"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
+                                <TextBox Text="{Binding ZM, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         HorizontalAlignment="Stretch"
+                                         VerticalAlignment="Center"
+                                         HorizontalContentAlignment="Center"
+                                         BorderThickness="0"
+                                         Background="Transparent"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
-                        <DataGridTemplateColumn.CellEditingTemplate>
-                            <DataTemplate>
-                                <TextBox Text="{Binding ZM, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         HorizontalAlignment="Stretch" VerticalAlignment="Center"
-                                         HorizontalContentAlignment="Center"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
 
-                    <!-- LUMEL -->
-                    <DataGridTextColumn Header="LUMEL" Binding="{Binding LUMEL, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        Width="65" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}"
-                                        CellStyle="{StaticResource CellStylePurple}">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="FontWeight" Value="Bold"/>
-                                <Setter Property="Foreground" Value="#7B1FA2"/>
+                    <!-- LUMEL - TextBox zawsze widoczny -->
+                    <DataGridTemplateColumn Header="LUMEL" Width="65" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">
+                        <DataGridTemplateColumn.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Background" Value="#E1BEE7"/>
+                                <Setter Property="BorderThickness" Value="0"/>
                             </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
+                        </DataGridTemplateColumn.CellStyle>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBox Text="{Binding LUMEL, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         HorizontalAlignment="Stretch"
+                                         VerticalAlignment="Center"
+                                         HorizontalContentAlignment="Center"
+                                         FontWeight="Bold"
+                                         Foreground="#7B1FA2"
+                                         BorderThickness="0"
+                                         Background="Transparent"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
 
                     <!-- WAGI HODOWCY -->
                     <DataGridTextColumn Header="Brutto H" Binding="{Binding BruttoHodowcy}" Width="80"
