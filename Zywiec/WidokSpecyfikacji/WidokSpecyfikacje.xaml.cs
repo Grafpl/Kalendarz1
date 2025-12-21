@@ -66,6 +66,9 @@ namespace Kalendarz1
         private void LoadDostawcy()
         {
             ListaDostawcow = new List<DostawcaItem>();
+            // Dodaj pustą opcję na początku (jak w ImportAvilogWindow)
+            ListaDostawcow.Add(new DostawcaItem { GID = null, ShortName = "(nie wybrano)" });
+
             try
             {
                 using (SqlConnection connection = new SqlConnection(connectionString))
@@ -79,7 +82,7 @@ namespace Kalendarz1
                         {
                             ListaDostawcow.Add(new DostawcaItem
                             {
-                                GID = reader["GID"].ToString(),
+                                GID = reader["GID"]?.ToString() ?? "",
                                 ShortName = reader["ShortName"]?.ToString() ?? ""
                             });
                         }
