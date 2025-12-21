@@ -164,7 +164,8 @@ namespace Kalendarz1
                     connection.Open();
                     string query = @"SELECT ID, CarLp, CustomerGID, CustomerRealGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5,
                                     LumQnt, ProdQnt, ProdWgt, FullFarmWeight, EmptyFarmWeight, NettoFarmWeight,
-                                    FullWeight, EmptyWeight, NettoWeight, Price, Addition, PriceTypeID, IncDeadConf, Loss
+                                    FullWeight, EmptyWeight, NettoWeight, Price, Addition, PriceTypeID, IncDeadConf, Loss,
+                                    Opasienie, KlasaB, TerminDni, CalcDate
                                     FROM [LibraNet].[dbo].[FarmerCalc]
                                     WHERE CalcDate = @SelectedDate
                                     ORDER BY CarLP";
@@ -211,7 +212,12 @@ namespace Kalendarz1
                                 TypCeny = zapytaniasql.ZnajdzNazweCenyPoID(
                                     ZapytaniaSQL.GetValueOrDefault<int>(row, "PriceTypeID", -1)),
                                 PiK = row["IncDeadConf"] != DBNull.Value && Convert.ToBoolean(row["IncDeadConf"]),
-                                Ubytek = Math.Round(ZapytaniaSQL.GetValueOrDefault<decimal>(row, "Loss", 0) * 100, 2)
+                                Ubytek = Math.Round(ZapytaniaSQL.GetValueOrDefault<decimal>(row, "Loss", 0) * 100, 2),
+                                // Nowe pola
+                                Opasienie = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "Opasienie", 0),
+                                KlasaB = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "KlasaB", 0),
+                                TerminDni = ZapytaniaSQL.GetValueOrDefault<int>(row, "TerminDni", 35),
+                                DataUboju = ZapytaniaSQL.GetValueOrDefault<DateTime>(row, "CalcDate", DateTime.Today)
                             };
 
                             specyfikacjeData.Add(specRow);
@@ -492,7 +498,11 @@ namespace Kalendarz1
                 { "Dodatek", "Addition" },
                 { "Typ Ceny", "PriceTypeID" },
                 { "PiK", "IncDeadConf" },
-                { "Ubytek%", "Loss" }
+                { "Ubytek%", "Loss" },
+                // Nowe kolumny
+                { "Opas.", "Opasienie" },
+                { "K.I.B", "KlasaB" },
+                { "Termin", "TerminDni" }
             };
 
             return mapping.ContainsKey(displayName) ? mapping[displayName] : string.Empty;
@@ -517,6 +527,10 @@ namespace Kalendarz1
                 case "Typ Ceny": return zapytaniasql.ZnajdzIdCeny(row.TypCeny ?? "");
                 case "PiK": return row.PiK;
                 case "Ubytek%": return row.Ubytek / 100; // Konwersja na wartość dla bazy
+                // Nowe kolumny
+                case "Opas.": return row.Opasienie;
+                case "K.I.B": return row.KlasaB;
+                case "Termin": return row.TerminDni;
                 default: return null;
             }
         }
@@ -528,6 +542,7 @@ namespace Kalendarz1
                 lblRecordCount.Text = "0";
                 lblSumaNetto.Text = "0 kg";
                 lblSumaSztuk.Text = "0";
+                lblSumaDoZaplaty.Text = "0 kg";
                 lblSumaWartosc.Text = "0 zł";
                 return;
             }
@@ -541,6 +556,10 @@ namespace Kalendarz1
             // Suma sztuk LUMEL
             int sumaSztuk = specyfikacjeData.Sum(r => r.LUMEL);
             lblSumaSztuk.Text = sumaSztuk.ToString("N0");
+
+            // Suma do zapłaty
+            decimal sumaDoZaplaty = specyfikacjeData.Sum(r => r.DoZaplaty);
+            lblSumaDoZaplaty.Text = $"{sumaDoZaplaty:N0} kg";
 
             // Suma wartości
             decimal sumaWartosc = specyfikacjeData.Sum(r => r.Wartosc);
@@ -597,7 +616,13 @@ namespace Kalendarz1
                     Price = @Cena,
                     PriceTypeID = @PriceTypeID,
                     Loss = @Ubytek,
-                    IncDeadConf = @PiK
+                    IncDeadConf = @PiK,
+                    Opasienie = @Opasienie,
+                    KlasaB = @KlasaB,
+                    TerminDni = @TerminDni,
+                    AvgWgt = @AvgWgt,
+                    PayWgt = @PayWgt,
+                    PayNet = @PayNet
                     WHERE ID = @ID";
 
                 using (SqlCommand cmd = new SqlCommand(query, connection))
@@ -617,6 +642,13 @@ namespace Kalendarz1
                     cmd.Parameters.AddWithValue("@PriceTypeID", priceTypeId > 0 ? priceTypeId : (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@Ubytek", row.Ubytek / 100); // Konwertuj procent na ułamek
                     cmd.Parameters.AddWithValue("@PiK", row.PiK);
+                    // Nowe pola
+                    cmd.Parameters.AddWithValue("@Opasienie", row.Opasienie);
+                    cmd.Parameters.AddWithValue("@KlasaB", row.KlasaB);
+                    cmd.Parameters.AddWithValue("@TerminDni", row.TerminDni);
+                    cmd.Parameters.AddWithValue("@AvgWgt", row.SredniaWaga);
+                    cmd.Parameters.AddWithValue("@PayWgt", row.DoZaplaty);
+                    cmd.Parameters.AddWithValue("@PayNet", row.Wartosc);
 
                     cmd.ExecuteNonQuery();
                 }
@@ -2499,6 +2531,11 @@ namespace Kalendarz1
         private bool _piK;
         private decimal _ubytek;
         private bool _wydrukowano;
+        // Nowe pola
+        private decimal _opasienie;
+        private decimal _klasaB;
+        private int _terminDni;
+        private DateTime _dataUboju;
 
         public bool Wydrukowano
         {
@@ -2551,19 +2588,19 @@ namespace Kalendarz1
         public int CH
         {
             get => _ch;
-            set { _ch = value; OnPropertyChanged(nameof(CH)); }
+            set { _ch = value; OnPropertyChanged(nameof(CH)); RecalculateWartosc(); }
         }
 
         public int NW
         {
             get => _nw;
-            set { _nw = value; OnPropertyChanged(nameof(NW)); }
+            set { _nw = value; OnPropertyChanged(nameof(NW)); RecalculateWartosc(); }
         }
 
         public int ZM
         {
             get => _zm;
-            set { _zm = value; OnPropertyChanged(nameof(ZM)); }
+            set { _zm = value; OnPropertyChanged(nameof(ZM)); RecalculateWartosc(); }
         }
 
         public string BruttoHodowcy
@@ -2656,27 +2693,113 @@ namespace Kalendarz1
             set { _ubytek = value; OnPropertyChanged(nameof(Ubytek)); RecalculateWartosc(); }
         }
 
-        // Obliczona wartość - Cena * NettoUbojni
-        // Gdy PiK = true (padłe i konfiskaty wliczone) - nie odejmujemy nic
-        // Gdy PiK = false - padłe i konfiskaty są odejmowane (normalne zachowanie)
+        // === NOWE WŁAŚCIWOŚCI ===
+
+        public decimal Opasienie
+        {
+            get => _opasienie;
+            set { _opasienie = value; OnPropertyChanged(nameof(Opasienie)); RecalculateWartosc(); }
+        }
+
+        public decimal KlasaB
+        {
+            get => _klasaB;
+            set { _klasaB = value; OnPropertyChanged(nameof(KlasaB)); RecalculateWartosc(); }
+        }
+
+        public int TerminDni
+        {
+            get => _terminDni;
+            set { _terminDni = value; OnPropertyChanged(nameof(TerminDni)); OnPropertyChanged(nameof(TerminPlatnosci)); }
+        }
+
+        public DateTime DataUboju
+        {
+            get => _dataUboju;
+            set { _dataUboju = value; OnPropertyChanged(nameof(DataUboju)); OnPropertyChanged(nameof(TerminPlatnosci)); }
+        }
+
+        // === WŁAŚCIWOŚCI OBLICZANE ===
+
+        /// <summary>
+        /// Suma konfiskat: CH + NW + ZM [szt]
+        /// </summary>
+        public int Konfiskaty => CH + NW + ZM;
+
+        /// <summary>
+        /// Średnia waga: Netto / SztukiDek [kg/szt]
+        /// </summary>
+        public decimal SredniaWaga => SztukiDek > 0 ? Math.Round(NettoUbojniValue / SztukiDek, 2) : 0;
+
+        /// <summary>
+        /// Sztuki zdatne: SztukiDek - Padłe - Konfiskaty [szt]
+        /// </summary>
+        public int Zdatne => SztukiDek - Padle - Konfiskaty;
+
+        /// <summary>
+        /// Padłe w kg: Padłe * Średnia waga [kg]
+        /// </summary>
+        public decimal PadleKg => Math.Round(Padle * SredniaWaga, 0);
+
+        /// <summary>
+        /// Konfiskaty w kg: Konfiskaty * Średnia waga [kg]
+        /// </summary>
+        public decimal KonfiskatyKg => Math.Round(Konfiskaty * SredniaWaga, 0);
+
+        /// <summary>
+        /// Do zapłaty [kg]: Netto - Padłe[kg] - Konf[kg] - Opas - KlasaB (z uwzględnieniem PiK i ubytku)
+        /// </summary>
+        public decimal DoZaplaty
+        {
+            get
+            {
+                decimal bazaKg = NettoUbojniValue;
+
+                // Jeśli PiK = false, odejmujemy padłe i konfiskaty
+                if (!PiK)
+                {
+                    bazaKg -= PadleKg;
+                    bazaKg -= KonfiskatyKg;
+                }
+
+                // Zawsze odejmujemy opasienie i klasę B
+                bazaKg -= Opasienie;
+                bazaKg -= KlasaB;
+
+                // Zastosowanie ubytku procentowego
+                decimal poUbytku = bazaKg * (1 - Ubytek / 100);
+
+                return Math.Round(poUbytku, 0);
+            }
+        }
+
+        /// <summary>
+        /// Termin płatności (data)
+        /// </summary>
+        public DateTime TerminPlatnosci => DataUboju.AddDays(TerminDni);
+
+        // === WARTOŚĆ KOŃCOWA ===
+
+        /// <summary>
+        /// Wartość końcowa = DoZaplaty * (Cena + Dodatek)
+        /// </summary>
         public decimal Wartosc
         {
             get
             {
-                // Podstawowa wartość: (Cena + Dodatek) * NettoUbojni
                 decimal cenaZDodatkiem = Cena + Dodatek;
-                decimal wartoscBazowa = cenaZDodatkiem * NettoUbojniValue;
-
-                // Uwzględnienie ubytku
-                decimal ubytek = wartoscBazowa * (Ubytek / 100);
-                decimal wartoscPoUbytku = wartoscBazowa - ubytek;
-
-                return Math.Round(wartoscPoUbytku, 0);
+                return Math.Round(DoZaplaty * cenaZDodatkiem, 0);
             }
         }
 
         public void RecalculateWartosc()
         {
+            OnPropertyChanged(nameof(Konfiskaty));
+            OnPropertyChanged(nameof(SredniaWaga));
+            OnPropertyChanged(nameof(Zdatne));
+            OnPropertyChanged(nameof(PadleKg));
+            OnPropertyChanged(nameof(KonfiskatyKg));
+            OnPropertyChanged(nameof(DoZaplaty));
             OnPropertyChanged(nameof(Wartosc));
         }
 

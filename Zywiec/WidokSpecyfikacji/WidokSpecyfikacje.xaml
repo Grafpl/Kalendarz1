@@ -777,6 +777,49 @@
                         </DataGridCheckBoxColumn.ElementStyle>
                     </DataGridCheckBoxColumn>
 
+                    <!-- === NOWE KOLUMNY === -->
+
+                    <!-- Opasienie [kg] - edytowalne -->
+                    <DataGridTextColumn Header="Opas." Binding="{Binding Opasienie, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F0}}"
+                                        Width="60" HeaderStyle="{StaticResource CenaHeaderStyle}"
+                                        CellStyle="{StaticResource CellStyleYellow}">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="Padding" Value="0,0,8,0"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+
+                    <!-- Klasa B / K.I.B [kg] - edytowalne -->
+                    <DataGridTextColumn Header="K.I.B" Binding="{Binding KlasaB, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F0}}"
+                                        Width="55" HeaderStyle="{StaticResource CenaHeaderStyle}"
+                                        CellStyle="{StaticResource CellStyleYellow}">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="Padding" Value="0,0,8,0"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+
+                    <!-- Do zapłaty [kg] - obliczane, tylko do odczytu -->
+                    <DataGridTextColumn Header="Do zapł." Binding="{Binding DoZaplaty, StringFormat={}{0:N0}}"
+                                        Width="75" IsReadOnly="True" HeaderStyle="{StaticResource CenaHeaderStyle}"
+                                        CellStyle="{StaticResource CellStyleGreenDark}">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter Property="Foreground" Value="#2E7D32"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+
                     <!-- Wartość -->
                     <DataGridTextColumn Header="Wartość" Binding="{Binding Wartosc, StringFormat={}{0:N0} zł}"
                                         Width="100" IsReadOnly="True" HeaderStyle="{StaticResource CenaHeaderStyle}"
@@ -788,6 +831,19 @@
                                 <Setter Property="Padding" Value="0,0,8,0"/>
                                 <Setter Property="FontWeight" Value="Bold"/>
                                 <Setter Property="Foreground" Value="#1B5E20"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+
+                    <!-- Termin płatności [dni] - edytowalne -->
+                    <DataGridTextColumn Header="Termin" Binding="{Binding TerminDni, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        Width="55" HeaderStyle="{StaticResource CenaHeaderStyle}"
+                                        CellStyle="{StaticResource CellStyleBlue}">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
@@ -876,6 +932,12 @@
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Suma LUMEL: " FontWeight="SemiBold" Foreground="#F57C00"/>
                             <TextBlock x:Name="lblSumaSztuk" Text="0" FontWeight="Bold" Foreground="#F57C00"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#A5D6A7" CornerRadius="6" Padding="15,8" Margin="0,0,15,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Do zapł.: " FontWeight="SemiBold" Foreground="#2E7D32"/>
+                            <TextBlock x:Name="lblSumaDoZaplaty" Text="0 kg" FontWeight="Bold" Foreground="#2E7D32"/>
                         </StackPanel>
                     </Border>
                     <Border Background="#C8E6C9" CornerRadius="6" Padding="15,8" Margin="0,0,15,0">
