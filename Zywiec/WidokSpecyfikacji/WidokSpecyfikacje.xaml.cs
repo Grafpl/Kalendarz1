@@ -561,6 +561,49 @@ namespace Kalendarz1
             }
         }
 
+        // === Natychmiastowy zapis przy zmianie ComboBox Dostawca ===
+        private void ComboBox_Dostawca_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var comboBox = sender as ComboBox;
+            if (comboBox == null || e.AddedItems.Count == 0) return;
+
+            // Znajdź wiersz danych
+            var row = FindVisualParent<DataGridRow>(comboBox);
+            if (row == null) return;
+
+            var specRow = row.Item as SpecyfikacjaRow;
+            if (specRow == null) return;
+
+            // Pobierz wybrany element
+            var selected = e.AddedItems[0] as DostawcaItem;
+            if (selected != null)
+            {
+                // Aktualizuj nazwę dostawcy
+                specRow.Dostawca = selected.ShortName;
+
+                // Natychmiastowy zapis do bazy
+                try
+                {
+                    using (SqlConnection connection = new SqlConnection(connectionString))
+                    {
+                        connection.Open();
+                        string query = "UPDATE dbo.FarmerCalc SET CustomerGID = @GID WHERE ID = @ID";
+                        using (SqlCommand cmd = new SqlCommand(query, connection))
+                        {
+                            cmd.Parameters.AddWithValue("@GID", (object)selected.GID ?? DBNull.Value);
+                            cmd.Parameters.AddWithValue("@ID", specRow.ID);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                    UpdateStatus($"Zmieniono dostawcę: {selected.ShortName}");
+                }
+                catch (Exception ex)
+                {
+                    UpdateStatus($"Błąd zapisu dostawcy: {ex.Message}");
+                }
+            }
+        }
+
         private static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
         {
             if (parent == null) return null;

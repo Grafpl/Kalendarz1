@@ -397,6 +397,7 @@
                                           SelectedValue="{Binding DostawcaGID, UpdateSourceTrigger=PropertyChanged}"
                                           SelectedValuePath="GID"
                                           DisplayMemberPath="ShortName"
+                                          SelectionChanged="ComboBox_Dostawca_SelectionChanged"
                                           Background="#E8F5E9"
                                           Padding="5"
                                           VerticalContentAlignment="Center"/>
