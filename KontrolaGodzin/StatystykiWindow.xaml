@@ -1,0 +1,183 @@
+<Window x:Class="Kalendarz1.KontrolaGodzin.StatystykiWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="📊 Statystyki Miesięczne" 
+        Height="800" Width="1200"
+        WindowStartupLocation="CenterOwner"
+        Background="#F5F7FA"
+        FontFamily="Segoe UI"
+        ResizeMode="CanResizeWithGrip">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Nagłówek -->
+        <Border Grid.Row="0" Background="White" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="20,15">
+            <Grid>
+                <StackPanel>
+                    <TextBlock Text="📊 Statystyki Miesięczne" FontSize="18" FontWeight="Bold" Foreground="#1A202C"/>
+                    <TextBlock x:Name="txtOkres" Text="Grudzień 2025" FontSize="11" Foreground="#718096" Margin="0,3,0,0"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <TextBlock Text="Miesiąc:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#4A5568"/>
+                    <ComboBox x:Name="cmbMiesiac" Width="120" SelectionChanged="CmbMiesiac_SelectionChanged"/>
+                    <TextBlock Text="Rok:" VerticalAlignment="Center" Margin="15,0,8,0" Foreground="#4A5568"/>
+                    <ComboBox x:Name="cmbRok" Width="80" SelectionChanged="CmbRok_SelectionChanged"/>
+                    <Button Content="📥 Export PDF" Margin="20,0,0,0" Padding="15,8" Background="#38A169" Foreground="White" Click="BtnExportPdf_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Karty podsumowania -->
+        <Border Grid.Row="1" Background="#FAFBFC" Padding="15">
+            <UniformGrid Columns="6">
+                <Border Background="White" CornerRadius="8" Padding="15" Margin="5" BorderBrush="#E2E8F0" BorderThickness="1">
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="SUMA GODZIN" FontSize="9" Foreground="#718096" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="txtSumaGodzin" Text="0" FontSize="28" FontWeight="Bold" Foreground="#3182CE" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="txtSumaGodzinZmiana" Text="vs poprz. mies." FontSize="9" Foreground="#A0AEC0" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="White" CornerRadius="8" Padding="15" Margin="5" BorderBrush="#E2E8F0" BorderThickness="1">
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="PRACOWNIKÓW" FontSize="9" Foreground="#718096" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="txtPracownikow" Text="0" FontSize="28" FontWeight="Bold" Foreground="#38A169" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="txtPracownikowZmiana" Text="vs poprz. mies." FontSize="9" Foreground="#A0AEC0" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="White" CornerRadius="8" Padding="15" Margin="5" BorderBrush="#E2E8F0" BorderThickness="1">
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="ŚR. GODZIN/OS." FontSize="9" Foreground="#718096" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="txtSrednia" Text="0" FontSize="28" FontWeight="Bold" Foreground="#805AD5" HorizontalAlignment="Center"/>
+                        <TextBlock Text="na osobę" FontSize="9" Foreground="#A0AEC0" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="White" CornerRadius="8" Padding="15" Margin="5" BorderBrush="#E2E8F0" BorderThickness="1">
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="NADGODZINY" FontSize="9" Foreground="#718096" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="txtNadgodziny" Text="0" FontSize="28" FontWeight="Bold" Foreground="#DD6B20" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="txtNadgodzinyProcent" Text="0% całości" FontSize="9" Foreground="#A0AEC0" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="White" CornerRadius="8" Padding="15" Margin="5" BorderBrush="#E2E8F0" BorderThickness="1">
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="DNI ROBOCZYCH" FontSize="9" Foreground="#718096" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="txtDniRoboczych" Text="0" FontSize="28" FontWeight="Bold" Foreground="#2D3748" HorizontalAlignment="Center"/>
+                        <TextBlock Text="w miesiącu" FontSize="9" Foreground="#A0AEC0" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+                <Border Background="White" CornerRadius="8" Padding="15" Margin="5" BorderBrush="#E2E8F0" BorderThickness="1">
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="KOSZT ŁĄCZNY" FontSize="9" Foreground="#718096" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="txtKoszt" Text="0 zł" FontSize="28" FontWeight="Bold" Foreground="#C53030" HorizontalAlignment="Center"/>
+                        <TextBlock Text="szacowany" FontSize="9" Foreground="#A0AEC0" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+        </Border>
+
+        <!-- Wykresy -->
+        <Grid Grid.Row="2" Margin="15">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Wykres godzin dziennie -->
+            <Border Grid.Column="0" Grid.Row="0" Background="White" CornerRadius="8" Margin="5" BorderBrush="#E2E8F0" BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Background="#EDF2F7" Padding="12,8">
+                        <TextBlock Text="📈 GODZINY DZIENNIE" FontWeight="Bold" Foreground="#4A5568" FontSize="11"/>
+                    </Border>
+                    <Canvas x:Name="chartGodzinyDziennie" Grid.Row="1" Margin="10"/>
+                </Grid>
+            </Border>
+
+            <!-- Wykres wg działów -->
+            <Border Grid.Column="1" Grid.Row="0" Background="White" CornerRadius="8" Margin="5" BorderBrush="#E2E8F0" BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Background="#EDF2F7" Padding="12,8">
+                        <TextBlock Text="📊 GODZINY WG DZIAŁÓW" FontWeight="Bold" Foreground="#4A5568" FontSize="11"/>
+                    </Border>
+                    <ItemsControl x:Name="chartDzialy" Grid.Row="1" Margin="15">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="120"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="60"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding Nazwa}" FontSize="11" Foreground="#4A5568" VerticalAlignment="Center"/>
+                                    <Border Grid.Column="1" Background="#E2E8F0" CornerRadius="3" Height="20" Margin="10,0">
+                                        <Border Background="{Binding Kolor}" CornerRadius="3" HorizontalAlignment="Left" Width="{Binding Szerokosc}"/>
+                                    </Border>
+                                    <TextBlock Grid.Column="2" Text="{Binding Wartosc}" FontSize="11" Foreground="#2D3748" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+            </Border>
+
+            <!-- Wykres frekwencji -->
+            <Border Grid.Column="0" Grid.Row="1" Background="White" CornerRadius="8" Margin="5" BorderBrush="#E2E8F0" BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Background="#EDF2F7" Padding="12,8">
+                        <TextBlock Text="👥 FREKWENCJA DZIENNA" FontWeight="Bold" Foreground="#4A5568" FontSize="11"/>
+                    </Border>
+                    <Canvas x:Name="chartFrekwencja" Grid.Row="1" Margin="10"/>
+                </Grid>
+            </Border>
+
+            <!-- Top pracownicy -->
+            <Border Grid.Column="1" Grid.Row="1" Background="White" CornerRadius="8" Margin="5" BorderBrush="#E2E8F0" BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Background="#EDF2F7" Padding="12,8">
+                        <TextBlock Text="🏆 TOP 10 PRACOWNIKÓW" FontWeight="Bold" Foreground="#4A5568" FontSize="11"/>
+                    </Border>
+                    <ItemsControl x:Name="listTopPracownicy" Grid.Row="1" Margin="15">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,3">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="25"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="70"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding Pozycja}" FontSize="12" Foreground="#A0AEC0" FontWeight="Bold"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Pracownik}" FontSize="11" Foreground="#2D3748"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding Godziny}" FontSize="11" Foreground="#38A169" FontWeight="Bold" HorizontalAlignment="Right"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

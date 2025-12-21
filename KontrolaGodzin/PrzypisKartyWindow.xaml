@@ -1,0 +1,263 @@
+<Window x:Class="Kalendarz1.KontrolaGodzin.PrzypisKartyWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="💳 Przypisywanie Karty RCP" 
+        Height="780" Width="700"
+        WindowStartupLocation="CenterOwner"
+        Background="#F5F7FA"
+        FontFamily="Segoe UI"
+        ResizeMode="CanResizeWithGrip">
+
+    <Window.Resources>
+        <Style x:Key="ModernButton" TargetType="Button">
+            <Setter Property="Background" Value="#E8EDF3"/>
+            <Setter Property="Foreground" Value="#2D3748"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#CBD5E0"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
+            <Setter Property="Background" Value="#38A169"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#2F855A"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+
+        <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
+            <Setter Property="Background" Value="#E53E3E"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#C53030"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Nagłówek -->
+        <Border Grid.Row="0" Background="White" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="25,20">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <Border Background="#805AD5" CornerRadius="10" Padding="12" Margin="0,0,15,0">
+                        <TextBlock Text="💳" FontSize="24" Foreground="White"/>
+                    </Border>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="PRZYPISYWANIE KARTY RCP" FontSize="20" FontWeight="Bold" Foreground="#1A202C"/>
+                        <TextBlock Text="Wybierz pracownika i kartę do przypisania" FontSize="12" Foreground="#718096" Margin="0,3,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Formularz -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="25">
+                
+                <!-- Tryb pracy -->
+                <Border Background="White" CornerRadius="10" Padding="20" Margin="0,0,0,15" BorderBrush="#E2E8F0" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock Text="TRYB OPERACJI" FontSize="11" FontWeight="Bold" Foreground="#805AD5" Margin="0,0,0,10"/>
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton x:Name="rbPrzypisz" Content="➕ Przypisz nową kartę" IsChecked="True" 
+                                         GroupName="Tryb" Margin="0,0,30,0" Checked="Tryb_Changed"/>
+                            <RadioButton x:Name="rbOdbierz" Content="➖ Odbierz kartę" 
+                                         GroupName="Tryb" Checked="Tryb_Changed"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Wybór pracownika -->
+                <Border Background="White" CornerRadius="10" Padding="20" Margin="0,0,0,15" BorderBrush="#E2E8F0" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock Text="👤 PRACOWNIK" FontSize="11" FontWeight="Bold" Foreground="#4A5568" Margin="0,0,0,10"/>
+                        
+                        <TextBlock Text="Szukaj:" FontSize="11" Foreground="#718096" Margin="0,0,0,5"/>
+                        <TextBox x:Name="txtSzukajPracownika" Padding="10,8" Margin="0,0,0,10" 
+                                 TextChanged="TxtSzukajPracownika_TextChanged"/>
+                        
+                        <TextBlock x:Name="txtPracownikLabel" Text="Pracownik bez karty:" FontSize="11" Foreground="#718096" Margin="0,0,0,5"/>
+                        <ComboBox x:Name="cmbPracownik" Padding="10,8" FontSize="13"
+                                  SelectionChanged="CmbPracownik_SelectionChanged">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding PelneNazwisko}" FontWeight="SemiBold" Width="200"/>
+                                        <TextBlock Text=" • " Foreground="#A0AEC0"/>
+                                        <TextBlock Text="{Binding GrupaNazwa}" Foreground="#718096"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        
+                        <!-- Info o wybranym pracowniku -->
+                        <Border x:Name="panelInfoPracownik" Background="#F0FFF4" CornerRadius="6" Padding="12" Margin="0,10,0,0" Visibility="Collapsed">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="ID:" FontSize="10" Foreground="#718096"/>
+                                    <TextBlock x:Name="txtPracownikId" Text="-" FontSize="12" FontWeight="SemiBold" Foreground="#276749"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="Dział:" FontSize="10" Foreground="#718096"/>
+                                    <TextBlock x:Name="txtPracownikDzial" Text="-" FontSize="12" FontWeight="SemiBold" Foreground="#276749"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Wybór karty (dla trybu Przypisz) -->
+                <Border x:Name="panelKarta" Background="White" CornerRadius="10" Padding="20" Margin="0,0,0,15" BorderBrush="#E2E8F0" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock Text="💳 KARTA" FontSize="11" FontWeight="Bold" Foreground="#4A5568" Margin="0,0,0,10"/>
+                        
+                        <TextBlock Text="Wolna karta do przypisania:" FontSize="11" Foreground="#718096" Margin="0,0,0,5"/>
+                        <ComboBox x:Name="cmbKarta" Padding="10,8" FontSize="13"
+                                  SelectionChanged="CmbKarta_SelectionChanged">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Karta #" Foreground="#718096"/>
+                                        <TextBlock Text="{Binding NumerKarty}" FontWeight="Bold" Foreground="#2D3748"/>
+                                        <TextBlock Text=" • " Foreground="#A0AEC0"/>
+                                        <TextBlock Text="{Binding StanOpis}" Foreground="#38A169"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        
+                        <TextBlock x:Name="txtWolneKarty" Text="Dostępnych kart: 0" FontSize="10" Foreground="#A0AEC0" Margin="0,8,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Profile dostępu (bramki) -->
+                <Border x:Name="panelProfile" Background="White" CornerRadius="10" Padding="20" Margin="0,0,0,15" BorderBrush="#E2E8F0" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock Text="🚪 PROFILE DOSTĘPU (BRAMKI)" FontSize="11" FontWeight="Bold" Foreground="#4A5568" Margin="0,0,0,10"/>
+                        <TextBlock Text="Zaznacz bramki, do których pracownik ma mieć dostęp:" FontSize="11" Foreground="#718096" Margin="0,0,0,12"/>
+                        
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <!-- Profil Portiernia -->
+                            <Border Grid.Column="0" Background="#F0FFF4" CornerRadius="8" Padding="15" Margin="0,0,8,0" BorderBrush="#C6F6D5" BorderThickness="1">
+                                <StackPanel>
+                                    <CheckBox x:Name="chkPortiernia" IsChecked="True" Margin="0,0,0,8"
+                                              Checked="ChkProfil_Changed" Unchecked="ChkProfil_Changed">
+                                        <StackPanel>
+                                            <TextBlock Text="🏢 Portiernia" FontWeight="SemiBold" FontSize="13" Foreground="#276749"/>
+                                            <TextBlock Text="Wejście główne (WE + WY)" FontSize="10" Foreground="#48BB78"/>
+                                        </StackPanel>
+                                    </CheckBox>
+                                    <TextBlock Text="Profil ID: 10001" FontSize="9" Foreground="#A0AEC0"/>
+                                </StackPanel>
+                            </Border>
+                            
+                            <!-- Profil Produkcja -->
+                            <Border Grid.Column="1" Background="#EBF8FF" CornerRadius="8" Padding="15" Margin="8,0,0,0" BorderBrush="#BEE3F8" BorderThickness="1">
+                                <StackPanel>
+                                    <CheckBox x:Name="chkProdukcja" IsChecked="True" Margin="0,0,0,8"
+                                              Checked="ChkProfil_Changed" Unchecked="ChkProfil_Changed">
+                                        <StackPanel>
+                                            <TextBlock Text="🏭 Produkcja" FontWeight="SemiBold" FontSize="13" Foreground="#2B6CB0"/>
+                                            <TextBlock Text="Hala produkcyjna (WE + WY)" FontSize="10" Foreground="#4299E1"/>
+                                        </StackPanel>
+                                    </CheckBox>
+                                    <TextBlock Text="Profil ID: 10002" FontSize="9" Foreground="#A0AEC0"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                        
+                        <!-- Info o aktualnych profilach pracownika -->
+                        <Border x:Name="panelAktualneProfile" Background="#FFFAF0" CornerRadius="6" Padding="10" Margin="0,12,0,0" Visibility="Collapsed">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="ℹ️" Margin="0,0,8,0"/>
+                                <TextBlock x:Name="txtAktualneProfile" Text="" FontSize="11" Foreground="#C05621" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Info o karcie do odebrania (dla trybu Odbierz) -->
+                <Border x:Name="panelAktualnaKarta" Background="White" CornerRadius="10" Padding="20" Margin="0,0,0,15" 
+                        BorderBrush="#E2E8F0" BorderThickness="1" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock Text="💳 AKTUALNA KARTA PRACOWNIKA" FontSize="11" FontWeight="Bold" Foreground="#4A5568" Margin="0,0,0,10"/>
+                        
+                        <Border Background="#FFF5F5" CornerRadius="6" Padding="15">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="Numer karty:" FontSize="10" Foreground="#718096"/>
+                                    <TextBlock x:Name="txtAktualnaKartaNumer" Text="-" FontSize="16" FontWeight="Bold" Foreground="#C53030"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="Przypisana od:" FontSize="10" Foreground="#718096"/>
+                                    <TextBlock x:Name="txtAktualnaKartaOd" Text="-" FontSize="12" Foreground="#2D3748"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="ID karty:" FontSize="10" Foreground="#718096"/>
+                                    <TextBlock x:Name="txtAktualnaKartaId" Text="-" FontSize="12" Foreground="#718096"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Potwierdzenie -->
+                <Border Background="#FFFAF0" CornerRadius="10" Padding="15" BorderBrush="#F6AD55" BorderThickness="1">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⚠️" FontSize="16" Margin="0,0,10,0"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="#C05621" FontSize="11">
+                            <Run FontWeight="Bold">Uwaga:</Run>
+                            <Run>Zmiana przypisania karty zostanie zapisana w bazie UNICARD i automatycznie zsynchronizowana z czytnikami.</Run>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Stopka -->
+        <Border Grid.Row="2" Background="White" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="25,15">
+            <Grid>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock x:Name="txtStatus" Text="Wybierz pracownika i kartę" FontSize="11" Foreground="#718096" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Anuluj" Style="{StaticResource ModernButton}" Margin="0,0,10,0" Click="BtnAnuluj_Click"/>
+                    <Button x:Name="btnWykonaj" Content="➕ Przypisz kartę" Style="{StaticResource PrimaryButton}" 
+                            IsEnabled="False" Click="BtnWykonaj_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

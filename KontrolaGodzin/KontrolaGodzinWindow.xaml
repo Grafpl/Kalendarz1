@@ -2,436 +2,1072 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Kontrola Czasu Pracy - UNICARD" 
-        Height="900" Width="1400"
+        Height="900" Width="1600"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
-        Background="#1e1e2e"
+        Background="#F5F7FA"
         FontFamily="Segoe UI"
         Loaded="Window_Loaded">
+
+    <Window.Resources>
+        <Style x:Key="ModernButton" TargetType="Button">
+            <Setter Property="Background" Value="#E8EDF3"/>
+            <Setter Property="Foreground" Value="#2D3748"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#CBD5E0"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
+            <Setter Property="Background" Value="#3182CE"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#2B6CB0"/>
+        </Style>
+
+        <Style x:Key="SuccessButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
+            <Setter Property="Background" Value="#38A169"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#2F855A"/>
+        </Style>
+
+        <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
+            <Setter Property="Background" Value="#E53E3E"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#C53030"/>
+        </Style>
+
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="#2D3748"/>
+            <Setter Property="BorderBrush" Value="#CBD5E0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="#2D3748"/>
+            <Setter Property="BorderBrush" Value="#CBD5E0"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <Style TargetType="DatePicker">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="#2D3748"/>
+            <Setter Property="BorderBrush" Value="#CBD5E0"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="#2D3748"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <Style TargetType="TabItem">
+            <Setter Property="Foreground" Value="#4A5568"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Border" Background="Transparent" 
+                                BorderThickness="0,0,0,3" BorderBrush="Transparent"
+                                Padding="{TemplateBinding Padding}" Margin="1,0">
+                            <ContentPresenter ContentSource="Header" HorizontalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Foreground" Value="#3182CE"/>
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#3182CE"/>
+                                <Setter TargetName="Border" Property="Background" Value="#EBF8FF"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#EDF2F7"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="DataGrid">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="#2D3748"/>
+            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="RowBackground" Value="White"/>
+            <Setter Property="AlternatingRowBackground" Value="#F7FAFC"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#E2E8F0"/>
+            <Setter Property="RowHeaderWidth" Value="0"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="RowHeight" Value="28"/>
+        </Style>
+
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#EDF2F7"/>
+            <Setter Property="Foreground" Value="#1A202C"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+            <Setter Property="BorderThickness" Value="0,0,1,2"/>
+        </Style>
+
+        <Style TargetType="DataGridCell">
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#BEE3F8"/>
+                    <Setter Property="Foreground" Value="#1A202C"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="DataGridRow">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#EBF8FF"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Styl kafelka Dashboard -->
+        <Style x:Key="DashboardTile" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="Margin" Value="8"/>
+            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.1" Direction="270"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- NAGŁÓWEK -->
-        <Border Grid.Row="0" Background="#11111b" Padding="25,18">
-            <Grid>
+        <Border Grid.Row="0" Background="White" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1">
+            <Grid Margin="20,12">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="⏱" FontSize="28" Foreground="#cba6f7" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                    <Border Background="#3182CE" CornerRadius="10" Padding="10" Margin="0,0,12,0">
+                        <TextBlock Text="⏱" FontSize="22" Foreground="White"/>
+                    </Border>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="KONTROLA CZASU PRACY" FontSize="20" FontWeight="Bold" Foreground="#cdd6f4"/>
-                        <TextBlock x:Name="txtZakresDat" Text="System UNICARD • Zakres: dziś" FontSize="11" Foreground="#6c7086"/>
+                        <TextBlock Text="KONTROLA CZASU PRACY" FontSize="20" FontWeight="Bold" Foreground="#1A202C"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                            <TextBlock Text="UNICARD" FontSize="11" Foreground="#3182CE" FontWeight="SemiBold"/>
+                            <TextBlock Text=" • " FontSize="11" Foreground="#A0AEC0"/>
+                            <TextBlock x:Name="txtZakresDat" Text="Zakres: dziś" FontSize="11" Foreground="#38A169" FontWeight="SemiBold"/>
+                        </StackPanel>
                     </StackPanel>
                 </StackPanel>
-                
+
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <StackPanel Margin="0,0,25,0" HorizontalAlignment="Right">
-                        <TextBlock x:Name="txtAktualnaData" Text="" FontSize="11" Foreground="#6c7086" HorizontalAlignment="Right"/>
-                        <TextBlock x:Name="txtAktualnaGodzina" Text="" FontSize="26" Foreground="#cdd6f4" HorizontalAlignment="Right"/>
+                    <!-- Nowe przyciski -->
+                    <Button Content="📊 Timeline" Style="{StaticResource ModernButton}" Margin="0,0,8,0" Click="BtnTimeline_Click"/>
+                    <Button Content="📈 Statystyki" Style="{StaticResource ModernButton}" Margin="0,0,8,0" Click="BtnStatystyki_Click"/>
+                    <Button Content="💳 Karty" Style="{StaticResource ModernButton}" Margin="0,0,8,0" Click="BtnZarzadzanieKartami_Click"/>
+                    <Button Content="🖨️ Karta RCP" Style="{StaticResource ModernButton}" Margin="0,0,8,0" Click="BtnKartaRCP_Click"/>
+                    <Button Content="⚙️ Stawki" Style="{StaticResource ModernButton}" Margin="0,0,20,0" Click="BtnUstawieniaStawek_Click"/>
+                    
+                    <StackPanel HorizontalAlignment="Right" Margin="0,0,20,0">
+                        <TextBlock x:Name="txtAktualnaData" Text="" FontSize="11" Foreground="#718096" HorizontalAlignment="Right"/>
+                        <TextBlock x:Name="txtAktualnaGodzina" Text="" FontSize="28" FontWeight="Light" Foreground="#1A202C"/>
                     </StackPanel>
-                    <Border Background="#a6e3a1" CornerRadius="15" Padding="15,8">
-                        <TextBlock x:Name="txtLiczbaObecnych" Text="0 obecnych" FontSize="13" Foreground="#1e1e2e" FontWeight="Bold"/>
+                    <Border Background="#38A169" CornerRadius="20" Padding="16,8">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="8" Height="8" Fill="White" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="txtLiczbaObecnych" Text="0 obecnych" FontSize="13" Foreground="White" FontWeight="Bold"/>
+                        </StackPanel>
                     </Border>
                 </StackPanel>
             </Grid>
         </Border>
 
         <!-- FILTRY -->
-        <Border Grid.Row="1" Background="#181825" Padding="20,12">
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="Od:" Foreground="#cdd6f4" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <DatePicker x:Name="dpOd" Width="120" SelectedDateChanged="DpOd_SelectedDateChanged"/>
-                <TextBlock Text="Do:" Foreground="#cdd6f4" VerticalAlignment="Center" Margin="15,0,8,0"/>
-                <DatePicker x:Name="dpDo" Width="120" SelectedDateChanged="DpDo_SelectedDateChanged"/>
-                
-                <CheckBox x:Name="chkTylkoDzisiaj" Content="Tylko dziś" IsChecked="True" 
-                          Foreground="#cdd6f4" VerticalAlignment="Center" Margin="20,0,0,0"
-                          Checked="ChkTylkoDzisiaj_Changed" Unchecked="ChkTylkoDzisiaj_Changed"/>
-                
-                <Button Content="Wczoraj" Padding="12,6" Margin="15,0,5,0" Click="BtnWczoraj_Click"/>
-                <Button Content="Tydzień" Padding="12,6" Margin="0,0,5,0" Click="BtnTydzien_Click"/>
-                <Button Content="Miesiąc" Padding="12,6" Click="BtnMiesiac_Click"/>
-                
-                <TextBlock Text="Dział:" Foreground="#cdd6f4" VerticalAlignment="Center" Margin="20,0,8,0"/>
-                <ComboBox x:Name="cmbGrupa" Width="200" SelectionChanged="CmbGrupa_SelectionChanged"/>
-                
-                <TextBlock Text="Szukaj:" Foreground="#cdd6f4" VerticalAlignment="Center" Margin="20,0,8,0"/>
-                <TextBox x:Name="txtSzukaj" Width="150" TextChanged="TxtSzukaj_TextChanged"/>
-                <Button Content="✕" Padding="8,6" Margin="5,0,0,0" Click="BtnWyczyscSzukaj_Click"/>
-                
-                <Button x:Name="btnOdswiez" Content="⟳ Odśwież" Padding="15,6" Margin="20,0,0,0" 
-                        Background="#89b4fa" Foreground="#1e1e2e" FontWeight="Bold" Click="BtnOdswiez_Click"/>
-                <Button x:Name="btnExport" Content="📥 Export" Padding="15,6" Margin="10,0,0,0"
-                        Background="#a6e3a1" Foreground="#1e1e2e" FontWeight="Bold" Click="BtnExport_Click"/>
-            </StackPanel>
+        <Border Grid.Row="1" Background="#FAFBFC" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="20,12">
+            <Grid>
+                <StackPanel Orientation="Horizontal">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,15,0">
+                        <TextBlock Text="Od:" FontSize="11" Foreground="#4A5568" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <DatePicker x:Name="dpOd" Width="120" SelectedDateChanged="DpOd_SelectedDateChanged"/>
+                        <TextBlock Text="Do:" FontSize="11" Foreground="#4A5568" FontWeight="SemiBold" VerticalAlignment="Center" Margin="12,0,6,0"/>
+                        <DatePicker x:Name="dpDo" Width="120" SelectedDateChanged="DpDo_SelectedDateChanged"/>
+                    </StackPanel>
+
+                    <Border Background="#E2E8F0" Width="1" Margin="8,0"/>
+                    <StackPanel Orientation="Horizontal" Margin="15,0">
+                        <CheckBox x:Name="chkTylkoDzisiaj" Content="Dziś" IsChecked="True" VerticalAlignment="Center" Margin="0,0,10,0"
+                                  Checked="ChkTylkoDzisiaj_Changed" Unchecked="ChkTylkoDzisiaj_Changed"/>
+                        <Button Content="Wczoraj" Style="{StaticResource ModernButton}" Margin="0,0,5,0" Click="BtnWczoraj_Click"/>
+                        <Button Content="Tydzień" Style="{StaticResource ModernButton}" Margin="0,0,5,0" Click="BtnTydzien_Click"/>
+                        <Button Content="Miesiąc" Style="{StaticResource ModernButton}" Click="BtnMiesiac_Click"/>
+                    </StackPanel>
+
+                    <Border Background="#E2E8F0" Width="1" Margin="8,0"/>
+                    <StackPanel Orientation="Horizontal" Margin="15,0">
+                        <TextBlock Text="Dział:" FontSize="11" Foreground="#4A5568" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <ComboBox x:Name="cmbGrupa" Width="180" SelectionChanged="CmbGrupa_SelectionChanged"/>
+                    </StackPanel>
+
+                    <Border Background="#E2E8F0" Width="1" Margin="8,0"/>
+                    <StackPanel Orientation="Horizontal" Margin="15,0">
+                        <TextBlock Text="🔍" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <TextBox x:Name="txtSzukaj" Width="160" TextChanged="TxtSzukaj_TextChanged"/>
+                        <Button Content="✕" Style="{StaticResource ModernButton}" Padding="8,6" Margin="5,0,0,0" Click="BtnWyczyscSzukaj_Click"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <CheckBox x:Name="chkAutoRefresh" Content="Auto 30s" VerticalAlignment="Center" Margin="0,0,15,0" 
+                              Checked="ChkAutoRefresh_Changed" Unchecked="ChkAutoRefresh_Changed"/>
+                    <Button x:Name="btnOdswiez" Content="⟳ Odśwież" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" Click="BtnOdswiez_Click"/>
+                    <Button x:Name="btnExport" Content="📥 Export" Style="{StaticResource SuccessButton}" Click="BtnExport_Click"/>
+                </StackPanel>
+            </Grid>
         </Border>
 
-        <!-- ZAKŁADKI -->
-        <TabControl x:Name="tabControl" Grid.Row="2" Margin="15" Background="#1e1e2e" BorderThickness="0">
+        <!-- ZAWARTOŚĆ -->
+        <TabControl x:Name="tabControl" Grid.Row="2" Margin="15,10,15,5" Background="Transparent" BorderThickness="0">
             
-            <!-- REJESTRACJE -->
+            <!-- ==================== DASHBOARD ==================== -->
+            <TabItem Header="🏠 Dashboard">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <Grid Margin="5">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Główne statystyki -->
+                        <UniformGrid Grid.Row="0" Columns="5" Margin="0,5,0,10">
+                            <Border Style="{StaticResource DashboardTile}">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="👥 OBECNI TERAZ" FontSize="10" Foreground="#718096" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="txtDashObecni" Text="0" FontSize="48" FontWeight="Bold" Foreground="#38A169" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="txtDashObecniZmiana" Text="▲ +5 vs wczoraj" FontSize="10" Foreground="#38A169" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource DashboardTile}">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🚪 WEJŚCIA DZIŚ" FontSize="10" Foreground="#718096" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="txtDashWejscia" Text="0" FontSize="48" FontWeight="Bold" Foreground="#3182CE" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="txtDashWejsciaGodzina" Text="Ostatnie: --:--" FontSize="10" Foreground="#718096" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource DashboardTile}">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🚶 WYJŚCIA DZIŚ" FontSize="10" Foreground="#718096" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="txtDashWyjscia" Text="0" FontSize="48" FontWeight="Bold" Foreground="#E53E3E" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="txtDashWyjsciaGodzina" Text="Ostatnie: --:--" FontSize="10" Foreground="#718096" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource DashboardTile}">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="⏰ SUMA GODZIN" FontSize="10" Foreground="#718096" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="txtDashGodziny" Text="0h" FontSize="48" FontWeight="Bold" Foreground="#805AD5" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="txtDashGodzinySrednia" Text="Śr./osobę: 0h" FontSize="10" Foreground="#718096" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource DashboardTile}">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="⚠️ ALERTY" FontSize="10" Foreground="#718096" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="txtDashAlerty" Text="0" FontSize="48" FontWeight="Bold" Foreground="#DD6B20" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="txtDashAlertyTyp" Text="Brak problemów" FontSize="10" Foreground="#38A169" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+
+                        <!-- Obecność wg lokalizacji -->
+                        <TextBlock Grid.Row="1" Text="📍 OBECNOŚĆ WG LOKALIZACJI" FontSize="12" FontWeight="Bold" Foreground="#2D3748" Margin="10,10,0,5"/>
+                        <UniformGrid Grid.Row="2" Columns="6" Margin="0,0,0,10">
+                            <Border Style="{StaticResource DashboardTile}" Background="#F0FFF4" BorderBrush="#C6F6D5">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🏭 PRODUKCJA" FontSize="10" Foreground="#276749" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="txtDashProdukcja" Text="0" FontSize="36" FontWeight="Bold" Foreground="#276749" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource DashboardTile}" Background="#EBF8FF" BorderBrush="#BEE3F8">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🧹 CZYSTA" FontSize="10" Foreground="#2B6CB0" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="txtDashCzysta" Text="0" FontSize="36" FontWeight="Bold" Foreground="#2B6CB0" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource DashboardTile}" Background="#FFFAF0" BorderBrush="#FEEBC8">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🧼 BRUDNA" FontSize="10" Foreground="#C05621" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="txtDashBrudna" Text="0" FontSize="36" FontWeight="Bold" Foreground="#C05621" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource DashboardTile}" Background="#FAF5FF" BorderBrush="#E9D8FD">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🚿 MYJKA" FontSize="10" Foreground="#6B46C1" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="txtDashMyjka" Text="0" FontSize="36" FontWeight="Bold" Foreground="#6B46C1" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource DashboardTile}" Background="#FFF5F5" BorderBrush="#FED7D7">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🔧 MECHANICY" FontSize="10" Foreground="#C53030" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="txtDashMechanicy" Text="0" FontSize="36" FontWeight="Bold" Foreground="#C53030" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource DashboardTile}" Background="#E6FFFA" BorderBrush="#B2F5EA">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🏢 BIURO" FontSize="10" Foreground="#234E52" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="txtDashBiuro" Text="0" FontSize="36" FontWeight="Bold" Foreground="#234E52" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+
+                        <!-- Ostatnie rejestracje -->
+                        <Grid Grid.Row="3">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <Border Grid.Column="0" Style="{StaticResource DashboardTile}" Margin="5">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="🚪 OSTATNIE WEJŚCIA" FontSize="11" FontWeight="Bold" Foreground="#276749" Margin="0,0,0,10"/>
+                                    <DataGrid x:Name="gridDashWejscia" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True" MaxHeight="200">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="GODZINA" Binding="{Binding Godzina}" Width="70"/>
+                                            <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding Pracownik}" Width="*"/>
+                                            <DataGridTextColumn Header="DZIAŁ" Binding="{Binding Grupa}" Width="120"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Grid>
+                            </Border>
+                            
+                            <Border Grid.Column="1" Style="{StaticResource DashboardTile}" Margin="5">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="🚶 OSTATNIE WYJŚCIA" FontSize="11" FontWeight="Bold" Foreground="#C53030" Margin="0,0,0,10"/>
+                                    <DataGrid x:Name="gridDashWyjscia" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True" MaxHeight="200">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="GODZINA" Binding="{Binding Godzina}" Width="70"/>
+                                            <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding Pracownik}" Width="*"/>
+                                            <DataGridTextColumn Header="DZIAŁ" Binding="{Binding Grupa}" Width="120"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ==================== REJESTRACJE ==================== -->
             <TabItem Header="📋 Rejestracje">
-                <DataGrid x:Name="gridRejestracje" Margin="10" AutoGenerateColumns="False" 
-                          IsReadOnly="True" CanUserAddRows="False" Background="#1e1e2e"
-                          RowBackground="#1e1e2e" AlternatingRowBackground="#181825"
-                          GridLinesVisibility="None" BorderThickness="0"
-                          MouseDoubleClick="GridRejestracje_MouseDoubleClick">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Data" Binding="{Binding DataCzas, StringFormat=dd.MM.yyyy}" Width="90"/>
-                        <DataGridTextColumn Header="Godzina" Binding="{Binding Godzina}" Width="80"/>
-                        <DataGridTextColumn Header="Typ" Binding="{Binding Typ}" Width="80"/>
-                        <DataGridTextColumn Header="Pracownik" Binding="{Binding Pracownik}" Width="200"/>
-                        <DataGridTextColumn Header="Dział" Binding="{Binding Grupa}" Width="180"/>
-                        <DataGridTextColumn Header="Punkt dostępu" Binding="{Binding PunktDostepu}" Width="180"/>
-                        <DataGridTextColumn Header="Rodzaj" Binding="{Binding TypPunktu}" Width="*"/>
-                    </DataGrid.Columns>
-                </DataGrid>
+                <Border Background="White" CornerRadius="8" Margin="0,10,0,0" BorderBrush="#E2E8F0" BorderThickness="1">
+                    <DataGrid x:Name="gridRejestracje" Margin="1" AutoGenerateColumns="False" IsReadOnly="True"
+                              MouseDoubleClick="GridRejestracje_MouseDoubleClick">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="DATA" Binding="{Binding DataCzas, StringFormat=dd.MM.yyyy}" Width="90"/>
+                            <DataGridTextColumn Header="GODZINA" Binding="{Binding DataCzas, StringFormat=HH:mm:ss}" Width="80"/>
+                            <DataGridTextColumn Header="TYP" Binding="{Binding Typ}" Width="80"/>
+                            <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding Pracownik}" Width="200"/>
+                            <DataGridTextColumn Header="DZIAŁ" Binding="{Binding Grupa}" Width="180"/>
+                            <DataGridTextColumn Header="PUNKT DOSTĘPU" Binding="{Binding PunktDostepu}" Width="150"/>
+                            <DataGridTextColumn Header="URZĄDZENIE" Binding="{Binding Urzadzenie}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
             </TabItem>
 
-            <!-- GODZINY PRACY -->
+            <!-- ==================== GODZINY PRACY ==================== -->
             <TabItem Header="⏰ Godziny Pracy">
-                <DataGrid x:Name="gridGodzinyPracy" Margin="10" AutoGenerateColumns="False" 
-                          IsReadOnly="True" CanUserAddRows="False" Background="#1e1e2e"
-                          RowBackground="#1e1e2e" AlternatingRowBackground="#181825"
-                          GridLinesVisibility="None" BorderThickness="0"
-                          MouseDoubleClick="GridGodzinyPracy_MouseDoubleClick">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat=dd.MM.yyyy}" Width="90"/>
-                        <DataGridTextColumn Header="Pracownik" Binding="{Binding Pracownik}" Width="200"/>
-                        <DataGridTextColumn Header="Dział" Binding="{Binding Grupa}" Width="150"/>
-                        <DataGridTextColumn Header="Wejście" Binding="{Binding PierwszeWejscie}" Width="80"/>
-                        <DataGridTextColumn Header="Wyjście" Binding="{Binding OstatnieWyjscie}" Width="80"/>
-                        <DataGridTextColumn Header="Na miejscu" Binding="{Binding CzasPracy}" Width="90"/>
-                        <DataGridTextColumn Header="Przerwy" Binding="{Binding LiczbaPrzerw}" Width="60"/>
-                        <DataGridTextColumn Header="Czas przerw" Binding="{Binding CzasPrzerw}" Width="90"/>
-                        <DataGridTextColumn Header="Efektywnie" Binding="{Binding CzasEfektywny}" Width="90"/>
-                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*"/>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </TabItem>
-
-            <!-- OBECNI -->
-            <TabItem Header="🟢 Obecni">
-                <DataGrid x:Name="gridObecni" Margin="10" AutoGenerateColumns="False" 
-                          IsReadOnly="True" CanUserAddRows="False" Background="#1e1e2e"
-                          RowBackground="#1e1e2e" AlternatingRowBackground="#181825"
-                          GridLinesVisibility="None" BorderThickness="0">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Pracownik" Binding="{Binding Pracownik}" Width="220"/>
-                        <DataGridTextColumn Header="Dział" Binding="{Binding Grupa}" Width="180"/>
-                        <DataGridTextColumn Header="Wejście" Binding="{Binding Godzina}" Width="100"/>
-                        <DataGridTextColumn Header="Czas na terenie" Binding="{Binding CzasNaTerenie}" Width="130"/>
-                        <DataGridTextColumn Header="Ostatni punkt" Binding="{Binding PunktDostepu}" Width="*"/>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </TabItem>
-
-            <!-- PODSUMOWANIE -->
-            <TabItem Header="📊 Podsumowanie">
-                <DataGrid x:Name="gridPodsumowanie" Margin="10" AutoGenerateColumns="False" 
-                          IsReadOnly="True" CanUserAddRows="False" Background="#1e1e2e"
-                          RowBackground="#1e1e2e" AlternatingRowBackground="#181825"
-                          GridLinesVisibility="None" BorderThickness="0">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Dział" Binding="{Binding Grupa}" Width="200"/>
-                        <DataGridTextColumn Header="Pracowników" Binding="{Binding LiczbaPracownikow}" Width="100"/>
-                        <DataGridTextColumn Header="Suma godzin" Binding="{Binding SumaGodzin, StringFormat=N1}" Width="100"/>
-                        <DataGridTextColumn Header="Średnia/os." Binding="{Binding SredniaGodzin, StringFormat=N2}" Width="100"/>
-                        <DataGridTextColumn Header="Przerwy (h)" Binding="{Binding SumaPrzerw, StringFormat=N1}" Width="100"/>
-                        <DataGridTextColumn Header="Obecnie" Binding="{Binding Obecni}" Width="80"/>
-                        <DataGridTextColumn Header="Braki wyjść" Binding="{Binding BrakiWyjsc}" Width="90"/>
-                        <DataGridTextColumn Header="Problemy" Binding="{Binding Przekroczenia}" Width="*"/>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </TabItem>
-
-            <!-- ALERTY -->
-            <TabItem Header="⚠️ Alerty">
-                <DataGrid x:Name="gridAlerty" Margin="10" AutoGenerateColumns="False" 
-                          IsReadOnly="True" CanUserAddRows="False" Background="#1e1e2e"
-                          RowBackground="#1e1e2e" AlternatingRowBackground="#181825"
-                          GridLinesVisibility="None" BorderThickness="0">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Typ alertu" Binding="{Binding Typ}" Width="150"/>
-                        <DataGridTextColumn Header="Priorytet" Binding="{Binding Priorytet}" Width="100"/>
-                        <DataGridTextColumn Header="Pracownik" Binding="{Binding Pracownik}" Width="200"/>
-                        <DataGridTextColumn Header="Dział" Binding="{Binding Grupa}" Width="150"/>
-                        <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat=dd.MM.yyyy}" Width="100"/>
-                        <DataGridTextColumn Header="Opis" Binding="{Binding Opis}" Width="*"/>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </TabItem>
-
-            <!-- RANKING -->
-            <TabItem Header="🏆 Ranking">
-                <DataGrid x:Name="gridRanking" Margin="10" AutoGenerateColumns="False" 
-                          IsReadOnly="True" CanUserAddRows="False" Background="#1e1e2e"
-                          RowBackground="#1e1e2e" AlternatingRowBackground="#181825"
-                          GridLinesVisibility="None" BorderThickness="0"
-                          MouseDoubleClick="GridRanking_MouseDoubleClick">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="#" Binding="{Binding Pozycja}" Width="50"/>
-                        <DataGridTextColumn Header="Pracownik" Binding="{Binding Pracownik}" Width="200"/>
-                        <DataGridTextColumn Header="Dział" Binding="{Binding Grupa}" Width="150"/>
-                        <DataGridTextColumn Header="Dni pracy" Binding="{Binding DniPracy}" Width="80"/>
-                        <DataGridTextColumn Header="Suma godz." Binding="{Binding SumaGodzin, StringFormat=N1}" Width="100"/>
-                        <DataGridTextColumn Header="Śr./dzień" Binding="{Binding SredniaGodzin, StringFormat=N2}" Width="90"/>
-                        <DataGridTextColumn Header="Przerwy" Binding="{Binding SumaPrzerw, StringFormat=N1}" Width="80"/>
-                        <DataGridTextColumn Header="Punktualność" Binding="{Binding Punktualnosc}" Width="100"/>
-                        <DataGridTextColumn Header="Ocena" Binding="{Binding Ocena}" Width="*"/>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </TabItem>
-
-            <!-- RAPORT MIESIĘCZNY -->
-            <TabItem Header="📅 Raport Miesięczny">
-                <Grid Margin="10">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
-                        <TextBlock Text="Miesiąc:" Foreground="#cdd6f4" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <ComboBox x:Name="cmbMiesiac" Width="130"/>
-                        <TextBlock Text="Rok:" Foreground="#cdd6f4" VerticalAlignment="Center" Margin="15,0,8,0"/>
-                        <ComboBox x:Name="cmbRok" Width="80"/>
-                        <Button Content="📊 Generuj raport" Padding="15,6" Margin="20,0,0,0" Click="BtnGenerujRaportMiesieczny_Click"/>
-                        <Button Content="🖨️ Drukuj" Padding="15,6" Margin="10,0,0,0" Click="BtnDrukujRaport_Click"/>
-                    </StackPanel>
-                    
-                    <DataGrid x:Name="gridRaportMiesieczny" Grid.Row="1" AutoGenerateColumns="False" 
-                              IsReadOnly="True" CanUserAddRows="False" Background="#1e1e2e"
-                              RowBackground="#1e1e2e" AlternatingRowBackground="#181825"
-                              GridLinesVisibility="None" BorderThickness="0"
-                              MouseDoubleClick="GridRaportMiesieczny_MouseDoubleClick">
+                <Border Background="White" CornerRadius="8" Margin="0,10,0,0" BorderBrush="#E2E8F0" BorderThickness="1">
+                    <DataGrid x:Name="gridGodzinyPracy" Margin="1" AutoGenerateColumns="False" IsReadOnly="True"
+                              MouseDoubleClick="GridGodzinyPracy_MouseDoubleClick">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Pracownik" Binding="{Binding Pracownik}" Width="200"/>
-                            <DataGridTextColumn Header="Dział" Binding="{Binding Grupa}" Width="150"/>
-                            <DataGridTextColumn Header="Dni pracy" Binding="{Binding DniPracy}" Width="80"/>
-                            <DataGridTextColumn Header="Godz. efekt." Binding="{Binding GodzinyEfektywne, StringFormat=N1}" Width="100"/>
-                            <DataGridTextColumn Header="Godz. przerw" Binding="{Binding GodzinyPrzerw, StringFormat=N1}" Width="100"/>
-                            <DataGridTextColumn Header="Śr./dzień" Binding="{Binding SredniaDzien, StringFormat=N2}" Width="90"/>
-                            <DataGridTextColumn Header="Najwcześniej" Binding="{Binding NajwczesniejszeWejscie}" Width="100"/>
-                            <DataGridTextColumn Header="Najpóźniej" Binding="{Binding NajpozniejWyjscie}" Width="100"/>
-                            <DataGridTextColumn Header="Braki" Binding="{Binding Braki}" Width="60"/>
-                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*"/>
+                            <DataGridTextColumn Header="DATA" Binding="{Binding Data, StringFormat=dd.MM.yyyy}" Width="90"/>
+                            <DataGridTextColumn Header="DZIEŃ" Binding="{Binding DzienTygodnia}" Width="60"/>
+                            <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding Pracownik}" Width="200"/>
+                            <DataGridTextColumn Header="DZIAŁ" Binding="{Binding Grupa}" Width="150"/>
+                            <DataGridTextColumn Header="WEJŚCIE" Binding="{Binding PierwszeWejscie}" Width="70"/>
+                            <DataGridTextColumn Header="WYJŚCIE" Binding="{Binding OstatnieWyjscie}" Width="70"/>
+                            <DataGridTextColumn Header="CZAS PRACY" Binding="{Binding CzasPracy}" Width="90"/>
+                            <DataGridTextColumn Header="PRZERWY" Binding="{Binding Przerwy}" Width="70"/>
+                            <DataGridTextColumn Header="EFEKTYWNY" Binding="{Binding CzasEfektywny}" Width="90"/>
+                            <DataGridTextColumn Header="STATUS" Binding="{Binding Status}" Width="*"/>
                         </DataGrid.Columns>
                     </DataGrid>
-                </Grid>
+                </Border>
             </TabItem>
 
-            <!-- PORÓWNANIE AGENCJI -->
-            <TabItem Header="🔄 Porównanie">
-                <Grid Margin="10">
+            <!-- ==================== AGENCJE ==================== -->
+            <TabItem Header="🏢 Agencje">
+                <Grid Margin="0,10,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
-                        <Button Content="🔄 Odśwież porównanie" Padding="15,6" Click="BtnOdswiezPorownanie_Click"/>
-                        <Button Content="🖨️ Drukuj" Padding="15,6" Margin="10,0,0,0" Click="BtnDrukujPorownanie_Click"/>
-                    </StackPanel>
-                    
-                    <DataGrid x:Name="gridPorownanie" Grid.Row="1" AutoGenerateColumns="False" 
-                              IsReadOnly="True" CanUserAddRows="False" Background="#1e1e2e"
-                              RowBackground="#1e1e2e" AlternatingRowBackground="#181825"
-                              GridLinesVisibility="None" BorderThickness="0">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="#" Binding="{Binding Pozycja}" Width="50"/>
-                            <DataGridTextColumn Header="Agencja" Binding="{Binding Grupa}" Width="200"/>
-                            <DataGridTextColumn Header="Pracowników" Binding="{Binding LiczbaPracownikow}" Width="100"/>
-                            <DataGridTextColumn Header="Suma godz." Binding="{Binding SumaGodzin, StringFormat=N1}" Width="100"/>
-                            <DataGridTextColumn Header="Śr./osoba" Binding="{Binding SredniaNaOsobe, StringFormat=N2}" Width="90"/>
-                            <DataGridTextColumn Header="Frekwencja" Binding="{Binding Frekwencja}" Width="90"/>
-                            <DataGridTextColumn Header="Punktualność" Binding="{Binding Punktualnosc}" Width="100"/>
-                            <DataGridTextColumn Header="Przerwy/os." Binding="{Binding SredniePrzerwy, StringFormat=N2}" Width="90"/>
-                            <DataGridTextColumn Header="Problemy" Binding="{Binding Problemy}" Width="80"/>
-                            <DataGridTextColumn Header="Ocena" Binding="{Binding Ocena}" Width="*"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </Grid>
-            </TabItem>
 
-            <!-- NADGODZINY -->
-            <TabItem Header="⏱️ Nadgodziny">
-                <Grid Margin="10">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    
-                    <Border Grid.Row="0" Background="#313244" Padding="15" Margin="0,0,0,10" CornerRadius="8">
-                        <TextBlock Text="📋 KODEKS PRACY: Max 150h nadliczbowych rocznie • Max 8h nadliczbowych tygodniowo • Dobowy czas pracy max 13h" 
-                                   Foreground="#f5c2e7" FontSize="12"/>
+                    <!-- Filtr agencji -->
+                    <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="15" Margin="0,0,0,10" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Agencja:" FontSize="12" Foreground="#4A5568" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <ComboBox x:Name="cmbAgencja" Width="250" SelectionChanged="CmbAgencja_SelectionChanged"/>
+                            <TextBlock Text="Miesiąc:" FontSize="12" Foreground="#4A5568" FontWeight="SemiBold" VerticalAlignment="Center" Margin="25,0,10,0"/>
+                            <ComboBox x:Name="cmbAgencjaMiesiac" Width="120"/>
+                            <TextBlock Text="Rok:" FontSize="12" Foreground="#4A5568" FontWeight="SemiBold" VerticalAlignment="Center" Margin="15,0,10,0"/>
+                            <ComboBox x:Name="cmbAgencjaRok" Width="80"/>
+                            <Button Content="📊 Generuj raport" Style="{StaticResource PrimaryButton}" Margin="20,0,0,0" Click="BtnGenerujRaportAgencji_Click"/>
+                            <Button Content="📥 Export Excel" Style="{StaticResource SuccessButton}" Margin="10,0,0,0" Click="BtnExportAgencja_Click"/>
+                        </StackPanel>
                     </Border>
-                    
-                    <DataGrid x:Name="gridNadgodziny" Grid.Row="1" AutoGenerateColumns="False" 
-                              IsReadOnly="True" CanUserAddRows="False" Background="#1e1e2e"
-                              RowBackground="#1e1e2e" AlternatingRowBackground="#181825"
-                              GridLinesVisibility="None" BorderThickness="0">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Pracownik" Binding="{Binding Pracownik}" Width="200"/>
-                            <DataGridTextColumn Header="Dział" Binding="{Binding Grupa}" Width="150"/>
-                            <DataGridTextColumn Header="Dziś >8h" Binding="{Binding NadgodzinyDzien, StringFormat=N1}" Width="90"/>
-                            <DataGridTextColumn Header="Tydzień >40h" Binding="{Binding NadgodzinyTydzien, StringFormat=N1}" Width="110"/>
-                            <DataGridTextColumn Header="Miesiąc" Binding="{Binding NadgodzinyMiesiac, StringFormat=N1}" Width="90"/>
-                            <DataGridTextColumn Header="Rok (limit 150h)" Binding="{Binding NadgodzinyRok, StringFormat=N1}" Width="120"/>
-                            <DataGridTextColumn Header="% limitu" Binding="{Binding ProcentLimitu, StringFormat=N0}" Width="80"/>
-                            <DataGridTextColumn Header="Status" Binding="{Binding StatusLimitu}" Width="*"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </Grid>
-            </TabItem>
 
-            <!-- KARTA EWIDENCJI -->
-            <TabItem Header="📄 Karta Ewidencji">
-                <Grid Margin="10">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
-                        <TextBlock Text="Pracownik:" Foreground="#cdd6f4" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <ComboBox x:Name="cmbPracownikEwidencja" Width="280" SelectionChanged="CmbPracownikEwidencja_SelectionChanged"/>
-                        <TextBlock Text="Miesiąc:" Foreground="#cdd6f4" VerticalAlignment="Center" Margin="15,0,8,0"/>
-                        <ComboBox x:Name="cmbMiesiacEwidencja" Width="120"/>
-                        <TextBlock Text="Rok:" Foreground="#cdd6f4" VerticalAlignment="Center" Margin="15,0,8,0"/>
-                        <ComboBox x:Name="cmbRokEwidencja" Width="80"/>
-                        <Button Content="📄 Generuj kartę" Padding="15,6" Margin="20,0,0,0" Click="BtnGenerujKarteEwidencji_Click"/>
-                        <Button Content="🖨️ Drukuj" Padding="15,6" Margin="10,0,0,0" Click="BtnDrukujKarteEwidencji_Click"/>
-                    </StackPanel>
-                    
-                    <DataGrid x:Name="gridKartaEwidencji" Grid.Row="1" AutoGenerateColumns="False" 
-                              IsReadOnly="True" CanUserAddRows="False" Background="#1e1e2e"
-                              RowBackground="#1e1e2e" AlternatingRowBackground="#181825"
-                              GridLinesVisibility="None" BorderThickness="0">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat=dd.MM}" Width="70"/>
-                            <DataGridTextColumn Header="Dz." Binding="{Binding DzienTygodnia}" Width="45"/>
-                            <DataGridTextColumn Header="Wejście" Binding="{Binding Wejscie}" Width="80"/>
-                            <DataGridTextColumn Header="Wyjście" Binding="{Binding Wyjscie}" Width="80"/>
-                            <DataGridTextColumn Header="Normalne" Binding="{Binding GodzinyNormalne, StringFormat=N1}" Width="90"/>
-                            <DataGridTextColumn Header="Nadgodziny" Binding="{Binding Nadgodziny, StringFormat=N1}" Width="90"/>
-                            <DataGridTextColumn Header="Nocne" Binding="{Binding GodzinyNocne, StringFormat=N1}" Width="70"/>
-                            <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="*"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                    
-                    <Border Grid.Row="2" Background="#313244" Padding="20" Margin="0,10,0,0" CornerRadius="8">
+                    <!-- Podsumowanie agencji -->
+                    <Border Grid.Row="1" Background="#EBF8FF" CornerRadius="8" Padding="20" Margin="0,0,0,10" BorderBrush="#BEE3F8" BorderThickness="1">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <StackPanel Margin="0,0,50,0">
-                                <TextBlock Text="Dni pracy" Foreground="#89b4fa" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="txtEwidencjaDni" Text="0" FontSize="28" Foreground="#cdd6f4" HorizontalAlignment="Center"/>
+                            <StackPanel Margin="0,0,50,0" HorizontalAlignment="Center">
+                                <TextBlock Text="PRACOWNIKÓW" FontSize="10" Foreground="#2B6CB0" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="txtAgencjaPracownikow" Text="0" FontSize="32" FontWeight="Bold" Foreground="#2C5282" HorizontalAlignment="Center"/>
                             </StackPanel>
-                            <StackPanel Margin="0,0,50,0">
-                                <TextBlock Text="Godziny normalne" Foreground="#a6e3a1" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="txtEwidencjaNormalne" Text="0h" FontSize="28" Foreground="#a6e3a1" HorizontalAlignment="Center"/>
+                            <StackPanel Margin="0,0,50,0" HorizontalAlignment="Center">
+                                <TextBlock Text="DNI ROBOCZYCH" FontSize="10" Foreground="#2B6CB0" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="txtAgencjaDni" Text="0" FontSize="32" FontWeight="Bold" Foreground="#2C5282" HorizontalAlignment="Center"/>
                             </StackPanel>
-                            <StackPanel Margin="0,0,50,0">
-                                <TextBlock Text="Nadgodziny" Foreground="#f9e2af" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="txtEwidencjaNadgodziny" Text="0h" FontSize="28" Foreground="#f9e2af" HorizontalAlignment="Center"/>
+                            <StackPanel Margin="0,0,50,0" HorizontalAlignment="Center">
+                                <TextBlock Text="SUMA GODZIN" FontSize="10" Foreground="#276749" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="txtAgencjaGodziny" Text="0h" FontSize="32" FontWeight="Bold" Foreground="#276749" HorizontalAlignment="Center"/>
                             </StackPanel>
-                            <StackPanel>
-                                <TextBlock Text="Godziny nocne" Foreground="#cba6f7" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="txtEwidencjaNocne" Text="0h" FontSize="28" Foreground="#cba6f7" HorizontalAlignment="Center"/>
+                            <StackPanel Margin="0,0,50,0" HorizontalAlignment="Center">
+                                <TextBlock Text="NADGODZINY" FontSize="10" Foreground="#C05621" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="txtAgencjaNadgodziny" Text="0h" FontSize="32" FontWeight="Bold" Foreground="#C05621" HorizontalAlignment="Center"/>
                             </StackPanel>
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="DO WYPŁATY" FontSize="10" Foreground="#6B46C1" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="txtAgencjaDoWyplaty" Text="0 zł" FontSize="32" FontWeight="Bold" Foreground="#6B46C1" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Tabela pracowników agencji -->
+                    <Border Grid.Row="2" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <DataGrid x:Name="gridAgencje" Margin="1" AutoGenerateColumns="False" IsReadOnly="True"
+                                  MouseDoubleClick="GridAgencje_MouseDoubleClick">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding Pracownik}" Width="200"/>
+                                <DataGridTextColumn Header="DNI PRACY" Binding="{Binding DniPracy}" Width="90"/>
+                                <DataGridTextColumn Header="NORMALNE" Binding="{Binding GodzinyNormalne, StringFormat=N1}" Width="100"/>
+                                <DataGridTextColumn Header="NADGODZINY" Binding="{Binding Nadgodziny, StringFormat=N1}" Width="100"/>
+                                <DataGridTextColumn Header="NOCNE" Binding="{Binding GodzinyNocne, StringFormat=N1}" Width="80"/>
+                                <DataGridTextColumn Header="SUMA" Binding="{Binding SumaGodzin, StringFormat=N1}" Width="80"/>
+                                <DataGridTextColumn Header="ŚR./DZIEŃ" Binding="{Binding SredniaDziennie, StringFormat=N1}" Width="90"/>
+                                <DataGridTextColumn Header="SPÓŹNIENIA" Binding="{Binding Spoznienia}" Width="90"/>
+                                <DataGridTextColumn Header="STATUS" Binding="{Binding Status}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+
+                    <!-- Stopka z listą agencji -->
+                    <Border Grid.Row="3" Background="White" CornerRadius="8" Padding="15" Margin="0,10,0,0" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="Rozpoznane agencje:" FontSize="11" Foreground="#718096" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                            <ItemsControl x:Name="icAgencje">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#EDF2F7" CornerRadius="4" Padding="8,4" Margin="3,0">
+                                            <TextBlock Text="{Binding}" FontSize="11" Foreground="#4A5568"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </StackPanel>
                     </Border>
                 </Grid>
             </TabItem>
 
-            <!-- PUNKTUALNOŚĆ -->
-            <TabItem Header="⏰ Punktualność">
-                <Grid Margin="10">
+            <!-- ==================== HISTORIA PRACOWNIKA ==================== -->
+            <TabItem Header="👤 Historia">
+                <Grid Margin="0,10,0,0">
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    
-                    <Border Grid.Row="0" Background="#313244" Padding="15" Margin="0,0,0,10" CornerRadius="8">
-                        <TextBlock Text="📋 Spóźnienie = wejście po 06:00 • Wcześniejsze wyjście = przed końcem zmiany • Ocena: ⭐⭐⭐ ponad 95% | ⭐⭐ ponad 85% | ⭐ ponad 70%" 
-                                   Foreground="#74c7ec" FontSize="12"/>
+
+                    <!-- Wybór pracownika -->
+                    <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="15" Margin="0,0,0,10" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Pracownik:" FontSize="12" Foreground="#4A5568" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <ComboBox x:Name="cmbHistoriaPracownik" Width="300" SelectionChanged="CmbHistoriaPracownik_SelectionChanged"/>
+                            <TextBlock Text="Okres:" FontSize="12" Foreground="#4A5568" FontWeight="SemiBold" VerticalAlignment="Center" Margin="25,0,10,0"/>
+                            <ComboBox x:Name="cmbHistoriaOkres" Width="150" SelectedIndex="0" SelectionChanged="CmbHistoriaOkres_SelectionChanged">
+                                <ComboBoxItem Content="Ostatnie 7 dni"/>
+                                <ComboBoxItem Content="Ostatnie 30 dni"/>
+                                <ComboBoxItem Content="Ten miesiąc"/>
+                                <ComboBoxItem Content="Poprzedni miesiąc"/>
+                                <ComboBoxItem Content="Ostatnie 3 miesiące"/>
+                                <ComboBoxItem Content="Cały rok"/>
+                            </ComboBox>
+                            <Button Content="📊 Pokaż historię" Style="{StaticResource PrimaryButton}" Margin="20,0,0,0" Click="BtnPokazHistorie_Click"/>
+                        </StackPanel>
                     </Border>
-                    
-                    <DataGrid x:Name="gridPunktualnosc" Grid.Row="1" AutoGenerateColumns="False" 
-                              IsReadOnly="True" CanUserAddRows="False" Background="#1e1e2e"
-                              RowBackground="#1e1e2e" AlternatingRowBackground="#181825"
-                              GridLinesVisibility="None" BorderThickness="0"
-                              MouseDoubleClick="GridPunktualnosc_MouseDoubleClick">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Pracownik" Binding="{Binding Pracownik}" Width="200"/>
-                            <DataGridTextColumn Header="Dział" Binding="{Binding Grupa}" Width="150"/>
-                            <DataGridTextColumn Header="Dni pracy" Binding="{Binding DniPracy}" Width="80"/>
-                            <DataGridTextColumn Header="Spóźnienia" Binding="{Binding Spoznienia}" Width="90"/>
-                            <DataGridTextColumn Header="Suma (min)" Binding="{Binding SumaSpoznienMin}" Width="100"/>
-                            <DataGridTextColumn Header="Wcz. wyjścia" Binding="{Binding WczesniejszeWyjscia}" Width="100"/>
-                            <DataGridTextColumn Header="Punktualność" Binding="{Binding ProcentPunktualnosci, StringFormat={}{0:N0}%}" Width="100"/>
-                            <DataGridTextColumn Header="Trend" Binding="{Binding Trend}" Width="70"/>
-                            <DataGridTextColumn Header="Ocena" Binding="{Binding Ocena}" Width="*"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
+
+                    <!-- Statystyki pracownika -->
+                    <Border Grid.Row="1" Background="White" CornerRadius="8" Padding="20" Margin="0,0,0,10" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Info o pracowniku -->
+                            <StackPanel Grid.Column="0" Margin="0,0,30,0">
+                                <TextBlock x:Name="txtHistoriaNazwisko" Text="Wybierz pracownika" FontSize="20" FontWeight="Bold" Foreground="#1A202C"/>
+                                <TextBlock x:Name="txtHistoriaDzial" Text="" FontSize="12" Foreground="#3182CE" FontWeight="SemiBold" Margin="0,3,0,0"/>
+                                <TextBlock x:Name="txtHistoriaAgencja" Text="" FontSize="11" Foreground="#718096" Margin="0,3,0,0"/>
+                            </StackPanel>
+
+                            <!-- Statystyki -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Border Background="#F0FFF4" CornerRadius="8" Padding="20,10" Margin="0,0,10,0">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="SUMA GODZIN" FontSize="9" Foreground="#276749" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="txtHistoriaGodziny" Text="0h" FontSize="28" FontWeight="Bold" Foreground="#276749" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="#FFFAF0" CornerRadius="8" Padding="20,10" Margin="0,0,10,0">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="NADGODZINY" FontSize="9" Foreground="#C05621" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="txtHistoriaNadgodziny" Text="0h" FontSize="28" FontWeight="Bold" Foreground="#C05621" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="#EBF8FF" CornerRadius="8" Padding="20,10" Margin="0,0,10,0">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="DNI PRACY" FontSize="9" Foreground="#2B6CB0" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="txtHistoriaDni" Text="0" FontSize="28" FontWeight="Bold" Foreground="#2B6CB0" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="#FAF5FF" CornerRadius="8" Padding="20,10" Margin="0,0,10,0">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="ŚR./DZIEŃ" FontSize="9" Foreground="#6B46C1" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="txtHistoriaSrednia" Text="0h" FontSize="28" FontWeight="Bold" Foreground="#6B46C1" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="#FFF5F5" CornerRadius="8" Padding="20,10">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="SPÓŹNIENIA" FontSize="9" Foreground="#C53030" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="txtHistoriaSpoznienia" Text="0" FontSize="28" FontWeight="Bold" Foreground="#C53030" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Historia dni -->
+                    <Border Grid.Row="2" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <DataGrid x:Name="gridHistoria" Margin="1" AutoGenerateColumns="False" IsReadOnly="True"
+                                  MouseDoubleClick="GridHistoria_MouseDoubleClick">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="DATA" Binding="{Binding Data, StringFormat=dd.MM.yyyy}" Width="90"/>
+                                <DataGridTextColumn Header="DZIEŃ" Binding="{Binding DzienTygodnia}" Width="80"/>
+                                <DataGridTextColumn Header="WEJŚCIE" Binding="{Binding Wejscie}" Width="70"/>
+                                <DataGridTextColumn Header="WYJŚCIE" Binding="{Binding Wyjscie}" Width="70"/>
+                                <DataGridTextColumn Header="CZAS PRACY" Binding="{Binding CzasPracy}" Width="90"/>
+                                <DataGridTextColumn Header="PRZERWY" Binding="{Binding Przerwy}" Width="70"/>
+                                <DataGridTextColumn Header="EFEKTYWNY" Binding="{Binding Efektywny}" Width="90"/>
+                                <DataGridTextColumn Header="NADGODZINY" Binding="{Binding Nadgodziny}" Width="100"/>
+                                <DataGridTextColumn Header="UWAGI" Binding="{Binding Uwagi}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
                 </Grid>
             </TabItem>
 
-            <!-- NIEOBECNOŚCI -->
-            <TabItem Header="📅 Nieobecności">
-                <Grid Margin="10">
+            <!-- ==================== OBECNI ==================== -->
+            <TabItem Header="👥 Obecni">
+                <Grid Margin="0,10,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="20" Margin="0,0,0,10" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Border Background="#EBF8FF" CornerRadius="8" Padding="30,15" Margin="0,0,20,0">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="OBECNI TERAZ" FontSize="10" Foreground="#3182CE" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="txtObecniTeraz" Text="0" FontSize="42" FontWeight="Bold" Foreground="#2B6CB0" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="#F0FFF4" CornerRadius="8" Padding="30,15" Margin="0,0,20,0">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="WEJŚCIA DZIŚ" FontSize="10" Foreground="#38A169" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="txtWejsciaDzis" Text="0" FontSize="42" FontWeight="Bold" Foreground="#276749" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="#FFFAF0" CornerRadius="8" Padding="30,15">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="WYJŚCIA DZIŚ" FontSize="10" Foreground="#DD6B20" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="txtWyjsciaDzis" Text="0" FontSize="42" FontWeight="Bold" Foreground="#C05621" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Row="1" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <DataGrid x:Name="gridObecni" Margin="1" AutoGenerateColumns="False" IsReadOnly="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding Pracownik}" Width="220"/>
+                                <DataGridTextColumn Header="DZIAŁ" Binding="{Binding Grupa}" Width="180"/>
+                                <DataGridTextColumn Header="WEJŚCIE" Binding="{Binding GodzinaWejscia}" Width="80"/>
+                                <DataGridTextColumn Header="CZAS OBECNOŚCI" Binding="{Binding CzasObecnosci}" Width="120"/>
+                                <DataGridTextColumn Header="PUNKT WEJŚCIA" Binding="{Binding PunktWejscia}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ==================== ALERTY ==================== -->
+            <TabItem Header="⚠️ Alerty">
+                <Grid Margin="0,10,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="#FFF5F5" CornerRadius="8" Padding="15" Margin="0,0,0,10" BorderBrush="#FED7D7" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⚠️" FontSize="18" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <StackPanel>
+                                <TextBlock Text="SYSTEM ALERTÓW" FontWeight="Bold" Foreground="#C53030" FontSize="12"/>
+                                <TextBlock Text="Brak wyjścia • Praca &gt;12h • Spóźnienia &gt;15min • Zbliżanie do limitu nadgodzin 150h/rok" 
+                                           Foreground="#9B2C2C" FontSize="10" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Row="1" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <DataGrid x:Name="gridAlerty" Margin="1" AutoGenerateColumns="False" IsReadOnly="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="PRIORYTET" Binding="{Binding Priorytet}" Width="80"/>
+                                <DataGridTextColumn Header="DATA" Binding="{Binding Data, StringFormat=dd.MM.yyyy}" Width="90"/>
+                                <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding Pracownik}" Width="180"/>
+                                <DataGridTextColumn Header="DZIAŁ" Binding="{Binding Grupa}" Width="140"/>
+                                <DataGridTextColumn Header="TYP ALERTU" Binding="{Binding TypAlertu}" Width="160"/>
+                                <DataGridTextColumn Header="OPIS" Binding="{Binding Opis}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ==================== NADGODZINY ==================== -->
+            <TabItem Header="💰 Nadgodziny">
+                <Grid Margin="0,10,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="#FFFAF0" CornerRadius="8" Padding="15" Margin="0,0,0,10" BorderBrush="#FEEBC8" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="💰" FontSize="18" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <StackPanel>
+                                <TextBlock Text="ROZLICZENIE NADGODZIN" FontWeight="Bold" Foreground="#C05621" FontSize="12"/>
+                                <TextBlock Text="Dzienne &gt;8h = nadgodziny • Tygodniowe &gt;40h = nadgodziny • Roczny limit: 150h • Nocne: 22:00-06:00" 
+                                           Foreground="#9C4221" FontSize="10" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Row="1" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <DataGrid x:Name="gridNadgodziny" Margin="1" AutoGenerateColumns="False" IsReadOnly="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding Pracownik}" Width="180"/>
+                                <DataGridTextColumn Header="DZIAŁ" Binding="{Binding Grupa}" Width="140"/>
+                                <DataGridTextColumn Header="NORMALNE" Binding="{Binding GodzinyNormalne, StringFormat=N1}" Width="90"/>
+                                <DataGridTextColumn Header="NADGODZINY" Binding="{Binding Nadgodziny, StringFormat=N1}" Width="100"/>
+                                <DataGridTextColumn Header="NOCNE" Binding="{Binding GodzinyNocne, StringFormat=N1}" Width="70"/>
+                                <DataGridTextColumn Header="SUMA" Binding="{Binding SumaGodzin, StringFormat=N1}" Width="70"/>
+                                <DataGridTextColumn Header="ROCZNE" Binding="{Binding NadgodzinyRoczne, StringFormat=N0}" Width="70"/>
+                                <DataGridTextColumn Header="DO LIMITU" Binding="{Binding DoLimitu}" Width="80"/>
+                                <DataGridTextColumn Header="STATUS" Binding="{Binding Status}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ==================== RAPORT MIESIĘCZNY ==================== -->
+            <TabItem Header="📅 Raport Mies.">
+                <Grid Margin="0,10,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="15" Margin="0,0,0,10" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="Miesiąc:" FontSize="12" Foreground="#4A5568" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <ComboBox x:Name="cmbMiesiac" Width="130" SelectionChanged="CmbMiesiac_SelectionChanged"/>
+                            <TextBlock Text="Rok:" FontSize="12" Foreground="#4A5568" FontWeight="SemiBold" VerticalAlignment="Center" Margin="20,0,8,0"/>
+                            <ComboBox x:Name="cmbRok" Width="90" SelectionChanged="CmbRok_SelectionChanged"/>
+                            <Button Content="📊 Generuj" Style="{StaticResource PrimaryButton}" Margin="20,0,0,0" Click="BtnGenerujRaportMiesieczny_Click"/>
+                            <Button Content="📥 Excel" Style="{StaticResource SuccessButton}" Margin="8,0,0,0" Click="BtnExportRaportMiesieczny_Click"/>
+                            <Button Content="🖨️ Drukuj" Style="{StaticResource ModernButton}" Margin="8,0,0,0" Click="BtnDrukujRaport_Click"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Row="1" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <DataGrid x:Name="gridRaportMiesieczny" Margin="1" AutoGenerateColumns="False" IsReadOnly="True"
+                                  MouseDoubleClick="GridRaportMiesieczny_MouseDoubleClick">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding Pracownik}" Width="180"/>
+                                <DataGridTextColumn Header="DZIAŁ" Binding="{Binding Grupa}" Width="130"/>
+                                <DataGridTextColumn Header="DNI" Binding="{Binding DniPracy}" Width="50"/>
+                                <DataGridTextColumn Header="NORMALNE" Binding="{Binding GodzinyNormalne, StringFormat=N1}" Width="90"/>
+                                <DataGridTextColumn Header="NADGODZ." Binding="{Binding Nadgodziny, StringFormat=N1}" Width="90"/>
+                                <DataGridTextColumn Header="NOCNE" Binding="{Binding GodzinyNocne, StringFormat=N1}" Width="70"/>
+                                <DataGridTextColumn Header="SUMA" Binding="{Binding SumaGodzin, StringFormat=N1}" Width="70"/>
+                                <DataGridTextColumn Header="URLOP" Binding="{Binding DniUrlopu}" Width="60"/>
+                                <DataGridTextColumn Header="CHOROBA" Binding="{Binding DniChoroby}" Width="70"/>
+                                <DataGridTextColumn Header="STATUS" Binding="{Binding Status}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ==================== PORÓWNANIE MIESIĘCY ==================== -->
+            <TabItem Header="📈 Porównanie">
+                <Grid Margin="0,10,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="15" Margin="0,0,0,10" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="Porównaj:" FontSize="12" Foreground="#4A5568" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <ComboBox x:Name="cmbPorownanieMiesiac1" Width="130"/>
+                            <TextBlock Text="z" FontSize="12" Foreground="#4A5568" VerticalAlignment="Center" Margin="10,0"/>
+                            <ComboBox x:Name="cmbPorownanieMiesiac2" Width="130"/>
+                            <Button Content="📊 Porównaj" Style="{StaticResource PrimaryButton}" Margin="20,0,0,0" Click="BtnPorownajMiesiace_Click"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Karty porównania -->
+                    <UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,10">
+                        <Border Style="{StaticResource DashboardTile}">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="GODZINY ŁĄCZNIE" FontSize="9" Foreground="#718096" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <TextBlock x:Name="txtPorownGodziny1" Text="0h" FontSize="24" FontWeight="Bold" Foreground="#2D3748"/>
+                                    <TextBlock Text=" vs " FontSize="14" Foreground="#A0AEC0" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="txtPorownGodziny2" Text="0h" FontSize="24" FontWeight="Bold" Foreground="#2D3748"/>
+                                </StackPanel>
+                                <TextBlock x:Name="txtPorownGodzinyZmiana" Text="▲ +0%" FontSize="11" Foreground="#38A169" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource DashboardTile}">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="PRACOWNIKÓW" FontSize="9" Foreground="#718096" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <TextBlock x:Name="txtPorownPracownikow1" Text="0" FontSize="24" FontWeight="Bold" Foreground="#2D3748"/>
+                                    <TextBlock Text=" vs " FontSize="14" Foreground="#A0AEC0" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="txtPorownPracownikow2" Text="0" FontSize="24" FontWeight="Bold" Foreground="#2D3748"/>
+                                </StackPanel>
+                                <TextBlock x:Name="txtPorownPracownikowZmiana" Text="▲ +0" FontSize="11" Foreground="#38A169" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource DashboardTile}">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="ŚREDNIA/OSOBĘ" FontSize="9" Foreground="#718096" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <TextBlock x:Name="txtPorownSrednia1" Text="0h" FontSize="24" FontWeight="Bold" Foreground="#2D3748"/>
+                                    <TextBlock Text=" vs " FontSize="14" Foreground="#A0AEC0" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="txtPorownSrednia2" Text="0h" FontSize="24" FontWeight="Bold" Foreground="#2D3748"/>
+                                </StackPanel>
+                                <TextBlock x:Name="txtPorownSredniaZmiana" Text="▲ +0%" FontSize="11" Foreground="#38A169" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource DashboardTile}">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="NADGODZINY" FontSize="9" Foreground="#718096" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <TextBlock x:Name="txtPorownNadgodziny1" Text="0h" FontSize="24" FontWeight="Bold" Foreground="#2D3748"/>
+                                    <TextBlock Text=" vs " FontSize="14" Foreground="#A0AEC0" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="txtPorownNadgodziny2" Text="0h" FontSize="24" FontWeight="Bold" Foreground="#2D3748"/>
+                                </StackPanel>
+                                <TextBlock x:Name="txtPorownNadgodzinyZmiana" Text="▲ +0%" FontSize="11" Foreground="#38A169" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+
+                    <!-- Porównanie działów -->
+                    <Border Grid.Row="2" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <DataGrid x:Name="gridPorownanie" Margin="1" AutoGenerateColumns="False" IsReadOnly="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="DZIAŁ" Binding="{Binding Grupa}" Width="180"/>
+                                <DataGridTextColumn Header="GODZINY M1" Binding="{Binding GodzinyM1, StringFormat=N0}" Width="100"/>
+                                <DataGridTextColumn Header="GODZINY M2" Binding="{Binding GodzinyM2, StringFormat=N0}" Width="100"/>
+                                <DataGridTextColumn Header="ZMIANA" Binding="{Binding Zmiana}" Width="90"/>
+                                <DataGridTextColumn Header="PRACOWN. M1" Binding="{Binding PracownicyM1}" Width="100"/>
+                                <DataGridTextColumn Header="PRACOWN. M2" Binding="{Binding PracownicyM2}" Width="100"/>
+                                <DataGridTextColumn Header="TREND" Binding="{Binding Trend}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ==================== RANKING ==================== -->
+            <TabItem Header="🏆 Ranking">
+                <Border Background="White" CornerRadius="8" Margin="0,10,0,0" BorderBrush="#E2E8F0" BorderThickness="1">
+                    <DataGrid x:Name="gridRanking" Margin="1" AutoGenerateColumns="False" IsReadOnly="True"
+                              MouseDoubleClick="GridRanking_MouseDoubleClick">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="#" Binding="{Binding Pozycja}" Width="40"/>
+                            <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding Pracownik}" Width="200"/>
+                            <DataGridTextColumn Header="DZIAŁ" Binding="{Binding Grupa}" Width="160"/>
+                            <DataGridTextColumn Header="GODZINY" Binding="{Binding SumaGodzin, StringFormat=N1}" Width="90"/>
+                            <DataGridTextColumn Header="DNI PRACY" Binding="{Binding DniPracy}" Width="80"/>
+                            <DataGridTextColumn Header="ŚR. DZIENNIE" Binding="{Binding SredniaDziennie, StringFormat=N1}" Width="100"/>
+                            <DataGridTextColumn Header="PUNKTUALNOŚĆ" Binding="{Binding Punktualnosc}" Width="110"/>
+                            <DataGridTextColumn Header="OCENA" Binding="{Binding Ocena}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </TabItem>
+
+            <!-- ==================== KARTA EWIDENCJI ==================== -->
+            <TabItem Header="📇 Ewidencja">
+                <Grid Margin="0,10,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="15" Margin="0,0,0,10" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="Pracownik:" FontSize="12" Foreground="#4A5568" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <ComboBox x:Name="cmbPracownikEwidencja" Width="260" SelectionChanged="CmbPracownikEwidencja_SelectionChanged"/>
+                            <TextBlock Text="Miesiąc:" FontSize="12" Foreground="#4A5568" FontWeight="SemiBold" VerticalAlignment="Center" Margin="20,0,8,0"/>
+                            <ComboBox x:Name="cmbMiesiacEwidencja" Width="130"/>
+                            <TextBlock Text="Rok:" FontSize="12" Foreground="#4A5568" FontWeight="SemiBold" VerticalAlignment="Center" Margin="12,0,8,0"/>
+                            <ComboBox x:Name="cmbRokEwidencja" Width="80"/>
+                            <Button Content="📋 Generuj" Style="{StaticResource PrimaryButton}" Margin="20,0,0,0" Click="BtnGenerujKarteEwidencji_Click"/>
+                            <Button Content="🖨️ Drukuj" Style="{StaticResource ModernButton}" Margin="8,0,0,0" Click="BtnDrukujKarteEwidencji_Click"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Row="1" Background="#EBF8FF" CornerRadius="8" Padding="15" Margin="0,0,0,10" BorderBrush="#BEE3F8" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <StackPanel Margin="0,0,40,0">
+                                <TextBlock Text="PRZEPRACOWANE" FontSize="9" Foreground="#2B6CB0" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="txtEwidencjaPrzepracowane" Text="0h" FontSize="28" FontWeight="Bold" Foreground="#2C5282" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,40,0">
+                                <TextBlock Text="NORMALNE" FontSize="9" Foreground="#276749" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="txtEwidencjaNormalne" Text="0h" FontSize="28" FontWeight="Bold" Foreground="#276749" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,40,0">
+                                <TextBlock Text="NADGODZINY" FontSize="9" Foreground="#C05621" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="txtEwidencjaNadgodziny" Text="0h" FontSize="28" FontWeight="Bold" Foreground="#C05621" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="NOCNE" FontSize="9" Foreground="#6B46C1" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="txtEwidencjaNocne" Text="0h" FontSize="28" FontWeight="Bold" Foreground="#6B46C1" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Row="2" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <DataGrid x:Name="gridKartaEwidencji" Margin="1" AutoGenerateColumns="False" IsReadOnly="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="DATA" Binding="{Binding Data, StringFormat=dd.MM}" Width="60"/>
+                                <DataGridTextColumn Header="DZIEŃ" Binding="{Binding DzienTygodnia}" Width="60"/>
+                                <DataGridTextColumn Header="WEJŚCIE" Binding="{Binding Wejscie}" Width="65"/>
+                                <DataGridTextColumn Header="WYJŚCIE" Binding="{Binding Wyjscie}" Width="65"/>
+                                <DataGridTextColumn Header="PRZERWY" Binding="{Binding Przerwy}" Width="65"/>
+                                <DataGridTextColumn Header="NORMAL." Binding="{Binding GodzinyNormalne, StringFormat=N2}" Width="70"/>
+                                <DataGridTextColumn Header="NADGODZ." Binding="{Binding Nadgodziny, StringFormat=N2}" Width="80"/>
+                                <DataGridTextColumn Header="NOCNE" Binding="{Binding GodzinyNocne, StringFormat=N2}" Width="65"/>
+                                <DataGridTextColumn Header="SUMA" Binding="{Binding SumaGodzin, StringFormat=N2}" Width="65"/>
+                                <DataGridTextColumn Header="UWAGI" Binding="{Binding Uwagi}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ==================== PUNKTUALNOŚĆ ==================== -->
+            <TabItem Header="⏱️ Punktualność">
+                <Grid Margin="0,10,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="#F0FFF4" CornerRadius="8" Padding="15" Margin="0,0,0,10" BorderBrush="#C6F6D5" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⏱️" FontSize="18" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <StackPanel>
+                                <TextBlock Text="ANALIZA PUNKTUALNOŚCI" FontWeight="Bold" Foreground="#276749" FontSize="12"/>
+                                <TextBlock Text="Spóźnienie = wejście po 06:10 • ⭐⭐⭐ &gt;95% • ⭐⭐ &gt;85% • ⭐ &gt;70%" 
+                                           Foreground="#2F855A" FontSize="10" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Row="1" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <DataGrid x:Name="gridPunktualnosc" Margin="1" AutoGenerateColumns="False" IsReadOnly="True"
+                                  MouseDoubleClick="GridPunktualnosc_MouseDoubleClick">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding Pracownik}" Width="200"/>
+                                <DataGridTextColumn Header="DZIAŁ" Binding="{Binding Grupa}" Width="160"/>
+                                <DataGridTextColumn Header="DNI" Binding="{Binding DniPracy}" Width="50"/>
+                                <DataGridTextColumn Header="SPÓŹNIENIA" Binding="{Binding Spoznienia}" Width="90"/>
+                                <DataGridTextColumn Header="SUMA MIN" Binding="{Binding SumaSpoznienMin}" Width="90"/>
+                                <DataGridTextColumn Header="WCZ. WYJŚCIA" Binding="{Binding WczesniejszeWyjscia}" Width="100"/>
+                                <DataGridTextColumn Header="%" Binding="{Binding ProcentPunktualnosci, StringFormat={}{0:N0}%}" Width="60"/>
+                                <DataGridTextColumn Header="OCENA" Binding="{Binding Ocena}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ==================== NIEOBECNOŚCI ==================== -->
+            <TabItem Header="🏠 Nieobecności">
+                <Grid Margin="0,10,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    
-                    <Border Grid.Row="0" Background="#313244" Padding="15" Margin="0,0,0,10" CornerRadius="8">
-                        <TextBlock Text="📋 System wykrywa dni robocze bez rejestracji • Weekendy i święta pomijane • Urlop | Choroba | Nieusprawiedliwiona" 
-                                   Foreground="#f5c2e7" FontSize="12"/>
+
+                    <Border Grid.Row="0" Background="#FFF5F5" CornerRadius="8" Padding="15" Margin="0,0,0,10" BorderBrush="#FED7D7" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🏠" FontSize="18" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <StackPanel>
+                                <TextBlock Text="WYKRYWANIE NIEOBECNOŚCI" FontWeight="Bold" Foreground="#C53030" FontSize="12"/>
+                                <TextBlock Text="Dni robocze bez rejestracji • Weekendy pomijane • 🏖️ Urlop | 🤒 Choroba | ❓ Nieusprawiedliwiona" 
+                                           Foreground="#9B2C2C" FontSize="10" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
                     </Border>
-                    
-                    <DataGrid x:Name="gridNieobecnosci" Grid.Row="1" AutoGenerateColumns="False" 
-                              IsReadOnly="True" CanUserAddRows="False" Background="#1e1e2e"
-                              RowBackground="#1e1e2e" AlternatingRowBackground="#181825"
-                              GridLinesVisibility="None" BorderThickness="0">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat=dd.MM.yyyy}" Width="100"/>
-                            <DataGridTextColumn Header="Dzień" Binding="{Binding Data, StringFormat=ddd}" Width="70"/>
-                            <DataGridTextColumn Header="Pracownik" Binding="{Binding Pracownik}" Width="200"/>
-                            <DataGridTextColumn Header="Dział" Binding="{Binding Grupa}" Width="150"/>
-                            <DataGridTextColumn Header="Typ" Binding="{Binding TypNieobecnosci}" Width="180"/>
-                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="130"/>
-                            <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="*"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                    
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
-                        <Border Background="#f38ba8" CornerRadius="8" Padding="20,10" Margin="0,0,15,0">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Nieusprawiedliwione: " Foreground="White" FontWeight="SemiBold"/>
-                                <TextBlock x:Name="txtNieobecnosciNieusp" Text="0" Foreground="White" FontWeight="Bold" FontSize="16"/>
-                            </StackPanel>
-                        </Border>
-                        <Border Background="#fab387" CornerRadius="8" Padding="20,10" Margin="0,0,15,0">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Chorobowe: " Foreground="White" FontWeight="SemiBold"/>
-                                <TextBlock x:Name="txtNieobecnosciChoroba" Text="0" Foreground="White" FontWeight="Bold" FontSize="16"/>
-                            </StackPanel>
-                        </Border>
-                        <Border Background="#a6e3a1" CornerRadius="8" Padding="20,10">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Urlopy: " Foreground="#1e1e2e" FontWeight="SemiBold"/>
-                                <TextBlock x:Name="txtNieobecnosciUrlop" Text="0" Foreground="#1e1e2e" FontWeight="Bold" FontSize="16"/>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
+
+                    <Border Grid.Row="1" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <DataGrid x:Name="gridNieobecnosci" Margin="1" AutoGenerateColumns="False" IsReadOnly="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="DATA" Binding="{Binding Data, StringFormat=dd.MM.yyyy}" Width="90"/>
+                                <DataGridTextColumn Header="DZIEŃ" Binding="{Binding Data, StringFormat=ddd}" Width="70"/>
+                                <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding Pracownik}" Width="200"/>
+                                <DataGridTextColumn Header="DZIAŁ" Binding="{Binding Grupa}" Width="160"/>
+                                <DataGridTextColumn Header="TYP" Binding="{Binding TypNieobecnosci}" Width="150"/>
+                                <DataGridTextColumn Header="STATUS" Binding="{Binding Status}" Width="120"/>
+                                <DataGridTextColumn Header="UWAGI" Binding="{Binding Uwagi}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+
+                    <Border Grid.Row="2" Background="White" CornerRadius="8" Padding="15" Margin="0,10,0,0" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Border Background="#FED7D7" CornerRadius="6" Padding="20,8" Margin="0,0,12,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="❓ Nieusprawiedliwione:" Foreground="#C53030" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="txtNieobecnosciNieusp" Text="0" Foreground="#C53030" FontWeight="Bold" FontSize="18" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="#FEEBC8" CornerRadius="6" Padding="20,8" Margin="0,0,12,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="🤒 Chorobowe:" Foreground="#C05621" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="txtNieobecnosciChoroba" Text="0" Foreground="#C05621" FontWeight="Bold" FontSize="18" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="#C6F6D5" CornerRadius="6" Padding="20,8">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="🏖️ Urlopy:" Foreground="#276749" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="txtNieobecnosciUrlop" Text="0" Foreground="#276749" FontWeight="Bold" FontSize="18" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
                 </Grid>
             </TabItem>
 
         </TabControl>
+
+        <!-- STOPKA -->
+        <Border Grid.Row="3" Background="White" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="20,8">
+            <Grid>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="UNICARD v2.0" FontSize="10" Foreground="#718096"/>
+                    <TextBlock Text=" • " FontSize="10" Foreground="#CBD5E0"/>
+                    <TextBlock Text="192.168.0.23\SQLEXPRESS" FontSize="10" Foreground="#718096"/>
+                    <TextBlock Text=" • " FontSize="10" Foreground="#CBD5E0"/>
+                    <TextBlock x:Name="txtStatusPolaczenia" Text="🟢 Połączono" FontSize="10" Foreground="#38A169" FontWeight="SemiBold"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBlock x:Name="txtLiczbaRejestracjiFooter" Text="0 rejestracji" FontSize="10" Foreground="#718096"/>
+                    <TextBlock Text=" • " FontSize="10" Foreground="#CBD5E0"/>
+                    <TextBlock x:Name="txtOstatnieOdswiezenie" Text="Odświeżono: --:--:--" FontSize="10" Foreground="#718096"/>
+                </StackPanel>
+            </Grid>
+        </Border>
     </Grid>
 </Window>
