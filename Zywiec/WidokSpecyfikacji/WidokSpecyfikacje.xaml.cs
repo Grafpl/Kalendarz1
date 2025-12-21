@@ -9,12 +9,14 @@ using System.Data;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 
 namespace Kalendarz1
@@ -56,6 +58,13 @@ namespace Kalendarz1
         private DispatcherTimer _debounceTimer;
         private HashSet<int> _pendingSaveIds = new HashSet<int>();
         private const int DebounceDelayMs = 500;
+
+        // === UNDO: Stos zmian do cofnięcia ===
+        private Stack<UndoAction> _undoStack = new Stack<UndoAction>();
+        private const int MaxUndoHistory = 50;
+
+        // === HISTORIA: Log zmian ===
+        private List<ChangeLogEntry> _changeLog = new List<ChangeLogEntry>();
 
         public WidokSpecyfikacje()
         {
@@ -243,6 +252,18 @@ namespace Kalendarz1
             else if (e.Key == Key.P && Keyboard.Modifiers == ModifierKeys.Control)
             {
                 Button1_Click(null, null);
+                e.Handled = true;
+            }
+            // Ctrl + Z - Cofnij zmianę
+            else if (e.Key == Key.Z && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                UndoLastChange();
+                e.Handled = true;
+            }
+            // Delete - Usuń zaznaczony wiersz
+            else if (e.Key == Key.Delete && selectedRow != null)
+            {
+                DeleteSelectedRow();
                 e.Handled = true;
             }
             // F5 - Odśwież
@@ -2958,6 +2979,298 @@ namespace Kalendarz1
                 table.AddCell(cell);
             }
         }
+
+        #region === DELETE / UNDO / SHAKE / HISTORIA ===
+
+        // === DELETE: Usuwanie zaznaczonego wiersza ===
+        private void DeleteSelectedRow()
+        {
+            if (selectedRow == null)
+            {
+                ShakeWindow();
+                UpdateStatus("Nie zaznaczono wiersza do usunięcia");
+                return;
+            }
+
+            var result = MessageBox.Show(
+                $"Czy na pewno chcesz usunąć wiersz LP {selectedRow.Nr}?\n\nDostawca: {selectedRow.Dostawca}\nNetto: {selectedRow.NettoUbojni}",
+                "Potwierdzenie usunięcia",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    // Zapisz do historii i undo
+                    RecordChange(selectedRow.ID, "DELETE", "Cały wiersz", selectedRow.ToString(), null);
+                    PushUndo(new UndoAction
+                    {
+                        ActionType = "DELETE",
+                        RowId = selectedRow.ID,
+                        RowData = CloneRow(selectedRow),
+                        RowIndex = specyfikacjeData.IndexOf(selectedRow)
+                    });
+
+                    // Usuń z bazy
+                    using (SqlConnection connection = new SqlConnection(connectionString))
+                    {
+                        connection.Open();
+                        string query = "DELETE FROM dbo.FarmerCalc WHERE ID = @ID";
+                        using (SqlCommand cmd = new SqlCommand(query, connection))
+                        {
+                            cmd.Parameters.AddWithValue("@ID", selectedRow.ID);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    // Usuń z kolekcji
+                    specyfikacjeData.Remove(selectedRow);
+                    UpdateRowNumbers();
+                    UpdateStatistics();
+                    UpdateStatus($"Usunięto wiersz. Ctrl+Z aby cofnąć.");
+                    selectedRow = null;
+                }
+                catch (Exception ex)
+                {
+                    ShakeWindow();
+                    UpdateStatus($"Błąd usuwania: {ex.Message}");
+                }
+            }
+        }
+
+        // === UNDO: Cofanie ostatniej zmiany ===
+        private void UndoLastChange()
+        {
+            if (_undoStack.Count == 0)
+            {
+                ShakeWindow();
+                UpdateStatus("Brak zmian do cofnięcia");
+                return;
+            }
+
+            var action = _undoStack.Pop();
+
+            try
+            {
+                switch (action.ActionType)
+                {
+                    case "DELETE":
+                        // Przywróć usunięty wiersz
+                        RestoreDeletedRow(action);
+                        break;
+
+                    case "EDIT":
+                        // Przywróć poprzednią wartość
+                        RestoreEditedValue(action);
+                        break;
+                }
+
+                UpdateStatus($"Cofnięto: {action.ActionType}. Pozostało {_undoStack.Count} zmian.");
+            }
+            catch (Exception ex)
+            {
+                ShakeWindow();
+                UpdateStatus($"Błąd cofania: {ex.Message}");
+            }
+        }
+
+        private void RestoreDeletedRow(UndoAction action)
+        {
+            if (action.RowData == null) return;
+
+            // Przywróć do bazy
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                // INSERT z IDENTITY_INSERT
+                string query = @"SET IDENTITY_INSERT dbo.FarmerCalc ON;
+                    INSERT INTO dbo.FarmerCalc (ID, CarLp, CustomerGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5,
+                        LumQnt, ProdQnt, ProdWgt, Price, Loss, IncDeadConf, Opasienie, KlasaB, TerminDni)
+                    VALUES (@ID, @Nr, @GID, @SztDek, @Padle, @CH, @NW, @ZM,
+                        @LUMEL, @SztWyb, @KgWyb, @Cena, @Ubytek, @PiK, @Opas, @KlasaB, @Termin);
+                    SET IDENTITY_INSERT dbo.FarmerCalc OFF;";
+
+                using (SqlCommand cmd = new SqlCommand(query, connection))
+                {
+                    var row = action.RowData;
+                    cmd.Parameters.AddWithValue("@ID", row.ID);
+                    cmd.Parameters.AddWithValue("@Nr", row.Nr);
+                    cmd.Parameters.AddWithValue("@GID", (object)row.DostawcaGID ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@SztDek", row.SztukiDek);
+                    cmd.Parameters.AddWithValue("@Padle", row.Padle);
+                    cmd.Parameters.AddWithValue("@CH", row.CH);
+                    cmd.Parameters.AddWithValue("@NW", row.NW);
+                    cmd.Parameters.AddWithValue("@ZM", row.ZM);
+                    cmd.Parameters.AddWithValue("@LUMEL", row.LUMEL);
+                    cmd.Parameters.AddWithValue("@SztWyb", row.SztukiWybijak);
+                    cmd.Parameters.AddWithValue("@KgWyb", row.KilogramyWybijak);
+                    cmd.Parameters.AddWithValue("@Cena", row.Cena);
+                    cmd.Parameters.AddWithValue("@Ubytek", row.Ubytek / 100);
+                    cmd.Parameters.AddWithValue("@PiK", row.PiK);
+                    cmd.Parameters.AddWithValue("@Opas", row.Opasienie);
+                    cmd.Parameters.AddWithValue("@KlasaB", row.KlasaB);
+                    cmd.Parameters.AddWithValue("@Termin", row.TerminDni);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+
+            // Przywróć do kolekcji
+            int index = Math.Min(action.RowIndex, specyfikacjeData.Count);
+            specyfikacjeData.Insert(index, action.RowData);
+            UpdateRowNumbers();
+            UpdateStatistics();
+        }
+
+        private void RestoreEditedValue(UndoAction action)
+        {
+            var row = specyfikacjeData.FirstOrDefault(r => r.ID == action.RowId);
+            if (row == null) return;
+
+            // Przywróć wartość w obiekcie
+            var property = typeof(SpecyfikacjaRow).GetProperty(action.PropertyName);
+            if (property != null)
+            {
+                var oldValue = Convert.ChangeType(action.OldValue, property.PropertyType);
+                property.SetValue(row, oldValue);
+            }
+
+            // Zapisz do bazy
+            SaveRowToDatabase(row);
+        }
+
+        // === SHAKE: Animacja błędu ===
+        private void ShakeWindow()
+        {
+            try
+            {
+                var storyboard = (System.Windows.Media.Animation.Storyboard)FindResource("ShakeAnimation");
+                if (this.RenderTransform == null || !(this.RenderTransform is TranslateTransform))
+                {
+                    this.RenderTransform = new TranslateTransform();
+                }
+                storyboard.Begin(this);
+            }
+            catch
+            {
+                // Fallback - dźwięk systemowy
+                System.Media.SystemSounds.Exclamation.Play();
+            }
+        }
+
+        // === HISTORIA: Rejestrowanie zmian ===
+        private void RecordChange(int rowId, string action, string property, string oldValue, string newValue)
+        {
+            _changeLog.Add(new ChangeLogEntry
+            {
+                Timestamp = DateTime.Now,
+                RowId = rowId,
+                Action = action,
+                PropertyName = property,
+                OldValue = oldValue,
+                NewValue = newValue,
+                UserName = App.UserID ?? Environment.UserName
+            });
+
+            // Ogranicz historię do 1000 wpisów
+            if (_changeLog.Count > 1000)
+            {
+                _changeLog.RemoveAt(0);
+            }
+        }
+
+        // === UNDO: Dodaj do stosu ===
+        private void PushUndo(UndoAction action)
+        {
+            _undoStack.Push(action);
+            if (_undoStack.Count > MaxUndoHistory)
+            {
+                // Usuń najstarsze (konwertuj na listę, usuń ostatni, odtwórz stos)
+                var list = _undoStack.ToList();
+                list.RemoveAt(list.Count - 1);
+                _undoStack = new Stack<UndoAction>(list.AsEnumerable().Reverse());
+            }
+        }
+
+        // === HELPER: Kopia wiersza dla undo ===
+        private SpecyfikacjaRow CloneRow(SpecyfikacjaRow source)
+        {
+            return new SpecyfikacjaRow
+            {
+                ID = source.ID,
+                Nr = source.Nr,
+                DostawcaGID = source.DostawcaGID,
+                Dostawca = source.Dostawca,
+                SztukiDek = source.SztukiDek,
+                Padle = source.Padle,
+                CH = source.CH,
+                NW = source.NW,
+                ZM = source.ZM,
+                LUMEL = source.LUMEL,
+                SztukiWybijak = source.SztukiWybijak,
+                KilogramyWybijak = source.KilogramyWybijak,
+                Cena = source.Cena,
+                Dodatek = source.Dodatek,
+                TypCeny = source.TypCeny,
+                Ubytek = source.Ubytek,
+                PiK = source.PiK,
+                Opasienie = source.Opasienie,
+                KlasaB = source.KlasaB,
+                TerminDni = source.TerminDni
+            };
+        }
+
+        // === HISTORIA: Pokaż historię zmian (można wywołać przyciskiem) ===
+        public void ShowChangeHistory()
+        {
+            if (_changeLog.Count == 0)
+            {
+                MessageBox.Show("Brak zmian w historii.", "Historia zmian", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendLine("Ostatnie zmiany:");
+            sb.AppendLine(new string('-', 50));
+
+            foreach (var entry in _changeLog.TakeLast(20).Reverse())
+            {
+                sb.AppendLine($"[{entry.Timestamp:HH:mm:ss}] {entry.Action} - Wiersz {entry.RowId}");
+                sb.AppendLine($"   {entry.PropertyName}: {entry.OldValue} → {entry.NewValue}");
+                sb.AppendLine($"   Użytkownik: {entry.UserName}");
+                sb.AppendLine();
+            }
+
+            MessageBox.Show(sb.ToString(), "Historia zmian", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        #endregion
+    }
+
+    // === KLASY POMOCNICZE ===
+
+    // Klasa dla akcji undo
+    public class UndoAction
+    {
+        public string ActionType { get; set; } // DELETE, EDIT
+        public int RowId { get; set; }
+        public string PropertyName { get; set; }
+        public object OldValue { get; set; }
+        public object NewValue { get; set; }
+        public SpecyfikacjaRow RowData { get; set; } // Kopia całego wiersza dla DELETE
+        public int RowIndex { get; set; }
+    }
+
+    // Klasa dla wpisu w historii zmian
+    public class ChangeLogEntry
+    {
+        public DateTime Timestamp { get; set; }
+        public int RowId { get; set; }
+        public string Action { get; set; }
+        public string PropertyName { get; set; }
+        public string OldValue { get; set; }
+        public string NewValue { get; set; }
+        public string UserName { get; set; }
     }
 
     // Klasa dla elementu dostawcy w ComboBox
