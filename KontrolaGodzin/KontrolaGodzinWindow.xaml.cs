@@ -6,6 +6,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
+using System.Windows.Media;
 using System.IO;
 using System.Text;
 using Microsoft.Win32;
@@ -52,6 +53,10 @@ namespace Kalendarz1.KontrolaGodzin
                 LoadGrupy();
                 LoadPracownicy();
                 LoadAllData();
+
+                // Ładowanie nowych zakładek
+                LoadHarmonogramPrzerw();
+                LoadAgencjeTydzien();
             }
             catch (Exception ex)
             {
@@ -112,6 +117,46 @@ namespace Kalendarz1.KontrolaGodzin
                 cmbPorownanieMiesiac1.SelectedIndex = 0;
                 cmbPorownanieMiesiac2.SelectedIndex = 1;
             }
+
+            // Nowe zakładki - Urlopy
+            cmbUrlopyMiesiac.ItemsSource = miesiace;
+            cmbUrlopyMiesiac.SelectedIndex = DateTime.Now.Month - 1;
+            cmbUrlopyRok.ItemsSource = lata;
+            cmbUrlopyRok.SelectedItem = DateTime.Now.Year;
+
+            // Spóźnienia
+            cmbSpoznieniaMiesiac.ItemsSource = miesiace;
+            cmbSpoznieniaMiesiac.SelectedIndex = DateTime.Now.Month - 1;
+            cmbSpoznieniaRok.ItemsSource = lata;
+            cmbSpoznieniaRok.SelectedItem = DateTime.Now.Year;
+
+            // Przerwy
+            dpPrzerwyData.SelectedDate = DateTime.Today;
+
+            // Typy nieobecności
+            cmbTypNieobecnosci.Items.Add("Wszystkie typy");
+            cmbTypNieobecnosci.Items.Add("Urlop wypoczynkowy");
+            cmbTypNieobecnosci.Items.Add("Urlop na żądanie");
+            cmbTypNieobecnosci.Items.Add("Zwolnienie chorobowe");
+            cmbTypNieobecnosci.Items.Add("Urlop okolicznościowy");
+            cmbTypNieobecnosci.SelectedIndex = 0;
+
+            // Agencje - tygodnie
+            var tygodnie = new List<string>();
+            var startTygodnia = DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek + 1);
+            for (int i = 0; i < 10; i++)
+            {
+                var tydzien = startTygodnia.AddDays(-7 * i);
+                tygodnie.Add($"{tydzien:dd.MM} - {tydzien.AddDays(6):dd.MM.yyyy}");
+            }
+            cmbAgencjaTydzien.ItemsSource = tygodnie;
+            cmbAgencjaTydzien.SelectedIndex = 0;
+
+            // Agencje - filtr
+            cmbAgencjaFiltr.Items.Add("Wszystkie agencje");
+            cmbAgencjaFiltr.Items.Add("GURAVO");
+            cmbAgencjaFiltr.Items.Add("AGENCJA IMPULS");
+            cmbAgencjaFiltr.SelectedIndex = 0;
         }
 
         #region Ładowanie danych z UNICARD
@@ -870,7 +915,7 @@ namespace Kalendarz1.KontrolaGodzin
                 }
             }
 
-            gridAlerty.ItemsSource = alerty.OrderByDescending(a => ((dynamic)a).Priorytet).ToList();
+            gridAlertyPodglad.ItemsSource = alerty.OrderByDescending(a => ((dynamic)a).Priorytet).ToList();
         }
 
         private void UpdateRanking(List<RejestracjaModel> data)
@@ -985,7 +1030,7 @@ namespace Kalendarz1.KontrolaGodzin
                 .OrderByDescending(x => x.NadgodzinyRok)
                 .ToList();
 
-            gridNadgodziny.ItemsSource = nadgodziny;
+            gridNadgodzinyPodglad.ItemsSource = nadgodziny;
         }
 
         private void UpdatePunktualnosc(List<RejestracjaModel> data)
@@ -1690,6 +1735,556 @@ namespace Kalendarz1.KontrolaGodzin
         }
 
         #endregion
+
+        #region Urlopy i Nieobecności
+
+        private void CmbUrlopyMiesiac_Changed(object sender, SelectionChangedEventArgs e) => LoadUrlopy();
+        private void CmbUrlopyRok_Changed(object sender, SelectionChangedEventArgs e) => LoadUrlopy();
+
+        private void LoadUrlopy()
+        {
+            // TODO: Załaduj z bazy ZPSP
+            gridUrlopy.ItemsSource = new List<NieobecnoscModel>();
+        }
+
+        private void BtnDodajNieobecnosc_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new DodajNieobecnoscDialog(_pracownicy);
+            dialog.Owner = this;
+            if (dialog.ShowDialog() == true)
+            {
+                // TODO: Zapisz do bazy
+                LoadUrlopy();
+                MessageBox.Show("Nieobecność została dodana.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void BtnZatwierdzNieobecnosc_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = gridUrlopy.SelectedItem as NieobecnoscModel;
+            if (selected == null)
+            {
+                MessageBox.Show("Wybierz nieobecność do zatwierdzenia.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            // TODO: Aktualizuj status w bazie
+            LoadUrlopy();
+        }
+
+        private void BtnOdrzucNieobecnosc_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = gridUrlopy.SelectedItem as NieobecnoscModel;
+            if (selected == null)
+            {
+                MessageBox.Show("Wybierz nieobecność do odrzucenia.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            // TODO: Aktualizuj status w bazie
+            LoadUrlopy();
+        }
+
+        #endregion
+
+        #region Nadgodziny
+
+        private void LoadNadgodziny()
+        {
+            // TODO: Załaduj z bazy ZPSP
+            gridNadgodziny.ItemsSource = new List<NadgodzinyModel>();
+        }
+
+        private void BtnDodajNadgodziny_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new DodajNadgodzinyDialog(_pracownicy);
+            dialog.Owner = this;
+            if (dialog.ShowDialog() == true)
+            {
+                LoadNadgodziny();
+                MessageBox.Show("Nadgodziny zostały dodane do kartoteki.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void BtnOdbierzNadgodziny_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = gridNadgodziny.SelectedItem as NadgodzinyModel;
+            if (selected == null)
+            {
+                MessageBox.Show("Wybierz wpis do odebrania.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            // TODO: Dialog odbioru godzin
+            LoadNadgodziny();
+        }
+
+        private void BtnPrzeliczNadgodziny_Click(object sender, RoutedEventArgs e)
+        {
+            // Automatyczne wykrywanie nadgodzin z rejestracji
+            int wykryte = 0;
+            foreach (var pracownik in _pracownicy)
+            {
+                var rejestracje = _wszystkieRejestracje.Where(r => r.PracownikId == pracownik.Id).ToList();
+                // Grupuj po dniach i licz godziny >8
+                var poDniach = rejestracje.GroupBy(r => r.DataCzas.Date);
+                foreach (var dzien in poDniach)
+                {
+                    var wejscia = dzien.Where(r => r.TypInt == 1).OrderBy(r => r.DataCzas).ToList();
+                    var wyjscia = dzien.Where(r => r.TypInt == 0).OrderBy(r => r.DataCzas).ToList();
+                    if (wejscia.Any() && wyjscia.Any())
+                    {
+                        var pierwszeWejscie = wejscia.First().DataCzas;
+                        var ostatnieWyjscie = wyjscia.Last().DataCzas;
+                        var godziny = (ostatnieWyjscie - pierwszeWejscie).TotalHours;
+                        if (godziny > 8)
+                        {
+                            wykryte++;
+                            // TODO: Zapisz do bazy
+                        }
+                    }
+                }
+            }
+            MessageBox.Show($"Wykryto {wykryte} dni z nadgodzinami.", "Przeliczanie", MessageBoxButton.OK, MessageBoxImage.Information);
+            LoadNadgodziny();
+        }
+
+        #endregion
+
+        #region Agencje - Rozliczenia Tygodniowe
+
+        private DateTime _agencjaTydzienStart = DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek + 1);
+
+        private void LoadAgencjeTydzien()
+        {
+            var lista = new List<AgencjaTydzienModel>();
+            var koniecTygodnia = _agencjaTydzienStart.AddDays(6);
+
+            // Pobierz pracowników z agencji
+            var agencjePracownicy = _pracownicy.Where(p => 
+                p.GrupaNazwa.ToUpper().Contains("AGENCJA") || 
+                p.GrupaNazwa.ToUpper().Contains("GURAVO") ||
+                p.GrupaNazwa.ToUpper().Contains("IMPULS")).ToList();
+
+            bool maAlerty = false;
+
+            foreach (var pracownik in agencjePracownicy)
+            {
+                var model = new AgencjaTydzienModel
+                {
+                    PracownikId = pracownik.Id,
+                    Pracownik = pracownik.PelneNazwisko,
+                    Agencja = pracownik.GrupaNazwa
+                };
+
+                // Oblicz godziny dla każdego dnia
+                for (int i = 0; i < 7; i++)
+                {
+                    var dzien = _agencjaTydzienStart.AddDays(i);
+                    var godziny = ObliczGodzinyDnia(pracownik.Id, dzien);
+                    
+                    switch (i)
+                    {
+                        case 0: model.Pn = godziny; model.PnKolor = GetKolorGodzin(godziny, true); break;
+                        case 1: model.Wt = godziny; model.WtKolor = GetKolorGodzin(godziny, true); break;
+                        case 2: model.Sr = godziny; model.SrKolor = GetKolorGodzin(godziny, true); break;
+                        case 3: model.Cz = godziny; model.CzKolor = GetKolorGodzin(godziny, true); break;
+                        case 4: model.Pt = godziny; model.PtKolor = GetKolorGodzin(godziny, true); break;
+                        case 5: model.Sb = godziny; model.SbKolor = GetKolorGodzin(godziny, true); break;
+                        case 6: model.Nd = godziny; model.NdKolor = GetKolorGodzin(godziny, true); break;
+                    }
+
+                    if (godziny > 12) maAlerty = true;
+                }
+
+                model.Suma = model.Pn + model.Wt + model.Sr + model.Cz + model.Pt + model.Sb + model.Nd;
+                model.Alert = model.Suma > 60 ? "⚠️" : (new[] { model.Pn, model.Wt, model.Sr, model.Cz, model.Pt, model.Sb, model.Nd }.Any(g => g > 12) ? "🔴" : "");
+
+                if (model.Suma > 0)
+                    lista.Add(model);
+            }
+
+            gridAgencjeTydzien.ItemsSource = lista;
+            panelAlertAgencje.Visibility = maAlerty ? Visibility.Visible : Visibility.Collapsed;
+            
+            if (maAlerty)
+            {
+                int przekroczenia = lista.Count(l => new[] { l.Pn, l.Wt, l.Sr, l.Cz, l.Pt, l.Sb, l.Nd }.Any(g => g > 12));
+                txtAlertAgencjeOpis.Text = $"Wykryto {przekroczenia} pracowników z przekroczeniem 12h dziennie!";
+            }
+        }
+
+        private double ObliczGodzinyDnia(int pracownikId, DateTime dzien)
+        {
+            var rejestracje = _wszystkieRejestracje
+                .Where(r => r.PracownikId == pracownikId && r.DataCzas.Date == dzien.Date)
+                .OrderBy(r => r.DataCzas)
+                .ToList();
+
+            if (!rejestracje.Any()) return 0;
+
+            var wejscia = rejestracje.Where(r => r.TypInt == 1).ToList();
+            var wyjscia = rejestracje.Where(r => r.TypInt == 0).ToList();
+
+            if (wejscia.Any() && wyjscia.Any())
+            {
+                return (wyjscia.Last().DataCzas - wejscia.First().DataCzas).TotalHours;
+            }
+            return 0;
+        }
+
+        private string GetKolorGodzin(double godziny, bool czyAgencja)
+        {
+            if (godziny == 0) return "Transparent";
+            double limit = czyAgencja ? 12 : 13;
+            if (godziny > limit) return "#FED7D7"; // czerwony
+            if (godziny > 10) return "#FEEBC8"; // pomarańczowy
+            if (godziny > 8) return "#FEFCBF"; // żółty
+            return "#C6F6D5"; // zielony
+        }
+
+        private void CmbAgencjaTydzien_Changed(object sender, SelectionChangedEventArgs e) => LoadAgencjeTydzien();
+        private void CmbAgencjaFiltr_Changed(object sender, SelectionChangedEventArgs e) => LoadAgencjeTydzien();
+
+        private void BtnAgencjaPoprzedniTydzien_Click(object sender, RoutedEventArgs e)
+        {
+            _agencjaTydzienStart = _agencjaTydzienStart.AddDays(-7);
+            LoadAgencjeTydzien();
+        }
+
+        private void BtnAgencjaNastepnyTydzien_Click(object sender, RoutedEventArgs e)
+        {
+            _agencjaTydzienStart = _agencjaTydzienStart.AddDays(7);
+            LoadAgencjeTydzien();
+        }
+
+        private void BtnAgencjaBiezacyTydzien_Click(object sender, RoutedEventArgs e)
+        {
+            _agencjaTydzienStart = DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek + 1);
+            LoadAgencjeTydzien();
+        }
+
+        private void BtnPokazPrzekroczenia_Click(object sender, RoutedEventArgs e)
+        {
+            var przekroczenia = (gridAgencjeTydzien.ItemsSource as List<AgencjaTydzienModel>)?
+                .Where(l => new[] { l.Pn, l.Wt, l.Sr, l.Cz, l.Pt, l.Sb, l.Nd }.Any(g => g > 12))
+                .ToList();
+
+            if (przekroczenia?.Any() == true)
+            {
+                var msg = string.Join("\n", przekroczenia.Select(p => $"• {p.Pracownik} ({p.Agencja})"));
+                MessageBox.Show($"Pracownicy z przekroczeniem 12h:\n\n{msg}", "Przekroczenia", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private void BtnExportAgencjeTydzien_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("Export do Excel - funkcja w przygotowaniu", "Export", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        #endregion
+
+        #region Spóźnienia
+
+        private void CmbSpoznieniaMiesiac_Changed(object sender, SelectionChangedEventArgs e) => LoadSpoznienia();
+
+        private void LoadSpoznienia()
+        {
+            // TODO: Załaduj z bazy lub wylicz z rejestracji
+            gridSpoznienia.ItemsSource = new List<SpoznienieModel>();
+        }
+
+        private void BtnWykryjSpoznienia_Click(object sender, RoutedEventArgs e)
+        {
+            int tolerancja = (cmbTolerancjaSpoznienia.SelectedIndex) * 5;
+            var godzinaStart = new TimeSpan(6, 0, 0); // Domyślna godzina startu
+            var spoznienia = new List<SpoznienieModel>();
+
+            var pracownicyZRejestracja = _wszystkieRejestracje
+                .Where(r => r.TypInt == 1)
+                .GroupBy(r => new { r.PracownikId, r.DataCzas.Date });
+
+            foreach (var grupa in pracownicyZRejestracja)
+            {
+                var pierwszeWejscie = grupa.OrderBy(r => r.DataCzas).First();
+                var godzinaWejscia = pierwszeWejscie.DataCzas.TimeOfDay;
+                var spoznienieMin = (int)(godzinaWejscia - godzinaStart).TotalMinutes;
+
+                if (spoznienieMin > tolerancja)
+                {
+                    spoznienia.Add(new SpoznienieModel
+                    {
+                        PracownikId = pierwszeWejscie.PracownikId,
+                        PracownikNazwa = pierwszeWejscie.Pracownik,
+                        GrupaNazwa = pierwszeWejscie.Grupa,
+                        Data = pierwszeWejscie.DataCzas.Date,
+                        DzienTygodnia = pierwszeWejscie.DataCzas.ToString("ddd"),
+                        PlanowanaGodzina = DateTime.Today.Add(godzinaStart),
+                        RzeijczystaGodzina = DateTime.Today.Add(godzinaWejscia),
+                        SpoznienieMin = spoznienieMin,
+                        SpoznienieKolor = spoznienieMin > 30 ? "#E53E3E" : (spoznienieMin > 15 ? "#DD6B20" : "#ECC94B"),
+                        Usprawiedliwione = false,
+                        StatusIkona = "❌"
+                    });
+                }
+            }
+
+            gridSpoznienia.ItemsSource = spoznienia;
+            txtSpoznieniaIlosc.Text = spoznienia.Count.ToString();
+            txtSpoznieniaMinuty.Text = spoznienia.Sum(s => s.SpoznienieMin).ToString();
+            txtSpoznieniaSrednia.Text = spoznienia.Any() ? $"{spoznienia.Average(s => s.SpoznienieMin):N0} min" : "0 min";
+            txtSpoznieniaRecydywisci.Text = spoznienia.GroupBy(s => s.PracownikId).Count(g => g.Count() > 3).ToString();
+
+            MessageBox.Show($"Wykryto {spoznienia.Count} spóźnień.", "Analiza", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void BtnUsprawiedliwSpoznienie_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = gridSpoznienia.SelectedItem as SpoznienieModel;
+            if (selected == null)
+            {
+                MessageBox.Show("Wybierz spóźnienie do usprawiedliwienia.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            selected.Usprawiedliwione = true;
+            selected.StatusIkona = "✅";
+            gridSpoznienia.Items.Refresh();
+        }
+
+        #endregion
+
+        #region Przerwy
+
+        private void LoadHarmonogramPrzerw()
+        {
+            // Domyślne przerwy
+            listHarmonogramPrzerw.ItemsSource = new List<HarmonogramPrzerwyModel>
+            {
+                new HarmonogramPrzerwyModel { Id = 1, Nazwa = "Przerwa śniadaniowa", GodzinaOd = new TimeSpan(9, 0, 0), GodzinaDo = new TimeSpan(9, 15, 0), CzasTrwaniaMin = 15 },
+                new HarmonogramPrzerwyModel { Id = 2, Nazwa = "Przerwa obiadowa", GodzinaOd = new TimeSpan(12, 0, 0), GodzinaDo = new TimeSpan(12, 30, 0), CzasTrwaniaMin = 30 },
+                new HarmonogramPrzerwyModel { Id = 3, Nazwa = "Przerwa popołudniowa", GodzinaOd = new TimeSpan(15, 0, 0), GodzinaDo = new TimeSpan(15, 15, 0), CzasTrwaniaMin = 15 }
+            };
+        }
+
+        private void BtnDodajHarmonogramPrzerwy_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new DodajPrzerweDialog();
+            dialog.Owner = this;
+            if (dialog.ShowDialog() == true)
+            {
+                LoadHarmonogramPrzerw();
+            }
+        }
+
+        private void BtnEdytujPrzerwe_Click(object sender, RoutedEventArgs e)
+        {
+            var btn = sender as Button;
+            var id = (int)btn.Tag;
+            MessageBox.Show($"Edycja przerwy ID: {id}", "Edycja", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void BtnAnalizujPrzerwy_Click(object sender, RoutedEventArgs e)
+        {
+            var data = dpPrzerwyData.SelectedDate ?? DateTime.Today;
+            var przerwy = new List<RejestracjaPrzerwyModel>();
+
+            // Znajdź pary wyjście-wejście tego samego dnia (potencjalne przerwy)
+            var poDniach = _wszystkieRejestracje
+                .Where(r => r.DataCzas.Date == data.Date)
+                .GroupBy(r => r.PracownikId);
+
+            foreach (var pracownik in poDniach)
+            {
+                var rejestracje = pracownik.OrderBy(r => r.DataCzas).ToList();
+                for (int i = 0; i < rejestracje.Count - 1; i++)
+                {
+                    if (rejestracje[i].TypInt == 0 && rejestracje[i + 1].TypInt == 1) // wyjście -> wejście
+                    {
+                        var wyjscie = rejestracje[i].DataCzas;
+                        var wejscie = rejestracje[i + 1].DataCzas;
+                        var czas = (int)(wejscie - wyjscie).TotalMinutes;
+
+                        if (czas > 5 && czas < 120) // Przerwa między 5 a 120 minut
+                        {
+                            // Sprawdź czy w harmonogramie
+                            var wHarmonogramie = SprawdzCzyWHarmonogramie(wyjscie.TimeOfDay, wejscie.TimeOfDay);
+
+                            przerwy.Add(new RejestracjaPrzerwyModel
+                            {
+                                PracownikId = rejestracje[i].PracownikId,
+                                PracownikNazwa = rejestracje[i].Pracownik,
+                                GodzinaWyjscia = wyjscie.TimeOfDay,
+                                GodzinaWejscia = wejscie.TimeOfDay,
+                                CzasTrwaniaMin = czas,
+                                CzyWHarmonogramie = wHarmonogramie,
+                                StatusKolor = wHarmonogramie ? "#38A169" : "#E53E3E",
+                                StatusTekst = wHarmonogramie ? "W harmonogramie" : "Poza harmonogramem"
+                            });
+                        }
+                    }
+                }
+            }
+
+            if (chkTylkoPozaHarmonogramem.IsChecked == true)
+                przerwy = przerwy.Where(p => !p.CzyWHarmonogramie).ToList();
+
+            gridPrzerwy.ItemsSource = przerwy;
+            txtPrzerwyWHarmonogramie.Text = przerwy.Count(p => p.CzyWHarmonogramie).ToString();
+            txtPrzerwyPozaHarmonogramem.Text = przerwy.Count(p => !p.CzyWHarmonogramie).ToString();
+            txtPrzerwySredniCzas.Text = przerwy.Any() ? $"{przerwy.Average(p => p.CzasTrwaniaMin):N0} min" : "0 min";
+            txtPrzerwyNajdluzsza.Text = przerwy.Any() ? $"{przerwy.Max(p => p.CzasTrwaniaMin)} min" : "0 min";
+        }
+
+        private bool SprawdzCzyWHarmonogramie(TimeSpan wyjscie, TimeSpan wejscie)
+        {
+            var harmonogram = listHarmonogramPrzerw.ItemsSource as List<HarmonogramPrzerwyModel>;
+            if (harmonogram == null) return false;
+
+            foreach (var przerwa in harmonogram)
+            {
+                // Sprawdź czy wyjście i wejście mieszczą się w oknie przerwy (z tolerancją 5 min)
+                if (wyjscie >= przerwa.GodzinaOd.Add(TimeSpan.FromMinutes(-5)) &&
+                    wejscie <= przerwa.GodzinaDo.Add(TimeSpan.FromMinutes(5)))
+                    return true;
+            }
+            return false;
+        }
+
+        #endregion
+
+        #region Alerty
+
+        private void LoadAlerty()
+        {
+            // Skanuj alerty automatycznie
+            var alerty = new List<AlertModel>();
+
+            // Sprawdź przekroczenia godzin
+            var poDniach = _wszystkieRejestracje.GroupBy(r => new { r.PracownikId, r.DataCzas.Date });
+            foreach (var dzien in poDniach)
+            {
+                var godziny = ObliczGodzinyDnia(dzien.Key.PracownikId, dzien.Key.Date);
+                var pracownik = dzien.First();
+                bool czyAgencja = pracownik.Grupa.ToUpper().Contains("AGENCJA") || 
+                                  pracownik.Grupa.ToUpper().Contains("GURAVO") ||
+                                  pracownik.Grupa.ToUpper().Contains("IMPULS");
+
+                if (czyAgencja && godziny > 12)
+                {
+                    alerty.Add(new AlertModel
+                    {
+                        TypAlertu = "PRZEKROCZENIE_12H",
+                        PracownikId = pracownik.PracownikId,
+                        PracownikNazwa = pracownik.Pracownik,
+                        GrupaNazwa = pracownik.Grupa,
+                        CzyAgencja = true,
+                        Data = dzien.Key.Date,
+                        Wartosc = (decimal)godziny,
+                        WartoscTekst = $"{godziny:N1}h",
+                        Opis = $"Agencja - przekroczenie limitu 12h",
+                        Ikona = "🔴",
+                        StatusIkona = "⚪"
+                    });
+                }
+                else if (!czyAgencja && godziny > 13)
+                {
+                    alerty.Add(new AlertModel
+                    {
+                        TypAlertu = "PRZEKROCZENIE_13H",
+                        PracownikId = pracownik.PracownikId,
+                        PracownikNazwa = pracownik.Pracownik,
+                        GrupaNazwa = pracownik.Grupa,
+                        CzyAgencja = false,
+                        Data = dzien.Key.Date,
+                        Wartosc = (decimal)godziny,
+                        WartoscTekst = $"{godziny:N1}h",
+                        Opis = $"Pracownik własny - przekroczenie limitu 13h",
+                        Ikona = "🟠",
+                        StatusIkona = "⚪"
+                    });
+                }
+
+                // Sprawdź braki odbić
+                var wejscia = dzien.Count(r => r.TypInt == 1);
+                var wyjscia = dzien.Count(r => r.TypInt == 0);
+                if (wejscia > wyjscia && dzien.Key.Date < DateTime.Today)
+                {
+                    alerty.Add(new AlertModel
+                    {
+                        TypAlertu = "BRAK_WYJSCIA",
+                        PracownikId = pracownik.PracownikId,
+                        PracownikNazwa = pracownik.Pracownik,
+                        GrupaNazwa = pracownik.Grupa,
+                        Data = dzien.Key.Date,
+                        Opis = "Brak rejestracji wyjścia",
+                        Ikona = "❌",
+                        StatusIkona = "⚪"
+                    });
+                }
+            }
+
+            gridAlerty.ItemsSource = alerty;
+
+            // Aktualizuj liczniki
+            txtAlertAgencja12.Text = alerty.Count(a => a.TypAlertu == "PRZEKROCZENIE_12H").ToString();
+            txtAlertWlasny13.Text = alerty.Count(a => a.TypAlertu == "PRZEKROCZENIE_13H").ToString();
+            txtAlertBrakWyjscia.Text = alerty.Count(a => a.TypAlertu == "BRAK_WYJSCIA").ToString();
+            txtAlertBrakWejscia.Text = alerty.Count(a => a.TypAlertu == "BRAK_WEJSCIA").ToString();
+            txtAlertSpoznienia.Text = alerty.Count(a => a.TypAlertu == "SPOZNIENIE").ToString();
+        }
+
+        private void BtnSkanujAlerty_Click(object sender, RoutedEventArgs e)
+        {
+            LoadAlerty();
+            MessageBox.Show("Alerty zostały przeskanowane.", "Skanowanie", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void BtnOznaczPrzeczytane_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = gridAlerty.SelectedItems.Cast<AlertModel>().ToList();
+            foreach (var alert in selected)
+            {
+                alert.StatusIkona = "✅";
+            }
+            gridAlerty.Items.Refresh();
+        }
+
+        private void ChkAlertyFiltr_Changed(object sender, RoutedEventArgs e) => LoadAlerty();
+        private void CmbAlertyTyp_Changed(object sender, SelectionChangedEventArgs e) => LoadAlerty();
+
+        #endregion
+
+        #region Przesunięcia Godzin
+
+        private void LoadPrzesuniecia()
+        {
+            // TODO: Załaduj z bazy
+            gridPrzesuniecia.ItemsSource = new List<PrzesuniecieModel>();
+        }
+
+        private void BtnDodajPrzesuniecie_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new DodajPrzesuniecieDialog(_pracownicy);
+            dialog.Owner = this;
+            if (dialog.ShowDialog() == true)
+            {
+                LoadPrzesuniecia();
+                MessageBox.Show("Przesunięcie zostało zapisane.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void BtnAnulujPrzesuniecie_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = gridPrzesuniecia.SelectedItem as PrzesuniecieModel;
+            if (selected == null)
+            {
+                MessageBox.Show("Wybierz przesunięcie do anulowania.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            // TODO: Aktualizuj status w bazie
+            LoadPrzesuniecia();
+        }
+
+        private void CmbPrzesunieciaStatus_Changed(object sender, SelectionChangedEventArgs e) => LoadPrzesuniecia();
+
+        #endregion
     }
 
     #region Models
@@ -1724,6 +2319,274 @@ namespace Kalendarz1.KontrolaGodzin
         public long NumerKarty { get; set; }
         public string Urzadzenie { get; set; }
         public int TrybRejestracji { get; set; }
+    }
+
+    public class NieobecnoscModel
+    {
+        public int Id { get; set; }
+        public int PracownikId { get; set; }
+        public string PracownikNazwa { get; set; }
+        public int TypNieobecnosciId { get; set; }
+        public string TypNazwa { get; set; }
+        public DateTime DataOd { get; set; }
+        public DateTime DataDo { get; set; }
+        public int IloscDni { get; set; }
+        public string Status { get; set; }
+        public string StatusKolor => Status == "ZATWIERDZONA" ? "#38A169" : (Status == "ODRZUCONA" ? "#E53E3E" : "#DD6B20");
+        public string Uwagi { get; set; }
+        public DateTime DataUtworzenia { get; set; }
+    }
+
+    public class NadgodzinyModel
+    {
+        public int Id { get; set; }
+        public int PracownikId { get; set; }
+        public string PracownikNazwa { get; set; }
+        public DateTime DataNabicia { get; set; }
+        public decimal IloscGodzin { get; set; }
+        public decimal IloscOdebrana { get; set; }
+        public decimal DoOdebrania => IloscGodzin - IloscOdebrana;
+        public DateTime? DataOdbioru { get; set; }
+        public string Status { get; set; }
+        public string StatusNazwa => Status == "DO_ODBIORU" ? "Do odbioru" : (Status == "CZESCIOWO" ? "Częściowo" : "Odebrane");
+        public string StatusKolor => Status == "ODEBRANE" ? "#38A169" : (Status == "CZESCIOWO" ? "#DD6B20" : "#3182CE");
+        public string Uwagi { get; set; }
+    }
+
+    public class AgencjaTydzienModel
+    {
+        public int PracownikId { get; set; }
+        public string Pracownik { get; set; }
+        public string Agencja { get; set; }
+        public double Pn { get; set; }
+        public double Wt { get; set; }
+        public double Sr { get; set; }
+        public double Cz { get; set; }
+        public double Pt { get; set; }
+        public double Sb { get; set; }
+        public double Nd { get; set; }
+        public double Suma { get; set; }
+        public string PnKolor { get; set; }
+        public string WtKolor { get; set; }
+        public string SrKolor { get; set; }
+        public string CzKolor { get; set; }
+        public string PtKolor { get; set; }
+        public string SbKolor { get; set; }
+        public string NdKolor { get; set; }
+        public string Alert { get; set; }
+    }
+
+    public class SpoznienieModel
+    {
+        public int Id { get; set; }
+        public int PracownikId { get; set; }
+        public string PracownikNazwa { get; set; }
+        public string GrupaNazwa { get; set; }
+        public DateTime Data { get; set; }
+        public string DzienTygodnia { get; set; }
+        public DateTime PlanowanaGodzina { get; set; }
+        public DateTime RzeijczystaGodzina { get; set; }
+        public int SpoznienieMin { get; set; }
+        public string SpoznienieKolor { get; set; }
+        public bool Usprawiedliwione { get; set; }
+        public string StatusIkona { get; set; }
+        public string Uwagi { get; set; }
+    }
+
+    public class HarmonogramPrzerwyModel
+    {
+        public int Id { get; set; }
+        public string Nazwa { get; set; }
+        public TimeSpan GodzinaOd { get; set; }
+        public TimeSpan GodzinaDo { get; set; }
+        public int CzasTrwaniaMin { get; set; }
+    }
+
+    public class RejestracjaPrzerwyModel
+    {
+        public int Id { get; set; }
+        public int PracownikId { get; set; }
+        public string PracownikNazwa { get; set; }
+        public TimeSpan GodzinaWyjscia { get; set; }
+        public TimeSpan? GodzinaWejscia { get; set; }
+        public int CzasTrwaniaMin { get; set; }
+        public bool CzyWHarmonogramie { get; set; }
+        public string StatusKolor { get; set; }
+        public string StatusTekst { get; set; }
+        public string HarmonogramNazwa { get; set; }
+    }
+
+    public class AlertModel
+    {
+        public int Id { get; set; }
+        public string TypAlertu { get; set; }
+        public int PracownikId { get; set; }
+        public string PracownikNazwa { get; set; }
+        public string GrupaNazwa { get; set; }
+        public bool CzyAgencja { get; set; }
+        public DateTime Data { get; set; }
+        public string Opis { get; set; }
+        public decimal? Wartosc { get; set; }
+        public string WartoscTekst { get; set; }
+        public string Ikona { get; set; }
+        public string StatusIkona { get; set; }
+    }
+
+    public class PrzesuniecieModel
+    {
+        public int Id { get; set; }
+        public int PracownikId { get; set; }
+        public string PracownikNazwa { get; set; }
+        public DateTime DataPrzesunieciaOd { get; set; }
+        public DateTime? DataPrzesunieciaDo { get; set; }
+        public TimeSpan NowaGodzinaStart { get; set; }
+        public string Powod { get; set; }
+        public string Status { get; set; }
+        public string StatusKolor => Status == "AKTYWNE" ? "#38A169" : (Status == "ZAKONCZONE" ? "#718096" : "#E53E3E");
+        public DateTime DataUtworzenia { get; set; }
+    }
+
+    #endregion
+
+    #region Dialogs
+
+    public class DodajNieobecnoscDialog : Window
+    {
+        private ComboBox cmbPracownik, cmbTyp;
+        private DatePicker dpOd, dpDo;
+        private TextBox txtUwagi;
+
+        public DodajNieobecnoscDialog(List<PracownikModel> pracownicy)
+        {
+            Title = "Dodaj nieobecność";
+            Width = 450;
+            Height = 350;
+            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#F5F7FA"));
+
+            var grid = new Grid { Margin = new Thickness(20) };
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            // Pracownik
+            var sp1 = new StackPanel { Margin = new Thickness(0, 0, 0, 10) };
+            sp1.Children.Add(new TextBlock { Text = "Pracownik:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 5) });
+            cmbPracownik = new ComboBox { ItemsSource = pracownicy, DisplayMemberPath = "PelneNazwisko" };
+            sp1.Children.Add(cmbPracownik);
+            Grid.SetRow(sp1, 0);
+            grid.Children.Add(sp1);
+
+            // Typ
+            var sp2 = new StackPanel { Margin = new Thickness(0, 0, 0, 10) };
+            sp2.Children.Add(new TextBlock { Text = "Typ nieobecności:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 5) });
+            cmbTyp = new ComboBox();
+            cmbTyp.Items.Add("Urlop wypoczynkowy");
+            cmbTyp.Items.Add("Urlop na żądanie");
+            cmbTyp.Items.Add("Zwolnienie chorobowe (L4)");
+            cmbTyp.Items.Add("Urlop okolicznościowy");
+            cmbTyp.Items.Add("Opieka nad dzieckiem");
+            cmbTyp.Items.Add("Urlop bezpłatny");
+            cmbTyp.SelectedIndex = 0;
+            sp2.Children.Add(cmbTyp);
+            Grid.SetRow(sp2, 1);
+            grid.Children.Add(sp2);
+
+            // Daty
+            var sp3 = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
+            sp3.Children.Add(new TextBlock { Text = "Od:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
+            dpOd = new DatePicker { Width = 120, SelectedDate = DateTime.Today };
+            sp3.Children.Add(dpOd);
+            sp3.Children.Add(new TextBlock { Text = "Do:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(20, 0, 8, 0) });
+            dpDo = new DatePicker { Width = 120, SelectedDate = DateTime.Today };
+            sp3.Children.Add(dpDo);
+            Grid.SetRow(sp3, 2);
+            grid.Children.Add(sp3);
+
+            // Uwagi
+            var sp4 = new StackPanel { Margin = new Thickness(0, 0, 0, 10) };
+            sp4.Children.Add(new TextBlock { Text = "Uwagi:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 5) });
+            txtUwagi = new TextBox { Height = 60, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true };
+            sp4.Children.Add(txtUwagi);
+            Grid.SetRow(sp4, 3);
+            grid.Children.Add(sp4);
+
+            // Przyciski
+            var spBtn = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            var btnZapisz = new Button { Content = "Zapisz", Padding = new Thickness(20, 8, 20, 8), Margin = new Thickness(0, 0, 10, 0) };
+            btnZapisz.Click += (s, e) => { DialogResult = true; Close(); };
+            var btnAnuluj = new Button { Content = "Anuluj", Padding = new Thickness(20, 8, 20, 8) };
+            btnAnuluj.Click += (s, e) => { DialogResult = false; Close(); };
+            spBtn.Children.Add(btnZapisz);
+            spBtn.Children.Add(btnAnuluj);
+            Grid.SetRow(spBtn, 5);
+            grid.Children.Add(spBtn);
+
+            Content = grid;
+        }
+    }
+
+    public class DodajNadgodzinyDialog : Window
+    {
+        public DodajNadgodzinyDialog(List<PracownikModel> pracownicy)
+        {
+            Title = "Dodaj nadgodziny do odbioru";
+            Width = 400;
+            Height = 300;
+            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+
+            var sp = new StackPanel { Margin = new Thickness(20) };
+            sp.Children.Add(new TextBlock { Text = "Funkcja w przygotowaniu...", FontSize = 14 });
+            
+            var btn = new Button { Content = "OK", Padding = new Thickness(20, 8, 20, 8), Margin = new Thickness(0, 20, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
+            btn.Click += (s, e) => Close();
+            sp.Children.Add(btn);
+
+            Content = sp;
+        }
+    }
+
+    public class DodajPrzerweDialog : Window
+    {
+        public DodajPrzerweDialog()
+        {
+            Title = "Dodaj przerwę do harmonogramu";
+            Width = 400;
+            Height = 300;
+            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+
+            var sp = new StackPanel { Margin = new Thickness(20) };
+            sp.Children.Add(new TextBlock { Text = "Funkcja w przygotowaniu...", FontSize = 14 });
+            
+            var btn = new Button { Content = "OK", Padding = new Thickness(20, 8, 20, 8), Margin = new Thickness(0, 20, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
+            btn.Click += (s, e) => Close();
+            sp.Children.Add(btn);
+
+            Content = sp;
+        }
+    }
+
+    public class DodajPrzesuniecieDialog : Window
+    {
+        public DodajPrzesuniecieDialog(List<PracownikModel> pracownicy)
+        {
+            Title = "Dodaj przesunięcie godzin";
+            Width = 450;
+            Height = 350;
+            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+
+            var sp = new StackPanel { Margin = new Thickness(20) };
+            sp.Children.Add(new TextBlock { Text = "Funkcja w przygotowaniu...", FontSize = 14 });
+            
+            var btn = new Button { Content = "OK", Padding = new Thickness(20, 8, 20, 8), Margin = new Thickness(0, 20, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
+            btn.Click += (s, e) => Close();
+            sp.Children.Add(btn);
+
+            Content = sp;
+        }
     }
 
     #endregion

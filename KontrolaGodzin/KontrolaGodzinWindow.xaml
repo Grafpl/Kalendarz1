@@ -698,7 +698,7 @@
                     </Border>
 
                     <Border Grid.Row="1" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1">
-                        <DataGrid x:Name="gridAlerty" Margin="1" AutoGenerateColumns="False" IsReadOnly="True">
+                        <DataGrid x:Name="gridAlertyPodglad" Margin="1" AutoGenerateColumns="False" IsReadOnly="True">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="PRIORYTET" Binding="{Binding Priorytet}" Width="80"/>
                                 <DataGridTextColumn Header="DATA" Binding="{Binding Data, StringFormat=dd.MM.yyyy}" Width="90"/>
@@ -732,7 +732,7 @@
                     </Border>
 
                     <Border Grid.Row="1" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1">
-                        <DataGrid x:Name="gridNadgodziny" Margin="1" AutoGenerateColumns="False" IsReadOnly="True">
+                        <DataGrid x:Name="gridNadgodzinyPodglad" Margin="1" AutoGenerateColumns="False" IsReadOnly="True">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding Pracownik}" Width="180"/>
                                 <DataGridTextColumn Header="DZIAŁ" Binding="{Binding Grupa}" Width="140"/>
@@ -1046,6 +1046,663 @@
                                 </StackPanel>
                             </Border>
                         </StackPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ==================== URLOPY I NIEOBECNOŚCI ==================== -->
+            <TabItem Header="🏖️ Urlopy">
+                <Grid Margin="5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Toolbar -->
+                    <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="15" Margin="0,0,0,10" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <Grid>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="➕ Dodaj nieobecność" Style="{StaticResource PrimaryButton}" Click="BtnDodajNieobecnosc_Click" Margin="0,0,10,0"/>
+                                <Button Content="✅ Zatwierdź" Style="{StaticResource SuccessButton}" Click="BtnZatwierdzNieobecnosc_Click" Margin="0,0,10,0"/>
+                                <Button Content="❌ Odrzuć" Style="{StaticResource DangerButton}" Click="BtnOdrzucNieobecnosc_Click" Margin="0,0,20,0"/>
+                                
+                                <ComboBox x:Name="cmbTypNieobecnosci" Width="180" Margin="0,0,10,0"/>
+                                <ComboBox x:Name="cmbStatusNieobecnosci" Width="120" Margin="0,0,10,0">
+                                    <ComboBoxItem Content="Wszystkie" IsSelected="True"/>
+                                    <ComboBoxItem Content="Oczekujące"/>
+                                    <ComboBoxItem Content="Zatwierdzone"/>
+                                    <ComboBoxItem Content="Odrzucone"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <TextBlock Text="Miesiąc:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <ComboBox x:Name="cmbUrlopyMiesiac" Width="100" SelectionChanged="CmbUrlopyMiesiac_Changed"/>
+                                <ComboBox x:Name="cmbUrlopyRok" Width="80" Margin="5,0,0,0" SelectionChanged="CmbUrlopyRok_Changed"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Lista nieobecności -->
+                    <Border Grid.Row="1" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <DataGrid x:Name="gridUrlopy" Margin="1" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="50"/>
+                                <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding PracownikNazwa}" Width="180"/>
+                                <DataGridTextColumn Header="TYP" Binding="{Binding TypNazwa}" Width="150"/>
+                                <DataGridTextColumn Header="OD" Binding="{Binding DataOd, StringFormat=dd.MM.yyyy}" Width="90"/>
+                                <DataGridTextColumn Header="DO" Binding="{Binding DataDo, StringFormat=dd.MM.yyyy}" Width="90"/>
+                                <DataGridTextColumn Header="DNI" Binding="{Binding IloscDni}" Width="50"/>
+                                <DataGridTemplateColumn Header="STATUS" Width="120">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border CornerRadius="4" Padding="8,4" HorizontalAlignment="Left"
+                                                    Background="{Binding StatusKolor}">
+                                                <TextBlock Text="{Binding Status}" FontSize="11" FontWeight="SemiBold" Foreground="White"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="UWAGI" Binding="{Binding Uwagi}" Width="*"/>
+                                <DataGridTextColumn Header="DATA WNIOSKU" Binding="{Binding DataUtworzenia, StringFormat=dd.MM.yyyy HH:mm}" Width="130"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+
+                    <!-- Podsumowanie -->
+                    <Border Grid.Row="2" Background="White" CornerRadius="8" Padding="15" Margin="0,10,0,0" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <UniformGrid Columns="5">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="Urlop wypoczynkowy" FontSize="10" Foreground="#718096"/>
+                                <TextBlock x:Name="txtUrlopyWypoczynkowe" Text="0 dni" FontSize="18" FontWeight="Bold" Foreground="#38A169"/>
+                            </StackPanel>
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="Na żądanie" FontSize="10" Foreground="#718096"/>
+                                <TextBlock x:Name="txtUrlopyNaZadanie" Text="0 / 4 dni" FontSize="18" FontWeight="Bold" Foreground="#DD6B20"/>
+                            </StackPanel>
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="Chorobowe" FontSize="10" Foreground="#718096"/>
+                                <TextBlock x:Name="txtUrlopyChorobowe" Text="0 dni" FontSize="18" FontWeight="Bold" Foreground="#E53E3E"/>
+                            </StackPanel>
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="Okolicznościowe" FontSize="10" Foreground="#718096"/>
+                                <TextBlock x:Name="txtUrlopyOkolicznosciowe" Text="0 dni" FontSize="18" FontWeight="Bold" Foreground="#805AD5"/>
+                            </StackPanel>
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="Oczekujące wnioski" FontSize="10" Foreground="#718096"/>
+                                <TextBlock x:Name="txtUrlopyOczekujace" Text="0" FontSize="18" FontWeight="Bold" Foreground="#3182CE"/>
+                            </StackPanel>
+                        </UniformGrid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ==================== KARTOTEKA NADGODZIN ==================== -->
+            <TabItem Header="⏰ Nadgodziny">
+                <Grid Margin="5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Toolbar -->
+                    <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="15" Margin="0,0,0,10" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <Grid>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="➕ Dodaj nadgodziny" Style="{StaticResource PrimaryButton}" Click="BtnDodajNadgodziny_Click" Margin="0,0,10,0"/>
+                                <Button Content="✅ Odbierz godziny" Style="{StaticResource SuccessButton}" Click="BtnOdbierzNadgodziny_Click" Margin="0,0,10,0"/>
+                                <Button Content="🔄 Przelicz automatycznie" Style="{StaticResource ModernButton}" Click="BtnPrzeliczNadgodziny_Click" Margin="0,0,20,0"/>
+                                
+                                <ComboBox x:Name="cmbNadgodzinyStatus" Width="150">
+                                    <ComboBoxItem Content="Do odbioru" IsSelected="True"/>
+                                    <ComboBoxItem Content="Częściowo odebrane"/>
+                                    <ComboBoxItem Content="Odebrane"/>
+                                    <ComboBoxItem Content="Wszystkie"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <TextBlock Text="Pracownik:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <ComboBox x:Name="cmbNadgodzinyPracownik" Width="200"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Lista nadgodzin -->
+                    <Border Grid.Row="1" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <DataGrid x:Name="gridNadgodziny" Margin="1" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="50"/>
+                                <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding PracownikNazwa}" Width="180"/>
+                                <DataGridTextColumn Header="DATA NABICIA" Binding="{Binding DataNabicia, StringFormat=dd.MM.yyyy}" Width="100"/>
+                                <DataGridTextColumn Header="GODZIN" Binding="{Binding IloscGodzin, StringFormat=N2}" Width="80"/>
+                                <DataGridTextColumn Header="ODEBRANO" Binding="{Binding IloscOdebrana, StringFormat=N2}" Width="80"/>
+                                <DataGridTextColumn Header="ZOSTAŁO" Binding="{Binding DoOdebrania, StringFormat=N2}" Width="80"/>
+                                <DataGridTemplateColumn Header="STATUS" Width="120">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border CornerRadius="4" Padding="8,4" HorizontalAlignment="Left"
+                                                    Background="{Binding StatusKolor}">
+                                                <TextBlock Text="{Binding StatusNazwa}" FontSize="11" FontWeight="SemiBold" Foreground="White"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="DATA ODBIORU" Binding="{Binding DataOdbioru, StringFormat=dd.MM.yyyy}" Width="100"/>
+                                <DataGridTextColumn Header="UWAGI" Binding="{Binding Uwagi}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+
+                    <!-- Podsumowanie -->
+                    <Border Grid.Row="2" Background="White" CornerRadius="8" Padding="15" Margin="0,10,0,0" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <UniformGrid Columns="4">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="Suma do odbioru" FontSize="10" Foreground="#718096"/>
+                                <TextBlock x:Name="txtNadgodzinySuma" Text="0.00 h" FontSize="24" FontWeight="Bold" Foreground="#DD6B20"/>
+                            </StackPanel>
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="Pracownicy z nadgodzinami" FontSize="10" Foreground="#718096"/>
+                                <TextBlock x:Name="txtNadgodzinyPracownicy" Text="0" FontSize="24" FontWeight="Bold" Foreground="#3182CE"/>
+                            </StackPanel>
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="Odebrano w tym miesiącu" FontSize="10" Foreground="#718096"/>
+                                <TextBlock x:Name="txtNadgodzinyOdebrane" Text="0.00 h" FontSize="24" FontWeight="Bold" Foreground="#38A169"/>
+                            </StackPanel>
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="Najstarsze nieodebrane" FontSize="10" Foreground="#718096"/>
+                                <TextBlock x:Name="txtNadgodzinyNajstarsze" Text="-" FontSize="18" FontWeight="Bold" Foreground="#E53E3E"/>
+                            </StackPanel>
+                        </UniformGrid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ==================== ROZLICZENIA AGENCJI ==================== -->
+            <TabItem Header="🏢 Agencje">
+                <Grid Margin="5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Alert przekroczeń -->
+                    <Border x:Name="panelAlertAgencje" Grid.Row="0" Background="#FFF5F5" CornerRadius="8" Padding="15" Margin="0,0,0,10" 
+                            BorderBrush="#FED7D7" BorderThickness="1" Visibility="Collapsed">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⚠️" FontSize="24" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                            <StackPanel>
+                                <TextBlock Text="PRZEKROCZENIA CZASU PRACY!" FontWeight="Bold" Foreground="#C53030" FontSize="14"/>
+                                <TextBlock x:Name="txtAlertAgencjeOpis" Text="Wykryto pracowników przekraczających limit godzin" Foreground="#9B2C2C" FontSize="12"/>
+                            </StackPanel>
+                            <Button Content="Pokaż szczegóły" Style="{StaticResource DangerButton}" Margin="20,0,0,0" VerticalAlignment="Center"
+                                    Click="BtnPokazPrzekroczenia_Click"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Toolbar -->
+                    <Border Grid.Row="1" Background="White" CornerRadius="8" Padding="15" Margin="0,0,0,10" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <Grid>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Tydzień:" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold"/>
+                                <ComboBox x:Name="cmbAgencjaTydzien" Width="200" SelectionChanged="CmbAgencjaTydzien_Changed"/>
+                                <Button Content="◀" Style="{StaticResource ModernButton}" Margin="10,0,5,0" Click="BtnAgencjaPoprzedniTydzien_Click"/>
+                                <Button Content="▶" Style="{StaticResource ModernButton}" Click="BtnAgencjaNastepnyTydzien_Click"/>
+                                <Button Content="Bieżący tydzień" Style="{StaticResource ModernButton}" Margin="10,0,0,0" Click="BtnAgencjaBiezacyTydzien_Click"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <TextBlock Text="Agencja:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <ComboBox x:Name="cmbAgencjaFiltr" Width="180" SelectionChanged="CmbAgencjaFiltr_Changed"/>
+                                <Button Content="📥 Export Excel" Style="{StaticResource SuccessButton}" Margin="15,0,0,0" Click="BtnExportAgencjeTydzien_Click"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Tabela tygodniowa -->
+                    <Border Grid.Row="2" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <DataGrid x:Name="gridAgencjeTydzien" Margin="1" AutoGenerateColumns="False" IsReadOnly="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding Pracownik}" Width="180"/>
+                                <DataGridTextColumn Header="AGENCJA" Binding="{Binding Agencja}" Width="120"/>
+                                <DataGridTemplateColumn Header="PN" Width="65">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{Binding PnKolor}" CornerRadius="3" Padding="4,2">
+                                                <TextBlock Text="{Binding Pn, StringFormat=N1}" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="WT" Width="65">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{Binding WtKolor}" CornerRadius="3" Padding="4,2">
+                                                <TextBlock Text="{Binding Wt, StringFormat=N1}" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="ŚR" Width="65">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{Binding SrKolor}" CornerRadius="3" Padding="4,2">
+                                                <TextBlock Text="{Binding Sr, StringFormat=N1}" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="CZ" Width="65">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{Binding CzKolor}" CornerRadius="3" Padding="4,2">
+                                                <TextBlock Text="{Binding Cz, StringFormat=N1}" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="PT" Width="65">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{Binding PtKolor}" CornerRadius="3" Padding="4,2">
+                                                <TextBlock Text="{Binding Pt, StringFormat=N1}" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="SB" Width="65">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{Binding SbKolor}" CornerRadius="3" Padding="4,2">
+                                                <TextBlock Text="{Binding Sb, StringFormat=N1}" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="ND" Width="65">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{Binding NdKolor}" CornerRadius="3" Padding="4,2">
+                                                <TextBlock Text="{Binding Nd, StringFormat=N1}" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="SUMA" Binding="{Binding Suma, StringFormat=N1}" Width="70" FontWeight="Bold"/>
+                                <DataGridTemplateColumn Header="ALERT" Width="80">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Alert}" FontSize="16" HorizontalAlignment="Center"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ==================== SPÓŹNIENIA ==================== -->
+            <TabItem Header="⏱️ Spóźnienia">
+                <Grid Margin="5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Toolbar -->
+                    <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="15" Margin="0,0,0,10" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <Grid>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="🔍 Wykryj spóźnienia" Style="{StaticResource PrimaryButton}" Click="BtnWykryjSpoznienia_Click" Margin="0,0,10,0"/>
+                                <Button Content="✅ Usprawiedliw" Style="{StaticResource SuccessButton}" Click="BtnUsprawiedliwSpoznienie_Click" Margin="0,0,20,0"/>
+                                
+                                <TextBlock Text="Tolerancja:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <ComboBox x:Name="cmbTolerancjaSpoznienia" Width="80" SelectedIndex="1">
+                                    <ComboBoxItem Content="0 min"/>
+                                    <ComboBoxItem Content="5 min"/>
+                                    <ComboBoxItem Content="10 min"/>
+                                    <ComboBoxItem Content="15 min"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <TextBlock Text="Miesiąc:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <ComboBox x:Name="cmbSpoznieniaMiesiac" Width="100" SelectionChanged="CmbSpoznieniaMiesiac_Changed"/>
+                                <ComboBox x:Name="cmbSpoznieniaRok" Width="80" Margin="5,0,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Lista spóźnień -->
+                    <Border Grid.Row="1" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <DataGrid x:Name="gridSpoznienia" Margin="1" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="DATA" Binding="{Binding Data, StringFormat=dd.MM.yyyy}" Width="90"/>
+                                <DataGridTextColumn Header="DZIEŃ" Binding="{Binding DzienTygodnia}" Width="70"/>
+                                <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding PracownikNazwa}" Width="180"/>
+                                <DataGridTextColumn Header="DZIAŁ" Binding="{Binding GrupaNazwa}" Width="120"/>
+                                <DataGridTextColumn Header="PLANOWANA" Binding="{Binding PlanowanaGodzina, StringFormat=HH\\:mm}" Width="90"/>
+                                <DataGridTextColumn Header="RZECZYWISTA" Binding="{Binding RzeijczystaGodzina, StringFormat=HH\\:mm}" Width="100"/>
+                                <DataGridTemplateColumn Header="SPÓŹNIENIE" Width="100">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border CornerRadius="4" Padding="8,4" HorizontalAlignment="Left"
+                                                    Background="{Binding SpoznienieKolor}">
+                                                <TextBlock Text="{Binding SpoznienieMin, StringFormat={}{0} min}" FontWeight="SemiBold" Foreground="White"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="STATUS" Width="120">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding StatusIkona}" FontSize="14"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="UWAGI" Binding="{Binding Uwagi}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+
+                    <!-- Statystyki -->
+                    <Border Grid.Row="2" Background="White" CornerRadius="8" Padding="15" Margin="0,10,0,0" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <UniformGrid Columns="5">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="Spóźnień w miesiącu" FontSize="10" Foreground="#718096"/>
+                                <TextBlock x:Name="txtSpoznieniaIlosc" Text="0" FontSize="24" FontWeight="Bold" Foreground="#E53E3E"/>
+                            </StackPanel>
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="Suma minut" FontSize="10" Foreground="#718096"/>
+                                <TextBlock x:Name="txtSpoznieniaMinuty" Text="0" FontSize="24" FontWeight="Bold" Foreground="#DD6B20"/>
+                            </StackPanel>
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="Usprawiedliwione" FontSize="10" Foreground="#718096"/>
+                                <TextBlock x:Name="txtSpoznieniaUspraw" Text="0" FontSize="24" FontWeight="Bold" Foreground="#38A169"/>
+                            </StackPanel>
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="Recydywiści (>3)" FontSize="10" Foreground="#718096"/>
+                                <TextBlock x:Name="txtSpoznieniaRecydywisci" Text="0" FontSize="24" FontWeight="Bold" Foreground="#C53030"/>
+                            </StackPanel>
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="Średnie spóźnienie" FontSize="10" Foreground="#718096"/>
+                                <TextBlock x:Name="txtSpoznieniaSrednia" Text="0 min" FontSize="24" FontWeight="Bold" Foreground="#3182CE"/>
+                            </StackPanel>
+                        </UniformGrid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ==================== PRZERWY ==================== -->
+            <TabItem Header="☕ Przerwy">
+                <Grid Margin="5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="350"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Panel harmonogramu -->
+                    <Border Grid.Column="0" Background="White" CornerRadius="8" Padding="15" Margin="0,0,10,0" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="📅 HARMONOGRAM PRZERW" FontWeight="Bold" FontSize="14" Margin="0,0,0,15"/>
+                            
+                            <ListBox x:Name="listHarmonogramPrzerw" Grid.Row="1" BorderThickness="0">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#F7FAFC" CornerRadius="6" Padding="12" Margin="0,0,0,8">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="{Binding Nazwa}" FontWeight="SemiBold" FontSize="13"/>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                        <TextBlock Text="{Binding GodzinaOd, StringFormat=HH\\:mm}" Foreground="#3182CE" FontWeight="Bold"/>
+                                                        <TextBlock Text=" - " Foreground="#718096"/>
+                                                        <TextBlock Text="{Binding GodzinaDo, StringFormat=HH\\:mm}" Foreground="#3182CE" FontWeight="Bold"/>
+                                                        <TextBlock Text="{Binding CzasTrwaniaMin, StringFormat=' ({0} min)'}" Foreground="#718096"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                                <Button Grid.Column="1" Content="✏️" Style="{StaticResource ModernButton}" Padding="8,4" 
+                                                        Click="BtnEdytujPrzerwe_Click" Tag="{Binding Id}"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                                <Button Content="➕ Dodaj przerwę" Style="{StaticResource PrimaryButton}" Click="BtnDodajHarmonogramPrzerwy_Click"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Lista wyjść poza harmonogramem -->
+                    <Grid Grid.Column="1">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Toolbar -->
+                        <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="15" Margin="0,0,0,10" BorderBrush="#E2E8F0" BorderThickness="1">
+                            <Grid>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="🔍 Analizuj przerwy" Style="{StaticResource PrimaryButton}" Click="BtnAnalizujPrzerwy_Click" Margin="0,0,15,0"/>
+                                    <CheckBox x:Name="chkTylkoPozaHarmonogramem" Content="Tylko poza harmonogramem" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <DatePicker x:Name="dpPrzerwyData" Width="120"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Lista -->
+                        <Border Grid.Row="1" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1">
+                            <DataGrid x:Name="gridPrzerwy" Margin="1" AutoGenerateColumns="False" IsReadOnly="True">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding PracownikNazwa}" Width="180"/>
+                                    <DataGridTextColumn Header="WYJŚCIE" Binding="{Binding GodzinaWyjscia, StringFormat=HH\\:mm}" Width="80"/>
+                                    <DataGridTextColumn Header="WEJŚCIE" Binding="{Binding GodzinaWejscia, StringFormat=HH\\:mm}" Width="80"/>
+                                    <DataGridTextColumn Header="CZAS" Binding="{Binding CzasTrwaniaMin, StringFormat={}{0} min}" Width="70"/>
+                                    <DataGridTemplateColumn Header="STATUS" Width="150">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Border CornerRadius="4" Padding="8,4" HorizontalAlignment="Left"
+                                                        Background="{Binding StatusKolor}">
+                                                    <TextBlock Text="{Binding StatusTekst}" FontSize="11" FontWeight="SemiBold" Foreground="White"/>
+                                                </Border>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn Header="PRZYPISANA PRZERWA" Binding="{Binding HarmonogramNazwa}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+
+                        <!-- Statystyki -->
+                        <Border Grid.Row="2" Background="White" CornerRadius="8" Padding="15" Margin="0,10,0,0" BorderBrush="#E2E8F0" BorderThickness="1">
+                            <UniformGrid Columns="4">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="W harmonogramie" FontSize="10" Foreground="#718096"/>
+                                    <TextBlock x:Name="txtPrzerwyWHarmonogramie" Text="0" FontSize="20" FontWeight="Bold" Foreground="#38A169"/>
+                                </StackPanel>
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="Poza harmonogramem" FontSize="10" Foreground="#718096"/>
+                                    <TextBlock x:Name="txtPrzerwyPozaHarmonogramem" Text="0" FontSize="20" FontWeight="Bold" Foreground="#E53E3E"/>
+                                </StackPanel>
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="Średni czas przerwy" FontSize="10" Foreground="#718096"/>
+                                    <TextBlock x:Name="txtPrzerwySredniCzas" Text="0 min" FontSize="20" FontWeight="Bold" Foreground="#3182CE"/>
+                                </StackPanel>
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="Najdłuższa przerwa" FontSize="10" Foreground="#718096"/>
+                                    <TextBlock x:Name="txtPrzerwyNajdluzsza" Text="0 min" FontSize="20" FontWeight="Bold" Foreground="#DD6B20"/>
+                                </StackPanel>
+                            </UniformGrid>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- ==================== ALERTY ==================== -->
+            <TabItem Header="🚨 Alerty">
+                <Grid Margin="5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Podsumowanie alertów -->
+                    <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="15" Margin="0,0,0,10" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <UniformGrid Columns="5">
+                            <Border Background="#FFF5F5" CornerRadius="8" Padding="15" Margin="0,0,8,0">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🔴 Agencja >12h" FontSize="11" Foreground="#C53030" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="txtAlertAgencja12" Text="0" FontSize="28" FontWeight="Bold" Foreground="#C53030"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="#FFFAF0" CornerRadius="8" Padding="15" Margin="0,0,8,0">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🟠 Własny >13h" FontSize="11" Foreground="#C05621" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="txtAlertWlasny13" Text="0" FontSize="28" FontWeight="Bold" Foreground="#C05621"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="#FFF5F5" CornerRadius="8" Padding="15" Margin="0,0,8,0">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="❌ Brak wyjścia" FontSize="11" Foreground="#C53030" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="txtAlertBrakWyjscia" Text="0" FontSize="28" FontWeight="Bold" Foreground="#C53030"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="#FFF5F5" CornerRadius="8" Padding="15" Margin="0,0,8,0">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="❌ Brak wejścia" FontSize="11" Foreground="#C53030" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="txtAlertBrakWejscia" Text="0" FontSize="28" FontWeight="Bold" Foreground="#C53030"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="#FFFAF0" CornerRadius="8" Padding="15">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="⏰ Spóźnienia" FontSize="11" Foreground="#C05621" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="txtAlertSpoznienia" Text="0" FontSize="28" FontWeight="Bold" Foreground="#C05621"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+                    </Border>
+
+                    <!-- Lista alertów -->
+                    <Border Grid.Row="1" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            
+                            <Border Grid.Row="0" Background="#F7FAFC" Padding="15">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="🔄 Skanuj alerty" Style="{StaticResource PrimaryButton}" Click="BtnSkanujAlerty_Click" Margin="0,0,10,0"/>
+                                        <Button Content="✅ Oznacz przeczytane" Style="{StaticResource ModernButton}" Click="BtnOznaczPrzeczytane_Click"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <CheckBox x:Name="chkTylkoNieprzeczytane" Content="Tylko nieprzeczytane" IsChecked="True" VerticalAlignment="Center" Margin="0,0,15,0"
+                                                  Checked="ChkAlertyFiltr_Changed" Unchecked="ChkAlertyFiltr_Changed"/>
+                                        <ComboBox x:Name="cmbAlertyTyp" Width="150" SelectionChanged="CmbAlertyTyp_Changed">
+                                            <ComboBoxItem Content="Wszystkie typy" IsSelected="True"/>
+                                            <ComboBoxItem Content="Przekroczenie 12h"/>
+                                            <ComboBoxItem Content="Przekroczenie 13h"/>
+                                            <ComboBoxItem Content="Brak wejścia"/>
+                                            <ComboBoxItem Content="Brak wyjścia"/>
+                                            <ComboBoxItem Content="Spóźnienie"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <DataGrid x:Name="gridAlerty" Grid.Row="1" Margin="1" AutoGenerateColumns="False" IsReadOnly="True">
+                                <DataGrid.Columns>
+                                    <DataGridTemplateColumn Header="" Width="30">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Ikona}" FontSize="16" HorizontalAlignment="Center"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn Header="DATA" Binding="{Binding Data, StringFormat=dd.MM.yyyy}" Width="90"/>
+                                    <DataGridTextColumn Header="TYP" Binding="{Binding TypAlertu}" Width="130"/>
+                                    <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding PracownikNazwa}" Width="180"/>
+                                    <DataGridTextColumn Header="DZIAŁ/AGENCJA" Binding="{Binding GrupaNazwa}" Width="150"/>
+                                    <DataGridTextColumn Header="WARTOŚĆ" Binding="{Binding WartoscTekst}" Width="100"/>
+                                    <DataGridTextColumn Header="OPIS" Binding="{Binding Opis}" Width="*"/>
+                                    <DataGridTemplateColumn Header="STATUS" Width="80">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding StatusIkona}" FontSize="14" HorizontalAlignment="Center"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ==================== PRZESUNIĘCIA GODZIN ==================== -->
+            <TabItem Header="🔄 Przesunięcia">
+                <Grid Margin="5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Toolbar -->
+                    <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="15" Margin="0,0,0,10" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="➕ Nowe przesunięcie" Style="{StaticResource PrimaryButton}" Click="BtnDodajPrzesuniecie_Click" Margin="0,0,10,0"/>
+                            <Button Content="❌ Anuluj" Style="{StaticResource DangerButton}" Click="BtnAnulujPrzesuniecie_Click" Margin="0,0,20,0"/>
+                            
+                            <TextBlock Text="Pokazuj:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <ComboBox x:Name="cmbPrzesunieciaStatus" Width="120" SelectionChanged="CmbPrzesunieciaStatus_Changed">
+                                <ComboBoxItem Content="Aktywne" IsSelected="True"/>
+                                <ComboBoxItem Content="Zakończone"/>
+                                <ComboBoxItem Content="Anulowane"/>
+                                <ComboBoxItem Content="Wszystkie"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Lista przesunięć -->
+                    <Border Grid.Row="1" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <DataGrid x:Name="gridPrzesuniecia" Margin="1" AutoGenerateColumns="False" IsReadOnly="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="50"/>
+                                <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding PracownikNazwa}" Width="180"/>
+                                <DataGridTextColumn Header="OD DNIA" Binding="{Binding DataPrzesunieciaOd, StringFormat=dd.MM.yyyy}" Width="100"/>
+                                <DataGridTextColumn Header="DO DNIA" Binding="{Binding DataPrzesunieciaDo, StringFormat=dd.MM.yyyy}" Width="100"/>
+                                <DataGridTextColumn Header="NOWA GODZINA" Binding="{Binding NowaGodzinaStart, StringFormat=HH\\:mm}" Width="110"/>
+                                <DataGridTextColumn Header="POWÓD" Binding="{Binding Powod}" Width="200"/>
+                                <DataGridTemplateColumn Header="STATUS" Width="100">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border CornerRadius="4" Padding="8,4" HorizontalAlignment="Left"
+                                                    Background="{Binding StatusKolor}">
+                                                <TextBlock Text="{Binding Status}" FontSize="11" FontWeight="SemiBold" Foreground="White"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="UTWORZONO" Binding="{Binding DataUtworzenia, StringFormat=dd.MM.yyyy HH:mm}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
                     </Border>
                 </Grid>
             </TabItem>
