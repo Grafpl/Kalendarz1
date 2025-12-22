@@ -942,6 +942,8 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
                         <!-- Nagłówek Transport -->
@@ -1165,6 +1167,203 @@
                                             <Setter Property="Padding" Value="5,0"/>
                                             <Setter Property="FontStyle" Value="Italic"/>
                                             <Setter Property="Foreground" Value="#7F8C8D"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <!-- Nagłówek Harmonogram Dostaw -->
+                        <Border Grid.Row="2" Background="#27AE60" Padding="15,10" Margin="0,10,0,0">
+                            <Grid>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="📋 Harmonogram dostaw (potwierdzone): "
+                                               FontSize="14"
+                                               FontWeight="SemiBold"
+                                               Foreground="White"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="lblHarmonogramCount"
+                                               Text="0 pozycji"
+                                               FontSize="14"
+                                               FontWeight="Bold"
+                                               Foreground="White"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <TextBlock Text="Suma kg: "
+                                               FontSize="12"
+                                               Foreground="White"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="lblHarmonogramKg"
+                                               Text="0"
+                                               FontSize="14"
+                                               FontWeight="Bold"
+                                               Foreground="#FFEB3B"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,20,0"/>
+                                    <TextBlock Text="Śr. cena: "
+                                               FontSize="12"
+                                               Foreground="White"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="lblHarmonogramCena"
+                                               Text="0,00 zł"
+                                               FontSize="14"
+                                               FontWeight="Bold"
+                                               Foreground="#FFEB3B"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- DataGrid Harmonogram -->
+                        <DataGrid Grid.Row="3"
+                                  x:Name="dataGridHarmonogram"
+                                  AutoGenerateColumns="False"
+                                  CanUserAddRows="False"
+                                  CanUserDeleteRows="False"
+                                  IsReadOnly="True"
+                                  SelectionMode="Single"
+                                  GridLinesVisibility="All"
+                                  HorizontalGridLinesBrush="#E0E0E0"
+                                  VerticalGridLinesBrush="#EEEEEE"
+                                  RowHeight="35"
+                                  Background="White"
+                                  BorderThickness="0"
+                                  FontSize="12"
+                                  AlternatingRowBackground="#F0FFF0"
+                                  ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+                                  RowStyle="{StaticResource DataGridRowHoverStyle}"
+                                  EnableRowVirtualization="True">
+
+                            <DataGrid.Columns>
+                                <!-- LP -->
+                                <DataGridTextColumn Header="LP" Binding="{Binding LP}" Width="50" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Dostawca -->
+                                <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="180">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="5,0"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Sztuki -->
+                                <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDek, StringFormat={}{0:N0}}" Width="80">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
+                                            <Setter Property="Background" Value="#F57C00"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Padding" Value="0,0,8,0"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Foreground" Value="#F57C00"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Waga -->
+                                <DataGridTextColumn Header="Waga kg" Binding="{Binding WagaDek, StringFormat={}{0:N2}}" Width="80">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Padding" Value="0,0,8,0"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Razem KG -->
+                                <DataGridTextColumn Header="Razem KG" Binding="{Binding RazemKg, StringFormat={}{0:N0}}" Width="90">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
+                                            <Setter Property="Background" Value="#388E3C"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Padding" Value="0,0,8,0"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Foreground" Value="#388E3C"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Cena -->
+                                <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat={}{0:N2}}" Width="70">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
+                                            <Setter Property="Background" Value="#1976D2"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Padding" Value="0,0,8,0"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Foreground" Value="#1976D2"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Dodatek -->
+                                <DataGridTextColumn Header="Dodatek" Binding="{Binding Dodatek, StringFormat={}{0:N2}}" Width="70">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Padding" Value="0,0,8,0"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Typ Ceny -->
+                                <DataGridTextColumn Header="Typ ceny" Binding="{Binding TypCeny}" Width="80">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Auta -->
+                                <DataGridTextColumn Header="Auta" Binding="{Binding Auta}" Width="50">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Uwagi -->
+                                <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="*">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="5,0"/>
+                                            <Setter Property="FontStyle" Value="Italic"/>
+                                            <Setter Property="Foreground" Value="#7F8C8D"/>
+                                            <Setter Property="TextWrapping" Value="Wrap"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
