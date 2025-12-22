@@ -300,9 +300,6 @@ namespace Kalendarz1
 
                 transportData.Add(transportRow);
             }
-
-            // Załaduj również harmonogram dostaw
-            LoadHarmonogramData();
         }
 
         private void LoadHarmonogramData()
@@ -554,12 +551,14 @@ namespace Kalendarz1
                         }
                         UpdateStatistics();
                         LoadTransportData(); // Załaduj dane transportowe
+                        LoadHarmonogramData(); // Załaduj harmonogram dostaw
                         UpdateStatus($"Załadowano {dataTable.Rows.Count} rekordów");
                     }
                     else
                     {
                         UpdateStatistics();
                         LoadTransportData(); // Wyczyść dane transportowe
+                        LoadHarmonogramData(); // Wyczyść harmonogram
                         UpdateStatus("Brak danych dla wybranej daty");
                     }
                 }
