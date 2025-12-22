@@ -1326,8 +1326,8 @@ namespace Kalendarz1.KontrolaGodzin
             }
         }
 
-        private void CmbMiesiac_SelectionChanged(object sender, SelectionChangedEventArgs e) { if (IsLoaded) GenerujRaportMiesieczny(); }
-        private void CmbRok_SelectionChanged(object sender, SelectionChangedEventArgs e) { if (IsLoaded) GenerujRaportMiesieczny(); }
+        private void CmbMiesiac_SelectionChanged(object sender, SelectionChangedEventArgs e) { }
+        private void CmbRok_SelectionChanged(object sender, SelectionChangedEventArgs e) { }
         
         private void BtnGenerujRaportMiesieczny_Click(object sender, RoutedEventArgs e) 
         {
@@ -1343,23 +1343,76 @@ namespace Kalendarz1.KontrolaGodzin
                 int miesiac = cmbMiesiac.SelectedIndex + 1;
                 int rok = (int)cmbRok.SelectedItem;
                 var pierwszyDzien = new DateTime(rok, miesiac, 1);
-                var ostatniDzien = pierwszyDzien.AddMonths(1).AddDays(-1);
+                var ostatniDzien = pierwszyDzien.AddMonths(1);
 
-                // Pobierz rejestracje dla wybranego miesiąca
-                var rejestracjeMiesiac = _wszystkieRejestracje
-                    .Where(r => r.DataCzas.Month == miesiac && r.DataCzas.Year == rok)
-                    .ToList();
+                // Pobierz rejestracje bezpośrednio z bazy dla wybranego miesiąca
+                var rejestracjeMiesiac = new List<RejestracjaModel>();
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+                    string sql = @"
+                        SELECT 
+                            KDINAR_REGISTRTN_DATETIME,
+                            KDINAR_REGISTRTN_TYPE,
+                            KDINAR_EMPLOYEE_ID,
+                            KDINAR_EMPLOYEE_NAME,
+                            KDINAR_EMPLOYEE_SURNAME,
+                            KDINAR_EMPLOYEE_GROUP_ID,
+                            KDINAR_ACCESS_POINT_NAME
+                        FROM V_KDINAR_ALL_REGISTRATIONS
+                        WHERE KDINAR_REGISTRTN_DATETIME >= @DataOd 
+                          AND KDINAR_REGISTRTN_DATETIME < @DataDo
+                          AND KDINAR_EMPLOYEE_ID IS NOT NULL
+                        ORDER BY KDINAR_EMPLOYEE_ID, KDINAR_REGISTRTN_DATETIME";
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@DataOd", pierwszyDzien);
+                        cmd.Parameters.AddWithValue("@DataDo", ostatniDzien);
+
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                var punktDostepu = reader.IsDBNull(6) ? "" : reader.GetString(6);
+                                var typZBazy = reader.IsDBNull(1) ? 0 : reader.GetInt32(1);
+                                int typInt = OkreslTypWejsciaWyjscia(punktDostepu, typZBazy);
+
+                                var reg = new RejestracjaModel
+                                {
+                                    DataCzas = reader.GetDateTime(0),
+                                    TypInt = typInt,
+                                    PracownikId = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                                    Pracownik = $"{(reader.IsDBNull(4) ? "" : reader.GetString(4))} {(reader.IsDBNull(3) ? "" : reader.GetString(3))}".Trim(),
+                                    GrupaId = reader.IsDBNull(5) ? 0 : reader.GetInt32(5)
+                                };
+
+                                var grupa = _grupy.FirstOrDefault(g => g.Id == reg.GrupaId);
+                                reg.Grupa = grupa?.Nazwa ?? "Brak działu";
+
+                                rejestracjeMiesiac.Add(reg);
+                            }
+                        }
+                    }
+                }
+
+                // Filtruj po wybranym dziale (jeśli wybrano)
+                if (cmbGrupa.SelectedIndex > 0)
+                {
+                    var wybranaGrupa = cmbGrupa.SelectedItem as GrupaModel;
+                    if (wybranaGrupa != null)
+                        rejestracjeMiesiac = rejestracjeMiesiac.Where(r => r.GrupaId == wybranaGrupa.Id).ToList();
+                }
 
                 var raport = rejestracjeMiesiac
                     .GroupBy(r => new { r.PracownikId, r.Pracownik, r.Grupa })
                     .Select(g =>
                     {
                         double sumaGodzin = 0;
-                        double nadgodziny = 0;
-                        double godzinyNocne = 0;
                         int dniPracy = 0;
                         int brakiOdbic = 0;
-                        var dniRobocze = new List<string>();
+                        var uwagi = new List<string>();
 
                         var byDzien = g.GroupBy(r => r.DataCzas.Date).OrderBy(d => d.Key);
                         foreach (var dzien in byDzien)
@@ -1377,28 +1430,18 @@ namespace Kalendarz1.KontrolaGodzin
                                     var ostatnieWyjscie = wyjscia.Last().DataCzas;
                                     var godzinyDzien = (ostatnieWyjscie - pierwszeWejscie).TotalHours;
                                     sumaGodzin += godzinyDzien;
-                                    
-                                    if (godzinyDzien > 8)
-                                        nadgodziny += godzinyDzien - 8;
-
-                                    // Godziny nocne (22:00-06:00)
-                                    if (pierwszeWejscie.Hour < 6)
-                                        godzinyNocne += Math.Min(6 - pierwszeWejscie.Hour, godzinyDzien);
-                                    if (ostatnieWyjscie.Hour >= 22)
-                                        godzinyNocne += ostatnieWyjscie.Hour - 22 + (ostatnieWyjscie.Minute / 60.0);
                                 }
                                 else
                                 {
-                                    // Brak wyjścia
                                     brakiOdbic++;
-                                    dniRobocze.Add($"{dzien.Key:dd.MM} - brak wyjścia");
+                                    uwagi.Add($"{dzien.Key:dd.MM} brak wyjścia");
                                 }
                             }
                             
                             if (wyjscia.Any() && !wejscia.Any())
                             {
                                 brakiOdbic++;
-                                dniRobocze.Add($"{dzien.Key:dd.MM} - brak wejścia");
+                                uwagi.Add($"{dzien.Key:dd.MM} brak wejścia");
                             }
                         }
 
@@ -1408,13 +1451,9 @@ namespace Kalendarz1.KontrolaGodzin
                             Pracownik = g.Key.Pracownik,
                             Grupa = g.Key.Grupa,
                             DniPracy = dniPracy,
-                            GodzinyNormalne = Math.Min(sumaGodzin, dniPracy * 8),
-                            Nadgodziny = nadgodziny,
-                            GodzinyNocne = godzinyNocne,
                             SumaGodzin = sumaGodzin,
                             BrakiOdbic = brakiOdbic,
-                            BrakiOpis = brakiOdbic > 0 ? string.Join(", ", dniRobocze.Take(3)) + (dniRobocze.Count > 3 ? "..." : "") : "",
-                            Status = brakiOdbic > 0 ? "⚠️ Braki" : "✅ OK"
+                            Uwagi = uwagi.Any() ? string.Join("; ", uwagi) : "✅ OK"
                         };
                     })
                     .OrderBy(x => x.Grupa)
@@ -1479,16 +1518,13 @@ namespace Kalendarz1.KontrolaGodzin
                 table.BorderBrush = Brushes.Black;
                 table.BorderThickness = new Thickness(1);
 
-                // Kolumny
+                // Kolumny - uproszczone bez nadgodzin i nocnych
                 table.Columns.Add(new System.Windows.Documents.TableColumn { Width = new GridLength(180) }); // Pracownik
-                table.Columns.Add(new System.Windows.Documents.TableColumn { Width = new GridLength(100) }); // Dział
-                table.Columns.Add(new System.Windows.Documents.TableColumn { Width = new GridLength(40) });  // Dni
-                table.Columns.Add(new System.Windows.Documents.TableColumn { Width = new GridLength(60) });  // Normalne
-                table.Columns.Add(new System.Windows.Documents.TableColumn { Width = new GridLength(60) });  // Nadgodz
-                table.Columns.Add(new System.Windows.Documents.TableColumn { Width = new GridLength(50) });  // Nocne
-                table.Columns.Add(new System.Windows.Documents.TableColumn { Width = new GridLength(55) });  // Suma
-                table.Columns.Add(new System.Windows.Documents.TableColumn { Width = new GridLength(45) });  // Braki
-                table.Columns.Add(new System.Windows.Documents.TableColumn { Width = new GridLength(150) }); // Braki opis
+                table.Columns.Add(new System.Windows.Documents.TableColumn { Width = new GridLength(120) }); // Dział
+                table.Columns.Add(new System.Windows.Documents.TableColumn { Width = new GridLength(45) });  // Dni
+                table.Columns.Add(new System.Windows.Documents.TableColumn { Width = new GridLength(70) });  // Godziny
+                table.Columns.Add(new System.Windows.Documents.TableColumn { Width = new GridLength(50) });  // Braki
+                table.Columns.Add(new System.Windows.Documents.TableColumn { Width = new GridLength(280) }); // Uwagi - szeroka
 
                 var rowGroup = new System.Windows.Documents.TableRowGroup();
                 table.RowGroups.Add(rowGroup);
@@ -1498,16 +1534,13 @@ namespace Kalendarz1.KontrolaGodzin
                 headerRow.Cells.Add(CreateTableCell("PRACOWNIK", true));
                 headerRow.Cells.Add(CreateTableCell("DZIAŁ", true));
                 headerRow.Cells.Add(CreateTableCell("DNI", true));
-                headerRow.Cells.Add(CreateTableCell("NORM.", true));
-                headerRow.Cells.Add(CreateTableCell("NADG.", true));
-                headerRow.Cells.Add(CreateTableCell("NOC", true));
-                headerRow.Cells.Add(CreateTableCell("SUMA", true));
+                headerRow.Cells.Add(CreateTableCell("GODZINY", true));
                 headerRow.Cells.Add(CreateTableCell("BRAKI", true));
                 headerRow.Cells.Add(CreateTableCell("UWAGI", true));
                 rowGroup.Rows.Add(headerRow);
 
                 // Dane
-                double sumaGodzin = 0, sumaNadgodzin = 0, sumaNocnych = 0;
+                double sumaGodzin = 0;
                 int sumaDni = 0, sumaBrakow = 0;
                 string aktualnyDzial = "";
 
@@ -1519,7 +1552,7 @@ namespace Kalendarz1.KontrolaGodzin
                         if (!string.IsNullOrEmpty(aktualnyDzial))
                         {
                             var separatorRow = new System.Windows.Documents.TableRow { Background = new SolidColorBrush(Color.FromRgb(240, 240, 240)) };
-                            separatorRow.Cells.Add(CreateTableCell("", false, 9));
+                            separatorRow.Cells.Add(CreateTableCell("", false, 6));
                             rowGroup.Rows.Add(separatorRow);
                         }
                         aktualnyDzial = item.Grupa;
@@ -1529,21 +1562,16 @@ namespace Kalendarz1.KontrolaGodzin
                     row.Cells.Add(CreateTableCell(item.Pracownik));
                     row.Cells.Add(CreateTableCell(item.Grupa));
                     row.Cells.Add(CreateTableCell(item.DniPracy.ToString()));
-                    row.Cells.Add(CreateTableCell($"{item.GodzinyNormalne:N1}"));
-                    row.Cells.Add(CreateTableCell($"{item.Nadgodziny:N1}"));
-                    row.Cells.Add(CreateTableCell($"{item.GodzinyNocne:N1}"));
                     row.Cells.Add(CreateTableCell($"{item.SumaGodzin:N1}", false, 1, true));
                     
                     var brakiCell = CreateTableCell(item.BrakiOdbic.ToString());
                     if (item.BrakiOdbic > 0) brakiCell.Background = new SolidColorBrush(Color.FromRgb(254, 215, 215));
                     row.Cells.Add(brakiCell);
                     
-                    row.Cells.Add(CreateTableCell(item.BrakiOpis ?? ""));
+                    row.Cells.Add(CreateTableCell(item.Uwagi ?? ""));
                     rowGroup.Rows.Add(row);
 
                     sumaGodzin += (double)item.SumaGodzin;
-                    sumaNadgodzin += (double)item.Nadgodziny;
-                    sumaNocnych += (double)item.GodzinyNocne;
                     sumaDni += (int)item.DniPracy;
                     sumaBrakow += (int)item.BrakiOdbic;
                 }
@@ -1553,9 +1581,6 @@ namespace Kalendarz1.KontrolaGodzin
                 sumRow.Cells.Add(CreateTableCell("RAZEM:", true, 1, false, Brushes.White));
                 sumRow.Cells.Add(CreateTableCell("", false, 1, false, Brushes.White));
                 sumRow.Cells.Add(CreateTableCell(sumaDni.ToString(), true, 1, false, Brushes.White));
-                sumRow.Cells.Add(CreateTableCell($"{sumaGodzin - sumaNadgodzin:N1}", true, 1, false, Brushes.White));
-                sumRow.Cells.Add(CreateTableCell($"{sumaNadgodzin:N1}", true, 1, false, Brushes.White));
-                sumRow.Cells.Add(CreateTableCell($"{sumaNocnych:N1}", true, 1, false, Brushes.White));
                 sumRow.Cells.Add(CreateTableCell($"{sumaGodzin:N1}", true, 1, false, Brushes.White));
                 sumRow.Cells.Add(CreateTableCell(sumaBrakow.ToString(), true, 1, false, Brushes.White));
                 sumRow.Cells.Add(CreateTableCell("", false, 1, false, Brushes.White));
@@ -1564,7 +1589,7 @@ namespace Kalendarz1.KontrolaGodzin
                 document.Blocks.Add(table);
 
                 // Stopka
-                var footer = new System.Windows.Documents.Paragraph(new System.Windows.Documents.Run($"\nLiczba pracowników: {((System.Collections.ICollection)gridRaportMiesieczny.ItemsSource).Count} • Suma godzin: {sumaGodzin:N1}h • Nadgodziny: {sumaNadgodzin:N1}h • Braki odbić: {sumaBrakow}"))
+                var footer = new System.Windows.Documents.Paragraph(new System.Windows.Documents.Run($"\nLiczba pracowników: {((System.Collections.ICollection)gridRaportMiesieczny.ItemsSource).Count} • Suma godzin: {sumaGodzin:N1}h • Braki odbić: {sumaBrakow}"))
                 {
                     FontSize = 9,
                     Foreground = Brushes.Gray,

@@ -739,10 +739,12 @@
                     <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="15" Margin="0,0,0,10" BorderBrush="#E2E8F0" BorderThickness="1">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                             <TextBlock Text="Miesiąc:" FontSize="12" Foreground="#4A5568" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                            <ComboBox x:Name="cmbMiesiac" Width="130" SelectionChanged="CmbMiesiac_SelectionChanged"/>
+                            <ComboBox x:Name="cmbMiesiac" Width="130"/>
                             <TextBlock Text="Rok:" FontSize="12" Foreground="#4A5568" FontWeight="SemiBold" VerticalAlignment="Center" Margin="20,0,8,0"/>
-                            <ComboBox x:Name="cmbRok" Width="90" SelectionChanged="CmbRok_SelectionChanged"/>
-                            <Button Content="📊 Generuj" Style="{StaticResource PrimaryButton}" Margin="20,0,0,0" Click="BtnGenerujRaportMiesieczny_Click"/>
+                            <ComboBox x:Name="cmbRok" Width="90"/>
+                            <TextBlock Text="Dział:" FontSize="12" Foreground="#4A5568" FontWeight="SemiBold" VerticalAlignment="Center" Margin="20,0,8,0"/>
+                            <TextBlock Text="(filtr z górnego panelu)" FontSize="10" Foreground="#718096" VerticalAlignment="Center" Margin="0,0,20,0"/>
+                            <Button Content="📊 Generuj" Style="{StaticResource PrimaryButton}" Margin="0,0,0,0" Click="BtnGenerujRaportMiesieczny_Click"/>
                             <Button Content="📥 Excel" Style="{StaticResource SuccessButton}" Margin="8,0,0,0" Click="BtnExportRaportMiesieczny_Click"/>
                             <Button Content="🖨️ Drukuj" Style="{StaticResource ModernButton}" Margin="8,0,0,0" Click="BtnDrukujRaport_Click"/>
                         </StackPanel>
@@ -752,16 +754,12 @@
                         <DataGrid x:Name="gridRaportMiesieczny" Margin="1" AutoGenerateColumns="False" IsReadOnly="True"
                                   MouseDoubleClick="GridRaportMiesieczny_MouseDoubleClick">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding Pracownik}" Width="180"/>
-                                <DataGridTextColumn Header="DZIAŁ" Binding="{Binding Grupa}" Width="130"/>
+                                <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding Pracownik}" Width="200"/>
+                                <DataGridTextColumn Header="DZIAŁ" Binding="{Binding Grupa}" Width="140"/>
                                 <DataGridTextColumn Header="DNI" Binding="{Binding DniPracy}" Width="50"/>
-                                <DataGridTextColumn Header="NORMALNE" Binding="{Binding GodzinyNormalne, StringFormat=N1}" Width="90"/>
-                                <DataGridTextColumn Header="NADGODZ." Binding="{Binding Nadgodziny, StringFormat=N1}" Width="90"/>
-                                <DataGridTextColumn Header="NOCNE" Binding="{Binding GodzinyNocne, StringFormat=N1}" Width="70"/>
-                                <DataGridTextColumn Header="SUMA" Binding="{Binding SumaGodzin, StringFormat=N1}" Width="70"/>
-                                <DataGridTextColumn Header="URLOP" Binding="{Binding DniUrlopu}" Width="60"/>
-                                <DataGridTextColumn Header="CHOROBA" Binding="{Binding DniChoroby}" Width="70"/>
-                                <DataGridTextColumn Header="STATUS" Binding="{Binding Status}" Width="*"/>
+                                <DataGridTextColumn Header="GODZINY" Binding="{Binding SumaGodzin, StringFormat=N1}" Width="80"/>
+                                <DataGridTextColumn Header="BRAKI" Binding="{Binding BrakiOdbic}" Width="60"/>
+                                <DataGridTextColumn Header="UWAGI" Binding="{Binding Uwagi}" Width="*"/>
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>
