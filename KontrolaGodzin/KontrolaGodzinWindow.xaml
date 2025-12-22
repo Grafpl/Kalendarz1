@@ -184,90 +184,81 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- NAGŁÓWEK -->
+        <!-- NAGŁÓWEK - kompaktowy -->
         <Border Grid.Row="0" Background="White" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1">
-            <Grid Margin="20,12">
+            <Grid Margin="15,6">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Background="#3182CE" CornerRadius="10" Padding="10" Margin="0,0,12,0">
-                        <TextBlock Text="⏱" FontSize="22" Foreground="White"/>
+                    <Border Background="#3182CE" CornerRadius="6" Padding="6" Margin="0,0,8,0">
+                        <TextBlock Text="⏱" FontSize="16" Foreground="White"/>
                     </Border>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="KONTROLA CZASU PRACY" FontSize="20" FontWeight="Bold" Foreground="#1A202C"/>
-                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                            <TextBlock Text="UNICARD" FontSize="11" Foreground="#3182CE" FontWeight="SemiBold"/>
-                            <TextBlock Text=" • " FontSize="11" Foreground="#A0AEC0"/>
-                            <TextBlock x:Name="txtZakresDat" Text="Zakres: dziś" FontSize="11" Foreground="#38A169" FontWeight="SemiBold"/>
+                        <TextBlock Text="KONTROLA CZASU PRACY" FontSize="14" FontWeight="Bold" Foreground="#1A202C"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="UNICARD" FontSize="9" Foreground="#3182CE" FontWeight="SemiBold"/>
+                            <TextBlock Text=" • " FontSize="9" Foreground="#A0AEC0"/>
+                            <TextBlock x:Name="txtZakresDat" Text="Zakres: dziś" FontSize="9" Foreground="#38A169" FontWeight="SemiBold"/>
                         </StackPanel>
                     </StackPanel>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <!-- Nowe przyciski -->
-                    <Button Content="📊 Timeline" Style="{StaticResource ModernButton}" Margin="0,0,8,0" Click="BtnTimeline_Click"/>
-                    <Button Content="📈 Statystyki" Style="{StaticResource ModernButton}" Margin="0,0,8,0" Click="BtnStatystyki_Click"/>
-                    <Button Content="💳 Karty" Style="{StaticResource ModernButton}" Margin="0,0,8,0" Click="BtnZarzadzanieKartami_Click"/>
-                    <Button Content="🖨️ Karta RCP" Style="{StaticResource ModernButton}" Margin="0,0,8,0" Click="BtnKartaRCP_Click"/>
-                    <Button Content="⚙️ Stawki" Style="{StaticResource ModernButton}" Margin="0,0,20,0" Click="BtnUstawieniaStawek_Click"/>
+                    <Button Content="📊" ToolTip="Timeline" Style="{StaticResource ModernButton}" Padding="6,3" Margin="0,0,3,0" Click="BtnTimeline_Click"/>
+                    <Button Content="📈" ToolTip="Statystyki" Style="{StaticResource ModernButton}" Padding="6,3" Margin="0,0,3,0" Click="BtnStatystyki_Click"/>
+                    <Button Content="💳" ToolTip="Karty" Style="{StaticResource ModernButton}" Padding="6,3" Margin="0,0,3,0" Click="BtnZarzadzanieKartami_Click"/>
+                    <Button Content="🖨️" ToolTip="Karta RCP" Style="{StaticResource ModernButton}" Padding="6,3" Margin="0,0,3,0" Click="BtnKartaRCP_Click"/>
+                    <Button Content="⚙️" ToolTip="Stawki" Style="{StaticResource ModernButton}" Padding="6,3" Margin="0,0,12,0" Click="BtnUstawieniaStawek_Click"/>
                     
-                    <StackPanel HorizontalAlignment="Right" Margin="0,0,20,0">
-                        <TextBlock x:Name="txtAktualnaData" Text="" FontSize="11" Foreground="#718096" HorizontalAlignment="Right"/>
-                        <TextBlock x:Name="txtAktualnaGodzina" Text="" FontSize="28" FontWeight="Light" Foreground="#1A202C"/>
+                    <StackPanel Margin="0,0,10,0">
+                        <TextBlock x:Name="txtAktualnaData" Text="" FontSize="8" Foreground="#718096" HorizontalAlignment="Right"/>
+                        <TextBlock x:Name="txtAktualnaGodzina" Text="" FontSize="18" FontWeight="Light" Foreground="#1A202C"/>
                     </StackPanel>
-                    <Border Background="#38A169" CornerRadius="20" Padding="16,8">
+                    <Border Background="#38A169" CornerRadius="12" Padding="10,4">
                         <StackPanel Orientation="Horizontal">
-                            <Ellipse Width="8" Height="8" Fill="White" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="txtLiczbaObecnych" Text="0 obecnych" FontSize="13" Foreground="White" FontWeight="Bold"/>
+                            <Ellipse Width="5" Height="5" Fill="White" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="txtLiczbaObecnych" Text="0 obecnych" FontSize="10" Foreground="White" FontWeight="Bold"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- FILTRY -->
-        <Border Grid.Row="1" Background="#FAFBFC" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="20,12">
+        <!-- FILTRY - kompaktowe -->
+        <Border Grid.Row="1" Background="#FAFBFC" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="12,5">
             <Grid>
                 <StackPanel Orientation="Horizontal">
-                    <StackPanel Orientation="Horizontal" Margin="0,0,15,0">
-                        <TextBlock Text="Od:" FontSize="11" Foreground="#4A5568" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                        <DatePicker x:Name="dpOd" Width="120" SelectedDateChanged="DpOd_SelectedDateChanged"/>
-                        <TextBlock Text="Do:" FontSize="11" Foreground="#4A5568" FontWeight="SemiBold" VerticalAlignment="Center" Margin="12,0,6,0"/>
-                        <DatePicker x:Name="dpDo" Width="120" SelectedDateChanged="DpDo_SelectedDateChanged"/>
-                    </StackPanel>
+                    <TextBlock Text="Od:" FontSize="10" Foreground="#4A5568" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <DatePicker x:Name="dpOd" Width="100" SelectedDateChanged="DpOd_SelectedDateChanged"/>
+                    <TextBlock Text="Do:" FontSize="10" Foreground="#4A5568" VerticalAlignment="Center" Margin="8,0,4,0"/>
+                    <DatePicker x:Name="dpDo" Width="100" SelectedDateChanged="DpDo_SelectedDateChanged"/>
 
-                    <Border Background="#E2E8F0" Width="1" Margin="8,0"/>
-                    <StackPanel Orientation="Horizontal" Margin="15,0">
-                        <CheckBox x:Name="chkTylkoDzisiaj" Content="Dziś" IsChecked="True" VerticalAlignment="Center" Margin="0,0,10,0"
-                                  Checked="ChkTylkoDzisiaj_Changed" Unchecked="ChkTylkoDzisiaj_Changed"/>
-                        <Button Content="Wczoraj" Style="{StaticResource ModernButton}" Margin="0,0,5,0" Click="BtnWczoraj_Click"/>
-                        <Button Content="Tydzień" Style="{StaticResource ModernButton}" Margin="0,0,5,0" Click="BtnTydzien_Click"/>
-                        <Button Content="Miesiąc" Style="{StaticResource ModernButton}" Click="BtnMiesiac_Click"/>
-                    </StackPanel>
+                    <Border Background="#E2E8F0" Width="1" Margin="8,2"/>
+                    <CheckBox x:Name="chkTylkoDzisiaj" Content="Dziś" IsChecked="True" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="10"
+                              Checked="ChkTylkoDzisiaj_Changed" Unchecked="ChkTylkoDzisiaj_Changed"/>
+                    <Button Content="Wczoraj" Style="{StaticResource ModernButton}" Padding="6,2" FontSize="10" Margin="0,0,3,0" Click="BtnWczoraj_Click"/>
+                    <Button Content="Tydzień" Style="{StaticResource ModernButton}" Padding="6,2" FontSize="10" Margin="0,0,3,0" Click="BtnTydzien_Click"/>
+                    <Button Content="Miesiąc" Style="{StaticResource ModernButton}" Padding="6,2" FontSize="10" Click="BtnMiesiac_Click"/>
 
-                    <Border Background="#E2E8F0" Width="1" Margin="8,0"/>
-                    <StackPanel Orientation="Horizontal" Margin="15,0">
-                        <TextBlock Text="Dział:" FontSize="11" Foreground="#4A5568" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                        <ComboBox x:Name="cmbGrupa" Width="180" SelectionChanged="CmbGrupa_SelectionChanged"/>
-                    </StackPanel>
+                    <Border Background="#E2E8F0" Width="1" Margin="8,2"/>
+                    <TextBlock Text="Dział:" FontSize="10" Foreground="#4A5568" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <ComboBox x:Name="cmbGrupa" Width="140" SelectionChanged="CmbGrupa_SelectionChanged" FontSize="10"/>
 
-                    <Border Background="#E2E8F0" Width="1" Margin="8,0"/>
-                    <StackPanel Orientation="Horizontal" Margin="15,0">
-                        <TextBlock Text="🔍" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                        <TextBox x:Name="txtSzukaj" Width="160" TextChanged="TxtSzukaj_TextChanged"/>
-                        <Button Content="✕" Style="{StaticResource ModernButton}" Padding="8,6" Margin="5,0,0,0" Click="BtnWyczyscSzukaj_Click"/>
-                    </StackPanel>
+                    <Border Background="#E2E8F0" Width="1" Margin="8,2"/>
+                    <TextBlock Text="🔍" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <TextBox x:Name="txtSzukaj" Width="120" TextChanged="TxtSzukaj_TextChanged" FontSize="10"/>
+                    <Button Content="✕" Style="{StaticResource ModernButton}" Padding="5,2" Margin="3,0,0,0" Click="BtnWyczyscSzukaj_Click"/>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <CheckBox x:Name="chkAutoRefresh" Content="Auto 30s" VerticalAlignment="Center" Margin="0,0,15,0" 
+                    <CheckBox x:Name="chkAutoRefresh" Content="Auto" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="9"
                               Checked="ChkAutoRefresh_Changed" Unchecked="ChkAutoRefresh_Changed"/>
-                    <Button x:Name="btnOdswiez" Content="⟳ Odśwież" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" Click="BtnOdswiez_Click"/>
-                    <Button x:Name="btnExport" Content="📥 Export" Style="{StaticResource SuccessButton}" Click="BtnExport_Click"/>
+                    <Button x:Name="btnOdswiez" Content="⟳" ToolTip="Odśwież" Style="{StaticResource PrimaryButton}" Padding="6,3" Margin="0,0,4,0" Click="BtnOdswiez_Click"/>
+                    <Button x:Name="btnExport" Content="📥" ToolTip="Export" Style="{StaticResource SuccessButton}" Padding="6,3" Click="BtnExport_Click"/>
                 </StackPanel>
             </Grid>
         </Border>
 
         <!-- ZAWARTOŚĆ -->
-        <TabControl x:Name="tabControl" Grid.Row="2" Margin="15,10,15,5" Background="Transparent" BorderThickness="0">
+        <TabControl x:Name="tabControl" Grid.Row="2" Margin="8,3,8,3" Background="Transparent" BorderThickness="0">
             
             <!-- ==================== DASHBOARD ==================== -->
             <TabItem Header="🏠 Dashboard">
@@ -706,43 +697,6 @@
                                 <DataGridTextColumn Header="DZIAŁ" Binding="{Binding Grupa}" Width="140"/>
                                 <DataGridTextColumn Header="TYP ALERTU" Binding="{Binding TypAlertu}" Width="160"/>
                                 <DataGridTextColumn Header="OPIS" Binding="{Binding Opis}" Width="*"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </Border>
-                </Grid>
-            </TabItem>
-
-            <!-- ==================== NADGODZINY ==================== -->
-            <TabItem Header="💰 Nadgodziny">
-                <Grid Margin="0,10,0,0">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-
-                    <Border Grid.Row="0" Background="#FFFAF0" CornerRadius="8" Padding="15" Margin="0,0,0,10" BorderBrush="#FEEBC8" BorderThickness="1">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="💰" FontSize="18" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <StackPanel>
-                                <TextBlock Text="ROZLICZENIE NADGODZIN" FontWeight="Bold" Foreground="#C05621" FontSize="12"/>
-                                <TextBlock Text="Dzienne &gt;8h = nadgodziny • Tygodniowe &gt;40h = nadgodziny • Roczny limit: 150h • Nocne: 22:00-06:00" 
-                                           Foreground="#9C4221" FontSize="10" Margin="0,2,0,0"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </Border>
-
-                    <Border Grid.Row="1" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1">
-                        <DataGrid x:Name="gridNadgodzinyPodglad" Margin="1" AutoGenerateColumns="False" IsReadOnly="True">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="PRACOWNIK" Binding="{Binding Pracownik}" Width="180"/>
-                                <DataGridTextColumn Header="DZIAŁ" Binding="{Binding Grupa}" Width="140"/>
-                                <DataGridTextColumn Header="NORMALNE" Binding="{Binding GodzinyNormalne, StringFormat=N1}" Width="90"/>
-                                <DataGridTextColumn Header="NADGODZINY" Binding="{Binding Nadgodziny, StringFormat=N1}" Width="100"/>
-                                <DataGridTextColumn Header="NOCNE" Binding="{Binding GodzinyNocne, StringFormat=N1}" Width="70"/>
-                                <DataGridTextColumn Header="SUMA" Binding="{Binding SumaGodzin, StringFormat=N1}" Width="70"/>
-                                <DataGridTextColumn Header="ROCZNE" Binding="{Binding NadgodzinyRoczne, StringFormat=N0}" Width="70"/>
-                                <DataGridTextColumn Header="DO LIMITU" Binding="{Binding DoLimitu}" Width="80"/>
-                                <DataGridTextColumn Header="STATUS" Binding="{Binding Status}" Width="*"/>
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>
@@ -1606,23 +1560,26 @@
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
                             
-                            <Border Grid.Row="0" Background="#F7FAFC" Padding="15">
+                            <Border Grid.Row="0" Background="#F7FAFC" Padding="12">
                                 <Grid>
                                     <StackPanel Orientation="Horizontal">
-                                        <Button Content="🔄 Skanuj alerty" Style="{StaticResource PrimaryButton}" Click="BtnSkanujAlerty_Click" Margin="0,0,10,0"/>
-                                        <Button Content="✅ Oznacz przeczytane" Style="{StaticResource ModernButton}" Click="BtnOznaczPrzeczytane_Click"/>
+                                        <Button Content="🔄 Skanuj" Style="{StaticResource PrimaryButton}" Click="BtnSkanujAlerty_Click" Margin="0,0,8,0"/>
+                                        <Button Content="✅ Przeczytane" Style="{StaticResource ModernButton}" Click="BtnOznaczPrzeczytane_Click"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <CheckBox x:Name="chkTylkoNieprzeczytane" Content="Tylko nieprzeczytane" IsChecked="True" VerticalAlignment="Center" Margin="0,0,15,0"
-                                                  Checked="ChkAlertyFiltr_Changed" Unchecked="ChkAlertyFiltr_Changed"/>
-                                        <ComboBox x:Name="cmbAlertyTyp" Width="150" SelectionChanged="CmbAlertyTyp_Changed">
+                                        <TextBlock Text="Typ:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11"/>
+                                        <ComboBox x:Name="cmbAlertyTyp" Width="140" SelectionChanged="CmbAlertyTyp_Changed">
                                             <ComboBoxItem Content="Wszystkie typy" IsSelected="True"/>
-                                            <ComboBoxItem Content="Przekroczenie 12h"/>
-                                            <ComboBoxItem Content="Przekroczenie 13h"/>
+                                            <ComboBoxItem Content="Agencja >12h"/>
+                                            <ComboBoxItem Content="Własny >13h"/>
                                             <ComboBoxItem Content="Brak wejścia"/>
                                             <ComboBoxItem Content="Brak wyjścia"/>
                                             <ComboBoxItem Content="Spóźnienie"/>
                                         </ComboBox>
+                                        <TextBlock Text="Pracownik:" VerticalAlignment="Center" Margin="15,0,5,0" FontSize="11"/>
+                                        <ComboBox x:Name="cmbAlertyPracownik" Width="180" SelectionChanged="CmbAlertyPracownik_Changed"/>
+                                        <CheckBox x:Name="chkTylkoNieprzeczytane" Content="Nieprzeczytane" IsChecked="True" VerticalAlignment="Center" Margin="15,0,0,0"
+                                                  Checked="ChkAlertyFiltr_Changed" Unchecked="ChkAlertyFiltr_Changed"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
