@@ -541,11 +541,8 @@
                                     </dxc:AxisY2D>
                                 </dxc:XYDiagram2D.AxisY>
                                 <dxc:LineSeries2D x:Name="seriesTrend" DisplayName="Trend">
-                                    <dxc:LineSeries2D.Model>
-                                        <dxc:SimpleLine2DModel/>
-                                    </dxc:LineSeries2D.Model>
                                     <dxc:LineSeries2D.MarkerModel>
-                                        <dxc:SimpleMarker2DModel/>
+                                        <dxc:CircleMarker2DModel/>
                                     </dxc:LineSeries2D.MarkerModel>
                                 </dxc:LineSeries2D>
                             </dxc:XYDiagram2D>
@@ -725,19 +722,13 @@
                                             </dxc:AxisY2D>
                                         </dxc:XYDiagram2D.AxisY>
                                         <dxc:LineSeries2D x:Name="seriesTrendE2" DisplayName="E2" Brush="#17A589">
-                                            <dxc:LineSeries2D.Model>
-                                                <dxc:SimpleLine2DModel/>
-                                            </dxc:LineSeries2D.Model>
                                             <dxc:LineSeries2D.MarkerModel>
-                                                <dxc:SimpleMarker2DModel/>
+                                                <dxc:CircleMarker2DModel/>
                                             </dxc:LineSeries2D.MarkerModel>
                                         </dxc:LineSeries2D>
                                         <dxc:LineSeries2D x:Name="seriesTrendH1" DisplayName="H1" Brush="#C0392B">
-                                            <dxc:LineSeries2D.Model>
-                                                <dxc:SimpleLine2DModel/>
-                                            </dxc:LineSeries2D.Model>
                                             <dxc:LineSeries2D.MarkerModel>
-                                                <dxc:SimpleMarker2DModel/>
+                                                <dxc:CircleMarker2DModel/>
                                             </dxc:LineSeries2D.MarkerModel>
                                         </dxc:LineSeries2D>
                                     </dxc:XYDiagram2D>

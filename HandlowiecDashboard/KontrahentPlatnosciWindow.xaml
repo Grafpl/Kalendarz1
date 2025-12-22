@@ -215,13 +215,10 @@
                                     </dxc:XYDiagram2D.AxisY>
                                     <dxc:LineSeries2D x:Name="seriesTrendSaldo" DisplayName="Saldo"
                                                       ArgumentDataMember="Miesiac" ValueDataMember="Saldo"
-                                                      LabelsVisibility="True">
+                                                      LabelsVisibility="True" MarkerVisible="True">
                                         <dxc:LineSeries2D.Brush>
                                             <SolidColorBrush Color="#F4A261"/>
                                         </dxc:LineSeries2D.Brush>
-                                        <dxc:LineSeries2D.MarkerModel>
-                                            <dxc:CircleMarker2DModel/>
-                                        </dxc:LineSeries2D.MarkerModel>
                                         <dxc:LineSeries2D.Label>
                                             <dxc:SeriesLabel dxc:MarkerSeries2D.Angle="45" Foreground="#FFFFFF">
                                                 <dxc:SeriesLabel.ElementTemplate>
@@ -305,35 +302,32 @@
                                 <dxg:GridColumn FieldName="DataTekst" Header="Data" Width="85"/>
                                 <dxg:GridColumn FieldName="TerminTekst" Header="Termin" Width="85"/>
                                 <dxg:GridColumn FieldName="KwotaBruttoTekst" Header="Kwota brutto" Width="100">
-                                    <dxg:GridColumn.CellStyle>
-                                        <Style TargetType="dxg:LightweightCellEditor">
-                                            <Setter Property="HorizontalContentAlignment" Value="Right"/>
-                                        </Style>
-                                    </dxg:GridColumn.CellStyle>
+                                    <dxg:GridColumn.CellDisplayTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Value}" HorizontalAlignment="Right" Margin="0,0,5,0"/>
+                                        </DataTemplate>
+                                    </dxg:GridColumn.CellDisplayTemplate>
                                 </dxg:GridColumn>
                                 <dxg:GridColumn FieldName="RozliczoneTekst" Header="Rozliczone" Width="100">
-                                    <dxg:GridColumn.CellStyle>
-                                        <Style TargetType="dxg:LightweightCellEditor">
-                                            <Setter Property="HorizontalContentAlignment" Value="Right"/>
-                                            <Setter Property="Foreground" Value="#4ECDC4"/>
-                                        </Style>
-                                    </dxg:GridColumn.CellStyle>
+                                    <dxg:GridColumn.CellDisplayTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Value}" Foreground="#4ECDC4" HorizontalAlignment="Right" Margin="0,0,5,0"/>
+                                        </DataTemplate>
+                                    </dxg:GridColumn.CellDisplayTemplate>
                                 </dxg:GridColumn>
                                 <dxg:GridColumn FieldName="DoZaplatyTekst" Header="Do zaplaty" Width="100">
-                                    <dxg:GridColumn.CellStyle>
-                                        <Style TargetType="dxg:LightweightCellEditor">
-                                            <Setter Property="HorizontalContentAlignment" Value="Right"/>
-                                            <Setter Property="Foreground" Value="#F4A261"/>
-                                            <Setter Property="FontWeight" Value="Bold"/>
-                                        </Style>
-                                    </dxg:GridColumn.CellStyle>
+                                    <dxg:GridColumn.CellDisplayTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Value}" Foreground="#F4A261" FontWeight="Bold" HorizontalAlignment="Right" Margin="0,0,5,0"/>
+                                        </DataTemplate>
+                                    </dxg:GridColumn.CellDisplayTemplate>
                                 </dxg:GridColumn>
                                 <dxg:GridColumn FieldName="DniPrzeterminowania" Header="Dni" Width="50">
-                                    <dxg:GridColumn.CellStyle>
-                                        <Style TargetType="dxg:LightweightCellEditor">
-                                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-                                        </Style>
-                                    </dxg:GridColumn.CellStyle>
+                                    <dxg:GridColumn.CellDisplayTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Value}" HorizontalAlignment="Center"/>
+                                        </DataTemplate>
+                                    </dxg:GridColumn.CellDisplayTemplate>
                                 </dxg:GridColumn>
                                 <dxg:GridColumn FieldName="Status" Header="Status" Width="100"/>
                             </dxg:GridControl.Columns>

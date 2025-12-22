@@ -166,9 +166,6 @@
                                     </dxc:AxisY2D>
                                 </dxc:XYDiagram2D.AxisY>
                                 <dxc:LineSeries2D x:Name="seriesCeny" DisplayName="Cena" Brush="#F4A261" MarkerVisible="True">
-                                    <dxc:LineSeries2D.Model>
-                                        <dxc:SimpleLine2DModel/>
-                                    </dxc:LineSeries2D.Model>
                                 </dxc:LineSeries2D>
                             </dxc:XYDiagram2D>
                         </dxc:ChartControl>

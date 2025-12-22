@@ -97,31 +97,27 @@
                         <dxg:GridColumn.EditSettings>
                             <dxe:TextEditSettings DisplayFormat="N0" HorizontalContentAlignment="Right"/>
                         </dxg:GridColumn.EditSettings>
-                        <dxg:GridColumn.CellStyle>
-                            <Style TargetType="dxg:LightweightCellEditor">
-                                <Setter Property="FontWeight" Value="Bold"/>
-                            </Style>
-                        </dxg:GridColumn.CellStyle>
+                        <!-- FontWeight usuniety - LightweightCellEditor nie obsluguje tej wlasciwosci -->
                     </dxg:GridColumn>
                     <dxg:GridColumn FieldName="SaldoE2" Header="Saldo E2" Width="80">
                         <dxg:GridColumn.EditSettings>
                             <dxe:TextEditSettings DisplayFormat="N0" HorizontalContentAlignment="Right"/>
                         </dxg:GridColumn.EditSettings>
-                        <dxg:GridColumn.CellStyle>
-                            <Style TargetType="dxg:LightweightCellEditor">
-                                <Setter Property="Foreground" Value="#4ECDC4"/>
-                            </Style>
-                        </dxg:GridColumn.CellStyle>
+                        <dxg:GridColumn.CellDisplayTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Value}" Foreground="#4ECDC4" HorizontalAlignment="Right"/>
+                            </DataTemplate>
+                        </dxg:GridColumn.CellDisplayTemplate>
                     </dxg:GridColumn>
                     <dxg:GridColumn FieldName="SaldoH1" Header="Saldo H1" Width="80">
                         <dxg:GridColumn.EditSettings>
                             <dxe:TextEditSettings DisplayFormat="N0" HorizontalContentAlignment="Right"/>
                         </dxg:GridColumn.EditSettings>
-                        <dxg:GridColumn.CellStyle>
-                            <Style TargetType="dxg:LightweightCellEditor">
-                                <Setter Property="Foreground" Value="#F4A261"/>
-                            </Style>
-                        </dxg:GridColumn.CellStyle>
+                        <dxg:GridColumn.CellDisplayTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Value}" Foreground="#F4A261" HorizontalAlignment="Right"/>
+                            </DataTemplate>
+                        </dxg:GridColumn.CellDisplayTemplate>
                     </dxg:GridColumn>
                     <dxg:GridColumn FieldName="Uwagi" Header="Uwagi" Width="*"/>
                 </dxg:GridControl.Columns>
