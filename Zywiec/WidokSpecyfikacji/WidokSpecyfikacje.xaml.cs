@@ -969,6 +969,21 @@ namespace Kalendarz1
             return null;
         }
 
+        // === NATYCHMIASTOWA EDYCJA: Zaznacz całą zawartość komórki przy rozpoczęciu edycji ===
+        private void DataGridView1_PreparingCellForEdit(object sender, DataGridPreparingCellForEditEventArgs e)
+        {
+            // Znajdź TextBox w edytowanej komórce i zaznacz całą zawartość
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                var textBox = FindVisualChild<TextBox>(e.EditingElement);
+                if (textBox != null)
+                {
+                    textBox.Focus();
+                    textBox.SelectAll();
+                }
+            }), System.Windows.Threading.DispatcherPriority.Input);
+        }
+
         private void DataGridView1_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
         {
             if (e.EditAction == DataGridEditAction.Commit)

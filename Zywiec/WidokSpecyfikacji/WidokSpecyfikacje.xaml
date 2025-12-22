@@ -451,6 +451,7 @@
                       ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
                       RowStyle="{StaticResource DataGridRowHoverStyle}"
                       CellEditEnding="DataGridView1_CellEditEnding"
+                      PreparingCellForEdit="DataGridView1_PreparingCellForEdit"
                       SelectionChanged="DataGridView1_SelectionChanged"
                       CurrentCellChanged="DataGridView1_CurrentCellChanged"
                       PreviewKeyDown="DataGridView1_PreviewKeyDown"
