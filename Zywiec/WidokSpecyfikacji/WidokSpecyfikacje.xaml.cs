@@ -69,6 +69,9 @@ namespace Kalendarz1
         // === TRANSPORT: Dane transportowe ===
         private ObservableCollection<TransportRow> transportData;
 
+        // === HARMONOGRAM: Dane harmonogramu dostaw ===
+        private ObservableCollection<HarmonogramRow> harmonogramData;
+
         public WidokSpecyfikacje()
         {
             InitializeComponent();
@@ -91,6 +94,10 @@ namespace Kalendarz1
             // Inicjalizuj dane transportowe
             transportData = new ObservableCollection<TransportRow>();
             dataGridTransport.ItemsSource = transportData;
+
+            // Inicjalizuj dane harmonogramu
+            harmonogramData = new ObservableCollection<HarmonogramRow>();
+            dataGridHarmonogram.ItemsSource = harmonogramData;
 
             dateTimePicker1.SelectedDate = DateTime.Today;
 
@@ -295,6 +302,89 @@ namespace Kalendarz1
             }
         }
 
+        private void LoadHarmonogramData()
+        {
+            harmonogramData.Clear();
+
+            if (!dateTimePicker1.SelectedDate.HasValue)
+                return;
+
+            DateTime selectedDate = dateTimePicker1.SelectedDate.Value.Date;
+
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    string query = @"SELECT
+                                        LP,
+                                        Dostawca,
+                                        SztukiDek,
+                                        WagaDek,
+                                        Cena,
+                                        Dodatek,
+                                        TypCeny,
+                                        Auta,
+                                        UWAGI
+                                    FROM [LibraNet].[dbo].[HarmonogramDostaw]
+                                    WHERE DataOdbioru = @SelectedDate
+                                    AND Bufor IN ('Potwierdzony', 'Potwierdzone')
+                                    ORDER BY LP";
+
+                    using (SqlCommand command = new SqlCommand(query, connection))
+                    {
+                        command.Parameters.AddWithValue("@SelectedDate", selectedDate);
+
+                        using (SqlDataReader reader = command.ExecuteReader())
+                        {
+                            decimal totalKg = 0;
+                            decimal totalCenaWazony = 0;
+                            int count = 0;
+
+                            while (reader.Read())
+                            {
+                                int sztuki = reader["SztukiDek"] != DBNull.Value ? Convert.ToInt32(reader["SztukiDek"]) : 0;
+                                decimal waga = reader["WagaDek"] != DBNull.Value ? Convert.ToDecimal(reader["WagaDek"]) : 0;
+                                decimal cena = reader["Cena"] != DBNull.Value ? Convert.ToDecimal(reader["Cena"]) : 0;
+                                decimal razemKg = sztuki * waga;
+
+                                var row = new HarmonogramRow
+                                {
+                                    LP = reader["LP"] != DBNull.Value ? Convert.ToInt32(reader["LP"]) : 0,
+                                    Dostawca = reader["Dostawca"]?.ToString()?.Trim() ?? "",
+                                    SztukiDek = sztuki,
+                                    WagaDek = waga,
+                                    RazemKg = razemKg,
+                                    Cena = cena,
+                                    Dodatek = reader["Dodatek"] != DBNull.Value ? Convert.ToDecimal(reader["Dodatek"]) : 0,
+                                    TypCeny = reader["TypCeny"]?.ToString()?.Trim() ?? "",
+                                    Auta = reader["Auta"] != DBNull.Value ? Convert.ToInt32(reader["Auta"]) : 0,
+                                    Uwagi = reader["UWAGI"]?.ToString()?.Trim() ?? ""
+                                };
+
+                                harmonogramData.Add(row);
+
+                                totalKg += razemKg;
+                                totalCenaWazony += cena * razemKg;
+                                count++;
+                            }
+
+                            // Aktualizuj etykiety podsumowania
+                            lblHarmonogramCount.Text = $"{count} pozycji";
+                            lblHarmonogramKg.Text = totalKg.ToString("#,0");
+                            decimal avgCena = totalKg > 0 ? totalCenaWazony / totalKg : 0;
+                            lblHarmonogramCena.Text = $"{avgCena:N2} zł";
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Błąd ładowania harmonogramu: {ex.Message}");
+            }
+        }
+
         private void UpdateFullDateLabel()
         {
             if (dateTimePicker1.SelectedDate.HasValue)
@@ -461,12 +551,14 @@ namespace Kalendarz1
                         }
                         UpdateStatistics();
                         LoadTransportData(); // Załaduj dane transportowe
+                        LoadHarmonogramData(); // Załaduj harmonogram dostaw
                         UpdateStatus($"Załadowano {dataTable.Rows.Count} rekordów");
                     }
                     else
                     {
                         UpdateStatistics();
                         LoadTransportData(); // Wyczyść dane transportowe
+                        LoadHarmonogramData(); // Wyczyść harmonogram
                         UpdateStatus("Brak danych dla wybranej daty");
                     }
                 }
@@ -875,6 +967,21 @@ namespace Kalendarz1
                 }
             }
             return null;
+        }
+
+        // === NATYCHMIASTOWA EDYCJA: Zaznacz całą zawartość komórki przy rozpoczęciu edycji ===
+        private void DataGridView1_PreparingCellForEdit(object sender, DataGridPreparingCellForEditEventArgs e)
+        {
+            // Znajdź TextBox w edytowanej komórce i zaznacz całą zawartość
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                var textBox = FindVisualChild<TextBox>(e.EditingElement);
+                if (textBox != null)
+                {
+                    textBox.Focus();
+                    textBox.SelectAll();
+                }
+            }), System.Windows.Threading.DispatcherPriority.Input);
         }
 
         private void DataGridView1_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
@@ -3963,6 +4070,86 @@ namespace Kalendarz1
         {
             get => _status;
             set { _status = value; OnPropertyChanged(nameof(Status)); }
+        }
+
+        public string Uwagi
+        {
+            get => _uwagi;
+            set { _uwagi = value; OnPropertyChanged(nameof(Uwagi)); }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+
+    public class HarmonogramRow : INotifyPropertyChanged
+    {
+        private int _lp;
+        private string _dostawca;
+        private int _sztukiDek;
+        private decimal _wagaDek;
+        private decimal _razemKg;
+        private decimal _cena;
+        private decimal _dodatek;
+        private string _typCeny;
+        private int _auta;
+        private string _uwagi;
+
+        public int LP
+        {
+            get => _lp;
+            set { _lp = value; OnPropertyChanged(nameof(LP)); }
+        }
+
+        public string Dostawca
+        {
+            get => _dostawca;
+            set { _dostawca = value; OnPropertyChanged(nameof(Dostawca)); }
+        }
+
+        public int SztukiDek
+        {
+            get => _sztukiDek;
+            set { _sztukiDek = value; OnPropertyChanged(nameof(SztukiDek)); }
+        }
+
+        public decimal WagaDek
+        {
+            get => _wagaDek;
+            set { _wagaDek = value; OnPropertyChanged(nameof(WagaDek)); }
+        }
+
+        public decimal RazemKg
+        {
+            get => _razemKg;
+            set { _razemKg = value; OnPropertyChanged(nameof(RazemKg)); }
+        }
+
+        public decimal Cena
+        {
+            get => _cena;
+            set { _cena = value; OnPropertyChanged(nameof(Cena)); }
+        }
+
+        public decimal Dodatek
+        {
+            get => _dodatek;
+            set { _dodatek = value; OnPropertyChanged(nameof(Dodatek)); }
+        }
+
+        public string TypCeny
+        {
+            get => _typCeny;
+            set { _typCeny = value; OnPropertyChanged(nameof(TypCeny)); }
+        }
+
+        public int Auta
+        {
+            get => _auta;
+            set { _auta = value; OnPropertyChanged(nameof(Auta)); }
         }
 
         public string Uwagi
