@@ -2,12 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
-using System.Windows.Controls;
+using DevExpress.Xpf.Core;
+using DevExpress.Xpf.Editors;
 using Microsoft.Data.SqlClient;
 
 namespace Kalendarz1.HandlowiecDashboard.Views
 {
-    public partial class KontrahentOpakowaniaWindow : Window
+    public partial class KontrahentOpakowaniaWindow : ThemedWindow
     {
         private readonly string _kontrahent;
         private readonly string _connectionString;
@@ -15,6 +16,9 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
         public KontrahentOpakowaniaWindow(string kontrahent, string connectionString)
         {
+            // Ustaw motyw DevExpress
+            ApplicationThemeHelper.ApplicationThemeName = Theme.Office2019Black.Name;
+            
             InitializeComponent();
             _kontrahent = kontrahent;
             _connectionString = connectionString;
@@ -35,9 +39,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 lata.Add(new ComboItem { Text = (aktualnyRok - i).ToString(), Value = aktualnyRok - i });
             }
             cmbRok.ItemsSource = lata;
-            cmbRok.DisplayMemberPath = "Text";
-            cmbRok.SelectedValuePath = "Value";
-            cmbRok.SelectedIndex = 0;
+            cmbRok.EditValue = 0;
 
             // Typy dokumentow
             var typy = new List<ComboItem>
@@ -47,9 +49,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 new ComboItem { Text = "H1 - Palety", Value = 2 }
             };
             cmbTyp.ItemsSource = typy;
-            cmbTyp.DisplayMemberPath = "Text";
-            cmbTyp.SelectedValuePath = "Value";
-            cmbTyp.SelectedIndex = 0;
+            cmbTyp.EditValue = 0;
         }
 
         private async void WczytajDane()
@@ -154,7 +154,7 @@ ORDER BY MZ.data DESC, MG.kod";
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Blad wczytywania dokumentow:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+                DXMessageBox.Show($"Blad wczytywania dokumentow:\n{ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -162,31 +162,36 @@ ORDER BY MZ.data DESC, MG.kod";
         {
             var wynik = _wszystkieDokumenty.AsEnumerable();
 
-            // Filtr roku
-            if (cmbRok.SelectedItem is ComboItem rokItem && rokItem.Value > 0)
+            // Filtr roku - DevExpress EditValue
+            if (cmbRok.EditValue != null)
             {
-                wynik = wynik.Where(d => d.Data.Year == rokItem.Value);
+                var rokValue = Convert.ToInt32(cmbRok.EditValue);
+                if (rokValue > 0)
+                {
+                    wynik = wynik.Where(d => d.Data.Year == rokValue);
+                }
             }
 
             // Filtr typu opakowania
-            if (cmbTyp.SelectedItem is ComboItem typItem && typItem.Value > 0)
+            if (cmbTyp.EditValue != null)
             {
-                if (typItem.Value == 1)
+                var typValue = Convert.ToInt32(cmbTyp.EditValue);
+                if (typValue == 1)
                     wynik = wynik.Where(d => d.Opakowanie.Contains("E2"));
-                else if (typItem.Value == 2)
+                else if (typValue == 2)
                     wynik = wynik.Where(d => d.Opakowanie.Contains("H1"));
             }
 
             gridDokumenty.ItemsSource = wynik.ToList();
         }
 
-        private void CmbRok_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void CmbRok_EditValueChanged(object sender, EditValueChangedEventArgs e)
         {
             if (IsLoaded)
                 FiltrujDokumenty();
         }
 
-        private void CmbTyp_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void CmbTyp_EditValueChanged(object sender, EditValueChangedEventArgs e)
         {
             if (IsLoaded)
                 FiltrujDokumenty();
@@ -206,4 +211,10 @@ ORDER BY MZ.data DESC, MG.kod";
         public bool IloscDodatnia => Ilosc > 0;
     }
 
+    // Helper class dla ComboBoxEdit
+    public class ComboItem
+    {
+        public string Text { get; set; }
+        public int Value { get; set; }
+    }
 }

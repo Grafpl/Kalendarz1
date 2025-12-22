@@ -4,13 +4,13 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
+using DevExpress.Xpf.Charts;
+using DevExpress.Xpf.Core;
 using Microsoft.Data.SqlClient;
-using LiveCharts;
-using LiveCharts.Wpf;
 
 namespace Kalendarz1.HandlowiecDashboard.Views
 {
-    public partial class KontrahentPlatnosciWindow : Window
+    public partial class KontrahentPlatnosciWindow : ThemedWindow
     {
         private readonly string _connectionStringHandel = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
         private readonly string _kontrahent;
@@ -18,6 +18,9 @@ namespace Kalendarz1.HandlowiecDashboard.Views
 
         public KontrahentPlatnosciWindow(string kontrahent, string handlowiec)
         {
+            // Ustaw motyw DevExpress
+            ApplicationThemeHelper.ApplicationThemeName = Theme.Office2019Black.Name;
+            
             InitializeComponent();
             _kontrahent = kontrahent;
             _handlowiec = handlowiec;
@@ -35,7 +38,7 @@ namespace Kalendarz1.HandlowiecDashboard.Views
         {
             try
             {
-                loadingOverlay.Visibility = Visibility.Visible;
+                loadingIndicator.DeferedVisibility = true;
 
                 await using var cn = new SqlConnection(_connectionStringHandel);
                 await cn.OpenAsync();
@@ -61,11 +64,11 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Blad wczytywania danych: {ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+                DXMessageBox.Show($"Blad wczytywania danych: {ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
-                loadingOverlay.Visibility = Visibility.Collapsed;
+                loadingIndicator.DeferedVisibility = false;
             }
         }
 
@@ -226,9 +229,9 @@ namespace Kalendarz1.HandlowiecDashboard.Views
             await using var cmd = new SqlCommand(sql, cn);
             cmd.Parameters.AddWithValue("@Kontrahent", _kontrahent);
 
-            var labels = new List<string>();
-            var values = new ChartValues<decimal>();
             string[] nazwyMiesiecy = { "", "Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paz", "Lis", "Gru" };
+
+            var chartData = new List<TrendSaldoPoint>();
 
             await using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -237,26 +240,15 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 var miesiac = reader.GetInt32(1);
                 var saldo = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
 
-                labels.Add($"{nazwyMiesiecy[miesiac]} {rok % 100}");
-                values.Add(saldo > 0 ? saldo : 0);
+                chartData.Add(new TrendSaldoPoint
+                {
+                    Miesiac = $"{nazwyMiesiecy[miesiac]} {rok % 100}",
+                    Saldo = saldo > 0 ? saldo : 0
+                });
             }
 
-            chartTrendSaldo.Series = new SeriesCollection
-            {
-                new LineSeries
-                {
-                    Title = "Saldo",
-                    Values = values,
-                    Stroke = new SolidColorBrush(Color.FromRgb(244, 162, 97)),
-                    Fill = new SolidColorBrush(Color.FromArgb(50, 244, 162, 97)),
-                    PointGeometry = DefaultGeometries.Circle,
-                    PointGeometrySize = 8,
-                    DataLabels = true,
-                    LabelPoint = p => $"{p.Y:N0}",
-                    Foreground = Brushes.White
-                }
-            };
-            axisXTrend.Labels = labels;
+            // Ustaw dane dla DevExpress ChartControl
+            seriesTrendSaldo.DataSource = chartData;
         }
 
         private async Task PobierzHistorieAsync(SqlConnection cn)
@@ -289,6 +281,13 @@ namespace Kalendarz1.HandlowiecDashboard.Views
                 txtLiczbaOpoznien.Text = liczbaOpoznien.ToString();
             }
         }
+    }
+
+    // Klasa danych dla wykresu trendu
+    public class TrendSaldoPoint
+    {
+        public string Miesiac { get; set; }
+        public decimal Saldo { get; set; }
     }
 
     // Klasa danych dla faktury

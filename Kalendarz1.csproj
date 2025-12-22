@@ -52,6 +52,11 @@
 
   <ItemGroup>
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
+    <PackageReference Include="DevExpress.Wpf.Charts" Version="25.2.3" />
+    <PackageReference Include="DevExpress.Wpf.Core" Version="25.2.3" />
+    <PackageReference Include="DevExpress.Wpf.Gauges" Version="25.2.3" />
+    <PackageReference Include="DevExpress.Wpf.PivotGrid" Version="25.2.3" />
+    <PackageReference Include="DevExpress.Wpf.Scheduler" Version="25.2.3" />
 
     <PackageReference Include="iTextSharp" Version="5.5.13.4" NoWarn="NU1701" />
 
