@@ -22,7 +22,7 @@ namespace Kalendarz1.KontrolaGodzin
     {
         // Connection string - dostosuj do swojego środowiska
         private readonly string _connectionString = @"Server=192.168.0.23\SQLEXPRESS;Database=UNISYSTEM;User Id=sa;Password=UniRCPAdmin123$;";
-
+        
         private DispatcherTimer _timer;
         private List<RejestracjaModel> _wszystkieRejestracje = new List<RejestracjaModel>();
         private List<GrupaModel> _grupy = new List<GrupaModel>();
@@ -61,7 +61,7 @@ namespace Kalendarz1.KontrolaGodzin
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd inicjalizacji: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Diagnostics.Debug.WriteLine($"Błąd inicjalizacji: {ex.Message}");
             }
         }
 
@@ -69,7 +69,7 @@ namespace Kalendarz1.KontrolaGodzin
         {
             txtAktualnaData.Text = DateTime.Now.ToString("dddd, dd MMMM yyyy");
             txtAktualnaGodzina.Text = DateTime.Now.ToString("HH:mm:ss");
-
+            
             // Aktualizacja zakresu dat w nagłówku
             if (dpOd.SelectedDate.HasValue && dpDo.SelectedDate.HasValue)
             {
@@ -158,15 +158,6 @@ namespace Kalendarz1.KontrolaGodzin
             cmbAgencjaFiltr.Items.Add("GURAVO");
             cmbAgencjaFiltr.Items.Add("AGENCJA IMPULS");
             cmbAgencjaFiltr.SelectedIndex = 0;
-
-            // Alerty - filtr pracownika (będzie uzupełniony po załadowaniu pracowników)
-            if (cmbAlertyPracownik != null)
-            {
-                cmbAlertyPracownik.Items.Clear();
-                cmbAlertyPracownik.Items.Add(new PracownikModel { Id = 0, Imie = "Wszyscy", Nazwisko = "pracownicy" });
-                cmbAlertyPracownik.DisplayMemberPath = "PelneNazwisko";
-                cmbAlertyPracownik.SelectedIndex = 0;
-            }
         }
 
         #region Ładowanie danych z UNICARD
@@ -184,7 +175,7 @@ namespace Kalendarz1.KontrolaGodzin
                 using (var conn = new SqlConnection(_connectionString))
                 {
                     conn.Open();
-
+                    
                     // Prawidłowe kolumny z V_RCINEG_EMPLOYEES_GROUPS
                     string sql = @"
                         SELECT DISTINCT 
@@ -215,11 +206,14 @@ namespace Kalendarz1.KontrolaGodzin
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd ładowania grup: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
-
+                System.Diagnostics.Debug.WriteLine($"Błąd ładowania grup: {ex.Message}");
+                
                 // Fallback - pusta lista
-                cmbGrupa.ItemsSource = new[] { new GrupaModel { Id = 0, Nazwa = "-- Wszystkie działy --" } };
-                cmbGrupa.SelectedIndex = 0;
+                if (cmbGrupa != null)
+                {
+                    cmbGrupa.ItemsSource = new[] { new GrupaModel { Id = 0, Nazwa = "-- Wszystkie działy --" } };
+                    cmbGrupa.SelectedIndex = 0;
+                }
             }
         }
 
@@ -236,7 +230,7 @@ namespace Kalendarz1.KontrolaGodzin
                 using (var conn = new SqlConnection(_connectionString))
                 {
                     conn.Open();
-
+                    
                     // Prawidłowe kolumny z V_RCINE_EMPLOYEES
                     string sql = @"
                         SELECT 
@@ -266,32 +260,41 @@ namespace Kalendarz1.KontrolaGodzin
                     }
                 }
 
-                cmbPracownikEwidencja.ItemsSource = _pracownicy;
-                cmbPracownikEwidencja.DisplayMemberPath = "PelneNazwisko";
-                cmbPracownikEwidencja.SelectedValuePath = "Id";
-                cmbPracownikEwidencja.SelectedIndex = 0;
+                // Bezpieczne przypisanie ItemsSource - używamy nowych kopii listy
+                var listaPracownikow = _pracownicy.ToList();
+                
+                if (cmbPracownikEwidencja != null)
+                {
+                    cmbPracownikEwidencja.ItemsSource = listaPracownikow;
+                    cmbPracownikEwidencja.DisplayMemberPath = "PelneNazwisko";
+                    cmbPracownikEwidencja.SelectedValuePath = "Id";
+                    if (listaPracownikow.Count > 0) cmbPracownikEwidencja.SelectedIndex = 0;
+                }
 
-                cmbHistoriaPracownik.ItemsSource = _pracownicy;
-                cmbHistoriaPracownik.DisplayMemberPath = "PelneNazwisko";
-                cmbHistoriaPracownik.SelectedValuePath = "Id";
-                cmbHistoriaPracownik.SelectedIndex = 0;
+                if (cmbHistoriaPracownik != null)
+                {
+                    cmbHistoriaPracownik.ItemsSource = _pracownicy.ToList();
+                    cmbHistoriaPracownik.DisplayMemberPath = "PelneNazwisko";
+                    cmbHistoriaPracownik.SelectedValuePath = "Id";
+                    if (_pracownicy.Count > 0) cmbHistoriaPracownik.SelectedIndex = 0;
+                }
 
                 // Alerty - filtr pracownika
                 if (cmbAlertyPracownik != null)
                 {
-                    cmbAlertyPracownik.ItemsSource = _pracownicy;
+                    cmbAlertyPracownik.ItemsSource = _pracownicy.ToList();
                     cmbAlertyPracownik.DisplayMemberPath = "PelneNazwisko";
                     cmbAlertyPracownik.SelectedValuePath = "Id";
-                    cmbAlertyPracownik.SelectedIndex = 0;
+                    if (_pracownicy.Count > 0) cmbAlertyPracownik.SelectedIndex = 0;
                 }
 
                 // Nadgodziny - filtr pracownika
                 if (cmbNadgodzinyPracownik != null)
                 {
-                    cmbNadgodzinyPracownik.ItemsSource = _pracownicy;
+                    cmbNadgodzinyPracownik.ItemsSource = _pracownicy.ToList();
                     cmbNadgodzinyPracownik.DisplayMemberPath = "PelneNazwisko";
                     cmbNadgodzinyPracownik.SelectedValuePath = "Id";
-                    cmbNadgodzinyPracownik.SelectedIndex = 0;
+                    if (_pracownicy.Count > 0) cmbNadgodzinyPracownik.SelectedIndex = 0;
                 }
 
                 // Załaduj listę agencji
@@ -299,7 +302,8 @@ namespace Kalendarz1.KontrolaGodzin
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd ładowania pracowników: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
+                // Cichy błąd - nie pokazujemy MessageBox podczas inicjalizacji
+                System.Diagnostics.Debug.WriteLine($"Błąd ładowania pracowników: {ex.Message}");
             }
         }
 
@@ -349,7 +353,7 @@ namespace Kalendarz1.KontrolaGodzin
                             {
                                 var punktDostepu = reader.IsDBNull(6) ? "" : reader.GetString(6);
                                 var typZBazy = reader.IsDBNull(1) ? 0 : reader.GetInt32(1);
-
+                                
                                 // Określ typ wejścia/wyjścia na podstawie nazwy punktu dostępu
                                 // "WY" w nazwie = wyjście, "WE" w nazwie = wejście
                                 int typInt = OkreslTypWejsciaWyjscia(punktDostepu, typZBazy);
@@ -397,7 +401,7 @@ namespace Kalendarz1.KontrolaGodzin
         private string OkreslTypPunktu(string nazwaPointu)
         {
             if (string.IsNullOrEmpty(nazwaPointu)) return "Nieznany";
-
+            
             nazwaPointu = nazwaPointu.ToUpper();
             if (nazwaPointu.Contains("WEJŚCIE") || nazwaPointu.Contains("BRAMA") || nazwaPointu.Contains("GŁÓWN"))
                 return "Brama główna";
@@ -421,19 +425,19 @@ namespace Kalendarz1.KontrolaGodzin
                 return typZBazy;
 
             var nazwa = punktDostepu.ToUpper();
-
+            
             // Sprawdź końcówkę nazwy - najczęściej "Portiernia WY" lub "Portiernia WE"
             // Lub "Produkcja WY", "Produkcja WE"
             if (nazwa.EndsWith(" WY") || nazwa.Contains(" WY ") || nazwa.Contains("_WY") || nazwa.EndsWith("_WY"))
                 return 0; // Wyjście
-
+            
             if (nazwa.EndsWith(" WE") || nazwa.Contains(" WE ") || nazwa.Contains("_WE") || nazwa.EndsWith("_WE"))
                 return 1; // Wejście
-
+            
             // Sprawdź też inne wzorce
             if (nazwa.Contains("WYJŚCIE") || nazwa.Contains("WYJSC") || nazwa.Contains("EXIT") || nazwa.Contains("OUT"))
                 return 0; // Wyjście
-
+                
             if (nazwa.Contains("WEJŚCIE") || nazwa.Contains("WEJSC") || nazwa.Contains("ENTRY") || nazwa.Contains("IN"))
                 return 1; // Wejście
 
@@ -475,7 +479,7 @@ namespace Kalendarz1.KontrolaGodzin
         private void LoadAgencje()
         {
             var agencje = new List<string> { "-- Wszystkie agencje --" };
-
+            
             // Wykryj agencje na podstawie nazw działów
             var wykryteAgencje = _grupy
                 .Where(g => g.Nazwa != null && (
@@ -491,7 +495,7 @@ namespace Kalendarz1.KontrolaGodzin
                 .ToList();
 
             agencje.AddRange(wykryteAgencje);
-
+            
             // Dodaj też standardowe działy jako "własni pracownicy"
             var wlasne = _grupy
                 .Where(g => g.Nazwa != null && !wykryteAgencje.Contains(g.Nazwa) && g.Id > 0)
@@ -499,12 +503,12 @@ namespace Kalendarz1.KontrolaGodzin
                 .Distinct()
                 .OrderBy(n => n)
                 .ToList();
-
+            
             agencje.AddRange(wlasne);
 
             cmbAgencja.ItemsSource = agencje;
             cmbAgencja.SelectedIndex = 0;
-
+            
             // Pokaż wykryte agencje
             icAgencje.ItemsSource = wykryteAgencje.Take(10);
         }
@@ -601,7 +605,7 @@ namespace Kalendarz1.KontrolaGodzin
                 txtZakresDat.Text = $"Zakres: {dataOd:dd.MM.yyyy}";
             else
                 txtZakresDat.Text = $"Zakres: {dataOd:dd.MM} - {dataDo:dd.MM.yyyy}";
-
+            
             // Aktualizuj stopkę
             txtLiczbaRejestracjiFooter.Text = $"{data.Count} rejestracji";
             txtOstatnieOdswiezenie.Text = $"Odświeżono: {DateTime.Now:HH:mm:ss}";
@@ -617,7 +621,7 @@ namespace Kalendarz1.KontrolaGodzin
             // Obecni teraz
             var wejsciaDict = wejsciaDzisiaj.GroupBy(r => r.PracownikId).ToDictionary(g => g.Key, g => g.Max(r => r.DataCzas));
             var wyjsciaDict = wyjsciaDzisiaj.GroupBy(r => r.PracownikId).ToDictionary(g => g.Key, g => g.Max(r => r.DataCzas));
-
+            
             int obecni = 0;
             foreach (var w in wejsciaDict)
             {
@@ -666,8 +670,8 @@ namespace Kalendarz1.KontrolaGodzin
             }
 
             var obecniRej = dzisiaj.Where(r => obecniPracownicy.Contains(r.PracownikId)).ToList();
-
-            txtDashProdukcja.Text = obecniRej.Count(r => r.Grupa?.ToUpper().Contains("PRODUKCJ") == true ||
+            
+            txtDashProdukcja.Text = obecniRej.Count(r => r.Grupa?.ToUpper().Contains("PRODUKCJ") == true || 
                                                          r.Grupa?.ToUpper().Contains("GURAVO") == true).ToString();
             txtDashCzysta.Text = obecniRej.Count(r => r.Grupa?.ToUpper().Contains("CZYST") == true).ToString();
             txtDashBrudna.Text = obecniRej.Count(r => r.Grupa?.ToUpper().Contains("BRUDN") == true).ToString();
@@ -776,17 +780,17 @@ namespace Kalendarz1.KontrolaGodzin
         private void UpdateObecni(List<RejestracjaModel> data)
         {
             var dzisiaj = data.Where(r => r.DataCzas.Date == DateTime.Today).ToList();
-
+            
             var obecni = dzisiaj
                 .GroupBy(r => r.PracownikId)
                 .Select(g =>
                 {
                     var ostatnia = g.OrderByDescending(r => r.DataCzas).First();
                     var wejscie = g.Where(r => r.TypInt == 1).OrderBy(r => r.DataCzas).FirstOrDefault()?.DataCzas;
-
+                    
                     // Sprawdź czy jest na terenie (ostatnia rejestracja to wejście)
                     var czyObecny = g.OrderByDescending(r => r.DataCzas).First().TypInt == 1;
-
+                    
                     if (!czyObecny) return null;
 
                     return new
@@ -803,7 +807,7 @@ namespace Kalendarz1.KontrolaGodzin
                 .ToList();
 
             gridObecni.ItemsSource = obecni;
-
+            
             // Aktualizuj statystyki
             txtObecniTeraz.Text = obecni.Count.ToString();
             var wejsciaDzis = dzisiaj.Count(r => r.TypInt == 1);
@@ -821,7 +825,7 @@ namespace Kalendarz1.KontrolaGodzin
                     var pracownicy = g.Select(r => r.PracownikId).Distinct().Count();
                     var liczbaWejsc = g.Count(r => r.TypInt == 1);
                     var liczbaWyjsc = g.Count(r => r.TypInt == 0);
-
+                    
                     // Oblicz sumy godzin
                     double sumaGodzin = 0;
                     int braki = 0;
@@ -845,8 +849,8 @@ namespace Kalendarz1.KontrolaGodzin
                         }
                     }
 
-                    string status = braki == 0 && problemy == 0 ? "✅ OK" :
-                                   braki > 0 ? $"⚠️ Brak wyjść: {braki}" :
+                    string status = braki == 0 && problemy == 0 ? "✅ OK" : 
+                                   braki > 0 ? $"⚠️ Brak wyjść: {braki}" : 
                                    $"⚠️ Przekroczenia: {problemy}";
 
                     return new
@@ -874,7 +878,7 @@ namespace Kalendarz1.KontrolaGodzin
             var alerty = new List<object>();
 
             var byPracownikDzien = data.GroupBy(r => new { r.PracownikId, r.Pracownik, r.Grupa, Data = r.DataCzas.Date });
-
+            
             foreach (var pd in byPracownikDzien)
             {
                 var wejscia = pd.Where(r => r.TypInt == 1).OrderBy(r => r.DataCzas).ToList();
@@ -1131,7 +1135,7 @@ namespace Kalendarz1.KontrolaGodzin
         {
             // Znajdź dni bez rejestracji dla każdego pracownika
             var nieobecnosci = new List<object>();
-
+            
             DateTime dataOd = dpOd.SelectedDate ?? DateTime.Today.AddDays(-30);
             DateTime dataDo = dpDo.SelectedDate ?? DateTime.Today;
 
@@ -1324,8 +1328,8 @@ namespace Kalendarz1.KontrolaGodzin
 
         private void CmbMiesiac_SelectionChanged(object sender, SelectionChangedEventArgs e) { if (IsLoaded) GenerujRaportMiesieczny(); }
         private void CmbRok_SelectionChanged(object sender, SelectionChangedEventArgs e) { if (IsLoaded) GenerujRaportMiesieczny(); }
-
-        private void BtnGenerujRaportMiesieczny_Click(object sender, RoutedEventArgs e)
+        
+        private void BtnGenerujRaportMiesieczny_Click(object sender, RoutedEventArgs e) 
         {
             GenerujRaportMiesieczny();
         }
@@ -1366,14 +1370,14 @@ namespace Kalendarz1.KontrolaGodzin
                             if (wejscia.Any())
                             {
                                 dniPracy++;
-
+                                
                                 if (wyjscia.Any())
                                 {
                                     var pierwszeWejscie = wejscia.First().DataCzas;
                                     var ostatnieWyjscie = wyjscia.Last().DataCzas;
                                     var godzinyDzien = (ostatnieWyjscie - pierwszeWejscie).TotalHours;
                                     sumaGodzin += godzinyDzien;
-
+                                    
                                     if (godzinyDzien > 8)
                                         nadgodziny += godzinyDzien - 8;
 
@@ -1390,7 +1394,7 @@ namespace Kalendarz1.KontrolaGodzin
                                     dniRobocze.Add($"{dzien.Key:dd.MM} - brak wyjścia");
                                 }
                             }
-
+                            
                             if (wyjscia.Any() && !wejscia.Any())
                             {
                                 brakiOdbic++;
@@ -1425,7 +1429,7 @@ namespace Kalendarz1.KontrolaGodzin
             }
         }
 
-        private void BtnDrukujRaport_Click(object sender, RoutedEventArgs e)
+        private void BtnDrukujRaport_Click(object sender, RoutedEventArgs e) 
         {
             if (gridRaportMiesieczny.ItemsSource == null)
             {
@@ -1438,7 +1442,7 @@ namespace Kalendarz1.KontrolaGodzin
                 int miesiac = cmbMiesiac.SelectedIndex + 1;
                 int rok = (int)cmbRok.SelectedItem;
                 string miesiacNazwa = cmbMiesiac.SelectedItem?.ToString() ?? "";
-
+                
                 var printDialog = new System.Windows.Controls.PrintDialog();
                 if (printDialog.ShowDialog() != true) return;
 
@@ -1529,11 +1533,11 @@ namespace Kalendarz1.KontrolaGodzin
                     row.Cells.Add(CreateTableCell($"{item.Nadgodziny:N1}"));
                     row.Cells.Add(CreateTableCell($"{item.GodzinyNocne:N1}"));
                     row.Cells.Add(CreateTableCell($"{item.SumaGodzin:N1}", false, 1, true));
-
+                    
                     var brakiCell = CreateTableCell(item.BrakiOdbic.ToString());
                     if (item.BrakiOdbic > 0) brakiCell.Background = new SolidColorBrush(Color.FromRgb(254, 215, 215));
                     row.Cells.Add(brakiCell);
-
+                    
                     row.Cells.Add(CreateTableCell(item.BrakiOpis ?? ""));
                     rowGroup.Rows.Add(row);
 
@@ -1602,11 +1606,11 @@ namespace Kalendarz1.KontrolaGodzin
         private void BtnDrukujKarteEwidencji_Click(object sender, RoutedEventArgs e) { }
 
         private void GridRejestracje_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e) { }
-
+        
         private void GridGodzinyPracy_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             if (gridGodzinyPracy.SelectedItem == null) return;
-
+            
             try
             {
                 dynamic selected = gridGodzinyPracy.SelectedItem;
@@ -1614,12 +1618,12 @@ namespace Kalendarz1.KontrolaGodzin
                 DateTime data = selected.Data;
                 string pracownik = selected.Pracownik;
                 string grupa = selected.Grupa;
-
+                
                 // Znajdź wszystkie rejestracje tego pracownika z tego dnia
                 var rejestracje = _wszystkieRejestracje
                     .Where(r => r.PracownikId == pracownikId && r.DataCzas.Date == data.Date)
                     .ToList();
-
+                
                 if (rejestracje.Any())
                 {
                     var dialog = new SzczegolyDniaWindow(pracownik, grupa, data, rejestracje);
@@ -1636,7 +1640,7 @@ namespace Kalendarz1.KontrolaGodzin
                 MessageBox.Show($"Błąd otwierania szczegółów: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
+        
         private void GridRanking_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e) { }
         private void GridRaportMiesieczny_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e) { }
         private void GridPunktualnosc_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e) { }
@@ -1735,10 +1739,10 @@ namespace Kalendarz1.KontrolaGodzin
             txtAgencjaDni.Text = raport.Sum(r => r.DniPracy).ToString();
             txtAgencjaGodziny.Text = $"{raport.Sum(r => r.SumaGodzin):N0}h";
             txtAgencjaNadgodziny.Text = $"{raport.Sum(r => r.Nadgodziny):N0}h";
-
+            
             // Oblicz koszt na podstawie stawek z ustawień
             var stawka = UstawieniaStawekWindow.PobierzStawke(agencja ?? "", dataOd);
-            var doWyplaty = raport.Sum(r => (decimal)r.GodzinyNormalne * stawka.StawkaPodstawowa +
+            var doWyplaty = raport.Sum(r => (decimal)r.GodzinyNormalne * stawka.StawkaPodstawowa + 
                                             (decimal)r.Nadgodziny * stawka.StawkaNadgodzin);
             txtAgencjaDoWyplaty.Text = $"{doWyplaty:N0} zł";
         }
@@ -1813,7 +1817,7 @@ namespace Kalendarz1.KontrolaGodzin
                 case 0: dataOd = DateTime.Today.AddDays(-7); break;
                 case 1: dataOd = DateTime.Today.AddDays(-30); break;
                 case 2: dataOd = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1); break;
-                case 3:
+                case 3: 
                     dataOd = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).AddMonths(-1);
                     dataDo = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
                     break;
@@ -1982,7 +1986,7 @@ namespace Kalendarz1.KontrolaGodzin
                 txtPorownGodziny2.Text = "N/A";
                 txtPorownGodzinyZmiana.Text = "Załaduj dane";
 
-                MessageBox.Show("Funkcja porównania wymaga załadowania danych z wybranego okresu.\nZmień zakres dat na górze i spróbuj ponownie.",
+                MessageBox.Show("Funkcja porównania wymaga załadowania danych z wybranego okresu.\nZmień zakres dat na górze i spróbuj ponownie.", 
                     "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
@@ -2159,8 +2163,8 @@ namespace Kalendarz1.KontrolaGodzin
             var koniecTygodnia = _agencjaTydzienStart.AddDays(6);
 
             // Pobierz pracowników z agencji
-            var agencjePracownicy = _pracownicy.Where(p =>
-                p.GrupaNazwa?.ToUpper().Contains("AGENCJA") == true ||
+            var agencjePracownicy = _pracownicy.Where(p => 
+                p.GrupaNazwa?.ToUpper().Contains("AGENCJA") == true || 
                 p.GrupaNazwa?.ToUpper().Contains("GURAVO") == true ||
                 p.GrupaNazwa?.ToUpper().Contains("IMPULS") == true).ToList();
 
@@ -2180,7 +2184,7 @@ namespace Kalendarz1.KontrolaGodzin
                 {
                     var dzien = _agencjaTydzienStart.AddDays(i);
                     var godziny = ObliczGodzinyDnia(pracownik.Id, dzien);
-
+                    
                     switch (i)
                     {
                         case 0: model.Pn = godziny; model.PnKolor = GetKolorGodzin(godziny, true); break;
@@ -2204,7 +2208,7 @@ namespace Kalendarz1.KontrolaGodzin
 
             gridAgencjeTydzien.ItemsSource = lista;
             if (panelAlertAgencje != null) panelAlertAgencje.Visibility = maAlerty ? Visibility.Visible : Visibility.Collapsed;
-
+            
             if (maAlerty && txtAlertAgencjeOpis != null)
             {
                 int przekroczenia = lista.Count(l => new[] { l.Pn, l.Wt, l.Sr, l.Cz, l.Pt, l.Sb, l.Nd }.Any(g => g > 12));
@@ -2359,7 +2363,7 @@ namespace Kalendarz1.KontrolaGodzin
         private void LoadHarmonogramPrzerw()
         {
             if (listHarmonogramPrzerw == null) return;
-
+            
             // Domyślne przerwy
             listHarmonogramPrzerw.ItemsSource = new List<HarmonogramPrzerwyModel>
             {
@@ -2471,7 +2475,7 @@ namespace Kalendarz1.KontrolaGodzin
             {
                 var godziny = ObliczGodzinyDnia(dzien.Key.PracownikId, dzien.Key.Date);
                 var pracownik = dzien.First();
-                bool czyAgencja = pracownik.Grupa?.ToUpper().Contains("AGENCJA") == true ||
+                bool czyAgencja = pracownik.Grupa?.ToUpper().Contains("AGENCJA") == true || 
                                   pracownik.Grupa?.ToUpper().Contains("GURAVO") == true ||
                                   pracownik.Grupa?.ToUpper().Contains("IMPULS") == true;
 
@@ -2876,7 +2880,7 @@ namespace Kalendarz1.KontrolaGodzin
 
             var sp = new StackPanel { Margin = new Thickness(20) };
             sp.Children.Add(new TextBlock { Text = "Funkcja w przygotowaniu...", FontSize = 14 });
-
+            
             var btn = new Button { Content = "OK", Padding = new Thickness(20, 8, 20, 8), Margin = new Thickness(0, 20, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
             btn.Click += (s, e) => Close();
             sp.Children.Add(btn);
@@ -2896,7 +2900,7 @@ namespace Kalendarz1.KontrolaGodzin
 
             var sp = new StackPanel { Margin = new Thickness(20) };
             sp.Children.Add(new TextBlock { Text = "Funkcja w przygotowaniu...", FontSize = 14 });
-
+            
             var btn = new Button { Content = "OK", Padding = new Thickness(20, 8, 20, 8), Margin = new Thickness(0, 20, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
             btn.Click += (s, e) => Close();
             sp.Children.Add(btn);
@@ -2916,7 +2920,7 @@ namespace Kalendarz1.KontrolaGodzin
 
             var sp = new StackPanel { Margin = new Thickness(20) };
             sp.Children.Add(new TextBlock { Text = "Funkcja w przygotowaniu...", FontSize = 14 });
-
+            
             var btn = new Button { Content = "OK", Padding = new Thickness(20, 8, 20, 8), Margin = new Thickness(0, 20, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
             btn.Click += (s, e) => Close();
             sp.Children.Add(btn);

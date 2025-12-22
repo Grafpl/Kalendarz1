@@ -202,11 +202,36 @@
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <Button Content="📊" ToolTip="Timeline" Style="{StaticResource ModernButton}" Padding="6,3" Margin="0,0,3,0" Click="BtnTimeline_Click"/>
-                    <Button Content="📈" ToolTip="Statystyki" Style="{StaticResource ModernButton}" Padding="6,3" Margin="0,0,3,0" Click="BtnStatystyki_Click"/>
-                    <Button Content="💳" ToolTip="Karty" Style="{StaticResource ModernButton}" Padding="6,3" Margin="0,0,3,0" Click="BtnZarzadzanieKartami_Click"/>
-                    <Button Content="🖨️" ToolTip="Karta RCP" Style="{StaticResource ModernButton}" Padding="6,3" Margin="0,0,3,0" Click="BtnKartaRCP_Click"/>
-                    <Button Content="⚙️" ToolTip="Stawki" Style="{StaticResource ModernButton}" Padding="6,3" Margin="0,0,12,0" Click="BtnUstawieniaStawek_Click"/>
+                    <Button Style="{StaticResource ModernButton}" Padding="8,4" Margin="0,0,4,0" Click="BtnTimeline_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="📊" FontSize="12"/>
+                            <TextBlock Text=" Timeline" FontSize="10" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource ModernButton}" Padding="8,4" Margin="0,0,4,0" Click="BtnStatystyki_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="📈" FontSize="12"/>
+                            <TextBlock Text=" Statystyki" FontSize="10" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource ModernButton}" Padding="8,4" Margin="0,0,4,0" Click="BtnZarzadzanieKartami_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="💳" FontSize="12"/>
+                            <TextBlock Text=" Karty" FontSize="10" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource ModernButton}" Padding="8,4" Margin="0,0,4,0" Click="BtnKartaRCP_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🖨️" FontSize="12"/>
+                            <TextBlock Text=" Karta RCP" FontSize="10" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource ModernButton}" Padding="8,4" Margin="0,0,12,0" Click="BtnUstawieniaStawek_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⚙️" FontSize="12"/>
+                            <TextBlock Text=" Stawki" FontSize="10" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                     
                     <StackPanel Margin="0,0,10,0">
                         <TextBlock x:Name="txtAktualnaData" Text="" FontSize="8" Foreground="#718096" HorizontalAlignment="Right"/>
