@@ -3493,6 +3493,14 @@ namespace Kalendarz1
             {
                 e.Handled = true;
                 textBox.Focus();
+
+                // Ustaw selectedRow na podstawie klikniętej komórki
+                var row = FindVisualParent<DataGridRow>(textBox);
+                if (row != null)
+                {
+                    selectedRow = row.Item as SpecyfikacjaRow;
+                    dataGridView1.SelectedItem = selectedRow;
+                }
             }
         }
         // === NAWIGACJA STRZAŁKAMI PODCZAS EDYCJI ===
