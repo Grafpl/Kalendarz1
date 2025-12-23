@@ -344,10 +344,6 @@ namespace Kalendarz1
 
                         using (SqlDataReader reader = command.ExecuteReader())
                         {
-                            decimal totalKg = 0;
-                            decimal totalCenaWazony = 0;
-                            int count = 0;
-
                             // Lista tymczasowa na wszystkie pobrane wiersze
                             var allRows = new List<HarmonogramRow>();
 
@@ -373,10 +369,6 @@ namespace Kalendarz1
                                 };
 
                                 allRows.Add(row);
-
-                                totalKg += razemKg;
-                                totalCenaWazony += cena * razemKg;
-                                count++;
                             }
 
                             // === LOGIKA PODZIAŁU NA DWIE TABELE ===
@@ -394,11 +386,6 @@ namespace Kalendarz1
                                 }
                             }
 
-                            // Statystyki (bez zmian)
-                            lblHarmonogramCount.Text = $"{count} pozycji";
-                            lblHarmonogramKg.Text = totalKg.ToString("#,0");
-                            decimal avgCena = totalKg > 0 ? totalCenaWazony / totalKg : 0;
-                            lblHarmonogramCena.Text = $"{avgCena:N2} zł";
                         }
                     }
                 }
