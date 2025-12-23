@@ -1529,7 +1529,7 @@ namespace Kalendarz1
         private void ButtonBon_Click(object sender, RoutedEventArgs e)
         {
             // Pobierz wiersz z selectedRow lub z bieżącej komórki
-            var row = selectedRow ?? dataGridView1.CurrentCell?.Item as SpecyfikacjaRow;
+            var row = selectedRow ?? dataGridView1.CurrentCell.Item as SpecyfikacjaRow;
 
             if (row != null)
             {
