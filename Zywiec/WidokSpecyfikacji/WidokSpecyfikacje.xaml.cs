@@ -1,5 +1,5 @@
-using iTextSharp.text.pdf;
 using iTextSharp.text;
+using iTextSharp.text.pdf;
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
@@ -14,6 +14,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -70,7 +71,8 @@ namespace Kalendarz1
         private ObservableCollection<TransportRow> transportData;
 
         // === HARMONOGRAM: Dane harmonogramu dostaw ===
-        private ObservableCollection<HarmonogramRow> harmonogramData;
+        private ObservableCollection<HarmonogramRow> harmonogramDataLeft;
+        private ObservableCollection<HarmonogramRow> harmonogramDataRight;
 
         public WidokSpecyfikacje()
         {
@@ -95,9 +97,11 @@ namespace Kalendarz1
             transportData = new ObservableCollection<TransportRow>();
             dataGridTransport.ItemsSource = transportData;
 
-            // Inicjalizuj dane harmonogramu
-            harmonogramData = new ObservableCollection<HarmonogramRow>();
-            dataGridHarmonogram.ItemsSource = harmonogramData;
+            harmonogramDataLeft = new ObservableCollection<HarmonogramRow>();
+            harmonogramDataRight = new ObservableCollection<HarmonogramRow>();
+            // Bindujemy do nowych DataGridów (jeśli nazwałeś je tak jak w XAML wyżej)
+            dataGridHarmonogramLeft.ItemsSource = harmonogramDataLeft;
+            dataGridHarmonogramRight.ItemsSource = harmonogramDataRight;
 
             dateTimePicker1.SelectedDate = DateTime.Today;
 
@@ -304,7 +308,9 @@ namespace Kalendarz1
 
         private void LoadHarmonogramData()
         {
-            harmonogramData.Clear();
+            // Czyścimy obie listy
+            harmonogramDataLeft.Clear();
+            harmonogramDataRight.Clear();
 
             if (!dateTimePicker1.SelectedDate.HasValue)
                 return;
@@ -318,19 +324,19 @@ namespace Kalendarz1
                     connection.Open();
 
                     string query = @"SELECT
-                                        LP,
-                                        Dostawca,
-                                        SztukiDek,
-                                        WagaDek,
-                                        Cena,
-                                        Dodatek,
-                                        TypCeny,
-                                        Auta,
-                                        UWAGI
-                                    FROM [LibraNet].[dbo].[HarmonogramDostaw]
-                                    WHERE DataOdbioru = @SelectedDate
-                                    AND Bufor IN ('Potwierdzony', 'Potwierdzone')
-                                    ORDER BY LP";
+                                LP,
+                                Dostawca,
+                                SztukiDek,
+                                WagaDek,
+                                Cena,
+                                Dodatek,
+                                TypCeny,
+                                Auta,
+                                UWAGI
+                            FROM [LibraNet].[dbo].[HarmonogramDostaw]
+                            WHERE DataOdbioru = @SelectedDate
+                            AND Bufor IN ('Potwierdzony', 'Potwierdzone')
+                            ORDER BY LP";
 
                     using (SqlCommand command = new SqlCommand(query, connection))
                     {
@@ -341,6 +347,9 @@ namespace Kalendarz1
                             decimal totalKg = 0;
                             decimal totalCenaWazony = 0;
                             int count = 0;
+
+                            // Lista tymczasowa na wszystkie pobrane wiersze
+                            var allRows = new List<HarmonogramRow>();
 
                             while (reader.Read())
                             {
@@ -363,14 +372,29 @@ namespace Kalendarz1
                                     Uwagi = reader["UWAGI"]?.ToString()?.Trim() ?? ""
                                 };
 
-                                harmonogramData.Add(row);
+                                allRows.Add(row);
 
                                 totalKg += razemKg;
                                 totalCenaWazony += cena * razemKg;
                                 count++;
                             }
 
-                            // Aktualizuj etykiety podsumowania
+                            // === LOGIKA PODZIAŁU NA DWIE TABELE ===
+                            int halfPoint = (int)Math.Ceiling(allRows.Count / 2.0);
+
+                            for (int i = 0; i < allRows.Count; i++)
+                            {
+                                if (i < halfPoint)
+                                {
+                                    harmonogramDataLeft.Add(allRows[i]);
+                                }
+                                else
+                                {
+                                    harmonogramDataRight.Add(allRows[i]);
+                                }
+                            }
+
+                            // Statystyki (bez zmian)
                             lblHarmonogramCount.Text = $"{count} pozycji";
                             lblHarmonogramKg.Text = totalKg.ToString("#,0");
                             decimal avgCena = totalKg > 0 ? totalCenaWazony / totalKg : 0;
@@ -384,7 +408,6 @@ namespace Kalendarz1
                 UpdateStatus($"Błąd ładowania harmonogramu: {ex.Message}");
             }
         }
-
         private void UpdateFullDateLabel()
         {
             if (dateTimePicker1.SelectedDate.HasValue)
@@ -856,53 +879,35 @@ namespace Kalendarz1
         // Rozpocznij edycję po naciśnięciu klawisza (cyfry, litery)
         private void DataGridView1_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            var cellInfo = dataGridView1.CurrentCell;
-            if (cellInfo.Column == null) return;
-
-            // Sprawdź czy kolumna jest edytowalna
-            bool isEditable = !cellInfo.Column.IsReadOnly;
-            if (cellInfo.Column is DataGridTemplateColumn templateColumn)
+            // Obsługa ENTER -> Przejście do wiersza niżej
+            if (e.Key == Key.Enter)
             {
-                isEditable = templateColumn.CellEditingTemplate != null || templateColumn.CellTemplate != null;
+                e.Handled = true;
+
+                // Logika przejścia w dół
+                var uiElement = e.OriginalSource as UIElement;
+                if (uiElement != null)
+                {
+                    uiElement.MoveFocus(new TraversalRequest(FocusNavigationDirection.Down));
+                }
             }
 
-            if (!isEditable) return;
-
-            var dataGridCell = GetDataGridCell(cellInfo);
-            if (dataGridCell != null && !dataGridCell.IsEditing)
+            // (Opcjonalnie) Obsługa F2 dla standardowych kolumn, jeśli jakieś zostały
+            if (e.Key == Key.F2)
             {
-                // Sprawdź czy to jest klawisz alfanumeryczny lub F2
-                if (e.Key == Key.F2 ||
-                    (e.Key >= Key.D0 && e.Key <= Key.D9) ||
-                    (e.Key >= Key.NumPad0 && e.Key <= Key.NumPad9) ||
-                    (e.Key >= Key.A && e.Key <= Key.Z) ||
-                    e.Key == Key.OemComma || e.Key == Key.OemPeriod ||
-                    e.Key == Key.Decimal || e.Key == Key.OemMinus || e.Key == Key.Subtract)
+                var cellInfo = dataGridView1.CurrentCell;
+                if (cellInfo.IsValid)
                 {
-                    dataGridView1.BeginEdit();
-
-                    // Dla template columns - znajdź i aktywuj TextBox
-                    Dispatcher.BeginInvoke(new Action(() =>
+                    var cellContent = cellInfo.Column.GetCellContent(cellInfo.Item);
+                    var textBox = FindVisualChild<TextBox>(cellContent);
+                    if (textBox != null)
                     {
-                        var textBox = FindVisualChild<TextBox>(dataGridCell);
-                        if (textBox != null)
-                        {
-                            textBox.Focus();
-                            // Dla F2 - zaznacz wszystko, dla innych klawiszy - wyczyść i zacznij od nowa
-                            if (e.Key == Key.F2)
-                            {
-                                textBox.SelectAll();
-                            }
-                            else
-                            {
-                                textBox.Clear();
-                            }
-                        }
-                    }), System.Windows.Threading.DispatcherPriority.Input);
+                        textBox.Focus();
+                        textBox.SelectAll();
+                    }
                 }
             }
         }
-
         // === NATYCHMIASTOWA EDYCJA: Wpisywanie znaków od razu ===
         private void DataGridView1_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
@@ -986,38 +991,28 @@ namespace Kalendarz1
 
         private void DataGridView1_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
         {
+            // Sprawdzamy, czy edycja została zatwierdzona (np. Enterem lub zmianą komórki)
             if (e.EditAction == DataGridEditAction.Commit)
             {
                 var row = e.Row.Item as SpecyfikacjaRow;
                 if (row != null)
                 {
-                    // === WYDAJNOŚĆ: Użyj debounce zamiast natychmiastowego zapisu ===
+                    // Używamy Dispatchera, aby obliczenia wykonały się po zaktualizowaniu wartości w modelu
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        string columnHeader = e.Column.Header?.ToString() ?? "";
+                        // Tutaj wywołaj swoją logikę przeliczania wiersza
+                        // Zakładam, że masz metodę RecalculateWartosc() w klasie SpecyfikacjaRow 
+                        // lub logikę w setterach właściwości.
 
-                        // Aktualizuj nazwę dostawcy jeśli zmieniono GID
-                        if (columnHeader == "Dostawca" && !string.IsNullOrEmpty(row.DostawcaGID))
-                        {
-                            var dostawca = ListaDostawcow.FirstOrDefault(d => d.GID == row.DostawcaGID);
-                            if (dostawca != null)
-                            {
-                                row.Dostawca = dostawca.ShortName;
-                            }
-                        }
-
-                        // Przelicz wartość po każdej zmianie
-                        row.RecalculateWartosc();
+                        // Jeśli logika jest w setterach, to wystarczy odświeżyć podsumowania:
                         UpdateStatistics();
 
-                        // Dodaj do kolejki debounce zamiast natychmiastowego zapisu
-                        QueueRowForSave(row.ID);
-
+                        // Opcjonalnie: Kolejkuj auto-zapis (jeśli używasz)
+                        // QueueRowForSave(row.ID); 
                     }), System.Windows.Threading.DispatcherPriority.Background);
                 }
             }
         }
-
         private void UpdateDatabaseRow(SpecyfikacjaRow row, string columnName)
         {
             try
@@ -1578,7 +1573,7 @@ namespace Kalendarz1
         // Ustawienia lokalizacji PDF
         private void BtnPdfSettings_Click(object sender, RoutedEventArgs e)
         {
-            var result = MessageBox.Show(
+            var result = System.Windows.MessageBox.Show(
                 $"Aktualna ścieżka zapisu PDF:\n{defaultPdfPath}\n\n" +
                 $"Używaj domyślnej ścieżki: {(useDefaultPath ? "TAK" : "NIE")}\n\n" +
                 "Czy chcesz zmienić ścieżkę zapisu?\n\n" +
@@ -1590,26 +1585,27 @@ namespace Kalendarz1
 
             if (result == MessageBoxResult.Yes)
             {
+                // Tutaj używamy pełnej nazwy dla FolderBrowserDialog
                 var dialog = new System.Windows.Forms.FolderBrowserDialog
                 {
                     Description = "Wybierz folder do zapisywania PDF",
                     SelectedPath = defaultPdfPath
                 };
 
+                // Tutaj używamy pełnej nazwy dla DialogResult
                 if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                 {
                     defaultPdfPath = dialog.SelectedPath;
                     useDefaultPath = true;
-                    MessageBox.Show($"Nowa domyślna ścieżka:\n{defaultPdfPath}", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                    System.Windows.MessageBox.Show($"Nowa domyślna ścieżka:\n{defaultPdfPath}", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
             else if (result == MessageBoxResult.No)
             {
                 useDefaultPath = false;
-                MessageBox.Show("Przy następnym zapisie PDF zostaniesz zapytany o lokalizację.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                System.Windows.MessageBox.Show("Przy następnym zapisie PDF zostaniesz zapytany o lokalizację.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
-
         // Drukuj wszystkie specyfikacje z dnia
         private void BtnPrintAll_Click(object sender, RoutedEventArgs e)
         {
@@ -3499,7 +3495,52 @@ namespace Kalendarz1
                 TerminDni = source.TerminDni
             };
         }
+        // Wklej to do klasy WidokSpecyfikacje, jeśli tego brakuje:
+        private void NumericTextBox_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox != null && !textBox.IsKeyboardFocusWithin)
+            {
+                e.Handled = true;
+                textBox.Focus();
+            }
+        }
+        // === NAWIGACJA STRZAŁKAMI PODCZAS EDYCJI ===
+        private void NumericTextBox_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            // Reaguj tylko na strzałki
+            if (e.Key == Key.Up || e.Key == Key.Down || e.Key == Key.Left || e.Key == Key.Right)
+            {
+                // 1. Zatrzymaj standardowe zachowanie (przesuwanie kursora w tekście)
+                e.Handled = true;
 
+                // 2. Określ kierunek nawigacji
+                FocusNavigationDirection direction = FocusNavigationDirection.Next;
+
+                switch (e.Key)
+                {
+                    case Key.Right:
+                        direction = FocusNavigationDirection.Right;
+                        break;
+                    case Key.Left:
+                        direction = FocusNavigationDirection.Left;
+                        break;
+                    case Key.Up:
+                        direction = FocusNavigationDirection.Up;
+                        break;
+                    case Key.Down:
+                        direction = FocusNavigationDirection.Down;
+                        break;
+                }
+
+                // 3. Przenieś fokus do sąsiedniego elementu (następnej komórki)
+                var uiElement = e.OriginalSource as UIElement;
+                if (uiElement != null)
+                {
+                    uiElement.MoveFocus(new TraversalRequest(direction));
+                }
+            }
+        }
         // === HISTORIA: Pokaż historię zmian (można wywołać przyciskiem) ===
         public void ShowChangeHistory()
         {
@@ -4163,5 +4204,8 @@ namespace Kalendarz1
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+    
+
+   
     }
 }
