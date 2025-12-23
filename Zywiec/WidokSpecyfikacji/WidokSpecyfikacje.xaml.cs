@@ -3489,18 +3489,21 @@ namespace Kalendarz1
         private void NumericTextBox_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             var textBox = sender as TextBox;
-            if (textBox != null && !textBox.IsKeyboardFocusWithin)
+            if (textBox == null) return;
+
+            // ZAWSZE ustaw selectedRow przy kliknięciu
+            var row = FindVisualParent<DataGridRow>(textBox);
+            if (row != null)
+            {
+                selectedRow = row.Item as SpecyfikacjaRow;
+                dataGridView1.SelectedItem = selectedRow;
+            }
+
+            // Focus tylko jeśli TextBox nie ma jeszcze focusu
+            if (!textBox.IsKeyboardFocusWithin)
             {
                 e.Handled = true;
                 textBox.Focus();
-
-                // Ustaw selectedRow na podstawie klikniętej komórki
-                var row = FindVisualParent<DataGridRow>(textBox);
-                if (row != null)
-                {
-                    selectedRow = row.Item as SpecyfikacjaRow;
-                    dataGridView1.SelectedItem = selectedRow;
-                }
             }
         }
         // === NAWIGACJA STRZAŁKAMI PODCZAS EDYCJI ===
