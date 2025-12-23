@@ -1528,11 +1528,14 @@ namespace Kalendarz1
 
         private void ButtonBon_Click(object sender, RoutedEventArgs e)
         {
-            if (selectedRow != null)
+            // Pobierz wiersz z selectedRow lub z bieżącej komórki
+            var row = selectedRow ?? dataGridView1.CurrentCell?.Item as SpecyfikacjaRow;
+
+            if (row != null)
             {
                 try
                 {
-                    WidokAvilog avilogForm = new WidokAvilog(selectedRow.ID);
+                    WidokAvilog avilogForm = new WidokAvilog(row.ID);
                     avilogForm.ShowDialog(); // ShowDialog aby po zamknięciu odświeżyć dane
 
                     // Odśwież dane po zamknięciu Avilog
