@@ -1,0 +1,189 @@
+<Window x:Class="Kalendarz1.WPF.PrzyczynaAnulowaniaDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Przyczyna anulowania zamówienia"
+        Width="500" Height="480"
+        WindowStartupLocation="CenterOwner"
+        Background="#F8F9FA"
+        FontFamily="Segoe UI"
+        ResizeMode="NoResize">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="ColorDanger" Color="#E74C3C"/>
+        <SolidColorBrush x:Key="ColorWarning" Color="#F39C12"/>
+        <SolidColorBrush x:Key="ColorInfo" Color="#3498DB"/>
+        <SolidColorBrush x:Key="ColorSuccess" Color="#27AE60"/>
+        <SolidColorBrush x:Key="ColorPurple" Color="#9B59B6"/>
+        <SolidColorBrush x:Key="ColorGray" Color="#7F8C8D"/>
+
+        <LinearGradientBrush x:Key="HeaderGradient" StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Color="#E74C3C" Offset="0"/>
+            <GradientStop Color="#C0392B" Offset="1"/>
+        </LinearGradientBrush>
+
+        <Style x:Key="ReasonButton" TargetType="Button">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="15,12"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.7"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CancelButton" TargetType="Button">
+            <Setter Property="Background" Value="#95A5A6"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="20,12"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#7F8C8D"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Nagłówek -->
+        <Border Grid.Row="0" Background="{StaticResource HeaderGradient}" Padding="20,16">
+            <StackPanel>
+                <TextBlock Text="Anulowanie zamówienia" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                <TextBlock Text="Wybierz przyczynę anulowania zamówienia"
+                           FontSize="11" Foreground="#FADBD8" Margin="0,4,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Informacje o zamówieniu -->
+        <Border Grid.Row="1" Background="#ECF0F1" Padding="15,12" Margin="15,15,15,0">
+            <Border.Effect>
+                <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.1" BlurRadius="5"/>
+            </Border.Effect>
+            <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                    <TextBlock Text="Odbiorca: " FontWeight="SemiBold" Foreground="#2C3E50"/>
+                    <TextBlock x:Name="txtOdbiorca" Text="" Foreground="#34495E"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Ilość: " FontWeight="SemiBold" Foreground="#2C3E50"/>
+                    <TextBlock x:Name="txtIlosc" Text="" Foreground="#34495E"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Przyciski przyczyn -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="15,15,15,0">
+            <StackPanel>
+                <TextBlock Text="Wybierz przyczynę:" FontWeight="SemiBold" FontSize="12"
+                           Foreground="#7F8C8D" Margin="0,0,0,10"/>
+
+                <Button x:Name="btnAnulowanieZamowienia"
+                        Content="❌  Anulowanie zamówienia - klient zrezygnował"
+                        Background="{StaticResource ColorDanger}"
+                        Style="{StaticResource ReasonButton}"
+                        Click="BtnReason_Click" Tag="Anulowanie zamówienia"/>
+
+                <Button x:Name="btnPoprawaZamowienia"
+                        Content="✏️  Poprawa zamówienia - korekta danych"
+                        Background="{StaticResource ColorWarning}"
+                        Style="{StaticResource ReasonButton}"
+                        Click="BtnReason_Click" Tag="Poprawa zamówienia"/>
+
+                <Button x:Name="btnOdmowaRealizacji"
+                        Content="🚫  Odmowa realizacji - nie możemy zrealizować"
+                        Background="{StaticResource ColorPurple}"
+                        Style="{StaticResource ReasonButton}"
+                        Click="BtnReason_Click" Tag="Odmowa realizacji"/>
+
+                <Button x:Name="btnBrakDostepnosci"
+                        Content="📦  Brak dostępności towaru"
+                        Background="{StaticResource ColorInfo}"
+                        Style="{StaticResource ReasonButton}"
+                        Click="BtnReason_Click" Tag="Brak dostępności"/>
+
+                <Button x:Name="btnZmianaTerminu"
+                        Content="📅  Zmiana terminu przez klienta"
+                        Background="{StaticResource ColorSuccess}"
+                        Style="{StaticResource ReasonButton}"
+                        Click="BtnReason_Click" Tag="Zmiana terminu"/>
+
+                <Button x:Name="btnDuplikat"
+                        Content="📋  Duplikat zamówienia"
+                        Background="#1ABC9C"
+                        Style="{StaticResource ReasonButton}"
+                        Click="BtnReason_Click" Tag="Duplikat zamówienia"/>
+
+                <Button x:Name="btnBladSystemowy"
+                        Content="⚙️  Błąd systemowy / testowe zamówienie"
+                        Background="#34495E"
+                        Style="{StaticResource ReasonButton}"
+                        Click="BtnReason_Click" Tag="Błąd systemowy"/>
+
+                <!-- Inna przyczyna z polem tekstowym -->
+                <Border Background="White" CornerRadius="8" Padding="12" Margin="0,8,0,0"
+                        BorderBrush="#BDC3C7" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock Text="Inna przyczyna:" FontWeight="SemiBold" FontSize="12"
+                                   Foreground="#7F8C8D" Margin="0,0,0,8"/>
+                        <TextBox x:Name="txtInnaPrzyczyna" Height="60" TextWrapping="Wrap"
+                                 AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                                 Padding="8" FontSize="12" BorderBrush="#BDC3C7"/>
+                        <Button x:Name="btnInnaPrzyczyna" Content="Zatwierdź inną przyczynę"
+                                Background="{StaticResource ColorGray}"
+                                Style="{StaticResource ReasonButton}"
+                                Margin="0,8,0,0" HorizontalContentAlignment="Center"
+                                Click="BtnInnaPrzyczyna_Click"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Przycisk Anuluj -->
+        <Border Grid.Row="3" Background="White" Padding="15" BorderBrush="#ECF0F1" BorderThickness="0,1,0,0">
+            <Button x:Name="btnAnuluj" Content="Anuluj (nie anuluj zamówienia)"
+                    Style="{StaticResource CancelButton}"
+                    HorizontalAlignment="Center"
+                    Click="BtnAnuluj_Click"/>
+        </Border>
+    </Grid>
+</Window>

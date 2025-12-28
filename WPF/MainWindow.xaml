@@ -669,45 +669,83 @@
                                 </Grid>
                             </Border>
 
-                            <!-- Tabela statystyk anulowanych zamówień -->
-                            <Border Grid.Row="1" Background="White" CornerRadius="8" Padding="10">
-                                <Border.Effect>
-                                    <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="10"/>
-                                </Border.Effect>
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="*"/>
-                                    </Grid.RowDefinitions>
+                            <!-- Dwie kolumny: odbiorcy i przyczyny -->
+                            <Grid Grid.Row="1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="350"/>
+                                </Grid.ColumnDefinitions>
 
-                                    <!-- Nagłówek -->
-                                    <Border Grid.Row="0" CornerRadius="8,8,0,0" Padding="15,10" Margin="0,0,0,10">
-                                        <Border.Background>
-                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                                <GradientStop Color="#e74c3c" Offset="0"/>
-                                                <GradientStop Color="#c0392b" Offset="1"/>
-                                            </LinearGradientBrush>
-                                        </Border.Background>
-                                        <Grid>
-                                            <TextBlock Text="📊 STATYSTYKI ANULOWANYCH ZAMÓWIEŃ"
+                                <!-- Lewa kolumna - Tabela statystyk per odbiorca -->
+                                <Border Grid.Column="0" Background="White" CornerRadius="8" Padding="10" Margin="0,0,10,0">
+                                    <Border.Effect>
+                                        <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="10"/>
+                                    </Border.Effect>
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+
+                                        <!-- Nagłówek -->
+                                        <Border Grid.Row="0" CornerRadius="8,8,0,0" Padding="15,10" Margin="0,0,0,10">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                    <GradientStop Color="#e74c3c" Offset="0"/>
+                                                    <GradientStop Color="#c0392b" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <Grid>
+                                                <TextBlock Text="📊 ANULOWANE WG ODBIORCY"
+                                                           FontSize="14" Foreground="White" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                    <Border Background="#27AE60" CornerRadius="12" Padding="12,5" Margin="5,0">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="Łącznie: " FontSize="12" Foreground="White"/>
+                                                            <TextBlock x:Name="txtStatystykiLacznieAnulowanych" Text="0" FontSize="12" Foreground="White" FontWeight="Bold"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+
+                                        <DataGrid Grid.Row="1" x:Name="dgStatystykiAnulowane"
+                                                  Style="{StaticResource ModernDataGridStyle}"
+                                                  AutoGenerateColumns="False"
+                                                  CanUserSortColumns="True"/>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Prawa kolumna - Podział według przyczyn -->
+                                <Border Grid.Column="1" Background="White" CornerRadius="8" Padding="10">
+                                    <Border.Effect>
+                                        <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="10"/>
+                                    </Border.Effect>
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+
+                                        <!-- Nagłówek przyczyn -->
+                                        <Border Grid.Row="0" CornerRadius="8,8,0,0" Padding="15,10" Margin="0,0,0,10">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                    <GradientStop Color="#9B59B6" Offset="0"/>
+                                                    <GradientStop Color="#8E44AD" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <TextBlock Text="📋 PODZIAŁ WG PRZYCZYN"
                                                        FontSize="14" Foreground="White" FontWeight="Bold" VerticalAlignment="Center"/>
-                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                                <Border Background="#27AE60" CornerRadius="12" Padding="12,5" Margin="5,0">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="Łącznie anulowanych: " FontSize="12" Foreground="White"/>
-                                                        <TextBlock x:Name="txtStatystykiLacznieAnulowanych" Text="0" FontSize="12" Foreground="White" FontWeight="Bold"/>
-                                                    </StackPanel>
-                                                </Border>
-                                            </StackPanel>
-                                        </Grid>
-                                    </Border>
+                                        </Border>
 
-                                    <DataGrid Grid.Row="1" x:Name="dgStatystykiAnulowane"
-                                              Style="{StaticResource ModernDataGridStyle}"
-                                              AutoGenerateColumns="False"
-                                              CanUserSortColumns="True"/>
-                                </Grid>
-                            </Border>
+                                        <DataGrid Grid.Row="1" x:Name="dgStatystykiPrzyczyny"
+                                                  Style="{StaticResource ModernDataGridStyle}"
+                                                  AutoGenerateColumns="False"
+                                                  CanUserSortColumns="True"/>
+                                    </Grid>
+                                </Border>
+                            </Grid>
                         </Grid>
                     </TabItem>
                 </TabControl>

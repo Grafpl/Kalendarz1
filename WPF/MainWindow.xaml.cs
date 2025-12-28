@@ -1549,16 +1549,11 @@ namespace Kalendarz1.WPF
             var odbiorca = _contextMenuSelectedRow.Row.Field<string>("Odbiorca") ?? "Nieznany";
             var ilosc = _contextMenuSelectedRow.Row.Field<decimal>("IloscZamowiona");
 
-            var result = MessageBox.Show(
-                $"Czy na pewno chcesz anulować to zamówienie?\n\n" +
-                $"📦 Odbiorca: {odbiorca}\n" +
-                $"⚖️ Ilość: {ilosc:N0} kg\n\n" +
-                $"⚠️ Zamówienie można później przywrócić.",
-                "Potwierdź anulowanie",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
+            // Otwórz dialog wyboru przyczyny anulowania
+            var dialog = new PrzyczynaAnulowaniaDialog(odbiorca, ilosc);
+            dialog.Owner = this;
 
-            if (result == MessageBoxResult.Yes)
+            if (dialog.ShowDialog() == true && dialog.CzyAnulowano)
             {
                 try
                 {
@@ -1568,18 +1563,20 @@ namespace Kalendarz1.WPF
                         @"UPDATE dbo.ZamowieniaMieso
                           SET Status = 'Anulowane',
                               AnulowanePrzez = @AnulowanePrzez,
-                              DataAnulowania = @DataAnulowania
+                              DataAnulowania = @DataAnulowania,
+                              PrzyczynaAnulowania = @PrzyczynaAnulowania
                           WHERE Id = @Id", cn);
                     cmd.Parameters.AddWithValue("@Id", id);
                     cmd.Parameters.AddWithValue("@AnulowanePrzez", App.UserFullName ?? UserID ?? "Nieznany");
                     cmd.Parameters.AddWithValue("@DataAnulowania", DateTime.Now);
+                    cmd.Parameters.AddWithValue("@PrzyczynaAnulowania", dialog.WybranaPrzyczyna ?? "Nieznana");
                     await cmd.ExecuteNonQueryAsync();
 
-                    // Logowanie historii zmian
+                    // Logowanie historii zmian z przyczyna
                     await HistoriaZmianService.LogujAnulowanie(id, UserID, App.UserFullName,
-                        $"Anulowano zamówienie dla odbiorcy: {odbiorca}, ilość: {ilosc:N0} kg");
+                        $"Anulowano zamówienie dla odbiorcy: {odbiorca}, ilość: {ilosc:N0} kg. Przyczyna: {dialog.WybranaPrzyczyna}");
 
-                    MessageBox.Show("Zamówienie zostało anulowane.", "Sukces",
+                    MessageBox.Show($"Zamówienie zostało anulowane.\n\nPrzyczyna: {dialog.WybranaPrzyczyna}", "Sukces",
                         MessageBoxButton.OK, MessageBoxImage.Information);
                     await RefreshAllDataAsync();
                 }
@@ -6290,6 +6287,7 @@ ORDER BY zm.Id";
         #region Statystyki Anulowanych Zamówień
 
         private readonly DataTable _dtStatystyki = new();
+        private readonly DataTable _dtStatystykiPrzyczyny = new();
 
         private void InitializeStatystykiTab()
         {
@@ -6305,7 +6303,7 @@ ORDER BY zm.Id";
             cmbStatystykiHandlowiec.ItemsSource = handlowiecList;
             cmbStatystykiHandlowiec.SelectedIndex = 0;
 
-            // Inicjalizacja struktury DataTable
+            // Inicjalizacja struktury DataTable dla odbiorców
             if (_dtStatystyki.Columns.Count == 0)
             {
                 _dtStatystyki.Columns.Add("Odbiorca", typeof(string));
@@ -6315,7 +6313,16 @@ ORDER BY zm.Id";
                 _dtStatystyki.Columns.Add("OstatniaData", typeof(DateTime));
             }
 
+            // Inicjalizacja struktury DataTable dla przyczyn
+            if (_dtStatystykiPrzyczyny.Columns.Count == 0)
+            {
+                _dtStatystykiPrzyczyny.Columns.Add("Przyczyna", typeof(string));
+                _dtStatystykiPrzyczyny.Columns.Add("Liczba", typeof(int));
+                _dtStatystykiPrzyczyny.Columns.Add("Procent", typeof(string));
+            }
+
             SetupStatystykiDataGrid();
+            SetupStatystykiPrzyczynyDataGrid();
         }
 
         private void SetupStatystykiDataGrid()
@@ -6368,9 +6375,49 @@ ORDER BY zm.Id";
             });
         }
 
+        private void SetupStatystykiPrzyczynyDataGrid()
+        {
+            dgStatystykiPrzyczyny.ItemsSource = _dtStatystykiPrzyczyny.DefaultView;
+            dgStatystykiPrzyczyny.Columns.Clear();
+
+            dgStatystykiPrzyczyny.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Przyczyna",
+                Binding = new System.Windows.Data.Binding("Przyczyna"),
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
+                MinWidth = 150
+            });
+
+            var countStyle = new Style(typeof(TextBlock));
+            countStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
+            countStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
+
+            dgStatystykiPrzyczyny.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Liczba",
+                Binding = new System.Windows.Data.Binding("Liczba"),
+                Width = new DataGridLength(70),
+                ElementStyle = countStyle
+            });
+
+            var percentStyle = new Style(typeof(TextBlock));
+            percentStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
+            percentStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(155, 89, 182))));
+            percentStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold));
+
+            dgStatystykiPrzyczyny.Columns.Add(new DataGridTextColumn
+            {
+                Header = "%",
+                Binding = new System.Windows.Data.Binding("Procent"),
+                Width = new DataGridLength(60),
+                ElementStyle = percentStyle
+            });
+        }
+
         private async Task LoadStatystykiAsync()
         {
             _dtStatystyki.Rows.Clear();
+            _dtStatystykiPrzyczyny.Rows.Clear();
 
             DateTime? dataOd = dpStatystykiOd.SelectedDate;
             DateTime? dataDo = dpStatystykiDo.SelectedDate;
@@ -6403,11 +6450,13 @@ ORDER BY zm.Id";
 
                 // Pobierz anulowane zamówienia w wybranym okresie
                 var statystyki = new Dictionary<int, (int Count, decimal SumaKg, DateTime LastDate)>();
+                var statystykiPrzyczyny = new Dictionary<string, int>();
 
                 await using (var cnLibra = new SqlConnection(_connLibra))
                 {
                     await cnLibra.OpenAsync();
 
+                    // Statystyki per odbiorca
                     string sql = @"
                         SELECT zm.KlientId, COUNT(*) as Cnt, SUM(ISNULL(zmt.IloscSuma, 0)) as Suma,
                                MAX(COALESCE(zm.DataAnulowania, zm.DataUboju, zm.DataZamowienia)) as LastDate
@@ -6438,9 +6487,32 @@ ORDER BY zm.Id";
 
                         statystyki[clientId] = (count, suma, lastDate);
                     }
+
+                    // Statystyki przyczyn anulowania
+                    string sqlPrzyczyny = @"
+                        SELECT ISNULL(PrzyczynaAnulowania, 'Brak przyczyny') as Przyczyna, COUNT(*) as Cnt
+                        FROM [dbo].[ZamowieniaMieso]
+                        WHERE Status = 'Anulowane'
+                          AND COALESCE(DataAnulowania, DataUboju, DataZamowienia) >= @DataOd
+                          AND COALESCE(DataAnulowania, DataUboju, DataZamowienia) <= @DataDo
+                        GROUP BY ISNULL(PrzyczynaAnulowania, 'Brak przyczyny')
+                        ORDER BY Cnt DESC";
+
+                    await using var cmdPrzyczyny = new SqlCommand(sqlPrzyczyny, cnLibra);
+                    cmdPrzyczyny.Parameters.AddWithValue("@DataOd", dataOd.Value.Date);
+                    cmdPrzyczyny.Parameters.AddWithValue("@DataDo", dataDo.Value.Date);
+
+                    await using var readerPrzyczyny = await cmdPrzyczyny.ExecuteReaderAsync();
+
+                    while (await readerPrzyczyny.ReadAsync())
+                    {
+                        string przyczyna = readerPrzyczyny.GetString(0);
+                        int count = readerPrzyczyny.GetInt32(1);
+                        statystykiPrzyczyny[przyczyna] = count;
+                    }
                 }
 
-                // Uzupełnij tabelę
+                // Uzupełnij tabelę odbiorców
                 int totalAnulowane = 0;
                 foreach (var kvp in statystyki)
                 {
@@ -6459,6 +6531,16 @@ ORDER BY zm.Id";
 
                 // Sortuj po liczbie anulowanych malejąco
                 _dtStatystyki.DefaultView.Sort = "LiczbaAnulowanych DESC";
+
+                // Uzupełnij tabelę przyczyn
+                int totalPrzyczyny = statystykiPrzyczyny.Values.Sum();
+                foreach (var kvp in statystykiPrzyczyny.OrderByDescending(x => x.Value))
+                {
+                    string przyczyna = kvp.Key;
+                    int count = kvp.Value;
+                    double procent = totalPrzyczyny > 0 ? (double)count / totalPrzyczyny * 100 : 0;
+                    _dtStatystykiPrzyczyny.Rows.Add(przyczyna, count, $"{procent:F1}%");
+                }
 
                 // Aktualizuj podsumowanie
                 txtStatystykiLacznieAnulowanych.Text = totalAnulowane.ToString("N0");
