@@ -259,7 +259,12 @@ namespace Kalendarz1.WPF
                 var statystyki = new Dictionary<int, (int Count, decimal SumaKg, DateTime LastDate)>();
                 var statystykiPrzyczyny = new Dictionary<string, int>();
 
-                await using (var cnLibra = new SqlConnection(_connLibra))
+                // Dodaj MARS do connection string
+                var connWithMars = _connLibra.Contains("MultipleActiveResultSets")
+                    ? _connLibra
+                    : _connLibra + ";MultipleActiveResultSets=True";
+
+                await using (var cnLibra = new SqlConnection(connWithMars))
                 {
                     await cnLibra.OpenAsync();
 

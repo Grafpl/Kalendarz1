@@ -402,8 +402,9 @@ namespace Kalendarz1.WPF
             {
                 if (reader.IsDBNull(0)) continue;
                 int idtw = reader.GetInt32(0);
-                string kod = reader.IsDBNull(1) ? "" : reader.GetString(1);
-                string katalog = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                // Użyj Convert.ToString dla bezpieczeństwa - kod może być int lub string
+                string kod = reader.IsDBNull(1) ? "" : Convert.ToString(reader.GetValue(1)) ?? "";
+                string katalog = reader.IsDBNull(2) ? "" : Convert.ToString(reader.GetValue(2)) ?? "";
 
                 // Filtruj tylko produkty swieze (katalog SWIEZE lub mrozone)
                 if (katalog.Equals("SWIEZE", StringComparison.OrdinalIgnoreCase) ||
