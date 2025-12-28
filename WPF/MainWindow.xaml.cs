@@ -52,7 +52,7 @@ namespace Kalendarz1.WPF
         private readonly DataTable _dtTransport = new();
         private readonly DataTable _dtHistoriaZmian = new();
         private readonly DataTable _dtDashboard = new();
-        private GridLength _savedRightColumnWidth = new GridLength(55, GridUnitType.Star);
+        private GridLength _savedRightColumnWidth = new GridLength(550);
         private readonly Dictionary<int, string> _productCodeCache = new();
         private readonly Dictionary<int, string> _productCatalogCache = new();
         private readonly Dictionary<int, string> _productCatalogSwieze = new();
@@ -3071,7 +3071,7 @@ ORDER BY zm.Id";
             {
                 Header = "Odbiorca",
                 Binding = new System.Windows.Data.Binding("Odbiorca"),
-                Width = new DataGridLength(180)
+                Width = new DataGridLength(150)
             });
 
             // 2. Handlowiec
@@ -3179,7 +3179,7 @@ ORDER BY zm.Id";
             {
                 Header = "Odbiorca",
                 Binding = new System.Windows.Data.Binding("Odbiorca"),
-                Width = new DataGridLength(180)
+                Width = new DataGridLength(150)
             });
 
             // 2. Handlowiec
