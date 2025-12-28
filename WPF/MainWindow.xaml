@@ -225,6 +225,10 @@
                             Background="#8E44AD" Content="📜 Historia" Width="100"
                             Click="BtnOpenHistoria_Click" Margin="5,0" FontSize="12" Height="42"/>
 
+                    <Button x:Name="btnOpenTransport" Style="{StaticResource ActionButtonStyle}"
+                            Background="#1ABC9C" Content="🚚 Transport" Width="100"
+                            Click="BtnOpenTransport_Click" Margin="5,0" FontSize="12" Height="42"/>
+
                     <Button x:Name="btnDelete" Style="{StaticResource ActionButtonStyle}"
                             Background="#2C3E50" Content="🗑️ Usuń" Width="95"
                             Click="BtnDelete_Click" Visibility="Collapsed"/>
@@ -408,7 +412,7 @@
                             </DataGrid.ContextMenu>
                         </DataGrid>
                     </TabItem>
-                    <TabItem Header="Transport" FontSize="12" FontWeight="SemiBold">
+                    <TabItem Header="Transport" FontSize="12" FontWeight="SemiBold" Visibility="Collapsed">
                         <DataGrid x:Name="dgTransport"
                                   Style="{StaticResource ModernDataGridStyle}"
                                   AutoGenerateColumns="False"

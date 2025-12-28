@@ -589,6 +589,13 @@ namespace Kalendarz1.WPF
             historiaWindow.Show();
         }
 
+        private void BtnOpenTransport_Click(object sender, RoutedEventArgs e)
+        {
+            var transportWindow = new TransportWindow(_connLibra, _connHandel, _connTransport, _selectedDate);
+            transportWindow.Owner = this;
+            transportWindow.Show();
+        }
+
         #endregion
 
         #region Konfiguracja Wydajności i Produktów
