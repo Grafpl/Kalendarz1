@@ -6472,6 +6472,9 @@ ORDER BY zm.Id";
 
         private void CmbStatystykiOkres_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            // Sprawdź czy kontrolki są już zainicjalizowane (event może być wywołany podczas ładowania XAML)
+            if (dpStatystykiOd == null || dpStatystykiDo == null) return;
+
             if (cmbStatystykiOkres.SelectedItem is ComboBoxItem item && item.Tag is string period)
             {
                 DateTime today = DateTime.Today;
