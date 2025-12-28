@@ -1,0 +1,23 @@
+<UserControl x:Class="Kalendarz1.WPF.Controls.SimplePieChart"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="pieChartControl">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Wykres kołowy -->
+        <Viewbox Grid.Column="0" Stretch="Uniform" Margin="10">
+            <Canvas x:Name="chartCanvas" Width="200" Height="200"/>
+        </Viewbox>
+
+        <!-- Legenda -->
+        <Border Grid.Column="1" Background="#F8F9FA" CornerRadius="8" Padding="12" Margin="10"
+                VerticalAlignment="Center" MinWidth="150">
+            <StackPanel x:Name="legendPanel"/>
+        </Border>
+    </Grid>
+</UserControl>
