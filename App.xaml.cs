@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using Kalendarz1.Services;
+using System.Windows;
 
 namespace Kalendarz1
 {
@@ -13,6 +14,10 @@ namespace Kalendarz1
 
             Menu1 loginWindow = new Menu1();
             loginWindow.Show();
+            GlobalExceptionHandler.Initialize();
+            base.OnStartup(e);
+
         }
     }
+
 }
