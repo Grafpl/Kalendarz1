@@ -102,6 +102,13 @@
                 <Setter Property="FontSize" Value="13"/>
                 <Setter Property="IsReadOnly" Value="True"/>
                 <Setter Property="ColumnHeaderStyle" Value="{StaticResource ModernDataGridHeaderStyle}"/>
+                <!-- PERFORMANCE: Wirtualizacja i recycling -->
+                <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
+                <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/>
+                <Setter Property="VirtualizingPanel.ScrollUnit" Value="Item"/>
+                <Setter Property="ScrollViewer.IsDeferredScrollingEnabled" Value="True"/>
+                <Setter Property="EnableRowVirtualization" Value="True"/>
+                <Setter Property="EnableColumnVirtualization" Value="True"/>
             </Style>
 
             <Style x:Key="PanelBorderStyle" TargetType="Border">
@@ -155,7 +162,9 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="70"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="28"/>
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Background="White" 
@@ -235,7 +244,74 @@
             </Grid>
         </Border>
 
-        <Grid x:Name="mainContentGrid" Grid.Row="1">
+        <!-- PASEK KPI - szybki podgląd statystyk -->
+        <Border Grid.Row="1" Background="#2C3E50" Padding="10,6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- KPI: Liczba zamówień -->
+                <Border Grid.Column="0" Background="#27AE60" CornerRadius="4" Padding="12,4" Margin="0,0,8,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Zamówień: " Foreground="White" FontSize="11" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="txtKpiZamowien" Text="0" Foreground="White" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- KPI: Suma kg -->
+                <Border Grid.Column="1" Background="#3498DB" CornerRadius="4" Padding="12,4" Margin="0,0,8,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Suma: " Foreground="White" FontSize="11" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="txtKpiSumaKg" Text="0 kg" Foreground="White" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- KPI: Wydane -->
+                <Border Grid.Column="2" Background="#9B59B6" CornerRadius="4" Padding="12,4" Margin="0,0,8,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Wydane: " Foreground="White" FontSize="11" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="txtKpiWydane" Text="0 kg" Foreground="White" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- KPI: Różnica -->
+                <Border Grid.Column="3" Background="#E67E22" CornerRadius="4" Padding="12,4" Margin="0,0,8,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Różnica: " Foreground="White" FontSize="11" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="txtKpiRoznica" Text="0 kg" Foreground="White" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- KPI: Anulowane -->
+                <Border Grid.Column="4" Background="#E74C3C" CornerRadius="4" Padding="12,4" Margin="0,0,8,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Anulowane: " Foreground="White" FontSize="11" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="txtKpiAnulowane" Text="0" Foreground="White" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- KPI: Klientów -->
+                <Border Grid.Column="5" Background="#1ABC9C" CornerRadius="4" Padding="12,4" Margin="0,0,8,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Klientów: " Foreground="White" FontSize="11" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="txtKpiKlientow" Text="0" Foreground="White" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Wybrana data -->
+                <TextBlock Grid.Column="7" x:Name="txtKpiData" Text="" Foreground="#BDC3C7" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+            </Grid>
+        </Border>
+
+        <Grid x:Name="mainContentGrid" Grid.Row="2">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
@@ -844,5 +920,25 @@
                 </Grid>
             </Grid>
         </Grid>
+
+        <!-- STATUS BAR -->
+        <Border Grid.Row="3" Background="#34495E">
+            <Grid Margin="10,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock x:Name="txtStatus" Grid.Column="0" Text="Gotowy"
+                           Foreground="#BDC3C7" FontSize="11" VerticalAlignment="Center"/>
+
+                <TextBlock Grid.Column="1" Text="F5=Odśwież | Ctrl+F=Szukaj | Ctrl+N=Nowe | Esc=Wyczyść"
+                           Foreground="#7F8C8D" FontSize="10" VerticalAlignment="Center" Margin="0,0,15,0"/>
+
+                <TextBlock x:Name="txtStatusTime" Grid.Column="2" Text=""
+                           Foreground="#95A5A6" FontSize="10" VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
     </Grid>
 </Window>

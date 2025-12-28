@@ -48,6 +48,10 @@ namespace Kalendarz1.WPF
         private bool _isRefreshing = false;
         private System.Windows.Threading.DispatcherTimer _autoRefreshTimer;
 
+        // PERFORMANCE: Debouncing dla filtrów - opóźnienie 300ms
+        private System.Windows.Threading.DispatcherTimer _filterDebounceTimer;
+        private const int FILTER_DEBOUNCE_MS = 300;
+
         private readonly DataTable _dtOrders = new();
         private readonly DataTable _dtTransport = new();
         private readonly DataTable _dtHistoriaZmian = new();
@@ -485,8 +489,71 @@ namespace Kalendarz1.WPF
             _autoRefreshTimer.Tick += AutoRefreshTimer_Tick;
             _autoRefreshTimer.Start();
 
+            // PERFORMANCE: Debouncing timer dla filtrów
+            _filterDebounceTimer = new System.Windows.Threading.DispatcherTimer();
+            _filterDebounceTimer.Interval = TimeSpan.FromMilliseconds(FILTER_DEBOUNCE_MS);
+            _filterDebounceTimer.Tick += FilterDebounceTimer_Tick;
+
+            // Skróty klawiaturowe
+            this.KeyDown += MainWindow_KeyDown;
+            this.PreviewKeyDown += MainWindow_PreviewKeyDown;
+
+            // Domyślny fokus w filtrze
+            txtFilterRecipient.Focus();
+
             // Obsługa edycji notatek - zapisz przy utracie fokusa
             txtNotes.LostFocus += TxtNotes_LostFocus;
+        }
+
+        private void MainWindow_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            // F5 - Odśwież (nawet gdy fokus jest gdzie indziej)
+            if (e.Key == System.Windows.Input.Key.F5)
+            {
+                _ = RefreshAllDataAsync();
+                e.Handled = true;
+            }
+        }
+
+        private void MainWindow_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            // Ctrl+F - Fokus na filtr
+            if (e.Key == System.Windows.Input.Key.F &&
+                (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) == System.Windows.Input.ModifierKeys.Control)
+            {
+                txtFilterRecipient.Focus();
+                txtFilterRecipient.SelectAll();
+                e.Handled = true;
+            }
+            // Escape - Wyczyść filtr lub zamknij
+            else if (e.Key == System.Windows.Input.Key.Escape)
+            {
+                if (!string.IsNullOrEmpty(txtFilterRecipient.Text))
+                {
+                    txtFilterRecipient.Text = "";
+                    e.Handled = true;
+                }
+            }
+            // Ctrl+N - Nowe zamówienie
+            else if (e.Key == System.Windows.Input.Key.N &&
+                (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) == System.Windows.Input.ModifierKeys.Control)
+            {
+                BtnNew_Click(this, new RoutedEventArgs());
+                e.Handled = true;
+            }
+            // Ctrl+P - Drukuj
+            else if (e.Key == System.Windows.Input.Key.P &&
+                (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) == System.Windows.Input.ModifierKeys.Control)
+            {
+                BtnPrint_Click(this, new RoutedEventArgs());
+                e.Handled = true;
+            }
+        }
+
+        private void FilterDebounceTimer_Tick(object sender, EventArgs e)
+        {
+            _filterDebounceTimer.Stop();
+            ApplyFilters();
         }
 
         private async void AutoRefreshTimer_Tick(object sender, EventArgs e)
@@ -1204,7 +1271,9 @@ namespace Kalendarz1.WPF
 
         private void TxtFilterRecipient_TextChanged(object sender, TextChangedEventArgs e)
         {
-            ApplyFilters();
+            // PERFORMANCE: Debouncing - nie odpytuj SQL przy każdym klawiszu
+            _filterDebounceTimer?.Stop();
+            _filterDebounceTimer?.Start();
         }
 
         private void CbFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -2289,6 +2358,10 @@ namespace Kalendarz1.WPF
             if (_isRefreshing) return;
             _isRefreshing = true;
 
+            // Status bar - start
+            UpdateStatus("Ładowanie danych...");
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+
             try
             {
                 // Resetuj flagi lazy loading przy zmianie dnia
@@ -2341,12 +2414,85 @@ namespace Kalendarz1.WPF
             }
             catch (Exception ex)
             {
+                UpdateStatus($"Błąd: {ex.Message}");
                 MessageBox.Show($"Błąd podczas odświeżania danych: {ex.Message}\n\nSTACKTRACE:\n{ex.StackTrace}",
                     "Błąd Krytyczny", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
                 _isRefreshing = false;
+                sw.Stop();
+
+                // Aktualizuj KPI
+                UpdateKpiValues();
+
+                // Status bar - koniec
+                UpdateStatus($"Gotowy - załadowano w {sw.ElapsedMilliseconds}ms");
+                txtStatusTime.Text = $"Ostatnia aktualizacja: {DateTime.Now:HH:mm:ss}";
+            }
+        }
+
+        private void UpdateStatus(string message)
+        {
+            if (txtStatus != null)
+                txtStatus.Text = message;
+        }
+
+        private void UpdateKpiValues()
+        {
+            try
+            {
+                // Pobierz dane z DataTable zamówień
+                var view = _dtOrders.DefaultView;
+                int zamowienCount = 0;
+                decimal sumaKg = 0m;
+                decimal wydaneKg = 0m;
+                int anulowaneCount = 0;
+                var klienci = new HashSet<int>();
+
+                foreach (DataRowView row in view)
+                {
+                    zamowienCount++;
+
+                    // Suma kg zamówionych
+                    if (!row.Row.IsNull("IloscZamowiona"))
+                        sumaKg += Convert.ToDecimal(row["IloscZamowiona"]);
+
+                    // Suma kg faktycznych (wydanych)
+                    if (!row.Row.IsNull("IloscFaktyczna"))
+                        wydaneKg += Convert.ToDecimal(row["IloscFaktyczna"]);
+
+                    // Liczba klientów
+                    if (!row.Row.IsNull("KlientId"))
+                        klienci.Add(Convert.ToInt32(row["KlientId"]));
+
+                    // Anulowane
+                    if (!row.Row.IsNull("Status") && row["Status"].ToString() == "Anulowane")
+                        anulowaneCount++;
+                }
+
+                decimal roznica = wydaneKg - sumaKg;
+
+                // Aktualizuj UI
+                txtKpiZamowien.Text = zamowienCount.ToString("N0");
+                txtKpiSumaKg.Text = $"{sumaKg:N0} kg";
+                txtKpiWydane.Text = $"{wydaneKg:N0} kg";
+                txtKpiRoznica.Text = $"{roznica:+0;-0;0} kg";
+                txtKpiAnulowane.Text = anulowaneCount.ToString();
+                txtKpiKlientow.Text = klienci.Count.ToString();
+                txtKpiData.Text = $"{_selectedDate:dddd, d MMMM yyyy}";
+
+                // Kolor różnicy
+                if (roznica > 0)
+                    txtKpiRoznica.Foreground = new SolidColorBrush(Colors.LightGreen);
+                else if (roznica < 0)
+                    txtKpiRoznica.Foreground = new SolidColorBrush(Color.FromRgb(255, 150, 150));
+                else
+                    txtKpiRoznica.Foreground = new SolidColorBrush(Colors.White);
+            }
+            catch
+            {
+                // Ignoruj błędy w KPI - nie krytyczne
             }
         }
 
