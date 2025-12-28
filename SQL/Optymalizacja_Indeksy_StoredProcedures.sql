@@ -1,18 +1,19 @@
 -- =====================================================
 -- OPTYMALIZACJA BAZY DANYCH - INDEKSY I STORED PROCEDURES
 -- Uruchom na bazie LibraNet
+-- Wersja 2.0 - dostosowana do aktualnego schematu
 -- =====================================================
 
 PRINT '=== TWORZENIE INDEKSÓW ==='
 GO
 
--- 1. Indeks dla wyszukiwania zamówień po dacie uboju
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ZamowieniaMieso_DataUboju')
+-- 1. Indeks dla wyszukiwania zamówień po dacie przyjazdu
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ZamowieniaMieso_DataPrzyjazdu')
 BEGIN
-    CREATE NONCLUSTERED INDEX [IX_ZamowieniaMieso_DataUboju]
-    ON [dbo].[ZamowieniaMieso] ([DataUboju])
-    INCLUDE ([KlientId], [Status], [IloscZamowiona])
-    PRINT 'Utworzono indeks IX_ZamowieniaMieso_DataUboju'
+    CREATE NONCLUSTERED INDEX [IX_ZamowieniaMieso_DataPrzyjazdu]
+    ON [dbo].[ZamowieniaMieso] ([DataPrzyjazdu])
+    INCLUDE ([KlientId], [Status])
+    PRINT 'Utworzono indeks IX_ZamowieniaMieso_DataPrzyjazdu'
 END
 GO
 
@@ -21,7 +22,7 @@ IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ZamowieniaMieso_Klient
 BEGIN
     CREATE NONCLUSTERED INDEX [IX_ZamowieniaMieso_KlientId_Status]
     ON [dbo].[ZamowieniaMieso] ([KlientId], [Status])
-    INCLUDE ([DataUboju], [DataZamowienia], [IloscZamowiona])
+    INCLUDE ([DataPrzyjazdu], [DataZamowienia])
     PRINT 'Utworzono indeks IX_ZamowieniaMieso_KlientId_Status'
 END
 GO
@@ -42,18 +43,18 @@ IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ZamowieniaMiesoTowar_Z
 BEGIN
     CREATE NONCLUSTERED INDEX [IX_ZamowieniaMiesoTowar_ZamowienieId]
     ON [dbo].[ZamowieniaMiesoTowar] ([ZamowienieId])
-    INCLUDE ([TowarId], [Ilosc], [Cena])
+    INCLUDE ([KodTowaru], [Ilosc], [Cena])
     PRINT 'Utworzono indeks IX_ZamowieniaMiesoTowar_ZamowienieId'
 END
 GO
 
--- 5. Indeks dla historii zmian
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ZamowieniaMiesoHistoria_ZamowienieId')
+-- 5. Indeks dla transportu
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_ZamowieniaMieso_TransportKursID')
 BEGIN
-    CREATE NONCLUSTERED INDEX [IX_ZamowieniaMiesoHistoria_ZamowienieId]
-    ON [dbo].[ZamowieniaMiesoHistoria] ([ZamowienieId])
-    INCLUDE ([DataZmiany], [TypZmiany], [Uzytkownik])
-    PRINT 'Utworzono indeks IX_ZamowieniaMiesoHistoria_ZamowienieId'
+    CREATE NONCLUSTERED INDEX [IX_ZamowieniaMieso_TransportKursID]
+    ON [dbo].[ZamowieniaMieso] ([TransportKursID])
+    WHERE [TransportKursID] IS NOT NULL
+    PRINT 'Utworzono indeks IX_ZamowieniaMieso_TransportKursID'
 END
 GO
 
@@ -68,7 +69,7 @@ IF EXISTS (SELECT * FROM sys.procedures WHERE name = 'sp_GetZamowieniaNaDzien')
 GO
 
 CREATE PROCEDURE [dbo].[sp_GetZamowieniaNaDzien]
-    @DataUboju DATE,
+    @DataPrzyjazdu DATE,
     @Status NVARCHAR(50) = NULL,
     @PageNumber INT = 1,
     @PageSize INT = 100
@@ -79,27 +80,26 @@ BEGIN
     SELECT
         zm.Id,
         zm.KlientId,
-        zm.DataUboju,
+        zm.DataPrzyjazdu,
         zm.DataZamowienia,
         zm.Status,
-        zm.IloscZamowiona,
         zm.Uwagi,
-        zm.UtworzonePrzez,
+        zm.IdUser,
         zm.DataUtworzenia,
         zm.AnulowanePrzez,
         zm.DataAnulowania,
         zm.PrzyczynaAnulowania,
-        ISNULL(zmt.IloscSuma, 0) as IloscTowarow,
-        ISNULL(zmt.WartoscSuma, 0) as WartoscZamowienia
+        zm.TransportKursID,
+        zm.CzyZrealizowane,
+        ISNULL(zmt.IloscSuma, 0) as IloscTowarow
     FROM [dbo].[ZamowieniaMieso] zm
     LEFT JOIN (
         SELECT ZamowienieId,
-               SUM(Ilosc) as IloscSuma,
-               SUM(Ilosc * ISNULL(Cena, 0)) as WartoscSuma
+               SUM(Ilosc) as IloscSuma
         FROM [dbo].[ZamowieniaMiesoTowar]
         GROUP BY ZamowienieId
     ) zmt ON zm.Id = zmt.ZamowienieId
-    WHERE zm.DataUboju = @DataUboju
+    WHERE zm.DataPrzyjazdu = @DataPrzyjazdu
       AND (@Status IS NULL OR zm.Status = @Status)
     ORDER BY zm.Id
     OFFSET (@PageNumber - 1) * @PageSize ROWS
@@ -108,7 +108,7 @@ BEGIN
     -- Zwróć też łączną liczbę rekordów
     SELECT COUNT(*) as TotalCount
     FROM [dbo].[ZamowieniaMieso]
-    WHERE DataUboju = @DataUboju
+    WHERE DataPrzyjazdu = @DataPrzyjazdu
       AND (@Status IS NULL OR Status = @Status);
 END
 GO
@@ -135,7 +135,7 @@ BEGIN
         zm.KlientId,
         COUNT(*) as LiczbaAnulowanych,
         SUM(ISNULL(zmt.IloscSuma, 0)) as SumaKg,
-        MAX(COALESCE(zm.DataAnulowania, zm.DataUboju, zm.DataZamowienia)) as OstatniaData
+        MAX(COALESCE(zm.DataAnulowania, zm.DataPrzyjazdu, zm.DataZamowienia)) as OstatniaData
     FROM [dbo].[ZamowieniaMieso] zm
     LEFT JOIN (
         SELECT ZamowienieId, SUM(Ilosc) as IloscSuma
@@ -143,8 +143,8 @@ BEGIN
         GROUP BY ZamowienieId
     ) zmt ON zm.Id = zmt.ZamowienieId
     WHERE zm.Status = 'Anulowane'
-      AND COALESCE(zm.DataAnulowania, zm.DataUboju, zm.DataZamowienia) >= @DataOd
-      AND COALESCE(zm.DataAnulowania, zm.DataUboju, zm.DataZamowienia) <= @DataDo
+      AND COALESCE(zm.DataAnulowania, zm.DataPrzyjazdu, zm.DataZamowienia) >= @DataOd
+      AND COALESCE(zm.DataAnulowania, zm.DataPrzyjazdu, zm.DataZamowienia) <= @DataDo
     GROUP BY zm.KlientId
     ORDER BY LiczbaAnulowanych DESC;
 
@@ -154,59 +154,14 @@ BEGIN
         COUNT(*) as Liczba
     FROM [dbo].[ZamowieniaMieso]
     WHERE Status = 'Anulowane'
-      AND COALESCE(DataAnulowania, DataUboju, DataZamowienia) >= @DataOd
-      AND COALESCE(DataAnulowania, DataUboju, DataZamowienia) <= @DataDo
+      AND COALESCE(DataAnulowania, DataPrzyjazdu, DataZamowienia) >= @DataOd
+      AND COALESCE(DataAnulowania, DataPrzyjazdu, DataZamowienia) <= @DataDo
     GROUP BY ISNULL(PrzyczynaAnulowania, 'Brak przyczyny')
     ORDER BY Liczba DESC;
 END
 GO
 
 PRINT 'Utworzono sp_GetStatystykiAnulowanych'
-GO
-
--- =====================================================
--- SP: Historia zmian z diff
--- =====================================================
-IF EXISTS (SELECT * FROM sys.procedures WHERE name = 'sp_GetHistoriaZmianZDiff')
-    DROP PROCEDURE sp_GetHistoriaZmianZDiff
-GO
-
-CREATE PROCEDURE [dbo].[sp_GetHistoriaZmianZDiff]
-    @DataOd DATE,
-    @DataDo DATE,
-    @PageNumber INT = 1,
-    @PageSize INT = 100
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-    SELECT
-        h.Id,
-        h.ZamowienieId,
-        h.DataZmiany,
-        h.TypZmiany,
-        h.Uzytkownik,
-        h.OpisZmiany,
-        h.StaraWartosc,
-        h.NowaWartosc,
-        h.Pole,
-        zm.KlientId
-    FROM [dbo].[ZamowieniaMiesoHistoria] h
-    INNER JOIN [dbo].[ZamowieniaMieso] zm ON h.ZamowienieId = zm.Id
-    WHERE CAST(h.DataZmiany as DATE) >= @DataOd
-      AND CAST(h.DataZmiany as DATE) <= @DataDo
-    ORDER BY h.DataZmiany DESC
-    OFFSET (@PageNumber - 1) * @PageSize ROWS
-    FETCH NEXT @PageSize ROWS ONLY;
-
-    SELECT COUNT(*) as TotalCount
-    FROM [dbo].[ZamowieniaMiesoHistoria] h
-    WHERE CAST(h.DataZmiany as DATE) >= @DataOd
-      AND CAST(h.DataZmiany as DATE) <= @DataDo;
-END
-GO
-
-PRINT 'Utworzono sp_GetHistoriaZmianZDiff'
 GO
 
 -- =====================================================
@@ -239,16 +194,6 @@ BEGIN
 
         SET @UpdatedCount = @@ROWCOUNT;
 
-        -- Dodaj wpis do historii dla każdego zaktualizowanego zamówienia
-        INSERT INTO [dbo].[ZamowieniaMiesoHistoria] (ZamowienieId, DataZmiany, TypZmiany, Uzytkownik, OpisZmiany)
-        SELECT
-            CAST(ids.value AS INT),
-            GETDATE(),
-            'Zmiana statusu',
-            @Uzytkownik,
-            'Zmiana statusu na: ' + @NowyStatus
-        FROM OPENJSON(@IdsJson) ids;
-
         COMMIT TRANSACTION;
 
         SELECT @UpdatedCount as UpdatedCount;
@@ -279,23 +224,23 @@ BEGIN
     -- Wszystkie KPI w jednym zapytaniu
     SELECT
         -- Zamówienia na dziś
-        (SELECT COUNT(*) FROM [dbo].[ZamowieniaMieso] WHERE DataUboju = @Data) as ZamowieniaDzisiaj,
-        (SELECT COUNT(*) FROM [dbo].[ZamowieniaMieso] WHERE DataUboju = @Data AND Status = 'Aktywne') as ZamowieniaAktywne,
-        (SELECT COUNT(*) FROM [dbo].[ZamowieniaMieso] WHERE DataUboju = @Data AND Status = 'Anulowane') as ZamowieniaAnulowane,
+        (SELECT COUNT(*) FROM [dbo].[ZamowieniaMieso] WHERE DataPrzyjazdu = @Data) as ZamowieniaDzisiaj,
+        (SELECT COUNT(*) FROM [dbo].[ZamowieniaMieso] WHERE DataPrzyjazdu = @Data AND (Status IS NULL OR Status = '' OR Status = 'Aktywne')) as ZamowieniaAktywne,
+        (SELECT COUNT(*) FROM [dbo].[ZamowieniaMieso] WHERE DataPrzyjazdu = @Data AND Status = 'Anulowane') as ZamowieniaAnulowane,
         (SELECT ISNULL(SUM(zmt.Ilosc), 0) FROM [dbo].[ZamowieniaMieso] zm
          INNER JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
-         WHERE zm.DataUboju = @Data AND zm.Status = 'Aktywne') as SumaKgDzisiaj,
+         WHERE zm.DataPrzyjazdu = @Data AND (zm.Status IS NULL OR zm.Status != 'Anulowane')) as SumaKgDzisiaj,
 
         -- Zamówienia tydzień
         (SELECT COUNT(*) FROM [dbo].[ZamowieniaMieso]
-         WHERE DataUboju >= DATEADD(DAY, -7, @Data) AND DataUboju <= @Data) as ZamowieniaTydzien,
+         WHERE DataPrzyjazdu >= DATEADD(DAY, -7, @Data) AND DataPrzyjazdu <= @Data) as ZamowieniaTydzien,
 
         -- Zamówienia miesiąc
         (SELECT COUNT(*) FROM [dbo].[ZamowieniaMieso]
-         WHERE DataUboju >= DATEADD(MONTH, -1, @Data) AND DataUboju <= @Data) as ZamowieniaMiesiac,
+         WHERE DataPrzyjazdu >= DATEADD(MONTH, -1, @Data) AND DataPrzyjazdu <= @Data) as ZamowieniaMiesiac,
 
-        -- Top 5 klientów dziś
-        (SELECT COUNT(DISTINCT KlientId) FROM [dbo].[ZamowieniaMieso] WHERE DataUboju = @Data) as LiczbaKlientowDzisiaj;
+        -- Liczba klientów dziś
+        (SELECT COUNT(DISTINCT KlientId) FROM [dbo].[ZamowieniaMieso] WHERE DataPrzyjazdu = @Data) as LiczbaKlientowDzisiaj;
 END
 GO
 
@@ -303,35 +248,32 @@ PRINT 'Utworzono sp_GetDashboardKPIs'
 GO
 
 -- =====================================================
--- SP: Wyszukiwanie z autouzupełnianiem
+-- SP: Podsumowanie towarów na dzień
 -- =====================================================
-IF EXISTS (SELECT * FROM sys.procedures WHERE name = 'sp_SearchOdbiorcy')
-    DROP PROCEDURE sp_SearchOdbiorcy
+IF EXISTS (SELECT * FROM sys.procedures WHERE name = 'sp_GetPodsumowanieTowarowNaDzien')
+    DROP PROCEDURE sp_GetPodsumowanieTowarowNaDzien
 GO
 
-CREATE PROCEDURE [dbo].[sp_SearchOdbiorcy]
-    @SearchText NVARCHAR(100),
-    @MaxResults INT = 10
+CREATE PROCEDURE [dbo].[sp_GetPodsumowanieTowarowNaDzien]
+    @Data DATE
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Wyszukiwanie w cache lub delegacja do bazy Handel
-    -- To jest placeholder - w rzeczywistości łączy się z bazą Handel
-    SELECT TOP (@MaxResults)
-        KlientId,
-        MAX(DataUboju) as OstatnieZamowienie,
-        COUNT(*) as LiczbaZamowien
-    FROM [dbo].[ZamowieniaMieso]
-    WHERE KlientId IN (
-        SELECT DISTINCT KlientId FROM [dbo].[ZamowieniaMieso]
-    )
-    GROUP BY KlientId
-    ORDER BY LiczbaZamowien DESC;
+    SELECT
+        zmt.KodTowaru,
+        SUM(zmt.Ilosc) as SumaIlosc,
+        COUNT(DISTINCT zm.Id) as LiczbaZamowien
+    FROM [dbo].[ZamowieniaMieso] zm
+    INNER JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
+    WHERE zm.DataPrzyjazdu = @Data
+      AND (zm.Status IS NULL OR zm.Status != 'Anulowane')
+    GROUP BY zmt.KodTowaru
+    ORDER BY SumaIlosc DESC;
 END
 GO
 
-PRINT 'Utworzono sp_SearchOdbiorcy'
+PRINT 'Utworzono sp_GetPodsumowanieTowarowNaDzien'
 GO
 
 PRINT ''
