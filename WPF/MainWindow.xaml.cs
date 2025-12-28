@@ -789,11 +789,11 @@ namespace Kalendarz1.WPF
             });
             btnToday.Content = stackToday;
             btnToday.Background = new SolidColorBrush(Color.FromRgb(241, 196, 15));
-            btnToday.Click += (s, e) =>
+            btnToday.Click += async (s, e) =>
             {
                 _selectedDate = DateTime.Today;
                 UpdateDayButtonDates();
-                _ = RefreshAllDataAsync();
+                await RefreshAllDataAsync();
             };
 
             panelDays.Children.Add(btnToday);
@@ -1112,32 +1112,32 @@ namespace Kalendarz1.WPF
 
         #region Navigation Events
 
-        private void DayButton_Click(object sender, RoutedEventArgs e)
+        private async void DayButton_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && _dayButtonDates.TryGetValue(btn, out DateTime date))
             {
                 _selectedDate = date;
                 UpdateDayButtonDates();
-                _ = RefreshAllDataAsync();
+                await RefreshAllDataAsync();
             }
         }
 
-        private void BtnPreviousWeek_Click(object sender, RoutedEventArgs e)
+        private async void BtnPreviousWeek_Click(object sender, RoutedEventArgs e)
         {
             _selectedDate = _selectedDate.AddDays(-7);
             int delta = ((int)_selectedDate.DayOfWeek + 6) % 7;
             _selectedDate = _selectedDate.AddDays(-delta);
             UpdateDayButtonDates();
-            _ = RefreshAllDataAsync();
+            await RefreshAllDataAsync();
         }
 
-        private void BtnNextWeek_Click(object sender, RoutedEventArgs e)
+        private async void BtnNextWeek_Click(object sender, RoutedEventArgs e)
         {
             _selectedDate = _selectedDate.AddDays(7);
             int delta = ((int)_selectedDate.DayOfWeek + 6) % 7;
             _selectedDate = _selectedDate.AddDays(-delta);
             UpdateDayButtonDates();
-            _ = RefreshAllDataAsync();
+            await RefreshAllDataAsync();
         }
 
         private void UpdateDayButtonDates()
