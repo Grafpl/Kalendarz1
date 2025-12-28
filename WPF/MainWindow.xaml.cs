@@ -52,7 +52,7 @@ namespace Kalendarz1.WPF
         private readonly DataTable _dtTransport = new();
         private readonly DataTable _dtHistoriaZmian = new();
         private readonly DataTable _dtDashboard = new();
-        private GridLength _savedRightColumnWidth = new GridLength(550);
+        private GridLength _savedRightColumnWidth = new GridLength(55, GridUnitType.Star);
         private readonly Dictionary<int, string> _productCodeCache = new();
         private readonly Dictionary<int, string> _productCatalogCache = new();
         private readonly Dictionary<int, string> _productCatalogSwieze = new();
@@ -2268,18 +2268,44 @@ namespace Kalendarz1.WPF
 
             try
             {
+                // Resetuj flagi lazy loading przy zmianie dnia
+                _transportLoaded = false;
+                _historiaLoaded = false;
+                _dashboardLoaded = false;
+                _lastLoadedDate = _selectedDate;
+
                 // Najpierw załaduj konfigurację produktów i grupy towarowe
                 await GetKonfiguracjaProduktowAsync(_selectedDate);
 
+                // Ładuj TYLKO zamówienia i podsumowanie dnia - SYNCHRONICZNIE
+                // To zapewnia że oba ładują się razem przy kliknięciu daty
                 await LoadOrdersForDayAsync(_selectedDate);
-                await LoadTransportForDayAsync(_selectedDate);
                 await DisplayProductAggregationAsync(_selectedDate);
 
-                // Załaduj historię zmian dla całego tygodnia
-                int delta = ((int)_selectedDate.DayOfWeek + 6) % 7;
-                DateTime startOfWeek = _selectedDate.AddDays(-delta);
-                DateTime endOfWeek = startOfWeek.AddDays(6);
-                await LoadHistoriaZmianAsync(startOfWeek, endOfWeek);
+                // NIE ładuj Transport, Historia, Dashboard w tle - lazy loading
+                // Te dane będą załadowane dopiero gdy użytkownik kliknie odpowiednią zakładkę
+                // To przyspiesza działanie programu
+
+                // Jeśli aktualnie wybrana jest zakładka Transport/Historia/Dashboard - załaduj dane
+                var selectedTab = tabOrders.SelectedItem as TabItem;
+                if (selectedTab?.Header?.ToString()?.Contains("Transport") == true)
+                {
+                    await LoadTransportForDayAsync(_selectedDate);
+                    _transportLoaded = true;
+                }
+                else if (selectedTab?.Header?.ToString()?.Contains("Historia") == true)
+                {
+                    int delta = ((int)_selectedDate.DayOfWeek + 6) % 7;
+                    DateTime startOfWeek = _selectedDate.AddDays(-delta);
+                    DateTime endOfWeek = startOfWeek.AddDays(6);
+                    await LoadHistoriaZmianAsync(startOfWeek, endOfWeek);
+                    _historiaLoaded = true;
+                }
+                else if (selectedTab == tabDashboard)
+                {
+                    await LoadDashboardDataAsync(_selectedDate);
+                    _dashboardLoaded = true;
+                }
 
                 if (_currentOrderId.HasValue && _currentOrderId.Value > 0)
                 {
@@ -2576,10 +2602,11 @@ ORDER BY zm.Id";
 
                 var (name, salesman) = contractors.TryGetValue(clientId, out var c) ? c : ($"Nieznany ({clientId})", "");
 
-                if (hasNote)
-                {
-                    name = "📝 " + name;
-                }
+                // Notatka nie jest już pokazywana jako ikona - usunięto zgodnie z wymaganiami
+                // if (hasNote)
+                // {
+                //     name = "📝 " + name;
+                // }
 
                 if (hasFoil)
                 {
@@ -3147,12 +3174,12 @@ ORDER BY zm.Id";
             dgOrders.LoadingRow -= DgOrders_LoadingRow;
             dgOrders.LoadingRow += DgOrders_LoadingRow;
 
-            // 1. Odbiorca - zmniejszona szerokość
+            // 1. Odbiorca - poszerzona kolumna
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Odbiorca",
                 Binding = new System.Windows.Data.Binding("Odbiorca"),
-                Width = new DataGridLength(150)
+                Width = new DataGridLength(180)
             });
 
             // 2. Handlowiec
@@ -3203,15 +3230,9 @@ ORDER BY zm.Id";
                 ElementStyle = roznicaStyle
             });
 
-            // 6. Utworzone przez - węższa kolumna
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Utworzono",
-                Binding = new System.Windows.Data.Binding("UtworzonePrzez"),
-                Width = new DataGridLength(85)
-            });
-
-            // Dynamiczne kolumny grup towarowych - zaraz po "Utworzono"
+            // 6. Dynamiczne kolumny grup towarowych (ćwiartka, filet, korpus, skrzydło) z obramowaniem
+            // Dodajemy specjalny styl z obramowaniem dla kolumn produktowych
+            int productColumnStartIndex = dgOrders.Columns.Count;
             foreach (var kvp in _grupyKolumnDoNazw)
             {
                 string colName = kvp.Key;
@@ -3222,13 +3243,28 @@ ORDER BY zm.Id";
                 grupaStyle.Setters.Add(new Setter(TextBlock.FontSizeProperty, 11.0));
                 grupaStyle.Setters.Add(new Setter(TextBlock.PaddingProperty, new Thickness(2, 0, 4, 0)));
 
-                dgOrders.Columns.Add(new DataGridTextColumn
+                // Styl dla nagłówka z tłem, aby wyróżnić grupę kolumn produktowych
+                var headerStyle = new Style(typeof(DataGridColumnHeader));
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BackgroundProperty,
+                    new SolidColorBrush(Color.FromRgb(39, 174, 96)))); // Zielony kolor dla produktów
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.ForegroundProperty, Brushes.White));
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.FontWeightProperty, FontWeights.Bold));
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.FontSizeProperty, 10.0));
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.PaddingProperty, new Thickness(4, 4, 4, 4)));
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BorderBrushProperty,
+                    new SolidColorBrush(Color.FromRgb(46, 204, 113))));
+                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BorderThicknessProperty, new Thickness(1, 0, 1, 0)));
+
+                var col = new DataGridTextColumn
                 {
                     Header = displayName,
                     Binding = new System.Windows.Data.Binding(colName) { StringFormat = "N0" },
                     Width = new DataGridLength(45),
-                    ElementStyle = grupaStyle
-                });
+                    ElementStyle = grupaStyle,
+                    HeaderStyle = headerStyle
+                };
+
+                dgOrders.Columns.Add(col);
             }
 
             // 7. Cena - V (zielony) jeśli wszystkie pozycje mają cenę, X (czerwony) jeśli nie
@@ -3253,7 +3289,15 @@ ORDER BY zm.Id";
                 ElementStyle = cenaStyle
             });
 
-            // 7. Termin - godzina + skrócony dzień tygodnia odbioru
+            // 8. Utworzone przez - po kolumnie Cena
+            dgOrders.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Utworzono",
+                Binding = new System.Windows.Data.Binding("UtworzonePrzez"),
+                Width = new DataGridLength(85)
+            });
+
+            // 9. Termin - godzina + skrócony dzień tygodnia odbioru
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Termin",
@@ -3303,11 +3347,29 @@ ORDER BY zm.Id";
             });
         }
 
+        // Flagi lazy loading - czy dane zostały już załadowane dla aktualnego dnia
+        private bool _transportLoaded = false;
+        private bool _historiaLoaded = false;
+        private bool _dashboardLoaded = false;
+        private bool _statystykiLoaded = false;
+        private DateTime _lastLoadedDate = DateTime.MinValue;
+
         private void TabOrders_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (e.Source != tabOrders) return;
 
             var selectedTab = tabOrders.SelectedItem as TabItem;
+
+            // Sprawdź czy data się zmieniła - jeśli tak, zresetuj flagi
+            if (_lastLoadedDate != _selectedDate)
+            {
+                _transportLoaded = false;
+                _historiaLoaded = false;
+                _dashboardLoaded = false;
+                // Nie resetujemy _statystykiLoaded bo to zależy od własnych filtrów
+                _lastLoadedDate = _selectedDate;
+            }
+
             if (selectedTab == tabDashboard)
             {
                 // Ukryj prawy panel i rozszerz lewy
@@ -3316,8 +3378,59 @@ ORDER BY zm.Id";
                 rightColumnDef.Width = new GridLength(0);
                 leftColumnDef.Width = new GridLength(1, GridUnitType.Star);
 
-                // Załaduj dane Dashboard
-                _ = LoadDashboardDataAsync(_selectedDate);
+                // Lazy loading - załaduj dane Dashboard tylko gdy zakładka jest aktywna
+                if (!_dashboardLoaded)
+                {
+                    _ = LoadDashboardDataAsync(_selectedDate);
+                    _dashboardLoaded = true;
+                }
+            }
+            else if (selectedTab == tabStatystyki)
+            {
+                // Ukryj prawy panel dla statystyk
+                _savedRightColumnWidth = rightColumnDef.Width;
+                rightPanel.Visibility = Visibility.Collapsed;
+                rightColumnDef.Width = new GridLength(0);
+                leftColumnDef.Width = new GridLength(1, GridUnitType.Star);
+
+                // Lazy loading - załaduj statystyki tylko gdy zakładka jest aktywna
+                if (!_statystykiLoaded)
+                {
+                    InitializeStatystykiTab();
+                    _ = LoadStatystykiAsync();
+                    _statystykiLoaded = true;
+                }
+            }
+            else if (selectedTab?.Header?.ToString()?.Contains("Transport") == true)
+            {
+                // Przywróć prawy panel
+                rightPanel.Visibility = Visibility.Visible;
+                rightColumnDef.Width = _savedRightColumnWidth;
+                leftColumnDef.Width = new GridLength(1, GridUnitType.Star);
+
+                // Lazy loading - załaduj transport tylko gdy zakładka jest aktywna
+                if (!_transportLoaded)
+                {
+                    _ = LoadTransportForDayAsync(_selectedDate);
+                    _transportLoaded = true;
+                }
+            }
+            else if (selectedTab?.Header?.ToString()?.Contains("Historia") == true)
+            {
+                // Przywróć prawy panel
+                rightPanel.Visibility = Visibility.Visible;
+                rightColumnDef.Width = _savedRightColumnWidth;
+                leftColumnDef.Width = new GridLength(1, GridUnitType.Star);
+
+                // Lazy loading - załaduj historię zmian tylko gdy zakładka jest aktywna
+                if (!_historiaLoaded)
+                {
+                    int delta = ((int)_selectedDate.DayOfWeek + 6) % 7;
+                    DateTime startOfWeek = _selectedDate.AddDays(-delta);
+                    DateTime endOfWeek = startOfWeek.AddDays(6);
+                    _ = LoadHistoriaZmianAsync(startOfWeek, endOfWeek);
+                    _historiaLoaded = true;
+                }
             }
             else
             {
@@ -3580,12 +3693,14 @@ ORDER BY zm.Id";
             var selectedOdbiorca = cmbHistoriaOdbiorca?.SelectedItem?.ToString();
             var selectedTyp = cmbHistoriaTyp?.SelectedItem?.ToString();
             var selectedHandlowiec = cmbHistoriaHandlowiec?.SelectedItem?.ToString();
+            var selectedTowar = cmbHistoriaTowar?.SelectedItem?.ToString();
 
             // Pobierz unikalne wartości z danych
             var ktoEdytowalList = new List<string> { "(Wszystkie)" };
             var odbiorcaList = new List<string> { "(Wszystkie)" };
             var typList = new List<string> { "(Wszystkie)" };
             var handlowiecList = new List<string> { "(Wszystkie)" };
+            var towarList = new List<string> { "(Wszystkie)" };
 
             foreach (DataRow row in _dtHistoriaZmian.Rows)
             {
@@ -3593,6 +3708,7 @@ ORDER BY zm.Id";
                 string odbiorca = row["Odbiorca"]?.ToString() ?? "";
                 string typ = row["TypZmiany"]?.ToString() ?? "";
                 string handlowiec = row["Handlowiec"]?.ToString() ?? "";
+                string opis = row["OpisZmiany"]?.ToString() ?? "";
 
                 if (!string.IsNullOrWhiteSpace(kto) && !ktoEdytowalList.Contains(kto))
                     ktoEdytowalList.Add(kto);
@@ -3602,6 +3718,27 @@ ORDER BY zm.Id";
                     typList.Add(typ);
                 if (!string.IsNullOrWhiteSpace(handlowiec) && !handlowiecList.Contains(handlowiec))
                     handlowiecList.Add(handlowiec);
+
+                // Wyciągnij nazwy towarów z opisu zmiany
+                if (!string.IsNullOrWhiteSpace(opis))
+                {
+                    // Szukaj nazw produktów w opisie (np. "Filet: 100 → 150" lub "Dodano: Ćwiartka 50kg")
+                    foreach (var grupaName in _grupyTowaroweNazwy)
+                    {
+                        if (opis.Contains(grupaName) && !towarList.Contains(grupaName))
+                        {
+                            towarList.Add(grupaName);
+                        }
+                    }
+                    // Dodaj też produkty z katalogu
+                    foreach (var kvp in _productCatalogCache)
+                    {
+                        if (opis.Contains(kvp.Value) && !towarList.Contains(kvp.Value))
+                        {
+                            towarList.Add(kvp.Value);
+                        }
+                    }
+                }
             }
 
             // Sortuj listy (bez pierwszego elementu)
@@ -3629,6 +3766,12 @@ ORDER BY zm.Id";
                 handlowiecList = new List<string> { "(Wszystkie)" };
                 handlowiecList.AddRange(sorted);
             }
+            if (towarList.Count > 1)
+            {
+                var sorted = towarList.Skip(1).OrderBy(x => x).ToList();
+                towarList = new List<string> { "(Wszystkie)" };
+                towarList.AddRange(sorted);
+            }
 
             // Wypełnij ComboBox
             if (cmbHistoriaKtoEdytowal != null)
@@ -3655,6 +3798,12 @@ ORDER BY zm.Id";
                 cmbHistoriaHandlowiec.SelectedIndex = string.IsNullOrEmpty(selectedHandlowiec) ? 0 :
                     Math.Max(0, handlowiecList.IndexOf(selectedHandlowiec));
             }
+            if (cmbHistoriaTowar != null)
+            {
+                cmbHistoriaTowar.ItemsSource = towarList;
+                cmbHistoriaTowar.SelectedIndex = string.IsNullOrEmpty(selectedTowar) ? 0 :
+                    Math.Max(0, towarList.IndexOf(selectedTowar));
+            }
         }
 
         private void CmbHistoriaFiltr_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -3668,6 +3817,7 @@ ORDER BY zm.Id";
             if (cmbHistoriaOdbiorca != null) cmbHistoriaOdbiorca.SelectedIndex = 0;
             if (cmbHistoriaTyp != null) cmbHistoriaTyp.SelectedIndex = 0;
             if (cmbHistoriaHandlowiec != null) cmbHistoriaHandlowiec.SelectedIndex = 0;
+            if (cmbHistoriaTowar != null) cmbHistoriaTowar.SelectedIndex = 0;
             ApplyHistoriaFilters();
         }
 
@@ -3704,6 +3854,13 @@ ORDER BY zm.Id";
             if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "(Wszystkie)")
             {
                 filters.Add($"Handlowiec = '{handlowiec.Replace("'", "''")}'");
+            }
+
+            // Filtr: Towar (wyszukiwanie w opisie zmiany)
+            string towar = cmbHistoriaTowar?.SelectedItem?.ToString();
+            if (!string.IsNullOrEmpty(towar) && towar != "(Wszystkie)")
+            {
+                filters.Add($"OpisZmiany LIKE '%{towar.Replace("'", "''").Replace("[", "[[]").Replace("%", "[%]")}%'");
             }
 
             view.RowFilter = filters.Count > 0 ? string.Join(" AND ", filters) : "";
@@ -6126,6 +6283,234 @@ ORDER BY zm.Id";
                 .ToList();
 
             icDostepnoscProduktow.ItemsSource = produkty;
+        }
+
+        #endregion
+
+        #region Statystyki Anulowanych Zamówień
+
+        private readonly DataTable _dtStatystyki = new();
+
+        private void InitializeStatystykiTab()
+        {
+            // Inicjalizacja dat
+            if (dpStatystykiOd.SelectedDate == null)
+                dpStatystykiOd.SelectedDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+            if (dpStatystykiDo.SelectedDate == null)
+                dpStatystykiDo.SelectedDate = DateTime.Now;
+
+            // Wypełnij ComboBox handlowców
+            var handlowiecList = new List<string> { "(Wszystkie)" };
+            handlowiecList.AddRange(_salesmenCache.OrderBy(x => x));
+            cmbStatystykiHandlowiec.ItemsSource = handlowiecList;
+            cmbStatystykiHandlowiec.SelectedIndex = 0;
+
+            // Inicjalizacja struktury DataTable
+            if (_dtStatystyki.Columns.Count == 0)
+            {
+                _dtStatystyki.Columns.Add("Odbiorca", typeof(string));
+                _dtStatystyki.Columns.Add("Handlowiec", typeof(string));
+                _dtStatystyki.Columns.Add("LiczbaAnulowanych", typeof(int));
+                _dtStatystyki.Columns.Add("SumaKg", typeof(decimal));
+                _dtStatystyki.Columns.Add("OstatniaData", typeof(DateTime));
+            }
+
+            SetupStatystykiDataGrid();
+        }
+
+        private void SetupStatystykiDataGrid()
+        {
+            dgStatystykiAnulowane.ItemsSource = _dtStatystyki.DefaultView;
+            dgStatystykiAnulowane.Columns.Clear();
+
+            dgStatystykiAnulowane.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Odbiorca",
+                Binding = new System.Windows.Data.Binding("Odbiorca"),
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
+                MinWidth = 200
+            });
+
+            dgStatystykiAnulowane.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Handlowiec",
+                Binding = new System.Windows.Data.Binding("Handlowiec"),
+                Width = new DataGridLength(100),
+                ElementStyle = (Style)FindResource("BoldCellStyle")
+            });
+
+            dgStatystykiAnulowane.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Liczba anulowanych",
+                Binding = new System.Windows.Data.Binding("LiczbaAnulowanych"),
+                Width = new DataGridLength(130),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+            });
+
+            var sumStyle = new Style(typeof(TextBlock));
+            sumStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
+            sumStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold));
+
+            dgStatystykiAnulowane.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Suma kg",
+                Binding = new System.Windows.Data.Binding("SumaKg") { StringFormat = "N0" },
+                Width = new DataGridLength(100),
+                ElementStyle = sumStyle
+            });
+
+            dgStatystykiAnulowane.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Ostatnia anulacja",
+                Binding = new System.Windows.Data.Binding("OstatniaData") { StringFormat = "yyyy-MM-dd" },
+                Width = new DataGridLength(130),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+            });
+        }
+
+        private async Task LoadStatystykiAsync()
+        {
+            _dtStatystyki.Rows.Clear();
+
+            DateTime? dataOd = dpStatystykiOd.SelectedDate;
+            DateTime? dataDo = dpStatystykiDo.SelectedDate;
+            string handlowiec = cmbStatystykiHandlowiec?.SelectedItem?.ToString() ?? "(Wszystkie)";
+
+            if (!dataOd.HasValue || !dataDo.HasValue) return;
+
+            try
+            {
+                // Pobierz kontrahentów
+                var contractors = new Dictionary<int, (string Name, string Salesman)>();
+                await using (var cnHandel = new SqlConnection(_connHandel))
+                {
+                    await cnHandel.OpenAsync();
+                    const string sqlContr = @"SELECT c.Id, c.Shortcut, wym.CDim_Handlowiec_Val
+                                    FROM [HANDEL].[SSCommon].[STContractors] c
+                                    LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] wym
+                                    ON c.Id = wym.ElementId";
+                    await using var cmdContr = new SqlCommand(sqlContr, cnHandel);
+                    await using var rd = await cmdContr.ExecuteReaderAsync();
+
+                    while (await rd.ReadAsync())
+                    {
+                        int id = rd.GetInt32(0);
+                        string shortcut = rd.IsDBNull(1) ? "" : rd.GetString(1);
+                        string salesman = rd.IsDBNull(2) ? "" : rd.GetString(2);
+                        contractors[id] = (string.IsNullOrWhiteSpace(shortcut) ? $"KH {id}" : shortcut, salesman);
+                    }
+                }
+
+                // Pobierz anulowane zamówienia w wybranym okresie
+                var statystyki = new Dictionary<int, (int Count, decimal SumaKg, DateTime LastDate)>();
+
+                await using (var cnLibra = new SqlConnection(_connLibra))
+                {
+                    await cnLibra.OpenAsync();
+
+                    string sql = @"
+                        SELECT zm.KlientId, COUNT(*) as Cnt, SUM(ISNULL(zmt.IloscSuma, 0)) as Suma,
+                               MAX(COALESCE(zm.DataAnulowania, zm.DataUboju, zm.DataZamowienia)) as LastDate
+                        FROM [dbo].[ZamowieniaMieso] zm
+                        LEFT JOIN (
+                            SELECT ZamowienieId, SUM(Ilosc) as IloscSuma
+                            FROM [dbo].[ZamowieniaMiesoTowar]
+                            GROUP BY ZamowienieId
+                        ) zmt ON zm.Id = zmt.ZamowienieId
+                        WHERE zm.Status = 'Anulowane'
+                          AND COALESCE(zm.DataAnulowania, zm.DataUboju, zm.DataZamowienia) >= @DataOd
+                          AND COALESCE(zm.DataAnulowania, zm.DataUboju, zm.DataZamowienia) <= @DataDo
+                        GROUP BY zm.KlientId";
+
+                    await using var cmd = new SqlCommand(sql, cnLibra);
+                    cmd.Parameters.AddWithValue("@DataOd", dataOd.Value.Date);
+                    cmd.Parameters.AddWithValue("@DataDo", dataDo.Value.Date);
+
+                    await using var reader = await cmd.ExecuteReaderAsync();
+
+                    while (await reader.ReadAsync())
+                    {
+                        if (reader.IsDBNull(0)) continue;
+                        int clientId = reader.GetInt32(0);
+                        int count = reader.GetInt32(1);
+                        decimal suma = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
+                        DateTime lastDate = reader.IsDBNull(3) ? DateTime.MinValue : reader.GetDateTime(3);
+
+                        statystyki[clientId] = (count, suma, lastDate);
+                    }
+                }
+
+                // Uzupełnij tabelę
+                int totalAnulowane = 0;
+                foreach (var kvp in statystyki)
+                {
+                    int clientId = kvp.Key;
+                    var (count, suma, lastDate) = kvp.Value;
+
+                    var (name, salesman) = contractors.TryGetValue(clientId, out var c) ? c : ($"Nieznany ({clientId})", "");
+
+                    // Filtruj po handlowcu jeśli wybrano
+                    if (handlowiec != "(Wszystkie)" && salesman != handlowiec)
+                        continue;
+
+                    _dtStatystyki.Rows.Add(name, salesman, count, suma, lastDate);
+                    totalAnulowane += count;
+                }
+
+                // Sortuj po liczbie anulowanych malejąco
+                _dtStatystyki.DefaultView.Sort = "LiczbaAnulowanych DESC";
+
+                // Aktualizuj podsumowanie
+                txtStatystykiLacznieAnulowanych.Text = totalAnulowane.ToString("N0");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas ładowania statystyk: {ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void CmbStatystykiOkres_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (cmbStatystykiOkres.SelectedItem is ComboBoxItem item && item.Tag is string period)
+            {
+                DateTime today = DateTime.Today;
+                switch (period)
+                {
+                    case "Year":
+                        dpStatystykiOd.SelectedDate = new DateTime(today.Year, 1, 1);
+                        dpStatystykiDo.SelectedDate = today;
+                        break;
+                    case "Month":
+                        dpStatystykiOd.SelectedDate = new DateTime(today.Year, today.Month, 1);
+                        dpStatystykiDo.SelectedDate = today;
+                        break;
+                    case "Week":
+                        int delta = ((int)today.DayOfWeek + 6) % 7;
+                        dpStatystykiOd.SelectedDate = today.AddDays(-delta);
+                        dpStatystykiDo.SelectedDate = today;
+                        break;
+                    case "Day":
+                        dpStatystykiOd.SelectedDate = today;
+                        dpStatystykiDo.SelectedDate = today;
+                        break;
+                }
+            }
+        }
+
+        private void DpStatystyki_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Nie rób nic automatycznie - użytkownik kliknie Odśwież
+        }
+
+        private void CmbStatystykiHandlowiec_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Nie rób nic automatycznie - użytkownik kliknie Odśwież
+        }
+
+        private async void BtnStatystykiOdswiez_Click(object sender, RoutedEventArgs e)
+        {
+            await LoadStatystykiAsync();
         }
 
         #endregion

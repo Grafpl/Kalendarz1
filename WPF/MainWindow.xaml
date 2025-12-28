@@ -279,8 +279,8 @@
             <!-- ZAWARTOŚĆ - dwie kolumny -->
             <Grid Grid.Row="1">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition x:Name="leftColumnDef" Width="*"/>
-                    <ColumnDefinition x:Name="rightColumnDef" Width="550"/>
+                    <ColumnDefinition x:Name="leftColumnDef" Width="45*"/>
+                    <ColumnDefinition x:Name="rightColumnDef" Width="55*"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Lewa kolumna - zakładki -->
@@ -353,6 +353,11 @@
                                     <StackPanel Orientation="Horizontal" Margin="0,0,15,5">
                                         <TextBlock Text="Handlowiec:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11"/>
                                         <ComboBox x:Name="cmbHistoriaHandlowiec" Width="120" FontSize="11"
+                                                  SelectionChanged="CmbHistoriaFiltr_SelectionChanged"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,15,5">
+                                        <TextBlock Text="Towar:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11"/>
+                                        <ComboBox x:Name="cmbHistoriaTowar" Width="150" FontSize="11"
                                                   SelectionChanged="CmbHistoriaFiltr_SelectionChanged"/>
                                     </StackPanel>
                                     <Button x:Name="btnHistoriaCzysc" Content="✕ Wyczyść filtry"
@@ -606,6 +611,104 @@
                                 </Border>
                             </Grid>
                         </ScrollViewer>
+                    </TabItem>
+                    <TabItem x:Name="tabStatystyki" Header="📈 Statystyki" FontSize="12" FontWeight="SemiBold">
+                        <Grid Margin="10" Background="#F0F2F5">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Panel filtrów statystyk -->
+                            <Border Grid.Row="0" Background="#ECF0F1" Padding="15" CornerRadius="8" Margin="0,0,0,10">
+                                <Border.Effect>
+                                    <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.1" BlurRadius="5"/>
+                                </Border.Effect>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,20,0">
+                                        <TextBlock Text="Okres:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,10,0"/>
+                                        <ComboBox x:Name="cmbStatystykiOkres" Width="120" Height="30"
+                                                  SelectionChanged="CmbStatystykiOkres_SelectionChanged">
+                                            <ComboBoxItem Content="Rok" Tag="Year"/>
+                                            <ComboBoxItem Content="Miesiąc" Tag="Month" IsSelected="True"/>
+                                            <ComboBoxItem Content="Tydzień" Tag="Week"/>
+                                            <ComboBoxItem Content="Dzień" Tag="Day"/>
+                                        </ComboBox>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,20,0">
+                                        <TextBlock Text="Od:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <DatePicker x:Name="dpStatystykiOd" Width="130" Height="30"
+                                                    SelectedDateChanged="DpStatystyki_SelectedDateChanged"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,0,20,0">
+                                        <TextBlock Text="Do:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <DatePicker x:Name="dpStatystykiDo" Width="130" Height="30"
+                                                    SelectedDateChanged="DpStatystyki_SelectedDateChanged"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="0,0,20,0">
+                                        <TextBlock Text="Handlowiec:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <ComboBox x:Name="cmbStatystykiHandlowiec" Width="120" Height="30"
+                                                  SelectionChanged="CmbStatystykiHandlowiec_SelectionChanged"/>
+                                    </StackPanel>
+
+                                    <Button Grid.Column="5" x:Name="btnStatystykiOdswiez" Content="🔄 Odśwież"
+                                            Background="#3498DB" Foreground="White" FontWeight="Bold"
+                                            Padding="15,8" Click="BtnStatystykiOdswiez_Click"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Tabela statystyk anulowanych zamówień -->
+                            <Border Grid.Row="1" Background="White" CornerRadius="8" Padding="10">
+                                <Border.Effect>
+                                    <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="10"/>
+                                </Border.Effect>
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Nagłówek -->
+                                    <Border Grid.Row="0" CornerRadius="8,8,0,0" Padding="15,10" Margin="0,0,0,10">
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                <GradientStop Color="#e74c3c" Offset="0"/>
+                                                <GradientStop Color="#c0392b" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                        <Grid>
+                                            <TextBlock Text="📊 STATYSTYKI ANULOWANYCH ZAMÓWIEŃ"
+                                                       FontSize="14" Foreground="White" FontWeight="Bold" VerticalAlignment="Center"/>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                <Border Background="#27AE60" CornerRadius="12" Padding="12,5" Margin="5,0">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="Łącznie anulowanych: " FontSize="12" Foreground="White"/>
+                                                        <TextBlock x:Name="txtStatystykiLacznieAnulowanych" Text="0" FontSize="12" Foreground="White" FontWeight="Bold"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
+                                    <DataGrid Grid.Row="1" x:Name="dgStatystykiAnulowane"
+                                              Style="{StaticResource ModernDataGridStyle}"
+                                              AutoGenerateColumns="False"
+                                              CanUserSortColumns="True"/>
+                                </Grid>
+                            </Border>
+                        </Grid>
                     </TabItem>
                 </TabControl>
 
