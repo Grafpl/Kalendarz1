@@ -148,18 +148,20 @@ namespace Kalendarz1.Services
         /// <summary>
         /// Bulk insert używając SqlBulkCopy (najszybsza metoda)
         /// </summary>
-        public async Task BulkInsertAsync<T>(string tableName, IEnumerable<T> data, Func<T, DataRow> mapper)
+        public async Task BulkInsertAsync<T>(string tableName, IEnumerable<T> data,
+            Action<DataTable> configureColumns, Action<T, DataRow> fillRow)
         {
             var list = data.ToList();
             if (!list.Any()) return;
 
-            // Utwórz DataTable
+            // Utwórz DataTable i skonfiguruj kolumny
             var dt = new DataTable();
-            // Kolumny zostaną dodane przez mapper
+            configureColumns(dt);
 
             foreach (var item in list)
             {
-                var row = mapper(dt.NewRow());
+                var row = dt.NewRow();
+                fillRow(item, row);
                 dt.Rows.Add(row);
             }
 
