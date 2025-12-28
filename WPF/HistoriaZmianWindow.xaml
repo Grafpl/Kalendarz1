@@ -1,0 +1,136 @@
+<Window x:Class="Kalendarz1.WPF.HistoriaZmianWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Historia zmian zamówień"
+        Width="1200" Height="700"
+        WindowStartupLocation="CenterScreen"
+        Background="#F5F6FA"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <Style x:Key="ModernDataGridStyle" TargetType="DataGrid">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="RowBackground" Value="White"/>
+            <Setter Property="AlternatingRowBackground" Value="#FAFBFC"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#E8E8E8"/>
+            <Setter Property="RowHeight" Value="35"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Nagłówek -->
+        <Border Grid.Row="0" Margin="0,0,0,15">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#9B59B6" Offset="0"/>
+                    <GradientStop Color="#8E44AD" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Border CornerRadius="8" Padding="20,15">
+                <Grid>
+                    <StackPanel>
+                        <TextBlock Text="📝 Historia zmian zamówień" FontSize="20" FontWeight="Bold" Foreground="White"/>
+                        <TextBlock x:Name="txtDateRange" Text="Zakres dat: -" FontSize="12" Foreground="#D7BDE2" Margin="0,5,0,0"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <TextBlock Text="Łącznie zmian: " FontSize="14" Foreground="White" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="txtTotalChanges" Text="0" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Border>
+
+        <!-- Panel filtrów -->
+        <Border Grid.Row="1" Background="White" CornerRadius="8" Padding="15" Margin="0,0,0,15">
+            <Border.Effect>
+                <DropShadowEffect ShadowDepth="1" Opacity="0.1" BlurRadius="5"/>
+            </Border.Effect>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Daty -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="Od:" VerticalAlignment="Center" Margin="0,0,5,0" FontWeight="SemiBold"/>
+                    <DatePicker x:Name="dpOd" Width="130" SelectedDateChanged="DatePicker_SelectedDateChanged"/>
+                    <TextBlock Text="Do:" VerticalAlignment="Center" Margin="15,0,5,0" FontWeight="SemiBold"/>
+                    <DatePicker x:Name="dpDo" Width="130" SelectedDateChanged="DatePicker_SelectedDateChanged"/>
+                </StackPanel>
+
+                <!-- Filtry -->
+                <WrapPanel Grid.Column="1" Margin="20,0,0,0">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,15,0">
+                        <TextBlock Text="Kto edytował:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11"/>
+                        <ComboBox x:Name="cmbKtoEdytowal" Width="120" FontSize="11"
+                                  SelectionChanged="Filter_SelectionChanged"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,15,0">
+                        <TextBlock Text="Odbiorca:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11"/>
+                        <ComboBox x:Name="cmbOdbiorca" Width="150" FontSize="11"
+                                  SelectionChanged="Filter_SelectionChanged"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,15,0">
+                        <TextBlock Text="Typ zmiany:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11"/>
+                        <ComboBox x:Name="cmbTyp" Width="120" FontSize="11"
+                                  SelectionChanged="Filter_SelectionChanged"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,15,0">
+                        <TextBlock Text="Handlowiec:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11"/>
+                        <ComboBox x:Name="cmbHandlowiec" Width="120" FontSize="11"
+                                  SelectionChanged="Filter_SelectionChanged"/>
+                    </StackPanel>
+                </WrapPanel>
+
+                <!-- Przyciski -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal">
+                    <Button x:Name="btnClearFilters" Content="✕ Wyczyść" Padding="10,6"
+                            Background="#E74C3C" Foreground="White" BorderThickness="0"
+                            Click="BtnClearFilters_Click" Cursor="Hand" Margin="0,0,10,0"/>
+                    <Button x:Name="btnRefresh" Content="🔄 Odśwież" Padding="10,6"
+                            Background="#3498DB" Foreground="White" BorderThickness="0"
+                            Click="BtnRefresh_Click" Cursor="Hand"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Tabela -->
+        <Border Grid.Row="2" Background="White" CornerRadius="8" Padding="10">
+            <Border.Effect>
+                <DropShadowEffect ShadowDepth="2" Opacity="0.1" BlurRadius="10"/>
+            </Border.Effect>
+            <DataGrid x:Name="dgHistoria"
+                      Style="{StaticResource ModernDataGridStyle}"
+                      AutoGenerateColumns="False"
+                      CanUserSortColumns="True"/>
+        </Border>
+
+        <!-- Stopka -->
+        <Border Grid.Row="3" Margin="0,10,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Eksport do Excel" Padding="15,8"
+                        Background="#27AE60" Foreground="White" BorderThickness="0"
+                        Click="BtnExport_Click" Cursor="Hand" Margin="0,0,10,0"/>
+                <Button Content="Zamknij" Padding="15,8"
+                        Background="#95A5A6" Foreground="White" BorderThickness="0"
+                        Click="BtnClose_Click" Cursor="Hand"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

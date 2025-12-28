@@ -498,6 +498,32 @@ namespace Kalendarz1.WPF
         {
             await RefreshAllDataAsync();
         }
+
+        #region Przyciski otwierania osobnych okien
+
+        private void BtnOpenDashboard_Click(object sender, RoutedEventArgs e)
+        {
+            var dashboardWindow = new DashboardWindow(_connLibra, _connHandel, _selectedDate);
+            dashboardWindow.Owner = this;
+            dashboardWindow.Show();
+        }
+
+        private void BtnOpenStatystyki_Click(object sender, RoutedEventArgs e)
+        {
+            var statystykiWindow = new StatystykiWindow(_connLibra, _connHandel);
+            statystykiWindow.Owner = this;
+            statystykiWindow.Show();
+        }
+
+        private void BtnOpenHistoria_Click(object sender, RoutedEventArgs e)
+        {
+            var historiaWindow = new HistoriaZmianWindow(_connLibra, _connHandel);
+            historiaWindow.Owner = this;
+            historiaWindow.Show();
+        }
+
+        #endregion
+
         #region Konfiguracja Wydajności i Produktów
 
         private async Task<(decimal wspolczynnikTuszki, decimal procentA, decimal procentB)> GetKonfiguracjaWydajnosciAsync(DateTime data)
