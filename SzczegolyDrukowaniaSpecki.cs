@@ -134,7 +134,7 @@ namespace Kalendarz1
         private void GeneratePDFReport(List<int> ids)
         {
             // Set up the document in portrait mode
-            Document doc = new Document(PageSize.A4.Rotate(), 40, 40, 15, 15);
+            Document doc = new Document(PageSize.A4.Rotate(), 15, 15, 10, 10);
 
             // Variables for the seller
             string sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"), "ShortName");
