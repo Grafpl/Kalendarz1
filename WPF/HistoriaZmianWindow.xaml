@@ -149,6 +149,7 @@
                           ColumnHeaderStyle="{StaticResource ModernDataGridHeaderStyle}"
                           AutoGenerateColumns="False"
                           CanUserSortColumns="True"
+                          MouseDoubleClick="DgHistoria_MouseDoubleClick"
                           Margin="5"/>
             </Grid>
         </Border>
@@ -157,7 +158,7 @@
         <Border Grid.Row="3" Background="#2C3E50" Padding="12,8">
             <Grid>
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Wybierz towar z listy aby zobaczyć zmiany ceny/ilości dla tego produktu"
+                    <TextBlock Text="Wybierz towar z listy aby zobaczyć zmiany ceny/ilości dla tego produktu  |  Kliknij dwukrotnie na wiersz aby edytować zamówienie"
                                Foreground="#95A5A6" FontSize="11" VerticalAlignment="Center"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">

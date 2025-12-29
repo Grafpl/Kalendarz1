@@ -584,7 +584,7 @@ namespace Kalendarz1.WPF
 
         private void BtnOpenHistoria_Click(object sender, RoutedEventArgs e)
         {
-            var historiaWindow = new HistoriaZmianWindow(_connLibra, _connHandel);
+            var historiaWindow = new HistoriaZmianWindow(_connLibra, _connHandel, UserID);
             historiaWindow.Owner = this;
             historiaWindow.Show();
         }

@@ -13,15 +13,17 @@ namespace Kalendarz1.WPF
     {
         private readonly string _connLibra;
         private readonly string _connHandel;
+        private readonly string _userId;
         private readonly DataTable _dtHistoria = new();
         private bool _isLoading;
         private Dictionary<int, string> _productNames = new();
 
-        public HistoriaZmianWindow(string connLibra, string connHandel)
+        public HistoriaZmianWindow(string connLibra, string connHandel, string userId = "")
         {
             InitializeComponent();
             _connLibra = connLibra;
             _connHandel = connHandel;
+            _userId = userId;
 
             InitializeDataTable();
             _ = LoadDataAsync();
@@ -392,6 +394,32 @@ namespace Kalendarz1.WPF
         private void BtnClose_Click(object sender, RoutedEventArgs e)
         {
             Close();
+        }
+
+        private void DgHistoria_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            // Znajdź kliknięty wiersz
+            var dep = (DependencyObject)e.OriginalSource;
+            while (dep != null && !(dep is DataGridRow))
+            {
+                dep = System.Windows.Media.VisualTreeHelper.GetParent(dep);
+            }
+
+            if (dep is DataGridRow row && row.Item is DataRowView rowView)
+            {
+                // Pobierz ID zamówienia z wiersza
+                var zamowienieId = rowView.Row.Field<int>("ZamowienieId");
+                if (zamowienieId > 0)
+                {
+                    // Otwórz okno edycji zamówienia
+                    var widokZamowienia = new Kalendarz1.WidokZamowienia(_userId, zamowienieId);
+                    if (widokZamowienia.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                    {
+                        // Odśwież dane po edycji
+                        _ = LoadDataAsync();
+                    }
+                }
+            }
         }
     }
 }
