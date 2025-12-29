@@ -49,6 +49,7 @@ namespace Kalendarz1.WPF
         {
             _dtTransport.Columns.Add("Id", typeof(int));
             _dtTransport.Columns.Add("KlientId", typeof(int));
+            _dtTransport.Columns.Add("DataPrzyjazdu", typeof(DateTime));
             _dtTransport.Columns.Add("Odbiorca", typeof(string));
             _dtTransport.Columns.Add("Handlowiec", typeof(string));
             _dtTransport.Columns.Add("IloscZamowiona", typeof(decimal));
@@ -79,6 +80,13 @@ namespace Kalendarz1.WPF
         private void SetupDataGrid()
         {
             dgTransport.Columns.Clear();
+
+            dgTransport.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Data",
+                Binding = new Binding("DataPrzyjazdu") { StringFormat = "yyyy-MM-dd" },
+                Width = new DataGridLength(85)
+            });
 
             dgTransport.Columns.Add(new DataGridTextColumn
             {
@@ -238,16 +246,16 @@ namespace Kalendarz1.WPF
                     }
                 }
 
-                // Pobierz zamówienia z dnia
-                var orders = new List<(int Id, int KlientId, decimal IloscZam, decimal IloscWyd, decimal Palety, long? KursId, string Uwagi)>();
+                // Pobierz WSZYSTKIE zamówienia (bez filtra daty)
+                var orders = new List<(int Id, int KlientId, decimal IloscZam, decimal IloscWyd, decimal Palety, long? KursId, string Uwagi, DateTime DataPrzyjazdu)>();
                 await using (var cnLibra = new SqlConnection(_connLibra))
                 {
                     await cnLibra.OpenAsync();
-                    const string sql = @"SELECT Id, KlientId, TransportKursID, Uwagi
+                    const string sql = @"SELECT Id, KlientId, TransportKursID, Uwagi, DataPrzyjazdu
                                          FROM dbo.ZamowieniaMieso
-                                         WHERE DataPrzyjazdu = @Day AND Status <> 'Anulowane'";
+                                         WHERE Status <> 'Anulowane'
+                                         ORDER BY DataPrzyjazdu DESC";
                     await using var cmd = new SqlCommand(sql, cnLibra);
-                    cmd.Parameters.AddWithValue("@Day", _selectedDate.Date);
                     await using var rdr = await cmd.ExecuteReaderAsync();
                     while (await rdr.ReadAsync())
                     {
@@ -255,7 +263,8 @@ namespace Kalendarz1.WPF
                         int klientId = rdr.IsDBNull(1) ? 0 : rdr.GetInt32(1);
                         long? kursId = rdr.IsDBNull(2) ? null : rdr.GetInt64(2);
                         string uwagi = rdr.IsDBNull(3) ? "" : rdr.GetString(3);
-                        orders.Add((id, klientId, 0m, 0m, 0m, kursId, uwagi));
+                        DateTime dataPrzyjazdu = rdr.IsDBNull(4) ? DateTime.MinValue : rdr.GetDateTime(4);
+                        orders.Add((id, klientId, 0m, 0m, 0m, kursId, uwagi, dataPrzyjazdu));
                     }
                 }
 
@@ -333,11 +342,11 @@ namespace Kalendarz1.WPF
                         status = "Przypisany";
                     }
 
-                    _dtTransport.Rows.Add(order.Id, order.KlientId, name, salesman, zam, wyd, palety, kierowca, pojazd, godzWyjazdu, trasa, status, order.Uwagi);
+                    _dtTransport.Rows.Add(order.Id, order.KlientId, order.DataPrzyjazdu, name, salesman, zam, wyd, palety, kierowca, pojazd, godzWyjazdu, trasa, status, order.Uwagi);
                 }
 
-                // Sortuj wg godziny wyjazdu, potem trasy
-                _dtTransport.DefaultView.Sort = "GodzWyjazdu ASC, Trasa ASC";
+                // Sortuj wg daty przyjazdu (malejąco), potem godziny wyjazdu
+                _dtTransport.DefaultView.Sort = "DataPrzyjazdu DESC, GodzWyjazdu ASC, Trasa ASC";
 
                 // Aktualizuj statystyki
                 UpdateStatistics();

@@ -2430,9 +2430,6 @@ namespace Kalendarz1.WPF
                 _isRefreshing = false;
                 sw.Stop();
 
-                // Aktualizuj KPI
-                UpdateKpiValues();
-
                 // Status bar - koniec
                 UpdateStatus($"Gotowy - załadowano w {sw.ElapsedMilliseconds}ms");
                 txtStatusTime.Text = $"Ostatnia aktualizacja: {DateTime.Now:HH:mm:ss}";
@@ -2443,64 +2440,6 @@ namespace Kalendarz1.WPF
         {
             if (txtStatus != null)
                 txtStatus.Text = message;
-        }
-
-        private void UpdateKpiValues()
-        {
-            try
-            {
-                // Pobierz dane z DataTable zamówień
-                var view = _dtOrders.DefaultView;
-                int zamowienCount = 0;
-                decimal sumaKg = 0m;
-                decimal wydaneKg = 0m;
-                int anulowaneCount = 0;
-                var klienci = new HashSet<int>();
-
-                foreach (DataRowView row in view)
-                {
-                    zamowienCount++;
-
-                    // Suma kg zamówionych
-                    if (!row.Row.IsNull("IloscZamowiona"))
-                        sumaKg += Convert.ToDecimal(row["IloscZamowiona"]);
-
-                    // Suma kg faktycznych (wydanych)
-                    if (!row.Row.IsNull("IloscFaktyczna"))
-                        wydaneKg += Convert.ToDecimal(row["IloscFaktyczna"]);
-
-                    // Liczba klientów
-                    if (!row.Row.IsNull("KlientId"))
-                        klienci.Add(Convert.ToInt32(row["KlientId"]));
-
-                    // Anulowane
-                    if (!row.Row.IsNull("Status") && row["Status"].ToString() == "Anulowane")
-                        anulowaneCount++;
-                }
-
-                decimal roznica = wydaneKg - sumaKg;
-
-                // Aktualizuj UI
-                txtKpiZamowien.Text = zamowienCount.ToString("N0");
-                txtKpiSumaKg.Text = $"{sumaKg:N0} kg";
-                txtKpiWydane.Text = $"{wydaneKg:N0} kg";
-                txtKpiRoznica.Text = $"{roznica:+0;-0;0} kg";
-                txtKpiAnulowane.Text = anulowaneCount.ToString();
-                txtKpiKlientow.Text = klienci.Count.ToString();
-                txtKpiData.Text = $"{_selectedDate:dddd, d MMMM yyyy}";
-
-                // Kolor różnicy
-                if (roznica > 0)
-                    txtKpiRoznica.Foreground = new SolidColorBrush(Colors.LightGreen);
-                else if (roznica < 0)
-                    txtKpiRoznica.Foreground = new SolidColorBrush(Color.FromRgb(255, 150, 150));
-                else
-                    txtKpiRoznica.Foreground = new SolidColorBrush(Colors.White);
-            }
-            catch
-            {
-                // Ignoruj błędy w KPI - nie krytyczne
-            }
         }
 
         private async Task LoadOrdersForDayAsync(DateTime day)

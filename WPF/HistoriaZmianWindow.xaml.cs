@@ -112,16 +112,12 @@ namespace Kalendarz1.WPF
         private async System.Threading.Tasks.Task LoadDataAsync()
         {
             if (_isLoading) return;
-            if (!dpOd.SelectedDate.HasValue || !dpDo.SelectedDate.HasValue) return;
 
             _isLoading = true;
             _dtHistoria.Rows.Clear();
 
             try
             {
-                var startDate = dpOd.SelectedDate.Value;
-                var endDate = dpDo.SelectedDate.Value;
-
                 // Pobierz kontrahentów
                 var contractors = new Dictionary<int, (string Name, string Salesman)>();
                 await using (var cnHandel = new SqlConnection(_connHandel))
@@ -143,7 +139,7 @@ namespace Kalendarz1.WPF
                     }
                 }
 
-                // Pobierz zamówienia i historię
+                // Pobierz wszystkie zamówienia (bez filtra daty)
                 var orderToClient = new Dictionary<int, int>();
                 await using (var cnLibra = new SqlConnection(_connLibra))
                 {
@@ -162,35 +158,23 @@ namespace Kalendarz1.WPF
                         return;
                     }
 
-                    // Pobierz zamówienia
-                    string sqlOrders = @"SELECT Id, KlientId FROM dbo.ZamowieniaMieso
-                                        WHERE DataPrzyjazdu BETWEEN @StartDate AND @EndDate";
+                    // Pobierz wszystkie zamówienia (bez filtra daty)
+                    string sqlOrders = @"SELECT Id, KlientId FROM dbo.ZamowieniaMieso";
                     await using var cmdOrders = new SqlCommand(sqlOrders, cnLibra);
-                    cmdOrders.Parameters.AddWithValue("@StartDate", startDate);
-                    cmdOrders.Parameters.AddWithValue("@EndDate", endDate);
                     await using var rdrOrders = await cmdOrders.ExecuteReaderAsync();
 
                     while (await rdrOrders.ReadAsync())
                     {
                         int orderId = rdrOrders.GetInt32(0);
-                        int clientId = rdrOrders.GetInt32(1);
+                        int clientId = rdrOrders.IsDBNull(1) ? 0 : rdrOrders.GetInt32(1);
                         orderToClient[orderId] = clientId;
                     }
 
                     await rdrOrders.CloseAsync();
 
-                    if (orderToClient.Count == 0)
-                    {
-                        txtTotalChanges.Text = "0";
-                        PopulateFilterComboBoxes();
-                        return;
-                    }
-
-                    // Pobierz historię
-                    string orderIds = string.Join(",", orderToClient.Keys);
-                    string sqlHistory = $@"SELECT Id, ZamowienieId, DataZmiany, TypZmiany, UzytkownikNazwa, OpisZmiany
+                    // Pobierz CAŁĄ historię - posortowaną od najnowszej do najstarszej
+                    string sqlHistory = @"SELECT Id, ZamowienieId, DataZmiany, TypZmiany, UzytkownikNazwa, OpisZmiany
                                           FROM HistoriaZmianZamowien
-                                          WHERE ZamowienieId IN ({orderIds})
                                           ORDER BY DataZmiany DESC";
 
                     await using var cmdHistory = new SqlCommand(sqlHistory, cnLibra);

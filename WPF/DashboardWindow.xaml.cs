@@ -145,7 +145,7 @@ namespace Kalendarz1.WPF
                     System.Diagnostics.Debug.WriteLine($"Błąd ładowania produktów: {ex.Message}");
                 }
 
-                // Pobierz zamówienia z dnia
+                // Pobierz WSZYSTKIE zamówienia (bez filtra daty)
                 var orderIds = new List<int>();
                 int zamowienAktywnych = 0;
                 int zamowienAnulowanych = 0;
@@ -153,9 +153,8 @@ namespace Kalendarz1.WPF
                 await using (var cn = new SqlConnection(_connLibra))
                 {
                     await cn.OpenAsync();
-                    const string sql = @"SELECT Id, Status FROM dbo.ZamowieniaMieso WHERE DataPrzyjazdu = @Day";
+                    const string sql = @"SELECT Id, Status FROM dbo.ZamowieniaMieso";
                     await using var cmd = new SqlCommand(sql, cn);
-                    cmd.Parameters.AddWithValue("@Day", _selectedDate.Date);
                     await using var rdr = await cmd.ExecuteReaderAsync();
                     while (await rdr.ReadAsync())
                     {
