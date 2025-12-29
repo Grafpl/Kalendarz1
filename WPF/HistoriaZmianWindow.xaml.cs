@@ -35,6 +35,7 @@ namespace Kalendarz1.WPF
             _dtHistoria.Columns.Add("Handlowiec", typeof(string));
             _dtHistoria.Columns.Add("Odbiorca", typeof(string));
             _dtHistoria.Columns.Add("UzytkownikNazwa", typeof(string));
+            _dtHistoria.Columns.Add("Towar", typeof(string));
             _dtHistoria.Columns.Add("OpisZmiany", typeof(string));
 
             dgHistoria.ItemsSource = _dtHistoria.DefaultView;
@@ -78,6 +79,13 @@ namespace Kalendarz1.WPF
                 Header = "Użytkownik",
                 Binding = new Binding("UzytkownikNazwa"),
                 Width = new DataGridLength(120)
+            });
+
+            dgHistoria.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Towar",
+                Binding = new Binding("Towar"),
+                Width = new DataGridLength(150)
             });
 
             dgHistoria.Columns.Add(new DataGridTextColumn
@@ -139,6 +147,27 @@ namespace Kalendarz1.WPF
                     }
                 }
 
+                // Pobierz nazwy produktów z Handel
+                var productNames = new Dictionary<int, string>();
+                try
+                {
+                    await using var cnHandel = new SqlConnection(_connHandel);
+                    await cnHandel.OpenAsync();
+                    const string sqlProducts = "SELECT ID, kod FROM [HANDEL].[HM].[TW]";
+                    await using var cmdProducts = new SqlCommand(sqlProducts, cnHandel);
+                    await using var rdrProducts = await cmdProducts.ExecuteReaderAsync();
+                    while (await rdrProducts.ReadAsync())
+                    {
+                        if (!rdrProducts.IsDBNull(0))
+                        {
+                            int id = rdrProducts.GetInt32(0);
+                            string kod = rdrProducts.IsDBNull(1) ? $"ID:{id}" : Convert.ToString(rdrProducts.GetValue(1)) ?? $"ID:{id}";
+                            productNames[id] = kod;
+                        }
+                    }
+                }
+                catch { /* Ignoruj błędy ładowania produktów */ }
+
                 // Pobierz wszystkie zamówienia (bez filtra daty)
                 var orderToClient = new Dictionary<int, int>();
                 await using (var cnLibra = new SqlConnection(_connLibra))
@@ -172,10 +201,23 @@ namespace Kalendarz1.WPF
 
                     await rdrOrders.CloseAsync();
 
+                    // Sprawdź czy tabela ma kolumnę KodTowaru
+                    bool hasKodTowaru = false;
+                    const string checkColSql = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                                                WHERE TABLE_NAME = 'HistoriaZmianZamowien' AND COLUMN_NAME = 'KodTowaru'";
+                    await using (var checkColCmd = new SqlCommand(checkColSql, cnLibra))
+                    {
+                        hasKodTowaru = (int)await checkColCmd.ExecuteScalarAsync() > 0;
+                    }
+
                     // Pobierz CAŁĄ historię - posortowaną od najnowszej do najstarszej
-                    string sqlHistory = @"SELECT Id, ZamowienieId, DataZmiany, TypZmiany, UzytkownikNazwa, OpisZmiany
-                                          FROM HistoriaZmianZamowien
-                                          ORDER BY DataZmiany DESC";
+                    string sqlHistory = hasKodTowaru
+                        ? @"SELECT Id, ZamowienieId, DataZmiany, TypZmiany, UzytkownikNazwa, OpisZmiany, KodTowaru
+                            FROM HistoriaZmianZamowien
+                            ORDER BY DataZmiany DESC"
+                        : @"SELECT Id, ZamowienieId, DataZmiany, TypZmiany, UzytkownikNazwa, OpisZmiany
+                            FROM HistoriaZmianZamowien
+                            ORDER BY DataZmiany DESC";
 
                     await using var cmdHistory = new SqlCommand(sqlHistory, cnLibra);
                     await using var rdrHistory = await cmdHistory.ExecuteReaderAsync();
@@ -189,6 +231,19 @@ namespace Kalendarz1.WPF
                         string uzytkownikNazwa = rdrHistory.IsDBNull(4) ? "" : rdrHistory.GetString(4);
                         string opisZmiany = rdrHistory.IsDBNull(5) ? "" : rdrHistory.GetString(5);
 
+                        // Pobierz towar jeśli kolumna istnieje
+                        string towar = "";
+                        if (hasKodTowaru && !rdrHistory.IsDBNull(6))
+                        {
+                            int kodTowaru = rdrHistory.GetInt32(6);
+                            towar = productNames.TryGetValue(kodTowaru, out var name) ? name : $"ID:{kodTowaru}";
+                        }
+                        else
+                        {
+                            // Spróbuj wyciągnąć nazwę towaru z opisu zmiany
+                            towar = ExtractProductFromDescription(opisZmiany);
+                        }
+
                         string handlowiec = "";
                         string odbiorca = "";
                         if (orderToClient.TryGetValue(zamowienieId, out int clientId) &&
@@ -199,7 +254,7 @@ namespace Kalendarz1.WPF
                         }
 
                         _dtHistoria.Rows.Add(id, zamowienieId, dataZmiany, typZmiany,
-                            handlowiec, odbiorca, uzytkownikNazwa, opisZmiany);
+                            handlowiec, odbiorca, uzytkownikNazwa, towar, opisZmiany);
                     }
                 }
 
@@ -217,12 +272,43 @@ namespace Kalendarz1.WPF
             }
         }
 
+        private string ExtractProductFromDescription(string opis)
+        {
+            if (string.IsNullOrEmpty(opis)) return "";
+
+            // Wzorce do wyciągnięcia nazwy produktu z opisu
+            // np. "Zmiana ilości: KURCZAK TUSZKA z 100 na 200"
+            // lub "Zmiana ceny: FILET Z PIERSI z 15.50 na 16.00"
+            var patterns = new[]
+            {
+                @"Zmiana ilości:\s*(.+?)\s+z\s+\d",
+                @"Zmiana ceny:\s*(.+?)\s+z\s+\d",
+                @"Produkt:\s*(.+?)(?:\s*[-,]|$)",
+                @"Towar:\s*(.+?)(?:\s*[-,]|$)",
+                @"^(.+?)\s*[-:]\s*(?:ilość|cena|zmiana)",
+            };
+
+            foreach (var pattern in patterns)
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(opis, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (match.Success && match.Groups.Count > 1)
+                {
+                    var product = match.Groups[1].Value.Trim();
+                    if (!string.IsNullOrEmpty(product) && product.Length > 2)
+                        return product;
+                }
+            }
+
+            return "";
+        }
+
         private void PopulateFilterComboBoxes()
         {
             var users = new List<string> { "(Wszystkie)" };
             var odbiorcy = new List<string> { "(Wszystkie)" };
             var typy = new List<string> { "(Wszystkie)" };
             var handlowcy = new List<string> { "(Wszystkie)" };
+            var towary = new List<string> { "(Wszystkie)" };
 
             foreach (DataRow row in _dtHistoria.Rows)
             {
@@ -230,22 +316,26 @@ namespace Kalendarz1.WPF
                 var odbiorca = row["Odbiorca"]?.ToString();
                 var typ = row["TypZmiany"]?.ToString();
                 var handlowiec = row["Handlowiec"]?.ToString();
+                var towar = row["Towar"]?.ToString();
 
                 if (!string.IsNullOrEmpty(user) && !users.Contains(user)) users.Add(user);
                 if (!string.IsNullOrEmpty(odbiorca) && !odbiorcy.Contains(odbiorca)) odbiorcy.Add(odbiorca);
                 if (!string.IsNullOrEmpty(typ) && !typy.Contains(typ)) typy.Add(typ);
                 if (!string.IsNullOrEmpty(handlowiec) && !handlowcy.Contains(handlowiec)) handlowcy.Add(handlowiec);
+                if (!string.IsNullOrEmpty(towar) && !towary.Contains(towar)) towary.Add(towar);
             }
 
             cmbKtoEdytowal.ItemsSource = users.OrderBy(x => x).ToList();
             cmbOdbiorca.ItemsSource = odbiorcy.OrderBy(x => x).ToList();
             cmbTyp.ItemsSource = typy.OrderBy(x => x).ToList();
             cmbHandlowiec.ItemsSource = handlowcy.OrderBy(x => x).ToList();
+            cmbTowar.ItemsSource = towary.OrderBy(x => x).ToList();
 
             cmbKtoEdytowal.SelectedIndex = 0;
             cmbOdbiorca.SelectedIndex = 0;
             cmbTyp.SelectedIndex = 0;
             cmbHandlowiec.SelectedIndex = 0;
+            cmbTowar.SelectedIndex = 0;
         }
 
         private void ApplyFilters()
@@ -264,6 +354,9 @@ namespace Kalendarz1.WPF
 
             if (cmbHandlowiec.SelectedItem?.ToString() is string handlowiec && handlowiec != "(Wszystkie)")
                 filters.Add($"Handlowiec = '{handlowiec.Replace("'", "''")}'");
+
+            if (cmbTowar.SelectedItem?.ToString() is string towar && towar != "(Wszystkie)")
+                filters.Add($"Towar = '{towar.Replace("'", "''")}'");
 
             dv.RowFilter = filters.Count > 0 ? string.Join(" AND ", filters) : "";
         }
@@ -287,6 +380,7 @@ namespace Kalendarz1.WPF
             cmbOdbiorca.SelectedIndex = 0;
             cmbTyp.SelectedIndex = 0;
             cmbHandlowiec.SelectedIndex = 0;
+            cmbTowar.SelectedIndex = 0;
             _dtHistoria.DefaultView.RowFilter = "";
         }
 
