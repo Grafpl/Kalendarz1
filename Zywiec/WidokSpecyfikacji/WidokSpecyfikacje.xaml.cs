@@ -3882,12 +3882,91 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
-            // WAŻNE: Wymuś aktualizację bindingu przed zapisem
             var binding = textBox.GetBindingExpression(TextBox.TextProperty);
             binding?.UpdateSource();
 
             SaveFieldToDatabase(row.ID, "LumQnt", row.LUMEL);
             UpdateStatus($"Zapisano LUMEL: {row.LUMEL} szt dla LP {row.Nr}");
+        }
+
+        // Handler LostFocus dla SztukiDek - zapisuje do bazy (DeclI1)
+        private void SztukiDek_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var row = textBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+
+            SaveFieldToDatabase(row.ID, "DeclI1", row.SztukiDek);
+            UpdateStatus($"Zapisano Szt.Dek: {row.SztukiDek} dla LP {row.Nr}");
+        }
+
+        // Handler LostFocus dla Padle - zapisuje do bazy (DeclI2)
+        private void Padle_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var row = textBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+
+            SaveFieldToDatabase(row.ID, "DeclI2", row.Padle);
+            UpdateStatus($"Zapisano Padłe: {row.Padle} dla LP {row.Nr}");
+        }
+
+        // Handler LostFocus dla CH - zapisuje do bazy (DeclI3)
+        private void CH_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var row = textBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+
+            SaveFieldToDatabase(row.ID, "DeclI3", row.CH);
+            UpdateStatus($"Zapisano CH: {row.CH} dla LP {row.Nr}");
+        }
+
+        // Handler LostFocus dla NW - zapisuje do bazy (DeclI4)
+        private void NW_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var row = textBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+
+            SaveFieldToDatabase(row.ID, "DeclI4", row.NW);
+            UpdateStatus($"Zapisano NW: {row.NW} dla LP {row.Nr}");
+        }
+
+        // Handler LostFocus dla ZM - zapisuje do bazy (DeclI5)
+        private void ZM_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var row = textBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+
+            SaveFieldToDatabase(row.ID, "DeclI5", row.ZM);
+            UpdateStatus($"Zapisano ZM: {row.ZM} dla LP {row.Nr}");
         }
 
         #endregion

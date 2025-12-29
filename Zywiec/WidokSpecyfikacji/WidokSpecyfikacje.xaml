@@ -549,9 +549,10 @@
                                     </DataGridTemplateColumn.CellStyle>
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding SztukiDek, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
+                                            <TextBox Text="{Binding SztukiDek, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                          Style="{StaticResource NumericTextBoxStyle}"
-                                         FontWeight="SemiBold"/>
+                                         FontWeight="SemiBold"
+                                         LostFocus="SztukiDek_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -565,9 +566,10 @@
                                     </DataGridTemplateColumn.CellStyle>
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding Padle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
+                                            <TextBox Text="{Binding Padle, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                          Style="{StaticResource NumericTextBoxStyle}"
-                                         Foreground="#BF360C"/>
+                                         Foreground="#BF360C"
+                                         LostFocus="Padle_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -581,8 +583,9 @@
                                     </DataGridTemplateColumn.CellStyle>
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding CH, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
-                                         Style="{StaticResource NumericTextBoxStyle}"/>
+                                            <TextBox Text="{Binding CH, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
+                                         Style="{StaticResource NumericTextBoxStyle}"
+                                         LostFocus="CH_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -596,8 +599,9 @@
                                     </DataGridTemplateColumn.CellStyle>
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding NW, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
-                                         Style="{StaticResource NumericTextBoxStyle}"/>
+                                            <TextBox Text="{Binding NW, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
+                                         Style="{StaticResource NumericTextBoxStyle}"
+                                         LostFocus="NW_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -611,8 +615,9 @@
                                     </DataGridTemplateColumn.CellStyle>
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding ZM, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
-                                         Style="{StaticResource NumericTextBoxStyle}"/>
+                                            <TextBox Text="{Binding ZM, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
+                                         Style="{StaticResource NumericTextBoxStyle}"
+                                         LostFocus="ZM_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
