@@ -2361,8 +2361,9 @@ namespace Kalendarz1
                     int konfiskaty = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI3") +
                                      zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI4") +
                                      zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI5");
-                    int sztZdatne = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "LumQnt") - konfiskaty;
-                    int sztWszystkie = konfiskaty + padle + sztZdatne;
+                    int lumel = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "LumQnt");
+                    int sztWszystkie = lumel + padle;  // Dostarczono = LUMEL + Padłe
+                    int sztZdatne = lumel - konfiskaty;
 
                     bool czyPiK = zapytaniasql.PobierzInformacjeZBazyDanych<bool>(id, "[LibraNet].[dbo].[FarmerCalc]", "IncDeadConf");
                     decimal sredniaWaga = sztWszystkie > 0 ? wagaNetto / sztWszystkie : 0;
@@ -2916,8 +2917,9 @@ namespace Kalendarz1
                     int konfiskaty = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI3") +
                                      zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI4") +
                                      zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI5");
-                    int sztZdatne = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "LumQnt") - konfiskaty;
-                    int sztWszystkie = konfiskaty + padle + sztZdatne;
+                    int lumel = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "LumQnt");
+                    int sztWszystkie = lumel + padle;  // Dostarczono = LUMEL + Padłe
+                    int sztZdatne = lumel - konfiskaty;
 
                     decimal sredniaWaga = sztWszystkie > 0 ? wagaNetto / sztWszystkie : 0;
                     decimal padleKG = czyPiK ? 0 : Math.Round(padle * sredniaWaga, 0);
