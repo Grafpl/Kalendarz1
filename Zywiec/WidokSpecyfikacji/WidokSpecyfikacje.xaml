@@ -901,14 +901,33 @@
                             </DataGrid.Columns>
                         </DataGrid>
 
-                        <Grid Grid.Row="1">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="15"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
+                        <!-- Sekcja Harmonogram z subtelnym stylem -->
+                        <Border Grid.Row="1" Background="#F8F9FA" CornerRadius="8" Margin="5,8,5,5" BorderBrush="#E0E0E0" BorderThickness="1">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.08" BlurRadius="6"/>
+                            </Border.Effect>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
 
-                            <DataGrid Grid.Column="0"
+                                <!-- Mini nagłówek -->
+                                <Border Grid.Row="0" Background="#E8F5E9" CornerRadius="8,8,0,0" Padding="10,6">
+                                    <TextBlock Text="📋 Harmonogram dostaw"
+                                               FontSize="11"
+                                               FontWeight="SemiBold"
+                                               Foreground="#2E7D32"/>
+                                </Border>
+
+                                <Grid Grid.Row="1" Margin="5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <DataGrid Grid.Column="0"
               x:Name="dataGridHarmonogramLeft"
               AutoGenerateColumns="False"
               CanUserAddRows="False"
@@ -937,43 +956,45 @@
                                     <DataGridTextColumn Header="Typ" Binding="{Binding TypCeny}" Width="50" ElementStyle="{StaticResource CenterStyle}"/>
                                     <DataGridTextColumn Header="Auta" Binding="{Binding Auta}" Width="35" ElementStyle="{StaticResource CenterBoldStyle}"/>
                                     <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="80" ElementStyle="{StaticResource ItalicStyle}"/>
-                                </DataGrid.Columns>
-                            </DataGrid>
+                                    </DataGrid.Columns>
+                                    </DataGrid>
 
-                            <Border Grid.Column="1" Background="#ECEFF1" Width="1" HorizontalAlignment="Center"/>
+                                    <Border Grid.Column="1" Background="#E0E0E0" Width="1" HorizontalAlignment="Center" Margin="0,5"/>
 
-                            <DataGrid Grid.Column="2"
-              x:Name="dataGridHarmonogramRight"
-              AutoGenerateColumns="False"
-              CanUserAddRows="False"
-              CanUserDeleteRows="False"
-              IsReadOnly="True"
-              SelectionMode="Single"
-              GridLinesVisibility="All"
-              HorizontalGridLinesBrush="#E0E0E0"
-              VerticalGridLinesBrush="#EEEEEE"
-              RowHeight="26"
-              FontSize="11"
-              Background="White"
-              BorderThickness="0"
-              AlternatingRowBackground="#F0FFF0"
-              ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
-              RowStyle="{StaticResource DataGridRowHoverStyle}"
-              EnableRowVirtualization="True">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="LP" Binding="{Binding LP}" Width="35" ElementStyle="{StaticResource CenterBoldStyle}"/>
-                                    <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="*" ElementStyle="{StaticResource NormalStyle}"/>
-                                    <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDek, StringFormat={}{0:N0}}" Width="50" ElementStyle="{StaticResource RightOrangeStyle}" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}"/>
-                                    <DataGridTextColumn Header="Waga" Binding="{Binding WagaDek, StringFormat={}{0:N2}}" Width="50" ElementStyle="{StaticResource RightStyle}"/>
-                                    <DataGridTextColumn Header="KG" Binding="{Binding RazemKg, StringFormat={}{0:N0}}" Width="60" ElementStyle="{StaticResource RightGreenStyle}" HeaderStyle="{StaticResource WagiUbojniHeaderStyle}"/>
-                                    <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat={}{0:N2}}" Width="50" ElementStyle="{StaticResource RightBlueStyle}" HeaderStyle="{StaticResource CenaHeaderStyle}"/>
-                                    <DataGridTextColumn Header="Dod." Binding="{Binding Dodatek, StringFormat={}{0:N2}}" Width="45" ElementStyle="{StaticResource RightStyle}"/>
-                                    <DataGridTextColumn Header="Typ" Binding="{Binding TypCeny}" Width="50" ElementStyle="{StaticResource CenterStyle}"/>
-                                    <DataGridTextColumn Header="Auta" Binding="{Binding Auta}" Width="35" ElementStyle="{StaticResource CenterBoldStyle}"/>
-                                    <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="80" ElementStyle="{StaticResource ItalicStyle}"/>
-                                </DataGrid.Columns>
-                            </DataGrid>
-                        </Grid>
+                                    <DataGrid Grid.Column="2"
+                                              x:Name="dataGridHarmonogramRight"
+                                              AutoGenerateColumns="False"
+                                              CanUserAddRows="False"
+                                              CanUserDeleteRows="False"
+                                              IsReadOnly="True"
+                                              SelectionMode="Single"
+                                              GridLinesVisibility="All"
+                                              HorizontalGridLinesBrush="#E0E0E0"
+                                              VerticalGridLinesBrush="#EEEEEE"
+                                              RowHeight="26"
+                                              FontSize="11"
+                                              Background="White"
+                                              BorderThickness="0"
+                                              AlternatingRowBackground="#F0FFF0"
+                                              ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+                                              RowStyle="{StaticResource DataGridRowHoverStyle}"
+                                              EnableRowVirtualization="True">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="LP" Binding="{Binding LP}" Width="35" ElementStyle="{StaticResource CenterBoldStyle}"/>
+                                            <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="*" ElementStyle="{StaticResource NormalStyle}"/>
+                                            <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDek, StringFormat={}{0:N0}}" Width="50" ElementStyle="{StaticResource RightOrangeStyle}" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}"/>
+                                            <DataGridTextColumn Header="Waga" Binding="{Binding WagaDek, StringFormat={}{0:N2}}" Width="50" ElementStyle="{StaticResource RightStyle}"/>
+                                            <DataGridTextColumn Header="KG" Binding="{Binding RazemKg, StringFormat={}{0:N0}}" Width="60" ElementStyle="{StaticResource RightGreenStyle}" HeaderStyle="{StaticResource WagiUbojniHeaderStyle}"/>
+                                            <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat={}{0:N2}}" Width="50" ElementStyle="{StaticResource RightBlueStyle}" HeaderStyle="{StaticResource CenaHeaderStyle}"/>
+                                            <DataGridTextColumn Header="Dod." Binding="{Binding Dodatek, StringFormat={}{0:N2}}" Width="45" ElementStyle="{StaticResource RightStyle}"/>
+                                            <DataGridTextColumn Header="Typ" Binding="{Binding TypCeny}" Width="50" ElementStyle="{StaticResource CenterStyle}"/>
+                                            <DataGridTextColumn Header="Auta" Binding="{Binding Auta}" Width="35" ElementStyle="{StaticResource CenterBoldStyle}"/>
+                                            <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="80" ElementStyle="{StaticResource ItalicStyle}"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Grid>
+                            </Grid>
+                        </Border>
                     </Grid>
                 </Border>
             </TabItem>
