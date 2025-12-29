@@ -756,12 +756,13 @@
                                     </DataGridTemplateColumn.CellStyle>
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding Cena, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
+                                            <TextBox Text="{Binding Cena, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                                      Style="{StaticResource NumericTextBoxStyle}"
                                                      FontWeight="Bold"
                                                      Foreground="#1565C0"
                                                      TextAlignment="Right"
-                                                     Padding="0,0,8,0"/>
+                                                     Padding="0,0,8,0"
+                                                     KeyDown="Cena_KeyDown"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -771,12 +772,13 @@
                                             CellStyle="{StaticResource CellStyleBlue}">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding Dodatek, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
+                                            <TextBox Text="{Binding Dodatek, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                                      Style="{StaticResource NumericTextBoxStyle}"
                                                      FontWeight="Bold"
                                                      Foreground="#0D47A1"
                                                      TextAlignment="Right"
-                                                     Padding="0,0,8,0"/>
+                                                     Padding="0,0,8,0"
+                                                     KeyDown="Dodatek_KeyDown"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -807,7 +809,8 @@
                                                      FontWeight="SemiBold"
                                                      Foreground="#C62828"
                                                      TextAlignment="Right"
-                                                     Padding="0,0,8,0"/>
+                                                     Padding="0,0,8,0"
+                                                     KeyDown="Ubytek_KeyDown"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>

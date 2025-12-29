@@ -3575,6 +3575,125 @@ namespace Kalendarz1
         }
 
         #endregion
+
+        #region === ENTER - ZASTOSUJ DO WSZYSTKICH DOSTAW OD DOSTAWCY ===
+
+        // Handler dla Cena - Enter pyta czy zastosować do wszystkich
+        private void Cena_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                var textBox = sender as TextBox;
+                if (textBox == null) return;
+
+                // Pobierz wiersz z DataContext
+                var row = textBox.DataContext as SpecyfikacjaRow;
+                if (row == null) return;
+
+                // Parsuj wartość
+                string input = textBox.Text.Replace(',', '.');
+                if (!decimal.TryParse(input, System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out decimal cena))
+                    return;
+
+                // Zapisz do bieżącego wiersza
+                row.Cena = cena;
+
+                // Pytaj czy zastosować do wszystkich
+                var result = MessageBox.Show(
+                    $"Czy zastosować cenę {cena:F2} zł do wszystkich dostaw od dostawcy \"{row.RealDostawca}\"?",
+                    "Zastosuj do wszystkich",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    foreach (var r in specyfikacjeData.Where(x => x.RealDostawca == row.RealDostawca))
+                    {
+                        r.Cena = cena;
+                    }
+                    UpdateStatus($"Cena {cena:F2} zł zastosowana do wszystkich dostaw od {row.RealDostawca}");
+                }
+
+                e.Handled = true;
+            }
+        }
+
+        // Handler dla Dodatek - Enter pyta czy zastosować do wszystkich
+        private void Dodatek_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                var textBox = sender as TextBox;
+                if (textBox == null) return;
+
+                var row = textBox.DataContext as SpecyfikacjaRow;
+                if (row == null) return;
+
+                string input = textBox.Text.Replace(',', '.');
+                if (!decimal.TryParse(input, System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out decimal dodatek))
+                    return;
+
+                row.Dodatek = dodatek;
+
+                var result = MessageBox.Show(
+                    $"Czy zastosować dodatek {dodatek:F2} zł do wszystkich dostaw od dostawcy \"{row.RealDostawca}\"?",
+                    "Zastosuj do wszystkich",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    foreach (var r in specyfikacjeData.Where(x => x.RealDostawca == row.RealDostawca))
+                    {
+                        r.Dodatek = dodatek;
+                    }
+                    UpdateStatus($"Dodatek {dodatek:F2} zł zastosowany do wszystkich dostaw od {row.RealDostawca}");
+                }
+
+                e.Handled = true;
+            }
+        }
+
+        // Handler dla Ubytek - Enter pyta czy zastosować do wszystkich
+        private void Ubytek_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                var textBox = sender as TextBox;
+                if (textBox == null) return;
+
+                var row = textBox.DataContext as SpecyfikacjaRow;
+                if (row == null) return;
+
+                string input = textBox.Text.Replace(',', '.');
+                if (!decimal.TryParse(input, System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out decimal ubytek))
+                    return;
+
+                row.Ubytek = ubytek;
+
+                var result = MessageBox.Show(
+                    $"Czy zastosować ubytek {ubytek:F2}% do wszystkich dostaw od dostawcy \"{row.RealDostawca}\"?",
+                    "Zastosuj do wszystkich",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    foreach (var r in specyfikacjeData.Where(x => x.RealDostawca == row.RealDostawca))
+                    {
+                        r.Ubytek = ubytek;
+                    }
+                    UpdateStatus($"Ubytek {ubytek:F2}% zastosowany do wszystkich dostaw od {row.RealDostawca}");
+                }
+
+                e.Handled = true;
+            }
+        }
+
+        #endregion
     }
 
     // === KLASY POMOCNICZE ===
