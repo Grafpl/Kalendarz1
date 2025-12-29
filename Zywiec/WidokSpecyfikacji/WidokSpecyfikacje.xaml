@@ -798,7 +798,8 @@
                                           SelectedItem="{Binding TypCeny, UpdateSourceTrigger=PropertyChanged}"
                                           Background="#BBDEFB"
                                           Padding="5"
-                                          VerticalContentAlignment="Center"/>
+                                          VerticalContentAlignment="Center"
+                                          SelectionChanged="TypCeny_SelectionChanged"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -818,15 +819,23 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
 
-                                <DataGridCheckBoxColumn Header="PiK" Binding="{Binding PiK, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                            Width="45" HeaderStyle="{StaticResource CenaHeaderStyle}">
-                                    <DataGridCheckBoxColumn.ElementStyle>
-                                        <Style TargetType="CheckBox">
-                                            <Setter Property="HorizontalAlignment" Value="Center"/>
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                <DataGridTemplateColumn Header="PiK" Width="45" HeaderStyle="{StaticResource CenaHeaderStyle}">
+                                    <DataGridTemplateColumn.CellStyle>
+                                        <Style TargetType="DataGridCell">
+                                            <Setter Property="Background" Value="#BBDEFB"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
                                         </Style>
-                                    </DataGridCheckBoxColumn.ElementStyle>
-                                </DataGridCheckBoxColumn>
+                                    </DataGridTemplateColumn.CellStyle>
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding PiK, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"
+                                                      Checked="PiK_Changed"
+                                                      Unchecked="PiK_Changed"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
 
                                 <DataGridTemplateColumn x:Name="colOpasienie" Header="Opas."
                                                         Width="60" HeaderStyle="{StaticResource CenaHeaderStyle}"

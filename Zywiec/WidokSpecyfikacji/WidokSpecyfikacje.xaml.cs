@@ -3748,8 +3748,12 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
-            // Binding już zaktualizował row.Cena, więc tylko zapisz do bazy
+            // WAŻNE: Wymuś aktualizację bindingu przed zapisem
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+
             SaveFieldToDatabase(row.ID, "Price", row.Cena);
+            UpdateStatus($"Zapisano cenę: {row.Cena:N2} dla LP {row.Nr}");
         }
 
         // Handler LostFocus dla Dodatek
@@ -3761,7 +3765,12 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // WAŻNE: Wymuś aktualizację bindingu przed zapisem
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+
             SaveFieldToDatabase(row.ID, "Addition", row.Dodatek);
+            UpdateStatus($"Zapisano dodatek: {row.Dodatek:N2} dla LP {row.Nr}");
         }
 
         // Handler LostFocus dla Ubytek
@@ -3773,8 +3782,50 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // WAŻNE: Wymuś aktualizację bindingu przed zapisem
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+
             // W bazie Loss jest przechowywany jako ułamek (1.5% = 0.015)
             SaveFieldToDatabase(row.ID, "Loss", row.Ubytek / 100);
+            UpdateStatus($"Zapisano ubytek: {row.Ubytek}% dla LP {row.Nr}");
+        }
+
+        // Handler dla zmiany PiK (CheckBox) - zapisuje do bazy natychmiast
+        private void PiK_Changed(object sender, RoutedEventArgs e)
+        {
+            var checkBox = sender as CheckBox;
+            if (checkBox == null) return;
+
+            var row = checkBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            // Binding już zaktualizował wartość
+            SaveFieldToDatabase(row.ID, "IncDeadConf", row.PiK);
+            UpdateStatus($"Zapisano PiK: {(row.PiK ? "TAK" : "NIE")} dla LP {row.Nr}");
+        }
+
+        // Handler dla zmiany TypCeny (ComboBox) - zapisuje do bazy natychmiast
+        private void TypCeny_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var comboBox = sender as ComboBox;
+            if (comboBox == null) return;
+
+            var row = comboBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            // Znajdź ID typu ceny
+            int priceTypeId = -1;
+            if (!string.IsNullOrEmpty(row.TypCeny))
+            {
+                priceTypeId = zapytaniasql.ZnajdzIdCeny(row.TypCeny);
+            }
+
+            if (priceTypeId > 0)
+            {
+                SaveFieldToDatabase(row.ID, "PriceTypeID", priceTypeId);
+                UpdateStatus($"Zapisano typ ceny: {row.TypCeny} dla LP {row.Nr}");
+            }
         }
 
         #endregion
