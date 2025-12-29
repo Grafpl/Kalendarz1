@@ -1167,6 +1167,7 @@ namespace Kalendarz1
                     ProdQnt = @SztukiWybijak,
                     ProdWgt = @KgWybijak,
                     Price = @Cena,
+                    Addition = @Dodatek,
                     PriceTypeID = @PriceTypeID,
                     Loss = @Ubytek,
                     IncDeadConf = @PiK,
@@ -1192,6 +1193,7 @@ namespace Kalendarz1
                     cmd.Parameters.AddWithValue("@SztukiWybijak", row.SztukiWybijak);
                     cmd.Parameters.AddWithValue("@KgWybijak", row.KilogramyWybijak);
                     cmd.Parameters.AddWithValue("@Cena", row.Cena);
+                    cmd.Parameters.AddWithValue("@Dodatek", row.Dodatek);
                     cmd.Parameters.AddWithValue("@PriceTypeID", priceTypeId > 0 ? priceTypeId : (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@Ubytek", row.Ubytek / 100); // Konwertuj procent na ułamek
                     cmd.Parameters.AddWithValue("@PiK", row.PiK);
@@ -1246,6 +1248,7 @@ namespace Kalendarz1
                                     ProdQnt = @SztukiWybijak,
                                     ProdWgt = @KgWybijak,
                                     Price = @Cena,
+                                    Addition = @Dodatek,
                                     PriceTypeID = @PriceTypeID,
                                     Loss = @Ubytek,
                                     IncDeadConf = @PiK,
@@ -1271,6 +1274,7 @@ namespace Kalendarz1
                                     cmd.Parameters.AddWithValue("@SztukiWybijak", row.SztukiWybijak);
                                     cmd.Parameters.AddWithValue("@KgWybijak", row.KilogramyWybijak);
                                     cmd.Parameters.AddWithValue("@Cena", row.Cena);
+                                    cmd.Parameters.AddWithValue("@Dodatek", row.Dodatek);
                                     cmd.Parameters.AddWithValue("@PriceTypeID", priceTypeId > 0 ? priceTypeId : (object)DBNull.Value);
                                     cmd.Parameters.AddWithValue("@Ubytek", row.Ubytek / 100);
                                     cmd.Parameters.AddWithValue("@PiK", row.PiK);
