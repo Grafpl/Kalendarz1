@@ -21,10 +21,37 @@
             <Setter Property="IsReadOnly" Value="True"/>
             <Setter Property="SelectionMode" Value="Single"/>
             <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
+            <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/>
+        </Style>
+
+        <Style x:Key="ModernDataGridHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#2C3E50"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="Height" Value="36"/>
+        </Style>
+
+        <Style x:Key="ProductListItemStyle" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="BorderBrush" Value="#E8E8E8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#3498DB"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#EBF5FB"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
     </Window.Resources>
 
-    <Grid Margin="15">
+    <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -33,110 +60,199 @@
         </Grid.RowDefinitions>
 
         <!-- Nagłówek -->
-        <Border Grid.Row="0" Margin="0,0,0,15">
+        <Border Grid.Row="0" Padding="15,12">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
                     <GradientStop Color="#9B59B6" Offset="0"/>
                     <GradientStop Color="#8E44AD" Offset="1"/>
                 </LinearGradientBrush>
             </Border.Background>
-            <Border CornerRadius="8" Padding="20,15">
-                <Grid>
-                    <StackPanel>
-                        <TextBlock Text="📝 Historia zmian zamówień" FontSize="20" FontWeight="Bold" Foreground="White"/>
-                        <TextBlock x:Name="txtDateRange" Text="Zakres dat: -" FontSize="12" Foreground="#D7BDE2" Margin="0,5,0,0"/>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                        <TextBlock Text="Łącznie zmian: " FontSize="14" Foreground="White" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="txtTotalChanges" Text="0" FontSize="18" FontWeight="Bold" Foreground="White"/>
-                    </StackPanel>
-                </Grid>
-            </Border>
+            <Grid>
+                <StackPanel>
+                    <TextBlock Text="HISTORIA ZMIAN ZAMÓWIEŃ" FontSize="20" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock x:Name="txtDateRange" Text="Wszystkie zmiany" FontSize="12" Foreground="#D7BDE2" Margin="0,3,0,0"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Border Background="#27AE60" CornerRadius="8" Padding="12,6" Margin="8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Łącznie zmian: " FontSize="12" Foreground="White"/>
+                            <TextBlock x:Name="txtTotalChanges" Text="0" FontSize="14" FontWeight="Bold" Foreground="White"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#E74C3C" CornerRadius="8" Padding="12,6" Margin="8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Wybrany produkt: " FontSize="12" Foreground="White"/>
+                            <TextBlock x:Name="txtSelectedProduct" Text="(wszystkie)" FontSize="12" FontWeight="Bold" Foreground="White"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
         </Border>
 
         <!-- Panel filtrów -->
-        <Border Grid.Row="1" Background="White" CornerRadius="8" Padding="15" Margin="0,0,0,15">
-            <Border.Effect>
-                <DropShadowEffect ShadowDepth="1" Opacity="0.1" BlurRadius="5"/>
-            </Border.Effect>
+        <Border Grid.Row="1" Background="#ECEFF1" Padding="12,8">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Daty -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <TextBlock Text="Od:" VerticalAlignment="Center" Margin="0,0,5,0" FontWeight="SemiBold"/>
-                    <DatePicker x:Name="dpOd" Width="130" SelectedDateChanged="DatePicker_SelectedDateChanged"/>
-                    <TextBlock Text="Do:" VerticalAlignment="Center" Margin="15,0,5,0" FontWeight="SemiBold"/>
-                    <DatePicker x:Name="dpDo" Width="130" SelectedDateChanged="DatePicker_SelectedDateChanged"/>
-                </StackPanel>
-
-                <!-- Filtry -->
-                <WrapPanel Grid.Column="1" Margin="20,0,0,0">
-                    <StackPanel Orientation="Horizontal" Margin="0,0,15,0">
-                        <TextBlock Text="Kto edytował:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11"/>
+                <!-- Filtry podstawowe -->
+                <WrapPanel Grid.Column="0">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,20,0">
+                        <TextBlock Text="Kto edytował:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11" FontWeight="SemiBold"/>
                         <ComboBox x:Name="cmbKtoEdytowal" Width="120" FontSize="11"
                                   SelectionChanged="Filter_SelectionChanged"/>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,15,0">
-                        <TextBlock Text="Odbiorca:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,20,0">
+                        <TextBlock Text="Odbiorca:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11" FontWeight="SemiBold"/>
                         <ComboBox x:Name="cmbOdbiorca" Width="150" FontSize="11"
                                   SelectionChanged="Filter_SelectionChanged"/>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,15,0">
-                        <TextBlock Text="Typ zmiany:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,20,0">
+                        <TextBlock Text="Typ zmiany:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11" FontWeight="SemiBold"/>
                         <ComboBox x:Name="cmbTyp" Width="120" FontSize="11"
                                   SelectionChanged="Filter_SelectionChanged"/>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,15,0">
-                        <TextBlock Text="Handlowiec:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,20,0">
+                        <TextBlock Text="Handlowiec:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11" FontWeight="SemiBold"/>
                         <ComboBox x:Name="cmbHandlowiec" Width="120" FontSize="11"
-                                  SelectionChanged="Filter_SelectionChanged"/>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,15,0">
-                        <TextBlock Text="Towar:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11"/>
-                        <ComboBox x:Name="cmbTowar" Width="180" FontSize="11"
                                   SelectionChanged="Filter_SelectionChanged"/>
                     </StackPanel>
                 </WrapPanel>
 
                 <!-- Przyciski -->
-                <StackPanel Grid.Column="3" Orientation="Horizontal">
-                    <Button x:Name="btnClearFilters" Content="✕ Wyczyść" Padding="10,6"
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button x:Name="btnClearFilters" Content="✕ Wyczyść filtry" Padding="12,6"
                             Background="#E74C3C" Foreground="White" BorderThickness="0"
-                            Click="BtnClearFilters_Click" Cursor="Hand" Margin="0,0,10,0"/>
-                    <Button x:Name="btnRefresh" Content="🔄 Odśwież" Padding="10,6"
+                            Click="BtnClearFilters_Click" Cursor="Hand" Margin="0,0,10,0" FontSize="11"/>
+                    <Button x:Name="btnRefresh" Content="🔄 Odśwież" Padding="12,6"
                             Background="#3498DB" Foreground="White" BorderThickness="0"
-                            Click="BtnRefresh_Click" Cursor="Hand"/>
+                            Click="BtnRefresh_Click" Cursor="Hand" FontSize="11"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Tabela -->
-        <Border Grid.Row="2" Background="White" CornerRadius="8" Padding="10">
-            <Border.Effect>
-                <DropShadowEffect ShadowDepth="2" Opacity="0.1" BlurRadius="10"/>
-            </Border.Effect>
-            <DataGrid x:Name="dgHistoria"
-                      Style="{StaticResource ModernDataGridStyle}"
-                      AutoGenerateColumns="False"
-                      CanUserSortColumns="True"/>
-        </Border>
+        <!-- Główna zawartość - dwie kolumny -->
+        <Grid Grid.Row="2" Margin="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="320"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- LEWA KOLUMNA - Lista produktów -->
+            <Border Grid.Column="0" Background="White" CornerRadius="8" Margin="0,0,10,0">
+                <Border.Effect>
+                    <DropShadowEffect ShadowDepth="2" Opacity="0.1" BlurRadius="10"/>
+                </Border.Effect>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Nagłówek -->
+                    <Border Grid.Row="0" CornerRadius="8,8,0,0" Padding="12,10">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#2c3e50" Offset="0"/>
+                                <GradientStop Color="#3498db" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Grid>
+                            <TextBlock Text="PRODUKTY" FontSize="13" Foreground="White" FontWeight="Bold"/>
+                            <TextBlock x:Name="txtProductCount" Text="0" FontSize="12" Foreground="#B0C4DE" HorizontalAlignment="Right"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Przycisk "Wszystkie produkty" -->
+                    <Button Grid.Row="1" x:Name="btnAllProducts" Content="📋 Wszystkie produkty (pokaż wszystkie zmiany)"
+                            Padding="12,10" Background="#27AE60" Foreground="White" BorderThickness="0"
+                            HorizontalContentAlignment="Left" FontSize="11" FontWeight="SemiBold"
+                            Click="BtnAllProducts_Click" Cursor="Hand"/>
+
+                    <!-- Lista produktów -->
+                    <ListBox Grid.Row="2" x:Name="lbProdukty"
+                             ItemContainerStyle="{StaticResource ProductListItemStyle}"
+                             SelectionChanged="LbProdukty_SelectionChanged"
+                             BorderThickness="0">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{Binding Nazwa}" FontWeight="SemiBold" FontSize="12"/>
+                                        <TextBlock Text="{Binding ZmianyText}" FontSize="10" Foreground="#7f8c8d"/>
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Background="{Binding KolorTla}" CornerRadius="4" Padding="8,4" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding LiczbaZmian}" FontSize="11" FontWeight="Bold" Foreground="{Binding KolorTekstu}"/>
+                                    </Border>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <!-- PRAWA KOLUMNA - Tabela zmian -->
+            <Border Grid.Column="1" Background="White" CornerRadius="8">
+                <Border.Effect>
+                    <DropShadowEffect ShadowDepth="2" Opacity="0.1" BlurRadius="10"/>
+                </Border.Effect>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Nagłówek tabeli -->
+                    <Border Grid.Row="0" CornerRadius="8,8,0,0" Padding="12,10">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#9B59B6" Offset="0"/>
+                                <GradientStop Color="#8E44AD" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Grid>
+                            <TextBlock x:Name="txtHistoriaTitle" Text="HISTORIA ZMIAN - WSZYSTKIE" FontSize="13" Foreground="White" FontWeight="Bold"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <TextBlock Text="Wyświetlono: " Foreground="#D7BDE2" FontSize="11" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="txtDisplayedCount" Text="0" FontSize="12" Foreground="White" FontWeight="Bold"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <DataGrid Grid.Row="1" x:Name="dgHistoria"
+                              Style="{StaticResource ModernDataGridStyle}"
+                              ColumnHeaderStyle="{StaticResource ModernDataGridHeaderStyle}"
+                              AutoGenerateColumns="False"
+                              CanUserSortColumns="True"
+                              Margin="5"/>
+                </Grid>
+            </Border>
+        </Grid>
 
         <!-- Stopka -->
-        <Border Grid.Row="3" Margin="0,10,0,0">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="Eksport do Excel" Padding="15,8"
-                        Background="#27AE60" Foreground="White" BorderThickness="0"
-                        Click="BtnExport_Click" Cursor="Hand" Margin="0,0,10,0"/>
-                <Button Content="Zamknij" Padding="15,8"
-                        Background="#95A5A6" Foreground="White" BorderThickness="0"
-                        Click="BtnClose_Click" Cursor="Hand"/>
-            </StackPanel>
+        <Border Grid.Row="3" Background="#2C3E50" Padding="12,8">
+            <Grid>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Kliknij produkt po lewej, aby zobaczyć zmiany ceny/ilości dla tego produktu"
+                               Foreground="#95A5A6" FontSize="11" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Eksport do Excel" Padding="12,6"
+                            Background="#27AE60" Foreground="White" BorderThickness="0"
+                            Click="BtnExport_Click" Cursor="Hand" Margin="0,0,10,0" FontSize="11"/>
+                    <Button Content="Zamknij" Padding="12,6"
+                            Background="#95A5A6" Foreground="White" BorderThickness="0"
+                            Click="BtnClose_Click" Cursor="Hand" FontSize="11"/>
+                </StackPanel>
+            </Grid>
         </Border>
     </Grid>
 </Window>

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Media;
 using Microsoft.Data.SqlClient;
 
 namespace Kalendarz1.WPF
@@ -15,6 +16,8 @@ namespace Kalendarz1.WPF
         private readonly string _connHandel;
         private readonly DataTable _dtHistoria = new();
         private bool _isLoading;
+        private string _selectedProductFilter = "";
+        private List<ProductChangeInfo> _productList = new();
 
         public HistoriaZmianWindow(string connLibra, string connHandel)
         {
@@ -23,7 +26,7 @@ namespace Kalendarz1.WPF
             _connHandel = connHandel;
 
             InitializeDataTable();
-            InitializeDates();
+            _ = LoadDataAsync();
         }
 
         private void InitializeDataTable()
@@ -94,27 +97,6 @@ namespace Kalendarz1.WPF
                 Binding = new Binding("OpisZmiany"),
                 Width = new DataGridLength(1, DataGridLengthUnitType.Star)
             });
-        }
-
-        private void InitializeDates()
-        {
-            var today = DateTime.Today;
-            var startOfWeek = today.AddDays(-(int)today.DayOfWeek + (int)DayOfWeek.Monday);
-            if (today.DayOfWeek == DayOfWeek.Sunday) startOfWeek = startOfWeek.AddDays(-7);
-
-            dpOd.SelectedDate = startOfWeek;
-            dpDo.SelectedDate = today;
-
-            UpdateDateRangeText();
-            _ = LoadDataAsync();
-        }
-
-        private void UpdateDateRangeText()
-        {
-            if (dpOd.SelectedDate.HasValue && dpDo.SelectedDate.HasValue)
-            {
-                txtDateRange.Text = $"Zakres dat: {dpOd.SelectedDate:yyyy-MM-dd} - {dpDo.SelectedDate:yyyy-MM-dd}";
-            }
         }
 
         private async System.Threading.Tasks.Task LoadDataAsync()
@@ -222,6 +204,9 @@ namespace Kalendarz1.WPF
                     await using var cmdHistory = new SqlCommand(sqlHistory, cnLibra);
                     await using var rdrHistory = await cmdHistory.ExecuteReaderAsync();
 
+                    // Zliczanie zmian per produkt
+                    var productChanges = new Dictionary<string, int>();
+
                     while (await rdrHistory.ReadAsync())
                     {
                         int id = rdrHistory.GetInt32(0);
@@ -255,11 +240,38 @@ namespace Kalendarz1.WPF
 
                         _dtHistoria.Rows.Add(id, zamowienieId, dataZmiany, typZmiany,
                             handlowiec, odbiorca, uzytkownikNazwa, towar, opisZmiany);
+
+                        // Zlicz zmiany per produkt (tylko jeśli towar nie jest pusty)
+                        if (!string.IsNullOrEmpty(towar))
+                        {
+                            if (!productChanges.ContainsKey(towar))
+                                productChanges[towar] = 0;
+                            productChanges[towar]++;
+                        }
                     }
+
+                    // Utwórz listę produktów
+                    _productList = productChanges
+                        .OrderByDescending(x => x.Value)
+                        .Select(kvp => new ProductChangeInfo
+                        {
+                            Nazwa = kvp.Key,
+                            LiczbaZmian = kvp.Value,
+                            ZmianyText = $"{kvp.Value} zmian (cena/ilość)",
+                            KolorTla = new SolidColorBrush(kvp.Value > 10 ? Color.FromRgb(231, 76, 60) :
+                                       (kvp.Value > 5 ? Color.FromRgb(243, 156, 18) : Color.FromRgb(46, 204, 113))),
+                            KolorTekstu = Brushes.White
+                        })
+                        .ToList();
+
+                    lbProdukty.ItemsSource = _productList;
+                    txtProductCount.Text = $"{_productList.Count} produktów";
                 }
 
                 txtTotalChanges.Text = _dtHistoria.Rows.Count.ToString("N0");
+                txtDateRange.Text = $"Łącznie: {_dtHistoria.Rows.Count:N0} zmian";
                 PopulateFilterComboBoxes();
+                UpdateDisplayedCount();
             }
             catch (Exception ex)
             {
@@ -277,8 +289,6 @@ namespace Kalendarz1.WPF
             if (string.IsNullOrEmpty(opis)) return "";
 
             // Wzorce do wyciągnięcia nazwy produktu z opisu
-            // np. "Zmiana ilości: KURCZAK TUSZKA z 100 na 200"
-            // lub "Zmiana ceny: FILET Z PIERSI z 15.50 na 16.00"
             var patterns = new[]
             {
                 @"Zmiana ilości:\s*(.+?)\s+z\s+\d",
@@ -308,7 +318,6 @@ namespace Kalendarz1.WPF
             var odbiorcy = new List<string> { "(Wszystkie)" };
             var typy = new List<string> { "(Wszystkie)" };
             var handlowcy = new List<string> { "(Wszystkie)" };
-            var towary = new List<string> { "(Wszystkie)" };
 
             foreach (DataRow row in _dtHistoria.Rows)
             {
@@ -316,26 +325,22 @@ namespace Kalendarz1.WPF
                 var odbiorca = row["Odbiorca"]?.ToString();
                 var typ = row["TypZmiany"]?.ToString();
                 var handlowiec = row["Handlowiec"]?.ToString();
-                var towar = row["Towar"]?.ToString();
 
                 if (!string.IsNullOrEmpty(user) && !users.Contains(user)) users.Add(user);
                 if (!string.IsNullOrEmpty(odbiorca) && !odbiorcy.Contains(odbiorca)) odbiorcy.Add(odbiorca);
                 if (!string.IsNullOrEmpty(typ) && !typy.Contains(typ)) typy.Add(typ);
                 if (!string.IsNullOrEmpty(handlowiec) && !handlowcy.Contains(handlowiec)) handlowcy.Add(handlowiec);
-                if (!string.IsNullOrEmpty(towar) && !towary.Contains(towar)) towary.Add(towar);
             }
 
             cmbKtoEdytowal.ItemsSource = users.OrderBy(x => x).ToList();
             cmbOdbiorca.ItemsSource = odbiorcy.OrderBy(x => x).ToList();
             cmbTyp.ItemsSource = typy.OrderBy(x => x).ToList();
             cmbHandlowiec.ItemsSource = handlowcy.OrderBy(x => x).ToList();
-            cmbTowar.ItemsSource = towary.OrderBy(x => x).ToList();
 
             cmbKtoEdytowal.SelectedIndex = 0;
             cmbOdbiorca.SelectedIndex = 0;
             cmbTyp.SelectedIndex = 0;
             cmbHandlowiec.SelectedIndex = 0;
-            cmbTowar.SelectedIndex = 0;
         }
 
         private void ApplyFilters()
@@ -355,17 +360,40 @@ namespace Kalendarz1.WPF
             if (cmbHandlowiec.SelectedItem?.ToString() is string handlowiec && handlowiec != "(Wszystkie)")
                 filters.Add($"Handlowiec = '{handlowiec.Replace("'", "''")}'");
 
-            if (cmbTowar.SelectedItem?.ToString() is string towar && towar != "(Wszystkie)")
-                filters.Add($"Towar = '{towar.Replace("'", "''")}'");
+            // Filtr produktu (z listy po lewej)
+            if (!string.IsNullOrEmpty(_selectedProductFilter))
+                filters.Add($"Towar = '{_selectedProductFilter.Replace("'", "''")}'");
 
             dv.RowFilter = filters.Count > 0 ? string.Join(" AND ", filters) : "";
+            UpdateDisplayedCount();
         }
 
-        private void DatePicker_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
+        private void UpdateDisplayedCount()
+        {
+            var dv = _dtHistoria.DefaultView;
+            txtDisplayedCount.Text = dv.Count.ToString("N0");
+        }
+
+        private void LbProdukty_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (!IsLoaded) return;
-            UpdateDateRangeText();
-            _ = LoadDataAsync();
+
+            if (lbProdukty.SelectedItem is ProductChangeInfo product)
+            {
+                _selectedProductFilter = product.Nazwa;
+                txtSelectedProduct.Text = product.Nazwa;
+                txtHistoriaTitle.Text = $"HISTORIA ZMIAN - {product.Nazwa.ToUpper()}";
+                ApplyFilters();
+            }
+        }
+
+        private void BtnAllProducts_Click(object sender, RoutedEventArgs e)
+        {
+            lbProdukty.SelectedItem = null;
+            _selectedProductFilter = "";
+            txtSelectedProduct.Text = "(wszystkie)";
+            txtHistoriaTitle.Text = "HISTORIA ZMIAN - WSZYSTKIE";
+            ApplyFilters();
         }
 
         private void Filter_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -380,8 +408,12 @@ namespace Kalendarz1.WPF
             cmbOdbiorca.SelectedIndex = 0;
             cmbTyp.SelectedIndex = 0;
             cmbHandlowiec.SelectedIndex = 0;
-            cmbTowar.SelectedIndex = 0;
+            lbProdukty.SelectedItem = null;
+            _selectedProductFilter = "";
+            txtSelectedProduct.Text = "(wszystkie)";
+            txtHistoriaTitle.Text = "HISTORIA ZMIAN - WSZYSTKIE";
             _dtHistoria.DefaultView.RowFilter = "";
+            UpdateDisplayedCount();
         }
 
         private void BtnRefresh_Click(object sender, RoutedEventArgs e)
@@ -399,5 +431,15 @@ namespace Kalendarz1.WPF
         {
             Close();
         }
+    }
+
+    // Model dla listy produktów
+    public class ProductChangeInfo
+    {
+        public string Nazwa { get; set; } = "";
+        public int LiczbaZmian { get; set; }
+        public string ZmianyText { get; set; } = "";
+        public Brush KolorTla { get; set; } = Brushes.Gray;
+        public Brush KolorTekstu { get; set; } = Brushes.White;
     }
 }
