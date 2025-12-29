@@ -802,7 +802,7 @@
                                 <DataGridTemplateColumn Header="Ubytek%" Width="70" HeaderStyle="{StaticResource CenaHeaderStyle}" CellStyle="{StaticResource CellStyleRed}">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding Ubytek, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
+                                            <TextBox Text="{Binding Ubytek, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                                      Style="{StaticResource NumericTextBoxStyle}"
                                                      FontWeight="SemiBold"
                                                      Foreground="#C62828"
