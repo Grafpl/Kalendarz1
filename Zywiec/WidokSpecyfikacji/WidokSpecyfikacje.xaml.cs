@@ -2876,6 +2876,7 @@ namespace Kalendarz1
                 AddColoredTableHeader(dataTable, "Netto", smallTextFontBold, new BaseColor(41, 128, 185));
                 AddColoredTableHeader(dataTable, "Padłe", smallTextFontBold, new BaseColor(41, 128, 185));
                 AddColoredTableHeader(dataTable, "Konf.", smallTextFontBold, new BaseColor(41, 128, 185));
+                AddColoredTableHeader(dataTable, "Ubytek", smallTextFontBold, new BaseColor(41, 128, 185));
                 AddColoredTableHeader(dataTable, "Opas.", smallTextFontBold, new BaseColor(41, 128, 185));
                 AddColoredTableHeader(dataTable, "Kl.B", smallTextFontBold, new BaseColor(41, 128, 185));
                 AddColoredTableHeader(dataTable, "Do zapł.", smallTextFontBold, new BaseColor(41, 128, 185));
@@ -2924,15 +2925,13 @@ namespace Kalendarz1
                     decimal opasienieKG = Math.Round(zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Opasienie"), 0);
                     decimal klasaB = Math.Round(zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "KlasaB"), 0);
 
-                    // Obliczenie DoZaplaty: Netto - (PiK ? 0 : Padłe+Konf) - Opasienie - KlasaB, potem * (1 - Ubytek%)
-                    decimal bazaDoZaplaty = czyPiK
-                        ? wagaNetto - opasienieKG - klasaB
-                        : wagaNetto - padleKG - konfiskatyKG - opasienieKG - klasaB;
+                    // Obliczenie Ubytek KG = Netto × Ubytek%
+                    decimal ubytekKG = Math.Round(wagaNetto * ubytek / 100, 0);
 
-                    // Zastosowanie ubytku procentowego (zgodnie z modelem)
-                    decimal doZaplaty = ubytek > 0
-                        ? Math.Round(bazaDoZaplaty * (1 - ubytek / 100), 0)
-                        : bazaDoZaplaty;
+                    // Obliczenie DoZaplaty: Netto - Padłe - Konf - Ubytek - Opasienie - KlasaB
+                    decimal doZaplaty = czyPiK
+                        ? wagaNetto - ubytekKG - opasienieKG - klasaB
+                        : wagaNetto - padleKG - konfiskatyKG - ubytekKG - opasienieKG - klasaB;
 
                     decimal cenaBase = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Price");
                     decimal dodatek = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Addition");
@@ -2943,8 +2942,8 @@ namespace Kalendarz1
                     if (ubytek > 0)
                     {
                         czyByloUbytku = true;
-                        sumaUbytekKG += bazaDoZaplaty - doZaplaty; // różnica = ile kg odliczono przez ubytek
                     }
+                    sumaUbytekKG += ubytekKG;
 
                     // Sumowanie
                     sumaWartosc += wartosc;
@@ -2971,6 +2970,7 @@ namespace Kalendarz1
                         wagaNetto.ToString("N0"),
                         padleKG > 0 ? $"-{padleKG:N0}" : "0",
                         konfiskatyKG > 0 ? $"-{konfiskatyKG:N0}" : "0",
+                        ubytekKG > 0 ? $"-{ubytekKG:N0}" : "0",
                         opasienieKG > 0 ? $"-{opasienieKG:N0}" : "0",
                         klasaB > 0 ? $"-{klasaB:N0}" : "0",
                         doZaplaty.ToString("N0"),
@@ -2992,6 +2992,7 @@ namespace Kalendarz1
                     sumaNetto.ToString("N0"),
                     sumaPadleKG > 0 ? $"-{sumaPadleKG:N0}" : "0",
                     sumaKonfiskatyKG > 0 ? $"-{sumaKonfiskatyKG:N0}" : "0",
+                    sumaUbytekKG > 0 ? $"-{sumaUbytekKG:N0}" : "0",
                     sumaOpasienieKG > 0 ? $"-{sumaOpasienieKG:N0}" : "0",
                     sumaKlasaB > 0 ? $"-{sumaKlasaB:N0}" : "0",
                     sumaKG.ToString("N0"),
@@ -3044,13 +3045,21 @@ namespace Kalendarz1
                 formula5.Add(new Chunk($"{sumaKonfiskaty} × {sredniaWagaSuma:N2} = {sumaKonfiskatyKG:N0} kg", legendaFont));
                 formulaCell.AddElement(formula5);
 
-                // 6. Do zapłaty = Netto - Padłe[kg] - Konfiskaty[kg] - Opasienie - Klasa B - Ubytek%
+                // 5b. Ubytek [kg] = Netto × Ubytek%
+                if (czyByloUbytku)
+                {
+                    Paragraph formula5b = new Paragraph();
+                    formula5b.Add(new Chunk("Ubytek [kg] = Netto × Ubytek%: ", legendaBoldFont));
+                    formula5b.Add(new Chunk($"{sumaNetto:N0} × ... = {sumaUbytekKG:N0} kg", legendaFont));
+                    formulaCell.AddElement(formula5b);
+                }
+
+                // 6. Do zapłaty = Netto - Padłe[kg] - Konfiskaty[kg] - Ubytek[kg] - Opasienie - Klasa B
                 Paragraph formula6 = new Paragraph();
                 if (czyByloUbytku)
                 {
-                    decimal bazaBezUbytku = sumaKG + sumaUbytekKG;
-                    formula6.Add(new Chunk("Do zapł. = (Netto - Padłe - Konf. - Opas. - Kl.B) × (1 - Ubytek%): ", legendaBoldFont));
-                    formula6.Add(new Chunk($"({sumaNetto:N0} - {sumaPadleKG:N0} - {sumaKonfiskatyKG:N0} - {sumaOpasienieKG:N0} - {sumaKlasaB:N0}) - {sumaUbytekKG:N0} = {sumaKG:N0} kg", legendaFont));
+                    formula6.Add(new Chunk("Do zapł. = Netto - Padłe - Konf. - Ubytek - Opas. - Kl.B: ", legendaBoldFont));
+                    formula6.Add(new Chunk($"{sumaNetto:N0} - {sumaPadleKG:N0} - {sumaKonfiskatyKG:N0} - {sumaUbytekKG:N0} - {sumaOpasienieKG:N0} - {sumaKlasaB:N0} = {sumaKG:N0} kg", legendaFont));
                 }
                 else
                 {
