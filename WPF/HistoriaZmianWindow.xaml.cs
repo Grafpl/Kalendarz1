@@ -128,13 +128,13 @@ namespace Kalendarz1.WPF
                     }
                 }
 
-                // Pobierz WSZYSTKIE produkty z katalogu TW
+                // Pobierz produkty z katalogu TW (tylko Świeże 67095 i Mrożone 67153)
                 _productNames.Clear();
                 try
                 {
                     await using var cnHandel = new SqlConnection(_connHandel);
                     await cnHandel.OpenAsync();
-                    const string sqlProducts = "SELECT ID, kod FROM [HANDEL].[HM].[TW] ORDER BY kod";
+                    const string sqlProducts = "SELECT ID, kod FROM [HANDEL].[HM].[TW] WHERE katalog IN (67095, 67153) ORDER BY kod";
                     await using var cmdProducts = new SqlCommand(sqlProducts, cnHandel);
                     await using var rdrProducts = await cmdProducts.ExecuteReaderAsync();
                     while (await rdrProducts.ReadAsync())
