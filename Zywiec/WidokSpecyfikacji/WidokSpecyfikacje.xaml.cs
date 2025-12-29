@@ -1528,8 +1528,14 @@ namespace Kalendarz1
 
         private void ButtonBon_Click(object sender, RoutedEventArgs e)
         {
-            // Pobierz wiersz z selectedRow lub z bieżącej komórki
-            var row = selectedRow ?? dataGridView1.CurrentCell.Item as SpecyfikacjaRow;
+            // Pobierz wiersz z wielu źródeł
+            var row = selectedRow
+                ?? dataGridView1.SelectedItem as SpecyfikacjaRow
+                ?? dataGridView1.CurrentCell.Item as SpecyfikacjaRow;
+
+            // Ostatnia próba - z zaznaczonych komórek
+            if (row == null && dataGridView1.SelectedCells.Count > 0)
+                row = dataGridView1.SelectedCells[0].Item as SpecyfikacjaRow;
 
             if (row != null)
             {
