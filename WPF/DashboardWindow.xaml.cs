@@ -212,10 +212,11 @@ namespace Kalendarz1.WPF
                 txtStatusTime.Text = "Ładowanie...";
 
                 bool uzywajWydan = rbBilansWydania?.IsChecked == true;
-                string katalogFilter = rbMrozone?.IsChecked == true ? "M" : (rbSwieze?.IsChecked == true ? "S" : "");
+                // Katalog: 67095 = Świeże, 67153 = Mrożone
+                int? katalogFilter = rbMrozone?.IsChecked == true ? 67153 : (rbSwieze?.IsChecked == true ? 67095 : null);
 
                 // Pobierz nazwy i katalogi produktów z Handel
-                var productInfo = new Dictionary<int, (string Nazwa, string Katalog)>();
+                var productInfo = new Dictionary<int, (string Nazwa, int? Katalog)>();
                 try
                 {
                     await using var cnHandel = new SqlConnection(_connHandel);
@@ -228,8 +229,14 @@ namespace Kalendarz1.WPF
                         if (!rdrProducts.IsDBNull(0))
                         {
                             int id = rdrProducts.GetInt32(0);
-                            string kod = rdrProducts.IsDBNull(1) ? $"ID:{id}" : Convert.ToString(rdrProducts.GetValue(1)) ?? $"ID:{id}";
-                            string katalog = rdrProducts.IsDBNull(2) ? "" : Convert.ToString(rdrProducts.GetValue(2)) ?? "";
+                            string kod = rdrProducts.IsDBNull(1) ? $"ID:{id}" : rdrProducts.GetString(1);
+                            int? katalog = null;
+                            if (!rdrProducts.IsDBNull(2))
+                            {
+                                var katVal = rdrProducts.GetValue(2);
+                                if (katVal is int ki) katalog = ki;
+                                else if (int.TryParse(Convert.ToString(katVal), out int kp)) katalog = kp;
+                            }
                             productInfo[id] = (kod, katalog);
                         }
                     }
@@ -239,13 +246,12 @@ namespace Kalendarz1.WPF
                     System.Diagnostics.Debug.WriteLine($"Błąd ładowania produktów: {ex.Message}");
                 }
 
-                // Pobierz stany magazynowe (fakt = faktyczny przychód)
-                var productStates = new Dictionary<int, (decimal Plan, decimal Fakt, decimal Stan)>();
+                // Pobierz stany magazynowe
+                var productStates = new Dictionary<int, decimal>();
                 try
                 {
                     await using var cnHandel = new SqlConnection(_connHandel);
                     await cnHandel.OpenAsync();
-                    // Stan magazynowy - uproszczona wersja
                     const string sqlStany = @"SELECT towar, SUM(ilosc) as Stan FROM [HANDEL].[HM].[MAGAZYN] GROUP BY towar";
                     await using var cmdStany = new SqlCommand(sqlStany, cnHandel);
                     await using var rdrStany = await cmdStany.ExecuteReaderAsync();
@@ -255,41 +261,37 @@ namespace Kalendarz1.WPF
                         {
                             int towarId = rdrStany.GetInt32(0);
                             decimal stan = rdrStany.IsDBNull(1) ? 0m : rdrStany.GetDecimal(1);
-                            productStates[towarId] = (0m, 0m, stan);
+                            productStates[towarId] = stan;
                         }
                     }
                 }
-                catch { /* Ignoruj błędy - stany mogą nie istnieć */ }
+                catch { /* Ignoruj błędy */ }
 
-                // Pobierz zamówienia
+                // Pobierz zamówienia (wszystkie aktywne)
                 var orderIds = new List<int>();
                 int zamowienAktywnych = 0;
-                int zamowienAnulowanych = 0;
 
                 await using (var cn = new SqlConnection(_connLibra))
                 {
                     await cn.OpenAsync();
-                    const string sql = @"SELECT Id, Status FROM dbo.ZamowieniaMieso WHERE Status <> 'Anulowane'";
+                    const string sql = @"SELECT Id FROM dbo.ZamowieniaMieso WHERE Status <> 'Anulowane'";
                     await using var cmd = new SqlCommand(sql, cn);
                     await using var rdr = await cmd.ExecuteReaderAsync();
                     while (await rdr.ReadAsync())
                     {
-                        int id = rdr.GetInt32(0);
-                        orderIds.Add(id);
+                        orderIds.Add(rdr.GetInt32(0));
                         zamowienAktywnych++;
                     }
                 }
 
                 // Podsumowanie produktów z zamówień
-                var productSummary = new Dictionary<int, (decimal Zamowione, decimal Wydane, int LiczbaZam)>();
+                var productSummary = new Dictionary<int, decimal>();
 
                 if (orderIds.Any())
                 {
                     await using var cn = new SqlConnection(_connLibra);
                     await cn.OpenAsync();
-                    var sql = $@"SELECT KodTowaru,
-                                        SUM(Ilosc) as Zamowione,
-                                        COUNT(DISTINCT ZamowienieId) as LiczbaZam
+                    var sql = $@"SELECT KodTowaru, SUM(Ilosc) as Zamowione
                                  FROM [dbo].[ZamowieniaMiesoTowar]
                                  WHERE ZamowienieId IN ({string.Join(",", orderIds)})
                                  GROUP BY KodTowaru";
@@ -299,20 +301,21 @@ namespace Kalendarz1.WPF
                     {
                         int kodTowaru = reader.GetInt32(0);
                         decimal zamowione = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
-                        int liczbaZam = reader.GetInt32(2);
-                        productSummary[kodTowaru] = (zamowione, 0m, liczbaZam);
+                        productSummary[kodTowaru] = zamowione;
                     }
                 }
 
-                // Zbierz wszystkie produkty
+                // Zbierz wszystkie produkty które mają zamówienia LUB stany
                 var allProducts = productSummary.Keys
                     .Union(productStates.Keys)
+                    .Where(k => productInfo.ContainsKey(k)) // Tylko produkty które znamy
                     .Distinct()
                     .ToList();
 
                 decimal totalDoSprzedania = 0m;
                 decimal totalZamowione = 0m;
                 decimal totalBrakuje = 0m;
+                decimal totalStan = 0m;
                 int produktowCount = 0;
 
                 // Dodaj wiersz SUMA CAŁKOWITA na początku
@@ -326,98 +329,80 @@ namespace Kalendarz1.WPF
                 sumaRow["Bilans"] = 0m;
                 _dtDashboard.Rows.Add(sumaRow);
 
-                // Dodaj produkty pogrupowane
-                foreach (var kodTowaru in allProducts.OrderByDescending(k =>
+                // Sortuj i dodaj produkty
+                var sortedProducts = allProducts
+                    .Select(k => {
+                        productSummary.TryGetValue(k, out decimal zam);
+                        productStates.TryGetValue(k, out decimal stan);
+                        productInfo.TryGetValue(k, out var info);
+                        decimal bilans = stan - zam;
+                        return (KodTowaru: k, Nazwa: info.Nazwa, Katalog: info.Katalog, Stan: stan, Zam: zam, Bilans: bilans);
+                    })
+                    .Where(p => !katalogFilter.HasValue || p.Katalog == katalogFilter)
+                    .OrderByDescending(p => p.Bilans)
+                    .ToList();
+
+                foreach (var p in sortedProducts)
                 {
-                    productSummary.TryGetValue(k, out var ps);
-                    productStates.TryGetValue(k, out var st);
-                    decimal bilans = st.Stan - (uzywajWydan ? ps.Wydane : ps.Zamowione);
-                    return bilans;
-                }))
-                {
-                    if (!productInfo.TryGetValue(kodTowaru, out var info))
-                        continue;
-
-                    // Filtruj według katalogu
-                    if (!string.IsNullOrEmpty(katalogFilter) && info.Katalog != katalogFilter)
-                        continue;
-
-                    productSummary.TryGetValue(kodTowaru, out var summary);
-                    productStates.TryGetValue(kodTowaru, out var state);
-
-                    decimal zamowione = summary.Zamowione;
-                    decimal wydane = summary.Wydane;
-                    decimal stan = state.Stan;
-                    decimal bilans = stan - (uzywajWydan ? wydane : zamowione);
-
-                    // Dodaj do tabeli
                     var row = _dtDashboard.NewRow();
-                    row["Plan"] = state.Plan;
-                    row["Fakt"] = state.Fakt;
-                    row["Stan"] = stan;
-                    row["Zamowienia"] = zamowione;
-                    row["Wydania"] = wydane;
-                    row["Bilans"] = bilans;
-                    row["Produkt"] = info.Nazwa;
-                    row["KodTowaru"] = kodTowaru;
-                    row["Katalog"] = info.Katalog;
+                    row["Plan"] = 0m;
+                    row["Fakt"] = 0m;
+                    row["Stan"] = p.Stan;
+                    row["Zamowienia"] = p.Zam;
+                    row["Wydania"] = 0m;
+                    row["Bilans"] = p.Bilans;
+                    row["Produkt"] = p.Nazwa;
+                    row["KodTowaru"] = p.KodTowaru;
+                    row["Katalog"] = p.Katalog?.ToString() ?? "";
                     _dtDashboard.Rows.Add(row);
 
-                    totalZamowione += zamowione;
-                    if (bilans > 0) totalDoSprzedania += bilans;
-                    if (bilans < 0) totalBrakuje += Math.Abs(bilans);
+                    totalZamowione += p.Zam;
+                    totalStan += p.Stan;
+                    if (p.Bilans > 0) totalDoSprzedania += p.Bilans;
+                    if (p.Bilans < 0) totalBrakuje += Math.Abs(p.Bilans);
                     produktowCount++;
                 }
 
                 // Aktualizuj wiersz sumy
-                sumaRow["Stan"] = _dtDashboard.AsEnumerable().Skip(1).Sum(r => r.Field<decimal>("Stan"));
+                sumaRow["Stan"] = totalStan;
                 sumaRow["Zamowienia"] = totalZamowione;
-                sumaRow["Wydania"] = _dtDashboard.AsEnumerable().Skip(1).Sum(r => r.Field<decimal>("Wydania"));
                 sumaRow["Bilans"] = totalDoSprzedania - totalBrakuje;
 
                 // Aktualizuj KPI w nagłówku
                 txtBilansOk.Text = $"{totalDoSprzedania:N0} kg";
                 txtBilansUwaga.Text = $"{totalZamowione:N0} kg";
                 txtBilansBrak.Text = $"{totalBrakuje:N0} kg";
-                txtSumaZamowien.Text = $"Suma zamówień: {totalZamowione:N0} kg | Stan magazynu: {sumaRow["Stan"]:N0} kg";
+                txtSumaZamowien.Text = $"Suma zamówień: {totalZamowione:N0} kg | Stan magazynu: {totalStan:N0} kg";
                 txtPlanProdukcji.Text = produktowCount.ToString();
                 txtWydajnoscGlowna.Text = zamowienAktywnych.ToString();
 
                 // Aktualizuj karty dostępności - top produkty z dodatnim bilansem
-                var topProducts = _dtDashboard.AsEnumerable()
-                    .Skip(1) // Pomiń wiersz sumy
-                    .Where(r => r.Field<decimal>("Bilans") > 0)
-                    .OrderByDescending(r => r.Field<decimal>("Bilans"))
+                var topProducts = sortedProducts
+                    .Where(p => p.Bilans > 0)
                     .Take(16)
-                    .Select(r =>
+                    .Select(p =>
                     {
-                        decimal bilans = r.Field<decimal>("Bilans");
-                        decimal zamowione = r.Field<decimal>("Zamowienia");
-                        decimal stan = r.Field<decimal>("Stan");
-                        string nazwa = r.Field<string>("Produkt") ?? "";
+                        double maxBilans = sortedProducts.Any() ? (double)sortedProducts.Max(x => x.Bilans) : 1;
+                        double procent = maxBilans > 0 ? (double)p.Bilans / maxBilans * 100 : 0;
 
-                        var kolorRamki = bilans > 1000 ? Brushes.Green :
-                                        (bilans > 500 ? new SolidColorBrush(Color.FromRgb(46, 204, 113)) :
-                                        (bilans > 100 ? Brushes.Orange : Brushes.OrangeRed));
-                        var kolorTla = bilans > 500 ? Color.FromRgb(232, 248, 232) :
-                                       (bilans > 100 ? Color.FromRgb(255, 248, 225) : Color.FromRgb(255, 243, 224));
-                        var kolorPaska = kolorRamki;
-                        double maxBilans = _dtDashboard.AsEnumerable().Skip(1).Max(x => (double)x.Field<decimal>("Bilans"));
-                        double procent = maxBilans > 0 ? (double)bilans / maxBilans * 100 : 0;
+                        var kolorRamki = p.Bilans > 1000 ? Brushes.Green :
+                                        (p.Bilans > 500 ? new SolidColorBrush(Color.FromRgb(46, 204, 113)) :
+                                        (p.Bilans > 100 ? Brushes.Orange : Brushes.OrangeRed));
+                        var kolorTla = p.Bilans > 500 ? Color.FromRgb(232, 248, 232) :
+                                       (p.Bilans > 100 ? Color.FromRgb(255, 248, 225) : Color.FromRgb(255, 243, 224));
 
                         return new DostepnoscProduktuModel
                         {
-                            Nazwa = nazwa,
-                            Bilans = bilans,
-                            BilansText = $"{bilans:N0} kg",
-                            PlanFaktText = $"Stan: {stan:N0}",
-                            ZamowioneText = $"{zamowione:N0} kg",
-                            StanText = $"{stan:N0} kg",
+                            Nazwa = p.Nazwa,
+                            BilansText = $"{p.Bilans:N0} kg",
+                            PlanFaktText = $"Stan: {p.Stan:N0}",
+                            ZamowioneText = $"{p.Zam:N0} kg",
+                            StanText = $"{p.Stan:N0} kg",
                             ProcentText = $"{procent:N0}%",
                             SzerokoscPaska = Math.Max(10, Math.Min(170, procent * 1.7)),
                             KolorRamki = kolorRamki,
                             KolorTla = kolorTla,
-                            KolorPaska = kolorPaska
+                            KolorPaska = kolorRamki
                         };
                     })
                     .ToList();
