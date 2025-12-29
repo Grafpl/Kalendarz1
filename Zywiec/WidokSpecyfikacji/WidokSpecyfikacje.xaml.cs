@@ -3582,6 +3582,29 @@ namespace Kalendarz1
 
         #region === ENTER - ZASTOSUJ DO WSZYSTKICH DOSTAW OD DOSTAWCY ===
 
+        // Metoda pomocnicza do zapisu pojedynczej wartości do bazy
+        private void SaveFieldToDatabase(int id, string columnName, object value)
+        {
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    string query = $"UPDATE dbo.FarmerCalc SET {columnName} = @Value WHERE ID = @ID";
+                    using (SqlCommand cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@ID", id);
+                        cmd.Parameters.AddWithValue("@Value", value ?? DBNull.Value);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Błąd zapisu: {ex.Message}");
+            }
+        }
+
         // Handler dla Cena - Enter pyta czy zastosować do wszystkich
         private void Cena_KeyDown(object sender, KeyEventArgs e)
         {
@@ -3600,8 +3623,9 @@ namespace Kalendarz1
                     System.Globalization.CultureInfo.InvariantCulture, out decimal cena))
                     return;
 
-                // Zapisz do bieżącego wiersza
+                // Zapisz do bieżącego wiersza i bazy
                 row.Cena = cena;
+                SaveFieldToDatabase(row.ID, "Price", cena);
 
                 // Pytaj czy zastosować do wszystkich
                 var result = MessageBox.Show(
@@ -3615,8 +3639,13 @@ namespace Kalendarz1
                     foreach (var r in specyfikacjeData.Where(x => x.RealDostawca == row.RealDostawca))
                     {
                         r.Cena = cena;
+                        SaveFieldToDatabase(r.ID, "Price", cena);
                     }
                     UpdateStatus($"Cena {cena:F2} zł zastosowana do wszystkich dostaw od {row.RealDostawca}");
+                }
+                else
+                {
+                    UpdateStatus($"Zapisano cenę {cena:F2} zł");
                 }
 
                 e.Handled = true;
@@ -3640,6 +3669,7 @@ namespace Kalendarz1
                     return;
 
                 row.Dodatek = dodatek;
+                SaveFieldToDatabase(row.ID, "Addition", dodatek);
 
                 var result = MessageBox.Show(
                     $"Czy zastosować dodatek {dodatek:F2} zł do wszystkich dostaw od dostawcy \"{row.RealDostawca}\"?",
@@ -3652,8 +3682,13 @@ namespace Kalendarz1
                     foreach (var r in specyfikacjeData.Where(x => x.RealDostawca == row.RealDostawca))
                     {
                         r.Dodatek = dodatek;
+                        SaveFieldToDatabase(r.ID, "Addition", dodatek);
                     }
                     UpdateStatus($"Dodatek {dodatek:F2} zł zastosowany do wszystkich dostaw od {row.RealDostawca}");
+                }
+                else
+                {
+                    UpdateStatus($"Zapisano dodatek {dodatek:F2} zł");
                 }
 
                 e.Handled = true;
@@ -3677,6 +3712,8 @@ namespace Kalendarz1
                     return;
 
                 row.Ubytek = ubytek;
+                // W bazie Loss jest przechowywany jako ułamek (1.5% = 0.015)
+                SaveFieldToDatabase(row.ID, "Loss", ubytek / 100);
 
                 var result = MessageBox.Show(
                     $"Czy zastosować ubytek {ubytek:F2}% do wszystkich dostaw od dostawcy \"{row.RealDostawca}\"?",
@@ -3689,12 +3726,55 @@ namespace Kalendarz1
                     foreach (var r in specyfikacjeData.Where(x => x.RealDostawca == row.RealDostawca))
                     {
                         r.Ubytek = ubytek;
+                        SaveFieldToDatabase(r.ID, "Loss", ubytek / 100);
                     }
                     UpdateStatus($"Ubytek {ubytek:F2}% zastosowany do wszystkich dostaw od {row.RealDostawca}");
+                }
+                else
+                {
+                    UpdateStatus($"Zapisano ubytek {ubytek:F2}%");
                 }
 
                 e.Handled = true;
             }
+        }
+
+        // Handler LostFocus dla Cena - zapisuje do bazy po opuszczeniu pola
+        private void Cena_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var row = textBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            // Binding już zaktualizował row.Cena, więc tylko zapisz do bazy
+            SaveFieldToDatabase(row.ID, "Price", row.Cena);
+        }
+
+        // Handler LostFocus dla Dodatek
+        private void Dodatek_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var row = textBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            SaveFieldToDatabase(row.ID, "Addition", row.Dodatek);
+        }
+
+        // Handler LostFocus dla Ubytek
+        private void Ubytek_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var row = textBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            // W bazie Loss jest przechowywany jako ułamek (1.5% = 0.015)
+            SaveFieldToDatabase(row.ID, "Loss", row.Ubytek / 100);
         }
 
         #endregion

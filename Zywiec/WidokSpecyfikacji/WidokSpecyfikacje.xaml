@@ -762,7 +762,8 @@
                                                      Foreground="#1565C0"
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
-                                                     KeyDown="Cena_KeyDown"/>
+                                                     KeyDown="Cena_KeyDown"
+                                                     LostFocus="Cena_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -778,7 +779,8 @@
                                                      Foreground="#0D47A1"
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
-                                                     KeyDown="Dodatek_KeyDown"/>
+                                                     KeyDown="Dodatek_KeyDown"
+                                                     LostFocus="Dodatek_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -810,7 +812,8 @@
                                                      Foreground="#C62828"
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
-                                                     KeyDown="Ubytek_KeyDown"/>
+                                                     KeyDown="Ubytek_KeyDown"
+                                                     LostFocus="Ubytek_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
