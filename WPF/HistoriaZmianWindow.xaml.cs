@@ -5,7 +5,6 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
-using System.Windows.Media;
 using Microsoft.Data.SqlClient;
 
 namespace Kalendarz1.WPF
@@ -16,8 +15,7 @@ namespace Kalendarz1.WPF
         private readonly string _connHandel;
         private readonly DataTable _dtHistoria = new();
         private bool _isLoading;
-        private string _selectedProductFilter = "";
-        private List<ProductChangeInfo> _productList = new();
+        private Dictionary<int, string> _productNames = new();
 
         public HistoriaZmianWindow(string connLibra, string connHandel)
         {
@@ -39,6 +37,7 @@ namespace Kalendarz1.WPF
             _dtHistoria.Columns.Add("Odbiorca", typeof(string));
             _dtHistoria.Columns.Add("UzytkownikNazwa", typeof(string));
             _dtHistoria.Columns.Add("Towar", typeof(string));
+            _dtHistoria.Columns.Add("KodTowaru", typeof(int));
             _dtHistoria.Columns.Add("OpisZmiany", typeof(string));
 
             dgHistoria.ItemsSource = _dtHistoria.DefaultView;
@@ -129,13 +128,13 @@ namespace Kalendarz1.WPF
                     }
                 }
 
-                // Pobierz nazwy produktów z Handel
-                var productNames = new Dictionary<int, string>();
+                // Pobierz WSZYSTKIE produkty z katalogu TW
+                _productNames.Clear();
                 try
                 {
                     await using var cnHandel = new SqlConnection(_connHandel);
                     await cnHandel.OpenAsync();
-                    const string sqlProducts = "SELECT ID, kod FROM [HANDEL].[HM].[TW]";
+                    const string sqlProducts = "SELECT ID, kod FROM [HANDEL].[HM].[TW] ORDER BY kod";
                     await using var cmdProducts = new SqlCommand(sqlProducts, cnHandel);
                     await using var rdrProducts = await cmdProducts.ExecuteReaderAsync();
                     while (await rdrProducts.ReadAsync())
@@ -143,14 +142,14 @@ namespace Kalendarz1.WPF
                         if (!rdrProducts.IsDBNull(0))
                         {
                             int id = rdrProducts.GetInt32(0);
-                            string kod = rdrProducts.IsDBNull(1) ? $"ID:{id}" : Convert.ToString(rdrProducts.GetValue(1)) ?? $"ID:{id}";
-                            productNames[id] = kod;
+                            string kod = rdrProducts.IsDBNull(1) ? $"ID:{id}" : rdrProducts.GetString(1);
+                            _productNames[id] = kod;
                         }
                     }
                 }
                 catch { /* Ignoruj błędy ładowania produktów */ }
 
-                // Pobierz wszystkie zamówienia (bez filtra daty)
+                // Pobierz wszystkie zamówienia
                 var orderToClient = new Dictionary<int, int>();
                 await using (var cnLibra = new SqlConnection(_connLibra))
                 {
@@ -169,7 +168,7 @@ namespace Kalendarz1.WPF
                         return;
                     }
 
-                    // Pobierz wszystkie zamówienia (bez filtra daty)
+                    // Pobierz wszystkie zamówienia
                     string sqlOrders = @"SELECT Id, KlientId FROM dbo.ZamowieniaMieso";
                     await using var cmdOrders = new SqlCommand(sqlOrders, cnLibra);
                     await using var rdrOrders = await cmdOrders.ExecuteReaderAsync();
@@ -204,9 +203,6 @@ namespace Kalendarz1.WPF
                     await using var cmdHistory = new SqlCommand(sqlHistory, cnLibra);
                     await using var rdrHistory = await cmdHistory.ExecuteReaderAsync();
 
-                    // Zliczanie zmian per produkt
-                    var productChanges = new Dictionary<string, int>();
-
                     while (await rdrHistory.ReadAsync())
                     {
                         int id = rdrHistory.GetInt32(0);
@@ -218,10 +214,11 @@ namespace Kalendarz1.WPF
 
                         // Pobierz towar jeśli kolumna istnieje
                         string towar = "";
+                        int kodTowaru = 0;
                         if (hasKodTowaru && !rdrHistory.IsDBNull(6))
                         {
-                            int kodTowaru = rdrHistory.GetInt32(6);
-                            towar = productNames.TryGetValue(kodTowaru, out var name) ? name : $"ID:{kodTowaru}";
+                            kodTowaru = rdrHistory.GetInt32(6);
+                            towar = _productNames.TryGetValue(kodTowaru, out var name) ? name : $"ID:{kodTowaru}";
                         }
                         else
                         {
@@ -239,33 +236,8 @@ namespace Kalendarz1.WPF
                         }
 
                         _dtHistoria.Rows.Add(id, zamowienieId, dataZmiany, typZmiany,
-                            handlowiec, odbiorca, uzytkownikNazwa, towar, opisZmiany);
-
-                        // Zlicz zmiany per produkt (tylko jeśli towar nie jest pusty)
-                        if (!string.IsNullOrEmpty(towar))
-                        {
-                            if (!productChanges.ContainsKey(towar))
-                                productChanges[towar] = 0;
-                            productChanges[towar]++;
-                        }
+                            handlowiec, odbiorca, uzytkownikNazwa, towar, kodTowaru, opisZmiany);
                     }
-
-                    // Utwórz listę produktów
-                    _productList = productChanges
-                        .OrderByDescending(x => x.Value)
-                        .Select(kvp => new ProductChangeInfo
-                        {
-                            Nazwa = kvp.Key,
-                            LiczbaZmian = kvp.Value,
-                            ZmianyText = $"{kvp.Value} zmian (cena/ilość)",
-                            KolorTla = new SolidColorBrush(kvp.Value > 10 ? Color.FromRgb(231, 76, 60) :
-                                       (kvp.Value > 5 ? Color.FromRgb(243, 156, 18) : Color.FromRgb(46, 204, 113))),
-                            KolorTekstu = Brushes.White
-                        })
-                        .ToList();
-
-                    lbProdukty.ItemsSource = _productList;
-                    txtProductCount.Text = $"{_productList.Count} produktów";
                 }
 
                 txtTotalChanges.Text = _dtHistoria.Rows.Count.ToString("N0");
@@ -314,6 +286,12 @@ namespace Kalendarz1.WPF
 
         private void PopulateFilterComboBoxes()
         {
+            // ComboBox Towar - produkty z katalogu TW
+            var towary = new List<string> { "(Wszystkie)" };
+            towary.AddRange(_productNames.Values.OrderBy(x => x));
+            cmbTowar.ItemsSource = towary;
+            cmbTowar.SelectedIndex = 0;
+
             var users = new List<string> { "(Wszystkie)" };
             var odbiorcy = new List<string> { "(Wszystkie)" };
             var typy = new List<string> { "(Wszystkie)" };
@@ -348,6 +326,17 @@ namespace Kalendarz1.WPF
             var dv = _dtHistoria.DefaultView;
             var filters = new List<string>();
 
+            // Filtr produktu z ComboBox
+            if (cmbTowar.SelectedItem?.ToString() is string towar && towar != "(Wszystkie)")
+            {
+                filters.Add($"Towar = '{towar.Replace("'", "''")}'");
+                txtHistoriaTitle.Text = $"HISTORIA ZMIAN - {towar.ToUpper()}";
+            }
+            else
+            {
+                txtHistoriaTitle.Text = "HISTORIA ZMIAN";
+            }
+
             if (cmbKtoEdytowal.SelectedItem?.ToString() is string user && user != "(Wszystkie)")
                 filters.Add($"UzytkownikNazwa = '{user.Replace("'", "''")}'");
 
@@ -360,10 +349,6 @@ namespace Kalendarz1.WPF
             if (cmbHandlowiec.SelectedItem?.ToString() is string handlowiec && handlowiec != "(Wszystkie)")
                 filters.Add($"Handlowiec = '{handlowiec.Replace("'", "''")}'");
 
-            // Filtr produktu (z listy po lewej)
-            if (!string.IsNullOrEmpty(_selectedProductFilter))
-                filters.Add($"Towar = '{_selectedProductFilter.Replace("'", "''")}'");
-
             dv.RowFilter = filters.Count > 0 ? string.Join(" AND ", filters) : "";
             UpdateDisplayedCount();
         }
@@ -374,28 +359,6 @@ namespace Kalendarz1.WPF
             txtDisplayedCount.Text = dv.Count.ToString("N0");
         }
 
-        private void LbProdukty_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (!IsLoaded) return;
-
-            if (lbProdukty.SelectedItem is ProductChangeInfo product)
-            {
-                _selectedProductFilter = product.Nazwa;
-                txtSelectedProduct.Text = product.Nazwa;
-                txtHistoriaTitle.Text = $"HISTORIA ZMIAN - {product.Nazwa.ToUpper()}";
-                ApplyFilters();
-            }
-        }
-
-        private void BtnAllProducts_Click(object sender, RoutedEventArgs e)
-        {
-            lbProdukty.SelectedItem = null;
-            _selectedProductFilter = "";
-            txtSelectedProduct.Text = "(wszystkie)";
-            txtHistoriaTitle.Text = "HISTORIA ZMIAN - WSZYSTKIE";
-            ApplyFilters();
-        }
-
         private void Filter_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (!IsLoaded) return;
@@ -404,14 +367,12 @@ namespace Kalendarz1.WPF
 
         private void BtnClearFilters_Click(object sender, RoutedEventArgs e)
         {
+            cmbTowar.SelectedIndex = 0;
             cmbKtoEdytowal.SelectedIndex = 0;
             cmbOdbiorca.SelectedIndex = 0;
             cmbTyp.SelectedIndex = 0;
             cmbHandlowiec.SelectedIndex = 0;
-            lbProdukty.SelectedItem = null;
-            _selectedProductFilter = "";
-            txtSelectedProduct.Text = "(wszystkie)";
-            txtHistoriaTitle.Text = "HISTORIA ZMIAN - WSZYSTKIE";
+            txtHistoriaTitle.Text = "HISTORIA ZMIAN";
             _dtHistoria.DefaultView.RowFilter = "";
             UpdateDisplayedCount();
         }
@@ -431,15 +392,5 @@ namespace Kalendarz1.WPF
         {
             Close();
         }
-    }
-
-    // Model dla listy produktów
-    public class ProductChangeInfo
-    {
-        public string Nazwa { get; set; } = "";
-        public int LiczbaZmian { get; set; }
-        public string ZmianyText { get; set; } = "";
-        public Brush KolorTla { get; set; } = Brushes.Gray;
-        public Brush KolorTekstu { get; set; } = Brushes.White;
     }
 }
