@@ -1479,12 +1479,14 @@ namespace Kalendarz1
 
         private void Button1_Click(object sender, RoutedEventArgs e)
         {
-            // Pobierz aktualnie wybrany wiersz z CurrentCell
-            SpecyfikacjaRow currentRow = selectedRow;
-            if (currentRow == null && dataGridView1.CurrentCell != null && dataGridView1.CurrentCell.Item is SpecyfikacjaRow row)
-            {
-                currentRow = row;
-            }
+            // Pobierz wiersz z wielu źródeł
+            var currentRow = selectedRow
+                ?? dataGridView1.SelectedItem as SpecyfikacjaRow
+                ?? dataGridView1.CurrentCell.Item as SpecyfikacjaRow;
+
+            // Ostatnia próba - z zaznaczonych komórek
+            if (currentRow == null && dataGridView1.SelectedCells.Count > 0)
+                currentRow = dataGridView1.SelectedCells[0].Item as SpecyfikacjaRow;
 
             if (currentRow != null)
             {
