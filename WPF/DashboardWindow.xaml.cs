@@ -289,7 +289,6 @@ namespace Kalendarz1.WPF
                     await cn.OpenAsync();
                     var sql = $@"SELECT KodTowaru,
                                         SUM(Ilosc) as Zamowione,
-                                        SUM(ISNULL(IloscWydana, 0)) as Wydane,
                                         COUNT(DISTINCT ZamowienieId) as LiczbaZam
                                  FROM [dbo].[ZamowieniaMiesoTowar]
                                  WHERE ZamowienieId IN ({string.Join(",", orderIds)})
@@ -300,9 +299,8 @@ namespace Kalendarz1.WPF
                     {
                         int kodTowaru = reader.GetInt32(0);
                         decimal zamowione = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
-                        decimal wydane = reader.IsDBNull(2) ? 0m : reader.GetDecimal(2);
-                        int liczbaZam = reader.GetInt32(3);
-                        productSummary[kodTowaru] = (zamowione, wydane, liczbaZam);
+                        int liczbaZam = reader.GetInt32(2);
+                        productSummary[kodTowaru] = (zamowione, 0m, liczbaZam);
                     }
                 }
 
