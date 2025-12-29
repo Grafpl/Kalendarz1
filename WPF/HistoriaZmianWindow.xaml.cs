@@ -326,10 +326,11 @@ namespace Kalendarz1.WPF
             var dv = _dtHistoria.DefaultView;
             var filters = new List<string>();
 
-            // Filtr produktu z ComboBox
+            // Filtr produktu z ComboBox - szukaj w Towar LUB w OpisZmiany
             if (cmbTowar.SelectedItem?.ToString() is string towar && towar != "(Wszystkie)")
             {
-                filters.Add($"Towar = '{towar.Replace("'", "''")}'");
+                string escapedTowar = towar.Replace("'", "''").Replace("[", "[[]").Replace("*", "[*]").Replace("%", "[%]");
+                filters.Add($"(Towar = '{escapedTowar}' OR OpisZmiany LIKE '*{escapedTowar}*')");
                 txtHistoriaTitle.Text = $"HISTORIA ZMIAN - {towar.ToUpper()}";
             }
             else
