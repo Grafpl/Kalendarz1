@@ -473,20 +473,4 @@ namespace Kalendarz1.WPF
             Close();
         }
     }
-
-    // Model dla kart dostępności produktów
-    public class DostepnoscProduktuModel
-    {
-        public string Nazwa { get; set; } = "";
-        public decimal Bilans { get; set; }
-        public string BilansText { get; set; } = "";
-        public string PlanFaktText { get; set; } = "";
-        public string ZamowioneText { get; set; } = "";
-        public string StanText { get; set; } = "";
-        public string ProcentText { get; set; } = "";
-        public double SzerokoscPaska { get; set; }
-        public Brush KolorRamki { get; set; } = Brushes.Gray;
-        public Color KolorTla { get; set; } = Colors.White;
-        public Brush KolorPaska { get; set; } = Brushes.Gray;
-    }
 }
