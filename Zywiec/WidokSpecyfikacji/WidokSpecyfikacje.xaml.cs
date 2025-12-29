@@ -3873,6 +3873,23 @@ namespace Kalendarz1
             UpdateStatus($"Zapisano klasę B: {row.KlasaB:N0} kg dla LP {row.Nr}");
         }
 
+        // Handler LostFocus dla LUMEL - zapisuje do bazy po opuszczeniu pola
+        private void LUMEL_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var row = textBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            // WAŻNE: Wymuś aktualizację bindingu przed zapisem
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+
+            SaveFieldToDatabase(row.ID, "LumQnt", row.LUMEL);
+            UpdateStatus($"Zapisano LUMEL: {row.LUMEL} szt dla LP {row.Nr}");
+        }
+
         #endregion
     }
 
