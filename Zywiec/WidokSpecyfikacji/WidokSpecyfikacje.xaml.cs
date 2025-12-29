@@ -3828,6 +3828,40 @@ namespace Kalendarz1
             }
         }
 
+        // Handler LostFocus dla Opasienie - zapisuje do bazy po opuszczeniu pola
+        private void Opasienie_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var row = textBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            // WAŻNE: Wymuś aktualizację bindingu przed zapisem
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+
+            SaveFieldToDatabase(row.ID, "Opasienie", row.Opasienie);
+            UpdateStatus($"Zapisano opasienie: {row.Opasienie:N0} kg dla LP {row.Nr}");
+        }
+
+        // Handler LostFocus dla KlasaB - zapisuje do bazy po opuszczeniu pola
+        private void KlasaB_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var row = textBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            // WAŻNE: Wymuś aktualizację bindingu przed zapisem
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+
+            SaveFieldToDatabase(row.ID, "KlasaB", row.KlasaB);
+            UpdateStatus($"Zapisano klasę B: {row.KlasaB:N0} kg dla LP {row.Nr}");
+        }
+
         #endregion
     }
 

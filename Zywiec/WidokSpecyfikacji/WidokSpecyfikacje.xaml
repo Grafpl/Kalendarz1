@@ -843,10 +843,11 @@
                                                         Visibility="Collapsed">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding Opasienie, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F0}}"
+                                            <TextBox Text="{Binding Opasienie, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat={}{0:F0}}"
                                                      Style="{StaticResource NumericTextBoxStyle}"
                                                      TextAlignment="Right"
-                                                     Padding="0,0,8,0"/>
+                                                     Padding="0,0,8,0"
+                                                     LostFocus="Opasienie_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -857,10 +858,11 @@
                                                         Visibility="Collapsed">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding KlasaB, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F0}}"
+                                            <TextBox Text="{Binding KlasaB, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat={}{0:F0}}"
                                                      Style="{StaticResource NumericTextBoxStyle}"
                                                      TextAlignment="Right"
-                                                     Padding="0,0,8,0"/>
+                                                     Padding="0,0,8,0"
+                                                     LostFocus="KlasaB_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
