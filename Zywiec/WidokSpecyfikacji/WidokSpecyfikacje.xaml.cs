@@ -2925,8 +2925,8 @@ namespace Kalendarz1
                     decimal opasienieKG = Math.Round(zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Opasienie"), 0);
                     decimal klasaB = Math.Round(zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "KlasaB"), 0);
 
-                    // Obliczenie Ubytek KG = Netto × Ubytek%
-                    decimal ubytekKG = Math.Round(wagaNetto * ubytek / 100, 0);
+                    // Obliczenie Ubytek KG = Netto × Ubytek% (Loss w bazie jest już ułamkiem, np. 0.0025 = 0.25%)
+                    decimal ubytekKG = Math.Round(wagaNetto * ubytek, 0);
 
                     // Obliczenie DoZaplaty: Netto - Padłe - Konf - Ubytek - Opasienie - KlasaB
                     decimal doZaplaty = czyPiK
