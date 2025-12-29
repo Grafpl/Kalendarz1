@@ -430,8 +430,8 @@ namespace Kalendarz1
                 AddTableHeader(dataTable, "Netto [KG]", smallTextFont);
                 AddTableHeader(dataTable, "Padłe [KG]", smallTextFont);
                 AddTableHeader(dataTable, "Konfiskaty [KG]", smallTextFont);
-                AddTableHeader(dataTable, "Opasienie [KG]", smallTextFont);
                 AddTableHeader(dataTable, "Ubytek [KG]", smallTextFont);
+                AddTableHeader(dataTable, "Opasienie [KG]", smallTextFont);
                 AddTableHeader(dataTable, "Klasa B [KG]", smallTextFont);
                 AddTableHeader(dataTable, "Kilogramy do Zapłaty", smallTextFont);
                 AddTableHeader(dataTable, "Cena netto", smallTextFont);
@@ -583,7 +583,7 @@ namespace Kalendarz1
 
 
 
-                    AddTableData(dataTable, smallTextFont, (i + 1).ToString(), strWagaHodowcaBrutto, strWagaHodowcaTara, strWagaHodowcaNetto, strSztWszystkie, strSredniaWaga, strPadle, strKonfiskatySuma, strSztZdatne, strWagaHodowcaNetto, strPadleKG, strKonfiskatySumaKG, strOpasienieKG, strUbytekUstalonyKG, strKlasaB, strSumaDoZaplaty, strCena, strWartosc);
+                    AddTableData(dataTable, smallTextFont, (i + 1).ToString(), strWagaHodowcaBrutto, strWagaHodowcaTara, strWagaHodowcaNetto, strSztWszystkie, strSredniaWaga, strPadle, strKonfiskatySuma, strSztZdatne, strWagaHodowcaNetto, strPadleKG, strKonfiskatySumaKG, strUbytekUstalonyKG, strOpasienieKG, strKlasaB, strSumaDoZaplaty, strCena, strWartosc);
                 }
                 string strSumaWartosc = Math.Round(sumaWartosc, MidpointRounding.AwayFromZero).ToString("N0") + " zł";
                 string strSumaKG = Math.Round(sumaKG, MidpointRounding.AwayFromZero).ToString("N0") + " kg";
