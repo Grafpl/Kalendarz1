@@ -114,7 +114,7 @@ namespace Kalendarz1.WPF
                 // Pobierz produkty z katalogów Świeże (67095) i Mrożone (67153)
                 const string sql = @"SELECT ID, kod, nazwa
                                      FROM [HANDEL].[HM].[TW]
-                                     WHERE (id_katalog = 67095 OR id_katalog = 67153)
+                                     WHERE katalog IN (67095, 67153)
                                        AND aktywny = 1
                                      ORDER BY kod";
 
@@ -424,7 +424,7 @@ namespace Kalendarz1.WPF
                 {
                     await cn.OpenAsync();
                     var idList = string.Join(",", _selectedProductIds);
-                    var sql = $@"SELECT ID, kod, nazwa, id_katalog FROM [HANDEL].[HM].[TW] WHERE ID IN ({idList})";
+                    var sql = $@"SELECT ID, kod, nazwa, katalog FROM [HANDEL].[HM].[TW] WHERE ID IN ({idList})";
                     await using var cmd = new SqlCommand(sql, cn);
                     await using var rdr = await cmd.ExecuteReaderAsync();
                     while (await rdr.ReadAsync())
@@ -432,7 +432,17 @@ namespace Kalendarz1.WPF
                         int id = rdr.GetInt32(0);
                         string kod = rdr.IsDBNull(1) ? "" : rdr.GetString(1);
                         string nazwa = rdr.IsDBNull(2) ? "" : rdr.GetString(2);
-                        int katalog = rdr.IsDBNull(3) ? 0 : rdr.GetInt32(3);
+
+                        // Katalog może być int lub string w bazie
+                        int katalog = 0;
+                        if (!rdr.IsDBNull(3))
+                        {
+                            var katObj = rdr.GetValue(3);
+                            if (katObj is int ki)
+                                katalog = ki;
+                            else
+                                int.TryParse(Convert.ToString(katObj), out katalog);
+                        }
 
                         // Sprawdź czy to tuszka (np. po nazwie zawierającej "tuszk" lub "kurczak a/b")
                         bool isTuszka = kod.ToLower().Contains("tuszk") ||
