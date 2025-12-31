@@ -19,18 +19,26 @@ namespace Kalendarz1.WPF
         private DateTime _selectedDate;
         private bool _isLoading;
 
-        // Cache dla kolorów handlowców
-        private readonly Dictionary<string, Color> _salesmanColors = new();
+        // Cache dla kolorów tras (grupowanie po KursID)
+        private readonly Dictionary<long, Color> _routeColors = new();
         private readonly List<Color> _colorPalette = new List<Color>
         {
-            Color.FromRgb(230, 255, 230), Color.FromRgb(230, 242, 255), Color.FromRgb(255, 240, 230),
-            Color.FromRgb(230, 255, 247), Color.FromRgb(255, 230, 242), Color.FromRgb(245, 245, 220),
-            Color.FromRgb(255, 228, 225), Color.FromRgb(240, 255, 255), Color.FromRgb(240, 248, 255)
+            Color.FromRgb(232, 245, 233), // jasny zielony
+            Color.FromRgb(227, 242, 253), // jasny niebieski
+            Color.FromRgb(255, 243, 224), // jasny pomarańczowy
+            Color.FromRgb(243, 229, 245), // jasny fioletowy
+            Color.FromRgb(255, 235, 238), // jasny różowy
+            Color.FromRgb(224, 247, 250), // jasny cyjan
+            Color.FromRgb(255, 249, 196), // jasny żółty
+            Color.FromRgb(225, 245, 254), // jasny błękitny
         };
         private int _colorIndex = 0;
 
         // Timer do debounce
         private System.Windows.Threading.DispatcherTimer _filterDebounceTimer;
+
+        // Do śledzenia grup (przerwy między trasami)
+        private long? _previousKursId = null;
 
         public TransportWindow(string connLibra, string connHandel, string connTransport, DateTime? initialDate = null)
         {
@@ -49,6 +57,7 @@ namespace Kalendarz1.WPF
         {
             _dtTransport.Columns.Add("Id", typeof(int));
             _dtTransport.Columns.Add("KlientId", typeof(int));
+            _dtTransport.Columns.Add("KursId", typeof(long)); // Do grupowania
             _dtTransport.Columns.Add("DataPrzyjazdu", typeof(DateTime));
             _dtTransport.Columns.Add("Odbiorca", typeof(string));
             _dtTransport.Columns.Add("Handlowiec", typeof(string));
@@ -60,7 +69,7 @@ namespace Kalendarz1.WPF
             _dtTransport.Columns.Add("GodzWyjazdu", typeof(string));
             _dtTransport.Columns.Add("Trasa", typeof(string));
             _dtTransport.Columns.Add("Status", typeof(string));
-            _dtTransport.Columns.Add("Uwagi", typeof(string));
+            _dtTransport.Columns.Add("GrupaIndex", typeof(int)); // Do sortowania grup
 
             dgTransport.ItemsSource = _dtTransport.DefaultView;
             SetupDataGrid();
@@ -85,21 +94,21 @@ namespace Kalendarz1.WPF
             {
                 Header = "Data",
                 Binding = new Binding("DataPrzyjazdu") { StringFormat = "yyyy-MM-dd" },
-                Width = new DataGridLength(85)
+                Width = new DataGridLength(90)
             });
 
             dgTransport.Columns.Add(new DataGridTextColumn
             {
                 Header = "Odbiorca",
                 Binding = new Binding("Odbiorca"),
-                Width = new DataGridLength(180)
+                Width = new DataGridLength(200)
             });
 
             dgTransport.Columns.Add(new DataGridTextColumn
             {
                 Header = "Hand",
                 Binding = new Binding("Handlowiec"),
-                Width = new DataGridLength(50),
+                Width = new DataGridLength(55),
                 ElementStyle = (Style)FindResource("BoldCellStyle")
             });
 
@@ -107,7 +116,7 @@ namespace Kalendarz1.WPF
             {
                 Header = "Zam.",
                 Binding = new Binding("IloscZamowiona") { StringFormat = "N0" },
-                Width = new DataGridLength(60),
+                Width = new DataGridLength(70),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
@@ -115,7 +124,7 @@ namespace Kalendarz1.WPF
             {
                 Header = "Wyd.",
                 Binding = new Binding("IloscWydana") { StringFormat = "N0" },
-                Width = new DataGridLength(60),
+                Width = new DataGridLength(70),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
@@ -123,7 +132,7 @@ namespace Kalendarz1.WPF
             {
                 Header = "Palety",
                 Binding = new Binding("Palety") { StringFormat = "N1" },
-                Width = new DataGridLength(55),
+                Width = new DataGridLength(65),
                 ElementStyle = (Style)FindResource("RightAlignedCellStyle")
             });
 
@@ -131,14 +140,14 @@ namespace Kalendarz1.WPF
             {
                 Header = "Kierowca",
                 Binding = new Binding("Kierowca"),
-                Width = new DataGridLength(150)
+                Width = new DataGridLength(160)
             });
 
             dgTransport.Columns.Add(new DataGridTextColumn
             {
                 Header = "Pojazd",
                 Binding = new Binding("Pojazd"),
-                Width = new DataGridLength(90),
+                Width = new DataGridLength(100),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
 
@@ -146,7 +155,7 @@ namespace Kalendarz1.WPF
             {
                 Header = "Godz",
                 Binding = new Binding("GodzWyjazdu"),
-                Width = new DataGridLength(55),
+                Width = new DataGridLength(60),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
 
@@ -155,22 +164,15 @@ namespace Kalendarz1.WPF
                 Header = "Trasa",
                 Binding = new Binding("Trasa"),
                 Width = new DataGridLength(1, DataGridLengthUnitType.Star),
-                MinWidth = 100
+                MinWidth = 150
             });
 
             dgTransport.Columns.Add(new DataGridTextColumn
             {
                 Header = "Status",
                 Binding = new Binding("Status"),
-                Width = new DataGridLength(85),
+                Width = new DataGridLength(90),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
-            });
-
-            dgTransport.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Uwagi",
-                Binding = new Binding("Uwagi"),
-                Width = new DataGridLength(150)
             });
 
             dgTransport.LoadingRow += DgTransport_LoadingRow;
@@ -181,28 +183,50 @@ namespace Kalendarz1.WPF
             if (e.Row.Item is DataRowView rowView)
             {
                 var status = rowView.Row.Field<string>("Status") ?? "";
-                var handlowiec = rowView.Row.Field<string>("Handlowiec") ?? "";
+                var kursId = rowView.Row.IsNull("KursId") ? 0L : rowView.Row.Field<long>("KursId");
 
-                if (status == "Brak")
+                if (status == "Brak" || kursId == 0)
                 {
+                    // Bez przypisanego transportu - jasne czerwone tło
                     e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 235, 235));
+                    e.Row.BorderThickness = new Thickness(0);
                 }
-                else if (!string.IsNullOrEmpty(handlowiec))
+                else
                 {
-                    var color = GetColorForSalesman(handlowiec);
+                    // Kolorowanie wg trasy
+                    var color = GetColorForRoute(kursId);
                     e.Row.Background = new SolidColorBrush(color);
+
+                    // Sprawdź czy to pierwsza pozycja w nowej grupie (trasie)
+                    var rowIndex = _dtTransport.DefaultView.Cast<DataRowView>().ToList().IndexOf(rowView);
+                    if (rowIndex > 0)
+                    {
+                        var prevRow = _dtTransport.DefaultView[rowIndex - 1];
+                        var prevKursId = prevRow.Row.IsNull("KursId") ? 0L : prevRow.Row.Field<long>("KursId");
+
+                        if (prevKursId != kursId && prevKursId != 0 && kursId != 0)
+                        {
+                            // Nowa grupa - dodaj grubszą górną linię
+                            e.Row.BorderBrush = new SolidColorBrush(Color.FromRgb(44, 62, 80));
+                            e.Row.BorderThickness = new Thickness(0, 3, 0, 0);
+                        }
+                        else
+                        {
+                            e.Row.BorderThickness = new Thickness(0);
+                        }
+                    }
                 }
             }
         }
 
-        private Color GetColorForSalesman(string salesman)
+        private Color GetColorForRoute(long kursId)
         {
-            if (string.IsNullOrEmpty(salesman)) return Colors.White;
+            if (kursId == 0) return Colors.White;
 
-            if (!_salesmanColors.TryGetValue(salesman, out var color))
+            if (!_routeColors.TryGetValue(kursId, out var color))
             {
                 color = _colorPalette[_colorIndex % _colorPalette.Count];
-                _salesmanColors[salesman] = color;
+                _routeColors[kursId] = color;
                 _colorIndex++;
             }
             return color;
@@ -224,6 +248,8 @@ namespace Kalendarz1.WPF
             try
             {
                 _dtTransport.Rows.Clear();
+                _routeColors.Clear();
+                _colorIndex = 0;
 
                 // Pobierz kontrahentów
                 var contractors = new Dictionary<int, (string Name, string Salesman)>();
@@ -246,29 +272,30 @@ namespace Kalendarz1.WPF
                     }
                 }
 
-                // Pobierz WSZYSTKIE zamówienia (bez filtra daty)
-                var orders = new List<(int Id, int KlientId, decimal IloscZam, decimal IloscWyd, decimal Palety, long? KursId, string Uwagi, DateTime DataPrzyjazdu)>();
+                // Pobierz zamówienia TYLKO dla wybranej daty
+                var orders = new List<(int Id, int KlientId, decimal IloscZam, decimal IloscWyd, decimal Palety, long? KursId, DateTime DataPrzyjazdu)>();
                 await using (var cnLibra = new SqlConnection(_connLibra))
                 {
                     await cnLibra.OpenAsync();
-                    const string sql = @"SELECT Id, KlientId, TransportKursID, Uwagi, DataPrzyjazdu
+                    const string sql = @"SELECT Id, KlientId, TransportKursID, DataPrzyjazdu
                                          FROM dbo.ZamowieniaMieso
                                          WHERE Status <> 'Anulowane'
+                                           AND DataPrzyjazdu = @SelectedDate
                                          ORDER BY DataPrzyjazdu DESC";
                     await using var cmd = new SqlCommand(sql, cnLibra);
+                    cmd.Parameters.AddWithValue("@SelectedDate", _selectedDate.Date);
                     await using var rdr = await cmd.ExecuteReaderAsync();
                     while (await rdr.ReadAsync())
                     {
                         int id = rdr.GetInt32(0);
                         int klientId = rdr.IsDBNull(1) ? 0 : rdr.GetInt32(1);
                         long? kursId = rdr.IsDBNull(2) ? null : rdr.GetInt64(2);
-                        string uwagi = rdr.IsDBNull(3) ? "" : rdr.GetString(3);
-                        DateTime dataPrzyjazdu = rdr.IsDBNull(4) ? DateTime.MinValue : rdr.GetDateTime(4);
-                        orders.Add((id, klientId, 0m, 0m, 0m, kursId, uwagi, dataPrzyjazdu));
+                        DateTime dataPrzyjazdu = rdr.IsDBNull(3) ? DateTime.MinValue : rdr.GetDateTime(3);
+                        orders.Add((id, klientId, 0m, 0m, 0m, kursId, dataPrzyjazdu));
                     }
                 }
 
-                // Pobierz ilości zamówione i wydane per zamówienie
+                // Pobierz ilości zamówione per zamówienie
                 var orderQuantities = new Dictionary<int, (decimal Zam, decimal Wyd, decimal Palety)>();
                 if (orders.Any())
                 {
@@ -321,6 +348,16 @@ namespace Kalendarz1.WPF
                     catch { /* Ignoruj błędy transportu */ }
                 }
 
+                // Przypisz indeksy grup do sortowania
+                var kursIdToGroupIndex = new Dictionary<long, int>();
+                int groupIdx = 0;
+                foreach (var kursId in kursIds.OrderBy(k =>
+                    transportDetails.TryGetValue(k, out var td) ? td.GodzWyjazdu ?? TimeSpan.MaxValue : TimeSpan.MaxValue)
+                    .ThenBy(k => transportDetails.TryGetValue(k, out var td) ? td.Trasa : ""))
+                {
+                    kursIdToGroupIndex[kursId] = groupIdx++;
+                }
+
                 // Buduj wiersze
                 foreach (var order in orders)
                 {
@@ -332,6 +369,7 @@ namespace Kalendarz1.WPF
                     string trasa = "";
                     string godzWyjazdu = "";
                     string status = "Brak";
+                    int grupaIndex = int.MaxValue; // Bez transportu na końcu
 
                     if (order.KursId.HasValue && transportDetails.TryGetValue(order.KursId.Value, out var td))
                     {
@@ -340,13 +378,29 @@ namespace Kalendarz1.WPF
                         trasa = td.Trasa;
                         godzWyjazdu = td.GodzWyjazdu?.ToString(@"hh\:mm") ?? "";
                         status = "Przypisany";
+                        grupaIndex = kursIdToGroupIndex.TryGetValue(order.KursId.Value, out var gi) ? gi : int.MaxValue - 1;
                     }
 
-                    _dtTransport.Rows.Add(order.Id, order.KlientId, order.DataPrzyjazdu, name, salesman, zam, wyd, palety, kierowca, pojazd, godzWyjazdu, trasa, status, order.Uwagi);
+                    _dtTransport.Rows.Add(
+                        order.Id,
+                        order.KlientId,
+                        order.KursId ?? 0L,
+                        order.DataPrzyjazdu,
+                        name,
+                        salesman,
+                        zam,
+                        wyd,
+                        palety,
+                        kierowca,
+                        pojazd,
+                        godzWyjazdu,
+                        trasa,
+                        status,
+                        grupaIndex);
                 }
 
-                // Sortuj wg daty przyjazdu (malejąco), potem godziny wyjazdu
-                _dtTransport.DefaultView.Sort = "DataPrzyjazdu DESC, GodzWyjazdu ASC, Trasa ASC";
+                // Sortuj wg grupy (trasy), potem godziny wyjazdu, potem odbiorcy
+                _dtTransport.DefaultView.Sort = "GrupaIndex ASC, GodzWyjazdu ASC, Trasa ASC, Odbiorca ASC";
 
                 // Aktualizuj statystyki
                 UpdateStatistics();
@@ -430,11 +484,6 @@ namespace Kalendarz1.WPF
         private void CmbFilterStatus_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (IsLoaded) ApplyFilters();
-        }
-
-        private void BtnRefresh_Click(object sender, RoutedEventArgs e)
-        {
-            _ = LoadDataAsync();
         }
 
         private void BtnClose_Click(object sender, RoutedEventArgs e)
