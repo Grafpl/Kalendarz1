@@ -406,8 +406,9 @@ namespace Kalendarz1.WPF
                 await using (var cn = new SqlConnection(_connLibra))
                 {
                     await cn.OpenAsync();
+                    // Szukaj po DataUboju LUB DataDostawy
                     const string sql = @"SELECT Id FROM dbo.ZamowieniaMieso
-                                         WHERE DataUboju = @Day AND Status <> 'Anulowane'";
+                                         WHERE (DataUboju = @Day OR DataDostawy = @Day) AND Status <> 'Anulowane'";
                     await using var cmd = new SqlCommand(sql, cn);
                     cmd.Parameters.AddWithValue("@Day", day);
                     await using var rdr = await cmd.ExecuteReaderAsync();
@@ -416,6 +417,8 @@ namespace Kalendarz1.WPF
                         orderIds.Add(rdr.GetInt32(0));
                     }
                 }
+
+                System.Diagnostics.Debug.WriteLine($"[Dashboard] Data: {day:yyyy-MM-dd}, Znaleziono zamówień: {orderIds.Count}");
 
                 // Słownik: productId -> lista (odbiorca, ilość)
                 var orderDetails = new Dictionary<int, List<(string Odbiorca, decimal Ilosc)>>();
@@ -462,6 +465,9 @@ namespace Kalendarz1.WPF
                             orderDetails[productId].Add((odbiorca, ilosc));
                         }
                     }
+
+                    System.Diagnostics.Debug.WriteLine($"[Dashboard] Odbiorcy dla produktów: {orderDetails.Count}, Klucze: {string.Join(",", orderDetails.Keys.Take(10))}");
+                    System.Diagnostics.Debug.WriteLine($"[Dashboard] Wybrane produkty: {string.Join(",", _selectedProductIds.Take(10))}");
                 }
 
                 // 7. Pobierz WYDANIA (WZ)
