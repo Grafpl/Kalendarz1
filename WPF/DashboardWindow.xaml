@@ -142,18 +142,26 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,30,0">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,20,0">
                         <TextBlock Text="Data:" VerticalAlignment="Center" Margin="0,0,10,0" FontWeight="SemiBold" FontSize="13"/>
-                        <DatePicker x:Name="dpData" Width="140" FontSize="13" SelectedDateChanged="DpData_SelectedDateChanged"/>
+                        <DatePicker x:Name="dpData" Width="120" FontSize="12" SelectedDateChanged="DpData_SelectedDateChanged"/>
+                        <!-- Zakres dat -->
+                        <TextBlock x:Name="txtDateRangeTo" Text="do" VerticalAlignment="Center" Margin="8,0,8,0"
+                                   FontSize="12" Foreground="#7F8C8D" Visibility="Collapsed"/>
+                        <DatePicker x:Name="dpDataDo" Width="120" FontSize="12" Visibility="Collapsed"
+                                    SelectedDateChanged="DpDataDo_SelectedDateChanged"/>
+                        <CheckBox x:Name="chkZakresDat" Content="Zakres" VerticalAlignment="Center"
+                                  Margin="10,0,0,0" FontSize="11"
+                                  Checked="ChkZakresDat_Changed" Unchecked="ChkZakresDat_Changed"/>
                         <!-- Szybkie filtry dat -->
                         <Border Background="#ECF0F1" CornerRadius="4" Margin="10,0,0,0" Padding="2">
                             <StackPanel Orientation="Horizontal">
-                                <Button Content="Dziś" Padding="8,4" FontSize="11" Background="Transparent"
+                                <Button Content="Dziś" Padding="6,4" FontSize="10" Background="Transparent"
                                         BorderThickness="0" Cursor="Hand" Click="BtnDateToday_Click"/>
-                                <Button Content="Jutro" Padding="8,4" FontSize="11" Background="Transparent"
+                                <Button Content="Jutro" Padding="6,4" FontSize="10" Background="Transparent"
                                         BorderThickness="0" Cursor="Hand" Click="BtnDateTomorrow_Click"/>
-                                <Button Content="+Tydz" Padding="8,4" FontSize="11" Background="Transparent"
-                                        BorderThickness="0" Cursor="Hand" ToolTip="Za tydzień" Click="BtnDateWeek_Click"/>
+                                <Button Content="Tydz" Padding="6,4" FontSize="10" Background="Transparent"
+                                        BorderThickness="0" Cursor="Hand" ToolTip="Cały tydzień (pon-pt)" Click="BtnDateWeek_Click"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>

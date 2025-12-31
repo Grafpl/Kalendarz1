@@ -19,6 +19,8 @@ namespace Kalendarz1.WPF
         private readonly string _connLibra;
         private readonly string _connHandel;
         private DateTime _selectedDate;
+        private DateTime _selectedDateDo; // Data końcowa dla zakresu
+        private bool _zakresDat; // true = tryb zakresu dat
         private bool _isLoading;
         private bool _isPanelOpen;
         private bool _uzywajWydan; // true = wydania, false = zamówienia
@@ -312,7 +314,11 @@ namespace Kalendarz1.WPF
                 ShowLoading();
 
                 _uzywajWydan = rbBilansWydania?.IsChecked == true;
-                DateTime day = _selectedDate.Date;
+
+                // Obsługa zakresu dat
+                DateTime dayStart = _selectedDate.Date;
+                DateTime dayEnd = _zakresDat ? _selectedDateDo.Date : dayStart;
+                DateTime day = dayStart; // Dla kompatybilności z istniejącym kodem
 
                 // 1. Pobierz konfigurację wydajności (tak jak w MainWindow)
                 decimal wspolczynnikTuszki = 64m, procentA = 35m, procentB = 65m;
@@ -361,15 +367,16 @@ namespace Kalendarz1.WPF
                 }
                 catch { }
 
-                // 3. Pobierz harmonogram dostaw (dla obliczenia PLAN)
+                // 3. Pobierz harmonogram dostaw (dla obliczenia PLAN) - sumuj dla zakresu dat
                 decimal totalMassDek = 0m;
                 await using (var cn = new SqlConnection(_connLibra))
                 {
                     await cn.OpenAsync();
                     const string sql = @"SELECT WagaDek, SztukiDek FROM dbo.HarmonogramDostaw
-                                         WHERE DataOdbioru = @Day AND Bufor = 'Potwierdzony'";
+                                         WHERE DataOdbioru BETWEEN @DayStart AND @DayEnd AND Bufor = 'Potwierdzony'";
                     await using var cmd = new SqlCommand(sql, cn);
-                    cmd.Parameters.AddWithValue("@Day", day);
+                    cmd.Parameters.AddWithValue("@DayStart", dayStart);
+                    cmd.Parameters.AddWithValue("@DayEnd", dayEnd);
                     await using var rdr = await cmd.ExecuteReaderAsync();
                     while (await rdr.ReadAsync())
                     {
@@ -382,7 +389,7 @@ namespace Kalendarz1.WPF
                 decimal pulaTuszkiA = pulaTuszki * (procentA / 100m);
                 decimal pulaTuszkiB = pulaTuszki * (procentB / 100m);
 
-                // 4. Pobierz FAKT - przychody tuszki (sPWU)
+                // 4. Pobierz FAKT - przychody tuszki (sPWU) - sumuj dla zakresu dat
                 var faktTuszka = new Dictionary<int, decimal>();
                 await using (var cn = new SqlConnection(_connHandel))
                 {
@@ -390,10 +397,11 @@ namespace Kalendarz1.WPF
                     const string sql = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc))
                                          FROM [HANDEL].[HM].[MZ] MZ
                                          JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
-                                         WHERE MG.seria = 'sPWU' AND MG.aktywny=1 AND MG.data = @Day
+                                         WHERE MG.seria = 'sPWU' AND MG.aktywny=1 AND MG.data BETWEEN @DayStart AND @DayEnd
                                          GROUP BY MZ.idtw";
                     await using var cmd = new SqlCommand(sql, cn);
-                    cmd.Parameters.AddWithValue("@Day", day);
+                    cmd.Parameters.AddWithValue("@DayStart", dayStart);
+                    cmd.Parameters.AddWithValue("@DayEnd", dayEnd);
                     await using var rdr = await cmd.ExecuteReaderAsync();
                     while (await rdr.ReadAsync())
                     {
@@ -403,7 +411,7 @@ namespace Kalendarz1.WPF
                     }
                 }
 
-                // 5. Pobierz FAKT - przychody elementów (sPWP, PWP)
+                // 5. Pobierz FAKT - przychody elementów (sPWP, PWP) - sumuj dla zakresu dat
                 var faktElementy = new Dictionary<int, decimal>();
                 await using (var cn = new SqlConnection(_connHandel))
                 {
@@ -411,10 +419,11 @@ namespace Kalendarz1.WPF
                     const string sql = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc))
                                          FROM [HANDEL].[HM].[MZ] MZ
                                          JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
-                                         WHERE MG.seria IN ('sPWP', 'PWP') AND MG.aktywny=1 AND MG.data = @Day
+                                         WHERE MG.seria IN ('sPWP', 'PWP') AND MG.aktywny=1 AND MG.data BETWEEN @DayStart AND @DayEnd
                                          GROUP BY MZ.idtw";
                     await using var cmd = new SqlCommand(sql, cn);
-                    cmd.Parameters.AddWithValue("@Day", day);
+                    cmd.Parameters.AddWithValue("@DayStart", dayStart);
+                    cmd.Parameters.AddWithValue("@DayEnd", dayEnd);
                     await using var rdr = await cmd.ExecuteReaderAsync();
                     while (await rdr.ReadAsync())
                     {
@@ -424,7 +433,7 @@ namespace Kalendarz1.WPF
                     }
                 }
 
-                // 6. Pobierz ZAMÓWIENIA dla wybranego dnia
+                // 6. Pobierz ZAMÓWIENIA dla wybranego dnia/zakresu dat
                 var orderSum = new Dictionary<int, decimal>();
                 var orderIds = new List<int>();
 
@@ -432,9 +441,10 @@ namespace Kalendarz1.WPF
                 {
                     await cn.OpenAsync();
                     const string sql = @"SELECT Id FROM dbo.ZamowieniaMieso
-                                         WHERE DataUboju = @Day AND Status <> 'Anulowane'";
+                                         WHERE DataUboju BETWEEN @DayStart AND @DayEnd AND Status <> 'Anulowane'";
                     await using var cmd = new SqlCommand(sql, cn);
-                    cmd.Parameters.AddWithValue("@Day", day);
+                    cmd.Parameters.AddWithValue("@DayStart", dayStart);
+                    cmd.Parameters.AddWithValue("@DayEnd", dayEnd);
                     await using var rdr = await cmd.ExecuteReaderAsync();
                     while (await rdr.ReadAsync())
                     {
@@ -442,7 +452,7 @@ namespace Kalendarz1.WPF
                     }
                 }
 
-                System.Diagnostics.Debug.WriteLine($"[Dashboard] Data: {day:yyyy-MM-dd}, Znaleziono zamówień: {orderIds.Count}");
+                System.Diagnostics.Debug.WriteLine($"[Dashboard] Data: {dayStart:yyyy-MM-dd} - {dayEnd:yyyy-MM-dd}, Znaleziono zamówień: {orderIds.Count}");
 
                 // === ZAAWANSOWANA DIAGNOSTYKA ===
                 if (orderIds.Any())
@@ -617,7 +627,7 @@ namespace Kalendarz1.WPF
                     System.Diagnostics.Debug.WriteLine($"[Dashboard] Wybrane produkty: {string.Join(",", _selectedProductIds.Take(10))}");
                 }
 
-                // 7. Pobierz WYDANIA (WZ) - per produkt
+                // 7. Pobierz WYDANIA (WZ) - per produkt - sumuj dla zakresu dat
                 var wydaniaSum = new Dictionary<int, decimal>();
                 // Wydania per klient per produkt: (produktId, klientId) -> ilość
                 var wydaniaPerKlientProdukt = new Dictionary<(int produktId, int klientId), decimal>();
@@ -627,10 +637,11 @@ namespace Kalendarz1.WPF
                     const string sql = @"SELECT MZ.idtw, MG.khid, SUM(ABS(MZ.ilosc))
                                          FROM [HANDEL].[HM].[MZ] MZ
                                          JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
-                                         WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny=1 AND MG.data = @Day
+                                         WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny=1 AND MG.data BETWEEN @DayStart AND @DayEnd
                                          GROUP BY MZ.idtw, MG.khid";
                     await using var cmd = new SqlCommand(sql, cn);
-                    cmd.Parameters.AddWithValue("@Day", day);
+                    cmd.Parameters.AddWithValue("@DayStart", dayStart);
+                    cmd.Parameters.AddWithValue("@DayEnd", dayEnd);
                     await using var rdr = await cmd.ExecuteReaderAsync();
                     while (await rdr.ReadAsync())
                     {
@@ -648,7 +659,7 @@ namespace Kalendarz1.WPF
                     }
                 }
 
-                // 8. Pobierz STANY MAGAZYNOWE
+                // 8. Pobierz STANY MAGAZYNOWE (użyj pierwszego dnia zakresu jako stan początkowy)
                 var stanyMag = new Dictionary<int, decimal>();
                 try
                 {
@@ -656,7 +667,7 @@ namespace Kalendarz1.WPF
                     await cn.OpenAsync();
                     const string sql = @"SELECT ProduktId, Stan FROM dbo.StanyMagazynowe WHERE Data = @Data";
                     await using var cmd = new SqlCommand(sql, cn);
-                    cmd.Parameters.AddWithValue("@Data", day);
+                    cmd.Parameters.AddWithValue("@Data", dayStart);
                     await using var rdr = await cmd.ExecuteReaderAsync();
                     while (await rdr.ReadAsync())
                     {
@@ -1542,7 +1553,15 @@ namespace Kalendarz1.WPF
             if (dpData.SelectedDate.HasValue)
             {
                 _selectedDate = dpData.SelectedDate.Value;
-                txtSelectedDate.Text = $"Data: {_selectedDate:yyyy-MM-dd dddd}";
+
+                // W trybie zakresu upewnij się że data końcowa >= początkowa
+                if (_zakresDat && _selectedDateDo < _selectedDate)
+                {
+                    dpDataDo.SelectedDate = _selectedDate;
+                    _selectedDateDo = _selectedDate;
+                }
+
+                UpdateDateDisplay();
                 _ = LoadDataAsync();
             }
         }
@@ -1563,7 +1582,16 @@ namespace Kalendarz1.WPF
         // === SZYBKIE FILTRY DAT ===
         private void BtnDateToday_Click(object sender, RoutedEventArgs e)
         {
-            dpData.SelectedDate = DateTime.Today;
+            if (_zakresDat)
+            {
+                // W trybie zakresu - ustaw dziś jako jedyny dzień
+                dpData.SelectedDate = DateTime.Today;
+                dpDataDo.SelectedDate = DateTime.Today;
+            }
+            else
+            {
+                dpData.SelectedDate = DateTime.Today;
+            }
         }
 
         private void BtnDateTomorrow_Click(object sender, RoutedEventArgs e)
@@ -1572,16 +1600,85 @@ namespace Kalendarz1.WPF
             // Pomiń weekend
             while (tomorrow.DayOfWeek == DayOfWeek.Saturday || tomorrow.DayOfWeek == DayOfWeek.Sunday)
                 tomorrow = tomorrow.AddDays(1);
-            dpData.SelectedDate = tomorrow;
+
+            if (_zakresDat)
+            {
+                dpData.SelectedDate = tomorrow;
+                dpDataDo.SelectedDate = tomorrow;
+            }
+            else
+            {
+                dpData.SelectedDate = tomorrow;
+            }
         }
 
         private void BtnDateWeek_Click(object sender, RoutedEventArgs e)
         {
-            var nextWeek = DateTime.Today.AddDays(7);
-            // Pomiń weekend
-            while (nextWeek.DayOfWeek == DayOfWeek.Saturday || nextWeek.DayOfWeek == DayOfWeek.Sunday)
-                nextWeek = nextWeek.AddDays(1);
-            dpData.SelectedDate = nextWeek;
+            // Znajdź poniedziałek bieżącego tygodnia
+            var today = DateTime.Today;
+            int daysUntilMonday = ((int)today.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
+            var monday = today.AddDays(-daysUntilMonday);
+            var friday = monday.AddDays(4);
+
+            // Włącz tryb zakresu i ustaw pon-pt
+            chkZakresDat.IsChecked = true;
+            dpData.SelectedDate = monday;
+            dpDataDo.SelectedDate = friday;
+        }
+
+        // === ZAKRES DAT ===
+        private void ChkZakresDat_Changed(object sender, RoutedEventArgs e)
+        {
+            _zakresDat = chkZakresDat.IsChecked == true;
+
+            // Pokaż/ukryj drugi DatePicker
+            txtDateRangeTo.Visibility = _zakresDat ? Visibility.Visible : Visibility.Collapsed;
+            dpDataDo.Visibility = _zakresDat ? Visibility.Visible : Visibility.Collapsed;
+
+            if (_zakresDat && dpDataDo.SelectedDate == null)
+            {
+                // Domyślnie ustaw datę końcową na datę początkową
+                dpDataDo.SelectedDate = dpData.SelectedDate;
+            }
+
+            if (IsLoaded)
+            {
+                UpdateDateDisplay();
+                _ = LoadDataAsync();
+            }
+        }
+
+        private void DpDataDo_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (dpDataDo.SelectedDate.HasValue)
+            {
+                _selectedDateDo = dpDataDo.SelectedDate.Value;
+
+                // Upewnij się że data końcowa >= początkowa
+                if (_selectedDateDo < _selectedDate)
+                {
+                    dpDataDo.SelectedDate = _selectedDate;
+                    _selectedDateDo = _selectedDate;
+                }
+
+                if (IsLoaded)
+                {
+                    UpdateDateDisplay();
+                    _ = LoadDataAsync();
+                }
+            }
+        }
+
+        private void UpdateDateDisplay()
+        {
+            if (_zakresDat)
+            {
+                txtSelectedDate.Text = $"Data: {_selectedDate:yyyy-MM-dd} - {_selectedDateDo:yyyy-MM-dd}";
+            }
+            else
+            {
+                txtSelectedDate.Text = $"Data: {_selectedDate:yyyy-MM-dd dddd}";
+            }
         }
 
         private void BtnClose_Click(object sender, RoutedEventArgs e)
