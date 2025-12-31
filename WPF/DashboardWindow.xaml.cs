@@ -452,10 +452,10 @@ namespace Kalendarz1.WPF
                         sb.AppendLine();
 
                         // 2. Pokaż jakie KodTowaru są w zamówieniach
-                        var kodySql = $@"SELECT DISTINCT t.KodTowaru, t.Nazwa, SUM(t.Ilosc) as SumaIlosc, COUNT(*) as LiczbaZamowien
+                        var kodySql = $@"SELECT t.KodTowaru, SUM(t.Ilosc) as SumaIlosc, COUNT(*) as LiczbaZamowien
                                          FROM ZamowieniaMiesoTowar t
                                          WHERE t.ZamowienieId IN ({string.Join(",", orderIds)})
-                                         GROUP BY t.KodTowaru, t.Nazwa
+                                         GROUP BY t.KodTowaru
                                          ORDER BY SUM(t.Ilosc) DESC";
                         await using (var cmdKody = new SqlCommand(kodySql, cnDiag))
                         await using (var rdrKody = await cmdKody.ExecuteReaderAsync())
@@ -465,10 +465,9 @@ namespace Kalendarz1.WPF
                             while (await rdrKody.ReadAsync())
                             {
                                 var kodTowaru = rdrKody.GetValue(0);
-                                var nazwa = rdrKody.IsDBNull(1) ? "(brak)" : rdrKody.GetString(1);
-                                var suma = rdrKody.GetValue(2);
-                                var liczba = rdrKody.GetValue(3);
-                                sb.AppendLine($"    KodTowaru={kodTowaru} (typ:{kodTowaru?.GetType().Name}), Nazwa='{nazwa}', Suma={suma}, Zamówień={liczba}");
+                                var suma = rdrKody.GetValue(1);
+                                var liczba = rdrKody.GetValue(2);
+                                sb.AppendLine($"    KodTowaru={kodTowaru} (typ:{kodTowaru?.GetType().Name}), Suma={suma}, Zamówień={liczba}");
                                 cnt++;
                             }
                             sb.AppendLine($"    Łącznie różnych KodTowaru: {cnt}");
