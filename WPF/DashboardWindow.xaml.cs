@@ -26,6 +26,10 @@ namespace Kalendarz1.WPF
         private bool _uzywajWydan; // true = wydania, false = zamówienia
         private bool _pokazWydaniaBezZamowien; // true = pokaż odbiorców z wydaniami bez zamówień
 
+        // Progi kolorów paska postępu (w procentach)
+        private int _progZielony = 80;  // >= 80% = zielony
+        private int _progZolty = 50;    // >= 50% = żółty, poniżej = czerwony
+
         // Lista wszystkich dostępnych produktów z TW
         private List<ProductItem> _allProducts = new();
         // Produkty wybrane do dashboardu
@@ -1268,11 +1272,11 @@ namespace Kalendarz1.WPF
             double progressPercentClamped = Math.Min(progressPercent, 1.5); // max 150% szerokości
             int percentDisplay = (int)(progressPercent * 100);
 
-            // Kolor paska zależny od realizacji: zielony >80%, żółty 50-80%, czerwony <50%
+            // Kolor paska zależny od realizacji (konfigurowalne progi)
             Color progressColor;
-            if (progressPercent >= 0.8)
+            if (progressPercent >= _progZielony / 100.0)
                 progressColor = Color.FromRgb(39, 174, 96);   // Zielony - dobra realizacja
-            else if (progressPercent >= 0.5)
+            else if (progressPercent >= _progZolty / 100.0)
                 progressColor = Color.FromRgb(241, 196, 15);  // Żółty - średnia realizacja
             else
                 progressColor = Color.FromRgb(231, 76, 60);   // Czerwony - słaba realizacja
@@ -1368,11 +1372,11 @@ namespace Kalendarz1.WPF
                 mainStack.Children.Add(separator);
 
                 // Nagłówek sekcji: "Odbiorca | zam | wyd | %" - z marginesem na scrollbar
-                var headerRow = new Grid { Margin = new Thickness(0, 0, 12, 3) }; // Prawy margines dla scrollbara
+                var headerRow = new Grid { Margin = new Thickness(0, 0, 0, 3) };
                 headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Nazwa
-                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) }); // zam
-                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) }); // wyd
-                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) }); // %
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) }); // zam
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) }); // wyd
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) }); // %
 
                 var grayTextColor = new SolidColorBrush(Color.FromRgb(100, 100, 100));
 
@@ -1399,7 +1403,8 @@ namespace Kalendarz1.WPF
                 {
                     MaxHeight = 300,
                     VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                    Padding = new Thickness(0, 0, 4, 0) // Prawy padding dla scrollbara
                 };
 
                 var odbiorcyStack = new StackPanel();
@@ -1437,11 +1442,11 @@ namespace Kalendarz1.WPF
                     };
 
                     // Wiersz: [nazwa] | zam | wyd | % - dopasowany do nagłówka
-                    var odbiorcaRow = new Grid { Margin = new Thickness(0, 0, 12, 0) }; // Prawy margines dla scrollbara
+                    var odbiorcaRow = new Grid();
                     odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Nazwa
-                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) }); // zam
-                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) }); // wyd
-                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) }); // %
+                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) }); // zam
+                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) }); // wyd
+                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) }); // %
 
                     var nazwaText = new TextBlock
                     {
@@ -1690,6 +1695,91 @@ namespace Kalendarz1.WPF
         private void BtnRefresh_Click(object sender, RoutedEventArgs e)
         {
             _ = LoadDataAsync();
+        }
+
+        // Ustawienia progów kolorów
+        private void BtnSettings_Click(object sender, RoutedEventArgs e)
+        {
+            // Tworzymy proste okno dialogowe
+            var dialog = new Window
+            {
+                Title = "Ustawienia progów kolorów",
+                Width = 350,
+                Height = 250,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize
+            };
+
+            var stack = new StackPanel { Margin = new Thickness(20) };
+
+            // Nagłówek
+            stack.Children.Add(new TextBlock
+            {
+                Text = "Progi kolorów paska postępu",
+                FontSize = 14,
+                FontWeight = FontWeights.Bold,
+                Margin = new Thickness(0, 0, 0, 15)
+            });
+
+            // Próg zielony
+            var greenStack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
+            greenStack.Children.Add(new Border { Width = 20, Height = 20, Background = new SolidColorBrush(Color.FromRgb(39, 174, 96)), CornerRadius = new CornerRadius(3), Margin = new Thickness(0, 0, 10, 0) });
+            greenStack.Children.Add(new TextBlock { Text = "Zielony od:", VerticalAlignment = VerticalAlignment.Center, Width = 80 });
+            var txtGreen = new TextBox { Text = _progZielony.ToString(), Width = 60, Margin = new Thickness(5, 0, 5, 0) };
+            greenStack.Children.Add(txtGreen);
+            greenStack.Children.Add(new TextBlock { Text = "%", VerticalAlignment = VerticalAlignment.Center });
+            stack.Children.Add(greenStack);
+
+            // Próg żółty
+            var yellowStack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
+            yellowStack.Children.Add(new Border { Width = 20, Height = 20, Background = new SolidColorBrush(Color.FromRgb(241, 196, 15)), CornerRadius = new CornerRadius(3), Margin = new Thickness(0, 0, 10, 0) });
+            yellowStack.Children.Add(new TextBlock { Text = "Żółty od:", VerticalAlignment = VerticalAlignment.Center, Width = 80 });
+            var txtYellow = new TextBox { Text = _progZolty.ToString(), Width = 60, Margin = new Thickness(5, 0, 5, 0) };
+            yellowStack.Children.Add(txtYellow);
+            yellowStack.Children.Add(new TextBlock { Text = "%", VerticalAlignment = VerticalAlignment.Center });
+            stack.Children.Add(yellowStack);
+
+            // Info o czerwonym
+            var redStack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 20) };
+            redStack.Children.Add(new Border { Width = 20, Height = 20, Background = new SolidColorBrush(Color.FromRgb(231, 76, 60)), CornerRadius = new CornerRadius(3), Margin = new Thickness(0, 0, 10, 0) });
+            redStack.Children.Add(new TextBlock { Text = "Czerwony poniżej żółtego", VerticalAlignment = VerticalAlignment.Center, Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)) });
+            stack.Children.Add(redStack);
+
+            // Przyciski
+            var btnStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            var btnOK = new Button { Content = "Zapisz", Padding = new Thickness(20, 8, 20, 8), Margin = new Thickness(0, 0, 10, 0), Background = new SolidColorBrush(Color.FromRgb(39, 174, 96)), Foreground = Brushes.White, BorderThickness = new Thickness(0) };
+            var btnCancel = new Button { Content = "Anuluj", Padding = new Thickness(20, 8, 20, 8), Background = new SolidColorBrush(Color.FromRgb(149, 165, 166)), Foreground = Brushes.White, BorderThickness = new Thickness(0) };
+
+            btnOK.Click += (s, args) =>
+            {
+                if (int.TryParse(txtGreen.Text, out int green) && int.TryParse(txtYellow.Text, out int yellow))
+                {
+                    if (green > yellow && green <= 100 && yellow >= 0)
+                    {
+                        _progZielony = green;
+                        _progZolty = yellow;
+                        dialog.DialogResult = true;
+                        _ = LoadDataAsync(); // Odśwież z nowymi progami
+                    }
+                    else
+                    {
+                        MessageBox.Show("Próg zielony musi być większy od żółtego i w zakresie 0-100%", "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("Wprowadź poprawne liczby", "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            };
+            btnCancel.Click += (s, args) => dialog.DialogResult = false;
+
+            btnStack.Children.Add(btnOK);
+            btnStack.Children.Add(btnCancel);
+            stack.Children.Add(btnStack);
+
+            dialog.Content = stack;
+            dialog.ShowDialog();
         }
 
         // Eksport do Excel (CSV)

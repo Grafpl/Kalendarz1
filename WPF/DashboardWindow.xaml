@@ -205,6 +205,10 @@
                     </StackPanel>
 
                     <StackPanel Grid.Column="4" Orientation="Horizontal">
+                        <Button x:Name="btnSettings" Content="⚙" Style="{StaticResource ModernButtonStyle}"
+                                Background="#95A5A6" Margin="0,0,10,0" Padding="10,6"
+                                ToolTip="Ustawienia progów kolorów paska"
+                                Click="BtnSettings_Click"/>
                         <Button x:Name="btnRefresh" Content="⟳ Odśwież" Style="{StaticResource ModernButtonStyle}"
                                 Background="#3498DB" Margin="0,0,10,0"
                                 Click="BtnRefresh_Click"/>
