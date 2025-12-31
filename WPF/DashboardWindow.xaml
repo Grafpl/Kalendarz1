@@ -7,326 +7,298 @@
         Background="#F0F2F5"
         FontFamily="Segoe UI">
 
-    <Grid Margin="20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+    <Window.Resources>
+        <!-- Styl karty produktu -->
+        <Style x:Key="ProductCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Margin" Value="8"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect ShadowDepth="2" Opacity="0.1" BlurRadius="15"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
-        <!-- NAGŁÓWEK -->
-        <Border Grid.Row="0" CornerRadius="10" Margin="0,0,0,15">
-            <Border.Background>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                    <GradientStop Color="#2c3e50" Offset="0"/>
-                    <GradientStop Color="#27ae60" Offset="1"/>
-                </LinearGradientBrush>
-            </Border.Background>
-            <Grid Margin="25,18">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+        <!-- Styl przycisku -->
+        <Style x:Key="ModernButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#3498DB"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.7"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
-                <StackPanel Grid.Column="0">
-                    <TextBlock Text="DASHBOARD PRODUKTÓW" FontSize="26" FontWeight="Bold" Foreground="White"/>
-                    <TextBlock x:Name="txtSelectedDate" Text="Data: -" FontSize="14" Foreground="#A3E4D7" Margin="0,5,0,0"/>
-                </StackPanel>
+        <!-- Styl elementu listy produktów -->
+        <Style x:Key="ProductListItemStyle" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#EBF5FB"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#D4EFDF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
 
-                <!-- KPI w nagłówku -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Background="#27AE60" CornerRadius="8" Padding="18,10" Margin="8,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="DO SPRZEDANIA:" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="txtDoSprzedania" Text="0 kg" FontSize="20" Foreground="White" FontWeight="Bold" Margin="8,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
-                    <Border Background="#3498DB" CornerRadius="8" Padding="18,10" Margin="8,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="ZAMÓWIONE:" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="txtZamowione" Text="0 kg" FontSize="20" Foreground="White" FontWeight="Bold" Margin="8,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-            </Grid>
-        </Border>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
 
-        <!-- PASEK FILTRÓW -->
-        <Border Grid.Row="1" Background="White" CornerRadius="10" Padding="20,12" Margin="0,0,0,15">
-            <Border.Effect>
-                <DropShadowEffect ShadowDepth="1" Opacity="0.08" BlurRadius="8"/>
-            </Border.Effect>
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,30,0">
-                    <TextBlock Text="Data:" VerticalAlignment="Center" Margin="0,0,10,0" FontWeight="SemiBold" FontSize="13"/>
-                    <DatePicker x:Name="dpData" Width="140" FontSize="13" SelectedDateChanged="DpData_SelectedDateChanged"/>
-                </StackPanel>
-
-                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <TextBlock Text="Bilans wg:" VerticalAlignment="Center" Margin="0,0,10,0" FontWeight="SemiBold" FontSize="13"/>
-                    <RadioButton x:Name="rbBilansZamowienia" Content="Zamówienia" IsChecked="True"
-                                 VerticalAlignment="Center" Margin="0,0,15,0" FontSize="13"
-                                 Checked="RbBilans_Checked"/>
-                    <RadioButton x:Name="rbBilansWydania" Content="Wydania"
-                                 VerticalAlignment="Center" FontSize="13"
-                                 Checked="RbBilans_Checked"/>
-                </StackPanel>
-
-                <Button Grid.Column="3" Content="Zamknij" Padding="20,10"
-                        Background="#7F8C8D" Foreground="White" BorderThickness="0"
-                        FontSize="13" FontWeight="SemiBold" Cursor="Hand"
-                        Click="BtnClose_Click"/>
-            </Grid>
-        </Border>
-
-        <!-- GŁÓWNA ZAWARTOŚĆ - 4 karty produktów -->
-        <Grid Grid.Row="2">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
+        <!-- GŁÓWNA ZAWARTOŚĆ -->
+        <Grid Grid.Column="0" Margin="20">
             <Grid.RowDefinitions>
-                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- KURCZAK A -->
-            <Border Grid.Row="0" Grid.Column="0" Background="White" CornerRadius="12" Margin="0,0,10,10">
-                <Border.Effect>
-                    <DropShadowEffect ShadowDepth="2" Opacity="0.1" BlurRadius="15"/>
-                </Border.Effect>
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <Border Grid.Row="0" CornerRadius="12,12,0,0" Padding="20,15">
-                        <Border.Background>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                <GradientStop Color="#27AE60" Offset="0"/>
-                                <GradientStop Color="#2ECC71" Offset="1"/>
-                            </LinearGradientBrush>
-                        </Border.Background>
-                        <Grid>
-                            <TextBlock Text="KURCZAK A" FontSize="20" FontWeight="Bold" Foreground="White"/>
-                            <TextBlock x:Name="txtKurczakABilans" Text="0 kg" FontSize="24" FontWeight="Bold"
-                                       Foreground="White" HorizontalAlignment="Right"/>
-                        </Grid>
-                    </Border>
-                    <Grid Grid.Row="1" Margin="20">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-                        <!-- Wykres słupkowy -->
-                        <Grid Grid.Row="0" x:Name="chartKurczakA" Margin="0,0,0,15"/>
-                        <!-- Statystyki -->
-                        <Grid Grid.Row="1">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" HorizontalAlignment="Center">
-                                <TextBlock Text="PLAN" FontSize="11" Foreground="#7F8C8D" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="txtKurczakAPlan" Text="0" FontSize="18" FontWeight="Bold" Foreground="#2C3E50" HorizontalAlignment="Center"/>
+            <!-- NAGŁÓWEK -->
+            <Border Grid.Row="0" CornerRadius="10" Margin="0,0,0,15">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#2c3e50" Offset="0"/>
+                        <GradientStop Color="#27ae60" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Grid Margin="25,18">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="DASHBOARD PRODUKTÓW" FontSize="26" FontWeight="Bold" Foreground="White"/>
+                        <TextBlock x:Name="txtSelectedDate" Text="Data: -" FontSize="14" Foreground="#A3E4D7" Margin="0,5,0,0"/>
+                    </StackPanel>
+
+                    <!-- KPI w nagłówku -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Background="#27AE60" CornerRadius="8" Padding="18,10" Margin="8,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="DO SPRZEDANIA:" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="txtDoSprzedania" Text="0 kg" FontSize="20" Foreground="White" FontWeight="Bold" Margin="8,0,0,0" VerticalAlignment="Center"/>
                             </StackPanel>
-                            <StackPanel Grid.Column="1" HorizontalAlignment="Center">
-                                <TextBlock Text="FAKT" FontSize="11" Foreground="#7F8C8D" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="txtKurczakAFakt" Text="0" FontSize="18" FontWeight="Bold" Foreground="#27AE60" HorizontalAlignment="Center"/>
+                        </Border>
+                        <Border Background="#3498DB" CornerRadius="8" Padding="18,10" Margin="8,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="ZAMÓWIONE:" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="txtZamowione" Text="0 kg" FontSize="20" Foreground="White" FontWeight="Bold" Margin="8,0,0,0" VerticalAlignment="Center"/>
                             </StackPanel>
-                            <StackPanel Grid.Column="2" HorizontalAlignment="Center">
-                                <TextBlock Text="STAN" FontSize="11" Foreground="#7F8C8D" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="txtKurczakAStan" Text="0" FontSize="18" FontWeight="Bold" Foreground="#3498DB" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="3" HorizontalAlignment="Center">
-                                <TextBlock Text="ZAM." FontSize="11" Foreground="#7F8C8D" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="txtKurczakAZam" Text="0" FontSize="18" FontWeight="Bold" Foreground="#E74C3C" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                        </Grid>
-                    </Grid>
+                        </Border>
+                    </StackPanel>
                 </Grid>
             </Border>
 
-            <!-- ĆWIARTKA -->
-            <Border Grid.Row="0" Grid.Column="1" Background="White" CornerRadius="12" Margin="10,0,0,10">
+            <!-- PASEK FILTRÓW -->
+            <Border Grid.Row="1" Background="White" CornerRadius="10" Padding="20,12" Margin="0,0,0,15">
                 <Border.Effect>
-                    <DropShadowEffect ShadowDepth="2" Opacity="0.1" BlurRadius="15"/>
+                    <DropShadowEffect ShadowDepth="1" Opacity="0.08" BlurRadius="8"/>
                 </Border.Effect>
                 <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <Border Grid.Row="0" CornerRadius="12,12,0,0" Padding="20,15">
-                        <Border.Background>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                <GradientStop Color="#3498DB" Offset="0"/>
-                                <GradientStop Color="#5DADE2" Offset="1"/>
-                            </LinearGradientBrush>
-                        </Border.Background>
-                        <Grid>
-                            <TextBlock Text="ĆWIARTKA" FontSize="20" FontWeight="Bold" Foreground="White"/>
-                            <TextBlock x:Name="txtCwiartkaBilans" Text="0 kg" FontSize="24" FontWeight="Bold"
-                                       Foreground="White" HorizontalAlignment="Right"/>
-                        </Grid>
-                    </Border>
-                    <Grid Grid.Row="1" Margin="20">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-                        <Grid Grid.Row="0" x:Name="chartCwiartka" Margin="0,0,0,15"/>
-                        <Grid Grid.Row="1">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" HorizontalAlignment="Center">
-                                <TextBlock Text="PLAN" FontSize="11" Foreground="#7F8C8D" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="txtCwiartkaPlan" Text="0" FontSize="18" FontWeight="Bold" Foreground="#2C3E50" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" HorizontalAlignment="Center">
-                                <TextBlock Text="FAKT" FontSize="11" Foreground="#7F8C8D" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="txtCwiartkaFakt" Text="0" FontSize="18" FontWeight="Bold" Foreground="#27AE60" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="2" HorizontalAlignment="Center">
-                                <TextBlock Text="STAN" FontSize="11" Foreground="#7F8C8D" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="txtCwiartkaStan" Text="0" FontSize="18" FontWeight="Bold" Foreground="#3498DB" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="3" HorizontalAlignment="Center">
-                                <TextBlock Text="ZAM." FontSize="11" Foreground="#7F8C8D" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="txtCwiartkaZam" Text="0" FontSize="18" FontWeight="Bold" Foreground="#E74C3C" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                        </Grid>
-                    </Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,30,0">
+                        <TextBlock Text="Data:" VerticalAlignment="Center" Margin="0,0,10,0" FontWeight="SemiBold" FontSize="13"/>
+                        <DatePicker x:Name="dpData" Width="140" FontSize="13" SelectedDateChanged="DpData_SelectedDateChanged"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,30,0">
+                        <TextBlock Text="Bilans wg:" VerticalAlignment="Center" Margin="0,0,10,0" FontWeight="SemiBold" FontSize="13"/>
+                        <RadioButton x:Name="rbBilansZamowienia" Content="Zamówienia" IsChecked="True"
+                                     VerticalAlignment="Center" Margin="0,0,15,0" FontSize="13"
+                                     Checked="RbBilans_Checked"/>
+                        <RadioButton x:Name="rbBilansWydania" Content="Wydania"
+                                     VerticalAlignment="Center" FontSize="13"
+                                     Checked="RbBilans_Checked"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                        <TextBlock Text="Widok:" VerticalAlignment="Center" Margin="0,0,10,0" FontWeight="SemiBold" FontSize="13"/>
+                        <ComboBox x:Name="cmbWidok" Width="180" FontSize="13" Height="30"
+                                  SelectionChanged="CmbWidok_SelectionChanged"/>
+                        <Button Content="Zapisz" Style="{StaticResource ModernButtonStyle}"
+                                Background="#27AE60" Margin="10,0,0,0" Padding="12,6"
+                                Click="BtnSaveView_Click"/>
+                        <Button Content="Usuń" Style="{StaticResource ModernButtonStyle}"
+                                Background="#E74C3C" Margin="5,0,0,0" Padding="12,6"
+                                Click="BtnDeleteView_Click"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="4" Orientation="Horizontal">
+                        <Button x:Name="btnTogglePanel" Content="Wybierz produkty ▶" Style="{StaticResource ModernButtonStyle}"
+                                Background="#9B59B6" Margin="0,0,10,0"
+                                Click="BtnTogglePanel_Click"/>
+                        <Button Content="Zamknij" Style="{StaticResource ModernButtonStyle}"
+                                Background="#7F8C8D"
+                                Click="BtnClose_Click"/>
+                    </StackPanel>
                 </Grid>
             </Border>
 
-            <!-- FILET -->
-            <Border Grid.Row="1" Grid.Column="0" Background="White" CornerRadius="12" Margin="0,10,10,0">
-                <Border.Effect>
-                    <DropShadowEffect ShadowDepth="2" Opacity="0.1" BlurRadius="15"/>
-                </Border.Effect>
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <Border Grid.Row="0" CornerRadius="12,12,0,0" Padding="20,15">
-                        <Border.Background>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                <GradientStop Color="#9B59B6" Offset="0"/>
-                                <GradientStop Color="#AF7AC5" Offset="1"/>
-                            </LinearGradientBrush>
-                        </Border.Background>
-                        <Grid>
-                            <TextBlock Text="FILET" FontSize="20" FontWeight="Bold" Foreground="White"/>
-                            <TextBlock x:Name="txtFiletBilans" Text="0 kg" FontSize="24" FontWeight="Bold"
-                                       Foreground="White" HorizontalAlignment="Right"/>
-                        </Grid>
-                    </Border>
-                    <Grid Grid.Row="1" Margin="20">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-                        <Grid Grid.Row="0" x:Name="chartFilet" Margin="0,0,0,15"/>
-                        <Grid Grid.Row="1">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" HorizontalAlignment="Center">
-                                <TextBlock Text="PLAN" FontSize="11" Foreground="#7F8C8D" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="txtFiletPlan" Text="0" FontSize="18" FontWeight="Bold" Foreground="#2C3E50" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" HorizontalAlignment="Center">
-                                <TextBlock Text="FAKT" FontSize="11" Foreground="#7F8C8D" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="txtFiletFakt" Text="0" FontSize="18" FontWeight="Bold" Foreground="#27AE60" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="2" HorizontalAlignment="Center">
-                                <TextBlock Text="STAN" FontSize="11" Foreground="#7F8C8D" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="txtFiletStan" Text="0" FontSize="18" FontWeight="Bold" Foreground="#3498DB" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="3" HorizontalAlignment="Center">
-                                <TextBlock Text="ZAM." FontSize="11" Foreground="#7F8C8D" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="txtFiletZam" Text="0" FontSize="18" FontWeight="Bold" Foreground="#E74C3C" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                        </Grid>
-                    </Grid>
-                </Grid>
-            </Border>
+            <!-- DYNAMICZNE KARTY PRODUKTÓW -->
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl x:Name="icProducts">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </ScrollViewer>
 
-            <!-- KORPUS -->
-            <Border Grid.Row="1" Grid.Column="1" Background="White" CornerRadius="12" Margin="10,10,0,0">
+            <!-- Placeholder gdy brak produktów -->
+            <Border Grid.Row="2" x:Name="placeholderPanel" Background="White" CornerRadius="12"
+                    HorizontalAlignment="Center" VerticalAlignment="Center" Padding="60,40">
                 <Border.Effect>
                     <DropShadowEffect ShadowDepth="2" Opacity="0.1" BlurRadius="15"/>
                 </Border.Effect>
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <Border Grid.Row="0" CornerRadius="12,12,0,0" Padding="20,15">
-                        <Border.Background>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                <GradientStop Color="#E67E22" Offset="0"/>
-                                <GradientStop Color="#F39C12" Offset="1"/>
-                            </LinearGradientBrush>
-                        </Border.Background>
-                        <Grid>
-                            <TextBlock Text="KORPUS" FontSize="20" FontWeight="Bold" Foreground="White"/>
-                            <TextBlock x:Name="txtKorpusBilans" Text="0 kg" FontSize="24" FontWeight="Bold"
-                                       Foreground="White" HorizontalAlignment="Right"/>
-                        </Grid>
-                    </Border>
-                    <Grid Grid.Row="1" Margin="20">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-                        <Grid Grid.Row="0" x:Name="chartKorpus" Margin="0,0,0,15"/>
-                        <Grid Grid.Row="1">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" HorizontalAlignment="Center">
-                                <TextBlock Text="PLAN" FontSize="11" Foreground="#7F8C8D" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="txtKorpusPlan" Text="0" FontSize="18" FontWeight="Bold" Foreground="#2C3E50" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" HorizontalAlignment="Center">
-                                <TextBlock Text="FAKT" FontSize="11" Foreground="#7F8C8D" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="txtKorpusFakt" Text="0" FontSize="18" FontWeight="Bold" Foreground="#27AE60" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="2" HorizontalAlignment="Center">
-                                <TextBlock Text="STAN" FontSize="11" Foreground="#7F8C8D" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="txtKorpusStan" Text="0" FontSize="18" FontWeight="Bold" Foreground="#3498DB" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="3" HorizontalAlignment="Center">
-                                <TextBlock Text="ZAM." FontSize="11" Foreground="#7F8C8D" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="txtKorpusZam" Text="0" FontSize="18" FontWeight="Bold" Foreground="#E74C3C" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                        </Grid>
-                    </Grid>
-                </Grid>
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="📊" FontSize="60" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+                    <TextBlock Text="Brak wybranych produktów" FontSize="20" FontWeight="SemiBold"
+                               Foreground="#2C3E50" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Kliknij 'Wybierz produkty' aby dodać produkty do dashboardu"
+                               FontSize="14" Foreground="#7F8C8D" HorizontalAlignment="Center" Margin="0,10,0,20"/>
+                    <Button Content="Wybierz produkty" Style="{StaticResource ModernButtonStyle}"
+                            Background="#9B59B6" HorizontalAlignment="Center"
+                            Click="BtnTogglePanel_Click"/>
+                </StackPanel>
             </Border>
         </Grid>
+
+        <!-- PANEL BOCZNY - WYBÓR PRODUKTÓW -->
+        <Border Grid.Column="1" x:Name="sidePanel" Width="350" Background="White" Visibility="Collapsed">
+            <Border.Effect>
+                <DropShadowEffect ShadowDepth="-3" Opacity="0.15" BlurRadius="10" Direction="180"/>
+            </Border.Effect>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Nagłówek panelu -->
+                <Border Grid.Row="0" Padding="20,15">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="#9B59B6" Offset="0"/>
+                            <GradientStop Color="#8E44AD" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Grid>
+                        <TextBlock Text="WYBÓR PRODUKTÓW" FontSize="16" FontWeight="Bold" Foreground="White"/>
+                        <Button Content="✕" HorizontalAlignment="Right" Background="Transparent"
+                                Foreground="White" BorderThickness="0" FontSize="16" Cursor="Hand"
+                                Click="BtnClosePanel_Click"/>
+                    </Grid>
+                </Border>
+
+                <!-- Filtr wyszukiwania -->
+                <Border Grid.Row="1" Padding="15,10">
+                    <StackPanel>
+                        <TextBox x:Name="txtSearchProduct" Height="35" FontSize="13"
+                                 VerticalContentAlignment="Center" Padding="10,0"
+                                 TextChanged="TxtSearchProduct_TextChanged"/>
+                        <TextBlock Text="Wpisz nazwę produktu aby wyszukać..." FontSize="11"
+                                   Foreground="#95A5A6" Margin="5,5,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Lista produktów -->
+                <ListBox Grid.Row="2" x:Name="lstProducts"
+                         SelectionMode="Multiple"
+                         ItemContainerStyle="{StaticResource ProductListItemStyle}"
+                         BorderThickness="0" Margin="10,0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                          VerticalAlignment="Center" Margin="0,0,10,0"
+                                          Checked="ProductCheckBox_Changed" Unchecked="ProductCheckBox_Changed"/>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{Binding Kod}" FontWeight="SemiBold" FontSize="13"/>
+                                    <TextBlock Text="{Binding Nazwa}" FontSize="11" Foreground="#7F8C8D" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <!-- Wybrane produkty -->
+                <Border Grid.Row="3" Background="#F8F9FA" Padding="15,10">
+                    <StackPanel>
+                        <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="#2C3E50">
+                            <Run Text="Wybrano: "/>
+                            <Run x:Name="txtSelectedCount" Text="0" Foreground="#27AE60"/>
+                            <Run Text=" produktów"/>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+                <!-- Przyciski akcji -->
+                <Border Grid.Row="4" Padding="15">
+                    <StackPanel>
+                        <Button Content="Zastosuj wybór" Style="{StaticResource ModernButtonStyle}"
+                                Background="#27AE60" HorizontalAlignment="Stretch"
+                                Click="BtnApplySelection_Click"/>
+                        <Button Content="Wyczyść wybór" Style="{StaticResource ModernButtonStyle}"
+                                Background="#E74C3C" HorizontalAlignment="Stretch" Margin="0,8,0,0"
+                                Click="BtnClearSelection_Click"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
     </Grid>
 </Window>
