@@ -406,9 +406,8 @@ namespace Kalendarz1.WPF
                 await using (var cn = new SqlConnection(_connLibra))
                 {
                     await cn.OpenAsync();
-                    // Szukaj po DataUboju LUB DataDostawy
                     const string sql = @"SELECT Id FROM dbo.ZamowieniaMieso
-                                         WHERE (DataUboju = @Day OR DataDostawy = @Day) AND Status <> 'Anulowane'";
+                                         WHERE DataUboju = @Day AND Status <> 'Anulowane'";
                     await using var cmd = new SqlCommand(sql, cn);
                     cmd.Parameters.AddWithValue("@Day", day);
                     await using var rdr = await cmd.ExecuteReaderAsync();
