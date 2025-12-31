@@ -51,8 +51,11 @@ namespace Kalendarz1.WPF
         private class OdbiorcaZamowienie
         {
             public int ZamowienieId { get; set; } // ID zamówienia do nawigacji
+            public int KlientId { get; set; } // ID klienta dla wydań
             public string NazwaOdbiorcy { get; set; } = "";
-            public decimal Ilosc { get; set; }
+            public decimal Zamowione { get; set; } // ile zamówione
+            public decimal Wydane { get; set; } // ile wydane
+            public decimal ProcentUdzial { get; set; } // % udziału w zamówieniach
         }
 
         // Lista danych produktów do DataGrid
@@ -545,8 +548,8 @@ namespace Kalendarz1.WPF
                     }
                 }
 
-                // Słownik: productId -> lista (odbiorca, ilość)
-                var orderDetails = new Dictionary<int, List<(string Odbiorca, decimal Ilosc)>>();
+                // Słownik: productId -> lista (KlientId, nazwa, ilość zamówiona)
+                var orderDetails = new Dictionary<int, List<(int KlientId, string Nazwa, decimal Ilosc)>>();
 
                 if (orderIds.Any())
                 {
@@ -601,11 +604,11 @@ namespace Kalendarz1.WPF
                             decimal ilosc = rdr.IsDBNull(2) ? 0m : rdr.GetDecimal(2);
 
                             // Pobierz nazwę odbiorcy ze słownika kontrahentów
-                            string odbiorca = kontrahenci.TryGetValue(klientId, out var nazwa) ? nazwa : $"Nieznany ({klientId})";
+                            string odbiorcaNazwa = kontrahenci.TryGetValue(klientId, out var nazwa) ? nazwa : $"Nieznany ({klientId})";
 
                             if (!orderDetails.ContainsKey(productId))
-                                orderDetails[productId] = new List<(string, decimal)>();
-                            orderDetails[productId].Add((odbiorca, ilosc));
+                                orderDetails[productId] = new List<(int KlientId, string Nazwa, decimal Ilosc)>();
+                            orderDetails[productId].Add((klientId, odbiorcaNazwa, ilosc));
                         }
                     }
 
@@ -613,24 +616,34 @@ namespace Kalendarz1.WPF
                     System.Diagnostics.Debug.WriteLine($"[Dashboard] Wybrane produkty: {string.Join(",", _selectedProductIds.Take(10))}");
                 }
 
-                // 7. Pobierz WYDANIA (WZ)
+                // 7. Pobierz WYDANIA (WZ) - per produkt
                 var wydaniaSum = new Dictionary<int, decimal>();
+                // Wydania per klient per produkt: (produktId, klientId) -> ilość
+                var wydaniaPerKlientProdukt = new Dictionary<(int produktId, int klientId), decimal>();
                 await using (var cn = new SqlConnection(_connHandel))
                 {
                     await cn.OpenAsync();
-                    const string sql = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc))
+                    const string sql = @"SELECT MZ.idtw, MG.khid, SUM(ABS(MZ.ilosc))
                                          FROM [HANDEL].[HM].[MZ] MZ
                                          JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
                                          WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny=1 AND MG.data = @Day
-                                         GROUP BY MZ.idtw";
+                                         GROUP BY MZ.idtw, MG.khid";
                     await using var cmd = new SqlCommand(sql, cn);
                     cmd.Parameters.AddWithValue("@Day", day);
                     await using var rdr = await cmd.ExecuteReaderAsync();
                     while (await rdr.ReadAsync())
                     {
-                        int id = rdr.GetInt32(0);
-                        decimal qty = rdr.IsDBNull(1) ? 0m : Convert.ToDecimal(rdr.GetValue(1));
-                        wydaniaSum[id] = qty;
+                        int produktId = rdr.GetInt32(0);
+                        int klientId = rdr.IsDBNull(1) ? 0 : rdr.GetInt32(1);
+                        decimal qty = rdr.IsDBNull(2) ? 0m : Convert.ToDecimal(rdr.GetValue(2));
+
+                        // Suma per produkt
+                        if (!wydaniaSum.ContainsKey(produktId))
+                            wydaniaSum[produktId] = 0m;
+                        wydaniaSum[produktId] += qty;
+
+                        // Per klient per produkt
+                        wydaniaPerKlientProdukt[(produktId, klientId)] = qty;
                     }
                 }
 
@@ -738,10 +751,14 @@ namespace Kalendarz1.WPF
                     var odbiorcy = new List<OdbiorcaZamowienie>();
                     if (orderDetails.TryGetValue(productId, out var details))
                     {
+                        decimal sumaZamowien = details.Sum(d => d.Ilosc);
                         odbiorcy = details.Select(d => new OdbiorcaZamowienie
                         {
-                            NazwaOdbiorcy = d.Odbiorca,
-                            Ilosc = d.Ilosc
+                            KlientId = d.KlientId,
+                            NazwaOdbiorcy = d.Nazwa,
+                            Zamowione = d.Ilosc,
+                            Wydane = wydaniaPerKlientProdukt.TryGetValue((productId, d.KlientId), out var wyd) ? wyd : 0m,
+                            ProcentUdzial = sumaZamowien > 0 ? (d.Ilosc / sumaZamowien) * 100m : 0m
                         }).ToList();
                     }
 
@@ -997,7 +1014,7 @@ namespace Kalendarz1.WPF
         private Border CreateProductCard(ProductData data, Color headerColor)
         {
             // Stała wysokość karty - lista odbiorców jest scrollowalna
-            double cardHeight = data.Odbiorcy.Any() ? 380 : 280;
+            double cardHeight = data.Odbiorcy.Any() ? 450 : 300;
 
             // Czy bilans jest problemowy (poza zakresem -1000 do 1000)?
             bool bilansProblem = data.Bilans < -1000 || data.Bilans > 1000;
@@ -1191,38 +1208,38 @@ namespace Kalendarz1.WPF
                 };
                 mainStack.Children.Add(separator);
 
-                // Nagłówek sekcji: "Odbiorca    kg"
+                // Nagłówek sekcji: "Odbiorca | zam | wyd | %"
                 var headerRow = new Grid { Margin = new Thickness(0, 0, 0, 3) };
-                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Nazwa
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) }); // zam
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) }); // wyd
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(35) }); // %
 
-                var headerNazwa = new TextBlock
-                {
-                    Text = "Odbiorca",
-                    FontSize = 10,
-                    FontWeight = FontWeights.SemiBold,
-                    Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100))
-                };
+                var headerStyle = new Style(typeof(TextBlock));
+                var headerColor = new SolidColorBrush(Color.FromRgb(100, 100, 100));
+
+                var headerNazwa = new TextBlock { Text = "Odbiorca", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = headerColor };
                 Grid.SetColumn(headerNazwa, 0);
                 headerRow.Children.Add(headerNazwa);
 
-                var headerKg = new TextBlock
-                {
-                    Text = "kg",
-                    FontSize = 10,
-                    FontWeight = FontWeights.SemiBold,
-                    Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
-                    HorizontalAlignment = HorizontalAlignment.Right
-                };
-                Grid.SetColumn(headerKg, 1);
-                headerRow.Children.Add(headerKg);
+                var headerZam = new TextBlock { Text = "zam", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = headerColor, HorizontalAlignment = HorizontalAlignment.Right };
+                Grid.SetColumn(headerZam, 1);
+                headerRow.Children.Add(headerZam);
+
+                var headerWyd = new TextBlock { Text = "wyd", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = headerColor, HorizontalAlignment = HorizontalAlignment.Right };
+                Grid.SetColumn(headerWyd, 2);
+                headerRow.Children.Add(headerWyd);
+
+                var headerProc = new TextBlock { Text = "%", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = headerColor, HorizontalAlignment = HorizontalAlignment.Right };
+                Grid.SetColumn(headerProc, 3);
+                headerRow.Children.Add(headerProc);
 
                 mainStack.Children.Add(headerRow);
 
                 // Scrollowalna lista odbiorców
                 var scrollViewer = new ScrollViewer
                 {
-                    MaxHeight = 120,
+                    MaxHeight = 180,
                     VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                     HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
                 };
@@ -1261,31 +1278,56 @@ namespace Kalendarz1.WPF
                         ShowOdbiorcaOrderWindow(odbInfo, prodInfo);
                     };
 
-                    // Wiersz: [nazwa odbiorcy] ilość
+                    // Wiersz: [nazwa] | zam | wyd | %
                     var odbiorcaRow = new Grid();
-                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
+                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Nazwa
+                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) }); // zam
+                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) }); // wyd
+                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(35) }); // %
 
                     var nazwaText = new TextBlock
                     {
-                        Text = $"[{odbiorca.NazwaOdbiorcy}]",
-                        FontSize = 10,
-                        Foreground = new SolidColorBrush(Color.FromRgb(80, 80, 80)),
+                        Text = odbiorca.NazwaOdbiorcy,
+                        FontSize = 9,
+                        Foreground = new SolidColorBrush(Color.FromRgb(50, 50, 50)),
                         TextTrimming = TextTrimming.CharacterEllipsis
                     };
                     Grid.SetColumn(nazwaText, 0);
                     odbiorcaRow.Children.Add(nazwaText);
 
-                    var iloscText = new TextBlock
+                    var zamText = new TextBlock
                     {
-                        Text = $"{odbiorca.Ilosc:N0}",
-                        FontSize = 10,
+                        Text = $"{odbiorca.Zamowione:N0}",
+                        FontSize = 9,
                         FontWeight = FontWeights.SemiBold,
-                        Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                        Foreground = new SolidColorBrush(Color.FromRgb(41, 128, 185)), // Niebieski
                         HorizontalAlignment = HorizontalAlignment.Right
                     };
-                    Grid.SetColumn(iloscText, 1);
-                    odbiorcaRow.Children.Add(iloscText);
+                    Grid.SetColumn(zamText, 1);
+                    odbiorcaRow.Children.Add(zamText);
+
+                    var wydText = new TextBlock
+                    {
+                        Text = odbiorca.Wydane > 0 ? $"{odbiorca.Wydane:N0}" : "-",
+                        FontSize = 9,
+                        FontWeight = FontWeights.SemiBold,
+                        Foreground = odbiorca.Wydane > 0
+                            ? new SolidColorBrush(Color.FromRgb(39, 174, 96))  // Zielony
+                            : new SolidColorBrush(Color.FromRgb(180, 180, 180)), // Szary
+                        HorizontalAlignment = HorizontalAlignment.Right
+                    };
+                    Grid.SetColumn(wydText, 2);
+                    odbiorcaRow.Children.Add(wydText);
+
+                    var procText = new TextBlock
+                    {
+                        Text = $"{odbiorca.ProcentUdzial:N0}",
+                        FontSize = 9,
+                        Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+                        HorizontalAlignment = HorizontalAlignment.Right
+                    };
+                    Grid.SetColumn(procText, 3);
+                    odbiorcaRow.Children.Add(procText);
 
                     odbiorcaBorder.Child = odbiorcaRow;
                     odbiorcyStack.Children.Add(odbiorcaBorder);

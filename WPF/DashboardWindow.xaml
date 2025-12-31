@@ -83,53 +83,53 @@
         </Grid.ColumnDefinitions>
 
         <!-- GŁÓWNA ZAWARTOŚĆ -->
-        <Grid Grid.Column="0" Margin="20">
+        <Grid Grid.Column="0" Margin="12,8">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- NAGŁÓWEK -->
-            <Border Grid.Row="0" CornerRadius="10" Margin="0,0,0,15">
+            <!-- NAGŁÓWEK - kompaktowy -->
+            <Border Grid.Row="0" CornerRadius="8" Margin="0,0,0,8">
                 <Border.Background>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
                         <GradientStop Color="#2c3e50" Offset="0"/>
                         <GradientStop Color="#27ae60" Offset="1"/>
                     </LinearGradientBrush>
                 </Border.Background>
-                <Grid Margin="25,18">
+                <Grid Margin="20,10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <StackPanel Grid.Column="0">
-                        <TextBlock Text="DASHBOARD PRODUKTÓW" FontSize="26" FontWeight="Bold" Foreground="White"/>
-                        <TextBlock x:Name="txtSelectedDate" Text="Data: -" FontSize="14" Foreground="#A3E4D7" Margin="0,5,0,0"/>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="DASHBOARD PRODUKTÓW" FontSize="20" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="txtSelectedDate" Text="Data: -" FontSize="12" Foreground="#A3E4D7" Margin="20,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
 
                     <!-- KPI w nagłówku -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Border Background="#27AE60" CornerRadius="8" Padding="18,10" Margin="8,0">
+                        <Border Background="#27AE60" CornerRadius="6" Padding="12,6" Margin="5,0">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="DO SPRZEDANIA:" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="txtDoSprzedania" Text="0 kg" FontSize="20" Foreground="White" FontWeight="Bold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="DO SPRZEDANIA:" FontSize="11" Foreground="White" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="txtDoSprzedania" Text="0 kg" FontSize="16" Foreground="White" FontWeight="Bold" Margin="6,0,0,0" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
-                        <Border Background="#3498DB" CornerRadius="8" Padding="18,10" Margin="8,0">
+                        <Border Background="#3498DB" CornerRadius="6" Padding="12,6" Margin="5,0">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="ZAMÓWIONE:" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="txtZamowione" Text="0 kg" FontSize="20" Foreground="White" FontWeight="Bold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="ZAMÓWIONE:" FontSize="11" Foreground="White" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="txtZamowione" Text="0 kg" FontSize="16" Foreground="White" FontWeight="Bold" Margin="6,0,0,0" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
                 </Grid>
             </Border>
 
-            <!-- PASEK FILTRÓW -->
-            <Border Grid.Row="1" Background="White" CornerRadius="10" Padding="20,12" Margin="0,0,0,15">
+            <!-- PASEK FILTRÓW - kompaktowy -->
+            <Border Grid.Row="1" Background="White" CornerRadius="8" Padding="15,8" Margin="0,0,0,8">
                 <Border.Effect>
                     <DropShadowEffect ShadowDepth="1" Opacity="0.08" BlurRadius="8"/>
                 </Border.Effect>
