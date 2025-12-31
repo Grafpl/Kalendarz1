@@ -1240,37 +1240,64 @@ namespace Kalendarz1.WPF
             mainStack.Children.Add(zamHeaderContainer);
 
             // Pasek postępu z metą (żółta linia)
-            var progressContainer = new Grid { Height = 18, Margin = new Thickness(0, 0, 0, 8) };
+            var progressContainer = new Grid { Height = 22, Margin = new Thickness(0, 0, 0, 8) };
 
             // Tło paska (szare)
             var progressBg = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(236, 240, 241)),
-                CornerRadius = new CornerRadius(4),
-                Height = 14,
+                CornerRadius = new CornerRadius(6),
+                Height = 18,
                 VerticalAlignment = VerticalAlignment.Center
             };
             progressContainer.Children.Add(progressBg);
 
-            // Niebieski pasek postępu
-            double progressPercent = goalValue > 0 ? Math.Min((double)(zamWydValue / goalValue), 1.5) : 0;
+            // Oblicz procent realizacji
+            double progressPercent = goalValue > 0 ? (double)(zamWydValue / goalValue) : 0;
+            double progressPercentClamped = Math.Min(progressPercent, 1.5); // max 150% szerokości
+            int percentDisplay = (int)(progressPercent * 100);
+
+            // Kolor paska zależny od realizacji: zielony >80%, żółty 50-80%, czerwony <50%
+            Color progressColor;
+            if (progressPercent >= 0.8)
+                progressColor = Color.FromRgb(39, 174, 96);   // Zielony - dobra realizacja
+            else if (progressPercent >= 0.5)
+                progressColor = Color.FromRgb(241, 196, 15);  // Żółty - średnia realizacja
+            else
+                progressColor = Color.FromRgb(231, 76, 60);   // Czerwony - słaba realizacja
+
+            // Pasek postępu z dynamicznym kolorem
             var progressBar = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
-                CornerRadius = new CornerRadius(4),
-                Height = 14,
-                Width = progressPercent * maxBarWidth,
+                Name = "progressBar",
+                Background = new SolidColorBrush(progressColor),
+                CornerRadius = new CornerRadius(6),
+                Height = 18,
+                Width = 0, // Startuje od 0 dla animacji
                 HorizontalAlignment = HorizontalAlignment.Left,
                 VerticalAlignment = VerticalAlignment.Center
             };
             progressContainer.Children.Add(progressBar);
+
+            // Procent na pasku
+            var percentText = new TextBlock
+            {
+                Text = $"{percentDisplay}%",
+                FontSize = 10,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Colors.White),
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(8, 0, 0, 0)
+            };
+            progressContainer.Children.Add(percentText);
 
             // Żółta meta (pionowa linia) - na końcu paska (100%)
             var goalLine = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(241, 196, 15)),
                 Width = 4,
-                Height = 24,
+                Height = 28,
                 HorizontalAlignment = HorizontalAlignment.Left,
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(maxBarWidth - 2, 0, 0, 0), // Na końcu
@@ -1279,6 +1306,17 @@ namespace Kalendarz1.WPF
             progressContainer.Children.Add(goalLine);
 
             mainStack.Children.Add(progressContainer);
+
+            // Animacja paska postępu
+            double targetWidth = progressPercentClamped * maxBarWidth;
+            var widthAnimation = new DoubleAnimation
+            {
+                From = 0,
+                To = targetWidth,
+                Duration = TimeSpan.FromMilliseconds(600),
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+            };
+            progressBar.BeginAnimation(Border.WidthProperty, widthAnimation);
 
             // === OBLICZENIE BILANSU ===
             var calculationPanel = new StackPanel
@@ -1520,6 +1558,30 @@ namespace Kalendarz1.WPF
             if (!IsLoaded) return;
             _pokazWydaniaBezZamowien = chkWydaniaBezZamowien.IsChecked == true;
             _ = LoadDataAsync();
+        }
+
+        // === SZYBKIE FILTRY DAT ===
+        private void BtnDateToday_Click(object sender, RoutedEventArgs e)
+        {
+            dpData.SelectedDate = DateTime.Today;
+        }
+
+        private void BtnDateTomorrow_Click(object sender, RoutedEventArgs e)
+        {
+            var tomorrow = DateTime.Today.AddDays(1);
+            // Pomiń weekend
+            while (tomorrow.DayOfWeek == DayOfWeek.Saturday || tomorrow.DayOfWeek == DayOfWeek.Sunday)
+                tomorrow = tomorrow.AddDays(1);
+            dpData.SelectedDate = tomorrow;
+        }
+
+        private void BtnDateWeek_Click(object sender, RoutedEventArgs e)
+        {
+            var nextWeek = DateTime.Today.AddDays(7);
+            // Pomiń weekend
+            while (nextWeek.DayOfWeek == DayOfWeek.Saturday || nextWeek.DayOfWeek == DayOfWeek.Sunday)
+                nextWeek = nextWeek.AddDays(1);
+            dpData.SelectedDate = nextWeek;
         }
 
         private void BtnClose_Click(object sender, RoutedEventArgs e)
