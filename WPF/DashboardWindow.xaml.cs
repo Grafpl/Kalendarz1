@@ -428,56 +428,96 @@ namespace Kalendarz1.WPF
                         await using var cnDiag = new SqlConnection(_connLibra);
                         await cnDiag.OpenAsync();
 
-                        var diagSql = $@"
-                            -- Diagnostyka: sprawdź strukturę danych
-                            SELECT
-                                'ZAMOWIENIA' as Typ,
-                                z.Id as ZamId,
-                                z.DataUboju,
-                                z.KlientId,
-                                k.Nazwa as KlientNazwa,
-                                (SELECT COUNT(*) FROM ZamowieniaMiesoTowar WHERE ZamowienieId = z.Id) as LiczbaPozycji
-                            FROM ZamowieniaMieso z
-                            LEFT JOIN Kontrahenci k ON z.KlientId = k.Id
-                            WHERE z.Id IN ({string.Join(",", orderIds)})
-
-                            UNION ALL
-
-                            SELECT
-                                'POZYCJE' as Typ,
-                                t.ZamowienieId as ZamId,
-                                NULL as DataUboju,
-                                t.KodTowaru as KlientId,
-                                CAST(t.Ilosc as NVARCHAR) as KlientNazwa,
-                                0 as LiczbaPozycji
-                            FROM ZamowieniaMiesoTowar t
-                            WHERE t.ZamowienieId IN ({string.Join(",", orderIds)})
-                        ";
-
-                        await using var cmdDiag = new SqlCommand(diagSql, cnDiag);
-                        await using var rdrDiag = await cmdDiag.ExecuteReaderAsync();
-
                         var sb = new System.Text.StringBuilder();
                         sb.AppendLine("\n=== DIAGNOSTYKA ODBIORCÓW ===");
                         sb.AppendLine($"Data: {day:yyyy-MM-dd}");
                         sb.AppendLine($"Zamówienia IDs: {string.Join(",", orderIds)}");
-                        sb.AppendLine($"Wybrane produkty IDs: {string.Join(",", _selectedProductIds)}");
-                        sb.AppendLine("---");
+                        sb.AppendLine($"Wybrane produkty IDs (TW.ID): {string.Join(",", _selectedProductIds)}");
+                        sb.AppendLine();
 
-                        while (await rdrDiag.ReadAsync())
+                        // 1. Sprawdź strukturę tabeli ZamowieniaMiesoTowar
+                        var schemaSql = @"SELECT COLUMN_NAME, DATA_TYPE
+                                          FROM INFORMATION_SCHEMA.COLUMNS
+                                          WHERE TABLE_NAME = 'ZamowieniaMiesoTowar'
+                                          ORDER BY ORDINAL_POSITION";
+                        await using (var cmdSchema = new SqlCommand(schemaSql, cnDiag))
+                        await using (var rdrSchema = await cmdSchema.ExecuteReaderAsync())
                         {
-                            string typ = rdrDiag.GetString(0);
-                            if (typ == "ZAMOWIENIA")
+                            sb.AppendLine("--- Struktura tabeli ZamowieniaMiesoTowar:");
+                            while (await rdrSchema.ReadAsync())
                             {
-                                sb.AppendLine($"ZAMÓWIENIE: Id={rdrDiag.GetValue(1)}, Data={rdrDiag.GetValue(2)}, KlientId={rdrDiag.GetValue(3)}, Klient={rdrDiag.GetValue(4)}, Pozycji={rdrDiag.GetValue(5)}");
-                            }
-                            else
-                            {
-                                sb.AppendLine($"  POZYCJA: ZamId={rdrDiag.GetValue(1)}, KodTowaru={rdrDiag.GetValue(3)}, Ilosc={rdrDiag.GetValue(4)}");
+                                sb.AppendLine($"    {rdrSchema.GetString(0)} ({rdrSchema.GetString(1)})");
                             }
                         }
+                        sb.AppendLine();
 
-                        sb.AppendLine("=== KONIEC DIAGNOSTYKI ===\n");
+                        // 2. Pokaż jakie KodTowaru są w zamówieniach
+                        var kodySql = $@"SELECT DISTINCT t.KodTowaru, t.Nazwa, SUM(t.Ilosc) as SumaIlosc, COUNT(*) as LiczbaZamowien
+                                         FROM ZamowieniaMiesoTowar t
+                                         WHERE t.ZamowienieId IN ({string.Join(",", orderIds)})
+                                         GROUP BY t.KodTowaru, t.Nazwa
+                                         ORDER BY SUM(t.Ilosc) DESC";
+                        await using (var cmdKody = new SqlCommand(kodySql, cnDiag))
+                        await using (var rdrKody = await cmdKody.ExecuteReaderAsync())
+                        {
+                            sb.AppendLine("--- KodTowaru w zamówieniach:");
+                            int cnt = 0;
+                            while (await rdrKody.ReadAsync())
+                            {
+                                var kodTowaru = rdrKody.GetValue(0);
+                                var nazwa = rdrKody.IsDBNull(1) ? "(brak)" : rdrKody.GetString(1);
+                                var suma = rdrKody.GetValue(2);
+                                var liczba = rdrKody.GetValue(3);
+                                sb.AppendLine($"    KodTowaru={kodTowaru} (typ:{kodTowaru?.GetType().Name}), Nazwa='{nazwa}', Suma={suma}, Zamówień={liczba}");
+                                cnt++;
+                            }
+                            sb.AppendLine($"    Łącznie różnych KodTowaru: {cnt}");
+                        }
+                        sb.AppendLine();
+
+                        // 3. Sprawdź wybrane produkty z TW
+                        sb.AppendLine("--- Wybrane produkty z TW (HANDEL):");
+                        await using var cnHandel = new SqlConnection(_connHandel);
+                        await cnHandel.OpenAsync();
+                        var twSql = $@"SELECT ID, kod, nazwa FROM [HANDEL].[HM].[TW] WHERE ID IN ({string.Join(",", _selectedProductIds)})";
+                        await using (var cmdTw = new SqlCommand(twSql, cnHandel))
+                        await using (var rdrTw = await cmdTw.ExecuteReaderAsync())
+                        {
+                            while (await rdrTw.ReadAsync())
+                            {
+                                sb.AppendLine($"    ID={rdrTw.GetInt32(0)}, Kod='{rdrTw.GetString(1)}', Nazwa='{rdrTw.GetString(2)}'");
+                            }
+                        }
+                        sb.AppendLine();
+
+                        // 4. Sprawdź czy KodTowaru może odpowiadać kolumnie 'kod' z TW
+                        sb.AppendLine("--- Próba dopasowania po kodzie (tekst):");
+                        var matchSql = $@"SELECT t.KodTowaru, tw.ID, tw.kod, tw.nazwa, SUM(t.Ilosc) as Suma
+                                          FROM ZamowieniaMiesoTowar t
+                                          INNER JOIN [HANDEL].[HM].[TW] tw ON CAST(t.KodTowaru as NVARCHAR) = tw.kod
+                                          WHERE t.ZamowienieId IN ({string.Join(",", orderIds)})
+                                          GROUP BY t.KodTowaru, tw.ID, tw.kod, tw.nazwa";
+                        try
+                        {
+                            await using (var cmdMatch = new SqlCommand(matchSql, cnDiag))
+                            await using (var rdrMatch = await cmdMatch.ExecuteReaderAsync())
+                            {
+                                int matches = 0;
+                                while (await rdrMatch.ReadAsync())
+                                {
+                                    sb.AppendLine($"    DOPASOWANIE: KodTowaru={rdrMatch.GetValue(0)} -> TW.ID={rdrMatch.GetValue(1)}, Kod='{rdrMatch.GetValue(2)}', Suma={rdrMatch.GetValue(4)}");
+                                    matches++;
+                                }
+                                sb.AppendLine($"    Dopasowań: {matches}");
+                            }
+                        }
+                        catch (Exception exMatch)
+                        {
+                            sb.AppendLine($"    Błąd cross-database: {exMatch.Message}");
+                            sb.AppendLine("    (Może wymagać linked server lub innego podejścia)");
+                        }
+
+                        sb.AppendLine("\n=== KONIEC DIAGNOSTYKI ===");
                         System.Diagnostics.Debug.WriteLine(sb.ToString());
                     }
                     catch (Exception exDiag)
