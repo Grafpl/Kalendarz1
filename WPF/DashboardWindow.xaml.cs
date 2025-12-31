@@ -663,18 +663,18 @@ namespace Kalendarz1.WPF
                 CornerRadius = new CornerRadius(3),
                 Background = data.UzytoFakt
                     ? new SolidColorBrush(Color.FromRgb(189, 195, 199)) // Szary gdy przekreślony
-                    : new SolidColorBrush(Color.FromRgb(52, 73, 94))    // Ciemny gdy aktywny
+                    : new SolidColorBrush(Color.FromRgb(241, 196, 15))  // Żółty gdy aktywny
             };
 
             // Tekst na pasku plan
             var planTextBlock = new TextBlock
             {
-                Text = data.UzytoFakt ? $"plan {data.Plan:N0}" : $"plan {data.Plan:N0}",
+                Text = $"plan {data.Plan:N0}",
                 FontSize = 11,
                 FontWeight = data.UzytoFakt ? FontWeights.Normal : FontWeights.Bold,
                 Foreground = data.UzytoFakt
                     ? new SolidColorBrush(Color.FromRgb(127, 140, 141))
-                    : new SolidColorBrush(Color.FromRgb(52, 73, 94)),
+                    : new SolidColorBrush(Color.FromRgb(156, 127, 0)),  // Ciemny żółty tekst
                 TextDecorations = data.UzytoFakt ? TextDecorations.Strikethrough : null,
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(5, 0, 0, 0)
@@ -699,7 +699,7 @@ namespace Kalendarz1.WPF
                     Width = Math.Max(faktWidth, 5),
                     HorizontalAlignment = HorizontalAlignment.Left,
                     CornerRadius = new CornerRadius(3),
-                    Background = new SolidColorBrush(Color.FromRgb(39, 174, 96)) // Zielony
+                    Background = new SolidColorBrush(Color.FromRgb(241, 196, 15)) // Żółty
                 };
 
                 var faktTextBlock = new TextBlock
@@ -707,7 +707,7 @@ namespace Kalendarz1.WPF
                     Text = $"fakt {data.Fakt:N0}",
                     FontSize = 11,
                     FontWeight = FontWeights.Bold,
-                    Foreground = new SolidColorBrush(Color.FromRgb(39, 174, 96)),
+                    Foreground = new SolidColorBrush(Color.FromRgb(156, 127, 0)), // Ciemny żółty
                     VerticalAlignment = VerticalAlignment.Center,
                     Margin = new Thickness(5, 0, 0, 0)
                 };
@@ -730,7 +730,7 @@ namespace Kalendarz1.WPF
                 Width = Math.Max(zamWidth, 5),
                 HorizontalAlignment = HorizontalAlignment.Left,
                 CornerRadius = new CornerRadius(3),
-                Background = new SolidColorBrush(Color.FromRgb(231, 76, 60)) // Czerwony
+                Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)) // Niebieski
             };
 
             var zamTextBlock = new TextBlock
@@ -738,7 +738,7 @@ namespace Kalendarz1.WPF
                 Text = $"zam {data.Zamowienia:N0}",
                 FontSize = 11,
                 FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60)),
+                Foreground = new SolidColorBrush(Color.FromRgb(41, 128, 185)), // Ciemny niebieski
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(5, 0, 0, 0)
             };
@@ -757,15 +757,18 @@ namespace Kalendarz1.WPF
             };
 
             decimal przychodUzyty = data.UzytoFakt ? data.Fakt : data.Plan;
-            Color przychodColor = data.UzytoFakt ? Color.FromRgb(39, 174, 96) : Color.FromRgb(52, 73, 94);
-            Color bilansColor = data.Bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60);
+            Color przychodColor = Color.FromRgb(156, 127, 0); // Ciemny żółty dla plan/fakt
+            // Bilans zielony gdy -1000 do 1000, czerwony w przeciwnym razie
+            Color bilansColor = (data.Bilans >= -1000 && data.Bilans <= 1000)
+                ? Color.FromRgb(39, 174, 96)   // Zielony - OK
+                : Color.FromRgb(231, 76, 60);  // Czerwony - problem
 
             // Plan/Fakt + Stan - Zam. = Bilans
-            AddCalculationItem(calculationPanel, "Plan/Fakt", $"{przychodUzyty:N0}", przychodColor);
+            AddCalculationItem(calculationPanel, data.UzytoFakt ? "Fakt" : "Plan", $"{przychodUzyty:N0}", przychodColor);
             AddCalculationOperator(calculationPanel, "+");
-            AddCalculationItem(calculationPanel, "Stan", $"{data.Stan:N0}", Color.FromRgb(52, 152, 219));
+            AddCalculationItem(calculationPanel, "Stan", $"{data.Stan:N0}", Color.FromRgb(52, 73, 94));
             AddCalculationOperator(calculationPanel, "-");
-            AddCalculationItem(calculationPanel, "Zam.", $"{data.Zamowienia:N0}", Color.FromRgb(231, 76, 60));
+            AddCalculationItem(calculationPanel, "Zam.", $"{data.Zamowienia:N0}", Color.FromRgb(41, 128, 185)); // Niebieski
             AddCalculationOperator(calculationPanel, "=");
             AddCalculationItem(calculationPanel, "Bilans", $"{data.Bilans:N0}", bilansColor, true);
 
