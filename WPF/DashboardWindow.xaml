@@ -182,8 +182,18 @@
                     </StackPanel>
 
                     <StackPanel Grid.Column="4" Orientation="Horizontal">
+                        <Button x:Name="btnRefresh" Content="⟳ Odśwież" Style="{StaticResource ModernButtonStyle}"
+                                Background="#3498DB" Margin="0,0,10,0"
+                                Click="BtnRefresh_Click"/>
+                        <Button x:Name="btnExport" Content="📊 Excel" Style="{StaticResource ModernButtonStyle}"
+                                Background="#27AE60" Margin="0,0,10,0"
+                                Click="BtnExport_Click"/>
+                        <Button x:Name="btnScreenshot" Content="📷" Style="{StaticResource ModernButtonStyle}"
+                                Background="#9B59B6" Margin="0,0,10,0" Padding="10,6"
+                                ToolTip="Zrób screenshot do udostępnienia"
+                                Click="BtnScreenshot_Click"/>
                         <Button x:Name="btnTogglePanel" Content="Wybierz produkty ▶" Style="{StaticResource ModernButtonStyle}"
-                                Background="#9B59B6" Margin="0,0,10,0"
+                                Background="#8E44AD" Margin="0,0,10,0"
                                 Click="BtnTogglePanel_Click"/>
                         <Button Content="Zamknij" Style="{StaticResource ModernButtonStyle}"
                                 Background="#7F8C8D"
@@ -292,6 +302,27 @@
                     <Button Content="Wybierz produkty" Style="{StaticResource ModernButtonStyle}"
                             Background="#9B59B6" HorizontalAlignment="Center"
                             Click="BtnTogglePanel_Click"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Loading overlay -->
+            <Border Grid.Row="2" x:Name="loadingOverlay" Background="#80FFFFFF" Visibility="Collapsed">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Border Background="White" CornerRadius="12" Padding="40,30">
+                        <Border.Effect>
+                            <DropShadowEffect ShadowDepth="3" Opacity="0.2" BlurRadius="20"/>
+                        </Border.Effect>
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock x:Name="txtLoadingIcon" Text="⟳" FontSize="40"
+                                       HorizontalAlignment="Center" Foreground="#3498DB">
+                                <TextBlock.RenderTransform>
+                                    <RotateTransform x:Name="loadingRotate" CenterX="12" CenterY="12"/>
+                                </TextBlock.RenderTransform>
+                            </TextBlock>
+                            <TextBlock Text="Ładowanie danych..." FontSize="16" FontWeight="SemiBold"
+                                       Foreground="#2C3E50" HorizontalAlignment="Center" Margin="0,15,0,0"/>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </Border>
         </Grid>

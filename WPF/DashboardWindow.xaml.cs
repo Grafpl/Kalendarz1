@@ -2,11 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
 using Microsoft.Data.SqlClient;
+using Microsoft.Win32;
 
 namespace Kalendarz1.WPF
 {
@@ -234,6 +238,33 @@ namespace Kalendarz1.WPF
             catch { }
         }
 
+        private Storyboard? _loadingStoryboard;
+
+        private void ShowLoading()
+        {
+            loadingOverlay.Visibility = Visibility.Visible;
+
+            // Animacja obracania
+            _loadingStoryboard = new Storyboard();
+            var animation = new DoubleAnimation
+            {
+                From = 0,
+                To = 360,
+                Duration = TimeSpan.FromSeconds(1),
+                RepeatBehavior = RepeatBehavior.Forever
+            };
+            Storyboard.SetTarget(animation, txtLoadingIcon);
+            Storyboard.SetTargetProperty(animation, new PropertyPath("(UIElement.RenderTransform).(RotateTransform.Angle)"));
+            _loadingStoryboard.Children.Add(animation);
+            _loadingStoryboard.Begin();
+        }
+
+        private void HideLoading()
+        {
+            _loadingStoryboard?.Stop();
+            loadingOverlay.Visibility = Visibility.Collapsed;
+        }
+
         private async System.Threading.Tasks.Task LoadDataAsync()
         {
             if (_isLoading) return;
@@ -253,6 +284,7 @@ namespace Kalendarz1.WPF
                 }
 
                 placeholderPanel.Visibility = Visibility.Collapsed;
+                ShowLoading();
 
                 bool uzywajWydan = rbBilansWydania?.IsChecked == true;
                 DateTime day = _selectedDate.Date;
@@ -596,6 +628,7 @@ namespace Kalendarz1.WPF
             }
             finally
             {
+                HideLoading();
                 _isLoading = false;
             }
         }
@@ -662,6 +695,134 @@ namespace Kalendarz1.WPF
             }
 
             MessageBox.Show(sb.ToString(), "Szczegóły produktu", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        // Okno szczegółów zamówienia odbiorcy
+        private void ShowOdbiorcaOrderWindow(OdbiorcaZamowienie odbiorca, ProductData produkt)
+        {
+            var window = new Window
+            {
+                Title = $"Zamówienie - {odbiorca.NazwaOdbiorcy}",
+                Width = 450,
+                Height = 350,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush(Color.FromRgb(240, 242, 245)),
+                ResizeMode = ResizeMode.NoResize
+            };
+
+            var mainPanel = new StackPanel { Margin = new Thickness(20) };
+
+            // Nagłówek
+            var header = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(20, 15),
+                Margin = new Thickness(0, 0, 0, 20)
+            };
+            var headerText = new TextBlock
+            {
+                Text = odbiorca.NazwaOdbiorcy,
+                FontSize = 18,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                TextWrapping = TextWrapping.Wrap
+            };
+            header.Child = headerText;
+            mainPanel.Children.Add(header);
+
+            // Szczegóły
+            var detailsPanel = new Border
+            {
+                Background = Brushes.White,
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(20)
+            };
+            detailsPanel.Effect = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                ShadowDepth = 2,
+                Opacity = 0.1,
+                BlurRadius = 10
+            };
+
+            var detailsStack = new StackPanel();
+
+            // Produkt
+            AddDetailRow(detailsStack, "Produkt:", $"[{produkt.Kod}]");
+            AddDetailRow(detailsStack, "Nazwa:", produkt.Nazwa);
+
+            // Separator
+            detailsStack.Children.Add(new Border
+            {
+                Height = 1,
+                Background = new SolidColorBrush(Color.FromRgb(220, 220, 220)),
+                Margin = new Thickness(0, 15, 0, 15)
+            });
+
+            // Ilość zamówiona
+            var iloscPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
+            iloscPanel.Children.Add(new TextBlock
+            {
+                Text = "Ilość zamówiona:",
+                FontSize = 14,
+                Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+                Width = 130
+            });
+            iloscPanel.Children.Add(new TextBlock
+            {
+                Text = $"{odbiorca.Ilosc:N0} kg",
+                FontSize = 20,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219))
+            });
+            detailsStack.Children.Add(iloscPanel);
+
+            // Data
+            AddDetailRow(detailsStack, "Data zamówienia:", _selectedDate.ToString("dd.MM.yyyy"));
+
+            detailsPanel.Child = detailsStack;
+            mainPanel.Children.Add(detailsPanel);
+
+            // Przycisk zamknij
+            var closeBtn = new Button
+            {
+                Content = "Zamknij",
+                Padding = new Thickness(30, 10, 30, 10),
+                Margin = new Thickness(0, 20, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            closeBtn.Click += (s, e) => window.Close();
+            mainPanel.Children.Add(closeBtn);
+
+            window.Content = mainPanel;
+            window.ShowDialog();
+        }
+
+        private void AddDetailRow(StackPanel panel, string label, string value)
+        {
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
+            row.Children.Add(new TextBlock
+            {
+                Text = label,
+                FontSize = 13,
+                Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+                Width = 130
+            });
+            row.Children.Add(new TextBlock
+            {
+                Text = value,
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                TextWrapping = TextWrapping.Wrap,
+                MaxWidth = 250
+            });
+            panel.Children.Add(row);
         }
 
         private Border CreateProductCard(ProductData data, Color headerColor)
@@ -883,19 +1044,13 @@ namespace Kalendarz1.WPF
                             b.Background = new SolidColorBrush(Colors.Transparent);
                     };
 
-                    // Kliknięcie na odbiorcę
+                    // Kliknięcie na odbiorcę - otwórz okno zamówienia
                     var odbInfo = odbiorca; // capture
                     var prodInfo = data;
                     odbiorcaBorder.MouseLeftButtonUp += (s, e) =>
                     {
                         e.Handled = true; // Zatrzymaj propagację do karty
-                        MessageBox.Show(
-                            $"Odbiorca: {odbInfo.NazwaOdbiorcy}\n" +
-                            $"Produkt: [{prodInfo.Kod}] {prodInfo.Nazwa}\n" +
-                            $"Ilość zamówiona: {odbInfo.Ilosc:N0}",
-                            "Zamówienie odbiorcy",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Information);
+                        ShowOdbiorcaOrderWindow(odbInfo, prodInfo);
                     };
 
                     var odbiorcaRow = new Grid();
@@ -1014,6 +1169,114 @@ namespace Kalendarz1.WPF
         private void BtnClose_Click(object sender, RoutedEventArgs e)
         {
             Close();
+        }
+
+        // Odświeżenie danych
+        private void BtnRefresh_Click(object sender, RoutedEventArgs e)
+        {
+            _ = LoadDataAsync();
+        }
+
+        // Eksport do Excel (CSV)
+        private void BtnExport_Click(object sender, RoutedEventArgs e)
+        {
+            if (_productDataList == null || !_productDataList.Any())
+            {
+                MessageBox.Show("Brak danych do eksportu.", "Eksport", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var dialog = new SaveFileDialog
+            {
+                Filter = "Plik CSV (*.csv)|*.csv|Plik Excel (*.xlsx)|*.xlsx",
+                DefaultExt = ".csv",
+                FileName = $"Dashboard_{_selectedDate:yyyy-MM-dd}"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                try
+                {
+                    using var writer = new StreamWriter(dialog.FileName, false, System.Text.Encoding.UTF8);
+
+                    // Nagłówki
+                    writer.WriteLine("Kod;Nazwa;Plan;Fakt;Stan;Zamówienia;Bilans;Liczba odbiorców;Odbiorcy");
+
+                    // Dane
+                    foreach (var p in _productDataList)
+                    {
+                        var odbiorcy = string.Join(", ", p.Odbiorcy.Select(o => $"{o.NazwaOdbiorcy}:{o.Ilosc:N0}"));
+                        writer.WriteLine($"{p.Kod};{p.Nazwa};{p.Plan:N0};{p.Fakt:N0};{p.Stan:N0};{p.Zamowienia:N0};{p.Bilans:N0};{p.OdbiorcyCount};{odbiorcy}");
+                    }
+
+                    MessageBox.Show($"Dane wyeksportowane do:\n{dialog.FileName}", "Eksport", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd eksportu: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        // Screenshot do udostępniania
+        private void BtnScreenshot_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Ukryj panel boczny na czas screenshota
+                var panelWasVisible = sidePanel.Visibility == Visibility.Visible;
+                if (panelWasVisible)
+                    sidePanel.Visibility = Visibility.Collapsed;
+
+                // Poczekaj na odświeżenie layoutu
+                Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.Render);
+
+                // Zrób screenshot głównej zawartości
+                var mainGrid = (Grid)Content;
+                var mainContent = mainGrid.Children[0] as Grid;
+
+                if (mainContent == null) return;
+
+                var bounds = VisualTreeHelper.GetDescendantBounds(mainContent);
+                var renderTarget = new RenderTargetBitmap(
+                    (int)mainContent.ActualWidth,
+                    (int)mainContent.ActualHeight,
+                    96, 96, PixelFormats.Pbgra32);
+
+                var visual = new DrawingVisual();
+                using (var context = visual.RenderOpen())
+                {
+                    var brush = new VisualBrush(mainContent);
+                    context.DrawRectangle(brush, null, new Rect(new Point(), new Size(mainContent.ActualWidth, mainContent.ActualHeight)));
+                }
+                renderTarget.Render(visual);
+
+                // Przywróć panel
+                if (panelWasVisible)
+                    sidePanel.Visibility = Visibility.Visible;
+
+                // Zapisz do pliku
+                var dialog = new SaveFileDialog
+                {
+                    Filter = "Obraz PNG (*.png)|*.png",
+                    DefaultExt = ".png",
+                    FileName = $"Dashboard_{_selectedDate:yyyy-MM-dd}_{DateTime.Now:HHmm}"
+                };
+
+                if (dialog.ShowDialog() == true)
+                {
+                    var encoder = new PngBitmapEncoder();
+                    encoder.Frames.Add(BitmapFrame.Create(renderTarget));
+                    using var stream = File.Create(dialog.FileName);
+                    encoder.Save(stream);
+
+                    MessageBox.Show($"Screenshot zapisany:\n{dialog.FileName}", "Screenshot", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd tworzenia screenshota: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void BtnTogglePanel_Click(object sender, RoutedEventArgs e)
