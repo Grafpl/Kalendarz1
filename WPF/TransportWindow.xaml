@@ -19,11 +19,15 @@
             <Setter Property="CanUserAddRows" Value="False"/>
             <Setter Property="IsReadOnly" Value="True"/>
             <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="SelectionUnit" Value="FullRow"/>
             <Setter Property="HeadersVisibility" Value="Column"/>
             <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
             <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/>
+            <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel"/>
             <Setter Property="EnableRowVirtualization" Value="True"/>
             <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Focusable" Value="True"/>
+            <Setter Property="KeyboardNavigation.TabNavigation" Value="Once"/>
         </Style>
 
         <Style x:Key="ModernDataGridHeaderStyle" TargetType="DataGridColumnHeader">
@@ -188,13 +192,7 @@
                             <GradientStop Color="#34495E" Offset="1"/>
                         </LinearGradientBrush>
                     </Border.Background>
-                    <Grid>
-                        <TextBlock Text="LISTA TRANSPORTÓW" FontSize="14" Foreground="White" FontWeight="Bold" VerticalAlignment="Center"/>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                            <TextBlock Text="Grupowane wg tras - kontrahenci w tym samym transporcie są obok siebie"
-                                       Foreground="#95A5A6" FontSize="11" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Grid>
+                    <TextBlock Text="LISTA TRANSPORTÓW" FontSize="14" Foreground="White" FontWeight="Bold" VerticalAlignment="Center"/>
                 </Border>
 
                 <DataGrid Grid.Row="1" x:Name="dgTransport"
@@ -202,6 +200,10 @@
                           ColumnHeaderStyle="{StaticResource ModernDataGridHeaderStyle}"
                           AutoGenerateColumns="False"
                           CanUserSortColumns="True"
+                          SelectionUnit="FullRow"
+                          SelectionMode="Single"
+                          IsSynchronizedWithCurrentItem="True"
+                          Focusable="True"
                           Margin="0"/>
             </Grid>
         </Border>
