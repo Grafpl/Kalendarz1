@@ -105,9 +105,29 @@ namespace Kalendarz1.WPF
             InitializeComponent();
             _connLibra = connLibra;
             _connHandel = connHandel;
-            _selectedDate = initialDate ?? DateTime.Today;
+            _selectedDate = initialDate ?? GetDefaultDate();
 
             InitializeAsync();
+        }
+
+        // Wybierz domyślną datę - następny dzień roboczy lub dziś jeśli przed 14:00
+        private static DateTime GetDefaultDate()
+        {
+            var now = DateTime.Now;
+            var today = now.Date;
+
+            // Jeśli przed 14:00 - pokaż dziś
+            if (now.Hour < 14)
+                return today;
+
+            // Po 14:00 - pokaż następny dzień roboczy
+            var nextDay = today.AddDays(1);
+
+            // Pomiń weekendy
+            while (nextDay.DayOfWeek == DayOfWeek.Saturday || nextDay.DayOfWeek == DayOfWeek.Sunday)
+                nextDay = nextDay.AddDays(1);
+
+            return nextDay;
         }
 
         private async void InitializeAsync()
@@ -518,14 +538,10 @@ namespace Kalendarz1.WPF
 
                         sb.AppendLine("\n=== KONIEC DIAGNOSTYKI ===");
                         System.Diagnostics.Debug.WriteLine(sb.ToString());
-
-                        // Pokaż w MessageBox dla łatwiejszej analizy
-                        MessageBox.Show(sb.ToString(), "DIAGNOSTYKA ODBIORCÓW", MessageBoxButton.OK, MessageBoxImage.Information);
                     }
                     catch (Exception exDiag)
                     {
                         System.Diagnostics.Debug.WriteLine($"[Dashboard] Błąd diagnostyki: {exDiag.Message}");
-                        MessageBox.Show($"Błąd diagnostyki: {exDiag.Message}\n\n{exDiag.StackTrace}", "Błąd diagnostyki", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
                 }
 
@@ -554,10 +570,10 @@ namespace Kalendarz1.WPF
                     await using (var cn = new SqlConnection(_connLibra))
                     {
                         await cn.OpenAsync();
-                        var sql = $@"SELECT t.KodTowaru, k.Nazwa, SUM(t.Ilosc) as Ilosc
+                        var sql = $@"SELECT t.KodTowaru, COALESCE(k.Nazwa, 'Nieznany') as Nazwa, SUM(t.Ilosc) as Ilosc
                                      FROM [dbo].[ZamowieniaMiesoTowar] t
-                                     INNER JOIN [dbo].[ZamowieniaMieso] z ON t.ZamowienieId = z.Id
-                                     INNER JOIN [dbo].[Kontrahenci] k ON z.KlientId = k.Id
+                                     LEFT JOIN [dbo].[ZamowieniaMieso] z ON t.ZamowienieId = z.Id
+                                     LEFT JOIN [dbo].[Kontrahenci] k ON z.KlientId = k.Id
                                      WHERE t.ZamowienieId IN ({string.Join(",", orderIds)})
                                      GROUP BY t.KodTowaru, k.Nazwa
                                      ORDER BY t.KodTowaru, SUM(t.Ilosc) DESC";
@@ -566,7 +582,7 @@ namespace Kalendarz1.WPF
                         while (await rdr.ReadAsync())
                         {
                             int productId = rdr.GetInt32(0);
-                            string odbiorca = rdr.IsDBNull(1) ? "Nieznany" : rdr.GetString(1);
+                            string odbiorca = rdr.GetString(1);
                             decimal ilosc = rdr.IsDBNull(2) ? 0m : rdr.GetDecimal(2);
 
                             if (!orderDetails.ContainsKey(productId))
