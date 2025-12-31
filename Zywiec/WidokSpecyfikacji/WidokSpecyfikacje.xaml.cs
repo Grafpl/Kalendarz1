@@ -652,10 +652,11 @@ namespace Kalendarz1
         // === PRZYCISK STRZAŁKA W GÓRĘ: Przesuń wiersz w górę ===
         private void BtnMoveUp_Click(object sender, RoutedEventArgs e)
         {
-            var selected = dataGridView1.SelectedItem as SpecyfikacjaRow;
+            // Użyj selectedRow (pole klasy) zamiast SelectedItem - bardziej niezawodne
+            var selected = selectedRow ?? dataGridView1.SelectedItem as SpecyfikacjaRow;
             if (selected == null)
             {
-                UpdateStatus("Wybierz wiersz do przesunięcia");
+                MessageBox.Show("Wybierz wiersz do przesunięcia", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
@@ -670,6 +671,7 @@ namespace Kalendarz1
             specyfikacjeData.Move(currentIndex, currentIndex - 1);
             UpdateRowNumbers();
             dataGridView1.SelectedItem = selected;
+            selectedRow = selected;
             SaveAllRowPositions();
             UpdateStatus($"Przesunięto wiersz LP {selected.Nr} w górę");
         }
@@ -677,10 +679,11 @@ namespace Kalendarz1
         // === PRZYCISK STRZAŁKA W DÓŁ: Przesuń wiersz w dół ===
         private void BtnMoveDown_Click(object sender, RoutedEventArgs e)
         {
-            var selected = dataGridView1.SelectedItem as SpecyfikacjaRow;
+            // Użyj selectedRow (pole klasy) zamiast SelectedItem - bardziej niezawodne
+            var selected = selectedRow ?? dataGridView1.SelectedItem as SpecyfikacjaRow;
             if (selected == null)
             {
-                UpdateStatus("Wybierz wiersz do przesunięcia");
+                MessageBox.Show("Wybierz wiersz do przesunięcia", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
@@ -695,6 +698,7 @@ namespace Kalendarz1
             specyfikacjeData.Move(currentIndex, currentIndex + 1);
             UpdateRowNumbers();
             dataGridView1.SelectedItem = selected;
+            selectedRow = selected;
             SaveAllRowPositions();
             UpdateStatus($"Przesunięto wiersz LP {selected.Nr} w dół");
         }
@@ -3766,27 +3770,7 @@ namespace Kalendarz1
             if (priceTypeId > 0)
             {
                 SaveFieldToDatabase(row.ID, "PriceTypeID", priceTypeId);
-
-                // Pytaj czy zastosować do wszystkich od tego dostawcy
-                var result = MessageBox.Show(
-                    $"Czy zastosować typ ceny \"{row.TypCeny}\" do wszystkich dostaw od dostawcy \"{row.RealDostawca}\"?",
-                    "Zastosuj do wszystkich",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.Yes)
-                {
-                    foreach (var r in specyfikacjeData.Where(x => x.RealDostawca == row.RealDostawca && x != row))
-                    {
-                        r.TypCeny = row.TypCeny;
-                        SaveFieldToDatabase(r.ID, "PriceTypeID", priceTypeId);
-                    }
-                    UpdateStatus($"Typ ceny \"{row.TypCeny}\" zastosowany do wszystkich dostaw od {row.RealDostawca}");
-                }
-                else
-                {
-                    UpdateStatus($"Zapisano typ ceny: {row.TypCeny} dla LP {row.Nr}");
-                }
+                UpdateStatus($"Zapisano typ ceny: {row.TypCeny} dla LP {row.Nr}");
             }
         }
 
