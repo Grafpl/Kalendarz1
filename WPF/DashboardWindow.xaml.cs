@@ -22,6 +22,7 @@ namespace Kalendarz1.WPF
         private bool _isLoading;
         private bool _isPanelOpen;
         private bool _uzywajWydan; // true = wydania, false = zamówienia
+        private bool _pokazWydaniaBezZamowien; // true = pokaż odbiorców z wydaniami bez zamówień
 
         // Lista wszystkich dostępnych produktów z TW
         private List<ProductItem> _allProducts = new();
@@ -749,6 +750,8 @@ namespace Kalendarz1.WPF
 
                     // Pobierz listę odbiorców dla tego produktu
                     var odbiorcy = new List<OdbiorcaZamowienie>();
+                    var klienciZZamowieniami = new HashSet<int>();
+
                     if (orderDetails.TryGetValue(productId, out var details))
                     {
                         decimal sumaZamowien = details.Sum(d => d.Ilosc);
@@ -760,6 +763,33 @@ namespace Kalendarz1.WPF
                             Wydane = wydaniaPerKlientProdukt.TryGetValue((productId, d.KlientId), out var wyd) ? wyd : 0m,
                             ProcentUdzial = sumaZamowien > 0 ? (d.Ilosc / sumaZamowien) * 100m : 0m
                         }).ToList();
+
+                        foreach (var d in details)
+                            klienciZZamowieniami.Add(d.KlientId);
+                    }
+
+                    // Dodaj klientów z wydaniami bez zamówień (jeśli zaznaczono checkbox)
+                    if (_pokazWydaniaBezZamowien)
+                    {
+                        var klienciZWydaniami = wydaniaPerKlientProdukt
+                            .Where(kvp => kvp.Key.produktId == productId && !klienciZZamowieniami.Contains(kvp.Key.klientId))
+                            .ToList();
+
+                        foreach (var kvp in klienciZWydaniami)
+                        {
+                            string nazwaKlienta = kontrahenci.TryGetValue(kvp.Key.klientId, out var nazwa)
+                                ? nazwa
+                                : $"Nieznany ({kvp.Key.klientId})";
+
+                            odbiorcy.Add(new OdbiorcaZamowienie
+                            {
+                                KlientId = kvp.Key.klientId,
+                                NazwaOdbiorcy = nazwaKlienta,
+                                Zamowione = 0m,
+                                Wydane = kvp.Value,
+                                ProcentUdzial = 0m
+                            });
+                        }
                     }
 
                     productsData.Add(new ProductData
@@ -1420,6 +1450,13 @@ namespace Kalendarz1.WPF
         private void RbBilans_Checked(object sender, RoutedEventArgs e)
         {
             if (!IsLoaded) return;
+            _ = LoadDataAsync();
+        }
+
+        private void ChkWydaniaBezZamowien_Changed(object sender, RoutedEventArgs e)
+        {
+            if (!IsLoaded) return;
+            _pokazWydaniaBezZamowien = chkWydaniaBezZamowien.IsChecked == true;
             _ = LoadDataAsync();
         }
 

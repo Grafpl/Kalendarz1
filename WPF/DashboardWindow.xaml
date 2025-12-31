@@ -153,8 +153,12 @@
                                      VerticalAlignment="Center" Margin="0,0,15,0" FontSize="13"
                                      Checked="RbBilans_Checked"/>
                         <RadioButton x:Name="rbBilansWydania" Content="Wydania"
-                                     VerticalAlignment="Center" FontSize="13"
+                                     VerticalAlignment="Center" FontSize="13" Margin="0,0,20,0"
                                      Checked="RbBilans_Checked"/>
+                        <CheckBox x:Name="chkWydaniaBezZamowien" Content="Pokaż wydania bez zamówień"
+                                  VerticalAlignment="Center" FontSize="12"
+                                  Checked="ChkWydaniaBezZamowien_Changed"
+                                  Unchecked="ChkWydaniaBezZamowien_Changed"/>
                     </StackPanel>
 
                     <StackPanel Grid.Column="2" Orientation="Horizontal">
