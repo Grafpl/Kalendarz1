@@ -39,14 +39,19 @@ namespace Kalendarz1.WPF
             public decimal Bilans { get; set; }
             public bool UzytoFakt { get; set; } // true = użyto faktyczny przychód, false = planowany
             public List<OdbiorcaZamowienie> Odbiorcy { get; set; } = new();
+            public int OdbiorcyCount => Odbiorcy.Count; // Liczba odbiorców dla tabeli
         }
 
         // Zamówienie od odbiorcy
         private class OdbiorcaZamowienie
         {
+            public int ZamowienieId { get; set; } // ID zamówienia do nawigacji
             public string NazwaOdbiorcy { get; set; } = "";
             public decimal Ilosc { get; set; }
         }
+
+        // Lista danych produktów do DataGrid
+        private List<ProductData> _productDataList = new();
 
         // Element produktu w liście wyboru
         public class ProductItem : INotifyPropertyChanged
@@ -597,6 +602,10 @@ namespace Kalendarz1.WPF
 
         private void CreateProductCards(List<ProductData> productsData)
         {
+            // Zapisz dane do listy dla DataGrid
+            _productDataList = productsData;
+            dgProducts.ItemsSource = _productDataList;
+
             icProducts.Items.Clear();
 
             int colorIndex = 0;
@@ -608,11 +617,61 @@ namespace Kalendarz1.WPF
             }
         }
 
+        // Przełączanie widoku Karty/Tabela
+        private void RbViewMode_Checked(object sender, RoutedEventArgs e)
+        {
+            if (svCards == null || dgProducts == null) return;
+
+            if (rbViewCards?.IsChecked == true)
+            {
+                svCards.Visibility = Visibility.Visible;
+                dgProducts.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                svCards.Visibility = Visibility.Collapsed;
+                dgProducts.Visibility = Visibility.Visible;
+            }
+        }
+
+        // Podwójne kliknięcie na wiersz w tabeli - otwórz szczegóły produktu
+        private void DgProducts_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (dgProducts.SelectedItem is ProductData data)
+            {
+                ShowProductDetails(data);
+            }
+        }
+
+        // Pokazanie szczegółów produktu
+        private void ShowProductDetails(ProductData data)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"Produkt: [{data.Kod}] {data.Nazwa}");
+            sb.AppendLine();
+            sb.AppendLine($"Plan: {data.Plan:N0}");
+            sb.AppendLine($"Fakt: {data.Fakt:N0}");
+            sb.AppendLine($"Stan: {data.Stan:N0}");
+            sb.AppendLine($"Zamówienia: {data.Zamowienia:N0}");
+            sb.AppendLine($"Bilans: {data.Bilans:N0}");
+            sb.AppendLine();
+            sb.AppendLine($"Odbiorcy ({data.Odbiorcy.Count}):");
+            foreach (var o in data.Odbiorcy)
+            {
+                sb.AppendLine($"  • {o.NazwaOdbiorcy}: {o.Ilosc:N0}");
+            }
+
+            MessageBox.Show(sb.ToString(), "Szczegóły produktu", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
         private Border CreateProductCard(ProductData data, Color headerColor)
         {
             // Dynamiczna wysokość w zależności od liczby odbiorców
             int odbircyCount = Math.Min(data.Odbiorcy.Count, 6);
             double cardHeight = 320 + (odbircyCount * 18);
+
+            // Czy bilans jest problemowy (poza zakresem -1000 do 1000)?
+            bool bilansProblem = data.Bilans < -1000 || data.Bilans > 1000;
 
             var card = new Border
             {
@@ -621,15 +680,29 @@ namespace Kalendarz1.WPF
                 Margin = new Thickness(8),
                 Width = 340,
                 MinHeight = cardHeight,
-                BorderBrush = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
-                BorderThickness = new Thickness(2)
+                BorderBrush = bilansProblem
+                    ? new SolidColorBrush(Color.FromRgb(231, 76, 60))  // Czerwona ramka - problem
+                    : new SolidColorBrush(Color.FromRgb(44, 62, 80)),  // Normalna ramka
+                BorderThickness = new Thickness(bilansProblem ? 3 : 2),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Tag = data // Przechowuj dane produktu
+            };
+
+            // Kliknięcie na kartę - pokaż szczegóły
+            card.MouseLeftButtonUp += (s, e) =>
+            {
+                if (s is Border b && b.Tag is ProductData pd)
+                {
+                    ShowProductDetails(pd);
+                }
             };
 
             card.Effect = new System.Windows.Media.Effects.DropShadowEffect
             {
                 ShadowDepth = 2,
-                Opacity = 0.15,
-                BlurRadius = 10
+                Opacity = bilansProblem ? 0.3 : 0.15,
+                BlurRadius = 10,
+                Color = bilansProblem ? Color.FromRgb(231, 76, 60) : Colors.Black
             };
 
             var mainStack = new StackPanel { Margin = new Thickness(15, 12, 15, 12) };
@@ -788,7 +861,44 @@ namespace Kalendarz1.WPF
                 // Lista odbiorców (max 6, mała czcionka)
                 foreach (var odbiorca in data.Odbiorcy.Take(6))
                 {
-                    var odbiorcaRow = new Grid { Margin = new Thickness(0, 1, 0, 1) };
+                    var odbiorcaBorder = new Border
+                    {
+                        Margin = new Thickness(0, 1, 0, 1),
+                        Padding = new Thickness(4, 2, 4, 2),
+                        CornerRadius = new CornerRadius(3),
+                        Background = new SolidColorBrush(Colors.Transparent),
+                        Cursor = System.Windows.Input.Cursors.Hand,
+                        Tag = new { Produkt = data.Kod, Odbiorca = odbiorca }
+                    };
+
+                    // Hover effect
+                    odbiorcaBorder.MouseEnter += (s, e) =>
+                    {
+                        if (s is Border b)
+                            b.Background = new SolidColorBrush(Color.FromRgb(236, 240, 241));
+                    };
+                    odbiorcaBorder.MouseLeave += (s, e) =>
+                    {
+                        if (s is Border b)
+                            b.Background = new SolidColorBrush(Colors.Transparent);
+                    };
+
+                    // Kliknięcie na odbiorcę
+                    var odbInfo = odbiorca; // capture
+                    var prodInfo = data;
+                    odbiorcaBorder.MouseLeftButtonUp += (s, e) =>
+                    {
+                        e.Handled = true; // Zatrzymaj propagację do karty
+                        MessageBox.Show(
+                            $"Odbiorca: {odbInfo.NazwaOdbiorcy}\n" +
+                            $"Produkt: [{prodInfo.Kod}] {prodInfo.Nazwa}\n" +
+                            $"Ilość zamówiona: {odbInfo.Ilosc:N0}",
+                            "Zamówienie odbiorcy",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information);
+                    };
+
+                    var odbiorcaRow = new Grid();
                     odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                     odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
@@ -813,7 +923,8 @@ namespace Kalendarz1.WPF
                     Grid.SetColumn(iloscText, 1);
                     odbiorcaRow.Children.Add(iloscText);
 
-                    mainStack.Children.Add(odbiorcaRow);
+                    odbiorcaBorder.Child = odbiorcaRow;
+                    mainStack.Children.Add(odbiorcaBorder);
                 }
 
                 // Jeśli więcej niż 6 odbiorców

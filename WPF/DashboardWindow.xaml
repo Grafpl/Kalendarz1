@@ -167,6 +167,18 @@
                         <Button Content="Usuń" Style="{StaticResource ModernButtonStyle}"
                                 Background="#E74C3C" Margin="5,0,0,0" Padding="12,6"
                                 Click="BtnDeleteView_Click"/>
+
+                        <!-- Przełącznik Karty/Tabela -->
+                        <Border Background="#ECF0F1" CornerRadius="6" Margin="20,0,0,0" Padding="3">
+                            <StackPanel Orientation="Horizontal">
+                                <RadioButton x:Name="rbViewCards" Content="Karty" IsChecked="True"
+                                             GroupName="ViewMode" Padding="12,6" Margin="2,0"
+                                             Checked="RbViewMode_Checked"/>
+                                <RadioButton x:Name="rbViewTable" Content="Tabela"
+                                             GroupName="ViewMode" Padding="12,6" Margin="2,0"
+                                             Checked="RbViewMode_Checked"/>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
 
                     <StackPanel Grid.Column="4" Orientation="Horizontal">
@@ -181,7 +193,7 @@
             </Border>
 
             <!-- DYNAMICZNE KARTY PRODUKTÓW -->
-            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <ScrollViewer Grid.Row="2" x:Name="svCards" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <ItemsControl x:Name="icProducts">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -190,6 +202,80 @@
                     </ItemsControl.ItemsPanel>
                 </ItemsControl>
             </ScrollViewer>
+
+            <!-- WIDOK TABELI -->
+            <DataGrid Grid.Row="2" x:Name="dgProducts" Visibility="Collapsed"
+                      AutoGenerateColumns="False" IsReadOnly="True"
+                      Background="White" RowBackground="White" AlternatingRowBackground="#F8F9FA"
+                      GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#E0E0E0"
+                      BorderThickness="1" BorderBrush="#DDD" CanUserAddRows="False"
+                      FontSize="13" RowHeight="36" HeadersVisibility="Column"
+                      SelectionMode="Single" SelectionUnit="FullRow"
+                      MouseDoubleClick="DgProducts_MouseDoubleClick">
+                <DataGrid.ColumnHeaderStyle>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background" Value="#2C3E50"/>
+                        <Setter Property="Foreground" Value="White"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                        <Setter Property="Padding" Value="12,10"/>
+                        <Setter Property="BorderThickness" Value="0,0,1,0"/>
+                        <Setter Property="BorderBrush" Value="#34495E"/>
+                    </Style>
+                </DataGrid.ColumnHeaderStyle>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Kod" Binding="{Binding Kod}" Width="120"/>
+                    <DataGridTextColumn Header="Nazwa" Binding="{Binding Nazwa}" Width="*"/>
+                    <DataGridTextColumn Header="Plan" Binding="{Binding Plan, StringFormat=N0}" Width="90">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="Padding" Value="0,0,10,0"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Fakt" Binding="{Binding Fakt, StringFormat=N0}" Width="90">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="Padding" Value="0,0,10,0"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Stan" Binding="{Binding Stan, StringFormat=N0}" Width="90">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="Padding" Value="0,0,10,0"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Zamówienia" Binding="{Binding Zamowienia, StringFormat=N0}" Width="100">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="Padding" Value="0,0,10,0"/>
+                                <Setter Property="Foreground" Value="#2980B9"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Bilans" Binding="{Binding Bilans, StringFormat=N0}" Width="100">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="Padding" Value="0,0,10,0"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Odbiorcy" Binding="{Binding OdbiorcyCount}" Width="80">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                </DataGrid.Columns>
+            </DataGrid>
 
             <!-- Placeholder gdy brak produktów -->
             <Border Grid.Row="2" x:Name="placeholderPanel" Background="White" CornerRadius="12"
