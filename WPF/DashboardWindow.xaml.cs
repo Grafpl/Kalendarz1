@@ -1062,7 +1062,7 @@ namespace Kalendarz1.WPF
         private Border CreateProductCard(ProductData data, Color headerColor)
         {
             // Stała wysokość karty - lista odbiorców jest scrollowalna
-            double cardHeight = data.Odbiorcy.Any() ? 450 : 300;
+            double cardHeight = data.Odbiorcy.Any() ? 550 : 300;
 
             // Czy bilans jest problemowy (poza zakresem -1000 do 1000)?
             bool bilansProblem = data.Bilans < -1000 || data.Bilans > 1000;
@@ -1283,10 +1283,10 @@ namespace Kalendarz1.WPF
 
                 mainStack.Children.Add(headerRow);
 
-                // Scrollowalna lista odbiorców
+                // Scrollowalna lista odbiorców - zwiększony limit dla lepszej widoczności
                 var scrollViewer = new ScrollViewer
                 {
-                    MaxHeight = 180,
+                    MaxHeight = 300,
                     VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                     HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
                 };
