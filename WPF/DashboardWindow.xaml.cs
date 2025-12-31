@@ -857,7 +857,7 @@ namespace Kalendarz1.WPF
             sb.AppendLine($"Odbiorcy ({data.Odbiorcy.Count}):");
             foreach (var o in data.Odbiorcy)
             {
-                sb.AppendLine($"  • {o.NazwaOdbiorcy}: {o.Ilosc:N0}");
+                sb.AppendLine($"  • {o.NazwaOdbiorcy}: zam={o.Zamowione:N0}, wyd={o.Wydane:N0}");
             }
 
             MessageBox.Show(sb.ToString(), "Szczegóły produktu", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -937,16 +937,34 @@ namespace Kalendarz1.WPF
             });
             iloscPanel.Children.Add(new TextBlock
             {
-                Text = $"{odbiorca.Ilosc:N0} kg",
+                Text = $"{odbiorca.Zamowione:N0} kg",
                 FontSize = 20,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219))
             });
             detailsStack.Children.Add(iloscPanel);
 
+            // Wydane
+            var wydanePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
+            wydanePanel.Children.Add(new TextBlock
+            {
+                Text = "Wydane:",
+                FontSize = 14,
+                Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+                Width = 130
+            });
+            wydanePanel.Children.Add(new TextBlock
+            {
+                Text = odbiorca.Wydane > 0 ? $"{odbiorca.Wydane:N0} kg" : "-",
+                FontSize = 20,
+                FontWeight = FontWeights.Bold,
+                Foreground = odbiorca.Wydane > 0
+                    ? new SolidColorBrush(Color.FromRgb(39, 174, 96))
+                    : new SolidColorBrush(Color.FromRgb(180, 180, 180))
+            });
+            detailsStack.Children.Add(wydanePanel);
+
             // Procent udziału
-            decimal sumaZamowien = produkt.Odbiorcy.Sum(o => o.Ilosc);
-            decimal procent = sumaZamowien > 0 ? (odbiorca.Ilosc / sumaZamowien) * 100 : 0;
             var procentPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
             procentPanel.Children.Add(new TextBlock
             {
@@ -957,7 +975,7 @@ namespace Kalendarz1.WPF
             });
             procentPanel.Children.Add(new TextBlock
             {
-                Text = $"{procent:N1}%",
+                Text = $"{odbiorca.ProcentUdzial:N1}%",
                 FontSize = 20,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(Color.FromRgb(39, 174, 96))
@@ -1215,22 +1233,21 @@ namespace Kalendarz1.WPF
                 headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) }); // wyd
                 headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(35) }); // %
 
-                var headerStyle = new Style(typeof(TextBlock));
-                var headerColor = new SolidColorBrush(Color.FromRgb(100, 100, 100));
+                var grayTextColor = new SolidColorBrush(Color.FromRgb(100, 100, 100));
 
-                var headerNazwa = new TextBlock { Text = "Odbiorca", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = headerColor };
+                var headerNazwa = new TextBlock { Text = "Odbiorca", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = grayTextColor };
                 Grid.SetColumn(headerNazwa, 0);
                 headerRow.Children.Add(headerNazwa);
 
-                var headerZam = new TextBlock { Text = "zam", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = headerColor, HorizontalAlignment = HorizontalAlignment.Right };
+                var headerZam = new TextBlock { Text = "zam", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = grayTextColor, HorizontalAlignment = HorizontalAlignment.Right };
                 Grid.SetColumn(headerZam, 1);
                 headerRow.Children.Add(headerZam);
 
-                var headerWyd = new TextBlock { Text = "wyd", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = headerColor, HorizontalAlignment = HorizontalAlignment.Right };
+                var headerWyd = new TextBlock { Text = "wyd", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = grayTextColor, HorizontalAlignment = HorizontalAlignment.Right };
                 Grid.SetColumn(headerWyd, 2);
                 headerRow.Children.Add(headerWyd);
 
-                var headerProc = new TextBlock { Text = "%", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = headerColor, HorizontalAlignment = HorizontalAlignment.Right };
+                var headerProc = new TextBlock { Text = "%", FontSize = 9, FontWeight = FontWeights.SemiBold, Foreground = grayTextColor, HorizontalAlignment = HorizontalAlignment.Right };
                 Grid.SetColumn(headerProc, 3);
                 headerRow.Children.Add(headerProc);
 
@@ -1445,7 +1462,7 @@ namespace Kalendarz1.WPF
                     // Dane
                     foreach (var p in _productDataList)
                     {
-                        var odbiorcy = string.Join(", ", p.Odbiorcy.Select(o => $"{o.NazwaOdbiorcy}:{o.Ilosc:N0}"));
+                        var odbiorcy = string.Join(", ", p.Odbiorcy.Select(o => $"{o.NazwaOdbiorcy}:zam={o.Zamowione:N0}/wyd={o.Wydane:N0}"));
                         writer.WriteLine($"{p.Kod};{p.Nazwa};{p.Plan:N0};{p.Fakt:N0};{p.Stan:N0};{p.Zamowienia:N0};{p.Bilans:N0};{p.OdbiorcyCount};{odbiorcy}");
                     }
 
