@@ -778,6 +778,26 @@ namespace Kalendarz1.WPF
             });
             detailsStack.Children.Add(iloscPanel);
 
+            // Procent udziału
+            decimal sumaZamowien = produkt.Odbiorcy.Sum(o => o.Ilosc);
+            decimal procent = sumaZamowien > 0 ? (odbiorca.Ilosc / sumaZamowien) * 100 : 0;
+            var procentPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
+            procentPanel.Children.Add(new TextBlock
+            {
+                Text = "Udział w zamówieniach:",
+                FontSize = 14,
+                Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+                Width = 130
+            });
+            procentPanel.Children.Add(new TextBlock
+            {
+                Text = $"{procent:N1}%",
+                FontSize = 20,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(39, 174, 96))
+            });
+            detailsStack.Children.Add(procentPanel);
+
             // Data
             AddDetailRow(detailsStack, "Data zamówienia:", _selectedDate.ToString("dd.MM.yyyy"));
 
@@ -827,9 +847,8 @@ namespace Kalendarz1.WPF
 
         private Border CreateProductCard(ProductData data, Color headerColor)
         {
-            // Dynamiczna wysokość w zależności od liczby odbiorców
-            int odbircyCount = Math.Min(data.Odbiorcy.Count, 6);
-            double cardHeight = 320 + (odbircyCount * 18);
+            // Stała wysokość karty - lista odbiorców jest scrollowalna
+            double cardHeight = data.Odbiorcy.Any() ? 380 : 280;
 
             // Czy bilans jest problemowy (poza zakresem -1000 do 1000)?
             bool bilansProblem = data.Bilans < -1000 || data.Bilans > 1000;
@@ -1008,28 +1027,79 @@ namespace Kalendarz1.WPF
 
             mainStack.Children.Add(calculationPanel);
 
-            // === LISTA ODBIORCÓW (mała czcionka) ===
+            // === LISTA ODBIORCÓW (scrollowalna z procentami) ===
             if (data.Odbiorcy.Any())
             {
                 var separator = new Border
                 {
                     Height = 1,
                     Background = new SolidColorBrush(Color.FromRgb(220, 220, 220)),
-                    Margin = new Thickness(0, 12, 0, 8)
+                    Margin = new Thickness(0, 12, 0, 5)
                 };
                 mainStack.Children.Add(separator);
 
-                // Lista odbiorców (max 6, mała czcionka)
-                foreach (var odbiorca in data.Odbiorcy.Take(6))
+                // Nagłówek sekcji
+                var headerRow = new Grid { Margin = new Thickness(0, 0, 0, 3) };
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) });
+
+                var headerNazwa = new TextBlock
+                {
+                    Text = $"Odbiorcy ({data.Odbiorcy.Count})",
+                    FontSize = 9,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(120, 120, 120))
+                };
+                Grid.SetColumn(headerNazwa, 0);
+                headerRow.Children.Add(headerNazwa);
+
+                var headerIlosc = new TextBlock
+                {
+                    Text = "Ilość",
+                    FontSize = 9,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(120, 120, 120)),
+                    HorizontalAlignment = HorizontalAlignment.Right
+                };
+                Grid.SetColumn(headerIlosc, 1);
+                headerRow.Children.Add(headerIlosc);
+
+                var headerProcent = new TextBlock
+                {
+                    Text = "%",
+                    FontSize = 9,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(120, 120, 120)),
+                    HorizontalAlignment = HorizontalAlignment.Right
+                };
+                Grid.SetColumn(headerProcent, 2);
+                headerRow.Children.Add(headerProcent);
+
+                mainStack.Children.Add(headerRow);
+
+                // Scrollowalna lista odbiorców
+                var scrollViewer = new ScrollViewer
+                {
+                    MaxHeight = 120,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+                };
+
+                var odbiorcyStack = new StackPanel();
+
+                // Suma zamówień dla obliczenia procentów
+                decimal sumaZamowien = data.Odbiorcy.Sum(o => o.Ilosc);
+
+                foreach (var odbiorca in data.Odbiorcy)
                 {
                     var odbiorcaBorder = new Border
                     {
                         Margin = new Thickness(0, 1, 0, 1),
-                        Padding = new Thickness(4, 2, 4, 2),
+                        Padding = new Thickness(4, 3, 4, 3),
                         CornerRadius = new CornerRadius(3),
                         Background = new SolidColorBrush(Colors.Transparent),
-                        Cursor = System.Windows.Input.Cursors.Hand,
-                        Tag = new { Produkt = data.Kod, Odbiorca = odbiorca }
+                        Cursor = System.Windows.Input.Cursors.Hand
                     };
 
                     // Hover effect
@@ -1055,15 +1125,15 @@ namespace Kalendarz1.WPF
 
                     var odbiorcaRow = new Grid();
                     odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
+                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) });
 
                     var nazwaText = new TextBlock
                     {
                         Text = odbiorca.NazwaOdbiorcy,
                         FontSize = 10,
-                        Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
-                        TextTrimming = TextTrimming.CharacterEllipsis,
-                        MaxWidth = 220
+                        Foreground = new SolidColorBrush(Color.FromRgb(80, 80, 80)),
+                        TextTrimming = TextTrimming.CharacterEllipsis
                     };
                     Grid.SetColumn(nazwaText, 0);
                     odbiorcaRow.Children.Add(nazwaText);
@@ -1073,28 +1143,31 @@ namespace Kalendarz1.WPF
                         Text = $"{odbiorca.Ilosc:N0}",
                         FontSize = 10,
                         FontWeight = FontWeights.SemiBold,
-                        Foreground = new SolidColorBrush(Color.FromRgb(80, 80, 80))
+                        Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                        HorizontalAlignment = HorizontalAlignment.Right
                     };
                     Grid.SetColumn(iloscText, 1);
                     odbiorcaRow.Children.Add(iloscText);
 
+                    // Procent udziału
+                    decimal procent = sumaZamowien > 0 ? (odbiorca.Ilosc / sumaZamowien) * 100 : 0;
+                    var procentText = new TextBlock
+                    {
+                        Text = $"{procent:N0}%",
+                        FontSize = 10,
+                        FontWeight = FontWeights.SemiBold,
+                        Foreground = new SolidColorBrush(Color.FromRgb(39, 174, 96)),
+                        HorizontalAlignment = HorizontalAlignment.Right
+                    };
+                    Grid.SetColumn(procentText, 2);
+                    odbiorcaRow.Children.Add(procentText);
+
                     odbiorcaBorder.Child = odbiorcaRow;
-                    mainStack.Children.Add(odbiorcaBorder);
+                    odbiorcyStack.Children.Add(odbiorcaBorder);
                 }
 
-                // Jeśli więcej niż 6 odbiorców
-                if (data.Odbiorcy.Count > 6)
-                {
-                    var moreText = new TextBlock
-                    {
-                        Text = $"... +{data.Odbiorcy.Count - 6} więcej",
-                        FontSize = 9,
-                        FontStyle = FontStyles.Italic,
-                        Foreground = new SolidColorBrush(Color.FromRgb(160, 160, 160)),
-                        Margin = new Thickness(0, 3, 0, 0)
-                    };
-                    mainStack.Children.Add(moreText);
-                }
+                scrollViewer.Content = odbiorcyStack;
+                mainStack.Children.Add(scrollViewer);
             }
 
             card.Child = mainStack;
