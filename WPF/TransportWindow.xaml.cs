@@ -58,7 +58,7 @@ namespace Kalendarz1.WPF
             _dtTransport.Columns.Add("Id", typeof(int));
             _dtTransport.Columns.Add("KlientId", typeof(int));
             _dtTransport.Columns.Add("KursId", typeof(long)); // Do grupowania
-            _dtTransport.Columns.Add("DataPrzyjazdu", typeof(DateTime));
+            _dtTransport.Columns.Add("DataUboju", typeof(DateTime));
             _dtTransport.Columns.Add("Odbiorca", typeof(string));
             _dtTransport.Columns.Add("Handlowiec", typeof(string));
             _dtTransport.Columns.Add("IloscZamowiona", typeof(decimal));
@@ -93,7 +93,7 @@ namespace Kalendarz1.WPF
             dgTransport.Columns.Add(new DataGridTextColumn
             {
                 Header = "Data",
-                Binding = new Binding("DataPrzyjazdu") { StringFormat = "yyyy-MM-dd" },
+                Binding = new Binding("DataUboju") { StringFormat = "yyyy-MM-dd" },
                 Width = new DataGridLength(90)
             });
 
@@ -272,16 +272,16 @@ namespace Kalendarz1.WPF
                     }
                 }
 
-                // Pobierz zamówienia TYLKO dla wybranej daty
-                var orders = new List<(int Id, int KlientId, decimal IloscZam, decimal IloscWyd, decimal Palety, long? KursId, DateTime DataPrzyjazdu)>();
+                // Pobierz zamówienia TYLKO dla wybranej daty (wg DataUboju)
+                var orders = new List<(int Id, int KlientId, decimal IloscZam, decimal IloscWyd, decimal Palety, long? KursId, DateTime DataUboju)>();
                 await using (var cnLibra = new SqlConnection(_connLibra))
                 {
                     await cnLibra.OpenAsync();
-                    const string sql = @"SELECT Id, KlientId, TransportKursID, DataPrzyjazdu
+                    const string sql = @"SELECT Id, KlientId, TransportKursID, DataUboju
                                          FROM dbo.ZamowieniaMieso
                                          WHERE Status <> 'Anulowane'
-                                           AND DataPrzyjazdu = @SelectedDate
-                                         ORDER BY DataPrzyjazdu DESC";
+                                           AND DataUboju = @SelectedDate
+                                         ORDER BY DataUboju DESC";
                     await using var cmd = new SqlCommand(sql, cnLibra);
                     cmd.Parameters.AddWithValue("@SelectedDate", _selectedDate.Date);
                     await using var rdr = await cmd.ExecuteReaderAsync();
@@ -290,8 +290,8 @@ namespace Kalendarz1.WPF
                         int id = rdr.GetInt32(0);
                         int klientId = rdr.IsDBNull(1) ? 0 : rdr.GetInt32(1);
                         long? kursId = rdr.IsDBNull(2) ? null : rdr.GetInt64(2);
-                        DateTime dataPrzyjazdu = rdr.IsDBNull(3) ? DateTime.MinValue : rdr.GetDateTime(3);
-                        orders.Add((id, klientId, 0m, 0m, 0m, kursId, dataPrzyjazdu));
+                        DateTime dataUboju = rdr.IsDBNull(3) ? DateTime.MinValue : rdr.GetDateTime(3);
+                        orders.Add((id, klientId, 0m, 0m, 0m, kursId, dataUboju));
                     }
                 }
 
@@ -385,7 +385,7 @@ namespace Kalendarz1.WPF
                         order.Id,
                         order.KlientId,
                         order.KursId ?? 0L,
-                        order.DataPrzyjazdu,
+                        order.DataUboju,
                         name,
                         salesman,
                         zam,
