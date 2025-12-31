@@ -718,7 +718,7 @@ namespace Kalendarz1.WPF
             {
                 Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
                 CornerRadius = new CornerRadius(8),
-                Padding = new Thickness(20, 15),
+                Padding = new Thickness(20, 15, 20, 15),
                 Margin = new Thickness(0, 0, 0, 20)
             };
             var headerText = new TextBlock
