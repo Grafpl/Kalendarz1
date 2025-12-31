@@ -360,6 +360,22 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button Content="▲"
+                            x:Name="btnMoveUp"
+                            Click="BtnMoveUp_Click"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Background="#7F8C8D"
+                            FontSize="14"
+                            Width="35"
+                            ToolTip="Przesuń wiersz w górę"/>
+                    <Button Content="▼"
+                            x:Name="btnMoveDown"
+                            Click="BtnMoveDown_Click"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Background="#7F8C8D"
+                            FontSize="14"
+                            Width="35"
+                            ToolTip="Przesuń wiersz w dół"/>
                     <Button Content="AVILOG"
                             x:Name="buttonBon"
                             Click="ButtonBon_Click"
@@ -481,12 +497,7 @@
                       CurrentCellChanged="DataGridView1_CurrentCellChanged"
                       PreviewKeyDown="DataGridView1_PreviewKeyDown"
                       PreviewTextInput="DataGridView1_PreviewTextInput"
-                      AllowDrop="True"
                       PreviewMouseLeftButtonDown="DataGrid_PreviewMouseLeftButtonDown"
-                      PreviewMouseMove="DataGrid_PreviewMouseMove"
-                      Drop="DataGrid_Drop"
-                      DragOver="DataGrid_DragOver"
-                      DragLeave="DataGrid_DragLeave"
                       EnableRowVirtualization="True"
                       EnableColumnVirtualization="True"
                       VirtualizingPanel.IsVirtualizing="True"

@@ -43,12 +43,7 @@ namespace Kalendarz1
         private decimal sumaWartosc = 0;
         private decimal sumaKG = 0;
 
-        // Drag & Drop
-        private Point _dragStartPoint;
-        private bool _isDragging = false;
-        private SpecyfikacjaRow _draggedRow = null;
-        private DataGridRow _lastHighlightedRow = null;
-        private Brush _originalRowBackground = null;
+        // Arrow buttons for row movement (replaces drag & drop)
 
         // === WYDAJNOŚĆ: Cache dostawców (static - współdzielony między oknami) ===
         private static List<DostawcaItem> _cachedDostawcy = null;
@@ -630,142 +625,78 @@ namespace Kalendarz1
             }
         }
 
-        // === DRAG & DROP: Rozpoczęcie przeciągania ===
+        // === KLIKNIĘCIE: Zaznaczenie wiersza i edycja komórki ===
         private void DataGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            _dragStartPoint = e.GetPosition(null);
-            _isDragging = false;
-
             // Znajdź wiersz pod kursorem
             var row = FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject);
             if (row != null)
             {
-                _draggedRow = row.Item as SpecyfikacjaRow;
-                dataGridView1.SelectedItem = _draggedRow;
-                selectedRow = _draggedRow;
+                var clickedRow = row.Item as SpecyfikacjaRow;
+                dataGridView1.SelectedItem = clickedRow;
+                selectedRow = clickedRow;
 
                 // === SINGLE-CLICK EDIT: Rozpocznij edycję po kliknięciu na komórkę ===
                 var cell = FindVisualParent<DataGridCell>(e.OriginalSource as DependencyObject);
                 if (cell != null && !cell.IsReadOnly && !cell.IsEditing)
                 {
-                    // Opóźnij edycję aby drag & drop miał szansę się rozpocząć
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        if (!_isDragging)
-                        {
-                            cell.Focus();
-                            dataGridView1.BeginEdit();
-                        }
+                        cell.Focus();
+                        dataGridView1.BeginEdit();
                     }), System.Windows.Threading.DispatcherPriority.Background);
                 }
             }
         }
 
-        // === DRAG & DROP: Wykrycie ruchu myszy ===
-        private void DataGrid_PreviewMouseMove(object sender, MouseEventArgs e)
+        // === PRZYCISK STRZAŁKA W GÓRĘ: Przesuń wiersz w górę ===
+        private void BtnMoveUp_Click(object sender, RoutedEventArgs e)
         {
-            if (e.LeftButton != MouseButtonState.Pressed || _draggedRow == null)
-                return;
-
-            Point currentPosition = e.GetPosition(null);
-            Vector diff = _dragStartPoint - currentPosition;
-
-            // Rozpocznij przeciąganie po przesunięciu o min. 5 pikseli
-            if (Math.Abs(diff.X) > 5 || Math.Abs(diff.Y) > 5)
+            var selected = dataGridView1.SelectedItem as SpecyfikacjaRow;
+            if (selected == null)
             {
-                _isDragging = true;
-                DataObject dragData = new DataObject("SpecyfikacjaRow", _draggedRow);
-                DragDrop.DoDragDrop(dataGridView1, dragData, DragDropEffects.Move);
-                _isDragging = false;
-                _draggedRow = null;
-            }
-        }
-
-        // === DRAG & DROP: Podgląd miejsca upuszczenia z podświetleniem ===
-        private void DataGrid_DragOver(object sender, DragEventArgs e)
-        {
-            if (!e.Data.GetDataPresent("SpecyfikacjaRow"))
-            {
-                e.Effects = DragDropEffects.None;
+                UpdateStatus("Wybierz wiersz do przesunięcia");
                 return;
             }
 
-            e.Effects = DragDropEffects.Move;
-
-            // Znajdź wiersz pod kursorem i podświetl go
-            var targetRow = FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject);
-            if (targetRow != null && targetRow != _lastHighlightedRow)
+            int currentIndex = specyfikacjeData.IndexOf(selected);
+            if (currentIndex <= 0)
             {
-                // Przywróć poprzedni wiersz
-                ResetHighlightedRow();
-
-                // Podświetl nowy wiersz
-                _lastHighlightedRow = targetRow;
-                _originalRowBackground = targetRow.Background;
-                targetRow.Background = new SolidColorBrush(Color.FromRgb(144, 238, 144)); // LightGreen
-                targetRow.BorderBrush = new SolidColorBrush(Color.FromRgb(76, 175, 80));
-                targetRow.BorderThickness = new Thickness(2);
-            }
-
-            e.Handled = true;
-        }
-
-        // === Przywróć wygląd podświetlonego wiersza ===
-        private void ResetHighlightedRow()
-        {
-            if (_lastHighlightedRow != null)
-            {
-                _lastHighlightedRow.Background = _originalRowBackground ?? Brushes.Transparent;
-                _lastHighlightedRow.BorderThickness = new Thickness(0);
-                _lastHighlightedRow = null;
-                _originalRowBackground = null;
-            }
-        }
-
-        // === DRAG & DROP: Opuszczenie obszaru - reset podświetlenia ===
-        private void DataGrid_DragLeave(object sender, DragEventArgs e)
-        {
-            ResetHighlightedRow();
-        }
-
-        // === DRAG & DROP: Upuszczenie wiersza z auto-zapisem ===
-        private void DataGrid_Drop(object sender, DragEventArgs e)
-        {
-            // Przywróć podświetlenie
-            ResetHighlightedRow();
-
-            if (!e.Data.GetDataPresent("SpecyfikacjaRow"))
+                UpdateStatus("Wiersz jest już na górze");
                 return;
+            }
 
-            var draggedItem = e.Data.GetData("SpecyfikacjaRow") as SpecyfikacjaRow;
-            if (draggedItem == null) return;
-
-            // Znajdź wiersz docelowy
-            var targetRow = FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject);
-            if (targetRow == null) return;
-
-            var targetItem = targetRow.Item as SpecyfikacjaRow;
-            if (targetItem == null || targetItem == draggedItem) return;
-
-            int oldIndex = specyfikacjeData.IndexOf(draggedItem);
-            int newIndex = specyfikacjeData.IndexOf(targetItem);
-
-            if (oldIndex < 0 || newIndex < 0) return;
-
-            // Przenieś wiersz
-            specyfikacjeData.Move(oldIndex, newIndex);
-
-            // Zaktualizuj numery LP
+            // Przesuń wiersz w górę
+            specyfikacjeData.Move(currentIndex, currentIndex - 1);
             UpdateRowNumbers();
-
-            // Zaznacz przeniesiony wiersz
-            dataGridView1.SelectedItem = draggedItem;
-            selectedRow = draggedItem;
-
-            // AUTO-ZAPIS: Zapisz pozycje wszystkich wierszy
+            dataGridView1.SelectedItem = selected;
             SaveAllRowPositions();
+            UpdateStatus($"Przesunięto wiersz LP {selected.Nr} w górę");
+        }
 
-            e.Handled = true;
+        // === PRZYCISK STRZAŁKA W DÓŁ: Przesuń wiersz w dół ===
+        private void BtnMoveDown_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = dataGridView1.SelectedItem as SpecyfikacjaRow;
+            if (selected == null)
+            {
+                UpdateStatus("Wybierz wiersz do przesunięcia");
+                return;
+            }
+
+            int currentIndex = specyfikacjeData.IndexOf(selected);
+            if (currentIndex < 0 || currentIndex >= specyfikacjeData.Count - 1)
+            {
+                UpdateStatus("Wiersz jest już na dole");
+                return;
+            }
+
+            // Przesuń wiersz w dół
+            specyfikacjeData.Move(currentIndex, currentIndex + 1);
+            UpdateRowNumbers();
+            dataGridView1.SelectedItem = selected;
+            SaveAllRowPositions();
+            UpdateStatus($"Przesunięto wiersz LP {selected.Nr} w dół");
         }
 
         // === WYDAJNOŚĆ: Auto-zapis pozycji - używa async batch update ===
@@ -3835,7 +3766,27 @@ namespace Kalendarz1
             if (priceTypeId > 0)
             {
                 SaveFieldToDatabase(row.ID, "PriceTypeID", priceTypeId);
-                UpdateStatus($"Zapisano typ ceny: {row.TypCeny} dla LP {row.Nr}");
+
+                // Pytaj czy zastosować do wszystkich od tego dostawcy
+                var result = MessageBox.Show(
+                    $"Czy zastosować typ ceny \"{row.TypCeny}\" do wszystkich dostaw od dostawcy \"{row.RealDostawca}\"?",
+                    "Zastosuj do wszystkich",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    foreach (var r in specyfikacjeData.Where(x => x.RealDostawca == row.RealDostawca && x != row))
+                    {
+                        r.TypCeny = row.TypCeny;
+                        SaveFieldToDatabase(r.ID, "PriceTypeID", priceTypeId);
+                    }
+                    UpdateStatus($"Typ ceny \"{row.TypCeny}\" zastosowany do wszystkich dostaw od {row.RealDostawca}");
+                }
+                else
+                {
+                    UpdateStatus($"Zapisano typ ceny: {row.TypCeny} dla LP {row.Nr}");
+                }
             }
         }
 
