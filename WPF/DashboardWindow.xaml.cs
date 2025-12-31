@@ -552,6 +552,22 @@ namespace Kalendarz1.WPF
                 // Słownik: productId -> lista (KlientId, nazwa, ilość zamówiona)
                 var orderDetails = new Dictionary<int, List<(int KlientId, string Nazwa, decimal Ilosc)>>();
 
+                // Pobierz słownik kontrahentów z HANDEL (potrzebny dla zamówień i wydań bez zamówień)
+                var kontrahenci = new Dictionary<int, string>();
+                await using (var cnHandel = new SqlConnection(_connHandel))
+                {
+                    await cnHandel.OpenAsync();
+                    const string sqlKontr = @"SELECT Id, Shortcut FROM [HANDEL].[SSCommon].[STContractors]";
+                    await using var cmdKontr = new SqlCommand(sqlKontr, cnHandel);
+                    await using var rdKontr = await cmdKontr.ExecuteReaderAsync();
+                    while (await rdKontr.ReadAsync())
+                    {
+                        int id = rdKontr.GetInt32(0);
+                        string shortcut = rdKontr.IsDBNull(1) ? "" : rdKontr.GetString(1);
+                        kontrahenci[id] = string.IsNullOrWhiteSpace(shortcut) ? $"KH {id}" : shortcut;
+                    }
+                }
+
                 if (orderIds.Any())
                 {
                     // Najpierw pobierz sumy per produkt
@@ -567,22 +583,6 @@ namespace Kalendarz1.WPF
                             int id = rdr.GetInt32(0);
                             decimal qty = rdr.IsDBNull(1) ? 0m : rdr.GetDecimal(1);
                             orderSum[id] = qty;
-                        }
-                    }
-
-                    // Najpierw pobierz słownik kontrahentów z HANDEL (tak jak w WidokZamowieniaPodsumowanie)
-                    var kontrahenci = new Dictionary<int, string>();
-                    await using (var cnHandel = new SqlConnection(_connHandel))
-                    {
-                        await cnHandel.OpenAsync();
-                        const string sqlKontr = @"SELECT Id, Shortcut FROM [HANDEL].[SSCommon].[STContractors]";
-                        await using var cmdKontr = new SqlCommand(sqlKontr, cnHandel);
-                        await using var rdKontr = await cmdKontr.ExecuteReaderAsync();
-                        while (await rdKontr.ReadAsync())
-                        {
-                            int id = rdKontr.GetInt32(0);
-                            string shortcut = rdKontr.IsDBNull(1) ? "" : rdKontr.GetString(1);
-                            kontrahenci[id] = string.IsNullOrWhiteSpace(shortcut) ? $"KH {id}" : shortcut;
                         }
                     }
 
@@ -1185,38 +1185,100 @@ namespace Kalendarz1.WPF
                 mainStack.Children.Add(faktBarContainer);
             }
 
-            // Pasek ZAMÓWIENIA/WYDANIA (zależnie od trybu)
+            // === PASEK POSTĘPU: ZAMÓWIENIA vs PLAN/FAKT (z metą) ===
             decimal zamWydValue = _uzywajWydan ? data.Wydania : data.Zamowienia;
-            string zamWydLabel = _uzywajWydan ? "wyd" : "zam";
+            string zamWydLabel = _uzywajWydan ? "Wyd" : "Zam";
+            decimal goalValue = data.UzytoFakt ? data.Fakt : data.Plan; // Meta = fakt jeśli dostępny, inaczej plan
+            string goalLabel = data.UzytoFakt ? "FAKT" : "PLAN";
 
-            var zamBarContainer = new Grid { Margin = new Thickness(0, 8, 0, 0) };
-            zamBarContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            zamBarContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            // Kontener na nagłówki: "Zam X kg" po lewej, "PLAN/FAKT X kg" po prawej
+            var zamHeaderContainer = new Grid { Margin = new Thickness(0, 10, 0, 4) };
+            zamHeaderContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            zamHeaderContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            double zamWidth = zamWydValue > 0 ? (double)(zamWydValue / maxBarValue) * maxBarWidth : 5;
-            var zamBar = new Border
+            var zamHeaderText = new TextBlock
             {
-                Height = 22,
-                Width = Math.Max(zamWidth, 5),
-                HorizontalAlignment = HorizontalAlignment.Left,
-                CornerRadius = new CornerRadius(3),
-                Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)) // Niebieski
-            };
-
-            var zamTextBlock = new TextBlock
-            {
-                Text = $"{zamWydLabel} {zamWydValue:N0}",
-                FontSize = 11,
+                Text = $"{zamWydLabel}",
+                FontSize = 12,
                 FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Color.FromRgb(41, 128, 185)), // Ciemny niebieski
-                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219)) // Niebieski
+            };
+            var zamValueText = new TextBlock
+            {
+                Text = $"{zamWydValue:N0} kg",
+                FontSize = 14,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
                 Margin = new Thickness(5, 0, 0, 0)
             };
-            Grid.SetColumn(zamTextBlock, 1);
+            var zamHeaderStack = new StackPanel { Orientation = Orientation.Horizontal };
+            zamHeaderStack.Children.Add(zamHeaderText);
+            zamHeaderStack.Children.Add(zamValueText);
 
-            zamBarContainer.Children.Add(zamBar);
-            zamBarContainer.Children.Add(zamTextBlock);
-            mainStack.Children.Add(zamBarContainer);
+            var goalHeaderText = new TextBlock
+            {
+                Text = goalLabel,
+                FontSize = 12,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)) // Żółty
+            };
+            var goalValueText = new TextBlock
+            {
+                Text = $"{goalValue:N0} kg",
+                FontSize = 14,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)),
+                Margin = new Thickness(5, 0, 0, 0)
+            };
+            var goalHeaderStack = new StackPanel { Orientation = Orientation.Horizontal };
+            goalHeaderStack.Children.Add(goalHeaderText);
+            goalHeaderStack.Children.Add(goalValueText);
+            Grid.SetColumn(goalHeaderStack, 1);
+
+            zamHeaderContainer.Children.Add(zamHeaderStack);
+            zamHeaderContainer.Children.Add(goalHeaderStack);
+            mainStack.Children.Add(zamHeaderContainer);
+
+            // Pasek postępu z metą (żółta linia)
+            var progressContainer = new Grid { Height = 18, Margin = new Thickness(0, 0, 0, 8) };
+
+            // Tło paska (szare)
+            var progressBg = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(236, 240, 241)),
+                CornerRadius = new CornerRadius(4),
+                Height = 14,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            progressContainer.Children.Add(progressBg);
+
+            // Niebieski pasek postępu
+            double progressPercent = goalValue > 0 ? Math.Min((double)(zamWydValue / goalValue), 1.5) : 0;
+            var progressBar = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                CornerRadius = new CornerRadius(4),
+                Height = 14,
+                Width = progressPercent * maxBarWidth,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            progressContainer.Children.Add(progressBar);
+
+            // Żółta meta (pionowa linia) - na końcu paska (100%)
+            var goalLine = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(241, 196, 15)),
+                Width = 4,
+                Height = 24,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(maxBarWidth - 2, 0, 0, 0), // Na końcu
+                CornerRadius = new CornerRadius(2)
+            };
+            progressContainer.Children.Add(goalLine);
+
+            mainStack.Children.Add(progressContainer);
 
             // === OBLICZENIE BILANSU ===
             var calculationPanel = new StackPanel
