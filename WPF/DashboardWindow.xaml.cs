@@ -1372,11 +1372,11 @@ namespace Kalendarz1.WPF
                 mainStack.Children.Add(separator);
 
                 // Nagłówek sekcji: "Odbiorca | zam | wyd | %" - z marginesem na scrollbar
-                var headerRow = new Grid { Margin = new Thickness(0, 0, 18, 3) }; // Prawy margines wyrównany z listą
+                var headerRow = new Grid { Margin = new Thickness(0, 0, 22, 3) }; // Prawy margines dla scrollbara
                 headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Nazwa
-                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) }); // zam
-                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) }); // wyd
-                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) }); // %
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) }); // zam
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) }); // wyd
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) }); // %
 
                 var grayTextColor = new SolidColorBrush(Color.FromRgb(100, 100, 100));
 
@@ -1406,7 +1406,7 @@ namespace Kalendarz1.WPF
                     HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
                 };
 
-                var odbiorcyStack = new StackPanel { Margin = new Thickness(0, 0, 18, 0) }; // Prawy margines na scrollbar
+                var odbiorcyStack = new StackPanel { Margin = new Thickness(0, 0, 22, 0) }; // Prawy margines na scrollbar
 
                 foreach (var odbiorca in data.Odbiorcy)
                 {
@@ -1443,9 +1443,9 @@ namespace Kalendarz1.WPF
                     // Wiersz: [nazwa] | zam | wyd | % - dopasowany do nagłówka
                     var odbiorcaRow = new Grid();
                     odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Nazwa
-                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) }); // zam
-                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) }); // wyd
-                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) }); // %
+                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) }); // zam
+                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) }); // wyd
+                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) }); // %
 
                     var nazwaText = new TextBlock
                     {
