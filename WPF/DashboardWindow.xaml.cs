@@ -38,6 +38,14 @@ namespace Kalendarz1.WPF
             public decimal Wydania { get; set; }
             public decimal Bilans { get; set; }
             public bool UzytoFakt { get; set; } // true = użyto faktyczny przychód, false = planowany
+            public List<OdbiorcaZamowienie> Odbiorcy { get; set; } = new();
+        }
+
+        // Zamówienie od odbiorcy
+        private class OdbiorcaZamowienie
+        {
+            public string NazwaOdbiorcy { get; set; } = "";
+            public decimal Ilosc { get; set; }
         }
 
         // Element produktu w liście wyboru
@@ -372,19 +380,50 @@ namespace Kalendarz1.WPF
                     }
                 }
 
+                // Słownik: productId -> lista (odbiorca, ilość)
+                var orderDetails = new Dictionary<int, List<(string Odbiorca, decimal Ilosc)>>();
+
                 if (orderIds.Any())
                 {
-                    await using var cn = new SqlConnection(_connLibra);
-                    await cn.OpenAsync();
-                    var sql = $@"SELECT KodTowaru, SUM(Ilosc) FROM [dbo].[ZamowieniaMiesoTowar]
-                                 WHERE ZamowienieId IN ({string.Join(",", orderIds)}) GROUP BY KodTowaru";
-                    await using var cmd = new SqlCommand(sql, cn);
-                    await using var rdr = await cmd.ExecuteReaderAsync();
-                    while (await rdr.ReadAsync())
+                    // Najpierw pobierz sumy per produkt
+                    await using (var cn = new SqlConnection(_connLibra))
                     {
-                        int id = rdr.GetInt32(0);
-                        decimal qty = rdr.IsDBNull(1) ? 0m : rdr.GetDecimal(1);
-                        orderSum[id] = qty;
+                        await cn.OpenAsync();
+                        var sql = $@"SELECT KodTowaru, SUM(Ilosc) FROM [dbo].[ZamowieniaMiesoTowar]
+                                     WHERE ZamowienieId IN ({string.Join(",", orderIds)}) GROUP BY KodTowaru";
+                        await using var cmd = new SqlCommand(sql, cn);
+                        await using var rdr = await cmd.ExecuteReaderAsync();
+                        while (await rdr.ReadAsync())
+                        {
+                            int id = rdr.GetInt32(0);
+                            decimal qty = rdr.IsDBNull(1) ? 0m : rdr.GetDecimal(1);
+                            orderSum[id] = qty;
+                        }
+                    }
+
+                    // Pobierz szczegóły zamówień z nazwami odbiorców
+                    await using (var cn = new SqlConnection(_connLibra))
+                    {
+                        await cn.OpenAsync();
+                        var sql = $@"SELECT t.KodTowaru, k.Nazwa, SUM(t.Ilosc) as Ilosc
+                                     FROM [dbo].[ZamowieniaMiesoTowar] t
+                                     INNER JOIN [dbo].[ZamowieniaMieso] z ON t.ZamowienieId = z.Id
+                                     INNER JOIN [dbo].[Kontrahenci] k ON z.KlientId = k.Id
+                                     WHERE t.ZamowienieId IN ({string.Join(",", orderIds)})
+                                     GROUP BY t.KodTowaru, k.Nazwa
+                                     ORDER BY t.KodTowaru, SUM(t.Ilosc) DESC";
+                        await using var cmd = new SqlCommand(sql, cn);
+                        await using var rdr = await cmd.ExecuteReaderAsync();
+                        while (await rdr.ReadAsync())
+                        {
+                            int productId = rdr.GetInt32(0);
+                            string odbiorca = rdr.IsDBNull(1) ? "Nieznany" : rdr.GetString(1);
+                            decimal ilosc = rdr.IsDBNull(2) ? 0m : rdr.GetDecimal(2);
+
+                            if (!orderDetails.ContainsKey(productId))
+                                orderDetails[productId] = new List<(string, decimal)>();
+                            orderDetails[productId].Add((odbiorca, ilosc));
+                        }
                     }
                 }
 
@@ -509,6 +548,17 @@ namespace Kalendarz1.WPF
                     uzytoFakt = fakt > 0;
                     decimal bilans = przychodDoUzycia + stan - odejmij;
 
+                    // Pobierz listę odbiorców dla tego produktu
+                    var odbiorcy = new List<OdbiorcaZamowienie>();
+                    if (orderDetails.TryGetValue(productId, out var details))
+                    {
+                        odbiorcy = details.Select(d => new OdbiorcaZamowienie
+                        {
+                            NazwaOdbiorcy = d.Odbiorca,
+                            Ilosc = d.Ilosc
+                        }).ToList();
+                    }
+
                     productsData.Add(new ProductData
                     {
                         Id = productId,
@@ -520,7 +570,8 @@ namespace Kalendarz1.WPF
                         Zamowienia = zam,
                         Wydania = wyd,
                         Bilans = bilans,
-                        UzytoFakt = uzytoFakt
+                        UzytoFakt = uzytoFakt,
+                        Odbiorcy = odbiorcy
                     });
                 }
 
@@ -559,213 +610,305 @@ namespace Kalendarz1.WPF
 
         private Border CreateProductCard(ProductData data, Color headerColor)
         {
+            // Dynamiczna wysokość w zależności od liczby odbiorców
+            int odbircyCount = Math.Min(data.Odbiorcy.Count, 5); // Max 5 odbiorców
+            double cardHeight = 280 + (odbircyCount * 22);
+
             var card = new Border
             {
                 Background = new SolidColorBrush(Colors.White),
-                CornerRadius = new CornerRadius(12),
+                CornerRadius = new CornerRadius(8),
                 Margin = new Thickness(8),
                 Width = 380,
-                Height = 320
+                MinHeight = cardHeight,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                BorderThickness = new Thickness(2)
             };
 
             card.Effect = new System.Windows.Media.Effects.DropShadowEffect
             {
                 ShadowDepth = 2,
-                Opacity = 0.1,
-                BlurRadius = 15
+                Opacity = 0.15,
+                BlurRadius = 10
             };
 
-            var mainGrid = new Grid();
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            var mainStack = new StackPanel { Margin = new Thickness(15) };
 
-            // Nagłówek karty
-            var headerBorder = new Border
-            {
-                CornerRadius = new CornerRadius(12, 12, 0, 0),
-                Padding = new Thickness(20, 15, 20, 15)
-            };
-
-            var gradientBrush = new LinearGradientBrush
-            {
-                StartPoint = new Point(0, 0),
-                EndPoint = new Point(1, 0)
-            };
-            gradientBrush.GradientStops.Add(new GradientStop(headerColor, 0));
-            gradientBrush.GradientStops.Add(new GradientStop(Color.FromArgb(255,
-                (byte)Math.Min(255, headerColor.R + 30),
-                (byte)Math.Min(255, headerColor.G + 30),
-                (byte)Math.Min(255, headerColor.B + 30)), 1));
-            headerBorder.Background = gradientBrush;
-
-            var headerGrid = new Grid();
-            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            var titleStack = new StackPanel();
+            // === NAGŁÓWEK - nazwa produktu ===
             var titleText = new TextBlock
             {
-                Text = data.Kod.ToUpper(),
-                FontSize = 18,
+                Text = $"[{data.Kod}]",
+                FontSize = 16,
                 FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White
+                Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                Margin = new Thickness(0, 0, 0, 15)
             };
-            titleStack.Children.Add(titleText);
+            mainStack.Children.Add(titleText);
 
-            // Wskaźnik czy użyto faktyczny czy planowany przychód
-            var sourceText = new TextBlock
+            // === PASEK PLAN / FAKT ===
+            var planFaktBorder = new Border
             {
-                Text = data.UzytoFakt ? "Przychód: FAKTYCZNY" : "Przychód: PLANOWANY",
-                FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
-                Margin = new Thickness(0, 3, 0, 0)
-            };
-            titleStack.Children.Add(sourceText);
-
-            Grid.SetColumn(titleStack, 0);
-            headerGrid.Children.Add(titleStack);
-
-            var bilansText = new TextBlock
-            {
-                Text = $"{data.Bilans:N0} kg",
-                FontSize = 22,
-                FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            Grid.SetColumn(bilansText, 1);
-            headerGrid.Children.Add(bilansText);
-
-            headerBorder.Child = headerGrid;
-            Grid.SetRow(headerBorder, 0);
-            mainGrid.Children.Add(headerBorder);
-
-            // Zawartość karty
-            var contentGrid = new Grid { Margin = new Thickness(20) };
-            contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-            // Wykres słupkowy
-            var chartGrid = new Grid { Margin = new Thickness(0, 0, 0, 15) };
-            CreateBarChart(chartGrid, data, headerColor);
-            Grid.SetRow(chartGrid, 0);
-            contentGrid.Children.Add(chartGrid);
-
-            // Statystyki
-            var statsGrid = new Grid();
-            for (int i = 0; i < 4; i++)
-                statsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-            var labels = new[] { "PLAN", "FAKT", "STAN", "ZAM." };
-            var values = new[] { data.Plan, data.Fakt, data.Stan, data.Zamowienia };
-            var colors = new[]
-            {
-                Color.FromRgb(44, 62, 80),   // Plan - ciemny
-                Color.FromRgb(39, 174, 96),  // Fakt - zielony
-                Color.FromRgb(52, 152, 219), // Stan - niebieski
-                Color.FromRgb(231, 76, 60)   // Zam - czerwony
+                BorderBrush = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                BorderThickness = new Thickness(1),
+                Margin = new Thickness(0, 0, 0, 10),
+                Padding = new Thickness(10, 8, 10, 8)
             };
 
-            for (int i = 0; i < 4; i++)
-            {
-                var stack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+            var planFaktStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
 
-                var labelText = new TextBlock
+            if (data.UzytoFakt)
+            {
+                // Plan przekreślony
+                var planText = new TextBlock
                 {
-                    Text = labels[i],
+                    Text = $"plan {data.Plan:N0}",
+                    FontSize = 14,
+                    Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
+                    TextDecorations = TextDecorations.Strikethrough,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                planFaktStack.Children.Add(planText);
+
+                planFaktStack.Children.Add(new TextBlock { Text = "  →  ", FontSize = 14, VerticalAlignment = VerticalAlignment.Center });
+
+                // Fakt aktywny
+                var faktText = new TextBlock
+                {
+                    Text = $"fakt {data.Fakt:N0}",
+                    FontSize = 14,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(39, 174, 96)),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                planFaktStack.Children.Add(faktText);
+            }
+            else
+            {
+                // Tylko plan (fakt = 0)
+                var planText = new TextBlock
+                {
+                    Text = $"plan {data.Plan:N0}",
+                    FontSize = 14,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                planFaktStack.Children.Add(planText);
+
+                if (data.Fakt > 0)
+                {
+                    planFaktStack.Children.Add(new TextBlock { Text = "   ", FontSize = 14 });
+                    var faktText = new TextBlock
+                    {
+                        Text = $"fakt {data.Fakt:N0}",
+                        FontSize = 14,
+                        Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    planFaktStack.Children.Add(faktText);
+                }
+            }
+
+            planFaktBorder.Child = planFaktStack;
+            mainStack.Children.Add(planFaktBorder);
+
+            // === PASEK ZAMÓWIENIA ===
+            var zamBorder = new Border
+            {
+                BorderBrush = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                BorderThickness = new Thickness(1),
+                Margin = new Thickness(0, 0, 0, 15),
+                Padding = new Thickness(10, 8, 10, 8)
+            };
+
+            var zamText = new TextBlock
+            {
+                Text = $"zam {data.Zamowienia:N0}",
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60)),
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            zamBorder.Child = zamText;
+            mainStack.Children.Add(zamBorder);
+
+            // === OBLICZENIE BILANSU ===
+            var calculationGrid = new Grid { Margin = new Thickness(0, 0, 0, 15) };
+            calculationGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            calculationGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            calculationGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            calculationGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            calculationGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            // Nagłówki
+            var headers = new[] { "Plan/Fakt", "Stan", "Zam.", "Bilans", "" };
+            for (int i = 0; i < 4; i++)
+            {
+                var header = new TextBlock
+                {
+                    Text = headers[i],
                     FontSize = 11,
                     Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)),
-                    HorizontalAlignment = HorizontalAlignment.Center
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(10, 0, 10, 2)
                 };
-                stack.Children.Add(labelText);
-
-                var valueText = new TextBlock
-                {
-                    Text = $"{values[i]:N0}",
-                    FontSize = 16,
-                    FontWeight = FontWeights.Bold,
-                    Foreground = new SolidColorBrush(colors[i]),
-                    HorizontalAlignment = HorizontalAlignment.Center
-                };
-                stack.Children.Add(valueText);
-
-                Grid.SetColumn(stack, i);
-                statsGrid.Children.Add(stack);
+                Grid.SetColumn(header, i);
+                calculationGrid.Children.Add(header);
             }
 
-            Grid.SetRow(statsGrid, 1);
-            contentGrid.Children.Add(statsGrid);
-
-            Grid.SetRow(contentGrid, 1);
-            mainGrid.Children.Add(contentGrid);
-
-            card.Child = mainGrid;
-            return card;
-        }
-
-        private void CreateBarChart(Grid chartGrid, ProductData data, Color primaryColor)
-        {
-            chartGrid.Children.Clear();
-            chartGrid.ColumnDefinitions.Clear();
-
-            for (int i = 0; i < 4; i++)
-                chartGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-            decimal maxValue = Math.Max(1, new[] { data.Plan, data.Fakt, data.Stan, data.Zamowienia }.Max());
-
-            var values = new[] { data.Plan, data.Fakt, data.Stan, data.Zamowienia };
-            var labels = new[] { "Plan", "Fakt", "Stan", "Zam" };
-            var colors = new[]
+            // Wartości
+            decimal przychodUzyty = data.UzytoFakt ? data.Fakt : data.Plan;
+            var valueColors = new[]
             {
-                Color.FromRgb(44, 62, 80),   // Plan - ciemny
-                Color.FromRgb(39, 174, 96),  // Fakt - zielony
-                Color.FromRgb(52, 152, 219), // Stan - niebieski
-                Color.FromRgb(231, 76, 60)   // Zam - czerwony
+                data.UzytoFakt ? Color.FromRgb(39, 174, 96) : Color.FromRgb(44, 62, 80),
+                Color.FromRgb(52, 152, 219),
+                Color.FromRgb(231, 76, 60),
+                data.Bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60)
             };
 
+            var valuesRow = new Grid { Margin = new Thickness(0, 20, 0, 0) };
+            for (int i = 0; i < 5; i++)
+                valuesRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var displayValues = new[] { $"{przychodUzyty:N0}", $"{data.Stan:N0}", $"{data.Zamowienia:N0}", $"{data.Bilans:N0}" };
+            var operators = new[] { "", "+", "-", "=" };
+
             for (int i = 0; i < 4; i++)
             {
-                var stack = new StackPanel
+                if (i > 0)
                 {
-                    VerticalAlignment = VerticalAlignment.Bottom,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = new Thickness(5, 0, 5, 0)
-                };
+                    var opText = new TextBlock
+                    {
+                        Text = operators[i],
+                        FontSize = 14,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(5, 0, 5, 0)
+                    };
+                    var opContainer = new StackPanel { Orientation = Orientation.Horizontal };
+                    opContainer.Children.Add(opText);
 
-                var valueText = new TextBlock
+                    var valueText = new TextBlock
+                    {
+                        Text = displayValues[i],
+                        FontSize = 14,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = new SolidColorBrush(valueColors[i]),
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(0, 0, 10, 0)
+                    };
+                    opContainer.Children.Add(valueText);
+                    Grid.SetColumn(opContainer, i);
+                    valuesRow.Children.Add(opContainer);
+                }
+                else
                 {
-                    Text = $"{values[i]:N0}",
-                    FontSize = 10,
-                    FontWeight = FontWeights.SemiBold,
-                    Foreground = new SolidColorBrush(colors[i]),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = new Thickness(0, 0, 0, 3)
-                };
-                stack.Children.Add(valueText);
-
-                double height = maxValue > 0 ? (double)(values[i] / maxValue) * 120 : 0;
-                var bar = new Border
-                {
-                    Width = 40,
-                    Height = Math.Max(5, height),
-                    CornerRadius = new CornerRadius(4, 4, 0, 0),
-                    Background = new SolidColorBrush(colors[i])
-                };
-                stack.Children.Add(bar);
-
-                var label = new TextBlock
-                {
-                    Text = labels[i],
-                    FontSize = 9,
-                    Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = new Thickness(0, 5, 0, 0)
-                };
-                stack.Children.Add(label);
-
-                Grid.SetColumn(stack, i);
-                chartGrid.Children.Add(stack);
+                    var valueText = new TextBlock
+                    {
+                        Text = displayValues[i],
+                        FontSize = 14,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = new SolidColorBrush(valueColors[i]),
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(10, 0, 10, 0)
+                    };
+                    Grid.SetColumn(valueText, i);
+                    valuesRow.Children.Add(valueText);
+                }
             }
+
+            Grid.SetRow(valuesRow, 1);
+            calculationGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            calculationGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            mainStack.Children.Add(calculationGrid);
+            mainStack.Children.Add(valuesRow);
+
+            // === LISTA ODBIORCÓW ===
+            if (data.Odbiorcy.Any())
+            {
+                var separator = new Border
+                {
+                    Height = 1,
+                    Background = new SolidColorBrush(Color.FromRgb(189, 195, 199)),
+                    Margin = new Thickness(0, 10, 0, 10)
+                };
+                mainStack.Children.Add(separator);
+
+                var odbiorcyHeader = new Grid { Margin = new Thickness(0, 0, 0, 5) };
+                odbiorcyHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                odbiorcyHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                var odbiorcaLabel = new TextBlock
+                {
+                    Text = "Odbiorca",
+                    FontSize = 11,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141))
+                };
+                Grid.SetColumn(odbiorcaLabel, 0);
+                odbiorcyHeader.Children.Add(odbiorcaLabel);
+
+                var iloscLabel = new TextBlock
+                {
+                    Text = "Ilość",
+                    FontSize = 11,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141))
+                };
+                Grid.SetColumn(iloscLabel, 1);
+                odbiorcyHeader.Children.Add(iloscLabel);
+
+                mainStack.Children.Add(odbiorcyHeader);
+
+                // Lista odbiorców (max 5)
+                foreach (var odbiorca in data.Odbiorcy.Take(5))
+                {
+                    var odbiorcaRow = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                    var nazwaText = new TextBlock
+                    {
+                        Text = $"[{odbiorca.NazwaOdbiorcy}]",
+                        FontSize = 12,
+                        Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                        TextTrimming = TextTrimming.CharacterEllipsis,
+                        MaxWidth = 250
+                    };
+                    Grid.SetColumn(nazwaText, 0);
+                    odbiorcaRow.Children.Add(nazwaText);
+
+                    var iloscText = new TextBlock
+                    {
+                        Text = $"{odbiorca.Ilosc:N0}",
+                        FontSize = 12,
+                        FontWeight = FontWeights.SemiBold,
+                        Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80))
+                    };
+                    Grid.SetColumn(iloscText, 1);
+                    odbiorcaRow.Children.Add(iloscText);
+
+                    mainStack.Children.Add(odbiorcaRow);
+                }
+
+                // Jeśli więcej niż 5 odbiorców
+                if (data.Odbiorcy.Count > 5)
+                {
+                    var moreText = new TextBlock
+                    {
+                        Text = $"... i {data.Odbiorcy.Count - 5} więcej",
+                        FontSize = 11,
+                        FontStyle = FontStyles.Italic,
+                        Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
+                        Margin = new Thickness(0, 5, 0, 0)
+                    };
+                    mainStack.Children.Add(moreText);
+                }
+            }
+
+            card.Child = mainStack;
+            return card;
         }
 
         private void UpdateSelectedCount()
