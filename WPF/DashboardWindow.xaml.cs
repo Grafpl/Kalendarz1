@@ -420,6 +420,72 @@ namespace Kalendarz1.WPF
 
                 System.Diagnostics.Debug.WriteLine($"[Dashboard] Data: {day:yyyy-MM-dd}, Znaleziono zamówień: {orderIds.Count}");
 
+                // === ZAAWANSOWANA DIAGNOSTYKA ===
+                if (orderIds.Any())
+                {
+                    try
+                    {
+                        await using var cnDiag = new SqlConnection(_connLibra);
+                        await cnDiag.OpenAsync();
+
+                        var diagSql = $@"
+                            -- Diagnostyka: sprawdź strukturę danych
+                            SELECT
+                                'ZAMOWIENIA' as Typ,
+                                z.Id as ZamId,
+                                z.DataUboju,
+                                z.KlientId,
+                                k.Nazwa as KlientNazwa,
+                                (SELECT COUNT(*) FROM ZamowieniaMiesoTowar WHERE ZamowienieId = z.Id) as LiczbaPozycji
+                            FROM ZamowieniaMieso z
+                            LEFT JOIN Kontrahenci k ON z.KlientId = k.Id
+                            WHERE z.Id IN ({string.Join(",", orderIds)})
+
+                            UNION ALL
+
+                            SELECT
+                                'POZYCJE' as Typ,
+                                t.ZamowienieId as ZamId,
+                                NULL as DataUboju,
+                                t.KodTowaru as KlientId,
+                                CAST(t.Ilosc as NVARCHAR) as KlientNazwa,
+                                0 as LiczbaPozycji
+                            FROM ZamowieniaMiesoTowar t
+                            WHERE t.ZamowienieId IN ({string.Join(",", orderIds)})
+                        ";
+
+                        await using var cmdDiag = new SqlCommand(diagSql, cnDiag);
+                        await using var rdrDiag = await cmdDiag.ExecuteReaderAsync();
+
+                        var sb = new System.Text.StringBuilder();
+                        sb.AppendLine("\n=== DIAGNOSTYKA ODBIORCÓW ===");
+                        sb.AppendLine($"Data: {day:yyyy-MM-dd}");
+                        sb.AppendLine($"Zamówienia IDs: {string.Join(",", orderIds)}");
+                        sb.AppendLine($"Wybrane produkty IDs: {string.Join(",", _selectedProductIds)}");
+                        sb.AppendLine("---");
+
+                        while (await rdrDiag.ReadAsync())
+                        {
+                            string typ = rdrDiag.GetString(0);
+                            if (typ == "ZAMOWIENIA")
+                            {
+                                sb.AppendLine($"ZAMÓWIENIE: Id={rdrDiag.GetValue(1)}, Data={rdrDiag.GetValue(2)}, KlientId={rdrDiag.GetValue(3)}, Klient={rdrDiag.GetValue(4)}, Pozycji={rdrDiag.GetValue(5)}");
+                            }
+                            else
+                            {
+                                sb.AppendLine($"  POZYCJA: ZamId={rdrDiag.GetValue(1)}, KodTowaru={rdrDiag.GetValue(3)}, Ilosc={rdrDiag.GetValue(4)}");
+                            }
+                        }
+
+                        sb.AppendLine("=== KONIEC DIAGNOSTYKI ===\n");
+                        System.Diagnostics.Debug.WriteLine(sb.ToString());
+                    }
+                    catch (Exception exDiag)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[Dashboard] Błąd diagnostyki: {exDiag.Message}");
+                    }
+                }
+
                 // Słownik: productId -> lista (odbiorca, ilość)
                 var orderDetails = new Dictionary<int, List<(string Odbiorca, decimal Ilosc)>>();
 
