@@ -566,24 +566,42 @@ namespace Kalendarz1.WPF
                         }
                     }
 
-                    // Pobierz szczegóły zamówień z nazwami odbiorców
+                    // Najpierw pobierz słownik kontrahentów z HANDEL (tak jak w WidokZamowieniaPodsumowanie)
+                    var kontrahenci = new Dictionary<int, string>();
+                    await using (var cnHandel = new SqlConnection(_connHandel))
+                    {
+                        await cnHandel.OpenAsync();
+                        const string sqlKontr = @"SELECT Id, Shortcut FROM [HANDEL].[SSCommon].[STContractors]";
+                        await using var cmdKontr = new SqlCommand(sqlKontr, cnHandel);
+                        await using var rdKontr = await cmdKontr.ExecuteReaderAsync();
+                        while (await rdKontr.ReadAsync())
+                        {
+                            int id = rdKontr.GetInt32(0);
+                            string shortcut = rdKontr.IsDBNull(1) ? "" : rdKontr.GetString(1);
+                            kontrahenci[id] = string.IsNullOrWhiteSpace(shortcut) ? $"KH {id}" : shortcut;
+                        }
+                    }
+
+                    // Pobierz szczegóły zamówień: KodTowaru, KlientId, Ilosc
                     await using (var cn = new SqlConnection(_connLibra))
                     {
                         await cn.OpenAsync();
-                        var sql = $@"SELECT t.KodTowaru, COALESCE(k.Nazwa, 'Nieznany') as Nazwa, SUM(t.Ilosc) as Ilosc
+                        var sql = $@"SELECT t.KodTowaru, z.KlientId, SUM(t.Ilosc) as Ilosc
                                      FROM [dbo].[ZamowieniaMiesoTowar] t
-                                     LEFT JOIN [dbo].[ZamowieniaMieso] z ON t.ZamowienieId = z.Id
-                                     LEFT JOIN [dbo].[Kontrahenci] k ON z.KlientId = k.Id
+                                     INNER JOIN [dbo].[ZamowieniaMieso] z ON t.ZamowienieId = z.Id
                                      WHERE t.ZamowienieId IN ({string.Join(",", orderIds)})
-                                     GROUP BY t.KodTowaru, k.Nazwa
+                                     GROUP BY t.KodTowaru, z.KlientId
                                      ORDER BY t.KodTowaru, SUM(t.Ilosc) DESC";
                         await using var cmd = new SqlCommand(sql, cn);
                         await using var rdr = await cmd.ExecuteReaderAsync();
                         while (await rdr.ReadAsync())
                         {
                             int productId = rdr.GetInt32(0);
-                            string odbiorca = rdr.GetString(1);
+                            int klientId = rdr.IsDBNull(1) ? 0 : rdr.GetInt32(1);
                             decimal ilosc = rdr.IsDBNull(2) ? 0m : rdr.GetDecimal(2);
+
+                            // Pobierz nazwę odbiorcy ze słownika kontrahentów
+                            string odbiorca = kontrahenci.TryGetValue(klientId, out var nazwa) ? nazwa : $"Nieznany ({klientId})";
 
                             if (!orderDetails.ContainsKey(productId))
                                 orderDetails[productId] = new List<(string, decimal)>();
