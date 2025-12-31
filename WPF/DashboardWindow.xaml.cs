@@ -244,16 +244,18 @@ namespace Kalendarz1.WPF
                 bool uzywajWydan = rbBilansWydania?.IsChecked == true;
                 DateTime day = _selectedDate.Date;
 
-                // 1. Pobierz konfigurację wydajności
+                // 1. Pobierz konfigurację wydajności (tak jak w MainWindow)
                 decimal wspolczynnikTuszki = 64m, procentA = 35m, procentB = 65m;
                 try
                 {
                     await using var cn = new SqlConnection(_connLibra);
                     await cn.OpenAsync();
-                    const string sql = @"SELECT WspolczynnikTuszki, ProcentTuszkiA, ProcentTuszkiB
-                                         FROM dbo.KonfiguracjaWydajnosci WHERE Data = @Day";
+                    const string sql = @"SELECT TOP 1 WspolczynnikTuszki, ProcentTuszkaA, ProcentTuszkaB
+                                         FROM KonfiguracjaWydajnosci
+                                         WHERE DataOd <= @Data AND Aktywny = 1
+                                         ORDER BY DataOd DESC";
                     await using var cmd = new SqlCommand(sql, cn);
-                    cmd.Parameters.AddWithValue("@Day", day);
+                    cmd.Parameters.AddWithValue("@Data", day);
                     await using var rdr = await cmd.ExecuteReaderAsync();
                     if (await rdr.ReadAsync())
                     {
@@ -264,15 +266,22 @@ namespace Kalendarz1.WPF
                 }
                 catch { }
 
-                // 2. Pobierz konfigurację produktów (procenty)
+                // 2. Pobierz konfigurację produktów (TowarID -> ProcentUdzialu) - tak jak w MainWindow
                 var konfiguracjaProcenty = new Dictionary<int, decimal>();
                 try
                 {
                     await using var cn = new SqlConnection(_connLibra);
                     await cn.OpenAsync();
-                    const string sql = @"SELECT ProduktId, Procent FROM dbo.KonfiguracjaProduktow WHERE Data = @Day";
+                    const string sql = @"SELECT kp.TowarID, kp.ProcentUdzialu
+                                         FROM KonfiguracjaProduktow kp
+                                         INNER JOIN (
+                                             SELECT MAX(DataOd) as MaxData
+                                             FROM KonfiguracjaProduktow
+                                             WHERE DataOd <= @Data AND Aktywny = 1
+                                         ) sub ON kp.DataOd = sub.MaxData
+                                         WHERE kp.Aktywny = 1";
                     await using var cmd = new SqlCommand(sql, cn);
-                    cmd.Parameters.AddWithValue("@Day", day);
+                    cmd.Parameters.AddWithValue("@Data", day);
                     await using var rdr = await cmd.ExecuteReaderAsync();
                     while (await rdr.ReadAsync())
                     {
@@ -452,7 +461,7 @@ namespace Kalendarz1.WPF
                     }
                 }
 
-                // 10. Oblicz dane dla wybranych produktów
+                // 10. Oblicz dane dla wybranych produktów (logika jak w MainWindow)
                 var productsData = new List<ProductData>();
                 foreach (var productId in _selectedProductIds)
                 {
@@ -461,18 +470,32 @@ namespace Kalendarz1.WPF
 
                     decimal plan = 0m, fakt = 0m;
                     bool uzytoFakt = false;
+                    string kodLower = info.Kod.ToLower();
 
-                    if (info.IsTuszka)
+                    // Sprawdź typ produktu i oblicz plan - tak jak w MainWindow
+                    if (kodLower.Contains("kurczak a") || kodLower.Contains("tuszka a") ||
+                        (kodLower.Contains("kurczak") && kodLower.EndsWith(" a")))
                     {
-                        // Dla tuszki - użyj puli tuszki A
+                        // Kurczak A / Tuszka A - pula tuszki A
                         plan = pulaTuszkiA;
                         fakt = faktTuszka.TryGetValue(productId, out var f) ? f : 0m;
                     }
+                    else if (kodLower.Contains("kurczak b") || kodLower.Contains("tuszka b") ||
+                             (kodLower.Contains("kurczak") && kodLower.EndsWith(" b")))
+                    {
+                        // Kurczak B / Tuszka B - cała pula tuszki B
+                        plan = pulaTuszkiB;
+                        fakt = faktTuszka.TryGetValue(productId, out var f) ? f : 0m;
+                    }
+                    else if (konfiguracjaProcenty.TryGetValue(productId, out var procent))
+                    {
+                        // Element z konfiguracją - użyj procentu z pulaTuszkiB
+                        plan = pulaTuszkiB * (procent / 100m);
+                        fakt = faktElementy.TryGetValue(productId, out var f) ? f : 0m;
+                    }
                     else
                     {
-                        // Dla elementów - użyj procentu z konfiguracji
-                        if (konfiguracjaProcenty.TryGetValue(productId, out var procent))
-                            plan = pulaTuszkiB * (procent / 100m);
+                        // Element bez konfiguracji - tylko faktyczny przychód
                         fakt = faktElementy.TryGetValue(productId, out var f) ? f : 0m;
                     }
 
