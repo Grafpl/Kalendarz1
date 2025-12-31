@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
 using System.Windows.Media;
+using System.Windows.Shapes;
 using Microsoft.Data.SqlClient;
 
 namespace Kalendarz1.WPF
@@ -14,9 +13,21 @@ namespace Kalendarz1.WPF
     {
         private readonly string _connLibra;
         private readonly string _connHandel;
-        private readonly DataTable _dtDashboard = new();
         private DateTime _selectedDate;
         private bool _isLoading;
+
+        // Dane dla 4 produktów
+        private class ProductData
+        {
+            public int Id { get; set; }
+            public string Nazwa { get; set; } = "";
+            public decimal Plan { get; set; }
+            public decimal Fakt { get; set; }
+            public decimal Stan { get; set; }
+            public decimal Zamowienia { get; set; }
+            public decimal Wydania { get; set; }
+            public decimal Bilans { get; set; }
+        }
 
         public DashboardWindow(string connLibra, string connHandel, DateTime? initialDate = null)
         {
@@ -25,173 +36,7 @@ namespace Kalendarz1.WPF
             _connHandel = connHandel;
             _selectedDate = initialDate ?? DateTime.Today;
 
-            InitializeDataTable();
             InitializeDate();
-        }
-
-        private void InitializeDataTable()
-        {
-            _dtDashboard.Columns.Add("Plan", typeof(decimal));
-            _dtDashboard.Columns.Add("Fakt", typeof(decimal));
-            _dtDashboard.Columns.Add("Stan", typeof(decimal));
-            _dtDashboard.Columns.Add("Zamowienia", typeof(decimal));
-            _dtDashboard.Columns.Add("Wydania", typeof(decimal));
-            _dtDashboard.Columns.Add("Bilans", typeof(decimal));
-            _dtDashboard.Columns.Add("Produkt", typeof(string));
-            _dtDashboard.Columns.Add("KodTowaru", typeof(int));
-            _dtDashboard.Columns.Add("Katalog", typeof(string));
-
-            dgDashboardProdukty.ItemsSource = _dtDashboard.DefaultView;
-            SetupDataGrid();
-        }
-
-        private void SetupDataGrid()
-        {
-            dgDashboardProdukty.Columns.Clear();
-
-            bool uzywajWydan = rbBilansWydania?.IsChecked == true;
-
-            // Style dla wyrównania
-            var rightStyle = new Style(typeof(TextBlock));
-            rightStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
-            rightStyle.Setters.Add(new Setter(TextBlock.PaddingProperty, new Thickness(0, 0, 10, 0)));
-
-            var centerStyle = new Style(typeof(TextBlock));
-            centerStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
-
-            var zamStyle = new Style(typeof(TextBlock));
-            zamStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
-            zamStyle.Setters.Add(new Setter(TextBlock.PaddingProperty, new Thickness(0, 0, 10, 0)));
-            if (uzywajWydan)
-            {
-                zamStyle.Setters.Add(new Setter(TextBlock.TextDecorationsProperty, TextDecorations.Strikethrough));
-                zamStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, Brushes.Gray));
-            }
-
-            var wydStyle = new Style(typeof(TextBlock));
-            wydStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
-            wydStyle.Setters.Add(new Setter(TextBlock.PaddingProperty, new Thickness(0, 0, 10, 0)));
-            if (!uzywajWydan)
-            {
-                wydStyle.Setters.Add(new Setter(TextBlock.TextDecorationsProperty, TextDecorations.Strikethrough));
-                wydStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, Brushes.Gray));
-            }
-
-            // 1. PLAN
-            dgDashboardProdukty.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Plan",
-                Binding = new Binding("Plan") { StringFormat = "N0" },
-                Width = new DataGridLength(80),
-                ElementStyle = rightStyle
-            });
-
-            // 2. FAKT
-            dgDashboardProdukty.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Fakt",
-                Binding = new Binding("Fakt") { StringFormat = "N0" },
-                Width = new DataGridLength(80),
-                ElementStyle = rightStyle
-            });
-
-            // 3. STAN
-            dgDashboardProdukty.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Stan",
-                Binding = new Binding("Stan") { StringFormat = "N0" },
-                Width = new DataGridLength(80),
-                ElementStyle = centerStyle
-            });
-
-            // 4. ZAM.
-            dgDashboardProdukty.Columns.Add(new DataGridTextColumn
-            {
-                Header = uzywajWydan ? "Zam." : "Zam. ✓",
-                Binding = new Binding("Zamowienia") { StringFormat = "N0" },
-                Width = new DataGridLength(85),
-                ElementStyle = zamStyle
-            });
-
-            // 5. WYD.
-            dgDashboardProdukty.Columns.Add(new DataGridTextColumn
-            {
-                Header = uzywajWydan ? "Wyd. ✓" : "Wyd.",
-                Binding = new Binding("Wydania") { StringFormat = "N0" },
-                Width = new DataGridLength(85),
-                ElementStyle = wydStyle
-            });
-
-            // 6. BILANS (DO SPRZEDANIA)
-            var bilansStyle = new Style(typeof(TextBlock));
-            bilansStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
-            bilansStyle.Setters.Add(new Setter(TextBlock.PaddingProperty, new Thickness(0, 0, 10, 0)));
-            bilansStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
-
-            dgDashboardProdukty.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Do sprzedania",
-                Binding = new Binding("Bilans") { StringFormat = "N0" },
-                Width = new DataGridLength(100),
-                ElementStyle = bilansStyle
-            });
-
-            // 7. PRODUKT
-            dgDashboardProdukty.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Produkt",
-                Binding = new Binding("Produkt"),
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
-                MinWidth = 200
-            });
-
-            dgDashboardProdukty.LoadingRow -= DgDashboardProdukty_LoadingRow;
-            dgDashboardProdukty.LoadingRow += DgDashboardProdukty_LoadingRow;
-        }
-
-        private void DgDashboardProdukty_LoadingRow(object sender, DataGridRowEventArgs e)
-        {
-            if (e.Row.Item is DataRowView rowView)
-            {
-                var bilans = rowView.Row.Field<decimal>("Bilans");
-                var produkt = rowView.Row.Field<string>("Produkt") ?? "";
-
-                // Wiersz SUMA CAŁKOWITA
-                if (produkt.StartsWith("═══"))
-                {
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(76, 175, 80));
-                    e.Row.Foreground = Brushes.White;
-                    e.Row.FontWeight = FontWeights.Bold;
-                    e.Row.FontSize = 14;
-                    return;
-                }
-
-                // Wiersz kategorii (Kurczak A, Kurczak B)
-                if (produkt.StartsWith("🐔"))
-                {
-                    if (produkt.Contains("Kurczak A"))
-                        e.Row.Background = new SolidColorBrush(Color.FromRgb(200, 230, 201));
-                    else
-                        e.Row.Background = new SolidColorBrush(Color.FromRgb(179, 229, 252));
-                    e.Row.FontWeight = FontWeights.SemiBold;
-                    e.Row.FontSize = 13;
-                    return;
-                }
-
-                // Kolorowanie według bilansu
-                if (bilans > 500)
-                {
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(232, 248, 232)); // Zielony - dużo dostępne
-                }
-                else if (bilans > 0)
-                {
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 248, 225)); // Żółty - mało
-                }
-                else
-                {
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 235, 235)); // Czerwony - brak/ujemny
-                }
-            }
         }
 
         private void InitializeDate()
@@ -208,19 +53,15 @@ namespace Kalendarz1.WPF
 
             try
             {
-                _dtDashboard.Rows.Clear();
-                txtStatusTime.Text = "Ładowanie...";
-
                 bool uzywajWydan = rbBilansWydania?.IsChecked == true;
-                int? katalogFilter = rbMrozone?.IsChecked == true ? 67153 : (rbSwieze?.IsChecked == true ? 67095 : null);
                 DateTime day = _selectedDate.Date;
 
-                // 1. Pobierz nazwy i katalogi produktów z Handel
-                var productInfo = new Dictionary<int, (string Nazwa, int? Katalog)>();
+                // 1. Pobierz nazwy produktów z Handel
+                var productInfo = new Dictionary<int, string>();
                 await using (var cn = new SqlConnection(_connHandel))
                 {
                     await cn.OpenAsync();
-                    const string sql = "SELECT ID, kod, katalog FROM [HANDEL].[HM].[TW]";
+                    const string sql = "SELECT ID, kod FROM [HANDEL].[HM].[TW]";
                     await using var cmd = new SqlCommand(sql, cn);
                     await using var rdr = await cmd.ExecuteReaderAsync();
                     while (await rdr.ReadAsync())
@@ -229,19 +70,27 @@ namespace Kalendarz1.WPF
                         {
                             int id = rdr.GetInt32(0);
                             string kod = rdr.IsDBNull(1) ? $"ID:{id}" : rdr.GetString(1);
-                            int? katalog = null;
-                            if (!rdr.IsDBNull(2))
-                            {
-                                var katVal = rdr.GetValue(2);
-                                if (katVal is int ki) katalog = ki;
-                                else if (int.TryParse(Convert.ToString(katVal), out int kp)) katalog = kp;
-                            }
-                            productInfo[id] = (kod, katalog);
+                            productInfo[id] = kod;
                         }
                     }
                 }
 
-                // 2. Pobierz konfigurację wydajności
+                // 2. Znajdź ID produktów po nazwach
+                int? kurczakAId = null, cwiartkaId = null, filetId = null, korpusId = null;
+                foreach (var p in productInfo)
+                {
+                    var nazwa = p.Value.ToLower();
+                    if (kurczakAId == null && nazwa.Contains("kurczak") && nazwa.Contains("a") && !nazwa.Contains("b"))
+                        kurczakAId = p.Key;
+                    else if (cwiartkaId == null && nazwa.Contains("wiartk"))
+                        cwiartkaId = p.Key;
+                    else if (filetId == null && nazwa.Contains("filet"))
+                        filetId = p.Key;
+                    else if (korpusId == null && nazwa.Contains("korpus"))
+                        korpusId = p.Key;
+                }
+
+                // 3. Pobierz konfigurację wydajności
                 decimal wspolczynnikTuszki = 64m, procentA = 35m, procentB = 65m;
                 try
                 {
@@ -261,7 +110,7 @@ namespace Kalendarz1.WPF
                 }
                 catch { }
 
-                // 3. Pobierz konfigurację produktów (procenty)
+                // 4. Pobierz konfigurację produktów (procenty)
                 var konfiguracjaProcenty = new Dictionary<int, decimal>();
                 try
                 {
@@ -279,7 +128,7 @@ namespace Kalendarz1.WPF
                 }
                 catch { }
 
-                // 4. Pobierz harmonogram dostaw (dla obliczenia PLAN)
+                // 5. Pobierz harmonogram dostaw (dla obliczenia PLAN)
                 decimal totalMassDek = 0m;
                 await using (var cn = new SqlConnection(_connLibra))
                 {
@@ -300,7 +149,7 @@ namespace Kalendarz1.WPF
                 decimal pulaTuszkiA = pulaTuszki * (procentA / 100m);
                 decimal pulaTuszkiB = pulaTuszki * (procentB / 100m);
 
-                // 5. Pobierz FAKT - przychody tuszki (sPWU)
+                // 6. Pobierz FAKT - przychody tuszki (sPWU)
                 var faktTuszka = new Dictionary<int, decimal>();
                 await using (var cn = new SqlConnection(_connHandel))
                 {
@@ -321,7 +170,7 @@ namespace Kalendarz1.WPF
                     }
                 }
 
-                // 6. Pobierz FAKT - przychody elementów (sPWP, PWP)
+                // 7. Pobierz FAKT - przychody elementów (sPWP, PWP)
                 var faktElementy = new Dictionary<int, decimal>();
                 await using (var cn = new SqlConnection(_connHandel))
                 {
@@ -342,10 +191,9 @@ namespace Kalendarz1.WPF
                     }
                 }
 
-                // 7. Pobierz ZAMÓWIENIA dla wybranego dnia
+                // 8. Pobierz ZAMÓWIENIA dla wybranego dnia
                 var orderSum = new Dictionary<int, decimal>();
                 var orderIds = new List<int>();
-                int zamowienAktywnych = 0;
 
                 await using (var cn = new SqlConnection(_connLibra))
                 {
@@ -358,7 +206,6 @@ namespace Kalendarz1.WPF
                     while (await rdr.ReadAsync())
                     {
                         orderIds.Add(rdr.GetInt32(0));
-                        zamowienAktywnych++;
                     }
                 }
 
@@ -378,7 +225,7 @@ namespace Kalendarz1.WPF
                     }
                 }
 
-                // 8. Pobierz WYDANIA (WZ)
+                // 9. Pobierz WYDANIA (WZ)
                 var wydaniaSum = new Dictionary<int, decimal>();
                 await using (var cn = new SqlConnection(_connHandel))
                 {
@@ -399,7 +246,7 @@ namespace Kalendarz1.WPF
                     }
                 }
 
-                // 9. Pobierz STANY MAGAZYNOWE
+                // 10. Pobierz STANY MAGAZYNOWE
                 var stanyMag = new Dictionary<int, decimal>();
                 try
                 {
@@ -417,152 +264,157 @@ namespace Kalendarz1.WPF
                 }
                 catch { }
 
-                // 10. Znajdź Kurczak A
-                var kurczakA = productInfo.FirstOrDefault(p =>
-                    p.Value.Nazwa.Contains("Kurczak A", StringComparison.OrdinalIgnoreCase));
-
-                // 11. Zbierz wszystkie produkty
-                var allProductIds = orderSum.Keys
-                    .Union(wydaniaSum.Keys)
-                    .Union(stanyMag.Keys)
-                    .Union(faktTuszka.Keys)
-                    .Union(faktElementy.Keys)
-                    .Union(konfiguracjaProcenty.Keys)
-                    .Where(k => productInfo.ContainsKey(k))
-                    .Distinct()
-                    .ToList();
-
-                decimal totalPlan = 0m, totalFakt = 0m, totalStan = 0m;
-                decimal totalZam = 0m, totalWyd = 0m, totalBilans = 0m;
-                decimal totalDoSprzedania = 0m, totalBrakuje = 0m;
-                int produktowCount = 0;
-
-                var produktyList = new List<(int Id, string Nazwa, int? Katalog, decimal Plan, decimal Fakt, decimal Stan, decimal Zam, decimal Wyd, decimal Bilans)>();
-
-                foreach (var id in allProductIds)
+                // 11. Oblicz dane dla 4 produktów
+                ProductData GetProductData(int? id, bool isTuszka)
                 {
-                    if (!productInfo.TryGetValue(id, out var info)) continue;
-                    if (katalogFilter.HasValue && info.Katalog != katalogFilter) continue;
+                    if (!id.HasValue) return new ProductData();
 
                     decimal plan = 0m, fakt = 0m;
-
-                    // Kurczak A - plan z puli tuszki A
-                    if (id == kurczakA.Key)
+                    if (isTuszka)
                     {
                         plan = pulaTuszkiA;
-                        fakt = faktTuszka.TryGetValue(id, out var f) ? f : 0m;
+                        fakt = faktTuszka.TryGetValue(id.Value, out var f) ? f : 0m;
                     }
                     else
                     {
-                        // Elementy - plan z konfiguracji produktów
-                        if (konfiguracjaProcenty.TryGetValue(id, out var procent))
+                        if (konfiguracjaProcenty.TryGetValue(id.Value, out var procent))
                             plan = pulaTuszkiB * (procent / 100m);
-                        fakt = faktElementy.TryGetValue(id, out var f) ? f : 0m;
+                        fakt = faktElementy.TryGetValue(id.Value, out var f) ? f : 0m;
                     }
 
-                    decimal stan = stanyMag.TryGetValue(id, out var s) ? s : 0m;
-                    decimal zam = orderSum.TryGetValue(id, out var z) ? z : 0m;
-                    decimal wyd = wydaniaSum.TryGetValue(id, out var w) ? w : 0m;
-
-                    // Bilans = (Fakt lub Plan) + Stan - (Zamówienia lub Wydania)
+                    decimal stan = stanyMag.TryGetValue(id.Value, out var s) ? s : 0m;
+                    decimal zam = orderSum.TryGetValue(id.Value, out var z) ? z : 0m;
+                    decimal wyd = wydaniaSum.TryGetValue(id.Value, out var w) ? w : 0m;
                     decimal odejmij = uzywajWydan ? wyd : zam;
                     decimal bilans = (fakt > 0 ? fakt : plan) + stan - odejmij;
 
-                    produktyList.Add((id, info.Nazwa, info.Katalog, plan, fakt, stan, zam, wyd, bilans));
-
-                    totalPlan += plan;
-                    totalFakt += fakt;
-                    totalStan += stan;
-                    totalZam += zam;
-                    totalWyd += wyd;
-                    totalBilans += bilans;
-                    if (bilans > 0) totalDoSprzedania += bilans;
-                    if (bilans < 0) totalBrakuje += Math.Abs(bilans);
-                    produktowCount++;
-                }
-
-                // Sortuj według bilansu (malejąco)
-                produktyList = produktyList.OrderByDescending(p => p.Bilans).ToList();
-
-                // Dodaj wiersz SUMA CAŁKOWITA na początku
-                var sumaRow = _dtDashboard.NewRow();
-                sumaRow["Produkt"] = "═══ SUMA CAŁKOWITA ═══";
-                sumaRow["Plan"] = totalPlan;
-                sumaRow["Fakt"] = totalFakt;
-                sumaRow["Stan"] = totalStan;
-                sumaRow["Zamowienia"] = totalZam;
-                sumaRow["Wydania"] = totalWyd;
-                sumaRow["Bilans"] = totalBilans;
-                _dtDashboard.Rows.Add(sumaRow);
-
-                // Dodaj produkty
-                foreach (var p in produktyList)
-                {
-                    var row = _dtDashboard.NewRow();
-                    row["Plan"] = p.Plan;
-                    row["Fakt"] = p.Fakt;
-                    row["Stan"] = p.Stan;
-                    row["Zamowienia"] = p.Zam;
-                    row["Wydania"] = p.Wyd;
-                    row["Bilans"] = p.Bilans;
-                    row["Produkt"] = p.Nazwa;
-                    row["KodTowaru"] = p.Id;
-                    row["Katalog"] = p.Katalog?.ToString() ?? "";
-                    _dtDashboard.Rows.Add(row);
-                }
-
-                // Aktualizuj KPI w nagłówku
-                txtBilansOk.Text = $"{totalDoSprzedania:N0} kg";
-                txtBilansUwaga.Text = $"{totalZam:N0} kg";
-                txtBilansBrak.Text = $"{totalBrakuje:N0} kg";
-                txtSumaZamowien.Text = $"Suma zamówień: {totalZam:N0} kg | Stan magazynu: {totalStan:N0} kg";
-                txtPlanProdukcji.Text = produktowCount.ToString();
-                txtWydajnoscGlowna.Text = zamowienAktywnych.ToString();
-
-                // Aktualizuj karty dostępności - top produkty z dodatnim bilansem
-                var topProducts = produktyList
-                    .Where(p => p.Bilans > 0)
-                    .Take(16)
-                    .Select(p =>
+                    return new ProductData
                     {
-                        double maxBilans = produktyList.Any() ? (double)produktyList.Max(x => x.Bilans) : 1;
-                        if (maxBilans <= 0) maxBilans = 1;
-                        double procent = (double)p.Bilans / maxBilans * 100;
+                        Id = id.Value,
+                        Nazwa = productInfo.TryGetValue(id.Value, out var n) ? n : "",
+                        Plan = plan,
+                        Fakt = fakt,
+                        Stan = stan,
+                        Zamowienia = zam,
+                        Wydania = wyd,
+                        Bilans = bilans
+                    };
+                }
 
-                        var kolorRamki = p.Bilans > 1000 ? Brushes.Green :
-                                        (p.Bilans > 500 ? new SolidColorBrush(Color.FromRgb(46, 204, 113)) :
-                                        (p.Bilans > 100 ? Brushes.Orange : Brushes.OrangeRed));
-                        var kolorTla = p.Bilans > 500 ? Color.FromRgb(232, 248, 232) :
-                                       (p.Bilans > 100 ? Color.FromRgb(255, 248, 225) : Color.FromRgb(255, 243, 224));
+                var kurczakA = GetProductData(kurczakAId, true);
+                var cwiartka = GetProductData(cwiartkaId, false);
+                var filet = GetProductData(filetId, false);
+                var korpus = GetProductData(korpusId, false);
 
-                        return new DostepnoscProduktuModel
-                        {
-                            Nazwa = p.Nazwa,
-                            BilansText = $"{p.Bilans:N0} kg",
-                            PlanFaktText = p.Fakt > 0 ? $"Fakt: {p.Fakt:N0}" : $"Plan: {p.Plan:N0}",
-                            ZamowioneText = $"{p.Zam:N0} kg",
-                            StanText = $"{p.Stan:N0} kg",
-                            ProcentText = $"{procent:N0}%",
-                            SzerokoscPaska = Math.Max(10, Math.Min(170, procent * 1.7)),
-                            KolorRamki = kolorRamki,
-                            KolorTla = kolorTla,
-                            KolorPaska = kolorRamki
-                        };
-                    })
-                    .ToList();
+                // 12. Aktualizuj UI
+                UpdateProductCard(txtKurczakAPlan, txtKurczakAFakt, txtKurczakAStan, txtKurczakAZam,
+                    txtKurczakABilans, chartKurczakA, kurczakA, Color.FromRgb(39, 174, 96));
 
-                icDostepnoscProduktow.ItemsSource = topProducts;
-                txtStatusTime.Text = $"Aktualizacja: {DateTime.Now:HH:mm:ss}";
+                UpdateProductCard(txtCwiartkaPlan, txtCwiartkaFakt, txtCwiartkaStan, txtCwiartkaZam,
+                    txtCwiartkaBilans, chartCwiartka, cwiartka, Color.FromRgb(52, 152, 219));
+
+                UpdateProductCard(txtFiletPlan, txtFiletFakt, txtFiletStan, txtFiletZam,
+                    txtFiletBilans, chartFilet, filet, Color.FromRgb(155, 89, 182));
+
+                UpdateProductCard(txtKorpusPlan, txtKorpusFakt, txtKorpusStan, txtKorpusZam,
+                    txtKorpusBilans, chartKorpus, korpus, Color.FromRgb(230, 126, 34));
+
+                // 13. Aktualizuj nagłówek
+                decimal totalBilans = kurczakA.Bilans + cwiartka.Bilans + filet.Bilans + korpus.Bilans;
+                decimal totalZam = kurczakA.Zamowienia + cwiartka.Zamowienia + filet.Zamowienia + korpus.Zamowienia;
+                txtDoSprzedania.Text = $"{Math.Max(0, totalBilans):N0} kg";
+                txtZamowione.Text = $"{totalZam:N0} kg";
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd podczas ładowania danych: {ex.Message}", "Błąd",
                     MessageBoxButton.OK, MessageBoxImage.Error);
-                txtStatusTime.Text = "Błąd ładowania";
             }
             finally
             {
                 _isLoading = false;
+            }
+        }
+
+        private void UpdateProductCard(TextBlock txtPlan, TextBlock txtFakt, TextBlock txtStan, TextBlock txtZam,
+            TextBlock txtBilans, Grid chartGrid, ProductData data, Color barColor)
+        {
+            txtPlan.Text = $"{data.Plan:N0}";
+            txtFakt.Text = $"{data.Fakt:N0}";
+            txtStan.Text = $"{data.Stan:N0}";
+            txtZam.Text = $"{data.Zamowienia:N0}";
+            txtBilans.Text = $"{data.Bilans:N0} kg";
+
+            // Tworzenie wykresu słupkowego
+            CreateBarChart(chartGrid, data, barColor);
+        }
+
+        private void CreateBarChart(Grid chartGrid, ProductData data, Color primaryColor)
+        {
+            chartGrid.Children.Clear();
+            chartGrid.ColumnDefinitions.Clear();
+
+            // 4 kolumny dla: Plan, Fakt, Stan, Zam
+            for (int i = 0; i < 4; i++)
+                chartGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            decimal maxValue = Math.Max(1, new[] { data.Plan, data.Fakt, data.Stan, data.Zamowienia }.Max());
+
+            var values = new[] { data.Plan, data.Fakt, data.Stan, data.Zamowienia };
+            var labels = new[] { "Plan", "Fakt", "Stan", "Zam" };
+            var colors = new[]
+            {
+                Color.FromRgb(44, 62, 80),   // Plan - ciemny
+                Color.FromRgb(39, 174, 96),  // Fakt - zielony
+                Color.FromRgb(52, 152, 219), // Stan - niebieski
+                Color.FromRgb(231, 76, 60)   // Zam - czerwony
+            };
+
+            for (int i = 0; i < 4; i++)
+            {
+                var stack = new StackPanel
+                {
+                    VerticalAlignment = VerticalAlignment.Bottom,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(5, 0, 5, 0)
+                };
+
+                // Wartość nad słupkiem
+                var valueText = new TextBlock
+                {
+                    Text = $"{values[i]:N0}",
+                    FontSize = 11,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(colors[i]),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 0, 0, 3)
+                };
+                stack.Children.Add(valueText);
+
+                // Słupek
+                double height = maxValue > 0 ? (double)(values[i] / maxValue) * 150 : 0;
+                var bar = new Border
+                {
+                    Width = 45,
+                    Height = Math.Max(5, height),
+                    CornerRadius = new CornerRadius(4, 4, 0, 0),
+                    Background = new SolidColorBrush(colors[i])
+                };
+                stack.Children.Add(bar);
+
+                // Etykieta
+                var label = new TextBlock
+                {
+                    Text = labels[i],
+                    FontSize = 10,
+                    Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 5, 0, 0)
+                };
+                stack.Children.Add(label);
+
+                Grid.SetColumn(stack, i);
+                chartGrid.Children.Add(stack);
             }
         }
 
@@ -580,18 +432,6 @@ namespace Kalendarz1.WPF
         private void RbBilans_Checked(object sender, RoutedEventArgs e)
         {
             if (!IsLoaded) return;
-            SetupDataGrid();
-            _ = LoadDataAsync();
-        }
-
-        private void RbKatalog_Checked(object sender, RoutedEventArgs e)
-        {
-            if (!IsLoaded) return;
-            _ = LoadDataAsync();
-        }
-
-        private void BtnRefresh_Click(object sender, RoutedEventArgs e)
-        {
             _ = LoadDataAsync();
         }
 
