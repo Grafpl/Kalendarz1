@@ -1372,7 +1372,7 @@ namespace Kalendarz1.WPF
                 mainStack.Children.Add(separator);
 
                 // Nagłówek sekcji: "Odbiorca | zam | wyd | %" - z marginesem na scrollbar
-                var headerRow = new Grid { Margin = new Thickness(0, 0, 0, 3) };
+                var headerRow = new Grid { Margin = new Thickness(0, 0, 18, 3) }; // Prawy margines wyrównany z listą
                 headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Nazwa
                 headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) }); // zam
                 headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) }); // wyd
@@ -1403,11 +1403,10 @@ namespace Kalendarz1.WPF
                 {
                     MaxHeight = 300,
                     VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                    Padding = new Thickness(0, 0, 4, 0) // Prawy padding dla scrollbara
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
                 };
 
-                var odbiorcyStack = new StackPanel();
+                var odbiorcyStack = new StackPanel { Margin = new Thickness(0, 0, 18, 0) }; // Prawy margines na scrollbar
 
                 foreach (var odbiorca in data.Odbiorcy)
                 {
