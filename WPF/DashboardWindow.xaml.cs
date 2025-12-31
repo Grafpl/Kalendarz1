@@ -1367,12 +1367,12 @@ namespace Kalendarz1.WPF
                 };
                 mainStack.Children.Add(separator);
 
-                // Nagłówek sekcji: "Odbiorca | zam | wyd | %"
-                var headerRow = new Grid { Margin = new Thickness(0, 0, 0, 3) };
+                // Nagłówek sekcji: "Odbiorca | zam | wyd | %" - z marginesem na scrollbar
+                var headerRow = new Grid { Margin = new Thickness(0, 0, 12, 3) }; // Prawy margines dla scrollbara
                 headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Nazwa
-                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) }); // zam
-                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) }); // wyd
-                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(35) }); // %
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) }); // zam
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) }); // wyd
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) }); // %
 
                 var grayTextColor = new SolidColorBrush(Color.FromRgb(100, 100, 100));
 
@@ -1436,12 +1436,12 @@ namespace Kalendarz1.WPF
                         ShowOdbiorcaOrderWindow(odbInfo, prodInfo);
                     };
 
-                    // Wiersz: [nazwa] | zam | wyd | %
-                    var odbiorcaRow = new Grid();
+                    // Wiersz: [nazwa] | zam | wyd | % - dopasowany do nagłówka
+                    var odbiorcaRow = new Grid { Margin = new Thickness(0, 0, 12, 0) }; // Prawy margines dla scrollbara
                     odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Nazwa
-                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) }); // zam
-                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(55) }); // wyd
-                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(35) }); // %
+                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) }); // zam
+                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) }); // wyd
+                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) }); // %
 
                     var nazwaText = new TextBlock
                     {
