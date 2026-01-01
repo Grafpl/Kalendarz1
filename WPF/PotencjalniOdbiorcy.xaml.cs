@@ -157,17 +157,23 @@ namespace Kalendarz1.WPF
                 // Pokaż kursor oczekiwania
                 this.Cursor = Cursors.Wait;
 
+                // Sprawdź czy filtr "Wszystkie okresy" jest wybrany
+                bool wszystkieOkresy = cbFiltrSwiezosc?.SelectedItem is ComboBoxItem item &&
+                                       item.Tag?.ToString() == "all";
+
                 string query = @"
 WITH HistoriaZakupow AS (
-    SELECT 
+    SELECT
         C.id AS KlientId,
         C.shortcut AS Odbiorca,
+        C.city AS Miasto,
         C.LimitAmount AS Limit,
         ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
         DP.cena AS Cena,
         DP.ilosc AS Ilosc,
         DP.wartNetto AS Wartosc,
         DK.data AS Data,
+        YEAR(DK.data) AS Rok,
         ROW_NUMBER() OVER (PARTITION BY C.id ORDER BY DK.data DESC) AS Ranking
     FROM [HANDEL].[HM].[DK] DK
     INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
@@ -175,13 +181,14 @@ WITH HistoriaZakupow AS (
     LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM ON DK.khid = WYM.ElementId
     WHERE DP.idtw = @ProduktId
       AND DK.anulowany = 0
-      AND DK.data >= DATEADD(MONTH, -12, @DataReferencja)
       AND DK.data < @DataReferencja
+      " + (wszystkieOkresy ? "" : "AND DK.data >= DATEADD(MONTH, -12, @DataReferencja)") + @"
 ),
 OstatnieTransakcje AS (
-    SELECT 
+    SELECT
         KlientId,
         Odbiorca,
+        Miasto,
         Limit,
         Handlowiec,
         Cena AS OstCena,
@@ -192,23 +199,51 @@ OstatnieTransakcje AS (
     WHERE Ranking = 1
 ),
 StatystykiKlienta AS (
-    SELECT 
+    SELECT
         KlientId,
         COUNT(*) AS LiczbaTransakcji,
         AVG(Cena) AS SredniaCena,
         AVG(Ilosc) AS SredniaIlosc,
         SUM(Ilosc) AS SumaIlosc,
         SUM(Wartosc) AS SumaWartosc,
-        CASE 
-            WHEN COUNT(*) > 1 THEN 
+        MIN(Data) AS PierwszyZakup,
+        MAX(Data) AS OstatniZakup,
+        CASE
+            WHEN COUNT(*) > 1 THEN
                 CAST(DATEDIFF(DAY, MIN(Data), MAX(Data)) AS FLOAT) / (COUNT(*) - 1)
             ELSE NULL
         END AS SrednioDniMiedzyZakupami
     FROM HistoriaZakupow
     GROUP BY KlientId
+),
+-- Liczba różnych produktów kupowanych przez klienta
+RozneProduktyCTE AS (
+    SELECT
+        C.id AS KlientId,
+        COUNT(DISTINCT DP.idtw) AS LiczbaRoznychProduktow
+    FROM [HANDEL].[HM].[DK] DK
+    INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+    INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
+    WHERE DK.anulowany = 0 AND DK.data >= DATEADD(MONTH, -12, @DataReferencja)
+    GROUP BY C.id
+),
+-- Porównanie rok do roku
+RokBiezacy AS (
+    SELECT KlientId, SUM(Ilosc) AS IloscRokBiezacy, SUM(Wartosc) AS WartoscRokBiezacy
+    FROM HistoriaZakupow
+    WHERE Rok = YEAR(@DataReferencja)
+    GROUP BY KlientId
+),
+RokPoprzedni AS (
+    SELECT KlientId, SUM(Ilosc) AS IloscRokPoprzedni, SUM(Wartosc) AS WartoscRokPoprzedni
+    FROM HistoriaZakupow
+    WHERE Rok = YEAR(@DataReferencja) - 1
+    GROUP BY KlientId
 )
-SELECT 
+SELECT
+    OT.KlientId,
     OT.Odbiorca,
+    OT.Miasto,
     OT.Handlowiec,
     CAST(OT.OstCena AS DECIMAL(18,2)) AS OstCena,
     CAST(OT.OstIlosc AS DECIMAL(18,2)) AS OstIlosc,
@@ -219,7 +254,7 @@ SELECT
     CAST(SK.SredniaIlosc AS DECIMAL(18,2)) AS SredniaIlosc,
     CAST(SK.SumaIlosc AS DECIMAL(18,2)) AS SumaIlosc,
     CAST(SK.SumaWartosc AS DECIMAL(18,2)) AS SumaWartosc,
-    CASE 
+    CASE
         WHEN SK.SrednioDniMiedzyZakupami IS NULL THEN 'Jednorazowy'
         WHEN SK.SrednioDniMiedzyZakupami <= 14 THEN 'Co 2 tyg'
         WHEN SK.SrednioDniMiedzyZakupami <= 30 THEN 'Miesięcznie'
@@ -227,10 +262,79 @@ SELECT
         WHEN SK.SrednioDniMiedzyZakupami <= 90 THEN 'Kwartalnie'
         ELSE 'Nieregularny'
     END AS Regularnosc,
-    CAST(ISNULL(OT.Limit, 0) AS DECIMAL(18,2)) AS Limit
+    CAST(ISNULL(OT.Limit, 0) AS DECIMAL(18,2)) AS Limit,
+    -- Scoring potencjału (0-100)
+    CAST(
+        CASE
+            -- Świeżość (max 30 pkt)
+            WHEN OT.DniTemu <= 7 THEN 30
+            WHEN OT.DniTemu <= 14 THEN 25
+            WHEN OT.DniTemu <= 30 THEN 20
+            WHEN OT.DniTemu <= 60 THEN 15
+            WHEN OT.DniTemu <= 90 THEN 10
+            ELSE 5
+        END +
+        -- Regularność (max 25 pkt)
+        CASE
+            WHEN SK.SrednioDniMiedzyZakupami <= 14 THEN 25
+            WHEN SK.SrednioDniMiedzyZakupami <= 30 THEN 20
+            WHEN SK.SrednioDniMiedzyZakupami <= 60 THEN 15
+            WHEN SK.SrednioDniMiedzyZakupami <= 90 THEN 10
+            ELSE 5
+        END +
+        -- Liczba transakcji (max 20 pkt)
+        CASE
+            WHEN SK.LiczbaTransakcji >= 20 THEN 20
+            WHEN SK.LiczbaTransakcji >= 10 THEN 15
+            WHEN SK.LiczbaTransakcji >= 5 THEN 10
+            WHEN SK.LiczbaTransakcji >= 2 THEN 5
+            ELSE 2
+        END +
+        -- Wartość (max 25 pkt)
+        CASE
+            WHEN SK.SumaWartosc >= 100000 THEN 25
+            WHEN SK.SumaWartosc >= 50000 THEN 20
+            WHEN SK.SumaWartosc >= 20000 THEN 15
+            WHEN SK.SumaWartosc >= 10000 THEN 10
+            ELSE 5
+        END
+    AS INT) AS Scoring,
+    -- Prognoza następnego zakupu
+    CASE
+        WHEN SK.SrednioDniMiedzyZakupami IS NOT NULL THEN
+            DATEADD(DAY, CAST(SK.SrednioDniMiedzyZakupami AS INT), SK.OstatniZakup)
+        ELSE NULL
+    END AS PrognozaNastepnegoZakupu,
+    -- Tag klienta
+    CASE
+        WHEN SK.SumaWartosc >= 50000 AND SK.LiczbaTransakcji >= 10 THEN 'VIP'
+        WHEN OT.DniTemu > 90 THEN 'Ryzyko'
+        WHEN SK.LiczbaTransakcji = 1 THEN 'Nowy'
+        WHEN SK.SrednioDniMiedzyZakupami <= 14 THEN 'Stały'
+        ELSE 'Zwykły'
+    END AS Tag,
+    -- Liczba różnych produktów
+    ISNULL(RP.LiczbaRoznychProduktow, 0) AS LiczbaProduktow,
+    -- Porównanie rok do roku
+    ISNULL(RB.IloscRokBiezacy, 0) AS IloscRokBiezacy,
+    ISNULL(RPop.IloscRokPoprzedni, 0) AS IloscRokPoprzedni,
+    CASE
+        WHEN ISNULL(RPop.IloscRokPoprzedni, 0) = 0 THEN NULL
+        ELSE CAST((ISNULL(RB.IloscRokBiezacy, 0) - ISNULL(RPop.IloscRokPoprzedni, 0)) * 100.0 / RPop.IloscRokPoprzedni AS DECIMAL(10,1))
+    END AS ZmianaRokDoRoku
 FROM OstatnieTransakcje OT
 INNER JOIN StatystykiKlienta SK ON OT.KlientId = SK.KlientId
-ORDER BY OT.DniTemu ASC, SK.SumaWartosc DESC;";
+LEFT JOIN RozneProduktyCTE RP ON OT.KlientId = RP.KlientId
+LEFT JOIN RokBiezacy RB ON OT.KlientId = RB.KlientId
+LEFT JOIN RokPoprzedni RPop ON OT.KlientId = RPop.KlientId
+ORDER BY
+    CASE
+        WHEN SK.SumaWartosc >= 50000 AND SK.LiczbaTransakcji >= 10 THEN 0
+        WHEN OT.DniTemu > 90 THEN 2
+        ELSE 1
+    END,
+    OT.DniTemu ASC,
+    SK.SumaWartosc DESC;";
 
                 await using var cn = new SqlConnection(_connectionString);
                 await cn.OpenAsync();
@@ -292,19 +396,33 @@ ORDER BY OT.DniTemu ASC, SK.SumaWartosc DESC;";
         {
             if (e.Row.Item is DataRowView rowView)
             {
-                var dniTemu = rowView.Row.Field<int>("DniTemu");
+                // Kolorowanie na podstawie tagu
+                var tag = rowView.Row.Field<string>("Tag");
 
-                if (dniTemu <= 30)
+                switch (tag)
                 {
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(232, 245, 233));
-                }
-                else if (dniTemu <= 90)
-                {
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 243, 224));
-                }
-                else
-                {
-                    e.Row.Background = new SolidColorBrush(Color.FromRgb(250, 250, 250));
+                    case "VIP":
+                        e.Row.Background = new SolidColorBrush(Color.FromRgb(254, 249, 231)); // Złoty
+                        e.Row.FontWeight = FontWeights.SemiBold;
+                        break;
+                    case "Ryzyko":
+                        e.Row.Background = new SolidColorBrush(Color.FromRgb(253, 237, 236)); // Czerwony
+                        break;
+                    case "Nowy":
+                        e.Row.Background = new SolidColorBrush(Color.FromRgb(235, 245, 251)); // Niebieski
+                        break;
+                    case "Stały":
+                        e.Row.Background = new SolidColorBrush(Color.FromRgb(233, 247, 239)); // Zielony
+                        break;
+                    default:
+                        var dniTemu = rowView.Row.Field<int>("DniTemu");
+                        if (dniTemu <= 30)
+                            e.Row.Background = new SolidColorBrush(Color.FromRgb(245, 250, 245));
+                        else if (dniTemu <= 90)
+                            e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 250, 240));
+                        else
+                            e.Row.Background = new SolidColorBrush(Color.FromRgb(250, 250, 250));
+                        break;
                 }
             }
         }
@@ -385,6 +503,12 @@ ORDER BY OT.DniTemu ASC, SK.SumaWartosc DESC;";
                 System.Diagnostics.Debug.WriteLine($"Błąd statystyk: {ex.Message}");
             }
         }
+        private void TxtSzukaj_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_dtOdbiorcy != null && _dvFiltrowany != null)
+                ZastosujFiltry();
+        }
+
         private void ZastosujFiltry()
         {
             if (_dtOdbiorcy == null || _dvFiltrowany == null)
@@ -394,6 +518,13 @@ ORDER BY OT.DniTemu ASC, SK.SumaWartosc DESC;";
             {
                 var filtry = new List<string>();
 
+                // Filtr wyszukiwarki tekstowej
+                if (!string.IsNullOrWhiteSpace(txtSzukaj?.Text))
+                {
+                    var szukany = txtSzukaj.Text.Trim().Replace("'", "''");
+                    filtry.Add($"(Odbiorca LIKE '%{szukany}%' OR Miasto LIKE '%{szukany}%' OR Handlowiec LIKE '%{szukany}%')");
+                }
+
                 // Filtr handlowca
                 if (cbFiltrHandlowiec?.SelectedItem is ComboBoxItem handlowiecItem &&
                     !string.IsNullOrEmpty(handlowiecItem.Tag?.ToString()))
@@ -401,12 +532,11 @@ ORDER BY OT.DniTemu ASC, SK.SumaWartosc DESC;";
                     filtry.Add($"Handlowiec = '{handlowiecItem.Tag.ToString().Replace("'", "''")}'");
                 }
 
-                // Filtr świeżości
+                // Filtr świeżości (tylko gdy nie "all")
                 if (cbFiltrSwiezosc?.SelectedItem is ComboBoxItem swiezoscItem &&
-                    swiezoscItem.Tag != null)
+                    swiezoscItem.Tag != null && swiezoscItem.Tag.ToString() != "all")
                 {
-                    int dni = int.Parse(swiezoscItem.Tag.ToString());
-                    if (dni > 0)
+                    if (int.TryParse(swiezoscItem.Tag.ToString(), out int dni) && dni > 0)
                     {
                         filtry.Add($"DniTemu <= {dni}");
                     }
@@ -443,10 +573,20 @@ ORDER BY OT.DniTemu ASC, SK.SumaWartosc DESC;";
                 ZastosujFiltry();
         }
 
-        private void CbFiltrSwiezosc_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private async void CbFiltrSwiezosc_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (_dtOdbiorcy != null && _dvFiltrowany != null)
-                ZastosujFiltry();
+            if (_isLoading) return;
+
+            // Gdy zmienia się okres, trzeba przeładować dane (bo SQL się zmienia)
+            if (cbFiltrSwiezosc?.SelectedItem is ComboBoxItem item)
+            {
+                var tag = item.Tag?.ToString();
+                // Przeładuj dane tylko gdy zmienia się na "all" lub z "all"
+                if (tag == "all" || (_dtOdbiorcy != null && _dvFiltrowany != null))
+                {
+                    await WczytajOdbiorcowAsync();
+                }
+            }
         }
 
         private void TxtMinIlosc_TextChanged(object sender, TextChangedEventArgs e)
@@ -462,8 +602,9 @@ ORDER BY OT.DniTemu ASC, SK.SumaWartosc DESC;";
         }
         private void BtnResetujFiltry_Click(object sender, RoutedEventArgs e)
         {
+            if (txtSzukaj != null) txtSzukaj.Text = "";
             cbFiltrHandlowiec.SelectedIndex = 0;
-            cbFiltrSwiezosc.SelectedIndex = 0;
+            cbFiltrSwiezosc.SelectedIndex = 4; // "Ostatni rok" jako domyślny
             txtMinIlosc.Text = "0";
             txtMinWartosc.Text = "0";
         }

@@ -140,22 +140,33 @@
                 <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
                     <TextBlock Text="🔍 Filtry:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,10,0"/>
 
+                    <!-- Wyszukiwarka tekstowa -->
+                    <TextBox x:Name="txtSzukaj" Width="200" Margin="5,0"
+                             TextChanged="TxtSzukaj_TextChanged"
+                             VerticalContentAlignment="Center">
+                        <TextBox.Style>
+                            <Style TargetType="TextBox">
+                                <Setter Property="Tag" Value="🔎 Szukaj odbiorcy..."/>
+                            </Style>
+                        </TextBox.Style>
+                    </TextBox>
+
                     <ComboBox x:Name="cbFiltrHandlowiec" Width="150" Margin="5,0"
                       SelectionChanged="CbFiltrHandlowiec_SelectionChanged">
                         <ComboBoxItem Content="👥 Wszyscy handlowcy" IsSelected="True"/>
                     </ComboBox>
 
-                    <ComboBox x:Name="cbFiltrSwiezosc" Width="180" Margin="5,0"
+                    <ComboBox x:Name="cbFiltrSwiezosc" Width="200" Margin="5,0"
                       SelectionChanged="CbFiltrSwiezosc_SelectionChanged">
-                        <ComboBoxItem Content="📅 Wszystkie okresy" IsSelected="True" Tag="0"/>
+                        <ComboBoxItem Content="📅 Wszystkie daty (bez limitu)" Tag="all"/>
                         <ComboBoxItem Content="📅 Ostatnie 30 dni" Tag="30"/>
                         <ComboBoxItem Content="📅 Ostatnie 90 dni" Tag="90"/>
                         <ComboBoxItem Content="📅 Ostatnie 180 dni" Tag="180"/>
-                        <ComboBoxItem Content="📅 Ostatni rok" Tag="365"/>
+                        <ComboBoxItem Content="📅 Ostatni rok" Tag="365" IsSelected="True"/>
                     </ComboBox>
 
                     <TextBlock Text="⚖ Min. ilość:" VerticalAlignment="Center" Margin="15,0,5,0"/>
-                    <TextBox x:Name="txtMinIlosc" Width="80" Margin="5,0" 
+                    <TextBox x:Name="txtMinIlosc" Width="80" Margin="5,0"
                      Text="0" TextChanged="TxtMinIlosc_TextChanged"
                      VerticalContentAlignment="Center"/>
 
@@ -204,6 +215,40 @@
 
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="🏢 Odbiorca" Binding="{Binding Odbiorca}" Width="2*"/>
+                    <DataGridTextColumn Header="🏷️ Tag" Binding="{Binding Tag}" Width="70">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Tag}" Value="VIP">
+                                        <Setter Property="Foreground" Value="#F39C12"/>
+                                        <Setter Property="Background" Value="#FEF9E7"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Tag}" Value="Ryzyko">
+                                        <Setter Property="Foreground" Value="#E74C3C"/>
+                                        <Setter Property="Background" Value="#FDEDEC"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Tag}" Value="Nowy">
+                                        <Setter Property="Foreground" Value="#3498DB"/>
+                                        <Setter Property="Background" Value="#EBF5FB"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Tag}" Value="Stały">
+                                        <Setter Property="Foreground" Value="#27AE60"/>
+                                        <Setter Property="Background" Value="#E9F7EF"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="⭐ Score" Binding="{Binding Scoring}" Width="65">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
                     <DataGridTextColumn Header="👤 Handlowiec" Binding="{Binding Handlowiec}" Width="*"/>
                     <DataGridTextColumn Header="📍 Miasto" Binding="{Binding Miasto}" Width="*"/>
                     <DataGridTextColumn Header="💵 Ost. cena" Binding="{Binding OstCena, StringFormat=N2}" Width="90">
@@ -222,15 +267,15 @@
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
-                    <DataGridTextColumn Header="📅 Ostatni zakup" Binding="{Binding OstData, StringFormat=yyyy-MM-dd}" Width="110"/>
-                    <DataGridTextColumn Header="📊 Dni temu" Binding="{Binding DniTemu}" Width="80">
+                    <DataGridTextColumn Header="📅 Ostatni zakup" Binding="{Binding OstData, StringFormat=yyyy-MM-dd}" Width="100"/>
+                    <DataGridTextColumn Header="📊 Dni temu" Binding="{Binding DniTemu}" Width="75">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Center"/>
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
-                    <DataGridTextColumn Header="🔢 Transakcji" Binding="{Binding LiczbaTransakcji}" Width="85">
+                    <DataGridTextColumn Header="🔢 Trans." Binding="{Binding LiczbaTransakcji}" Width="65">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -245,7 +290,7 @@
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
-                    <DataGridTextColumn Header="⚖ Śr. ilość (kg)" Binding="{Binding SredniaIlosc, StringFormat=N0}" Width="110">
+                    <DataGridTextColumn Header="⚖ Śr. ilość" Binding="{Binding SredniaIlosc, StringFormat=N0}" Width="80">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -253,7 +298,7 @@
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
-                    <DataGridTextColumn Header="💎 Suma wartość (zł)" Binding="{Binding SumaWartosc, StringFormat=N0}" Width="130">
+                    <DataGridTextColumn Header="💎 Suma wart. (zł)" Binding="{Binding SumaWartosc, StringFormat=N0}" Width="115">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -261,7 +306,7 @@
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
-                    <DataGridTextColumn Header="📈 Regularność" Binding="{Binding Regularnosc}" Width="110">
+                    <DataGridTextColumn Header="📈 Regular." Binding="{Binding Regularnosc}" Width="90">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -273,6 +318,29 @@
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                 <Setter Property="Padding" Value="0,0,8,0"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="🔮 Prognoza" Binding="{Binding PrognozaNastepnegoZakupu, StringFormat=yyyy-MM-dd}" Width="100">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                <Setter Property="Foreground" Value="#8E44AD"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="📦 Prod." Binding="{Binding LiczbaProduktow}" Width="60">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="📊 %R/R" Binding="{Binding ZmianaRokDoRoku, StringFormat=+0.0%;-0.0%;0%}" Width="75">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
