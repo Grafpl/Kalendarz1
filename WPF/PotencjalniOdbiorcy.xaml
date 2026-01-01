@@ -215,32 +215,6 @@
 
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="🏢 Odbiorca" Binding="{Binding Odbiorca}" Width="2*"/>
-                    <DataGridTextColumn Header="🏷️ Tag" Binding="{Binding Tag}" Width="70">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                <Setter Property="FontWeight" Value="Bold"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Tag}" Value="VIP">
-                                        <Setter Property="Foreground" Value="#F39C12"/>
-                                        <Setter Property="Background" Value="#FEF9E7"/>
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding Tag}" Value="Ryzyko">
-                                        <Setter Property="Foreground" Value="#E74C3C"/>
-                                        <Setter Property="Background" Value="#FDEDEC"/>
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding Tag}" Value="Nowy">
-                                        <Setter Property="Foreground" Value="#3498DB"/>
-                                        <Setter Property="Background" Value="#EBF5FB"/>
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding Tag}" Value="Stały">
-                                        <Setter Property="Foreground" Value="#27AE60"/>
-                                        <Setter Property="Background" Value="#E9F7EF"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
                     <DataGridTextColumn Header="⭐ Score" Binding="{Binding Scoring}" Width="65">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
@@ -312,14 +286,6 @@
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
-                    <DataGridTextColumn Header="💳 Limit (zł)" Binding="{Binding Limit, StringFormat=N0}" Width="100">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                <Setter Property="Padding" Value="0,0,8,0"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
                     <DataGridTextColumn Header="🔮 Prognoza" Binding="{Binding PrognozaNastepnegoZakupu, StringFormat=yyyy-MM-dd}" Width="100">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
@@ -332,14 +298,6 @@
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Center"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-                    <DataGridTextColumn Header="📊 %R/R" Binding="{Binding ZmianaRokDoRoku, StringFormat=+0.0%;-0.0%;0%}" Width="75">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                <Setter Property="FontWeight" Value="SemiBold"/>
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>

@@ -166,7 +166,6 @@ WITH HistoriaZakupow AS (
     SELECT
         C.id AS KlientId,
         C.shortcut AS Odbiorca,
-        C.LimitAmount AS Limit,
         ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
         DP.cena AS Cena,
         DP.ilosc AS Ilosc,
@@ -187,7 +186,6 @@ OstatnieTransakcje AS (
     SELECT
         KlientId,
         Odbiorca,
-        Limit,
         Handlowiec,
         Cena AS OstCena,
         Ilosc AS OstIlosc,
@@ -225,19 +223,6 @@ RozneProduktyCTE AS (
     WHERE DK.anulowany = 0 AND DK.data >= DATEADD(MONTH, -12, @DataReferencja)
     GROUP BY C.id
 ),
--- Porównanie rok do roku
-RokBiezacy AS (
-    SELECT KlientId, SUM(Ilosc) AS IloscRokBiezacy, SUM(Wartosc) AS WartoscRokBiezacy
-    FROM HistoriaZakupow
-    WHERE Rok = YEAR(@DataReferencja)
-    GROUP BY KlientId
-),
-RokPoprzedni AS (
-    SELECT KlientId, SUM(Ilosc) AS IloscRokPoprzedni, SUM(Wartosc) AS WartoscRokPoprzedni
-    FROM HistoriaZakupow
-    WHERE Rok = YEAR(@DataReferencja) - 1
-    GROUP BY KlientId
-)
 SELECT
     OT.KlientId,
     OT.Odbiorca,
@@ -259,7 +244,6 @@ SELECT
         WHEN SK.SrednioDniMiedzyZakupami <= 90 THEN 'Kwartalnie'
         ELSE 'Nieregularny'
     END AS Regularnosc,
-    CAST(ISNULL(OT.Limit, 0) AS DECIMAL(18,2)) AS Limit,
     -- Scoring potencjału (0-100)
     CAST(
         CASE
@@ -302,36 +286,12 @@ SELECT
             DATEADD(DAY, CAST(SK.SrednioDniMiedzyZakupami AS INT), SK.OstatniZakup)
         ELSE NULL
     END AS PrognozaNastepnegoZakupu,
-    -- Tag klienta
-    CASE
-        WHEN SK.SumaWartosc >= 50000 AND SK.LiczbaTransakcji >= 10 THEN 'VIP'
-        WHEN OT.DniTemu > 90 THEN 'Ryzyko'
-        WHEN SK.LiczbaTransakcji = 1 THEN 'Nowy'
-        WHEN SK.SrednioDniMiedzyZakupami <= 14 THEN 'Stały'
-        ELSE 'Zwykły'
-    END AS Tag,
     -- Liczba różnych produktów
-    ISNULL(RP.LiczbaRoznychProduktow, 0) AS LiczbaProduktow,
-    -- Porównanie rok do roku
-    ISNULL(RB.IloscRokBiezacy, 0) AS IloscRokBiezacy,
-    ISNULL(RPop.IloscRokPoprzedni, 0) AS IloscRokPoprzedni,
-    CASE
-        WHEN ISNULL(RPop.IloscRokPoprzedni, 0) = 0 THEN NULL
-        ELSE CAST((ISNULL(RB.IloscRokBiezacy, 0) - ISNULL(RPop.IloscRokPoprzedni, 0)) * 100.0 / RPop.IloscRokPoprzedni AS DECIMAL(10,1))
-    END AS ZmianaRokDoRoku
+    ISNULL(RP.LiczbaRoznychProduktow, 0) AS LiczbaProduktow
 FROM OstatnieTransakcje OT
 INNER JOIN StatystykiKlienta SK ON OT.KlientId = SK.KlientId
 LEFT JOIN RozneProduktyCTE RP ON OT.KlientId = RP.KlientId
-LEFT JOIN RokBiezacy RB ON OT.KlientId = RB.KlientId
-LEFT JOIN RokPoprzedni RPop ON OT.KlientId = RPop.KlientId
-ORDER BY
-    CASE
-        WHEN SK.SumaWartosc >= 50000 AND SK.LiczbaTransakcji >= 10 THEN 0
-        WHEN OT.DniTemu > 90 THEN 2
-        ELSE 1
-    END,
-    OT.DniTemu ASC,
-    SK.SumaWartosc DESC;";
+ORDER BY OT.DniTemu ASC, SK.SumaWartosc DESC;";
 
                 await using var cn = new SqlConnection(_connectionString);
                 await cn.OpenAsync();
@@ -393,34 +353,14 @@ ORDER BY
         {
             if (e.Row.Item is DataRowView rowView)
             {
-                // Kolorowanie na podstawie tagu
-                var tag = rowView.Row.Field<string>("Tag");
-
-                switch (tag)
-                {
-                    case "VIP":
-                        e.Row.Background = new SolidColorBrush(Color.FromRgb(254, 249, 231)); // Złoty
-                        e.Row.FontWeight = FontWeights.SemiBold;
-                        break;
-                    case "Ryzyko":
-                        e.Row.Background = new SolidColorBrush(Color.FromRgb(253, 237, 236)); // Czerwony
-                        break;
-                    case "Nowy":
-                        e.Row.Background = new SolidColorBrush(Color.FromRgb(235, 245, 251)); // Niebieski
-                        break;
-                    case "Stały":
-                        e.Row.Background = new SolidColorBrush(Color.FromRgb(233, 247, 239)); // Zielony
-                        break;
-                    default:
-                        var dniTemu = rowView.Row.Field<int>("DniTemu");
-                        if (dniTemu <= 30)
-                            e.Row.Background = new SolidColorBrush(Color.FromRgb(245, 250, 245));
-                        else if (dniTemu <= 90)
-                            e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 250, 240));
-                        else
-                            e.Row.Background = new SolidColorBrush(Color.FromRgb(250, 250, 250));
-                        break;
-                }
+                // Kolorowanie na podstawie dni od ostatniego zakupu
+                var dniTemu = rowView.Row.Field<int>("DniTemu");
+                if (dniTemu <= 30)
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(245, 250, 245)); // Zielonkawy
+                else if (dniTemu <= 90)
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(255, 250, 240)); // Żółtawy
+                else
+                    e.Row.Background = new SolidColorBrush(Color.FromRgb(253, 237, 236)); // Czerwonawy
             }
         }
 
