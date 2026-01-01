@@ -360,6 +360,22 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button Content="▲"
+                            x:Name="btnMoveUp"
+                            Click="BtnMoveUp_Click"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Background="#7F8C8D"
+                            FontSize="14"
+                            Width="35"
+                            ToolTip="Przesuń wiersz w górę"/>
+                    <Button Content="▼"
+                            x:Name="btnMoveDown"
+                            Click="BtnMoveDown_Click"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Background="#7F8C8D"
+                            FontSize="14"
+                            Width="35"
+                            ToolTip="Przesuń wiersz w dół"/>
                     <Button Content="AVILOG"
                             x:Name="buttonBon"
                             Click="ButtonBon_Click"
@@ -455,7 +471,6 @@
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="200"/>
                         </Grid.RowDefinitions>
 
@@ -482,12 +497,7 @@
                       CurrentCellChanged="DataGridView1_CurrentCellChanged"
                       PreviewKeyDown="DataGridView1_PreviewKeyDown"
                       PreviewTextInput="DataGridView1_PreviewTextInput"
-                      AllowDrop="True"
                       PreviewMouseLeftButtonDown="DataGrid_PreviewMouseLeftButtonDown"
-                      PreviewMouseMove="DataGrid_PreviewMouseMove"
-                      Drop="DataGrid_Drop"
-                      DragOver="DataGrid_DragOver"
-                      DragLeave="DataGrid_DragLeave"
                       EnableRowVirtualization="True"
                       EnableColumnVirtualization="True"
                       VirtualizingPanel.IsVirtualizing="True"
@@ -550,9 +560,10 @@
                                     </DataGridTemplateColumn.CellStyle>
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding SztukiDek, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
+                                            <TextBox Text="{Binding SztukiDek, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                          Style="{StaticResource NumericTextBoxStyle}"
-                                         FontWeight="SemiBold"/>
+                                         FontWeight="SemiBold"
+                                         LostFocus="SztukiDek_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -566,9 +577,10 @@
                                     </DataGridTemplateColumn.CellStyle>
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding Padle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
+                                            <TextBox Text="{Binding Padle, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                          Style="{StaticResource NumericTextBoxStyle}"
-                                         Foreground="#BF360C"/>
+                                         Foreground="#BF360C"
+                                         LostFocus="Padle_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -582,8 +594,9 @@
                                     </DataGridTemplateColumn.CellStyle>
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding CH, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
-                                         Style="{StaticResource NumericTextBoxStyle}"/>
+                                            <TextBox Text="{Binding CH, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
+                                         Style="{StaticResource NumericTextBoxStyle}"
+                                         LostFocus="CH_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -597,8 +610,9 @@
                                     </DataGridTemplateColumn.CellStyle>
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding NW, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
-                                         Style="{StaticResource NumericTextBoxStyle}"/>
+                                            <TextBox Text="{Binding NW, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
+                                         Style="{StaticResource NumericTextBoxStyle}"
+                                         LostFocus="NW_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -612,8 +626,9 @@
                                     </DataGridTemplateColumn.CellStyle>
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding ZM, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
-                                         Style="{StaticResource NumericTextBoxStyle}"/>
+                                            <TextBox Text="{Binding ZM, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
+                                         Style="{StaticResource NumericTextBoxStyle}"
+                                         LostFocus="ZM_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -627,10 +642,11 @@
                                     </DataGridTemplateColumn.CellStyle>
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding LUMEL, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
+                                            <TextBox Text="{Binding LUMEL, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                          Style="{StaticResource NumericTextBoxStyle}"
                                          FontWeight="Bold"
-                                         Foreground="#7B1FA2"/>
+                                         Foreground="#7B1FA2"
+                                         LostFocus="LUMEL_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -757,12 +773,14 @@
                                     </DataGridTemplateColumn.CellStyle>
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding Cena, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
+                                            <TextBox Text="{Binding Cena, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                                      Style="{StaticResource NumericTextBoxStyle}"
                                                      FontWeight="Bold"
                                                      Foreground="#1565C0"
                                                      TextAlignment="Right"
-                                                     Padding="0,0,8,0"/>
+                                                     Padding="0,0,8,0"
+                                                     KeyDown="Cena_KeyDown"
+                                                     LostFocus="Cena_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -772,12 +790,14 @@
                                             CellStyle="{StaticResource CellStyleBlue}">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding Dodatek, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
+                                            <TextBox Text="{Binding Dodatek, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                                      Style="{StaticResource NumericTextBoxStyle}"
                                                      FontWeight="Bold"
                                                      Foreground="#0D47A1"
                                                      TextAlignment="Right"
-                                                     Padding="0,0,8,0"/>
+                                                     Padding="0,0,8,0"
+                                                     KeyDown="Dodatek_KeyDown"
+                                                     LostFocus="Dodatek_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -795,7 +815,8 @@
                                           SelectedItem="{Binding TypCeny, UpdateSourceTrigger=PropertyChanged}"
                                           Background="#BBDEFB"
                                           Padding="5"
-                                          VerticalContentAlignment="Center"/>
+                                          VerticalContentAlignment="Center"
+                                          SelectionChanged="TypCeny_SelectionChanged"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -803,25 +824,35 @@
                                 <DataGridTemplateColumn Header="Ubytek%" Width="70" HeaderStyle="{StaticResource CenaHeaderStyle}" CellStyle="{StaticResource CellStyleRed}">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding Ubytek, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F2}}"
+                                            <TextBox Text="{Binding Ubytek, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                                      Style="{StaticResource NumericTextBoxStyle}"
                                                      FontWeight="SemiBold"
                                                      Foreground="#C62828"
                                                      TextAlignment="Right"
-                                                     Padding="0,0,8,0"/>
+                                                     Padding="0,0,8,0"
+                                                     KeyDown="Ubytek_KeyDown"
+                                                     LostFocus="Ubytek_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
 
-                                <DataGridCheckBoxColumn Header="PiK" Binding="{Binding PiK, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                            Width="45" HeaderStyle="{StaticResource CenaHeaderStyle}">
-                                    <DataGridCheckBoxColumn.ElementStyle>
-                                        <Style TargetType="CheckBox">
-                                            <Setter Property="HorizontalAlignment" Value="Center"/>
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                <DataGridTemplateColumn Header="PiK" Width="45" HeaderStyle="{StaticResource CenaHeaderStyle}">
+                                    <DataGridTemplateColumn.CellStyle>
+                                        <Style TargetType="DataGridCell">
+                                            <Setter Property="Background" Value="#BBDEFB"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
                                         </Style>
-                                    </DataGridCheckBoxColumn.ElementStyle>
-                                </DataGridCheckBoxColumn>
+                                    </DataGridTemplateColumn.CellStyle>
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding PiK, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"
+                                                      Checked="PiK_Changed"
+                                                      Unchecked="PiK_Changed"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
 
                                 <DataGridTemplateColumn x:Name="colOpasienie" Header="Opas."
                                                         Width="60" HeaderStyle="{StaticResource CenaHeaderStyle}"
@@ -829,10 +860,11 @@
                                                         Visibility="Collapsed">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding Opasienie, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F0}}"
+                                            <TextBox Text="{Binding Opasienie, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat={}{0:F0}}"
                                                      Style="{StaticResource NumericTextBoxStyle}"
                                                      TextAlignment="Right"
-                                                     Padding="0,0,8,0"/>
+                                                     Padding="0,0,8,0"
+                                                     LostFocus="Opasienie_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -843,10 +875,11 @@
                                                         Visibility="Collapsed">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding KlasaB, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F0}}"
+                                            <TextBox Text="{Binding KlasaB, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat={}{0:F0}}"
                                                      Style="{StaticResource NumericTextBoxStyle}"
                                                      TextAlignment="Right"
-                                                     Padding="0,0,8,0"/>
+                                                     Padding="0,0,8,0"
+                                                     LostFocus="KlasaB_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -902,56 +935,33 @@
                             </DataGrid.Columns>
                         </DataGrid>
 
-                        <Border Grid.Row="1" Background="#27AE60" Padding="15,8" Margin="0,5,0,0">
+                        <!-- Sekcja Harmonogram z subtelnym stylem -->
+                        <Border Grid.Row="1" Background="#F8F9FA" CornerRadius="8" Margin="5,8,5,5" BorderBrush="#E0E0E0" BorderThickness="1">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.08" BlurRadius="6"/>
+                            </Border.Effect>
                             <Grid>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="📋 Harmonogram dostaw (potwierdzone): "
-                                               FontSize="13"
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Mini nagłówek -->
+                                <Border Grid.Row="0" Background="#E8F5E9" CornerRadius="8,8,0,0" Padding="10,6">
+                                    <TextBlock Text="📋 Harmonogram dostaw"
+                                               FontSize="11"
                                                FontWeight="SemiBold"
-                                               Foreground="White"
-                                               VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="lblHarmonogramCount"
-                                               Text="0 pozycji"
-                                               FontSize="13"
-                                               FontWeight="Bold"
-                                               Foreground="White"
-                                               VerticalAlignment="Center"/>
-                                </StackPanel>
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                    <TextBlock Text="Suma kg: "
-                                               FontSize="12"
-                                               Foreground="White"
-                                               VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="lblHarmonogramKg"
-                                               Text="0"
-                                               FontSize="13"
-                                               FontWeight="Bold"
-                                               Foreground="#FFEB3B"
-                                               VerticalAlignment="Center"
-                                               Margin="0,0,20,0"/>
-                                    <TextBlock Text="Śr. cena: "
-                                               FontSize="12"
-                                               Foreground="White"
-                                               VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="lblHarmonogramCena"
-                                               Text="0,00 zł"
-                                               FontSize="13"
-                                               FontWeight="Bold"
-                                               Foreground="#FFEB3B"
-                                               VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
+                                               Foreground="#2E7D32"/>
+                                </Border>
 
+                                <Grid Grid.Row="1" Margin="5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
 
-                        <Grid Grid.Row="2">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="15"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-
-                            <DataGrid Grid.Column="0"
+                                    <DataGrid Grid.Column="0"
               x:Name="dataGridHarmonogramLeft"
               AutoGenerateColumns="False"
               CanUserAddRows="False"
@@ -980,43 +990,45 @@
                                     <DataGridTextColumn Header="Typ" Binding="{Binding TypCeny}" Width="50" ElementStyle="{StaticResource CenterStyle}"/>
                                     <DataGridTextColumn Header="Auta" Binding="{Binding Auta}" Width="35" ElementStyle="{StaticResource CenterBoldStyle}"/>
                                     <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="80" ElementStyle="{StaticResource ItalicStyle}"/>
-                                </DataGrid.Columns>
-                            </DataGrid>
+                                    </DataGrid.Columns>
+                                    </DataGrid>
 
-                            <Border Grid.Column="1" Background="#ECEFF1" Width="1" HorizontalAlignment="Center"/>
+                                    <Border Grid.Column="1" Background="#E0E0E0" Width="1" HorizontalAlignment="Center" Margin="0,5"/>
 
-                            <DataGrid Grid.Column="2"
-              x:Name="dataGridHarmonogramRight"
-              AutoGenerateColumns="False"
-              CanUserAddRows="False"
-              CanUserDeleteRows="False"
-              IsReadOnly="True"
-              SelectionMode="Single"
-              GridLinesVisibility="All"
-              HorizontalGridLinesBrush="#E0E0E0"
-              VerticalGridLinesBrush="#EEEEEE"
-              RowHeight="26"
-              FontSize="11"
-              Background="White"
-              BorderThickness="0"
-              AlternatingRowBackground="#F0FFF0"
-              ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
-              RowStyle="{StaticResource DataGridRowHoverStyle}"
-              EnableRowVirtualization="True">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="LP" Binding="{Binding LP}" Width="35" ElementStyle="{StaticResource CenterBoldStyle}"/>
-                                    <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="*" ElementStyle="{StaticResource NormalStyle}"/>
-                                    <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDek, StringFormat={}{0:N0}}" Width="50" ElementStyle="{StaticResource RightOrangeStyle}" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}"/>
-                                    <DataGridTextColumn Header="Waga" Binding="{Binding WagaDek, StringFormat={}{0:N2}}" Width="50" ElementStyle="{StaticResource RightStyle}"/>
-                                    <DataGridTextColumn Header="KG" Binding="{Binding RazemKg, StringFormat={}{0:N0}}" Width="60" ElementStyle="{StaticResource RightGreenStyle}" HeaderStyle="{StaticResource WagiUbojniHeaderStyle}"/>
-                                    <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat={}{0:N2}}" Width="50" ElementStyle="{StaticResource RightBlueStyle}" HeaderStyle="{StaticResource CenaHeaderStyle}"/>
-                                    <DataGridTextColumn Header="Dod." Binding="{Binding Dodatek, StringFormat={}{0:N2}}" Width="45" ElementStyle="{StaticResource RightStyle}"/>
-                                    <DataGridTextColumn Header="Typ" Binding="{Binding TypCeny}" Width="50" ElementStyle="{StaticResource CenterStyle}"/>
-                                    <DataGridTextColumn Header="Auta" Binding="{Binding Auta}" Width="35" ElementStyle="{StaticResource CenterBoldStyle}"/>
-                                    <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="80" ElementStyle="{StaticResource ItalicStyle}"/>
-                                </DataGrid.Columns>
-                            </DataGrid>
-                        </Grid>
+                                    <DataGrid Grid.Column="2"
+                                              x:Name="dataGridHarmonogramRight"
+                                              AutoGenerateColumns="False"
+                                              CanUserAddRows="False"
+                                              CanUserDeleteRows="False"
+                                              IsReadOnly="True"
+                                              SelectionMode="Single"
+                                              GridLinesVisibility="All"
+                                              HorizontalGridLinesBrush="#E0E0E0"
+                                              VerticalGridLinesBrush="#EEEEEE"
+                                              RowHeight="26"
+                                              FontSize="11"
+                                              Background="White"
+                                              BorderThickness="0"
+                                              AlternatingRowBackground="#F0FFF0"
+                                              ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+                                              RowStyle="{StaticResource DataGridRowHoverStyle}"
+                                              EnableRowVirtualization="True">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="LP" Binding="{Binding LP}" Width="35" ElementStyle="{StaticResource CenterBoldStyle}"/>
+                                            <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="*" ElementStyle="{StaticResource NormalStyle}"/>
+                                            <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDek, StringFormat={}{0:N0}}" Width="50" ElementStyle="{StaticResource RightOrangeStyle}" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}"/>
+                                            <DataGridTextColumn Header="Waga" Binding="{Binding WagaDek, StringFormat={}{0:N2}}" Width="50" ElementStyle="{StaticResource RightStyle}"/>
+                                            <DataGridTextColumn Header="KG" Binding="{Binding RazemKg, StringFormat={}{0:N0}}" Width="60" ElementStyle="{StaticResource RightGreenStyle}" HeaderStyle="{StaticResource WagiUbojniHeaderStyle}"/>
+                                            <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat={}{0:N2}}" Width="50" ElementStyle="{StaticResource RightBlueStyle}" HeaderStyle="{StaticResource CenaHeaderStyle}"/>
+                                            <DataGridTextColumn Header="Dod." Binding="{Binding Dodatek, StringFormat={}{0:N2}}" Width="45" ElementStyle="{StaticResource RightStyle}"/>
+                                            <DataGridTextColumn Header="Typ" Binding="{Binding TypCeny}" Width="50" ElementStyle="{StaticResource CenterStyle}"/>
+                                            <DataGridTextColumn Header="Auta" Binding="{Binding Auta}" Width="35" ElementStyle="{StaticResource CenterBoldStyle}"/>
+                                            <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="80" ElementStyle="{StaticResource ItalicStyle}"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Grid>
+                            </Grid>
+                        </Border>
                     </Grid>
                 </Border>
             </TabItem>

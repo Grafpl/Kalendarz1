@@ -43,12 +43,7 @@ namespace Kalendarz1
         private decimal sumaWartosc = 0;
         private decimal sumaKG = 0;
 
-        // Drag & Drop
-        private Point _dragStartPoint;
-        private bool _isDragging = false;
-        private SpecyfikacjaRow _draggedRow = null;
-        private DataGridRow _lastHighlightedRow = null;
-        private Brush _originalRowBackground = null;
+        // Arrow buttons for row movement (replaces drag & drop)
 
         // === WYDAJNOŚĆ: Cache dostawców (static - współdzielony między oknami) ===
         private static List<DostawcaItem> _cachedDostawcy = null;
@@ -344,10 +339,6 @@ namespace Kalendarz1
 
                         using (SqlDataReader reader = command.ExecuteReader())
                         {
-                            decimal totalKg = 0;
-                            decimal totalCenaWazony = 0;
-                            int count = 0;
-
                             // Lista tymczasowa na wszystkie pobrane wiersze
                             var allRows = new List<HarmonogramRow>();
 
@@ -373,10 +364,6 @@ namespace Kalendarz1
                                 };
 
                                 allRows.Add(row);
-
-                                totalKg += razemKg;
-                                totalCenaWazony += cena * razemKg;
-                                count++;
                             }
 
                             // === LOGIKA PODZIAŁU NA DWIE TABELE ===
@@ -394,11 +381,6 @@ namespace Kalendarz1
                                 }
                             }
 
-                            // Statystyki (bez zmian)
-                            lblHarmonogramCount.Text = $"{count} pozycji";
-                            lblHarmonogramKg.Text = totalKg.ToString("#,0");
-                            decimal avgCena = totalKg > 0 ? totalCenaWazony / totalKg : 0;
-                            lblHarmonogramCena.Text = $"{avgCena:N2} zł";
                         }
                     }
                 }
@@ -643,142 +625,82 @@ namespace Kalendarz1
             }
         }
 
-        // === DRAG & DROP: Rozpoczęcie przeciągania ===
+        // === KLIKNIĘCIE: Zaznaczenie wiersza i edycja komórki ===
         private void DataGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            _dragStartPoint = e.GetPosition(null);
-            _isDragging = false;
-
             // Znajdź wiersz pod kursorem
             var row = FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject);
             if (row != null)
             {
-                _draggedRow = row.Item as SpecyfikacjaRow;
-                dataGridView1.SelectedItem = _draggedRow;
-                selectedRow = _draggedRow;
+                var clickedRow = row.Item as SpecyfikacjaRow;
+                dataGridView1.SelectedItem = clickedRow;
+                selectedRow = clickedRow;
 
                 // === SINGLE-CLICK EDIT: Rozpocznij edycję po kliknięciu na komórkę ===
                 var cell = FindVisualParent<DataGridCell>(e.OriginalSource as DependencyObject);
                 if (cell != null && !cell.IsReadOnly && !cell.IsEditing)
                 {
-                    // Opóźnij edycję aby drag & drop miał szansę się rozpocząć
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        if (!_isDragging)
-                        {
-                            cell.Focus();
-                            dataGridView1.BeginEdit();
-                        }
+                        cell.Focus();
+                        dataGridView1.BeginEdit();
                     }), System.Windows.Threading.DispatcherPriority.Background);
                 }
             }
         }
 
-        // === DRAG & DROP: Wykrycie ruchu myszy ===
-        private void DataGrid_PreviewMouseMove(object sender, MouseEventArgs e)
+        // === PRZYCISK STRZAŁKA W GÓRĘ: Przesuń wiersz w górę ===
+        private void BtnMoveUp_Click(object sender, RoutedEventArgs e)
         {
-            if (e.LeftButton != MouseButtonState.Pressed || _draggedRow == null)
-                return;
-
-            Point currentPosition = e.GetPosition(null);
-            Vector diff = _dragStartPoint - currentPosition;
-
-            // Rozpocznij przeciąganie po przesunięciu o min. 5 pikseli
-            if (Math.Abs(diff.X) > 5 || Math.Abs(diff.Y) > 5)
+            // Użyj selectedRow (pole klasy) zamiast SelectedItem - bardziej niezawodne
+            var selected = selectedRow ?? dataGridView1.SelectedItem as SpecyfikacjaRow;
+            if (selected == null)
             {
-                _isDragging = true;
-                DataObject dragData = new DataObject("SpecyfikacjaRow", _draggedRow);
-                DragDrop.DoDragDrop(dataGridView1, dragData, DragDropEffects.Move);
-                _isDragging = false;
-                _draggedRow = null;
-            }
-        }
-
-        // === DRAG & DROP: Podgląd miejsca upuszczenia z podświetleniem ===
-        private void DataGrid_DragOver(object sender, DragEventArgs e)
-        {
-            if (!e.Data.GetDataPresent("SpecyfikacjaRow"))
-            {
-                e.Effects = DragDropEffects.None;
+                MessageBox.Show("Wybierz wiersz do przesunięcia", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
-            e.Effects = DragDropEffects.Move;
-
-            // Znajdź wiersz pod kursorem i podświetl go
-            var targetRow = FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject);
-            if (targetRow != null && targetRow != _lastHighlightedRow)
+            int currentIndex = specyfikacjeData.IndexOf(selected);
+            if (currentIndex <= 0)
             {
-                // Przywróć poprzedni wiersz
-                ResetHighlightedRow();
-
-                // Podświetl nowy wiersz
-                _lastHighlightedRow = targetRow;
-                _originalRowBackground = targetRow.Background;
-                targetRow.Background = new SolidColorBrush(Color.FromRgb(144, 238, 144)); // LightGreen
-                targetRow.BorderBrush = new SolidColorBrush(Color.FromRgb(76, 175, 80));
-                targetRow.BorderThickness = new Thickness(2);
-            }
-
-            e.Handled = true;
-        }
-
-        // === Przywróć wygląd podświetlonego wiersza ===
-        private void ResetHighlightedRow()
-        {
-            if (_lastHighlightedRow != null)
-            {
-                _lastHighlightedRow.Background = _originalRowBackground ?? Brushes.Transparent;
-                _lastHighlightedRow.BorderThickness = new Thickness(0);
-                _lastHighlightedRow = null;
-                _originalRowBackground = null;
-            }
-        }
-
-        // === DRAG & DROP: Opuszczenie obszaru - reset podświetlenia ===
-        private void DataGrid_DragLeave(object sender, DragEventArgs e)
-        {
-            ResetHighlightedRow();
-        }
-
-        // === DRAG & DROP: Upuszczenie wiersza z auto-zapisem ===
-        private void DataGrid_Drop(object sender, DragEventArgs e)
-        {
-            // Przywróć podświetlenie
-            ResetHighlightedRow();
-
-            if (!e.Data.GetDataPresent("SpecyfikacjaRow"))
+                UpdateStatus("Wiersz jest już na górze");
                 return;
+            }
 
-            var draggedItem = e.Data.GetData("SpecyfikacjaRow") as SpecyfikacjaRow;
-            if (draggedItem == null) return;
-
-            // Znajdź wiersz docelowy
-            var targetRow = FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject);
-            if (targetRow == null) return;
-
-            var targetItem = targetRow.Item as SpecyfikacjaRow;
-            if (targetItem == null || targetItem == draggedItem) return;
-
-            int oldIndex = specyfikacjeData.IndexOf(draggedItem);
-            int newIndex = specyfikacjeData.IndexOf(targetItem);
-
-            if (oldIndex < 0 || newIndex < 0) return;
-
-            // Przenieś wiersz
-            specyfikacjeData.Move(oldIndex, newIndex);
-
-            // Zaktualizuj numery LP
+            // Przesuń wiersz w górę
+            specyfikacjeData.Move(currentIndex, currentIndex - 1);
             UpdateRowNumbers();
-
-            // Zaznacz przeniesiony wiersz
-            dataGridView1.SelectedItem = draggedItem;
-            selectedRow = draggedItem;
-
-            // AUTO-ZAPIS: Zapisz pozycje wszystkich wierszy
+            dataGridView1.SelectedItem = selected;
+            selectedRow = selected;
             SaveAllRowPositions();
+            UpdateStatus($"Przesunięto wiersz LP {selected.Nr} w górę");
+        }
 
-            e.Handled = true;
+        // === PRZYCISK STRZAŁKA W DÓŁ: Przesuń wiersz w dół ===
+        private void BtnMoveDown_Click(object sender, RoutedEventArgs e)
+        {
+            // Użyj selectedRow (pole klasy) zamiast SelectedItem - bardziej niezawodne
+            var selected = selectedRow ?? dataGridView1.SelectedItem as SpecyfikacjaRow;
+            if (selected == null)
+            {
+                MessageBox.Show("Wybierz wiersz do przesunięcia", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            int currentIndex = specyfikacjeData.IndexOf(selected);
+            if (currentIndex < 0 || currentIndex >= specyfikacjeData.Count - 1)
+            {
+                UpdateStatus("Wiersz jest już na dole");
+                return;
+            }
+
+            // Przesuń wiersz w dół
+            specyfikacjeData.Move(currentIndex, currentIndex + 1);
+            UpdateRowNumbers();
+            dataGridView1.SelectedItem = selected;
+            selectedRow = selected;
+            SaveAllRowPositions();
+            UpdateStatus($"Przesunięto wiersz LP {selected.Nr} w dół");
         }
 
         // === WYDAJNOŚĆ: Auto-zapis pozycji - używa async batch update ===
@@ -1180,6 +1102,7 @@ namespace Kalendarz1
                     ProdQnt = @SztukiWybijak,
                     ProdWgt = @KgWybijak,
                     Price = @Cena,
+                    Addition = @Dodatek,
                     PriceTypeID = @PriceTypeID,
                     Loss = @Ubytek,
                     IncDeadConf = @PiK,
@@ -1205,6 +1128,7 @@ namespace Kalendarz1
                     cmd.Parameters.AddWithValue("@SztukiWybijak", row.SztukiWybijak);
                     cmd.Parameters.AddWithValue("@KgWybijak", row.KilogramyWybijak);
                     cmd.Parameters.AddWithValue("@Cena", row.Cena);
+                    cmd.Parameters.AddWithValue("@Dodatek", row.Dodatek);
                     cmd.Parameters.AddWithValue("@PriceTypeID", priceTypeId > 0 ? priceTypeId : (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@Ubytek", row.Ubytek / 100); // Konwertuj procent na ułamek
                     cmd.Parameters.AddWithValue("@PiK", row.PiK);
@@ -1259,6 +1183,7 @@ namespace Kalendarz1
                                     ProdQnt = @SztukiWybijak,
                                     ProdWgt = @KgWybijak,
                                     Price = @Cena,
+                                    Addition = @Dodatek,
                                     PriceTypeID = @PriceTypeID,
                                     Loss = @Ubytek,
                                     IncDeadConf = @PiK,
@@ -1284,6 +1209,7 @@ namespace Kalendarz1
                                     cmd.Parameters.AddWithValue("@SztukiWybijak", row.SztukiWybijak);
                                     cmd.Parameters.AddWithValue("@KgWybijak", row.KilogramyWybijak);
                                     cmd.Parameters.AddWithValue("@Cena", row.Cena);
+                                    cmd.Parameters.AddWithValue("@Dodatek", row.Dodatek);
                                     cmd.Parameters.AddWithValue("@PriceTypeID", priceTypeId > 0 ? priceTypeId : (object)DBNull.Value);
                                     cmd.Parameters.AddWithValue("@Ubytek", row.Ubytek / 100);
                                     cmd.Parameters.AddWithValue("@PiK", row.PiK);
@@ -1492,12 +1418,14 @@ namespace Kalendarz1
 
         private void Button1_Click(object sender, RoutedEventArgs e)
         {
-            // Pobierz aktualnie wybrany wiersz z CurrentCell
-            SpecyfikacjaRow currentRow = selectedRow;
-            if (currentRow == null && dataGridView1.CurrentCell != null && dataGridView1.CurrentCell.Item is SpecyfikacjaRow row)
-            {
-                currentRow = row;
-            }
+            // Pobierz wiersz z wielu źródeł
+            var currentRow = selectedRow
+                ?? dataGridView1.SelectedItem as SpecyfikacjaRow
+                ?? dataGridView1.CurrentCell.Item as SpecyfikacjaRow;
+
+            // Ostatnia próba - z zaznaczonych komórek
+            if (currentRow == null && dataGridView1.SelectedCells.Count > 0)
+                currentRow = dataGridView1.SelectedCells[0].Item as SpecyfikacjaRow;
 
             if (currentRow != null)
             {
@@ -1541,11 +1469,20 @@ namespace Kalendarz1
 
         private void ButtonBon_Click(object sender, RoutedEventArgs e)
         {
-            if (selectedRow != null)
+            // Pobierz wiersz z wielu źródeł
+            var row = selectedRow
+                ?? dataGridView1.SelectedItem as SpecyfikacjaRow
+                ?? dataGridView1.CurrentCell.Item as SpecyfikacjaRow;
+
+            // Ostatnia próba - z zaznaczonych komórek
+            if (row == null && dataGridView1.SelectedCells.Count > 0)
+                row = dataGridView1.SelectedCells[0].Item as SpecyfikacjaRow;
+
+            if (row != null)
             {
                 try
                 {
-                    WidokAvilog avilogForm = new WidokAvilog(selectedRow.ID);
+                    WidokAvilog avilogForm = new WidokAvilog(row.ID);
                     avilogForm.ShowDialog(); // ShowDialog aby po zamknięciu odświeżyć dane
 
                     // Odśwież dane po zamknięciu Avilog
@@ -2359,8 +2296,9 @@ namespace Kalendarz1
                     int konfiskaty = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI3") +
                                      zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI4") +
                                      zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI5");
-                    int sztZdatne = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "LumQnt") - konfiskaty;
-                    int sztWszystkie = konfiskaty + padle + sztZdatne;
+                    int lumel = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "LumQnt");
+                    int sztWszystkie = lumel + padle;  // Dostarczono = LUMEL + Padłe
+                    int sztZdatne = lumel - konfiskaty;
 
                     bool czyPiK = zapytaniasql.PobierzInformacjeZBazyDanych<bool>(id, "[LibraNet].[dbo].[FarmerCalc]", "IncDeadConf");
                     decimal sredniaWaga = sztWszystkie > 0 ? wagaNetto / sztWszystkie : 0;
@@ -2847,8 +2785,8 @@ namespace Kalendarz1
                 }
 
                 // === GŁÓWNA TABELA ROZLICZENIA === (dostosowana do A4 pionowego)
-                // 17 kolumn: Lp, Brutto, Tara, Netto | Dostarcz, Padłe, Konf, Zdatne | kg/szt | Netto, Padłe, Konf, Opas, KlB, DoZapł, Cena, Wartość
-                PdfPTable dataTable = new PdfPTable(new float[] { 0.3F, 0.5F, 0.5F, 0.55F, 0.5F, 0.4F, 0.45F, 0.45F, 0.55F, 0.55F, 0.5F, 0.5F, 0.5F, 0.45F, 0.55F, 0.5F, 0.65F });
+                // 18 kolumn: Lp, Brutto, Tara, Netto | Dostarcz, Padłe, Konf, Zdatne | kg/szt | Netto, Padłe, Konf, Ubytek, Opas, KlB, DoZapł, Cena, Wartość
+                PdfPTable dataTable = new PdfPTable(new float[] { 0.3F, 0.5F, 0.5F, 0.55F, 0.5F, 0.4F, 0.45F, 0.45F, 0.55F, 0.55F, 0.5F, 0.5F, 0.5F, 0.5F, 0.45F, 0.55F, 0.5F, 0.65F });
                 dataTable.WidthPercentage = 100;
 
                 // Nagłówki grupowe z kolorami
@@ -2856,7 +2794,7 @@ namespace Kalendarz1
                 AddColoredMergedHeader(dataTable, "WAGA [kg]", tytulTablicy, 4, greenColor);
                 AddColoredMergedHeader(dataTable, "ROZLICZENIE SZTUK [szt.]", tytulTablicy, 4, orangeColor);
                 AddColoredMergedHeader(dataTable, "ŚR. WAGA", tytulTablicy, 1, purpleColor);
-                AddColoredMergedHeader(dataTable, "ROZLICZENIE KILOGRAMÓW [kg]", tytulTablicy, 8, blueColor);
+                AddColoredMergedHeader(dataTable, "ROZLICZENIE KILOGRAMÓW [kg]", tytulTablicy, 9, blueColor);
 
                 // Nagłówki kolumn - WAGA
                 AddColoredTableHeader(dataTable, "Lp.", smallTextFontBold, darkGreenColor);
@@ -2874,6 +2812,7 @@ namespace Kalendarz1
                 AddColoredTableHeader(dataTable, "Netto", smallTextFontBold, new BaseColor(41, 128, 185));
                 AddColoredTableHeader(dataTable, "Padłe", smallTextFontBold, new BaseColor(41, 128, 185));
                 AddColoredTableHeader(dataTable, "Konf.", smallTextFontBold, new BaseColor(41, 128, 185));
+                AddColoredTableHeader(dataTable, "Ubytek", smallTextFontBold, new BaseColor(41, 128, 185));
                 AddColoredTableHeader(dataTable, "Opas.", smallTextFontBold, new BaseColor(41, 128, 185));
                 AddColoredTableHeader(dataTable, "Kl.B", smallTextFontBold, new BaseColor(41, 128, 185));
                 AddColoredTableHeader(dataTable, "Do zapł.", smallTextFontBold, new BaseColor(41, 128, 185));
@@ -2913,8 +2852,9 @@ namespace Kalendarz1
                     int konfiskaty = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI3") +
                                      zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI4") +
                                      zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI5");
-                    int sztZdatne = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "LumQnt") - konfiskaty;
-                    int sztWszystkie = konfiskaty + padle + sztZdatne;
+                    int lumel = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "LumQnt");
+                    int sztWszystkie = lumel + padle;  // Dostarczono = LUMEL + Padłe
+                    int sztZdatne = lumel - konfiskaty;
 
                     decimal sredniaWaga = sztWszystkie > 0 ? wagaNetto / sztWszystkie : 0;
                     decimal padleKG = czyPiK ? 0 : Math.Round(padle * sredniaWaga, 0);
@@ -2922,15 +2862,13 @@ namespace Kalendarz1
                     decimal opasienieKG = Math.Round(zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Opasienie"), 0);
                     decimal klasaB = Math.Round(zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "KlasaB"), 0);
 
-                    // Obliczenie DoZaplaty: Netto - (PiK ? 0 : Padłe+Konf) - Opasienie - KlasaB, potem * (1 - Ubytek%)
-                    decimal bazaDoZaplaty = czyPiK
-                        ? wagaNetto - opasienieKG - klasaB
-                        : wagaNetto - padleKG - konfiskatyKG - opasienieKG - klasaB;
+                    // Obliczenie Ubytek KG = Netto × Ubytek% (Loss w bazie jest już ułamkiem, np. 0.0025 = 0.25%)
+                    decimal ubytekKG = Math.Round(wagaNetto * ubytek, 0);
 
-                    // Zastosowanie ubytku procentowego (zgodnie z modelem)
-                    decimal doZaplaty = ubytek > 0
-                        ? Math.Round(bazaDoZaplaty * (1 - ubytek / 100), 0)
-                        : bazaDoZaplaty;
+                    // Obliczenie DoZaplaty: Netto - Padłe - Konf - Ubytek - Opasienie - KlasaB
+                    decimal doZaplaty = czyPiK
+                        ? wagaNetto - ubytekKG - opasienieKG - klasaB
+                        : wagaNetto - padleKG - konfiskatyKG - ubytekKG - opasienieKG - klasaB;
 
                     decimal cenaBase = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Price");
                     decimal dodatek = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "Addition");
@@ -2941,8 +2879,8 @@ namespace Kalendarz1
                     if (ubytek > 0)
                     {
                         czyByloUbytku = true;
-                        sumaUbytekKG += bazaDoZaplaty - doZaplaty; // różnica = ile kg odliczono przez ubytek
                     }
+                    sumaUbytekKG += ubytekKG;
 
                     // Sumowanie
                     sumaWartosc += wartosc;
@@ -2969,6 +2907,7 @@ namespace Kalendarz1
                         wagaNetto.ToString("N0"),
                         padleKG > 0 ? $"-{padleKG:N0}" : "0",
                         konfiskatyKG > 0 ? $"-{konfiskatyKG:N0}" : "0",
+                        ubytekKG > 0 ? $"-{ubytekKG:N0}" : "0",
                         opasienieKG > 0 ? $"-{opasienieKG:N0}" : "0",
                         klasaB > 0 ? $"-{klasaB:N0}" : "0",
                         doZaplaty.ToString("N0"),
@@ -2990,6 +2929,7 @@ namespace Kalendarz1
                     sumaNetto.ToString("N0"),
                     sumaPadleKG > 0 ? $"-{sumaPadleKG:N0}" : "0",
                     sumaKonfiskatyKG > 0 ? $"-{sumaKonfiskatyKG:N0}" : "0",
+                    sumaUbytekKG > 0 ? $"-{sumaUbytekKG:N0}" : "0",
                     sumaOpasienieKG > 0 ? $"-{sumaOpasienieKG:N0}" : "0",
                     sumaKlasaB > 0 ? $"-{sumaKlasaB:N0}" : "0",
                     sumaKG.ToString("N0"),
@@ -3042,13 +2982,21 @@ namespace Kalendarz1
                 formula5.Add(new Chunk($"{sumaKonfiskaty} × {sredniaWagaSuma:N2} = {sumaKonfiskatyKG:N0} kg", legendaFont));
                 formulaCell.AddElement(formula5);
 
-                // 6. Do zapłaty = Netto - Padłe[kg] - Konfiskaty[kg] - Opasienie - Klasa B - Ubytek%
+                // 5b. Ubytek [kg] = Netto × Ubytek%
+                if (czyByloUbytku)
+                {
+                    Paragraph formula5b = new Paragraph();
+                    formula5b.Add(new Chunk("Ubytek [kg] = Netto × Ubytek%: ", legendaBoldFont));
+                    formula5b.Add(new Chunk($"{sumaNetto:N0} × ... = {sumaUbytekKG:N0} kg", legendaFont));
+                    formulaCell.AddElement(formula5b);
+                }
+
+                // 6. Do zapłaty = Netto - Padłe[kg] - Konfiskaty[kg] - Ubytek[kg] - Opasienie - Klasa B
                 Paragraph formula6 = new Paragraph();
                 if (czyByloUbytku)
                 {
-                    decimal bazaBezUbytku = sumaKG + sumaUbytekKG;
-                    formula6.Add(new Chunk("Do zapł. = (Netto - Padłe - Konf. - Opas. - Kl.B) × (1 - Ubytek%): ", legendaBoldFont));
-                    formula6.Add(new Chunk($"({sumaNetto:N0} - {sumaPadleKG:N0} - {sumaKonfiskatyKG:N0} - {sumaOpasienieKG:N0} - {sumaKlasaB:N0}) - {sumaUbytekKG:N0} = {sumaKG:N0} kg", legendaFont));
+                    formula6.Add(new Chunk("Do zapł. = Netto - Padłe - Konf. - Ubytek - Opas. - Kl.B: ", legendaBoldFont));
+                    formula6.Add(new Chunk($"{sumaNetto:N0} - {sumaPadleKG:N0} - {sumaKonfiskatyKG:N0} - {sumaUbytekKG:N0} - {sumaOpasienieKG:N0} - {sumaKlasaB:N0} = {sumaKG:N0} kg", legendaFont));
                 }
                 else
                 {
@@ -3499,7 +3447,18 @@ namespace Kalendarz1
         private void NumericTextBox_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             var textBox = sender as TextBox;
-            if (textBox != null && !textBox.IsKeyboardFocusWithin)
+            if (textBox == null) return;
+
+            // ZAWSZE ustaw selectedRow przy kliknięciu
+            var row = FindVisualParent<DataGridRow>(textBox);
+            if (row != null)
+            {
+                selectedRow = row.Item as SpecyfikacjaRow;
+                dataGridView1.SelectedItem = selectedRow;
+            }
+
+            // Focus tylko jeśli TextBox nie ma jeszcze focusu
+            if (!textBox.IsKeyboardFocusWithin)
             {
                 e.Handled = true;
                 textBox.Focus();
@@ -3563,6 +3522,386 @@ namespace Kalendarz1
             }
 
             MessageBox.Show(sb.ToString(), "Historia zmian", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        #endregion
+
+        #region === ENTER - ZASTOSUJ DO WSZYSTKICH DOSTAW OD DOSTAWCY ===
+
+        // Metoda pomocnicza do zapisu pojedynczej wartości do bazy
+        private void SaveFieldToDatabase(int id, string columnName, object value)
+        {
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    string query = $"UPDATE dbo.FarmerCalc SET {columnName} = @Value WHERE ID = @ID";
+                    using (SqlCommand cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@ID", id);
+                        cmd.Parameters.AddWithValue("@Value", value ?? DBNull.Value);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Błąd zapisu: {ex.Message}");
+            }
+        }
+
+        // Handler dla Cena - Enter pyta czy zastosować do wszystkich
+        private void Cena_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                var textBox = sender as TextBox;
+                if (textBox == null) return;
+
+                // Pobierz wiersz z DataContext
+                var row = textBox.DataContext as SpecyfikacjaRow;
+                if (row == null) return;
+
+                // Parsuj wartość
+                string input = textBox.Text.Replace(',', '.');
+                if (!decimal.TryParse(input, System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out decimal cena))
+                    return;
+
+                // Zapisz do bieżącego wiersza i bazy
+                row.Cena = cena;
+                SaveFieldToDatabase(row.ID, "Price", cena);
+
+                // Pytaj czy zastosować do wszystkich
+                var result = MessageBox.Show(
+                    $"Czy zastosować cenę {cena:F2} zł do wszystkich dostaw od dostawcy \"{row.RealDostawca}\"?",
+                    "Zastosuj do wszystkich",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    foreach (var r in specyfikacjeData.Where(x => x.RealDostawca == row.RealDostawca))
+                    {
+                        r.Cena = cena;
+                        SaveFieldToDatabase(r.ID, "Price", cena);
+                    }
+                    UpdateStatus($"Cena {cena:F2} zł zastosowana do wszystkich dostaw od {row.RealDostawca}");
+                }
+                else
+                {
+                    UpdateStatus($"Zapisano cenę {cena:F2} zł");
+                }
+
+                e.Handled = true;
+            }
+        }
+
+        // Handler dla Dodatek - Enter pyta czy zastosować do wszystkich
+        private void Dodatek_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                var textBox = sender as TextBox;
+                if (textBox == null) return;
+
+                var row = textBox.DataContext as SpecyfikacjaRow;
+                if (row == null) return;
+
+                string input = textBox.Text.Replace(',', '.');
+                if (!decimal.TryParse(input, System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out decimal dodatek))
+                    return;
+
+                row.Dodatek = dodatek;
+                SaveFieldToDatabase(row.ID, "Addition", dodatek);
+
+                var result = MessageBox.Show(
+                    $"Czy zastosować dodatek {dodatek:F2} zł do wszystkich dostaw od dostawcy \"{row.RealDostawca}\"?",
+                    "Zastosuj do wszystkich",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    foreach (var r in specyfikacjeData.Where(x => x.RealDostawca == row.RealDostawca))
+                    {
+                        r.Dodatek = dodatek;
+                        SaveFieldToDatabase(r.ID, "Addition", dodatek);
+                    }
+                    UpdateStatus($"Dodatek {dodatek:F2} zł zastosowany do wszystkich dostaw od {row.RealDostawca}");
+                }
+                else
+                {
+                    UpdateStatus($"Zapisano dodatek {dodatek:F2} zł");
+                }
+
+                e.Handled = true;
+            }
+        }
+
+        // Handler dla Ubytek - Enter pyta czy zastosować do wszystkich
+        private void Ubytek_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                var textBox = sender as TextBox;
+                if (textBox == null) return;
+
+                var row = textBox.DataContext as SpecyfikacjaRow;
+                if (row == null) return;
+
+                string input = textBox.Text.Replace(',', '.');
+                if (!decimal.TryParse(input, System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out decimal ubytek))
+                    return;
+
+                row.Ubytek = ubytek;
+                // W bazie Loss jest przechowywany jako ułamek (1.5% = 0.015)
+                SaveFieldToDatabase(row.ID, "Loss", ubytek / 100);
+
+                var result = MessageBox.Show(
+                    $"Czy zastosować ubytek {ubytek:F2}% do wszystkich dostaw od dostawcy \"{row.RealDostawca}\"?",
+                    "Zastosuj do wszystkich",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    foreach (var r in specyfikacjeData.Where(x => x.RealDostawca == row.RealDostawca))
+                    {
+                        r.Ubytek = ubytek;
+                        SaveFieldToDatabase(r.ID, "Loss", ubytek / 100);
+                    }
+                    UpdateStatus($"Ubytek {ubytek:F2}% zastosowany do wszystkich dostaw od {row.RealDostawca}");
+                }
+                else
+                {
+                    UpdateStatus($"Zapisano ubytek {ubytek:F2}%");
+                }
+
+                e.Handled = true;
+            }
+        }
+
+        // Handler LostFocus dla Cena - zapisuje do bazy po opuszczeniu pola
+        private void Cena_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var row = textBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            // WAŻNE: Wymuś aktualizację bindingu przed zapisem
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+
+            SaveFieldToDatabase(row.ID, "Price", row.Cena);
+            UpdateStatus($"Zapisano cenę: {row.Cena:N2} dla LP {row.Nr}");
+        }
+
+        // Handler LostFocus dla Dodatek
+        private void Dodatek_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var row = textBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            // WAŻNE: Wymuś aktualizację bindingu przed zapisem
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+
+            SaveFieldToDatabase(row.ID, "Addition", row.Dodatek);
+            UpdateStatus($"Zapisano dodatek: {row.Dodatek:N2} dla LP {row.Nr}");
+        }
+
+        // Handler LostFocus dla Ubytek
+        private void Ubytek_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var row = textBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            // WAŻNE: Wymuś aktualizację bindingu przed zapisem
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+
+            // W bazie Loss jest przechowywany jako ułamek (1.5% = 0.015)
+            SaveFieldToDatabase(row.ID, "Loss", row.Ubytek / 100);
+            UpdateStatus($"Zapisano ubytek: {row.Ubytek}% dla LP {row.Nr}");
+        }
+
+        // Handler dla zmiany PiK (CheckBox) - zapisuje do bazy natychmiast
+        private void PiK_Changed(object sender, RoutedEventArgs e)
+        {
+            var checkBox = sender as CheckBox;
+            if (checkBox == null) return;
+
+            var row = checkBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            // Binding już zaktualizował wartość
+            SaveFieldToDatabase(row.ID, "IncDeadConf", row.PiK);
+            UpdateStatus($"Zapisano PiK: {(row.PiK ? "TAK" : "NIE")} dla LP {row.Nr}");
+        }
+
+        // Handler dla zmiany TypCeny (ComboBox) - zapisuje do bazy natychmiast
+        private void TypCeny_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var comboBox = sender as ComboBox;
+            if (comboBox == null) return;
+
+            var row = comboBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            // Znajdź ID typu ceny
+            int priceTypeId = -1;
+            if (!string.IsNullOrEmpty(row.TypCeny))
+            {
+                priceTypeId = zapytaniasql.ZnajdzIdCeny(row.TypCeny);
+            }
+
+            if (priceTypeId > 0)
+            {
+                SaveFieldToDatabase(row.ID, "PriceTypeID", priceTypeId);
+                UpdateStatus($"Zapisano typ ceny: {row.TypCeny} dla LP {row.Nr}");
+            }
+        }
+
+        // Handler LostFocus dla Opasienie - zapisuje do bazy po opuszczeniu pola
+        private void Opasienie_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var row = textBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            // WAŻNE: Wymuś aktualizację bindingu przed zapisem
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+
+            SaveFieldToDatabase(row.ID, "Opasienie", row.Opasienie);
+            UpdateStatus($"Zapisano opasienie: {row.Opasienie:N0} kg dla LP {row.Nr}");
+        }
+
+        // Handler LostFocus dla KlasaB - zapisuje do bazy po opuszczeniu pola
+        private void KlasaB_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var row = textBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            // WAŻNE: Wymuś aktualizację bindingu przed zapisem
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+
+            SaveFieldToDatabase(row.ID, "KlasaB", row.KlasaB);
+            UpdateStatus($"Zapisano klasę B: {row.KlasaB:N0} kg dla LP {row.Nr}");
+        }
+
+        // Handler LostFocus dla LUMEL - zapisuje do bazy po opuszczeniu pola
+        private void LUMEL_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var row = textBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+
+            SaveFieldToDatabase(row.ID, "LumQnt", row.LUMEL);
+            UpdateStatus($"Zapisano LUMEL: {row.LUMEL} szt dla LP {row.Nr}");
+        }
+
+        // Handler LostFocus dla SztukiDek - zapisuje do bazy (DeclI1)
+        private void SztukiDek_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var row = textBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+
+            SaveFieldToDatabase(row.ID, "DeclI1", row.SztukiDek);
+            UpdateStatus($"Zapisano Szt.Dek: {row.SztukiDek} dla LP {row.Nr}");
+        }
+
+        // Handler LostFocus dla Padle - zapisuje do bazy (DeclI2)
+        private void Padle_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var row = textBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+
+            SaveFieldToDatabase(row.ID, "DeclI2", row.Padle);
+            UpdateStatus($"Zapisano Padłe: {row.Padle} dla LP {row.Nr}");
+        }
+
+        // Handler LostFocus dla CH - zapisuje do bazy (DeclI3)
+        private void CH_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var row = textBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+
+            SaveFieldToDatabase(row.ID, "DeclI3", row.CH);
+            UpdateStatus($"Zapisano CH: {row.CH} dla LP {row.Nr}");
+        }
+
+        // Handler LostFocus dla NW - zapisuje do bazy (DeclI4)
+        private void NW_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var row = textBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+
+            SaveFieldToDatabase(row.ID, "DeclI4", row.NW);
+            UpdateStatus($"Zapisano NW: {row.NW} dla LP {row.Nr}");
+        }
+
+        // Handler LostFocus dla ZM - zapisuje do bazy (DeclI5)
+        private void ZM_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var row = textBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+
+            SaveFieldToDatabase(row.ID, "DeclI5", row.ZM);
+            UpdateStatus($"Zapisano ZM: {row.ZM} dla LP {row.Nr}");
         }
 
         #endregion
