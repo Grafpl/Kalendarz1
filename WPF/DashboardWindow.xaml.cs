@@ -2888,8 +2888,8 @@ namespace Kalendarz1.WPF
                 FontSize = 20,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(
-                    procent >= (decimal)_greenThreshold ? Color.FromRgb(39, 174, 96) :
-                    procent >= (decimal)_yellowThreshold ? Color.FromRgb(241, 196, 15) :
+                    procent >= _progZielony ? Color.FromRgb(39, 174, 96) :
+                    procent >= _progZolty ? Color.FromRgb(241, 196, 15) :
                     Color.FromRgb(231, 76, 60))
             };
             Grid.SetColumn(progressValue, 1);
@@ -2909,8 +2909,8 @@ namespace Kalendarz1.WPF
             var progressBarFill = new Border
             {
                 Background = new SolidColorBrush(
-                    procent >= (decimal)_greenThreshold ? Color.FromRgb(39, 174, 96) :
-                    procent >= (decimal)_yellowThreshold ? Color.FromRgb(241, 196, 15) :
+                    procent >= _progZielony ? Color.FromRgb(39, 174, 96) :
+                    procent >= _progZolty ? Color.FromRgb(241, 196, 15) :
                     Color.FromRgb(231, 76, 60)),
                 CornerRadius = new CornerRadius(10),
                 HorizontalAlignment = HorizontalAlignment.Left,
