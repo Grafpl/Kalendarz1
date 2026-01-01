@@ -68,6 +68,29 @@ namespace Kalendarz1.WPF
             public decimal ProcentUdzial { get; set; } // % udziału w zamówieniach
         }
 
+        // Dane historyczne klienta dla produktu
+        private class HistoricalClientData
+        {
+            public int KlientId { get; set; }
+            public string NazwaKlienta { get; set; } = "";
+            public decimal SumaZamowien { get; set; } // Suma zamówień w okresie
+            public int LiczbaZamowien { get; set; } // Ilość zamówień
+            public DateTime OstatnieZamowienie { get; set; } // Data ostatniego zamówienia
+            public DateTime PierwszeZamowienie { get; set; } // Data pierwszego zamówienia
+            public decimal SredniaZamowienie { get; set; } // Średnia wielkość zamówienia
+            public int DniOdOstatniego { get; set; } // Dni od ostatniego zamówienia
+        }
+
+        // Trend miesięczny
+        private class MonthlyTrend
+        {
+            public int Rok { get; set; }
+            public int Miesiac { get; set; }
+            public decimal Suma { get; set; }
+            public int LiczbaZamowien { get; set; }
+            public string Label => $"{Rok}-{Miesiac:D2}";
+        }
+
         // Lista danych produktów do DataGrid
         private List<ProductData> _productDataList = new();
 
@@ -2662,20 +2685,183 @@ namespace Kalendarz1.WPF
         #region Powiększona karta produktu
 
         /// <summary>
+        /// Pobiera dane historyczne zamówień dla produktu
+        /// </summary>
+        private async System.Threading.Tasks.Task<(List<HistoricalClientData> Last3Months, List<HistoricalClientData> Older, List<MonthlyTrend> Trends)> LoadHistoricalDataAsync(int productId, string productCode)
+        {
+            var last3Months = new List<HistoricalClientData>();
+            var olderClients = new List<HistoricalClientData>();
+            var trends = new List<MonthlyTrend>();
+
+            try
+            {
+                var today = DateTime.Today;
+                var date3MonthsAgo = today.AddMonths(-3);
+                var date12MonthsAgo = today.AddMonths(-12);
+
+                // Pobierz kontrahentów
+                var kontrahenci = new Dictionary<int, string>();
+                await using (var cn = new SqlConnection(_connHandel))
+                {
+                    await cn.OpenAsync();
+                    const string sql = @"SELECT ID, nazwa FROM [HM].[KH] WHERE nazwa IS NOT NULL";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    await using var rdr = await cmd.ExecuteReaderAsync();
+                    while (await rdr.ReadAsync())
+                    {
+                        int id = rdr.GetInt32(0);
+                        string nazwa = rdr.IsDBNull(1) ? "" : rdr.GetString(1).Trim();
+                        kontrahenci[id] = nazwa;
+                    }
+                }
+
+                // Pobierz zamówienia z ostatnich 12 miesięcy dla tego produktu
+                var clientOrders = new Dictionary<int, List<(DateTime Data, decimal Ilosc)>>();
+
+                await using (var cn = new SqlConnection(_connLibra))
+                {
+                    await cn.OpenAsync();
+
+                    // Najpierw pobierz ID zamówień z ostatnich 12 miesięcy
+                    const string sqlOrders = @"
+                        SELECT z.Id, z.KlientId, z.DataUboju, t.Ilosc
+                        FROM dbo.ZamowieniaMieso z
+                        INNER JOIN dbo.ZamowieniaMiesoTowar t ON z.Id = t.ZamowienieId
+                        WHERE z.DataUboju >= @DateFrom
+                          AND z.DataUboju <= @DateTo
+                          AND z.Status <> 'Anulowane'
+                          AND t.KodTowaru = @ProductCode";
+
+                    await using var cmd = new SqlCommand(sqlOrders, cn);
+                    cmd.Parameters.AddWithValue("@DateFrom", date12MonthsAgo);
+                    cmd.Parameters.AddWithValue("@DateTo", today);
+                    cmd.Parameters.AddWithValue("@ProductCode", productCode);
+
+                    await using var rdr = await cmd.ExecuteReaderAsync();
+                    while (await rdr.ReadAsync())
+                    {
+                        int klientId = rdr.GetInt32(1);
+                        DateTime dataUboju = rdr.GetDateTime(2);
+                        decimal ilosc = rdr.IsDBNull(3) ? 0 : rdr.GetDecimal(3);
+
+                        if (!clientOrders.ContainsKey(klientId))
+                            clientOrders[klientId] = new List<(DateTime, decimal)>();
+                        clientOrders[klientId].Add((dataUboju, ilosc));
+                    }
+                }
+
+                // Przetwórz dane klientów
+                foreach (var kvp in clientOrders)
+                {
+                    int klientId = kvp.Key;
+                    var orders = kvp.Value;
+
+                    var ordersLast3Months = orders.Where(o => o.Data >= date3MonthsAgo).ToList();
+                    var ordersOlder = orders.Where(o => o.Data < date3MonthsAgo).ToList();
+
+                    string nazwaKlienta = kontrahenci.TryGetValue(klientId, out var nazwa) ? nazwa : $"Nieznany ({klientId})";
+
+                    // Klient zamawiał w ostatnich 3 miesiącach
+                    if (ordersLast3Months.Any())
+                    {
+                        var suma = ordersLast3Months.Sum(o => o.Ilosc);
+                        var liczba = ordersLast3Months.Count;
+                        var ostatnie = ordersLast3Months.Max(o => o.Data);
+                        var pierwsze = ordersLast3Months.Min(o => o.Data);
+
+                        last3Months.Add(new HistoricalClientData
+                        {
+                            KlientId = klientId,
+                            NazwaKlienta = nazwaKlienta,
+                            SumaZamowien = suma,
+                            LiczbaZamowien = liczba,
+                            OstatnieZamowienie = ostatnie,
+                            PierwszeZamowienie = pierwsze,
+                            SredniaZamowienie = liczba > 0 ? suma / liczba : 0,
+                            DniOdOstatniego = (int)(today - ostatnie).TotalDays
+                        });
+                    }
+                    // Klient zamawiał tylko w starszym okresie (potencjalny klient do odzyskania)
+                    else if (ordersOlder.Any())
+                    {
+                        var suma = ordersOlder.Sum(o => o.Ilosc);
+                        var liczba = ordersOlder.Count;
+                        var ostatnie = ordersOlder.Max(o => o.Data);
+                        var pierwsze = ordersOlder.Min(o => o.Data);
+
+                        olderClients.Add(new HistoricalClientData
+                        {
+                            KlientId = klientId,
+                            NazwaKlienta = nazwaKlienta,
+                            SumaZamowien = suma,
+                            LiczbaZamowien = liczba,
+                            OstatnieZamowienie = ostatnie,
+                            PierwszeZamowienie = pierwsze,
+                            SredniaZamowienie = liczba > 0 ? suma / liczba : 0,
+                            DniOdOstatniego = (int)(today - ostatnie).TotalDays
+                        });
+                    }
+                }
+
+                // Oblicz trendy miesięczne
+                var allOrders = clientOrders.Values.SelectMany(x => x).ToList();
+                var groupedByMonth = allOrders
+                    .GroupBy(o => new { o.Data.Year, o.Data.Month })
+                    .OrderBy(g => g.Key.Year).ThenBy(g => g.Key.Month);
+
+                foreach (var group in groupedByMonth)
+                {
+                    trends.Add(new MonthlyTrend
+                    {
+                        Rok = group.Key.Year,
+                        Miesiac = group.Key.Month,
+                        Suma = group.Sum(o => o.Ilosc),
+                        LiczbaZamowien = group.Count()
+                    });
+                }
+
+                // Sortuj listy
+                last3Months = last3Months.OrderByDescending(c => c.SumaZamowien).ToList();
+                olderClients = olderClients.OrderByDescending(c => c.SumaZamowien).ToList();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[LoadHistoricalData] Błąd: {ex.Message}");
+            }
+
+            return (last3Months, olderClients, trends);
+        }
+
+        /// <summary>
         /// Wyświetla powiększoną kartę produktu z wykresami i danymi historycznymi
         /// </summary>
-        private void ShowExpandedProductCard(ProductData data)
+        private async void ShowExpandedProductCard(ProductData data)
         {
             var dialog = new Window
             {
                 Title = $"[{data.Kod}] {data.Nazwa}",
-                Width = 1100,
-                Height = 850,
+                Width = 1200,
+                Height = 900,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Owner = this,
                 Background = new SolidColorBrush(Color.FromRgb(240, 242, 245)),
                 ResizeMode = ResizeMode.CanResize
             };
+
+            // Pokaż okno od razu z loadingiem
+            var loadingText = new TextBlock
+            {
+                Text = "⏳ Ładowanie danych historycznych...",
+                FontSize = 16,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(50)
+            };
+            dialog.Content = loadingText;
+            dialog.Show();
+
+            // Pobierz dane historyczne
+            var (last3Months, olderClients, trends) = await LoadHistoricalDataAsync(data.Id, data.Kod);
 
             var mainScroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             var mainStack = new StackPanel { Margin = new Thickness(15) };
@@ -2984,8 +3170,252 @@ namespace Kalendarz1.WPF
                 mainStack.Children.Add(wydaniaBorder);
             }
 
-            // === DANE HISTORYCZNE ===
-            var historyBorder = new Border
+            // === TREND MIESIĘCZNY (12 MIESIĘCY) ===
+            if (trends.Any())
+            {
+                var trendBorder = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(248, 249, 250)),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(12),
+                    Margin = new Thickness(0, 0, 0, 10)
+                };
+
+                var trendStack = new StackPanel();
+                trendStack.Children.Add(new TextBlock
+                {
+                    Text = $"📈 TREND ZAMÓWIEŃ (ostatnie 12 miesięcy) — Suma: {trends.Sum(t => t.Suma):N0} kg",
+                    FontSize = 11,
+                    FontWeight = FontWeights.SemiBold,
+                    Margin = new Thickness(0, 0, 0, 10)
+                });
+
+                // Wykres słupkowy trendu
+                var chartGrid = new Grid { Height = 80 };
+                decimal maxTrend = trends.Any() ? trends.Max(t => t.Suma) : 1;
+                if (maxTrend == 0) maxTrend = 1;
+
+                var barsPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+                foreach (var trend in trends.TakeLast(12))
+                {
+                    var barStack = new StackPanel { Width = 60, Margin = new Thickness(2, 0, 2, 0) };
+
+                    // Wartość nad słupkiem
+                    barStack.Children.Add(new TextBlock
+                    {
+                        Text = $"{trend.Suma:N0}",
+                        FontSize = 8,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        Foreground = new SolidColorBrush(Color.FromRgb(52, 73, 94))
+                    });
+
+                    // Słupek
+                    double barHeight = Math.Max((double)(trend.Suma / maxTrend) * 50, trend.Suma > 0 ? 3 : 0);
+                    var bar = new Border
+                    {
+                        Height = barHeight,
+                        Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                        CornerRadius = new CornerRadius(2),
+                        VerticalAlignment = VerticalAlignment.Bottom,
+                        ToolTip = $"{trend.Label}: {trend.Suma:N0} kg ({trend.LiczbaZamowien} zamówień)"
+                    };
+                    barStack.Children.Add(bar);
+
+                    // Etykieta miesiąca
+                    barStack.Children.Add(new TextBlock
+                    {
+                        Text = $"{trend.Miesiac:D2}",
+                        FontSize = 8,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141))
+                    });
+
+                    barsPanel.Children.Add(barStack);
+                }
+                trendStack.Children.Add(barsPanel);
+                trendBorder.Child = trendStack;
+                mainStack.Children.Add(trendBorder);
+            }
+
+            // === KTO BRAŁ W OSTATNICH 3 MIESIĄCACH ===
+            if (last3Months.Any())
+            {
+                var recent3Border = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(232, 245, 233)),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(12),
+                    Margin = new Thickness(0, 0, 0, 10),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(76, 175, 80)),
+                    BorderThickness = new Thickness(1)
+                };
+
+                var recent3Stack = new StackPanel();
+                recent3Stack.Children.Add(new TextBlock
+                {
+                    Text = $"🟢 KTO BRAŁ W OSTATNICH 3 MIESIĄCACH ({last3Months.Count} klientów, {last3Months.Sum(c => c.SumaZamowien):N0} kg)",
+                    FontSize = 11,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(46, 125, 50)),
+                    Margin = new Thickness(0, 0, 0, 8)
+                });
+
+                // Nagłówek tabeli
+                var headerRow = CreateHistoryTableHeader();
+                recent3Stack.Children.Add(headerRow);
+
+                // Wiersze (max 10)
+                foreach (var client in last3Months.Take(10))
+                {
+                    var row = CreateHistoryClientRow(client, Color.FromRgb(46, 125, 50));
+                    recent3Stack.Children.Add(row);
+                }
+
+                if (last3Months.Count > 10)
+                {
+                    recent3Stack.Children.Add(new TextBlock
+                    {
+                        Text = $"... i {last3Months.Count - 10} więcej klientów",
+                        FontSize = 9,
+                        FontStyle = FontStyles.Italic,
+                        Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)),
+                        Margin = new Thickness(0, 5, 0, 0)
+                    });
+                }
+
+                recent3Border.Child = recent3Stack;
+                mainStack.Children.Add(recent3Border);
+            }
+
+            // === POTENCJALNI KLIENCI (brali 3-12 miesięcy temu, ale nie ostatnio) ===
+            if (olderClients.Any())
+            {
+                var potentialBorder = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(255, 243, 224)),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(12),
+                    Margin = new Thickness(0, 0, 0, 10),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(255, 152, 0)),
+                    BorderThickness = new Thickness(1)
+                };
+
+                var potentialStack = new StackPanel();
+                potentialStack.Children.Add(new TextBlock
+                {
+                    Text = $"🟠 POTENCJALNI KLIENCI — brali 3-12 mies. temu, można odzyskać ({olderClients.Count} klientów)",
+                    FontSize = 11,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(230, 126, 34)),
+                    Margin = new Thickness(0, 0, 0, 8)
+                });
+
+                // Nagłówek tabeli
+                var headerRow = CreateHistoryTableHeader();
+                potentialStack.Children.Add(headerRow);
+
+                // Wiersze (max 10)
+                foreach (var client in olderClients.Take(10))
+                {
+                    var row = CreateHistoryClientRow(client, Color.FromRgb(230, 126, 34));
+                    potentialStack.Children.Add(row);
+                }
+
+                if (olderClients.Count > 10)
+                {
+                    potentialStack.Children.Add(new TextBlock
+                    {
+                        Text = $"... i {olderClients.Count - 10} więcej klientów",
+                        FontSize = 9,
+                        FontStyle = FontStyles.Italic,
+                        Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)),
+                        Margin = new Thickness(0, 5, 0, 0)
+                    });
+                }
+
+                potentialBorder.Child = potentialStack;
+                mainStack.Children.Add(potentialBorder);
+            }
+
+            // === REGULARNI KLIENCI (zamawiali >= 3 razy w ostatnich 3 miesiącach) ===
+            var regularClients = last3Months.Where(c => c.LiczbaZamowien >= 3).OrderByDescending(c => c.LiczbaZamowien).ToList();
+            if (regularClients.Any())
+            {
+                var regularBorder = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(227, 242, 253)),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(12),
+                    Margin = new Thickness(0, 0, 0, 10),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(33, 150, 243)),
+                    BorderThickness = new Thickness(1)
+                };
+
+                var regularStack = new StackPanel();
+                regularStack.Children.Add(new TextBlock
+                {
+                    Text = $"🔵 REGULARNI KLIENCI — zamówili ≥3 razy w ost. 3 mies. ({regularClients.Count})",
+                    FontSize = 11,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(25, 118, 210)),
+                    Margin = new Thickness(0, 0, 0, 8)
+                });
+
+                foreach (var client in regularClients.Take(8))
+                {
+                    var row = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+
+                    var name = new TextBlock
+                    {
+                        Text = client.NazwaKlienta,
+                        FontSize = 10,
+                        TextTrimming = TextTrimming.CharacterEllipsis,
+                        ToolTip = client.NazwaKlienta
+                    };
+                    Grid.SetColumn(name, 0);
+                    row.Children.Add(name);
+
+                    var freq = new TextBlock
+                    {
+                        Text = $"{client.LiczbaZamowien}x",
+                        FontSize = 10,
+                        FontWeight = FontWeights.SemiBold,
+                        Foreground = new SolidColorBrush(Color.FromRgb(25, 118, 210))
+                    };
+                    Grid.SetColumn(freq, 1);
+                    row.Children.Add(freq);
+
+                    var avg = new TextBlock
+                    {
+                        Text = $"śr. {client.SredniaZamowienie:N0} kg",
+                        FontSize = 9,
+                        Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141))
+                    };
+                    Grid.SetColumn(avg, 2);
+                    row.Children.Add(avg);
+
+                    var total = new TextBlock
+                    {
+                        Text = $"Σ {client.SumaZamowien:N0} kg",
+                        FontSize = 9,
+                        FontWeight = FontWeights.SemiBold
+                    };
+                    Grid.SetColumn(total, 3);
+                    row.Children.Add(total);
+
+                    regularStack.Children.Add(row);
+                }
+
+                regularBorder.Child = regularStack;
+                mainStack.Children.Add(regularBorder);
+            }
+
+            // === PODSUMOWANIE STATYSTYK ===
+            var statsBorder = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(245, 247, 250)),
                 CornerRadius = new CornerRadius(8),
@@ -2993,184 +3423,31 @@ namespace Kalendarz1.WPF
                 Margin = new Thickness(0, 0, 0, 10)
             };
 
-            var historyStack = new StackPanel();
-            historyStack.Children.Add(new TextBlock
-            {
-                Text = "📊 DANE HISTORYCZNE I ANALIZA",
-                FontSize = 11,
-                FontWeight = FontWeights.SemiBold,
-                Margin = new Thickness(0, 0, 0, 10)
-            });
+            var statsGrid = new Grid();
+            for (int i = 0; i < 4; i++)
+                statsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-            var historyGrid = new Grid();
-            historyGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            historyGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            historyGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            // Statystyki
+            var stat1 = CreateStatBox("📊 Klienci 3 mies.", $"{last3Months.Count}", Color.FromRgb(46, 125, 50));
+            Grid.SetColumn(stat1, 0);
+            statsGrid.Children.Add(stat1);
 
-            // TOP 5 odbiorców (największe zamówienia)
-            var top5Stack = new StackPanel { Margin = new Thickness(0, 0, 10, 0) };
-            top5Stack.Children.Add(new TextBlock
-            {
-                Text = "🏆 TOP 5 ODBIORCÓW",
-                FontSize = 10,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(39, 174, 96)),
-                Margin = new Thickness(0, 0, 0, 5)
-            });
+            var stat2 = CreateStatBox("💤 Do odzyskania", $"{olderClients.Count}", Color.FromRgb(230, 126, 34));
+            Grid.SetColumn(stat2, 1);
+            statsGrid.Children.Add(stat2);
 
-            var topOdbiorcy = data.Odbiorcy.OrderByDescending(o => o.Zamowione).Take(5).ToList();
-            foreach (var odb in topOdbiorcy)
-            {
-                var row = new Grid();
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var avgOrder = last3Months.Any() ? last3Months.Average(c => c.SredniaZamowienie) : 0;
+            var stat3 = CreateStatBox("📦 Śr. zamówienie", $"{avgOrder:N0} kg", Color.FromRgb(52, 152, 219));
+            Grid.SetColumn(stat3, 2);
+            statsGrid.Children.Add(stat3);
 
-                var name = new TextBlock
-                {
-                    Text = odb.NazwaOdbiorcy,
-                    FontSize = 9,
-                    TextTrimming = TextTrimming.CharacterEllipsis,
-                    ToolTip = odb.NazwaOdbiorcy
-                };
-                Grid.SetColumn(name, 0);
-                row.Children.Add(name);
+            var totalSum = last3Months.Sum(c => c.SumaZamowien);
+            var stat4 = CreateStatBox("💰 Suma 3 mies.", $"{totalSum:N0} kg", Color.FromRgb(155, 89, 182));
+            Grid.SetColumn(stat4, 3);
+            statsGrid.Children.Add(stat4);
 
-                var val = new TextBlock
-                {
-                    Text = $"{odb.Zamowione:N0}",
-                    FontSize = 9,
-                    FontWeight = FontWeights.SemiBold,
-                    Foreground = new SolidColorBrush(Color.FromRgb(39, 174, 96))
-                };
-                Grid.SetColumn(val, 1);
-                row.Children.Add(val);
-
-                top5Stack.Children.Add(row);
-            }
-            Grid.SetColumn(top5Stack, 0);
-            historyGrid.Children.Add(top5Stack);
-
-            // Odbiorcy do pełnej realizacji
-            var needMoreStack = new StackPanel { Margin = new Thickness(5, 0, 5, 0) };
-            needMoreStack.Children.Add(new TextBlock
-            {
-                Text = "⏳ CZEKAJĄ NA WYDANIE",
-                FontSize = 10,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(230, 126, 34)),
-                Margin = new Thickness(0, 0, 0, 5)
-            });
-
-            var waitingOdbiorcy = data.Odbiorcy
-                .Where(o => o.Zamowione > 0 && o.Wydane < o.Zamowione)
-                .OrderByDescending(o => o.Zamowione - o.Wydane)
-                .Take(5)
-                .ToList();
-
-            foreach (var odb in waitingOdbiorcy)
-            {
-                var pozostalo = odb.Zamowione - odb.Wydane;
-                var row = new Grid();
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-                var name = new TextBlock
-                {
-                    Text = odb.NazwaOdbiorcy,
-                    FontSize = 9,
-                    TextTrimming = TextTrimming.CharacterEllipsis,
-                    ToolTip = odb.NazwaOdbiorcy
-                };
-                Grid.SetColumn(name, 0);
-                row.Children.Add(name);
-
-                var val = new TextBlock
-                {
-                    Text = $"-{pozostalo:N0}",
-                    FontSize = 9,
-                    FontWeight = FontWeights.SemiBold,
-                    Foreground = new SolidColorBrush(Color.FromRgb(230, 126, 34))
-                };
-                Grid.SetColumn(val, 1);
-                row.Children.Add(val);
-
-                needMoreStack.Children.Add(row);
-            }
-
-            if (!waitingOdbiorcy.Any())
-            {
-                needMoreStack.Children.Add(new TextBlock
-                {
-                    Text = "Wszyscy zrealizowani ✓",
-                    FontSize = 9,
-                    Foreground = new SolidColorBrush(Color.FromRgb(39, 174, 96)),
-                    FontStyle = FontStyles.Italic
-                });
-            }
-            Grid.SetColumn(needMoreStack, 1);
-            historyGrid.Children.Add(needMoreStack);
-
-            // Zrealizowani w 100%
-            var completedStack = new StackPanel { Margin = new Thickness(10, 0, 0, 0) };
-            completedStack.Children.Add(new TextBlock
-            {
-                Text = "✅ ZREALIZOWANI 100%",
-                FontSize = 10,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(39, 174, 96)),
-                Margin = new Thickness(0, 0, 0, 5)
-            });
-
-            var completedOdbiorcy = data.Odbiorcy
-                .Where(o => o.Zamowione > 0 && o.Wydane >= o.Zamowione)
-                .OrderByDescending(o => o.Wydane)
-                .Take(5)
-                .ToList();
-
-            foreach (var odb in completedOdbiorcy)
-            {
-                var row = new Grid();
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-                var name = new TextBlock
-                {
-                    Text = odb.NazwaOdbiorcy,
-                    FontSize = 9,
-                    TextTrimming = TextTrimming.CharacterEllipsis,
-                    ToolTip = odb.NazwaOdbiorcy
-                };
-                Grid.SetColumn(name, 0);
-                row.Children.Add(name);
-
-                var val = new TextBlock
-                {
-                    Text = $"✓ {odb.Wydane:N0}",
-                    FontSize = 9,
-                    Foreground = new SolidColorBrush(Color.FromRgb(39, 174, 96))
-                };
-                Grid.SetColumn(val, 1);
-                row.Children.Add(val);
-
-                completedStack.Children.Add(row);
-            }
-
-            if (!completedOdbiorcy.Any())
-            {
-                completedStack.Children.Add(new TextBlock
-                {
-                    Text = "Brak w pełni zrealizowanych",
-                    FontSize = 9,
-                    Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)),
-                    FontStyle = FontStyles.Italic
-                });
-            }
-            Grid.SetColumn(completedStack, 2);
-            historyGrid.Children.Add(completedStack);
-
-            historyStack.Children.Add(historyGrid);
-            historyBorder.Child = historyStack;
-            mainStack.Children.Add(historyBorder);
+            statsBorder.Child = statsGrid;
+            mainStack.Children.Add(statsBorder);
 
             // === PRZYCISK ZAMKNIJ ===
             var closeBtn = new Button
@@ -3189,7 +3466,137 @@ namespace Kalendarz1.WPF
 
             mainScroll.Content = mainStack;
             dialog.Content = mainScroll;
-            dialog.ShowDialog();
+            // Okno już jest pokazane przez Show() na początku
+        }
+
+        /// <summary>
+        /// Tworzy nagłówek tabeli historii klientów
+        /// </summary>
+        private Grid CreateHistoryTableHeader()
+        {
+            var headerRow = new Grid { Margin = new Thickness(0, 0, 0, 5) };
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
+
+            var headers = new[] { "Klient", "Suma kg", "Zam.", "Średnia", "Ost. zam." };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var txt = new TextBlock
+                {
+                    Text = headers[i],
+                    FontSize = 9,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141))
+                };
+                Grid.SetColumn(txt, i);
+                headerRow.Children.Add(txt);
+            }
+            return headerRow;
+        }
+
+        /// <summary>
+        /// Tworzy wiersz klienta w tabeli historii
+        /// </summary>
+        private Grid CreateHistoryClientRow(HistoricalClientData client, Color accentColor)
+        {
+            var row = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
+
+            var name = new TextBlock
+            {
+                Text = client.NazwaKlienta,
+                FontSize = 10,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                ToolTip = client.NazwaKlienta
+            };
+            Grid.SetColumn(name, 0);
+            row.Children.Add(name);
+
+            var suma = new TextBlock
+            {
+                Text = $"{client.SumaZamowien:N0}",
+                FontSize = 10,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(accentColor)
+            };
+            Grid.SetColumn(suma, 1);
+            row.Children.Add(suma);
+
+            var liczba = new TextBlock
+            {
+                Text = $"{client.LiczbaZamowien}x",
+                FontSize = 10,
+                Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219))
+            };
+            Grid.SetColumn(liczba, 2);
+            row.Children.Add(liczba);
+
+            var srednia = new TextBlock
+            {
+                Text = $"{client.SredniaZamowienie:N0}",
+                FontSize = 9,
+                Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141))
+            };
+            Grid.SetColumn(srednia, 3);
+            row.Children.Add(srednia);
+
+            var ostatnie = new TextBlock
+            {
+                Text = client.DniOdOstatniego == 0 ? "dziś" :
+                       client.DniOdOstatniego == 1 ? "wczoraj" :
+                       $"{client.DniOdOstatniego} dni temu",
+                FontSize = 9,
+                Foreground = new SolidColorBrush(
+                    client.DniOdOstatniego <= 7 ? Color.FromRgb(39, 174, 96) :
+                    client.DniOdOstatniego <= 30 ? Color.FromRgb(52, 152, 219) :
+                    client.DniOdOstatniego <= 60 ? Color.FromRgb(230, 126, 34) :
+                    Color.FromRgb(192, 57, 43))
+            };
+            Grid.SetColumn(ostatnie, 4);
+            row.Children.Add(ostatnie);
+
+            return row;
+        }
+
+        /// <summary>
+        /// Tworzy box ze statystyką
+        /// </summary>
+        private Border CreateStatBox(string label, string value, Color color)
+        {
+            var border = new Border
+            {
+                Background = Brushes.White,
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(10, 8, 10, 8),
+                Margin = new Thickness(3)
+            };
+
+            var stack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+            stack.Children.Add(new TextBlock
+            {
+                Text = label,
+                FontSize = 9,
+                Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)),
+                HorizontalAlignment = HorizontalAlignment.Center
+            });
+            stack.Children.Add(new TextBlock
+            {
+                Text = value,
+                FontSize = 16,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(color),
+                HorizontalAlignment = HorizontalAlignment.Center
+            });
+
+            border.Child = stack;
+            return border;
         }
 
         private void AddProgressBar(StackPanel parent, string label, decimal percent, Color color)
