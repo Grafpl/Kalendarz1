@@ -2739,7 +2739,7 @@ namespace Kalendarz1.WPF
             });
             titleStack.Children.Add(new TextBlock
             {
-                Text = $"📅 {_selectedDate:dd.MM.yyyy}" + (_selectedDateEnd.HasValue ? $" - {_selectedDateEnd:dd.MM.yyyy}" : ""),
+                Text = $"📅 {_selectedDate:dd.MM.yyyy}" + (_zakresDat ? $" - {_selectedDateDo:dd.MM.yyyy}" : ""),
                 FontSize = 11,
                 Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)),
                 Margin = new Thickness(0, 8, 0, 0)
