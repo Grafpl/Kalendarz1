@@ -222,7 +222,7 @@ RozneProduktyCTE AS (
     INNER JOIN [HANDEL].[SSCommon].[STContractors] C ON DK.khid = C.id
     WHERE DK.anulowany = 0 AND DK.data >= DATEADD(MONTH, -12, @DataReferencja)
     GROUP BY C.id
-),
+)
 SELECT
     OT.KlientId,
     OT.Odbiorca,
