@@ -2942,6 +2942,57 @@ namespace Kalendarz1.WPF
             Grid.SetColumn(bilansBorder, 2);
             headerPanel.Children.Add(bilansBorder);
 
+            // ALERT - gdy bilans ujemny (za dużo zamówione)
+            if (bilans < 0)
+            {
+                var alertBorder = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(180, 40, 40)),
+                    CornerRadius = new CornerRadius(10),
+                    Padding = new Thickness(15, 8, 15, 8),
+                    Margin = new Thickness(10, 0, 0, 0),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                var alertStack = new StackPanel { Orientation = Orientation.Horizontal };
+                alertStack.Children.Add(new TextBlock
+                {
+                    Text = "⚠️ ALERT: ",
+                    FontSize = 20,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = Brushes.Yellow,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+                alertStack.Children.Add(new TextBlock
+                {
+                    Text = $"Za dużo zamówione! Brakuje {Math.Abs(bilans):N0} kg",
+                    FontSize = 20,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = Brushes.White,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+                alertBorder.Child = alertStack;
+
+                // Animacja pulsowania alertu
+                var animation = new System.Windows.Media.Animation.ColorAnimation
+                {
+                    From = Color.FromRgb(180, 40, 40),
+                    To = Color.FromRgb(255, 60, 60),
+                    Duration = TimeSpan.FromMilliseconds(500),
+                    AutoReverse = true,
+                    RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever
+                };
+                var brush = new SolidColorBrush(Color.FromRgb(180, 40, 40));
+                alertBorder.Background = brush;
+                brush.BeginAnimation(SolidColorBrush.ColorProperty, animation);
+
+                // Dodaj alert między bilansem a przyciskiem zamknij
+                Grid.SetColumn(alertBorder, 2);
+                // Dodamy osobną kolumnę dla alertu
+                headerPanel.ColumnDefinitions.Insert(3, new ColumnDefinition { Width = GridLength.Auto });
+                Grid.SetColumn(alertBorder, 3);
+                headerPanel.Children.Add(alertBorder);
+            }
+
             // Przycisk zamknij
             var closeBtn = new Button
             {
@@ -2955,7 +3006,7 @@ namespace Kalendarz1.WPF
                 Cursor = System.Windows.Input.Cursors.Hand
             };
             closeBtn.Click += (s, e) => dialog.Close();
-            Grid.SetColumn(closeBtn, 3);
+            Grid.SetColumn(closeBtn, bilans < 0 ? 4 : 3); // Kolumna 4 gdy alert jest widoczny
             headerPanel.Children.Add(closeBtn);
 
             Grid.SetRow(headerPanel, 0);
@@ -3261,31 +3312,31 @@ namespace Kalendarz1.WPF
 
             var wszyscyOdbiorcy = data.Odbiorcy.OrderByDescending(o => o.Zamowione + o.Wydane).ToList();
 
-            // Nagłówek
+            // Nagłówek - mniejszy
             rightPanel.Children.Add(new TextBlock
             {
                 Text = $"👥 ODBIORCY ({wszyscyOdbiorcy.Count})",
-                FontSize = 36,
+                FontSize = 26,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White,
-                Margin = new Thickness(0, 0, 0, 20)
+                Margin = new Thickness(0, 0, 0, 12)
             });
 
-            // Nagłówek kolumn - bez STATUS, większe czcionki
-            var headerRow = new Grid { Margin = new Thickness(0, 0, 0, 10) };
+            // Nagłówek kolumn - mniejsze czcionki
+            var headerRow = new Grid { Margin = new Thickness(0, 0, 0, 6) };
             headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
-            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
 
-            var h1 = new TextBlock { Text = "ODBIORCA", FontSize = 22, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)) };
+            var h1 = new TextBlock { Text = "ODBIORCA", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)) };
             Grid.SetColumn(h1, 0);
             headerRow.Children.Add(h1);
 
-            var h2 = new TextBlock { Text = "ZAMÓWIONE", FontSize = 22, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(230, 126, 34)), HorizontalAlignment = HorizontalAlignment.Right };
+            var h2 = new TextBlock { Text = "ZAM", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(230, 126, 34)), HorizontalAlignment = HorizontalAlignment.Right };
             Grid.SetColumn(h2, 1);
             headerRow.Children.Add(h2);
 
-            var h3 = new TextBlock { Text = "WYDANE", FontSize = 22, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(192, 57, 43)), HorizontalAlignment = HorizontalAlignment.Right };
+            var h3 = new TextBlock { Text = "WYD", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(192, 57, 43)), HorizontalAlignment = HorizontalAlignment.Right };
             Grid.SetColumn(h3, 2);
             headerRow.Children.Add(h3);
 
@@ -3294,7 +3345,7 @@ namespace Kalendarz1.WPF
             // Separator
             rightPanel.Children.Add(new Border { Height = 2, Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)), Margin = new Thickness(0, 0, 0, 10) });
 
-            // Wszyscy odbiorcy - bez STATUS, większe czcionki
+            // Wszyscy odbiorcy - kompaktowe
             foreach (var odb in wszyscyOdbiorcy)
             {
                 bool bezZamowienia = odb.Zamowione == 0 && odb.Wydane > 0;
@@ -3302,20 +3353,20 @@ namespace Kalendarz1.WPF
                 var row = new Border
                 {
                     Background = bezZamowienia ? new SolidColorBrush(Color.FromRgb(60, 35, 35)) : Brushes.Transparent,
-                    CornerRadius = new CornerRadius(8),
-                    Padding = new Thickness(12, 10, 12, 10),
-                    Margin = new Thickness(0, 3, 0, 3)
+                    CornerRadius = new CornerRadius(5),
+                    Padding = new Thickness(8, 5, 8, 5),
+                    Margin = new Thickness(0, 1, 0, 1)
                 };
 
                 var rowGrid = new Grid();
                 rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
-                rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
+                rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
+                rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
 
                 var name = new TextBlock
                 {
                     Text = odb.NazwaOdbiorcy,
-                    FontSize = 24,
+                    FontSize = 16,
                     Foreground = Brushes.White,
                     TextTrimming = TextTrimming.CharacterEllipsis,
                     VerticalAlignment = VerticalAlignment.Center
@@ -3326,7 +3377,7 @@ namespace Kalendarz1.WPF
                 var zam = new TextBlock
                 {
                     Text = odb.Zamowione > 0 ? $"{odb.Zamowione:N0}" : "-",
-                    FontSize = 26,
+                    FontSize = 18,
                     FontWeight = FontWeights.Bold,
                     Foreground = new SolidColorBrush(Color.FromRgb(230, 126, 34)),
                     HorizontalAlignment = HorizontalAlignment.Right,
@@ -3338,7 +3389,7 @@ namespace Kalendarz1.WPF
                 var wyd = new TextBlock
                 {
                     Text = odb.Wydane > 0 ? $"{odb.Wydane:N0}" : "-",
-                    FontSize = 26,
+                    FontSize = 18,
                     FontWeight = FontWeights.Bold,
                     Foreground = new SolidColorBrush(Color.FromRgb(192, 57, 43)),
                     HorizontalAlignment = HorizontalAlignment.Right,
