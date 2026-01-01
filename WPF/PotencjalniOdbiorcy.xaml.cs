@@ -596,29 +596,28 @@ ORDER BY OT.DniTemu ASC, SK.SumaWartosc DESC;";
                     csv.AppendLine();
 
                     var headers = new List<string> {
-    "Odbiorca", "Handlowiec", "Ostatnia cena", "Ostatnia ilość (kg)",
-    "Ostatni zakup", "Dni temu", "Liczba transakcji", "Średnia cena",
-    "Średnia ilość (kg)", "Suma wartość (zł)", "Regularność", "Limit (zł)"
-};
+                        "Odbiorca", "Handlowiec", "Ostatnia cena", "Ostatnia ilość (kg)",
+                        "Ostatni zakup", "Dni temu", "Liczba transakcji", "Średnia cena",
+                        "Średnia ilość (kg)", "Suma wartość (zł)", "Regularność"
+                    };
                     csv.AppendLine(string.Join(";", headers));
 
                     foreach (DataRowView row in _dvFiltrowany)
                     {
                         var values = new List<string>
-    {
-        row.Row.Field<string>("Odbiorca"),
-        row.Row.Field<string>("Handlowiec"),
-        row.Row.Field<decimal>("OstCena").ToString("N2"),
-        row.Row.Field<decimal>("OstIlosc").ToString("N2"),
-        row.Row.Field<DateTime>("OstData").ToString("yyyy-MM-dd"),
-        row.Row.Field<int>("DniTemu").ToString(),
-        row.Row.Field<int>("LiczbaTransakcji").ToString(),
-        row.Row.Field<decimal>("SredniaCena").ToString("N2"),
-        row.Row.Field<decimal>("SredniaIlosc").ToString("N2"),
-        row.Row.Field<decimal>("SumaWartosc").ToString("N2"),
-        row.Row.Field<string>("Regularnosc"),
-        row.Row.Field<decimal>("Limit").ToString("N2")
-    };
+                        {
+                            row.Row.Field<string>("Odbiorca"),
+                            row.Row.Field<string>("Handlowiec"),
+                            row.Row.Field<decimal>("OstCena").ToString("N2"),
+                            row.Row.Field<decimal>("OstIlosc").ToString("N2"),
+                            row.Row.Field<DateTime>("OstData").ToString("yyyy-MM-dd"),
+                            row.Row.Field<int>("DniTemu").ToString(),
+                            row.Row.Field<int>("LiczbaTransakcji").ToString(),
+                            row.Row.Field<decimal>("SredniaCena").ToString("N2"),
+                            row.Row.Field<decimal>("SredniaIlosc").ToString("N2"),
+                            row.Row.Field<decimal>("SumaWartosc").ToString("N2"),
+                            row.Row.Field<string>("Regularnosc")
+                        };
                         csv.AppendLine(string.Join(";", values));
                     }
 
@@ -630,6 +629,104 @@ ORDER BY OT.DniTemu ASC, SK.SumaWartosc DESC;";
                 {
                     MessageBox.Show($"Błąd podczas eksportu:\n{ex.Message}", "Błąd",
                         MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private async void DgOdbiorcy_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (dgOdbiorcy.SelectedItem is DataRowView rowView)
+            {
+                var klientId = rowView.Row.Field<int>("KlientId");
+                var odbiorca = rowView.Row.Field<string>("Odbiorca");
+                var sredniaIlosc = rowView.Row.Field<decimal>("SredniaIlosc");
+
+                try
+                {
+                    this.Cursor = Cursors.Wait;
+
+                    // Pobierz historię dostaw dla tego klienta i produktu
+                    await using var cn = new SqlConnection(_connectionString);
+                    await cn.OpenAsync();
+
+                    var cmd = new SqlCommand(@"
+                        SELECT
+                            DK.data AS Data,
+                            DP.ilosc AS Ilosc,
+                            DP.cena AS Cena,
+                            DP.wartNetto AS Wartosc
+                        FROM [HANDEL].[HM].[DK] DK
+                        INNER JOIN [HANDEL].[HM].[DP] DP ON DK.id = DP.super
+                        WHERE DK.khid = @KlientId
+                          AND DP.idtw = @ProduktId
+                          AND DK.anulowany = 0
+                        ORDER BY DK.data DESC", cn);
+
+                    cmd.Parameters.AddWithValue("@KlientId", klientId);
+                    cmd.Parameters.AddWithValue("@ProduktId", _produktId);
+
+                    var dostawy = new List<(DateTime Data, decimal Ilosc, decimal Cena, decimal Wartosc)>();
+                    await using var reader = await cmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        dostawy.Add((
+                            reader.GetDateTime(0),
+                            reader.GetDecimal(1),
+                            reader.GetDecimal(2),
+                            reader.GetDecimal(3)
+                        ));
+                    }
+
+                    if (dostawy.Count == 0)
+                    {
+                        MessageBox.Show($"Brak historii dostaw dla {odbiorca}", "Informacja",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+                        return;
+                    }
+
+                    // Oblicz statystyki
+                    var srednia = dostawy.Average(d => d.Ilosc);
+                    var min = dostawy.Min(d => d.Ilosc);
+                    var max = dostawy.Max(d => d.Ilosc);
+                    var suma = dostawy.Sum(d => d.Ilosc);
+                    var srCena = dostawy.Average(d => d.Cena);
+
+                    // Przygotuj tekst z ostatnimi 10 dostawami
+                    var sb = new StringBuilder();
+                    sb.AppendLine($"📊 HISTORIA DOSTAW: {odbiorca}");
+                    sb.AppendLine($"📦 Produkt: {_produktNazwa}");
+                    sb.AppendLine(new string('─', 50));
+                    sb.AppendLine();
+                    sb.AppendLine($"📈 STATYSTYKI ({dostawy.Count} dostaw):");
+                    sb.AppendLine($"   • Średnia ilość:     {srednia:N0} kg");
+                    sb.AppendLine($"   • Min. ilość:        {min:N0} kg");
+                    sb.AppendLine($"   • Max. ilość:        {max:N0} kg");
+                    sb.AppendLine($"   • Suma całkowita:    {suma:N0} kg");
+                    sb.AppendLine($"   • Średnia cena:      {srCena:N2} zł/kg");
+                    sb.AppendLine();
+                    sb.AppendLine($"📋 OSTATNIE DOSTAWY (max 15):");
+                    sb.AppendLine($"{"Data",-12} {"Ilość (kg)",12} {"Cena",10} {"Wartość",12}");
+                    sb.AppendLine(new string('─', 50));
+
+                    foreach (var d in dostawy.Take(15))
+                    {
+                        sb.AppendLine($"{d.Data:yyyy-MM-dd}  {d.Ilosc,12:N0} {d.Cena,10:N2} {d.Wartosc,12:N2}");
+                    }
+
+                    if (dostawy.Count > 15)
+                        sb.AppendLine($"... i {dostawy.Count - 15} więcej");
+
+                    MessageBox.Show(sb.ToString(), $"Historia dostaw - {odbiorca}",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd pobierania historii:\n{ex.Message}", "Błąd",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                finally
+                {
+                    this.Cursor = Cursors.Arrow;
                 }
             }
         }

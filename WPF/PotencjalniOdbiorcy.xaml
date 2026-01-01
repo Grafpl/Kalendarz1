@@ -133,7 +133,8 @@
                       AlternatingRowBackground="#F8F9FA"
                       Background="White"
                       BorderThickness="0"
-                      CanUserSortColumns="True">
+                      CanUserSortColumns="True"
+                      MouseDoubleClick="DgOdbiorcy_MouseDoubleClick">
                 <DataGrid.ColumnHeaderStyle>
                     <Style TargetType="DataGridColumnHeader">
                         <Setter Property="Background" Value="#2C3E50"/>
