@@ -814,7 +814,8 @@ namespace Kalendarz1.WPF
             {
                 var btn = new Button
                 {
-                    Style = (Style)FindResource("DayButtonStyle")
+                    Style = (Style)FindResource("DayButtonStyle"),
+                    ClickMode = ClickMode.Press  // Reaguje natychmiast na naciśnięcie
                 };
 
                 var stack = new StackPanel();
@@ -822,7 +823,8 @@ namespace Kalendarz1.WPF
                 stack.Children.Add(new TextBlock { Text = DateTime.Today.AddDays(i).ToString("dd.MM"), FontSize = 8 });
                 btn.Content = stack;
 
-                btn.Click += DayButton_Click;
+                // Natychmiastowa reakcja na naciśnięcie myszy
+                btn.PreviewMouseLeftButtonDown += DayButton_MouseDown;
                 _dayButtonDates[btn] = DateTime.Today.AddDays(i);
 
                 _dayButtons.Add(btn);
@@ -1118,6 +1120,18 @@ namespace Kalendarz1.WPF
         {
             if (sender is Button btn && _dayButtonDates.TryGetValue(btn, out DateTime date))
             {
+                _selectedDate = date;
+                UpdateDayButtonDates();
+                await RefreshAllDataAsync();
+            }
+        }
+
+        // Natychmiastowa reakcja na naciśnięcie przycisku dnia
+        private async void DayButton_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (sender is Button btn && _dayButtonDates.TryGetValue(btn, out DateTime date))
+            {
+                e.Handled = true; // Zapobiega dalszemu przetwarzaniu
                 _selectedDate = date;
                 UpdateDayButtonDates();
                 await RefreshAllDataAsync();
@@ -2362,7 +2376,7 @@ namespace Kalendarz1.WPF
         #region Data Loading
 
         // Flaga do włączania/wyłączania diagnostyki czasów ładowania
-        private bool _showLoadingDiagnostics = true;
+        private bool _showLoadingDiagnostics = false;
 
         private async Task RefreshAllDataAsync()
         {
