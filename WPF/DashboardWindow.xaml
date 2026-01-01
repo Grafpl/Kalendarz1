@@ -98,30 +98,60 @@
                         <GradientStop Color="#27ae60" Offset="1"/>
                     </LinearGradientBrush>
                 </Border.Background>
-                <Grid Margin="20,10">
+                <Grid Margin="15,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="DASHBOARD PRODUKTÓW" FontSize="20" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="txtSelectedDate" Text="Data: -" FontSize="12" Foreground="#A3E4D7" Margin="20,0,0,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="DASHBOARD PRODUKTÓW" FontSize="18" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="txtSelectedDate" Text="Data: -" FontSize="11" Foreground="#A3E4D7" Margin="15,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Przyciski akcji przeniesione z paska filtrów -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,15,0">
+                        <Button x:Name="btnOrder" Content="↕ Kolejność" Style="{StaticResource ModernButtonStyle}"
+                                Background="#F39C12" Margin="0,0,6,0" Padding="8,5"
+                                ToolTip="Ustaw kolejność wyświetlania produktów"
+                                Click="BtnOrder_Click"/>
+                        <Button x:Name="btnSettings" Content="⚙" Style="{StaticResource ModernButtonStyle}"
+                                Background="#95A5A6" Margin="0,0,6,0" Padding="8,5"
+                                ToolTip="Ustawienia progów kolorów paska"
+                                Click="BtnSettings_Click"/>
+                        <Button x:Name="btnRefresh" Content="⟳ Odśwież" Style="{StaticResource ModernButtonStyle}"
+                                Background="#3498DB" Margin="0,0,6,0" Padding="8,5"
+                                Click="BtnRefresh_Click"/>
+                        <Button x:Name="btnExport" Content="📊 Excel" Style="{StaticResource ModernButtonStyle}"
+                                Background="#27AE60" Margin="0,0,6,0" Padding="8,5"
+                                Click="BtnExport_Click"/>
+                        <Button x:Name="btnScreenshot" Content="📷" Style="{StaticResource ModernButtonStyle}"
+                                Background="#9B59B6" Margin="0,0,6,0" Padding="8,5"
+                                ToolTip="Zrób screenshot do udostępnienia"
+                                Click="BtnScreenshot_Click"/>
+                        <Button x:Name="btnTogglePanel" Content="Wybierz produkty ▶" Style="{StaticResource ModernButtonStyle}"
+                                Background="#8E44AD" Margin="0,0,6,0" Padding="8,5"
+                                Click="BtnTogglePanel_Click"/>
+                        <Button Content="✕" Style="{StaticResource ModernButtonStyle}"
+                                Background="#E74C3C" Padding="8,5"
+                                ToolTip="Zamknij"
+                                Click="BtnClose_Click"/>
                     </StackPanel>
 
                     <!-- KPI w nagłówku -->
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Border Background="#27AE60" CornerRadius="6" Padding="12,6" Margin="5,0">
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Background="#27AE60" CornerRadius="6" Padding="10,5" Margin="5,0">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="DO SPRZEDANIA:" FontSize="11" Foreground="White" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="txtDoSprzedania" Text="0 kg" FontSize="16" Foreground="White" FontWeight="Bold" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="DO SPRZEDANIA:" FontSize="10" Foreground="White" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="txtDoSprzedania" Text="0 kg" FontSize="14" Foreground="White" FontWeight="Bold" Margin="5,0,0,0" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
-                        <Border Background="#3498DB" CornerRadius="6" Padding="12,6" Margin="5,0">
+                        <Border Background="#3498DB" CornerRadius="6" Padding="10,5" Margin="5,0">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="ZAMÓWIONE:" FontSize="11" Foreground="White" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="txtZamowione" Text="0 kg" FontSize="16" Foreground="White" FontWeight="Bold" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="ZAMÓWIONE:" FontSize="10" Foreground="White" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="txtZamowione" Text="0 kg" FontSize="14" Foreground="White" FontWeight="Bold" Margin="5,0,0,0" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -137,9 +167,7 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,20,0">
@@ -204,32 +232,6 @@
                         </Border>
                     </StackPanel>
 
-                    <StackPanel Grid.Column="4" Orientation="Horizontal">
-                        <Button x:Name="btnOrder" Content="↕ Kolejność" Style="{StaticResource ModernButtonStyle}"
-                                Background="#F39C12" Margin="0,0,10,0" Padding="10,6"
-                                ToolTip="Ustaw kolejność wyświetlania produktów"
-                                Click="BtnOrder_Click"/>
-                        <Button x:Name="btnSettings" Content="⚙" Style="{StaticResource ModernButtonStyle}"
-                                Background="#95A5A6" Margin="0,0,10,0" Padding="10,6"
-                                ToolTip="Ustawienia progów kolorów paska"
-                                Click="BtnSettings_Click"/>
-                        <Button x:Name="btnRefresh" Content="⟳ Odśwież" Style="{StaticResource ModernButtonStyle}"
-                                Background="#3498DB" Margin="0,0,10,0"
-                                Click="BtnRefresh_Click"/>
-                        <Button x:Name="btnExport" Content="📊 Excel" Style="{StaticResource ModernButtonStyle}"
-                                Background="#27AE60" Margin="0,0,10,0"
-                                Click="BtnExport_Click"/>
-                        <Button x:Name="btnScreenshot" Content="📷" Style="{StaticResource ModernButtonStyle}"
-                                Background="#9B59B6" Margin="0,0,10,0" Padding="10,6"
-                                ToolTip="Zrób screenshot do udostępnienia"
-                                Click="BtnScreenshot_Click"/>
-                        <Button x:Name="btnTogglePanel" Content="Wybierz produkty ▶" Style="{StaticResource ModernButtonStyle}"
-                                Background="#8E44AD" Margin="0,0,10,0"
-                                Click="BtnTogglePanel_Click"/>
-                        <Button Content="Zamknij" Style="{StaticResource ModernButtonStyle}"
-                                Background="#7F8C8D"
-                                Click="BtnClose_Click"/>
-                    </StackPanel>
                 </Grid>
             </Border>
 
