@@ -4589,36 +4589,20 @@ ORDER BY zm.Id";
             decimal pulaTuszkiB = pulaTuszki * (procentB / 100m);
 
             diagSw.Restart();
+            // OPTYMALIZACJA: Jedno zapytanie zamiast dwóch + jedno połączenie
             var actualIncomeTuszkaA = new Dictionary<int, decimal>();
-            await using (var cn = new SqlConnection(_connHandel))
-            {
-                await cn.OpenAsync();
-                const string sql = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) 
-            FROM [HANDEL].[HM].[MZ] MZ 
-            JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id 
-            WHERE MG.seria = 'sPWU' AND MG.aktywny=1 AND MG.data = @Day 
-            GROUP BY MZ.idtw";
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@Day", day.Date);
-                await using var rdr = await cmd.ExecuteReaderAsync();
-
-                while (await rdr.ReadAsync())
-                {
-                    int productId = rdr.GetInt32(0);
-                    decimal qty = rdr.IsDBNull(1) ? 0m : Convert.ToDecimal(rdr.GetValue(1));
-                    actualIncomeTuszkaA[productId] = qty;
-                }
-            }
-
             var actualIncomeElementy = new Dictionary<int, decimal>();
             await using (var cn = new SqlConnection(_connHandel))
             {
                 await cn.OpenAsync();
-                const string sql = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) 
-            FROM [HANDEL].[HM].[MZ] MZ 
-            JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id 
-            WHERE MG.seria IN ('sPWP', 'PWP') AND MG.aktywny=1 AND MG.data = @Day 
-            GROUP BY MZ.idtw";
+                // Połączone zapytanie - pobiera oba typy w jednym wywołaniu
+                const string sql = @"
+                    SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) AS Ilosc,
+                           CASE WHEN MG.seria = 'sPWU' THEN 'T' ELSE 'E' END AS Typ
+                    FROM [HANDEL].[HM].[MZ] MZ
+                    JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
+                    WHERE MG.seria IN ('sPWU', 'sPWP', 'PWP') AND MG.aktywny=1 AND MG.data = @Day
+                    GROUP BY MZ.idtw, CASE WHEN MG.seria = 'sPWU' THEN 'T' ELSE 'E' END";
                 await using var cmd = new SqlCommand(sql, cn);
                 cmd.Parameters.AddWithValue("@Day", day.Date);
                 await using var rdr = await cmd.ExecuteReaderAsync();
@@ -4627,7 +4611,12 @@ ORDER BY zm.Id";
                 {
                     int productId = rdr.GetInt32(0);
                     decimal qty = rdr.IsDBNull(1) ? 0m : Convert.ToDecimal(rdr.GetValue(1));
-                    actualIncomeElementy[productId] = qty;
+                    string typ = rdr.GetString(2);
+
+                    if (typ == "T")
+                        actualIncomeTuszkaA[productId] = qty;
+                    else
+                        actualIncomeElementy[productId] = qty;
                 }
             }
             diagTimes.Add(("PrzychodySql", diagSw.ElapsedMilliseconds));
