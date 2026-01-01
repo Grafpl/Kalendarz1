@@ -3423,30 +3423,30 @@ namespace Kalendarz1.WPF
                 Margin = new Thickness(0, 0, 0, 10)
             };
 
-            var statsGrid = new Grid();
+            var summaryGrid = new Grid();
             for (int i = 0; i < 4; i++)
-                statsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                summaryGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
             // Statystyki
             var stat1 = CreateStatBox("📊 Klienci 3 mies.", $"{last3Months.Count}", Color.FromRgb(46, 125, 50));
             Grid.SetColumn(stat1, 0);
-            statsGrid.Children.Add(stat1);
+            summaryGrid.Children.Add(stat1);
 
             var stat2 = CreateStatBox("💤 Do odzyskania", $"{olderClients.Count}", Color.FromRgb(230, 126, 34));
             Grid.SetColumn(stat2, 1);
-            statsGrid.Children.Add(stat2);
+            summaryGrid.Children.Add(stat2);
 
             var avgOrder = last3Months.Any() ? last3Months.Average(c => c.SredniaZamowienie) : 0;
             var stat3 = CreateStatBox("📦 Śr. zamówienie", $"{avgOrder:N0} kg", Color.FromRgb(52, 152, 219));
             Grid.SetColumn(stat3, 2);
-            statsGrid.Children.Add(stat3);
+            summaryGrid.Children.Add(stat3);
 
             var totalSum = last3Months.Sum(c => c.SumaZamowien);
             var stat4 = CreateStatBox("💰 Suma 3 mies.", $"{totalSum:N0} kg", Color.FromRgb(155, 89, 182));
             Grid.SetColumn(stat4, 3);
-            statsGrid.Children.Add(stat4);
+            summaryGrid.Children.Add(stat4);
 
-            statsBorder.Child = statsGrid;
+            statsBorder.Child = summaryGrid;
             mainStack.Children.Add(statsBorder);
 
             // === PRZYCISK ZAMKNIJ ===
