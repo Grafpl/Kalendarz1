@@ -2847,7 +2847,6 @@ namespace Kalendarz1.WPF
             // === STAN WIDOKU - można zmieniać dynamicznie ===
             int viewIndex = currentIndex;
             bool viewUseWydania = _uzywajWydan;
-            bool viewFilterBezZam = false;
 
             var dialog = new Window
             {
@@ -2919,22 +2918,26 @@ namespace Kalendarz1.WPF
 
                 // Nazwa i data z DatePicker
                 var titleStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-                titleStack.Children.Add(new TextBlock { Text = currentData.Kod, FontSize = 42, FontWeight = FontWeights.Bold, Foreground = Brushes.White });
 
-                var dateRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
-                dateRow.Children.Add(new TextBlock { Text = "📅 ", FontSize = 20, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)), VerticalAlignment = VerticalAlignment.Center });
+                var titleRow = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                titleRow.Children.Add(new TextBlock { Text = currentData.Kod, FontSize = 42, FontWeight = FontWeights.Bold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 30, 0) });
 
                 var datePicker = new DatePicker
                 {
                     SelectedDate = _selectedDate,
-                    FontSize = 22,
-                    Width = 180,
-                    Background = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
-                    Foreground = Brushes.White,
-                    BorderBrush = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
-                    BorderThickness = new Thickness(2),
+                    FontSize = 28,
+                    Width = 220,
+                    Height = 50,
+                    Padding = new Thickness(10, 5, 10, 5),
                     VerticalAlignment = VerticalAlignment.Center
                 };
+                // Style dla czarnego tła i białej czcionki
+                datePicker.Resources.Add(SystemColors.WindowBrushKey, new SolidColorBrush(Color.FromRgb(30, 30, 30)));
+                datePicker.Resources.Add(SystemColors.WindowTextBrushKey, Brushes.White);
+                datePicker.Background = new SolidColorBrush(Color.FromRgb(30, 30, 30));
+                datePicker.Foreground = Brushes.White;
+                datePicker.BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80));
+                datePicker.BorderThickness = new Thickness(2);
                 datePicker.SelectedDateChanged += async (s, e) =>
                 {
                     if (datePicker.SelectedDate.HasValue)
@@ -2948,22 +2951,26 @@ namespace Kalendarz1.WPF
                         }
                     }
                 };
-                dateRow.Children.Add(datePicker);
+                titleRow.Children.Add(datePicker);
 
                 if (_zakresDat)
                 {
-                    dateRow.Children.Add(new TextBlock { Text = " - ", FontSize = 20, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)), VerticalAlignment = VerticalAlignment.Center });
+                    titleRow.Children.Add(new TextBlock { Text = " - ", FontSize = 28, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 10, 0) });
                     var datePickerDo = new DatePicker
                     {
                         SelectedDate = _selectedDateDo,
-                        FontSize = 22,
-                        Width = 180,
-                        Background = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
-                        Foreground = Brushes.White,
-                        BorderBrush = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
-                        BorderThickness = new Thickness(2),
+                        FontSize = 28,
+                        Width = 220,
+                        Height = 50,
+                        Padding = new Thickness(10, 5, 10, 5),
                         VerticalAlignment = VerticalAlignment.Center
                     };
+                    datePickerDo.Resources.Add(SystemColors.WindowBrushKey, new SolidColorBrush(Color.FromRgb(30, 30, 30)));
+                    datePickerDo.Resources.Add(SystemColors.WindowTextBrushKey, Brushes.White);
+                    datePickerDo.Background = new SolidColorBrush(Color.FromRgb(30, 30, 30));
+                    datePickerDo.Foreground = Brushes.White;
+                    datePickerDo.BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80));
+                    datePickerDo.BorderThickness = new Thickness(2);
                     datePickerDo.SelectedDateChanged += async (s, e) =>
                     {
                         if (datePickerDo.SelectedDate.HasValue)
@@ -2977,11 +2984,10 @@ namespace Kalendarz1.WPF
                             }
                         }
                     };
-                    dateRow.Children.Add(datePickerDo);
+                    titleRow.Children.Add(datePickerDo);
                 }
 
-                dateRow.Children.Add(new TextBlock { Text = $"   •   {(viewUseWydania ? "WYDANIA" : "ZAMÓWIENIA")}", FontSize = 18, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)), VerticalAlignment = VerticalAlignment.Center });
-                titleStack.Children.Add(dateRow);
+                titleStack.Children.Add(titleRow);
                 Grid.SetColumn(titleStack, 1);
                 headerPanel.Children.Add(titleStack);
 
@@ -3031,9 +3037,9 @@ namespace Kalendarz1.WPF
                 controlStack.Children.Add(radioWyd);
                 controlStack.Children.Add(new Border { Width = 2, Height = 35, Background = new SolidColorBrush(Color.FromRgb(80, 90, 100)), Margin = new Thickness(0, 0, 25, 0) });
 
-                var checkWydBezZam = new CheckBox { Content = "Wydania bez zamówień", FontSize = 18, Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60)), VerticalAlignment = VerticalAlignment.Center, IsChecked = viewFilterBezZam };
-                checkWydBezZam.Checked += (s, e) => { viewFilterBezZam = true; refreshContent(); };
-                checkWydBezZam.Unchecked += (s, e) => { viewFilterBezZam = false; refreshContent(); };
+                var checkWydBezZam = new CheckBox { Content = "Wydania bez zamówień", FontSize = 18, Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60)), VerticalAlignment = VerticalAlignment.Center, IsChecked = _pokazWydaniaBezZamowien };
+                checkWydBezZam.Checked += async (s, e) => { _pokazWydaniaBezZamowien = true; await LoadDataAsync(); viewIndex = Math.Min(viewIndex, _productDataList.Count - 1); refreshContent(); };
+                checkWydBezZam.Unchecked += async (s, e) => { _pokazWydaniaBezZamowien = false; await LoadDataAsync(); viewIndex = Math.Min(viewIndex, _productDataList.Count - 1); refreshContent(); };
                 controlStack.Children.Add(checkWydBezZam);
                 controlPanel.Child = controlStack;
                 leftPanel.Children.Add(controlPanel);
@@ -3141,8 +3147,6 @@ namespace Kalendarz1.WPF
                 var rightScroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
                 var rightPanel = new StackPanel();
                 var odbiorcy = currentData.Odbiorcy.OrderByDescending(o => o.Zamowione + o.Wydane).ToList();
-                if (viewFilterBezZam)
-                    odbiorcy = odbiorcy.Where(o => o.Zamowione == 0 && o.Wydane > 0).ToList();
 
                 // Oblicz sumę dla % udziału
                 decimal sumaGlowna = viewUseWydania
