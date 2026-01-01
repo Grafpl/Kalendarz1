@@ -2359,6 +2359,9 @@ namespace Kalendarz1.WPF
 
         #region Data Loading
 
+        // Flaga do włączania/wyłączania diagnostyki czasów ładowania
+        private bool _showLoadingDiagnostics = true;
+
         private async Task RefreshAllDataAsync()
         {
             // Zapobiegaj równoległym wywołaniom
@@ -2368,6 +2371,8 @@ namespace Kalendarz1.WPF
             // Status bar - start
             UpdateStatus("Ładowanie danych...");
             var sw = System.Diagnostics.Stopwatch.StartNew();
+            var timings = new System.Text.StringBuilder();
+            var stepSw = new System.Diagnostics.Stopwatch();
 
             try
             {
@@ -2377,42 +2382,64 @@ namespace Kalendarz1.WPF
                 _dashboardLoaded = false;
                 _lastLoadedDate = _selectedDate;
 
-                // Najpierw załaduj konfigurację produktów i grupy towarowe
+                // 1. Konfiguracja produktów
+                stepSw.Restart();
                 await GetKonfiguracjaProduktowAsync(_selectedDate);
+                stepSw.Stop();
+                timings.AppendLine($"1. Konfiguracja produktów: {stepSw.ElapsedMilliseconds} ms");
 
-                // Ładuj TYLKO zamówienia i podsumowanie dnia - SYNCHRONICZNIE
-                // To zapewnia że oba ładują się razem przy kliknięciu daty
+                // 2. Ładowanie zamówień
+                stepSw.Restart();
                 await LoadOrdersForDayAsync(_selectedDate);
+                stepSw.Stop();
+                timings.AppendLine($"2. Ładowanie zamówień: {stepSw.ElapsedMilliseconds} ms");
+
+                // 3. Podsumowanie produktów
+                stepSw.Restart();
                 await DisplayProductAggregationAsync(_selectedDate);
+                stepSw.Stop();
+                timings.AppendLine($"3. Podsumowanie produktów: {stepSw.ElapsedMilliseconds} ms");
 
                 // NIE ładuj Transport, Historia, Dashboard w tle - lazy loading
                 // Te dane będą załadowane dopiero gdy użytkownik kliknie odpowiednią zakładkę
-                // To przyspiesza działanie programu
 
                 // Jeśli aktualnie wybrana jest zakładka Transport/Historia/Dashboard - załaduj dane
                 var selectedTab = tabOrders.SelectedItem as TabItem;
                 if (selectedTab?.Header?.ToString()?.Contains("Transport") == true)
                 {
+                    stepSw.Restart();
                     await LoadTransportForDayAsync(_selectedDate);
+                    stepSw.Stop();
+                    timings.AppendLine($"4. Transport: {stepSw.ElapsedMilliseconds} ms");
                     _transportLoaded = true;
                 }
                 else if (selectedTab?.Header?.ToString()?.Contains("Historia") == true)
                 {
+                    stepSw.Restart();
                     int delta = ((int)_selectedDate.DayOfWeek + 6) % 7;
                     DateTime startOfWeek = _selectedDate.AddDays(-delta);
                     DateTime endOfWeek = startOfWeek.AddDays(6);
                     await LoadHistoriaZmianAsync(startOfWeek, endOfWeek);
+                    stepSw.Stop();
+                    timings.AppendLine($"4. Historia zmian: {stepSw.ElapsedMilliseconds} ms");
                     _historiaLoaded = true;
                 }
                 else if (selectedTab == tabDashboard)
                 {
+                    stepSw.Restart();
                     await LoadDashboardDataAsync(_selectedDate);
+                    stepSw.Stop();
+                    timings.AppendLine($"4. Dashboard: {stepSw.ElapsedMilliseconds} ms");
                     _dashboardLoaded = true;
                 }
 
+                // 5. Szczegóły zamówienia
                 if (_currentOrderId.HasValue && _currentOrderId.Value > 0)
                 {
+                    stepSw.Restart();
                     await DisplayOrderDetailsAsync(_currentOrderId.Value);
+                    stepSw.Stop();
+                    timings.AppendLine($"5. Szczegóły zamówienia: {stepSw.ElapsedMilliseconds} ms");
                 }
                 else
                 {
@@ -2433,6 +2460,20 @@ namespace Kalendarz1.WPF
                 // Status bar - koniec
                 UpdateStatus($"Gotowy - załadowano w {sw.ElapsedMilliseconds}ms");
                 txtStatusTime.Text = $"Ostatnia aktualizacja: {DateTime.Now:HH:mm:ss}";
+
+                // Pokaż diagnostykę czasów ładowania
+                if (_showLoadingDiagnostics)
+                {
+                    timings.AppendLine($"\n══════════════════════");
+                    timings.AppendLine($"ŁĄCZNIE: {sw.ElapsedMilliseconds} ms");
+
+                    MessageBox.Show(timings.ToString(),
+                        $"Diagnostyka ładowania - {_selectedDate:dd.MM.yyyy}",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    // Wyłącz po pierwszym pokazaniu (aby nie irytować)
+                    _showLoadingDiagnostics = false;
+                }
             }
         }
 
