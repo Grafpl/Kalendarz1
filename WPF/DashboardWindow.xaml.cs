@@ -37,6 +37,9 @@ namespace Kalendarz1.WPF
         // Zapisane widoki
         private List<DashboardView> _savedViews = new();
 
+        // Cache zdjęć produktów: TowarId -> ImageSource
+        private Dictionary<int, BitmapImage?> _productImages = new();
+
         // Dane produktu do wyświetlenia
         private class ProductData
         {
@@ -316,6 +319,12 @@ namespace Kalendarz1.WPF
 
                 placeholderPanel.Visibility = Visibility.Collapsed;
                 ShowLoading();
+
+                // Załaduj zdjęcia produktów (jeśli jeszcze nie załadowane)
+                if (_productImages.Count == 0)
+                {
+                    await LoadProductImagesAsync();
+                }
 
                 _uzywajWydan = rbBilansWydania?.IsChecked == true;
 
@@ -1116,16 +1125,93 @@ namespace Kalendarz1.WPF
 
             var mainStack = new StackPanel { Margin = new Thickness(15, 12, 15, 12) };
 
-            // === NAGŁÓWEK - nazwa produktu ===
+            // === NAGŁÓWEK - zdjęcie + nazwa produktu + przycisk importu ===
+            var headerGrid = new Grid { Margin = new Thickness(0, 0, 0, 10) };
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Zdjęcie
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Nazwa
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Przycisk
+
+            // Miniaturka zdjęcia
+            var productImage = GetProductImage(data.Id);
+            var imageBorder = new Border
+            {
+                Width = 50,
+                Height = 50,
+                CornerRadius = new CornerRadius(6),
+                Background = new SolidColorBrush(Color.FromRgb(236, 240, 241)),
+                Margin = new Thickness(0, 0, 10, 0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = productImage != null ? "Kliknij aby zmienić zdjęcie" : "Kliknij aby dodać zdjęcie"
+            };
+
+            if (productImage != null)
+            {
+                // Użyj ImageBrush dla zaokrąglonych rogów
+                imageBorder.Background = new ImageBrush
+                {
+                    ImageSource = productImage,
+                    Stretch = Stretch.UniformToFill
+                };
+            }
+            else
+            {
+                // Placeholder - ikona aparatu
+                imageBorder.Child = new TextBlock
+                {
+                    Text = "📷",
+                    FontSize = 20,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166))
+                };
+            }
+
+            // Kliknięcie na zdjęcie - import
+            var dataCapture = data;
+            imageBorder.MouseLeftButtonUp += (s, e) =>
+            {
+                e.Handled = true;
+                ImportProductImage(dataCapture.Id, dataCapture.Kod);
+            };
+
+            Grid.SetColumn(imageBorder, 0);
+            headerGrid.Children.Add(imageBorder);
+
+            // Nazwa produktu
             var titleText = new TextBlock
             {
                 Text = $"[{data.Kod}]",
                 FontSize = 15,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
-                Margin = new Thickness(0, 0, 0, 12)
+                VerticalAlignment = VerticalAlignment.Center,
+                TextWrapping = TextWrapping.Wrap
             };
-            mainStack.Children.Add(titleText);
+            Grid.SetColumn(titleText, 1);
+            headerGrid.Children.Add(titleText);
+
+            // Przycisk importu zdjęcia (mały)
+            var btnImportImage = new Button
+            {
+                Content = "📷",
+                FontSize = 12,
+                Padding = new Thickness(6, 4, 6, 4),
+                Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = "Dodaj/zmień zdjęcie",
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            btnImportImage.Click += (s, e) =>
+            {
+                e.Handled = true;
+                ImportProductImage(dataCapture.Id, dataCapture.Kod);
+            };
+            Grid.SetColumn(btnImportImage, 2);
+            headerGrid.Children.Add(btnImportImage);
+
+            mainStack.Children.Add(headerGrid);
 
             // === WYKRES PLAN/FAKT ===
             decimal maxBarValue = Math.Max(Math.Max(data.Plan, data.Fakt), Math.Max(data.Zamowienia, 1));
@@ -2021,6 +2107,218 @@ namespace Kalendarz1.WPF
                 _selectedProductIds = view.ProductIds.ToList();
                 UpdateSelectedCount();
                 _ = LoadDataAsync();
+            }
+        }
+
+        #endregion
+
+        #region Obsługa zdjęć produktów
+
+        /// <summary>
+        /// Ładuje wszystkie zdjęcia produktów do cache
+        /// </summary>
+        private async System.Threading.Tasks.Task LoadProductImagesAsync()
+        {
+            try
+            {
+                _productImages.Clear();
+
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                const string sql = @"SELECT TowarId, Zdjecie FROM dbo.TowarZdjecia WHERE Aktywne = 1";
+                await using var cmd = new SqlCommand(sql, cn);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+
+                while (await rdr.ReadAsync())
+                {
+                    int towarId = rdr.GetInt32(0);
+                    if (!rdr.IsDBNull(1))
+                    {
+                        byte[] imageData = (byte[])rdr["Zdjecie"];
+                        var image = BytesToBitmapImage(imageData);
+                        _productImages[towarId] = image;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[LoadProductImages] Błąd: {ex.Message}");
+                // Ignoruj błąd - zdjęcia są opcjonalne
+            }
+        }
+
+        /// <summary>
+        /// Pobiera zdjęcie produktu z cache lub null jeśli brak
+        /// </summary>
+        private BitmapImage? GetProductImage(int towarId)
+        {
+            return _productImages.TryGetValue(towarId, out var img) ? img : null;
+        }
+
+        /// <summary>
+        /// Konwertuje bajty na BitmapImage
+        /// </summary>
+        private BitmapImage? BytesToBitmapImage(byte[] data)
+        {
+            if (data == null || data.Length == 0) return null;
+
+            try
+            {
+                var image = new BitmapImage();
+                using (var ms = new MemoryStream(data))
+                {
+                    image.BeginInit();
+                    image.CacheOption = BitmapCacheOption.OnLoad;
+                    image.StreamSource = ms;
+                    image.EndInit();
+                    image.Freeze();
+                }
+                return image;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Zapisuje zdjęcie produktu do bazy
+        /// </summary>
+        private async System.Threading.Tasks.Task SaveProductImageAsync(int towarId, string filePath)
+        {
+            try
+            {
+                byte[] imageData = await System.IO.File.ReadAllBytesAsync(filePath);
+                string fileName = System.IO.Path.GetFileName(filePath);
+                string extension = System.IO.Path.GetExtension(filePath).ToLowerInvariant();
+
+                string mimeType = extension switch
+                {
+                    ".jpg" or ".jpeg" => "image/jpeg",
+                    ".png" => "image/png",
+                    ".gif" => "image/gif",
+                    ".bmp" => "image/bmp",
+                    ".webp" => "image/webp",
+                    _ => "image/unknown"
+                };
+
+                // Pobierz wymiary obrazka
+                int width = 0, height = 0;
+                using (var ms = new MemoryStream(imageData))
+                {
+                    var decoder = BitmapDecoder.Create(ms, BitmapCreateOptions.IgnoreColorProfile, BitmapCacheOption.Default);
+                    if (decoder.Frames.Count > 0)
+                    {
+                        width = decoder.Frames[0].PixelWidth;
+                        height = decoder.Frames[0].PixelHeight;
+                    }
+                }
+
+                int sizeKB = imageData.Length / 1024;
+
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Sprawdź czy tabela istnieje
+                const string checkTable = @"IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'TowarZdjecia')
+                    CREATE TABLE dbo.TowarZdjecia (
+                        Id INT IDENTITY(1,1) PRIMARY KEY,
+                        TowarId INT NOT NULL,
+                        Zdjecie VARBINARY(MAX) NOT NULL,
+                        NazwaPliku NVARCHAR(255) NULL,
+                        TypMIME NVARCHAR(100) NULL,
+                        Szerokosc INT NULL,
+                        Wysokosc INT NULL,
+                        RozmiarKB INT NULL,
+                        DataDodania DATETIME DEFAULT GETDATE(),
+                        DodanyPrzez NVARCHAR(100) NULL,
+                        Aktywne BIT DEFAULT 1
+                    )";
+                await using (var cmdCheck = new SqlCommand(checkTable, cn))
+                {
+                    await cmdCheck.ExecuteNonQueryAsync();
+                }
+
+                // Dezaktywuj poprzednie zdjęcia
+                const string sqlDeactivate = @"UPDATE dbo.TowarZdjecia SET Aktywne = 0 WHERE TowarId = @TowarId";
+                await using (var cmdDe = new SqlCommand(sqlDeactivate, cn))
+                {
+                    cmdDe.Parameters.AddWithValue("@TowarId", towarId);
+                    await cmdDe.ExecuteNonQueryAsync();
+                }
+
+                // Dodaj nowe zdjęcie
+                const string sqlInsert = @"INSERT INTO dbo.TowarZdjecia
+                    (TowarId, Zdjecie, NazwaPliku, TypMIME, Szerokosc, Wysokosc, RozmiarKB, DodanyPrzez)
+                    VALUES (@TowarId, @Zdjecie, @NazwaPliku, @TypMIME, @Szerokosc, @Wysokosc, @RozmiarKB, @DodanyPrzez)";
+
+                await using var cmdIns = new SqlCommand(sqlInsert, cn);
+                cmdIns.Parameters.AddWithValue("@TowarId", towarId);
+                cmdIns.Parameters.AddWithValue("@Zdjecie", imageData);
+                cmdIns.Parameters.AddWithValue("@NazwaPliku", fileName);
+                cmdIns.Parameters.AddWithValue("@TypMIME", mimeType);
+                cmdIns.Parameters.AddWithValue("@Szerokosc", width);
+                cmdIns.Parameters.AddWithValue("@Wysokosc", height);
+                cmdIns.Parameters.AddWithValue("@RozmiarKB", sizeKB);
+                cmdIns.Parameters.AddWithValue("@DodanyPrzez", Environment.UserName);
+
+                await cmdIns.ExecuteNonQueryAsync();
+
+                // Zaktualizuj cache
+                _productImages[towarId] = BytesToBitmapImage(imageData);
+
+                MessageBox.Show($"Zdjęcie zostało zapisane!\n\nPlik: {fileName}\nRozmiar: {sizeKB} KB\nWymiary: {width}x{height}",
+                    "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas zapisywania zdjęcia:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Otwiera dialog wyboru pliku i importuje zdjęcie
+        /// </summary>
+        private async void ImportProductImage(int towarId, string productName)
+        {
+            var dialog = new OpenFileDialog
+            {
+                Title = $"Wybierz zdjęcie dla: {productName}",
+                Filter = "Obrazy|*.jpg;*.jpeg;*.png;*.gif;*.bmp;*.webp|Wszystkie pliki|*.*",
+                CheckFileExists = true
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                await SaveProductImageAsync(towarId, dialog.FileName);
+                // Odśwież widok
+                _ = LoadDataAsync();
+            }
+        }
+
+        /// <summary>
+        /// Usuwa zdjęcie produktu
+        /// </summary>
+        private async System.Threading.Tasks.Task DeleteProductImageAsync(int towarId)
+        {
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                const string sql = @"UPDATE dbo.TowarZdjecia SET Aktywne = 0 WHERE TowarId = @TowarId";
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@TowarId", towarId);
+                await cmd.ExecuteNonQueryAsync();
+
+                _productImages.Remove(towarId);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas usuwania zdjęcia:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
