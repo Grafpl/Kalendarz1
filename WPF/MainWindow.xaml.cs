@@ -46,6 +46,8 @@ namespace Kalendarz1.WPF
         private bool _isInitialized = false;
         private bool _showAnulowane = false;
         private bool _isRefreshing = false;
+        private List<(string name, long ms)> _lastLoadOrdersDiag = new();
+        private List<(string name, long ms)> _lastAggregationDiag = new();
         private System.Windows.Threading.DispatcherTimer _autoRefreshTimer;
 
         // PERFORMANCE: Debouncing dla filtrów - opóźnienie 300ms
@@ -2464,10 +2466,21 @@ namespace Kalendarz1.WPF
                 // Pokaż diagnostykę czasów ładowania
                 if (_showLoadingDiagnostics)
                 {
-                    timings.AppendLine($"\n══════════════════════");
-                    timings.AppendLine($"ŁĄCZNIE: {sw.ElapsedMilliseconds} ms");
+                    var details = new System.Text.StringBuilder();
+                    details.AppendLine("═══ ŁADOWANIE ZAMÓWIEŃ ═══");
+                    foreach (var t in _lastLoadOrdersDiag)
+                        details.AppendLine($"  {t.name}: {t.ms} ms");
+                    details.AppendLine($"  SUMA: {_lastLoadOrdersDiag.Sum(x => x.ms)} ms");
 
-                    MessageBox.Show(timings.ToString(),
+                    details.AppendLine("\n═══ PODSUMOWANIE PRODUKTÓW ═══");
+                    foreach (var t in _lastAggregationDiag)
+                        details.AppendLine($"  {t.name}: {t.ms} ms");
+                    details.AppendLine($"  SUMA: {_lastAggregationDiag.Sum(x => x.ms)} ms");
+
+                    details.AppendLine($"\n══════════════════════");
+                    details.AppendLine($"ŁĄCZNIE: {sw.ElapsedMilliseconds} ms");
+
+                    MessageBox.Show(details.ToString(),
                         $"Diagnostyka ładowania - {_selectedDate:dd.MM.yyyy}",
                         MessageBoxButton.OK, MessageBoxImage.Information);
 
@@ -2485,6 +2498,9 @@ namespace Kalendarz1.WPF
 
         private async Task LoadOrdersForDayAsync(DateTime day)
         {
+            var diagSw = System.Diagnostics.Stopwatch.StartNew();
+            var diagTimes = new List<(string name, long ms)>();
+
             day = ValidateSqlDate(day);
 
             // Wyczyść RowFilter przed modyfikacją kolumn, aby uniknąć NullReferenceException
@@ -2536,13 +2552,14 @@ namespace Kalendarz1.WPF
                 _dtOrders.Columns.Add(colName, typeof(decimal));
             }
 
+            diagSw.Restart();
             var contractors = new Dictionary<int, (string Name, string Salesman)>();
             await using (var cnHandel = new SqlConnection(_connHandel))
             {
                 await cnHandel.OpenAsync();
-                const string sqlContr = @"SELECT c.Id, c.Shortcut, wym.CDim_Handlowiec_Val 
-                                FROM [HANDEL].[SSCommon].[STContractors] c 
-                                LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] wym 
+                const string sqlContr = @"SELECT c.Id, c.Shortcut, wym.CDim_Handlowiec_Val
+                                FROM [HANDEL].[SSCommon].[STContractors] c
+                                LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] wym
                                 ON c.Id = wym.ElementId";
                 await using var cmdContr = new SqlCommand(sqlContr, cnHandel);
                 await using var rd = await cmdContr.ExecuteReaderAsync();
@@ -2555,9 +2572,11 @@ namespace Kalendarz1.WPF
                     contractors[id] = (string.IsNullOrWhiteSpace(shortcut) ? $"KH {id}" : shortcut, salesman);
                 }
             }
+            diagTimes.Add(("Kontrahenci", diagSw.ElapsedMilliseconds));
 
             int? selectedProductId = _selectedProductId;
 
+            diagSw.Restart();
             var temp = new DataTable();
             var clientsWithOrders = new HashSet<int>();
             _processedOrderIds.Clear();
@@ -2567,7 +2586,7 @@ namespace Kalendarz1.WPF
                 await cnLibra.OpenAsync();
                 string dateColumn = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
 
-                string sqlClients = $@"SELECT DISTINCT KlientId FROM [dbo].[ZamowieniaMieso] 
+                string sqlClients = $@"SELECT DISTINCT KlientId FROM [dbo].[ZamowieniaMieso]
                               WHERE {dateColumn} = @Day AND KlientId IS NOT NULL";
                 await using var cmdClients = new SqlCommand(sqlClients, cnLibra);
                 cmdClients.Parameters.AddWithValue("@Day", day);
@@ -2578,7 +2597,9 @@ namespace Kalendarz1.WPF
                     clientsWithOrders.Add(readerClients.GetInt32(0));
                 }
             }
+            diagTimes.Add(("KlienciZam", diagSw.ElapsedMilliseconds));
 
+            diagSw.Restart();
             if (_productCatalogCache.Keys.Any())
             {
                 await using (var cnLibra = new SqlConnection(_connLibra))
@@ -2619,7 +2640,9 @@ ORDER BY zm.Id";
                     da.Fill(temp);
                 }
             }
+            diagTimes.Add(("SQL Zamówienia", diagSw.ElapsedMilliseconds));
 
+            diagSw.Restart();
             // Load transport departure times from dbo.Kurs
             var transportTimes = new Dictionary<long, (TimeSpan? GodzWyjazdu, DateTime? DataKursu)>();
             var transportKursIds = new List<long>();
@@ -2653,14 +2676,21 @@ ORDER BY zm.Id";
                 }
                 catch { /* Ignore transport errors - show just checkmark */ }
             }
+            diagTimes.Add(("TransportKurs", diagSw.ElapsedMilliseconds));
 
+            diagSw.Restart();
             var releasesPerClientProduct = await GetReleasesPerClientProductAsync(day);
+            diagTimes.Add(("Wydania", diagSw.ElapsedMilliseconds));
+
+            diagSw.Restart();
             var transportInfo = await GetTransportInfoAsync(day);
+            diagTimes.Add(("TransportInfo", diagSw.ElapsedMilliseconds));
             var cultureInfo = new CultureInfo("pl-PL");
 
             // Polskie skróty miesięcy dla formatu "Sty 12 (Ania)"
             string[] polskieMiesiaceSkrot = { "", "Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru" };
 
+            diagSw.Restart();
             // Pobierz sumy per zamówienie per grupa towarowa
             var sumaPerZamowieniePerGrupa = new Dictionary<int, Dictionary<string, decimal>>();
             var anulowaneZamowieniaIds = new HashSet<int>(); // Śledzenie anulowanych zamówień
@@ -2705,7 +2735,9 @@ ORDER BY zm.Id";
                     }
                 }
             }
+            diagTimes.Add(("GrupyTowarowe", diagSw.ElapsedMilliseconds));
 
+            diagSw.Restart();
             decimal totalOrdered = 0m;
             decimal totalReleased = 0m;
             decimal totalPallets = 0m;
@@ -3057,6 +3089,10 @@ ORDER BY zm.Id";
 
                 _dtOrders.Rows.InsertAt(summaryRow, 0);
             }
+            diagTimes.Add(("Przetwarzanie", diagSw.ElapsedMilliseconds));
+
+            // Zapisz diagnostykę do zmiennej klasowej
+            _lastLoadOrdersDiag = diagTimes;
 
             SetupOrdersDataGrid();
             ApplyFilters();
@@ -4505,6 +4541,9 @@ ORDER BY zm.Id";
 
         private async Task DisplayProductAggregationAsync(DateTime day)
         {
+            var diagSw = System.Diagnostics.Stopwatch.StartNew();
+            var diagTimes = new List<(string name, long ms)>();
+
             day = ValidateSqlDate(day);
 
             var dtAgg = new DataTable();
@@ -4519,9 +4558,12 @@ ORDER BY zm.Id";
             // Określ czy bilans ma uwzględniać wydania czy zamówienia
             bool uzywajWydan = rbBilansWydania?.IsChecked == true;
 
+            diagSw.Restart();
             var (wspolczynnikTuszki, procentA, procentB) = await GetKonfiguracjaWydajnosciAsync(day);
             var konfiguracjaProduktow = await GetKonfiguracjaProduktowAsync(day);
+            diagTimes.Add(("Konfiguracja", diagSw.ElapsedMilliseconds));
 
+            diagSw.Restart();
             decimal totalMassDek = 0m;
             await using (var cn = new SqlConnection(_connLibra))
             {
@@ -4540,10 +4582,13 @@ ORDER BY zm.Id";
                 }
             }
 
+            diagTimes.Add(("Harmonogram", diagSw.ElapsedMilliseconds));
+
             decimal pulaTuszki = totalMassDek * (wspolczynnikTuszki / 100m);
             decimal pulaTuszkiA = pulaTuszki * (procentA / 100m);
             decimal pulaTuszkiB = pulaTuszki * (procentB / 100m);
 
+            diagSw.Restart();
             var actualIncomeTuszkaA = new Dictionary<int, decimal>();
             await using (var cn = new SqlConnection(_connHandel))
             {
@@ -4585,7 +4630,9 @@ ORDER BY zm.Id";
                     actualIncomeElementy[productId] = qty;
                 }
             }
+            diagTimes.Add(("PrzychodySql", diagSw.ElapsedMilliseconds));
 
+            diagSw.Restart();
             var orderSum = new Dictionary<int, decimal>();
             var orderIds = _dtOrders.AsEnumerable()
                 .Where(r => !string.Equals(r.Field<string>("Status"), "Anulowane", StringComparison.OrdinalIgnoreCase))
@@ -4606,7 +4653,9 @@ ORDER BY zm.Id";
                 while (await reader.ReadAsync())
                     orderSum[reader.GetInt32(0)] = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
             }
+            diagTimes.Add(("ZamówieniaSql", diagSw.ElapsedMilliseconds));
 
+            diagSw.Restart();
             // ✅ POBIERZ WYDANIA (WZ)
             var wydaniaSum = new Dictionary<int, decimal>();
             await using (var cn = new SqlConnection(_connHandel))
@@ -4656,7 +4705,9 @@ ORDER BY zm.Id";
             {
                 // Tabela może nie istnieć jeszcze - ignoruj błąd
             }
+            diagTimes.Add(("WydaniaStany", diagSw.ElapsedMilliseconds));
 
+            diagSw.Restart();
             var kurczakA = _productCatalogCache.FirstOrDefault(p =>
                 p.Value.Contains("Kurczak A", StringComparison.OrdinalIgnoreCase));
 
@@ -4900,6 +4951,9 @@ ORDER BY zm.Id";
 
             // Wypełnij dashboard dostępności produktów dla handlowców
             PopulateDostepnoscProduktow(dtAgg);
+
+            diagTimes.Add(("Agregacja", diagSw.ElapsedMilliseconds));
+            _lastAggregationDiag = diagTimes;
         }
         private void DgAggregation_LoadingRow(object sender, DataGridRowEventArgs e)
         {
