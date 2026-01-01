@@ -2970,6 +2970,77 @@ namespace Kalendarz1.WPF
             // === LEWA STRONA ===
             var leftPanel = new StackPanel();
 
+            // === PANEL KONTROLI - RADIO BUTTONS I CHECKBOX ===
+            var controlPanel = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(30, 40, 50)),
+                CornerRadius = new CornerRadius(12),
+                Padding = new Thickness(25, 18, 25, 18),
+                Margin = new Thickness(0, 0, 0, 20)
+            };
+            var controlStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+
+            // Tekst "Rozliczenie:"
+            controlStack.Children.Add(new TextBlock
+            {
+                Text = "ROZLICZENIE: ",
+                FontSize = 22,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 20, 0)
+            });
+
+            // Radio button ZAMÓWIENIA
+            var radioZam = new RadioButton
+            {
+                Content = "ZAMÓWIENIA",
+                FontSize = 22,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(230, 126, 34)),
+                IsChecked = !_uzywajWydan,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 30, 0)
+            };
+
+            // Radio button WYDANIA
+            var radioWyd = new RadioButton
+            {
+                Content = "WYDANIA",
+                FontSize = 22,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(192, 57, 43)),
+                IsChecked = _uzywajWydan,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 40, 0)
+            };
+
+            controlStack.Children.Add(radioZam);
+            controlStack.Children.Add(radioWyd);
+
+            // Separator
+            controlStack.Children.Add(new Border
+            {
+                Width = 2,
+                Height = 35,
+                Background = new SolidColorBrush(Color.FromRgb(80, 90, 100)),
+                Margin = new Thickness(0, 0, 25, 0)
+            });
+
+            // Checkbox wydania bez zamówień
+            var checkWydBezZam = new CheckBox
+            {
+                Content = "Tylko wydania bez zamówień",
+                FontSize = 18,
+                Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60)),
+                VerticalAlignment = VerticalAlignment.Center,
+                IsChecked = false
+            };
+            controlStack.Children.Add(checkWydBezZam);
+
+            controlPanel.Child = controlStack;
+            leftPanel.Children.Add(controlPanel);
+
             // Formuła bilansu
             var formulaBorder = new Border
             {
@@ -2981,14 +3052,14 @@ namespace Kalendarz1.WPF
             };
             var formulaPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
 
-            // PLAN lub FAKT (przekreślony PLAN gdy FAKT > 0)
+            // PLAN lub FAKT (przekreślony PLAN gdy FAKT > 0) - większe czcionki
             if (uzyjFakt)
             {
                 // Plan przekreślony
                 var planCrossed = new TextBlock
                 {
                     Text = $"PLAN {data.Plan:N0}",
-                    FontSize = 18,
+                    FontSize = 22,
                     Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)),
                     TextDecorations = TextDecorations.Strikethrough,
                     VerticalAlignment = VerticalAlignment.Center,
@@ -3000,7 +3071,7 @@ namespace Kalendarz1.WPF
                 formulaPanel.Children.Add(new TextBlock
                 {
                     Text = $"FAKT {data.Fakt:N0}",
-                    FontSize = 24,
+                    FontSize = 30,
                     FontWeight = FontWeights.Bold,
                     Foreground = new SolidColorBrush(Color.FromRgb(155, 89, 182)),
                     VerticalAlignment = VerticalAlignment.Center
@@ -3011,36 +3082,36 @@ namespace Kalendarz1.WPF
                 formulaPanel.Children.Add(new TextBlock
                 {
                     Text = $"PLAN {data.Plan:N0}",
-                    FontSize = 24,
+                    FontSize = 30,
                     FontWeight = FontWeights.Bold,
                     Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
                     VerticalAlignment = VerticalAlignment.Center
                 });
             }
 
-            formulaPanel.Children.Add(new TextBlock { Text = "  +  ", FontSize = 24, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
+            formulaPanel.Children.Add(new TextBlock { Text = "  +  ", FontSize = 30, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
             formulaPanel.Children.Add(new TextBlock
             {
                 Text = $"STAN {data.Stan:N0}",
-                FontSize = 24,
+                FontSize = 30,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(Color.FromRgb(26, 188, 156)),
                 VerticalAlignment = VerticalAlignment.Center
             });
-            formulaPanel.Children.Add(new TextBlock { Text = "  −  ", FontSize = 24, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
+            formulaPanel.Children.Add(new TextBlock { Text = "  −  ", FontSize = 30, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
             formulaPanel.Children.Add(new TextBlock
             {
                 Text = _uzywajWydan ? $"WYD {data.Wydania:N0}" : $"ZAM {data.Zamowienia:N0}",
-                FontSize = 24,
+                FontSize = 30,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(_uzywajWydan ? Color.FromRgb(192, 57, 43) : Color.FromRgb(230, 126, 34)),
                 VerticalAlignment = VerticalAlignment.Center
             });
-            formulaPanel.Children.Add(new TextBlock { Text = "  =  ", FontSize = 24, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
+            formulaPanel.Children.Add(new TextBlock { Text = "  =  ", FontSize = 30, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
             formulaPanel.Children.Add(new TextBlock
             {
                 Text = $"{bilans:N0}",
-                FontSize = 28,
+                FontSize = 36,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60)),
                 VerticalAlignment = VerticalAlignment.Center
@@ -3072,7 +3143,7 @@ namespace Kalendarz1.WPF
                 Margin = new Thickness(0, 0, 0, 15)
             });
 
-            // Duży pasek postępu
+            // Duży pasek postępu z prawidłowym obliczeniem szerokości
             Color barColor = procentRealizacji >= _progZielony ? Color.FromRgb(39, 174, 96) :
                              procentRealizacji >= _progZolty ? Color.FromRgb(241, 196, 15) :
                              Color.FromRgb(231, 76, 60);
@@ -3081,21 +3152,49 @@ namespace Kalendarz1.WPF
             {
                 Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)),
                 CornerRadius = new CornerRadius(20),
-                Height = 60
+                Height = 70
             };
             var progressGrid = new Grid();
-            progressGrid.Children.Add(new Border
+
+            // Pasek wypełnienia - używamy kolumn Grid dla prawidłowego skalowania
+            var progressFillGrid = new Grid();
+            progressFillGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max((double)procentRealizacji, 0.1), GridUnitType.Star) });
+            progressFillGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(100 - (double)procentRealizacji, 0.1), GridUnitType.Star) });
+
+            var progressFill = new Border
             {
                 Background = new SolidColorBrush(barColor),
-                CornerRadius = new CornerRadius(20),
-                HorizontalAlignment = HorizontalAlignment.Left,
-                Width = Math.Max((double)procentRealizacji * 5, procentRealizacji > 0 ? 20 : 0)
+                CornerRadius = new CornerRadius(20, procentRealizacji >= 100 ? 20 : 0, procentRealizacji >= 100 ? 20 : 0, 20)
+            };
+            Grid.SetColumn(progressFill, 0);
+            progressFillGrid.Children.Add(progressFill);
+            progressGrid.Children.Add(progressFillGrid);
+
+            // MARKER CEL (100%) - pionowa linia pokazująca cel
+            var celMarkerContainer = new Grid();
+            celMarkerContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100, GridUnitType.Star) });
+            celMarkerContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            celMarkerContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0.1, GridUnitType.Star) });
+
+            var celMarker = new StackPanel { HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Stretch };
+            // Linia markera
+            celMarker.Children.Add(new Border
+            {
+                Width = 4,
+                Background = Brushes.White,
+                VerticalAlignment = VerticalAlignment.Stretch,
+                Height = 70,
+                Margin = new Thickness(0, 0, 0, 0)
             });
-            // Tekst na pasku
+            Grid.SetColumn(celMarker, 0);
+            celMarkerContainer.Children.Add(celMarker);
+            progressGrid.Children.Add(celMarkerContainer);
+
+            // Tekst na pasku - większa czcionka
             progressGrid.Children.Add(new TextBlock
             {
                 Text = $"{procentRealizacji:N0}%",
-                FontSize = 28,
+                FontSize = 36,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White,
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -3103,6 +3202,30 @@ namespace Kalendarz1.WPF
             });
             bigProgressBg.Child = progressGrid;
             progressMainStack.Children.Add(bigProgressBg);
+
+            // Etykiety pod paskiem - CEL marker
+            var markerLabelsGrid = new Grid { Margin = new Thickness(0, 5, 0, 0) };
+            markerLabelsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            markerLabelsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            markerLabelsGrid.Children.Add(new TextBlock
+            {
+                Text = "0 kg",
+                FontSize = 16,
+                Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
+                HorizontalAlignment = HorizontalAlignment.Left
+            });
+            var celLabelText = new TextBlock
+            {
+                Text = $"CEL: {cel:N0} kg",
+                FontSize = 18,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+            Grid.SetColumn(celLabelText, 1);
+            markerLabelsGrid.Children.Add(celLabelText);
+            progressMainStack.Children.Add(markerLabelsGrid);
 
             // Wartości pod paskiem
             var valuesGrid = new Grid { Margin = new Thickness(0, 15, 0, 0) };
@@ -3142,65 +3265,57 @@ namespace Kalendarz1.WPF
             rightPanel.Children.Add(new TextBlock
             {
                 Text = $"👥 ODBIORCY ({wszyscyOdbiorcy.Count})",
-                FontSize = 28,
+                FontSize = 36,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White,
                 Margin = new Thickness(0, 0, 0, 20)
             });
 
-            // Nagłówek kolumn
+            // Nagłówek kolumn - bez STATUS, większe czcionki
             var headerRow = new Grid { Margin = new Thickness(0, 0, 0, 10) };
             headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
-            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
-            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
 
-            var h1 = new TextBlock { Text = "ODBIORCA", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)) };
+            var h1 = new TextBlock { Text = "ODBIORCA", FontSize = 22, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)) };
             Grid.SetColumn(h1, 0);
             headerRow.Children.Add(h1);
 
-            var h2 = new TextBlock { Text = "ZAM", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(230, 126, 34)), HorizontalAlignment = HorizontalAlignment.Right };
+            var h2 = new TextBlock { Text = "ZAMÓWIONE", FontSize = 22, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(230, 126, 34)), HorizontalAlignment = HorizontalAlignment.Right };
             Grid.SetColumn(h2, 1);
             headerRow.Children.Add(h2);
 
-            var h3 = new TextBlock { Text = "WYD", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(192, 57, 43)), HorizontalAlignment = HorizontalAlignment.Right };
+            var h3 = new TextBlock { Text = "WYDANE", FontSize = 22, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(192, 57, 43)), HorizontalAlignment = HorizontalAlignment.Right };
             Grid.SetColumn(h3, 2);
             headerRow.Children.Add(h3);
-
-            var h4 = new TextBlock { Text = "STATUS", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)), HorizontalAlignment = HorizontalAlignment.Right };
-            Grid.SetColumn(h4, 3);
-            headerRow.Children.Add(h4);
 
             rightPanel.Children.Add(headerRow);
 
             // Separator
             rightPanel.Children.Add(new Border { Height = 2, Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)), Margin = new Thickness(0, 0, 0, 10) });
 
-            // Wszyscy odbiorcy
+            // Wszyscy odbiorcy - bez STATUS, większe czcionki
             foreach (var odb in wszyscyOdbiorcy)
             {
-                bool maZamowienie = odb.Zamowione > 0;
                 bool bezZamowienia = odb.Zamowione == 0 && odb.Wydane > 0;
-                decimal realizacja = odb.Zamowione > 0 ? (odb.Wydane / odb.Zamowione) * 100 : 0;
 
                 var row = new Border
                 {
                     Background = bezZamowienia ? new SolidColorBrush(Color.FromRgb(60, 35, 35)) : Brushes.Transparent,
-                    CornerRadius = new CornerRadius(6),
-                    Padding = new Thickness(8, 6, 8, 6),
-                    Margin = new Thickness(0, 2, 0, 2)
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(12, 10, 12, 10),
+                    Margin = new Thickness(0, 3, 0, 3)
                 };
 
                 var rowGrid = new Grid();
                 rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
-                rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
-                rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+                rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
+                rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
 
                 var name = new TextBlock
                 {
                     Text = odb.NazwaOdbiorcy,
-                    FontSize = 18,
+                    FontSize = 24,
                     Foreground = Brushes.White,
                     TextTrimming = TextTrimming.CharacterEllipsis,
                     VerticalAlignment = VerticalAlignment.Center
@@ -3211,7 +3326,7 @@ namespace Kalendarz1.WPF
                 var zam = new TextBlock
                 {
                     Text = odb.Zamowione > 0 ? $"{odb.Zamowione:N0}" : "-",
-                    FontSize = 20,
+                    FontSize = 26,
                     FontWeight = FontWeights.Bold,
                     Foreground = new SolidColorBrush(Color.FromRgb(230, 126, 34)),
                     HorizontalAlignment = HorizontalAlignment.Right,
@@ -3223,7 +3338,7 @@ namespace Kalendarz1.WPF
                 var wyd = new TextBlock
                 {
                     Text = odb.Wydane > 0 ? $"{odb.Wydane:N0}" : "-",
-                    FontSize = 20,
+                    FontSize = 26,
                     FontWeight = FontWeights.Bold,
                     Foreground = new SolidColorBrush(Color.FromRgb(192, 57, 43)),
                     HorizontalAlignment = HorizontalAlignment.Right,
@@ -3231,41 +3346,6 @@ namespace Kalendarz1.WPF
                 };
                 Grid.SetColumn(wyd, 2);
                 rowGrid.Children.Add(wyd);
-
-                string statusText;
-                Color statusColor;
-                if (bezZamowienia)
-                {
-                    statusText = "⚠️";
-                    statusColor = Color.FromRgb(231, 76, 60);
-                }
-                else if (realizacja >= 100)
-                {
-                    statusText = "✅";
-                    statusColor = Color.FromRgb(39, 174, 96);
-                }
-                else if (realizacja > 0)
-                {
-                    statusText = $"{realizacja:N0}%";
-                    statusColor = Color.FromRgb(241, 196, 15);
-                }
-                else
-                {
-                    statusText = "⏳";
-                    statusColor = Color.FromRgb(52, 152, 219);
-                }
-
-                var status = new TextBlock
-                {
-                    Text = statusText,
-                    FontSize = 20,
-                    FontWeight = FontWeights.Bold,
-                    Foreground = new SolidColorBrush(statusColor),
-                    HorizontalAlignment = HorizontalAlignment.Right,
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                Grid.SetColumn(status, 3);
-                rowGrid.Children.Add(status);
 
                 row.Child = rowGrid;
                 rightPanel.Children.Add(row);
@@ -3303,7 +3383,7 @@ namespace Kalendarz1.WPF
         }
 
         /// <summary>
-        /// Tworzy box z wartością dla widoku prezentacyjnego
+        /// Tworzy box z wartością dla widoku prezentacyjnego - większe czcionki
         /// </summary>
         private StackPanel CreateValueBox(string label, string value, Color color)
         {
@@ -3311,14 +3391,14 @@ namespace Kalendarz1.WPF
             stack.Children.Add(new TextBlock
             {
                 Text = label,
-                FontSize = 14,
+                FontSize = 20,
                 Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
                 HorizontalAlignment = HorizontalAlignment.Center
             });
             stack.Children.Add(new TextBlock
             {
                 Text = value,
-                FontSize = 24,
+                FontSize = 32,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(color),
                 HorizontalAlignment = HorizontalAlignment.Center
