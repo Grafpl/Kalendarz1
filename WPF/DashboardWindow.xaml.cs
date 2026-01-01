@@ -1113,6 +1113,26 @@ namespace Kalendarz1.WPF
                 Tag = data // Przechowuj dane produktu
             };
 
+            // Menu kontekstowe (prawy przycisk myszy)
+            var contextMenu = new ContextMenu();
+
+            var menuAddPhoto = new MenuItem { Header = "📷 Dodaj/zmień zdjęcie" };
+            var dataForMenu = data;
+            menuAddPhoto.Click += (s, e) => ImportProductImage(dataForMenu.Id, dataForMenu.Kod);
+            contextMenu.Items.Add(menuAddPhoto);
+
+            var menuDeletePhoto = new MenuItem { Header = "🗑 Usuń zdjęcie" };
+            menuDeletePhoto.Click += async (s, e) => await DeleteProductImageWithRefresh(dataForMenu.Id);
+            contextMenu.Items.Add(menuDeletePhoto);
+
+            contextMenu.Items.Add(new Separator());
+
+            var menuExpand = new MenuItem { Header = "🔍 Powiększ kartę (szczegóły)" };
+            menuExpand.Click += (s, e) => ShowExpandedProductCard(dataForMenu);
+            contextMenu.Items.Add(menuExpand);
+
+            card.ContextMenu = contextMenu;
+
             // Kliknięcie na kartę - pokaż szczegóły
             card.MouseLeftButtonUp += (s, e) =>
             {
@@ -2366,6 +2386,21 @@ namespace Kalendarz1.WPF
             }
         }
 
+        /// <summary>
+        /// Usuwa zdjęcie i odświeża widok
+        /// </summary>
+        private async System.Threading.Tasks.Task DeleteProductImageWithRefresh(int towarId)
+        {
+            var result = MessageBox.Show("Czy na pewno chcesz usunąć zdjęcie tego produktu?",
+                "Potwierdzenie", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                await DeleteProductImageAsync(towarId);
+                await LoadDataAsync();
+            }
+        }
+
         #endregion
 
         #region Kolejność produktów
@@ -2641,6 +2676,415 @@ namespace Kalendarz1.WPF
             mainGrid.Children.Add(buttonPanel);
 
             dialog.Content = mainGrid;
+            dialog.ShowDialog();
+        }
+
+        #endregion
+
+        #region Powiększona karta produktu
+
+        /// <summary>
+        /// Wyświetla powiększoną kartę produktu z wykresami
+        /// </summary>
+        private void ShowExpandedProductCard(ProductData data)
+        {
+            var dialog = new Window
+            {
+                Title = $"Szczegóły produktu: [{data.Kod}]",
+                Width = 900,
+                Height = 700,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush(Color.FromRgb(240, 242, 245)),
+                ResizeMode = ResizeMode.CanResize
+            };
+
+            var mainScroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var mainStack = new StackPanel { Margin = new Thickness(20) };
+
+            // === NAGŁÓWEK Z ZDJĘCIEM ===
+            var headerBorder = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                CornerRadius = new CornerRadius(12),
+                Padding = new Thickness(20),
+                Margin = new Thickness(0, 0, 0, 15)
+            };
+
+            var headerGrid = new Grid();
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            // Duże zdjęcie produktu
+            var productImage = GetProductImage(data.Id);
+            var imageBorder = new Border
+            {
+                Width = 120,
+                Height = 120,
+                CornerRadius = new CornerRadius(12),
+                Background = productImage != null
+                    ? (Brush)new ImageBrush { ImageSource = productImage, Stretch = Stretch.UniformToFill }
+                    : new SolidColorBrush(Color.FromRgb(52, 73, 94)),
+                Margin = new Thickness(0, 0, 20, 0)
+            };
+            if (productImage == null)
+            {
+                imageBorder.Child = new TextBlock
+                {
+                    Text = "📷",
+                    FontSize = 40,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166))
+                };
+            }
+            Grid.SetColumn(imageBorder, 0);
+            headerGrid.Children.Add(imageBorder);
+
+            // Nazwa i kod produktu
+            var titleStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            titleStack.Children.Add(new TextBlock
+            {
+                Text = data.Kod,
+                FontSize = 28,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White
+            });
+            titleStack.Children.Add(new TextBlock
+            {
+                Text = data.Nazwa,
+                FontSize = 14,
+                Foreground = new SolidColorBrush(Color.FromRgb(189, 195, 199)),
+                Margin = new Thickness(0, 5, 0, 0),
+                TextWrapping = TextWrapping.Wrap
+            });
+            Grid.SetColumn(titleStack, 1);
+            headerGrid.Children.Add(titleStack);
+
+            // Bilans - duży
+            var bilansBorder = new Border
+            {
+                Background = new SolidColorBrush(data.Bilans >= 0
+                    ? Color.FromRgb(39, 174, 96)
+                    : Color.FromRgb(231, 76, 60)),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(20, 10, 20, 10),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var bilansStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+            bilansStack.Children.Add(new TextBlock
+            {
+                Text = "BILANS",
+                FontSize = 11,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center
+            });
+            bilansStack.Children.Add(new TextBlock
+            {
+                Text = $"{data.Bilans:N0}",
+                FontSize = 32,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center
+            });
+            bilansBorder.Child = bilansStack;
+            Grid.SetColumn(bilansBorder, 2);
+            headerGrid.Children.Add(bilansBorder);
+
+            headerBorder.Child = headerGrid;
+            mainStack.Children.Add(headerBorder);
+
+            // === STATYSTYKI W KAFELKACH ===
+            var statsGrid = new Grid { Margin = new Thickness(0, 0, 0, 15) };
+            for (int i = 0; i < 5; i++)
+                statsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var stats = new[]
+            {
+                ("Plan", data.Plan, "#3498DB"),
+                ("Fakt", data.Fakt, "#9B59B6"),
+                ("Stan", data.Stan, "#1ABC9C"),
+                ("Zamówienia", data.Zamowienia, "#E67E22"),
+                ("Wydania", data.Wydania, "#E74C3C")
+            };
+
+            for (int i = 0; i < stats.Length; i++)
+            {
+                var (label, value, color) = stats[i];
+                var statBorder = new Border
+                {
+                    Background = Brushes.White,
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(15, 12, 15, 12),
+                    Margin = new Thickness(i == 0 ? 0 : 5, 0, i == 4 ? 0 : 5, 0),
+                    Effect = new System.Windows.Media.Effects.DropShadowEffect
+                    {
+                        ShadowDepth = 1,
+                        Opacity = 0.1,
+                        BlurRadius = 5
+                    }
+                };
+
+                var statStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+                statStack.Children.Add(new TextBlock
+                {
+                    Text = label.ToUpper(),
+                    FontSize = 10,
+                    Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)),
+                    HorizontalAlignment = HorizontalAlignment.Center
+                });
+                statStack.Children.Add(new TextBlock
+                {
+                    Text = $"{value:N0}",
+                    FontSize = 22,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = (Brush)new BrushConverter().ConvertFromString(color)!,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                });
+                statBorder.Child = statStack;
+
+                Grid.SetColumn(statBorder, i);
+                statsGrid.Children.Add(statBorder);
+            }
+            mainStack.Children.Add(statsGrid);
+
+            // === PASEK POSTĘPU - DUŻY ===
+            var progressBorder = new Border
+            {
+                Background = Brushes.White,
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(20),
+                Margin = new Thickness(0, 0, 0, 15),
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    ShadowDepth = 1,
+                    Opacity = 0.1,
+                    BlurRadius = 5
+                }
+            };
+
+            var progressStack = new StackPanel();
+            decimal baza = data.UzytoFakt ? data.Fakt : data.Plan;
+            decimal procent = baza > 0 ? (data.Zamowienia / baza) * 100m : 0m;
+            procent = Math.Min(procent, 100m);
+
+            var progressHeader = new Grid();
+            progressHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            progressHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var progressTitle = new TextBlock
+            {
+                Text = $"Realizacja zamówień ({(data.UzytoFakt ? "wg Fakt" : "wg Plan")})",
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold
+            };
+            Grid.SetColumn(progressTitle, 0);
+            progressHeader.Children.Add(progressTitle);
+
+            var progressValue = new TextBlock
+            {
+                Text = $"{procent:N1}%",
+                FontSize = 20,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(
+                    procent >= (decimal)_greenThreshold ? Color.FromRgb(39, 174, 96) :
+                    procent >= (decimal)_yellowThreshold ? Color.FromRgb(241, 196, 15) :
+                    Color.FromRgb(231, 76, 60))
+            };
+            Grid.SetColumn(progressValue, 1);
+            progressHeader.Children.Add(progressValue);
+
+            progressStack.Children.Add(progressHeader);
+
+            // Duży pasek
+            var progressBarBorder = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(236, 240, 241)),
+                CornerRadius = new CornerRadius(10),
+                Height = 30,
+                Margin = new Thickness(0, 10, 0, 5)
+            };
+
+            var progressBarFill = new Border
+            {
+                Background = new SolidColorBrush(
+                    procent >= (decimal)_greenThreshold ? Color.FromRgb(39, 174, 96) :
+                    procent >= (decimal)_yellowThreshold ? Color.FromRgb(241, 196, 15) :
+                    Color.FromRgb(231, 76, 60)),
+                CornerRadius = new CornerRadius(10),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Width = 0
+            };
+
+            progressBarBorder.Child = progressBarFill;
+            progressStack.Children.Add(progressBarBorder);
+
+            // Opis pod paskiem
+            progressStack.Children.Add(new TextBlock
+            {
+                Text = $"Zamówienia: {data.Zamowienia:N0} z {baza:N0} kg",
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141))
+            });
+
+            progressBorder.Child = progressStack;
+            mainStack.Children.Add(progressBorder);
+
+            // === LISTA ODBIORCÓW ===
+            if (data.Odbiorcy.Any())
+            {
+                var odbiorcyBorder = new Border
+                {
+                    Background = Brushes.White,
+                    CornerRadius = new CornerRadius(10),
+                    Padding = new Thickness(20),
+                    Effect = new System.Windows.Media.Effects.DropShadowEffect
+                    {
+                        ShadowDepth = 1,
+                        Opacity = 0.1,
+                        BlurRadius = 5
+                    }
+                };
+
+                var odbiorcyStack = new StackPanel();
+                odbiorcyStack.Children.Add(new TextBlock
+                {
+                    Text = $"ODBIORCY ({data.Odbiorcy.Count})",
+                    FontSize = 14,
+                    FontWeight = FontWeights.SemiBold,
+                    Margin = new Thickness(0, 0, 0, 15)
+                });
+
+                // Nagłówek tabeli
+                var headerRow = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
+
+                var headers = new[] { "Nazwa odbiorcy", "Zamówione", "Wydane", "Udział %", "Realizacja" };
+                for (int i = 0; i < headers.Length; i++)
+                {
+                    var txt = new TextBlock
+                    {
+                        Text = headers[i],
+                        FontSize = 11,
+                        FontWeight = FontWeights.SemiBold,
+                        Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141))
+                    };
+                    Grid.SetColumn(txt, i);
+                    headerRow.Children.Add(txt);
+                }
+                odbiorcyStack.Children.Add(headerRow);
+                odbiorcyStack.Children.Add(new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(236, 240, 241)),
+                    Height = 1,
+                    Margin = new Thickness(0, 0, 0, 5)
+                });
+
+                // Wiersze odbiorców
+                foreach (var odbiorca in data.Odbiorcy.OrderByDescending(o => o.Zamowione))
+                {
+                    var row = new Grid { Margin = new Thickness(0, 4, 0, 4) };
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
+
+                    var nameText = new TextBlock
+                    {
+                        Text = odbiorca.NazwaOdbiorcy,
+                        FontSize = 12,
+                        TextTrimming = TextTrimming.CharacterEllipsis,
+                        ToolTip = odbiorca.NazwaOdbiorcy
+                    };
+                    Grid.SetColumn(nameText, 0);
+                    row.Children.Add(nameText);
+
+                    var zamText = new TextBlock { Text = $"{odbiorca.Zamowione:N0}", FontSize = 12, FontWeight = FontWeights.SemiBold };
+                    Grid.SetColumn(zamText, 1);
+                    row.Children.Add(zamText);
+
+                    var wydText = new TextBlock { Text = $"{odbiorca.Wydane:N0}", FontSize = 12 };
+                    Grid.SetColumn(wydText, 2);
+                    row.Children.Add(wydText);
+
+                    var udzialText = new TextBlock
+                    {
+                        Text = $"{odbiorca.ProcentUdzial:N1}%",
+                        FontSize = 12,
+                        Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219))
+                    };
+                    Grid.SetColumn(udzialText, 3);
+                    row.Children.Add(udzialText);
+
+                    // Mini pasek realizacji
+                    decimal realizacja = odbiorca.Zamowione > 0 ? (odbiorca.Wydane / odbiorca.Zamowione) * 100m : 0m;
+                    var miniBarBorder = new Border
+                    {
+                        Background = new SolidColorBrush(Color.FromRgb(236, 240, 241)),
+                        CornerRadius = new CornerRadius(3),
+                        Height = 8,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    var miniBarFill = new Border
+                    {
+                        Background = new SolidColorBrush(
+                            realizacja >= 100 ? Color.FromRgb(39, 174, 96) :
+                            realizacja >= 50 ? Color.FromRgb(241, 196, 15) :
+                            Color.FromRgb(231, 76, 60)),
+                        CornerRadius = new CornerRadius(3),
+                        HorizontalAlignment = HorizontalAlignment.Left,
+                        Width = Math.Min((double)realizacja, 100) * 1.5
+                    };
+                    miniBarBorder.Child = miniBarFill;
+                    Grid.SetColumn(miniBarBorder, 4);
+                    row.Children.Add(miniBarBorder);
+
+                    odbiorcyStack.Children.Add(row);
+                }
+
+                odbiorcyBorder.Child = odbiorcyStack;
+                mainStack.Children.Add(odbiorcyBorder);
+            }
+
+            // === PRZYCISK ZAMKNIJ ===
+            var closeBtn = new Button
+            {
+                Content = "Zamknij",
+                Padding = new Thickness(30, 12, 30, 12),
+                Margin = new Thickness(0, 15, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Background = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                FontSize = 14,
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            closeBtn.Click += (s, e) => dialog.Close();
+            mainStack.Children.Add(closeBtn);
+
+            mainScroll.Content = mainStack;
+            dialog.Content = mainScroll;
+
+            // Animacja paska po załadowaniu
+            dialog.Loaded += (s, e) =>
+            {
+                var targetWidth = (double)procent / 100.0 * (progressBarBorder.ActualWidth > 0 ? progressBarBorder.ActualWidth : 400);
+                var animation = new System.Windows.Media.Animation.DoubleAnimation
+                {
+                    From = 0,
+                    To = targetWidth,
+                    Duration = TimeSpan.FromMilliseconds(800),
+                    EasingFunction = new System.Windows.Media.Animation.QuadraticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+                };
+                progressBarFill.BeginAnimation(WidthProperty, animation);
+            };
+
             dialog.ShowDialog();
         }
 
