@@ -665,15 +665,15 @@ ORDER BY OT.DniTemu ASC, SK.SumaWartosc DESC;";
                     cmd.Parameters.AddWithValue("@KlientId", klientId);
                     cmd.Parameters.AddWithValue("@ProduktId", _produktId);
 
-                    var dostawy = new List<(DateTime Data, decimal Ilosc, decimal Cena, decimal Wartosc)>();
+                    var dostawy = new List<(DateTime Data, double Ilosc, double Cena, double Wartosc)>();
                     await using var reader = await cmd.ExecuteReaderAsync();
                     while (await reader.ReadAsync())
                     {
                         dostawy.Add((
                             reader.GetDateTime(0),
-                            reader.GetDecimal(1),
-                            reader.GetDecimal(2),
-                            reader.GetDecimal(3)
+                            Convert.ToDouble(reader.GetValue(1)),
+                            Convert.ToDouble(reader.GetValue(2)),
+                            Convert.ToDouble(reader.GetValue(3))
                         ));
                     }
 
