@@ -121,6 +121,7 @@ namespace Kalendarz1.WPF
             public int Id { get; set; }
             public string Nazwa { get; set; } = "";
             public List<int> ProductIds { get; set; } = new();
+            public bool IsDomyslny { get; set; }
         }
 
         // Kolory dla kart produktów
@@ -227,7 +228,7 @@ namespace Kalendarz1.WPF
                 await using var cn = new SqlConnection(_connLibra);
                 await cn.OpenAsync();
 
-                const string sql = @"SELECT Id, Nazwa, ProduktyIds FROM dbo.DashboardWidoki ORDER BY Nazwa";
+                const string sql = @"SELECT Id, Nazwa, ProduktyIds, ISNULL(IsDomyslny, 0) as IsDomyslny FROM dbo.DashboardWidoki ORDER BY Nazwa";
 
                 await using var cmd = new SqlCommand(sql, cn);
                 await using var rdr = await cmd.ExecuteReaderAsync();
@@ -238,7 +239,8 @@ namespace Kalendarz1.WPF
                     {
                         Id = rdr.GetInt32(0),
                         Nazwa = rdr.IsDBNull(1) ? "" : rdr.GetString(1),
-                        ProductIds = new List<int>()
+                        ProductIds = new List<int>(),
+                        IsDomyslny = rdr.GetBoolean(3)
                     };
 
                     if (!rdr.IsDBNull(2))
@@ -259,11 +261,17 @@ namespace Kalendarz1.WPF
                 // Aktualizuj ComboBox
                 cmbWidok.Items.Clear();
                 cmbWidok.Items.Add(new ComboBoxItem { Content = "(Wybierz widok)", Tag = null });
+                int defaultIndex = 0;
+                int idx = 1;
                 foreach (var view in _savedViews)
                 {
-                    cmbWidok.Items.Add(new ComboBoxItem { Content = view.Nazwa, Tag = view });
+                    var displayName = view.IsDomyslny ? $"⭐ {view.Nazwa}" : view.Nazwa;
+                    cmbWidok.Items.Add(new ComboBoxItem { Content = displayName, Tag = view });
+                    if (view.IsDomyslny)
+                        defaultIndex = idx;
+                    idx++;
                 }
-                cmbWidok.SelectedIndex = 0;
+                cmbWidok.SelectedIndex = defaultIndex;
             }
             catch
             {
@@ -285,8 +293,16 @@ namespace Kalendarz1.WPF
                             Id INT IDENTITY(1,1) PRIMARY KEY,
                             Nazwa NVARCHAR(100) NOT NULL,
                             ProduktyIds NVARCHAR(MAX),
-                            DataUtworzenia DATETIME DEFAULT GETDATE()
+                            DataUtworzenia DATETIME DEFAULT GETDATE(),
+                            IsDomyslny BIT DEFAULT 0
                         )
+                    END
+                    ELSE
+                    BEGIN
+                        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.DashboardWidoki') AND name = 'IsDomyslny')
+                        BEGIN
+                            ALTER TABLE dbo.DashboardWidoki ADD IsDomyslny BIT DEFAULT 0
+                        END
                     END";
 
                 await using var cmd = new SqlCommand(sql, cn);
@@ -1153,6 +1169,22 @@ namespace Kalendarz1.WPF
             var menuExpand = new MenuItem { Header = "🔍 Powiększ kartę (szczegóły)" };
             menuExpand.Click += (s, e) => ShowExpandedProductCard(dataForMenu);
             contextMenu.Items.Add(menuExpand);
+
+            var menuPotencjalni = new MenuItem { Header = "👥 Potencjalni odbiorcy" };
+            menuPotencjalni.Click += (s, e) =>
+            {
+                var okno = new PotencjalniOdbiorcy(
+                    _connHandel,
+                    dataForMenu.Id,
+                    dataForMenu.Kod,
+                    dataForMenu.Plan,
+                    dataForMenu.Fakt,
+                    dataForMenu.Zamowienia,
+                    dataForMenu.Bilans,
+                    _selectedDate);
+                okno.Show();
+            };
+            contextMenu.Items.Add(menuPotencjalni);
 
             card.ContextMenu = contextMenu;
 
@@ -2155,6 +2187,45 @@ namespace Kalendarz1.WPF
             else
             {
                 MessageBox.Show("Wybierz widok do usunięcia.", "Informacja",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private async void BtnSetDefaultView_Click(object sender, RoutedEventArgs e)
+        {
+            if (cmbWidok.SelectedItem is ComboBoxItem item && item.Tag is DashboardView view)
+            {
+                try
+                {
+                    await using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
+
+                    // Najpierw usuń domyślny z wszystkich
+                    const string sqlClear = @"UPDATE dbo.DashboardWidoki SET IsDomyslny = 0";
+                    await using (var cmdClear = new SqlCommand(sqlClear, cn))
+                    {
+                        await cmdClear.ExecuteNonQueryAsync();
+                    }
+
+                    // Ustaw wybrany jako domyślny
+                    const string sqlSet = @"UPDATE dbo.DashboardWidoki SET IsDomyslny = 1 WHERE Id = @Id";
+                    await using (var cmdSet = new SqlCommand(sqlSet, cn))
+                    {
+                        cmdSet.Parameters.AddWithValue("@Id", view.Id);
+                        await cmdSet.ExecuteNonQueryAsync();
+                    }
+
+                    await LoadSavedViewsAsync();
+                    MessageBox.Show($"Widok '{view.Nazwa}' został ustawiony jako domyślny.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            else
+            {
+                MessageBox.Show("Wybierz widok do ustawienia jako domyślny.", "Informacja",
                     MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }

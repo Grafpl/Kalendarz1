@@ -222,6 +222,9 @@
                         <Button Content="Usuń" Style="{StaticResource ModernButtonStyle}"
                                 Background="#E74C3C" Margin="5,0,0,0" Padding="12,6"
                                 Click="BtnDeleteView_Click"/>
+                        <Button Content="⭐ Domyślny" Style="{StaticResource ModernButtonStyle}"
+                                Background="#F39C12" Margin="5,0,0,0" Padding="12,6"
+                                Click="BtnSetDefaultView_Click" ToolTip="Ustaw wybrany widok jako domyślny"/>
 
                         <!-- Przełącznik Karty/Tabela -->
                         <Border Background="#ECF0F1" CornerRadius="6" Margin="20,0,0,0" Padding="3">
