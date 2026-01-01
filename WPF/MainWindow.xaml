@@ -215,20 +215,20 @@
 
                     <!-- Przyciski do otwierania osobnych okien - kompaktowe dla mniejszych monitorów -->
                     <Button x:Name="btnOpenDashboard" Style="{StaticResource ActionButtonStyle}"
-                            Background="#2C3E50" Content="📊" Width="38" ToolTip="Dashboard produktów"
-                            Click="BtnOpenDashboard_Click" Margin="2,0" FontSize="14" Height="36"/>
+                            Background="#2C3E50" Content="Dash" Width="50" ToolTip="Dashboard produktów"
+                            Click="BtnOpenDashboard_Click" Margin="2,0" FontSize="10" Height="36"/>
 
                     <Button x:Name="btnOpenStatystyki" Style="{StaticResource ActionButtonStyle}"
-                            Background="#E74C3C" Content="📈" Width="38" ToolTip="Statystyki anulowanych"
-                            Click="BtnOpenStatystyki_Click" Margin="2,0" FontSize="14" Height="36"/>
+                            Background="#E74C3C" Content="Stat" Width="50" ToolTip="Statystyki anulowanych"
+                            Click="BtnOpenStatystyki_Click" Margin="2,0" FontSize="10" Height="36"/>
 
                     <Button x:Name="btnOpenHistoria" Style="{StaticResource ActionButtonStyle}"
-                            Background="#8E44AD" Content="📜" Width="38" ToolTip="Historia zmian"
-                            Click="BtnOpenHistoria_Click" Margin="2,0" FontSize="14" Height="36"/>
+                            Background="#8E44AD" Content="Hist" Width="50" ToolTip="Historia zmian"
+                            Click="BtnOpenHistoria_Click" Margin="2,0" FontSize="10" Height="36"/>
 
                     <Button x:Name="btnOpenTransport" Style="{StaticResource ActionButtonStyle}"
-                            Background="#1ABC9C" Content="🚚" Width="38" ToolTip="Transport"
-                            Click="BtnOpenTransport_Click" Margin="2,0" FontSize="14" Height="36"/>
+                            Background="#1ABC9C" Content="Tran" Width="50" ToolTip="Transport"
+                            Click="BtnOpenTransport_Click" Margin="2,0" FontSize="10" Height="36"/>
 
                     <Button x:Name="btnDelete" Style="{StaticResource ActionButtonStyle}"
                             Background="#2C3E50" Content="🗑️ Usuń" Width="75"
