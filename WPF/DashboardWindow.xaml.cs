@@ -3137,7 +3137,7 @@ namespace Kalendarz1.WPF
             // Checkbox wydania bez zamówień
             var checkWydBezZam = new CheckBox
             {
-                Content = "Tylko wydania bez zamówień",
+                Content = "Wydania bez zamówień",
                 FontSize = 18,
                 Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60)),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -3264,8 +3264,11 @@ namespace Kalendarz1.WPF
                 Margin = new Thickness(0, 0, 0, 15)
             });
 
-            // Duży pasek postępu z prawidłowym obliczeniem szerokości
-            // Dla > 100% używamy innego koloru
+            // Duży pasek postępu - skala do 140%, marker CEL na ~71%
+            const double maxScale = 140.0; // Skala paska (100% CEL = 71% szerokości)
+            double markerPosition = (100.0 / maxScale) * 100; // ~71.4%
+
+            // Kolory zależne od realizacji
             Color barColor;
             Color barColorLight;
             if (przekroczono)
@@ -3307,29 +3310,28 @@ namespace Kalendarz1.WPF
             };
             var progressGrid = new Grid();
 
-            // Pasek wypełnienia - używamy kolumn Grid dla prawidłowego skalowania
-            // Dla > 100% pasek wypełnia całość, marker przesuwa się w lewo
+            // Pasek wypełnienia - skalowany do maxScale (140%)
+            // 98% realizacji = 98/140 = 70% szerokości paska
+            // 140% realizacji = 140/140 = 100% szerokości paska
             var progressFillGrid = new Grid();
-            double displayPercent = przekroczono ? 100 : (double)procentRealizacji; // Pasek max 100% szerokości
+            double displayPercent = Math.Min((double)procentRealizacji / maxScale * 100, 100);
             progressFillGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(displayPercent, 0.1), GridUnitType.Star) });
             progressFillGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(100 - displayPercent, 0.1), GridUnitType.Star) });
 
             var progressFill = new Border
             {
                 Background = progressGradient,
-                CornerRadius = new CornerRadius(20, displayPercent >= 100 ? 20 : 0, displayPercent >= 100 ? 20 : 0, 20)
+                CornerRadius = new CornerRadius(20, displayPercent >= 99 ? 20 : 0, displayPercent >= 99 ? 20 : 0, 20)
             };
             Grid.SetColumn(progressFill, 0);
             progressFillGrid.Children.Add(progressFill);
             progressGrid.Children.Add(progressFillGrid);
 
-            // MARKER CEL (100%) - pionowa linia pokazująca cel
-            // Dla > 100% marker przesuwa się w lewo (np. dla 146% marker jest na pozycji 100/146 = 68%)
+            // MARKER CEL (100%) - pionowa linia na pozycji ~71% (100/140)
             var celMarkerContainer = new Grid();
-            double markerPosition = przekroczono ? (100.0 / (double)procentRealizacji) * 100 : 100;
             celMarkerContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(markerPosition, GridUnitType.Star) });
             celMarkerContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            celMarkerContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(100 - markerPosition, 0.1), GridUnitType.Star) });
+            celMarkerContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100 - markerPosition, GridUnitType.Star) });
 
             var celMarker = new StackPanel { HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Stretch };
             // Linia markera
@@ -3358,28 +3360,43 @@ namespace Kalendarz1.WPF
             bigProgressBg.Child = progressGrid;
             progressMainStack.Children.Add(bigProgressBg);
 
-            // Etykiety pod paskiem - CEL marker
+            // Etykiety pod paskiem - 0%, CEL (71%), 140%
             var markerLabelsGrid = new Grid { Margin = new Thickness(0, 5, 0, 0) };
-            markerLabelsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            markerLabelsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            markerLabelsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(markerPosition, GridUnitType.Star) }); // Do CEL
+            markerLabelsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100 - markerPosition, GridUnitType.Star) }); // Po CEL
 
+            // Etykieta 0 kg
             markerLabelsGrid.Children.Add(new TextBlock
             {
                 Text = "0 kg",
-                FontSize = 16,
-                Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
+                FontSize = 14,
+                Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
                 HorizontalAlignment = HorizontalAlignment.Left
             });
+
+            // Etykieta CEL na pozycji markera
             var celLabelText = new TextBlock
             {
-                Text = $"CEL: {cel:N0} kg",
-                FontSize = 18,
+                Text = $"▼ CEL {cel:N0} kg",
+                FontSize = 16,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White,
                 HorizontalAlignment = HorizontalAlignment.Right
             };
-            Grid.SetColumn(celLabelText, 1);
+            Grid.SetColumn(celLabelText, 0);
             markerLabelsGrid.Children.Add(celLabelText);
+
+            // Etykieta 140% na końcu
+            var maxLabelText = new TextBlock
+            {
+                Text = "140%",
+                FontSize = 14,
+                Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+            Grid.SetColumn(maxLabelText, 1);
+            markerLabelsGrid.Children.Add(maxLabelText);
+
             progressMainStack.Children.Add(markerLabelsGrid);
 
             // Wartości pod paskiem
@@ -3636,34 +3653,6 @@ namespace Kalendarz1.WPF
                 ShowExpandedProductCard(nextProd, nextIdx, false);
             };
             footerPanel.Children.Add(nextBtn);
-
-            // Tryb ciemny/jasny
-            bool isDarkMode = true;
-            var themeBtn = new Button
-            {
-                Content = "☀️ Jasny",
-                FontSize = 14,
-                Padding = new Thickness(15, 8, 15, 8),
-                Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)),
-                Foreground = Brushes.White,
-                BorderThickness = new Thickness(0),
-                Margin = new Thickness(20, 0, 20, 0)
-            };
-            themeBtn.Click += (s, e) =>
-            {
-                isDarkMode = !isDarkMode;
-                if (isDarkMode)
-                {
-                    dialog.Background = new SolidColorBrush(Color.FromRgb(20, 25, 30));
-                    themeBtn.Content = "☀️ Jasny";
-                }
-                else
-                {
-                    dialog.Background = new SolidColorBrush(Color.FromRgb(240, 240, 245));
-                    themeBtn.Content = "🌙 Ciemny";
-                }
-            };
-            footerPanel.Children.Add(themeBtn);
 
             // Auto slideshow
             var slideshowBtn = new Button
