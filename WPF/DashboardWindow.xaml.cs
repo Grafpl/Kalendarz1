@@ -2835,8 +2835,15 @@ namespace Kalendarz1.WPF
         /// <summary>
         /// Wyświetla powiększoną kartę produktu - widok prezentacyjny na projektor
         /// </summary>
-        private void ShowExpandedProductCard(ProductData data)
+        private void ShowExpandedProductCard(ProductData data, int currentIndex = -1, bool autoSlideshow = false)
         {
+            // Jeśli nie podano indexu, znajdź go w liście
+            if (currentIndex < 0)
+            {
+                currentIndex = _productDataList.FindIndex(p => p.Id == data.Id);
+                if (currentIndex < 0) currentIndex = 0;
+            }
+
             var dialog = new Window
             {
                 Title = $"[{data.Kod}] {data.Nazwa}",
@@ -2852,7 +2859,8 @@ namespace Kalendarz1.WPF
             decimal zamLubWyd = _uzywajWydan ? data.Wydania : data.Zamowienia;
             decimal bilans = cel + data.Stan - zamLubWyd;
             decimal doWydania = data.Zamowienia - data.Wydania;
-            decimal procentRealizacji = cel > 0 ? Math.Min((zamLubWyd / cel) * 100, 100) : 0;
+            decimal procentRealizacji = cel > 0 ? (zamLubWyd / cel) * 100 : 0; // Bez limitu - może być > 100%
+            bool przekroczono = procentRealizacji > 100;
 
             // === GŁÓWNY KONTENER ===
             var mainGrid = new Grid { Margin = new Thickness(40) };
@@ -2942,7 +2950,8 @@ namespace Kalendarz1.WPF
             Grid.SetColumn(bilansBorder, 2);
             headerPanel.Children.Add(bilansBorder);
 
-            // ALERT - gdy bilans ujemny (za dużo zamówione)
+            // ALERT - gdy bilans ujemny lub przekroczono cel
+            int alertColumnOffset = 0;
             if (bilans < 0)
             {
                 var alertBorder = new Border
@@ -2956,7 +2965,7 @@ namespace Kalendarz1.WPF
                 var alertStack = new StackPanel { Orientation = Orientation.Horizontal };
                 alertStack.Children.Add(new TextBlock
                 {
-                    Text = "⚠️ ALERT: ",
+                    Text = "⚠️ ",
                     FontSize = 20,
                     FontWeight = FontWeights.Bold,
                     Foreground = Brushes.Yellow,
@@ -2964,8 +2973,8 @@ namespace Kalendarz1.WPF
                 });
                 alertStack.Children.Add(new TextBlock
                 {
-                    Text = $"Za dużo zamówione! Brakuje {Math.Abs(bilans):N0} kg",
-                    FontSize = 20,
+                    Text = $"Brakuje {Math.Abs(bilans):N0} kg",
+                    FontSize = 18,
                     FontWeight = FontWeights.Bold,
                     Foreground = Brushes.White,
                     VerticalAlignment = VerticalAlignment.Center
@@ -2985,12 +2994,59 @@ namespace Kalendarz1.WPF
                 alertBorder.Background = brush;
                 brush.BeginAnimation(SolidColorBrush.ColorProperty, animation);
 
-                // Dodaj alert między bilansem a przyciskiem zamknij
-                Grid.SetColumn(alertBorder, 2);
-                // Dodamy osobną kolumnę dla alertu
                 headerPanel.ColumnDefinitions.Insert(3, new ColumnDefinition { Width = GridLength.Auto });
                 Grid.SetColumn(alertBorder, 3);
                 headerPanel.Children.Add(alertBorder);
+                alertColumnOffset++;
+            }
+
+            // ALERT PRZEKROCZENIA - gdy zamówiono/wydano więcej niż cel
+            if (przekroczono)
+            {
+                var przekroczenieBorder = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(142, 68, 173)),
+                    CornerRadius = new CornerRadius(10),
+                    Padding = new Thickness(15, 8, 15, 8),
+                    Margin = new Thickness(10, 0, 0, 0),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                var przekroczenieStack = new StackPanel { Orientation = Orientation.Horizontal };
+                przekroczenieStack.Children.Add(new TextBlock
+                {
+                    Text = "📈 ",
+                    FontSize = 20,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = Brushes.White,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+                przekroczenieStack.Children.Add(new TextBlock
+                {
+                    Text = $"PRZEKROCZONO {procentRealizacji:N0}%",
+                    FontSize = 18,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = Brushes.White,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+                przekroczenieBorder.Child = przekroczenieStack;
+
+                // Animacja pulsowania
+                var animPrzekr = new System.Windows.Media.Animation.ColorAnimation
+                {
+                    From = Color.FromRgb(142, 68, 173),
+                    To = Color.FromRgb(180, 100, 200),
+                    Duration = TimeSpan.FromMilliseconds(600),
+                    AutoReverse = true,
+                    RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever
+                };
+                var brushPrzekr = new SolidColorBrush(Color.FromRgb(142, 68, 173));
+                przekroczenieBorder.Background = brushPrzekr;
+                brushPrzekr.BeginAnimation(SolidColorBrush.ColorProperty, animPrzekr);
+
+                headerPanel.ColumnDefinitions.Insert(3 + alertColumnOffset, new ColumnDefinition { Width = GridLength.Auto });
+                Grid.SetColumn(przekroczenieBorder, 3 + alertColumnOffset);
+                headerPanel.Children.Add(przekroczenieBorder);
+                alertColumnOffset++;
             }
 
             // Przycisk zamknij
@@ -3006,7 +3062,7 @@ namespace Kalendarz1.WPF
                 Cursor = System.Windows.Input.Cursors.Hand
             };
             closeBtn.Click += (s, e) => dialog.Close();
-            Grid.SetColumn(closeBtn, bilans < 0 ? 4 : 3); // Kolumna 4 gdy alert jest widoczny
+            Grid.SetColumn(closeBtn, 3 + alertColumnOffset); // Kolumna zależy od liczby alertów
             headerPanel.Children.Add(closeBtn);
 
             Grid.SetRow(headerPanel, 0);
@@ -3209,14 +3265,31 @@ namespace Kalendarz1.WPF
             });
 
             // Duży pasek postępu z prawidłowym obliczeniem szerokości
-            Color barColor = procentRealizacji >= _progZielony ? Color.FromRgb(39, 174, 96) :
-                             procentRealizacji >= _progZolty ? Color.FromRgb(241, 196, 15) :
-                             Color.FromRgb(231, 76, 60);
+            // Dla > 100% używamy innego koloru
+            Color barColor;
+            Color barColorLight;
+            if (przekroczono)
+            {
+                barColor = Color.FromRgb(155, 89, 182); // Fioletowy dla przekroczenia
+                barColorLight = Color.FromRgb(180, 120, 200);
+            }
+            else if (procentRealizacji >= _progZielony)
+            {
+                barColor = Color.FromRgb(39, 174, 96);
+                barColorLight = Color.FromRgb(46, 204, 113);
+            }
+            else if (procentRealizacji >= _progZolty)
+            {
+                barColor = Color.FromRgb(241, 196, 15);
+                barColorLight = Color.FromRgb(255, 220, 50);
+            }
+            else
+            {
+                barColor = Color.FromRgb(231, 76, 60);
+                barColorLight = Color.FromRgb(255, 100, 80);
+            }
 
             // Gradient dla paska postępu
-            Color barColorLight = procentRealizacji >= _progZielony ? Color.FromRgb(46, 204, 113) :
-                                  procentRealizacji >= _progZolty ? Color.FromRgb(255, 220, 50) :
-                                  Color.FromRgb(255, 100, 80);
             var progressGradient = new LinearGradientBrush
             {
                 StartPoint = new System.Windows.Point(0, 0),
@@ -3235,24 +3308,28 @@ namespace Kalendarz1.WPF
             var progressGrid = new Grid();
 
             // Pasek wypełnienia - używamy kolumn Grid dla prawidłowego skalowania
+            // Dla > 100% pasek wypełnia całość, marker przesuwa się w lewo
             var progressFillGrid = new Grid();
-            progressFillGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max((double)procentRealizacji, 0.1), GridUnitType.Star) });
-            progressFillGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(100 - (double)procentRealizacji, 0.1), GridUnitType.Star) });
+            double displayPercent = przekroczono ? 100 : (double)procentRealizacji; // Pasek max 100% szerokości
+            progressFillGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(displayPercent, 0.1), GridUnitType.Star) });
+            progressFillGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(100 - displayPercent, 0.1), GridUnitType.Star) });
 
             var progressFill = new Border
             {
                 Background = progressGradient,
-                CornerRadius = new CornerRadius(20, procentRealizacji >= 100 ? 20 : 0, procentRealizacji >= 100 ? 20 : 0, 20)
+                CornerRadius = new CornerRadius(20, displayPercent >= 100 ? 20 : 0, displayPercent >= 100 ? 20 : 0, 20)
             };
             Grid.SetColumn(progressFill, 0);
             progressFillGrid.Children.Add(progressFill);
             progressGrid.Children.Add(progressFillGrid);
 
             // MARKER CEL (100%) - pionowa linia pokazująca cel
+            // Dla > 100% marker przesuwa się w lewo (np. dla 146% marker jest na pozycji 100/146 = 68%)
             var celMarkerContainer = new Grid();
-            celMarkerContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100, GridUnitType.Star) });
+            double markerPosition = przekroczono ? (100.0 / (double)procentRealizacji) * 100 : 100;
+            celMarkerContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(markerPosition, GridUnitType.Star) });
             celMarkerContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            celMarkerContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0.1, GridUnitType.Star) });
+            celMarkerContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(100 - markerPosition, 0.1), GridUnitType.Star) });
 
             var celMarker = new StackPanel { HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Stretch };
             // Linia markera
@@ -3521,61 +3598,44 @@ namespace Kalendarz1.WPF
             // === STOPKA Z KONTROLKAMI ===
             var footerPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
 
-            // Zoom controls
-            var zoomOutBtn = new Button
+            // Nawigacja ręczna - przyciski poprzedni/następny
+            var prevBtn = new Button
             {
-                Content = "−",
-                FontSize = 20,
-                Width = 40,
-                Height = 40,
+                Content = "◀ Poprzedni",
+                FontSize = 14,
+                Padding = new Thickness(15, 8, 15, 8),
                 Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)),
                 Foreground = Brushes.White,
                 BorderThickness = new Thickness(0),
-                Margin = new Thickness(5, 0, 5, 0)
+                Margin = new Thickness(0, 0, 10, 0)
             };
-            var zoomLabel = new TextBlock
+            prevBtn.Click += (s, e) =>
             {
-                Text = "100%",
-                FontSize = 16,
-                Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(10, 0, 10, 0)
+                int prevIndex = (currentIndex - 1 + _productDataList.Count) % _productDataList.Count;
+                var prevProduct = _productDataList[prevIndex];
+                dialog.Close();
+                ShowExpandedProductCard(prevProduct, prevIndex, false);
             };
-            var zoomInBtn = new Button
+            footerPanel.Children.Add(prevBtn);
+
+            var nextBtn = new Button
             {
-                Content = "+",
-                FontSize = 20,
-                Width = 40,
-                Height = 40,
+                Content = "Następny ▶",
+                FontSize = 14,
+                Padding = new Thickness(15, 8, 15, 8),
                 Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)),
                 Foreground = Brushes.White,
                 BorderThickness = new Thickness(0),
-                Margin = new Thickness(5, 0, 20, 0)
+                Margin = new Thickness(0, 0, 20, 0)
             };
-
-            double currentZoom = 1.0;
-            var scaleTransform = new ScaleTransform(1.0, 1.0);
-            mainGrid.RenderTransform = scaleTransform;
-            mainGrid.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
-
-            zoomInBtn.Click += (s, e) =>
+            nextBtn.Click += (s, e) =>
             {
-                currentZoom = Math.Min(currentZoom + 0.1, 1.5);
-                scaleTransform.ScaleX = currentZoom;
-                scaleTransform.ScaleY = currentZoom;
-                zoomLabel.Text = $"{(int)(currentZoom * 100)}%";
+                int nextIdx = (currentIndex + 1) % _productDataList.Count;
+                var nextProd = _productDataList[nextIdx];
+                dialog.Close();
+                ShowExpandedProductCard(nextProd, nextIdx, false);
             };
-            zoomOutBtn.Click += (s, e) =>
-            {
-                currentZoom = Math.Max(currentZoom - 0.1, 0.5);
-                scaleTransform.ScaleX = currentZoom;
-                scaleTransform.ScaleY = currentZoom;
-                zoomLabel.Text = $"{(int)(currentZoom * 100)}%";
-            };
-
-            footerPanel.Children.Add(zoomOutBtn);
-            footerPanel.Children.Add(zoomLabel);
-            footerPanel.Children.Add(zoomInBtn);
+            footerPanel.Children.Add(nextBtn);
 
             // Tryb ciemny/jasny
             bool isDarkMode = true;
@@ -3621,6 +3681,18 @@ namespace Kalendarz1.WPF
             int countdown = 10;
             bool slideshowActive = false;
 
+            // Info o produkcie w slideshow
+            int totalProducts = _productDataList.Count;
+            var productInfoLabel = new TextBlock
+            {
+                Text = $"[{currentIndex + 1}/{totalProducts}]",
+                FontSize = 16,
+                Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 15, 0)
+            };
+            footerPanel.Children.Add(productInfoLabel);
+
             slideshowBtn.Click += (s, e) =>
             {
                 if (!slideshowActive)
@@ -3640,8 +3712,11 @@ namespace Kalendarz1.WPF
                         if (countdown <= 0)
                         {
                             slideshowTimer.Stop();
-                            dialog.Tag = "NEXT"; // Signal to show next product
+                            // Pokaż następny produkt
+                            int nextIndex = (currentIndex + 1) % _productDataList.Count;
+                            var nextProduct = _productDataList[nextIndex];
                             dialog.Close();
+                            ShowExpandedProductCard(nextProduct, nextIndex, true); // auto = true kontynuuje slideshow
                         }
                         else
                         {
@@ -3659,6 +3734,12 @@ namespace Kalendarz1.WPF
                 }
             };
 
+            // Automatycznie uruchom slideshow jeśli parametr autoSlideshow = true
+            if (autoSlideshow && _productDataList.Count > 1)
+            {
+                slideshowBtn.RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+            }
+
             footerPanel.Children.Add(slideshowBtn);
 
             // ESC info
@@ -3673,24 +3754,24 @@ namespace Kalendarz1.WPF
             Grid.SetRow(footerPanel, 2);
             mainGrid.Children.Add(footerPanel);
 
-            // Obsługa ESC i Zoom klawiaturą
+            // Obsługa klawiatury - ESC i strzałki do nawigacji
             dialog.KeyDown += (s, e) =>
             {
                 if (e.Key == System.Windows.Input.Key.Escape)
                     dialog.Close();
-                else if (e.Key == System.Windows.Input.Key.Add || e.Key == System.Windows.Input.Key.OemPlus)
+                else if (e.Key == System.Windows.Input.Key.Left)
                 {
-                    currentZoom = Math.Min(currentZoom + 0.1, 1.5);
-                    scaleTransform.ScaleX = currentZoom;
-                    scaleTransform.ScaleY = currentZoom;
-                    zoomLabel.Text = $"{(int)(currentZoom * 100)}%";
+                    int prevIdx = (currentIndex - 1 + _productDataList.Count) % _productDataList.Count;
+                    var prevProd = _productDataList[prevIdx];
+                    dialog.Close();
+                    ShowExpandedProductCard(prevProd, prevIdx, false);
                 }
-                else if (e.Key == System.Windows.Input.Key.Subtract || e.Key == System.Windows.Input.Key.OemMinus)
+                else if (e.Key == System.Windows.Input.Key.Right)
                 {
-                    currentZoom = Math.Max(currentZoom - 0.1, 0.5);
-                    scaleTransform.ScaleX = currentZoom;
-                    scaleTransform.ScaleY = currentZoom;
-                    zoomLabel.Text = $"{(int)(currentZoom * 100)}%";
+                    int nextIdx = (currentIndex + 1) % _productDataList.Count;
+                    var nextProd = _productDataList[nextIdx];
+                    dialog.Close();
+                    ShowExpandedProductCard(nextProd, nextIdx, false);
                 }
             };
 
@@ -3698,10 +3779,7 @@ namespace Kalendarz1.WPF
 
             // Animacja wejścia
             mainGrid.Opacity = 0;
-            mainGrid.RenderTransform = new TransformGroup
-            {
-                Children = { scaleTransform, new TranslateTransform(0, 50) }
-            };
+            mainGrid.RenderTransform = new TranslateTransform(0, 50);
 
             dialog.Loaded += (s, e) =>
             {
@@ -3712,7 +3790,7 @@ namespace Kalendarz1.WPF
                 };
 
                 mainGrid.BeginAnimation(UIElement.OpacityProperty, fadeIn);
-                ((TranslateTransform)((TransformGroup)mainGrid.RenderTransform).Children[1]).BeginAnimation(TranslateTransform.YProperty, slideUp);
+                ((TranslateTransform)mainGrid.RenderTransform).BeginAnimation(TranslateTransform.YProperty, slideUp);
             };
 
             dialog.Show();
