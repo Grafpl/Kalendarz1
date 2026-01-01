@@ -1135,11 +1135,11 @@ namespace Kalendarz1.WPF
             var productImage = GetProductImage(data.Id);
             var imageBorder = new Border
             {
-                Width = 50,
-                Height = 50,
-                CornerRadius = new CornerRadius(6),
+                Width = 65,
+                Height = 65,
+                CornerRadius = new CornerRadius(8),
                 Background = new SolidColorBrush(Color.FromRgb(236, 240, 241)),
-                Margin = new Thickness(0, 0, 10, 0),
+                Margin = new Thickness(0, 0, 12, 0),
                 Cursor = System.Windows.Input.Cursors.Hand,
                 ToolTip = productImage != null ? "Kliknij aby zmienić zdjęcie" : "Kliknij aby dodać zdjęcie"
             };
@@ -1159,7 +1159,7 @@ namespace Kalendarz1.WPF
                 imageBorder.Child = new TextBlock
                 {
                     Text = "📷",
-                    FontSize = 20,
+                    FontSize = 24,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center,
                     Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166))
@@ -1458,11 +1458,11 @@ namespace Kalendarz1.WPF
                 mainStack.Children.Add(separator);
 
                 // Nagłówek sekcji: "Odbiorca | zam | wyd | %" - z marginesem na scrollbar
-                var headerRow = new Grid { Margin = new Thickness(0, 0, 22, 3) }; // Prawy margines dla scrollbara
+                var headerRow = new Grid { Margin = new Thickness(0, 0, 0, 3) };
                 headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Nazwa
-                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) }); // zam
-                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) }); // wyd
-                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) }); // %
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) }); // zam
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) }); // wyd
+                headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) }); // %
 
                 var grayTextColor = new SolidColorBrush(Color.FromRgb(100, 100, 100));
 
@@ -1492,7 +1492,7 @@ namespace Kalendarz1.WPF
                     HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
                 };
 
-                var odbiorcyStack = new StackPanel { Margin = new Thickness(0, 0, 22, 0) }; // Prawy margines na scrollbar
+                var odbiorcyStack = new StackPanel { Margin = new Thickness(0, 0, 0, 0) };
 
                 foreach (var odbiorca in data.Odbiorcy)
                 {
@@ -1527,11 +1527,11 @@ namespace Kalendarz1.WPF
                     };
 
                     // Wiersz: [nazwa] | zam | wyd | % - dopasowany do nagłówka
-                    var odbiorcaRow = new Grid();
+                    var odbiorcaRow = new Grid { Margin = new Thickness(0, 0, 16, 0) }; // Prawy margines na scrollbar
                     odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Nazwa
-                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) }); // zam
-                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(45) }); // wyd
-                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) }); // %
+                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) }); // zam
+                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) }); // wyd
+                    odbiorcaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) }); // %
 
                     var nazwaText = new TextBlock
                     {
