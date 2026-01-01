@@ -1994,6 +1994,32 @@ namespace Kalendarz1.WPF
             btnTogglePanel.Content = _isPanelOpen ? "Wybierz produkty ◀" : "Wybierz produkty ▶";
         }
 
+        // Tryb pełnoekranowy - ukrycie pasków
+        private bool _isFullscreen = false;
+
+        private void BtnFullscreen_Click(object sender, RoutedEventArgs e)
+        {
+            _isFullscreen = true;
+            borderHeader.Visibility = Visibility.Collapsed;
+            borderFilters.Visibility = Visibility.Collapsed;
+            btnExitFullscreen.Visibility = Visibility.Visible;
+
+            // Ukryj też panel boczny w trybie pełnoekranowym
+            if (_isPanelOpen)
+            {
+                _isPanelOpen = false;
+                sidePanel.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void BtnExitFullscreen_Click(object sender, RoutedEventArgs e)
+        {
+            _isFullscreen = false;
+            borderHeader.Visibility = Visibility.Visible;
+            borderFilters.Visibility = Visibility.Visible;
+            btnExitFullscreen.Visibility = Visibility.Collapsed;
+        }
+
         private void BtnClosePanel_Click(object sender, RoutedEventArgs e)
         {
             _isPanelOpen = false;

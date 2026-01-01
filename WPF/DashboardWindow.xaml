@@ -91,7 +91,7 @@
             </Grid.RowDefinitions>
 
             <!-- NAGŁÓWEK - kompaktowy -->
-            <Border Grid.Row="0" CornerRadius="8" Margin="0,0,0,8">
+            <Border x:Name="borderHeader" Grid.Row="0" CornerRadius="8" Margin="0,0,0,8">
                 <Border.Background>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
                         <GradientStop Color="#2c3e50" Offset="0"/>
@@ -131,6 +131,10 @@
                                 Background="#9B59B6" Margin="0,0,6,0" Padding="8,5"
                                 ToolTip="Zrób screenshot do udostępnienia"
                                 Click="BtnScreenshot_Click"/>
+                        <Button x:Name="btnFullscreen" Content="⛶" Style="{StaticResource ModernButtonStyle}"
+                                Background="#1ABC9C" Margin="0,0,6,0" Padding="8,5"
+                                ToolTip="Tryb pełnoekranowy (ukryj paski)"
+                                Click="BtnFullscreen_Click"/>
                         <Button x:Name="btnTogglePanel" Content="Wybierz produkty ▶" Style="{StaticResource ModernButtonStyle}"
                                 Background="#8E44AD" Margin="0,0,6,0" Padding="8,5"
                                 Click="BtnTogglePanel_Click"/>
@@ -159,7 +163,7 @@
             </Border>
 
             <!-- PASEK FILTRÓW - kompaktowy -->
-            <Border Grid.Row="1" Background="White" CornerRadius="8" Padding="15,8" Margin="0,0,0,8">
+            <Border x:Name="borderFilters" Grid.Row="1" Background="White" CornerRadius="8" Padding="15,8" Margin="0,0,0,8">
                 <Border.Effect>
                     <DropShadowEffect ShadowDepth="1" Opacity="0.08" BlurRadius="8"/>
                 </Border.Effect>
@@ -236,15 +240,30 @@
             </Border>
 
             <!-- DYNAMICZNE KARTY PRODUKTÓW -->
-            <ScrollViewer Grid.Row="2" x:Name="svCards" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <ItemsControl x:Name="icProducts">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <WrapPanel Orientation="Horizontal"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                </ItemsControl>
-            </ScrollViewer>
+            <Grid Grid.Row="2">
+                <ScrollViewer x:Name="svCards" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <ItemsControl x:Name="icProducts">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </ScrollViewer>
+
+                <!-- Pływający przycisk wyjścia z trybu pełnoekranowego -->
+                <Button x:Name="btnExitFullscreen" Content="⮌ Pokaż paski"
+                        Style="{StaticResource ModernButtonStyle}"
+                        Background="#2C3E50" Padding="12,8"
+                        HorizontalAlignment="Left" VerticalAlignment="Top"
+                        Margin="10,10,0,0" Visibility="Collapsed"
+                        ToolTip="Wyjdź z trybu pełnoekranowego (pokaż paski)"
+                        Click="BtnExitFullscreen_Click">
+                    <Button.Effect>
+                        <DropShadowEffect ShadowDepth="2" Opacity="0.3" BlurRadius="8"/>
+                    </Button.Effect>
+                </Button>
+            </Grid>
 
             <!-- WIDOK TABELI -->
             <DataGrid Grid.Row="2" x:Name="dgProducts" Visibility="Collapsed"
