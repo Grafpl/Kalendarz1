@@ -3099,7 +3099,14 @@ namespace Kalendarz1.WPF
                 CornerRadius = new CornerRadius(10),
                 Padding = new Thickness(20, 12, 20, 12),
                 Margin = new Thickness(0, 0, 0, 20),
-                HorizontalAlignment = HorizontalAlignment.Center
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    Color = Colors.Black,
+                    BlurRadius = 15,
+                    ShadowDepth = 3,
+                    Opacity = 0.4
+                }
             };
             var formulaPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
 
@@ -3177,7 +3184,14 @@ namespace Kalendarz1.WPF
                 Background = new SolidColorBrush(Color.FromRgb(39, 55, 70)),
                 CornerRadius = new CornerRadius(15),
                 Padding = new Thickness(30),
-                Margin = new Thickness(0, 0, 0, 25)
+                Margin = new Thickness(0, 0, 0, 25),
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    Color = Colors.Black,
+                    BlurRadius = 20,
+                    ShadowDepth = 5,
+                    Opacity = 0.5
+                }
             };
             var progressMainStack = new StackPanel();
 
@@ -3199,6 +3213,19 @@ namespace Kalendarz1.WPF
                              procentRealizacji >= _progZolty ? Color.FromRgb(241, 196, 15) :
                              Color.FromRgb(231, 76, 60);
 
+            // Gradient dla paska postępu
+            Color barColorLight = procentRealizacji >= _progZielony ? Color.FromRgb(46, 204, 113) :
+                                  procentRealizacji >= _progZolty ? Color.FromRgb(255, 220, 50) :
+                                  Color.FromRgb(255, 100, 80);
+            var progressGradient = new LinearGradientBrush
+            {
+                StartPoint = new System.Windows.Point(0, 0),
+                EndPoint = new System.Windows.Point(1, 1)
+            };
+            progressGradient.GradientStops.Add(new GradientStop(barColorLight, 0));
+            progressGradient.GradientStops.Add(new GradientStop(barColor, 0.5));
+            progressGradient.GradientStops.Add(new GradientStop(barColorLight, 1));
+
             var bigProgressBg = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)),
@@ -3214,7 +3241,7 @@ namespace Kalendarz1.WPF
 
             var progressFill = new Border
             {
-                Background = new SolidColorBrush(barColor),
+                Background = progressGradient,
                 CornerRadius = new CornerRadius(20, procentRealizacji >= 100 ? 20 : 0, procentRealizacji >= 100 ? 20 : 0, 20)
             };
             Grid.SetColumn(progressFill, 0);
@@ -3399,6 +3426,88 @@ namespace Kalendarz1.WPF
                 rowGrid.Children.Add(wyd);
 
                 row.Child = rowGrid;
+                row.Cursor = System.Windows.Input.Cursors.Hand;
+
+                // Hover effect
+                var originalBg = row.Background;
+                row.MouseEnter += (s, e) =>
+                {
+                    row.Background = new SolidColorBrush(Color.FromRgb(60, 80, 100));
+                };
+                row.MouseLeave += (s, e) =>
+                {
+                    row.Background = originalBg;
+                };
+
+                // Kliknięcie pokazuje szczegóły odbiorcy
+                var currentOdb = odb; // Capture for lambda
+                row.MouseLeftButtonUp += (s, e) =>
+                {
+                    var detailDialog = new Window
+                    {
+                        Title = $"Szczegóły: {currentOdb.NazwaOdbiorcy}",
+                        Width = 400,
+                        Height = 300,
+                        WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                        Background = new SolidColorBrush(Color.FromRgb(30, 35, 40)),
+                        ResizeMode = ResizeMode.NoResize
+                    };
+                    var detailStack = new StackPanel { Margin = new Thickness(25) };
+                    detailStack.Children.Add(new TextBlock
+                    {
+                        Text = currentOdb.NazwaOdbiorcy,
+                        FontSize = 24,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = Brushes.White,
+                        Margin = new Thickness(0, 0, 0, 20)
+                    });
+                    detailStack.Children.Add(new TextBlock
+                    {
+                        Text = $"Zamówione: {currentOdb.Zamowione:N0} kg",
+                        FontSize = 20,
+                        Foreground = new SolidColorBrush(Color.FromRgb(230, 126, 34)),
+                        Margin = new Thickness(0, 0, 0, 10)
+                    });
+                    detailStack.Children.Add(new TextBlock
+                    {
+                        Text = $"Wydane: {currentOdb.Wydane:N0} kg",
+                        FontSize = 20,
+                        Foreground = new SolidColorBrush(Color.FromRgb(192, 57, 43)),
+                        Margin = new Thickness(0, 0, 0, 10)
+                    });
+                    decimal pozostalo = currentOdb.Zamowione - currentOdb.Wydane;
+                    detailStack.Children.Add(new TextBlock
+                    {
+                        Text = $"Pozostało do wydania: {pozostalo:N0} kg",
+                        FontSize = 20,
+                        Foreground = new SolidColorBrush(pozostalo > 0 ? Color.FromRgb(241, 196, 15) : Color.FromRgb(39, 174, 96)),
+                        Margin = new Thickness(0, 0, 0, 10)
+                    });
+                    decimal realizacjaPct = currentOdb.Zamowione > 0 ? (currentOdb.Wydane / currentOdb.Zamowione) * 100 : 0;
+                    detailStack.Children.Add(new TextBlock
+                    {
+                        Text = $"Realizacja: {realizacjaPct:N0}%",
+                        FontSize = 20,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = new SolidColorBrush(realizacjaPct >= 100 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(52, 152, 219)),
+                        Margin = new Thickness(0, 0, 0, 20)
+                    });
+                    var closeDetailBtn = new Button
+                    {
+                        Content = "Zamknij",
+                        FontSize = 16,
+                        Padding = new Thickness(20, 10, 20, 10),
+                        Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)),
+                        Foreground = Brushes.White,
+                        BorderThickness = new Thickness(0),
+                        HorizontalAlignment = HorizontalAlignment.Center
+                    };
+                    closeDetailBtn.Click += (s2, e2) => detailDialog.Close();
+                    detailStack.Children.Add(closeDetailBtn);
+                    detailDialog.Content = detailStack;
+                    detailDialog.ShowDialog();
+                };
+
                 rightPanel.Children.Add(row);
             }
 
@@ -3409,26 +3518,203 @@ namespace Kalendarz1.WPF
             Grid.SetRow(contentGrid, 1);
             mainGrid.Children.Add(contentGrid);
 
-            // === STOPKA ===
-            var footer = new TextBlock
+            // === STOPKA Z KONTROLKAMI ===
+            var footerPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+
+            // Zoom controls
+            var zoomOutBtn = new Button
+            {
+                Content = "−",
+                FontSize = 20,
+                Width = 40,
+                Height = 40,
+                Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Margin = new Thickness(5, 0, 5, 0)
+            };
+            var zoomLabel = new TextBlock
+            {
+                Text = "100%",
+                FontSize = 16,
+                Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(10, 0, 10, 0)
+            };
+            var zoomInBtn = new Button
+            {
+                Content = "+",
+                FontSize = 20,
+                Width = 40,
+                Height = 40,
+                Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Margin = new Thickness(5, 0, 20, 0)
+            };
+
+            double currentZoom = 1.0;
+            var scaleTransform = new ScaleTransform(1.0, 1.0);
+            mainGrid.RenderTransform = scaleTransform;
+            mainGrid.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
+
+            zoomInBtn.Click += (s, e) =>
+            {
+                currentZoom = Math.Min(currentZoom + 0.1, 1.5);
+                scaleTransform.ScaleX = currentZoom;
+                scaleTransform.ScaleY = currentZoom;
+                zoomLabel.Text = $"{(int)(currentZoom * 100)}%";
+            };
+            zoomOutBtn.Click += (s, e) =>
+            {
+                currentZoom = Math.Max(currentZoom - 0.1, 0.5);
+                scaleTransform.ScaleX = currentZoom;
+                scaleTransform.ScaleY = currentZoom;
+                zoomLabel.Text = $"{(int)(currentZoom * 100)}%";
+            };
+
+            footerPanel.Children.Add(zoomOutBtn);
+            footerPanel.Children.Add(zoomLabel);
+            footerPanel.Children.Add(zoomInBtn);
+
+            // Tryb ciemny/jasny
+            bool isDarkMode = true;
+            var themeBtn = new Button
+            {
+                Content = "☀️ Jasny",
+                FontSize = 14,
+                Padding = new Thickness(15, 8, 15, 8),
+                Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Margin = new Thickness(20, 0, 20, 0)
+            };
+            themeBtn.Click += (s, e) =>
+            {
+                isDarkMode = !isDarkMode;
+                if (isDarkMode)
+                {
+                    dialog.Background = new SolidColorBrush(Color.FromRgb(20, 25, 30));
+                    themeBtn.Content = "☀️ Jasny";
+                }
+                else
+                {
+                    dialog.Background = new SolidColorBrush(Color.FromRgb(240, 240, 245));
+                    themeBtn.Content = "🌙 Ciemny";
+                }
+            };
+            footerPanel.Children.Add(themeBtn);
+
+            // Auto slideshow
+            var slideshowBtn = new Button
+            {
+                Content = "▶ Auto (10s)",
+                FontSize = 14,
+                Padding = new Thickness(15, 8, 15, 8),
+                Background = new SolidColorBrush(Color.FromRgb(39, 174, 96)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Margin = new Thickness(0, 0, 20, 0)
+            };
+
+            System.Windows.Threading.DispatcherTimer? slideshowTimer = null;
+            int countdown = 10;
+            bool slideshowActive = false;
+
+            slideshowBtn.Click += (s, e) =>
+            {
+                if (!slideshowActive)
+                {
+                    slideshowActive = true;
+                    countdown = 10;
+                    slideshowBtn.Background = new SolidColorBrush(Color.FromRgb(231, 76, 60));
+                    slideshowBtn.Content = $"⏸ {countdown}s";
+
+                    slideshowTimer = new System.Windows.Threading.DispatcherTimer
+                    {
+                        Interval = TimeSpan.FromSeconds(1)
+                    };
+                    slideshowTimer.Tick += (ts, te) =>
+                    {
+                        countdown--;
+                        if (countdown <= 0)
+                        {
+                            slideshowTimer.Stop();
+                            dialog.Tag = "NEXT"; // Signal to show next product
+                            dialog.Close();
+                        }
+                        else
+                        {
+                            slideshowBtn.Content = $"⏸ {countdown}s";
+                        }
+                    };
+                    slideshowTimer.Start();
+                }
+                else
+                {
+                    slideshowActive = false;
+                    slideshowTimer?.Stop();
+                    slideshowBtn.Background = new SolidColorBrush(Color.FromRgb(39, 174, 96));
+                    slideshowBtn.Content = "▶ Auto (10s)";
+                }
+            };
+
+            footerPanel.Children.Add(slideshowBtn);
+
+            // ESC info
+            footerPanel.Children.Add(new TextBlock
             {
                 Text = "ESC = zamknij",
                 FontSize = 14,
                 Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 15, 0, 0)
-            };
-            Grid.SetRow(footer, 2);
-            mainGrid.Children.Add(footer);
+                VerticalAlignment = VerticalAlignment.Center
+            });
 
-            // Obsługa ESC
+            Grid.SetRow(footerPanel, 2);
+            mainGrid.Children.Add(footerPanel);
+
+            // Obsługa ESC i Zoom klawiaturą
             dialog.KeyDown += (s, e) =>
             {
                 if (e.Key == System.Windows.Input.Key.Escape)
                     dialog.Close();
+                else if (e.Key == System.Windows.Input.Key.Add || e.Key == System.Windows.Input.Key.OemPlus)
+                {
+                    currentZoom = Math.Min(currentZoom + 0.1, 1.5);
+                    scaleTransform.ScaleX = currentZoom;
+                    scaleTransform.ScaleY = currentZoom;
+                    zoomLabel.Text = $"{(int)(currentZoom * 100)}%";
+                }
+                else if (e.Key == System.Windows.Input.Key.Subtract || e.Key == System.Windows.Input.Key.OemMinus)
+                {
+                    currentZoom = Math.Max(currentZoom - 0.1, 0.5);
+                    scaleTransform.ScaleX = currentZoom;
+                    scaleTransform.ScaleY = currentZoom;
+                    zoomLabel.Text = $"{(int)(currentZoom * 100)}%";
+                }
             };
 
             dialog.Content = mainGrid;
+
+            // Animacja wejścia
+            mainGrid.Opacity = 0;
+            mainGrid.RenderTransform = new TransformGroup
+            {
+                Children = { scaleTransform, new TranslateTransform(0, 50) }
+            };
+
+            dialog.Loaded += (s, e) =>
+            {
+                var fadeIn = new System.Windows.Media.Animation.DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(400));
+                var slideUp = new System.Windows.Media.Animation.DoubleAnimation(50, 0, TimeSpan.FromMilliseconds(400))
+                {
+                    EasingFunction = new System.Windows.Media.Animation.QuadraticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+                };
+
+                mainGrid.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+                ((TranslateTransform)((TransformGroup)mainGrid.RenderTransform).Children[1]).BeginAnimation(TranslateTransform.YProperty, slideUp);
+            };
+
             dialog.Show();
             dialog.Focus();
         }
