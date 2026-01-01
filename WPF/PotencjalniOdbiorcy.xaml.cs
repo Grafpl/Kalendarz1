@@ -166,7 +166,6 @@ WITH HistoriaZakupow AS (
     SELECT
         C.id AS KlientId,
         C.shortcut AS Odbiorca,
-        C.city AS Miasto,
         C.LimitAmount AS Limit,
         ISNULL(WYM.CDim_Handlowiec_Val, 'Nieprzypisany') AS Handlowiec,
         DP.cena AS Cena,
@@ -188,7 +187,6 @@ OstatnieTransakcje AS (
     SELECT
         KlientId,
         Odbiorca,
-        Miasto,
         Limit,
         Handlowiec,
         Cena AS OstCena,
@@ -243,7 +241,6 @@ RokPoprzedni AS (
 SELECT
     OT.KlientId,
     OT.Odbiorca,
-    OT.Miasto,
     OT.Handlowiec,
     CAST(OT.OstCena AS DECIMAL(18,2)) AS OstCena,
     CAST(OT.OstIlosc AS DECIMAL(18,2)) AS OstIlosc,
@@ -522,7 +519,7 @@ ORDER BY
                 if (!string.IsNullOrWhiteSpace(txtSzukaj?.Text))
                 {
                     var szukany = txtSzukaj.Text.Trim().Replace("'", "''");
-                    filtry.Add($"(Odbiorca LIKE '%{szukany}%' OR Miasto LIKE '%{szukany}%' OR Handlowiec LIKE '%{szukany}%')");
+                    filtry.Add($"(Odbiorca LIKE '%{szukany}%' OR Handlowiec LIKE '%{szukany}%')");
                 }
 
                 // Filtr handlowca

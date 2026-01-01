@@ -250,7 +250,6 @@
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
                     <DataGridTextColumn Header="👤 Handlowiec" Binding="{Binding Handlowiec}" Width="*"/>
-                    <DataGridTextColumn Header="📍 Miasto" Binding="{Binding Miasto}" Width="*"/>
                     <DataGridTextColumn Header="💵 Ost. cena" Binding="{Binding OstCena, StringFormat=N2}" Width="90">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
