@@ -280,12 +280,6 @@ SELECT
             ELSE 5
         END
     AS INT) AS Scoring,
-    -- Prognoza następnego zakupu
-    CASE
-        WHEN SK.SrednioDniMiedzyZakupami IS NOT NULL THEN
-            DATEADD(DAY, CAST(SK.SrednioDniMiedzyZakupami AS INT), SK.OstatniZakup)
-        ELSE NULL
-    END AS PrognozaNastepnegoZakupu,
     -- Liczba różnych produktów
     ISNULL(RP.LiczbaRoznychProduktow, 0) AS LiczbaProduktow
 FROM OstatnieTransakcje OT
