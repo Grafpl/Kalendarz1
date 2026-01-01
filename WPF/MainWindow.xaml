@@ -52,11 +52,11 @@
             <Style x:Key="DayButtonStyle" TargetType="Button">
                 <Setter Property="Background" Value="#F5F7FA"/>
                 <Setter Property="Foreground" Value="#2C3E50"/>
-                <Setter Property="FontSize" Value="9"/>
+                <Setter Property="FontSize" Value="8"/>
                 <Setter Property="BorderThickness" Value="0"/>
                 <Setter Property="Cursor" Value="Hand"/>
-                <Setter Property="Width" Value="60"/>
-                <Setter Property="Height" Value="38"/>
+                <Setter Property="Width" Value="48"/>
+                <Setter Property="Height" Value="32"/>
                 <Setter Property="Margin" Value="1,0"/>
                 <Setter Property="ClickMode" Value="Press"/>
                 <Setter Property="Focusable" Value="False"/>
@@ -163,9 +163,9 @@
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="70"/>
+            <RowDefinition Height="55"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="28"/>
+            <RowDefinition Height="24"/>
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Background="White" 
@@ -173,7 +173,7 @@
             <Border.Effect>
                 <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="8"/>
             </Border.Effect>
-            <Grid Margin="10,5">
+            <Grid Margin="8,3">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
@@ -183,16 +183,16 @@
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button x:Name="btnPreviousWeek" Style="{StaticResource NavigationButtonStyle}"
-                            Content="&#x25C0;" FontSize="16" Width="40" Height="40"
+                            Content="&#x25C0;" FontSize="14" Width="32" Height="32"
                             Click="BtnPreviousWeek_Click"/>
 
-                    <TextBlock x:Name="lblWeekRange" 
+                    <TextBlock x:Name="lblWeekRange"
                                VerticalAlignment="Center"
-                               FontSize="11" FontWeight="SemiBold"
-                               Margin="10,0" Width="90" TextAlignment="center"/>
+                               FontSize="10" FontWeight="SemiBold"
+                               Margin="6,0" Width="80" TextAlignment="center"/>
 
                     <Button x:Name="btnNextWeek" Style="{StaticResource NavigationButtonStyle}"
-                            Content="&#x25B6;" FontSize="16" Width="40" Height="40"
+                            Content="&#x25B6;" FontSize="14" Width="32" Height="32"
                             Click="BtnNextWeek_Click"/>
                 </StackPanel>
 
@@ -201,49 +201,49 @@
 
                 <StackPanel Grid.Column="3" Orientation="Horizontal" 
                             HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <Button x:Name="btnNew" Style="{StaticResource ActionButtonStyle}" 
-                            Background="#2ECC71" Content="➕ Nowe" Width="110" 
-                            Click="BtnNew_Click" FontSize="14" Height="42"/>
+                    <Button x:Name="btnNew" Style="{StaticResource ActionButtonStyle}"
+                            Background="#2ECC71" Content="➕ Nowe" Width="85"
+                            Click="BtnNew_Click" FontSize="12" Height="36"/>
 
                     <Button x:Name="btnPrint" Style="{StaticResource ActionButtonStyle}"
-                            Background="#3498DB" Content="🖨️ Drukuj" Width="110"
-                            Click="BtnPrint_Click" Margin="5,0" FontSize="14" Height="42"/>
+                            Background="#3498DB" Content="🖨️ Drukuj" Width="85"
+                            Click="BtnPrint_Click" Margin="3,0" FontSize="12" Height="36"/>
 
                     <Button x:Name="btnRefresh" Style="{StaticResource ActionButtonStyle}"
-                            Background="#9B59B6" Content="🔄 Odśwież" Width="110"
-                            Click="BtnRefresh_Click" Margin="5,0" FontSize="14" Height="42"/>
+                            Background="#9B59B6" Content="🔄" Width="38" ToolTip="Odśwież dane"
+                            Click="BtnRefresh_Click" Margin="3,0" FontSize="14" Height="36"/>
 
-                    <!-- Przyciski do otwierania osobnych okien -->
+                    <!-- Przyciski do otwierania osobnych okien - kompaktowe dla mniejszych monitorów -->
                     <Button x:Name="btnOpenDashboard" Style="{StaticResource ActionButtonStyle}"
-                            Background="#2C3E50" Content="📊 Dashboard" Width="110"
-                            Click="BtnOpenDashboard_Click" Margin="5,0" FontSize="12" Height="42"/>
+                            Background="#2C3E50" Content="📊" Width="38" ToolTip="Dashboard produktów"
+                            Click="BtnOpenDashboard_Click" Margin="2,0" FontSize="14" Height="36"/>
 
                     <Button x:Name="btnOpenStatystyki" Style="{StaticResource ActionButtonStyle}"
-                            Background="#E74C3C" Content="📈 Statystyki" Width="110"
-                            Click="BtnOpenStatystyki_Click" Margin="5,0" FontSize="12" Height="42"/>
+                            Background="#E74C3C" Content="📈" Width="38" ToolTip="Statystyki anulowanych"
+                            Click="BtnOpenStatystyki_Click" Margin="2,0" FontSize="14" Height="36"/>
 
                     <Button x:Name="btnOpenHistoria" Style="{StaticResource ActionButtonStyle}"
-                            Background="#8E44AD" Content="📜 Historia" Width="100"
-                            Click="BtnOpenHistoria_Click" Margin="5,0" FontSize="12" Height="42"/>
+                            Background="#8E44AD" Content="📜" Width="38" ToolTip="Historia zmian"
+                            Click="BtnOpenHistoria_Click" Margin="2,0" FontSize="14" Height="36"/>
 
                     <Button x:Name="btnOpenTransport" Style="{StaticResource ActionButtonStyle}"
-                            Background="#1ABC9C" Content="🚚 Transport" Width="100"
-                            Click="BtnOpenTransport_Click" Margin="5,0" FontSize="12" Height="42"/>
+                            Background="#1ABC9C" Content="🚚" Width="38" ToolTip="Transport"
+                            Click="BtnOpenTransport_Click" Margin="2,0" FontSize="14" Height="36"/>
 
                     <Button x:Name="btnDelete" Style="{StaticResource ActionButtonStyle}"
-                            Background="#2C3E50" Content="🗑️ Usuń" Width="95"
-                            Click="BtnDelete_Click" Visibility="Collapsed"/>
-                    <!-- W sekcji Action Buttons, przed btnDelete -->
-                    <ComboBox x:Name="cbLayoutPreset" 
-          Width="100" Height="40"
-          Margin="5,0"
-          SelectionChanged="CbLayoutPreset_SelectionChanged"
-          VerticalContentAlignment="Center"
-          FontSize="11">
-                        <ComboBoxItem Content="Mały" Tag="Small"/>
-                        <ComboBoxItem Content="Średni" Tag="Medium" IsSelected="True"/>
-                        <ComboBoxItem Content="Duży" Tag="Large"/>
-                        <ComboBoxItem Content="XL" Tag="ExtraLarge"/>
+                            Background="#2C3E50" Content="🗑️ Usuń" Width="75"
+                            Click="BtnDelete_Click" Visibility="Collapsed" Height="36" FontSize="11"/>
+                    <!-- Preset layoutu - kompaktowy -->
+                    <ComboBox x:Name="cbLayoutPreset"
+                              Width="65" Height="32"
+                              Margin="3,0"
+                              SelectionChanged="CbLayoutPreset_SelectionChanged"
+                              VerticalContentAlignment="Center"
+                              FontSize="10">
+                        <ComboBoxItem Content="S" Tag="Small" ToolTip="Mały layout"/>
+                        <ComboBoxItem Content="M" Tag="Medium" IsSelected="True" ToolTip="Średni layout"/>
+                        <ComboBoxItem Content="L" Tag="Large" ToolTip="Duży layout"/>
+                        <ComboBoxItem Content="XL" Tag="ExtraLarge" ToolTip="Bardzo duży layout"/>
                     </ComboBox>
                 </StackPanel>
             </Grid>
