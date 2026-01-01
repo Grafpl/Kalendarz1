@@ -2940,8 +2940,7 @@ namespace Kalendarz1.WPF
                     if (datePicker.SelectedDate.HasValue)
                     {
                         _selectedDate = datePicker.SelectedDate.Value;
-                        DatePickerOd.SelectedDate = _selectedDate;
-                        await LoadDataForSelectedDateAsync();
+                        await LoadDataAsync();
                         if (_productDataList.Count > 0)
                         {
                             viewIndex = Math.Min(viewIndex, _productDataList.Count - 1);
@@ -2970,8 +2969,7 @@ namespace Kalendarz1.WPF
                         if (datePickerDo.SelectedDate.HasValue)
                         {
                             _selectedDateDo = datePickerDo.SelectedDate.Value;
-                            DatePickerDo.SelectedDate = _selectedDateDo;
-                            await LoadDataForSelectedDateAsync();
+                            await LoadDataAsync();
                             if (_productDataList.Count > 0)
                             {
                                 viewIndex = Math.Min(viewIndex, _productDataList.Count - 1);
