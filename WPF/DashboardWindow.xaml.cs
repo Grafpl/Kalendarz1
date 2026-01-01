@@ -724,9 +724,16 @@ namespace Kalendarz1.WPF
                     }
                 }
 
-                // 10. Oblicz dane dla wybranych produktów (logika jak w MainWindow)
+                // 10. Załaduj zapisaną kolejność produktów i posortuj
+                var savedOrder = await LoadProductOrderAsync();
+                var orderedProductIds = _selectedProductIds
+                    .OrderBy(id => savedOrder.TryGetValue(id, out var pos) ? pos : int.MaxValue)
+                    .ThenBy(id => id) // Dodatkowe sortowanie po ID dla produktów bez zapisanej kolejności
+                    .ToList();
+
+                // 11. Oblicz dane dla wybranych produktów (logika jak w MainWindow)
                 var productsData = new List<ProductData>();
-                foreach (var productId in _selectedProductIds)
+                foreach (var productId in orderedProductIds)
                 {
                     if (!productInfo.TryGetValue(productId, out var info))
                         continue;
@@ -1782,6 +1789,17 @@ namespace Kalendarz1.WPF
             _ = LoadDataAsync();
         }
 
+        // Ustawienie kolejności produktów
+        private void BtnOrder_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_selectedProductIds.Any())
+            {
+                MessageBox.Show("Najpierw wybierz produkty do wyświetlenia.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            ShowProductOrderDialog();
+        }
+
         // Ustawienia progów kolorów
         private void BtnSettings_Click(object sender, RoutedEventArgs e)
         {
@@ -2320,6 +2338,284 @@ namespace Kalendarz1.WPF
                 MessageBox.Show($"Błąd podczas usuwania zdjęcia:\n{ex.Message}",
                     "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        #endregion
+
+        #region Kolejność produktów
+
+        /// <summary>
+        /// Pobiera zapisaną kolejność produktów z bazy
+        /// </summary>
+        private async System.Threading.Tasks.Task<Dictionary<int, int>> LoadProductOrderAsync()
+        {
+            var order = new Dictionary<int, int>();
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Sprawdź czy tabela istnieje
+                const string checkTable = @"IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'KolejnoscTowarow')
+                    CREATE TABLE dbo.KolejnoscTowarow (
+                        Id INT IDENTITY(1,1) PRIMARY KEY,
+                        TowarId INT NOT NULL,
+                        Pozycja INT NOT NULL,
+                        DataModyfikacji DATETIME DEFAULT GETDATE(),
+                        ZmodyfikowalPrzez NVARCHAR(100) NULL,
+                        CONSTRAINT UQ_KolejnoscTowarow_TowarId UNIQUE (TowarId)
+                    )";
+                await using (var cmdCheck = new SqlCommand(checkTable, cn))
+                {
+                    await cmdCheck.ExecuteNonQueryAsync();
+                }
+
+                const string sql = @"SELECT TowarId, Pozycja FROM dbo.KolejnoscTowarow ORDER BY Pozycja";
+                await using var cmd = new SqlCommand(sql, cn);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+
+                while (await rdr.ReadAsync())
+                {
+                    int towarId = rdr.GetInt32(0);
+                    int pozycja = rdr.GetInt32(1);
+                    order[towarId] = pozycja;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[LoadProductOrder] Błąd: {ex.Message}");
+            }
+            return order;
+        }
+
+        /// <summary>
+        /// Zapisuje kolejność produktów do bazy
+        /// </summary>
+        private async System.Threading.Tasks.Task SaveProductOrderAsync(List<int> productIds)
+        {
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // Usuń starą kolejność
+                const string sqlDelete = @"DELETE FROM dbo.KolejnoscTowarow";
+                await using (var cmdDel = new SqlCommand(sqlDelete, cn))
+                {
+                    await cmdDel.ExecuteNonQueryAsync();
+                }
+
+                // Dodaj nową kolejność
+                for (int i = 0; i < productIds.Count; i++)
+                {
+                    const string sqlInsert = @"INSERT INTO dbo.KolejnoscTowarow (TowarId, Pozycja, ZmodyfikowalPrzez)
+                                               VALUES (@TowarId, @Pozycja, @User)";
+                    await using var cmdIns = new SqlCommand(sqlInsert, cn);
+                    cmdIns.Parameters.AddWithValue("@TowarId", productIds[i]);
+                    cmdIns.Parameters.AddWithValue("@Pozycja", i + 1);
+                    cmdIns.Parameters.AddWithValue("@User", Environment.UserName);
+                    await cmdIns.ExecuteNonQueryAsync();
+                }
+
+                MessageBox.Show("Kolejność produktów została zapisana!", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas zapisywania kolejności:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Otwiera okno do ustawiania kolejności produktów
+        /// </summary>
+        private void ShowProductOrderDialog()
+        {
+            var dialog = new Window
+            {
+                Title = "Ustaw kolejność produktów",
+                Width = 450,
+                Height = 550,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.CanResize
+            };
+
+            var mainGrid = new Grid();
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            // Nagłówek
+            var header = new TextBlock
+            {
+                Text = "Przeciągnij produkty lub użyj przycisków ▲▼ aby zmienić kolejność:",
+                Margin = new Thickness(15, 15, 15, 10),
+                FontWeight = FontWeights.SemiBold,
+                TextWrapping = TextWrapping.Wrap
+            };
+            Grid.SetRow(header, 0);
+            mainGrid.Children.Add(header);
+
+            // Lista produktów z przyciskami
+            var scrollViewer = new ScrollViewer { Margin = new Thickness(15, 0, 15, 0) };
+            var listStack = new StackPanel();
+
+            // Pobierz produkty w aktualnej kolejności
+            var orderedProducts = _selectedProductIds
+                .Select(id => _allProducts.FirstOrDefault(p => p.Id == id))
+                .Where(p => p != null)
+                .ToList();
+
+            var productList = new List<(int Id, string Name, Border Border)>();
+
+            foreach (var product in orderedProducts)
+            {
+                if (product == null) continue;
+
+                var itemBorder = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(248, 249, 250)),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(222, 226, 230)),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(4),
+                    Margin = new Thickness(0, 2, 0, 2),
+                    Padding = new Thickness(10, 8, 10, 8)
+                };
+
+                var itemGrid = new Grid();
+                itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                var nameText = new TextBlock
+                {
+                    Text = $"[{product.Kod}] {product.Nazwa}",
+                    VerticalAlignment = VerticalAlignment.Center,
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                };
+                Grid.SetColumn(nameText, 0);
+                itemGrid.Children.Add(nameText);
+
+                var btnStack = new StackPanel { Orientation = Orientation.Horizontal };
+
+                var btnUp = new Button
+                {
+                    Content = "▲",
+                    Width = 30,
+                    Margin = new Thickness(5, 0, 2, 0),
+                    Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                    Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0),
+                    Cursor = System.Windows.Input.Cursors.Hand
+                };
+
+                var btnDown = new Button
+                {
+                    Content = "▼",
+                    Width = 30,
+                    Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                    Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0),
+                    Cursor = System.Windows.Input.Cursors.Hand
+                };
+
+                btnStack.Children.Add(btnUp);
+                btnStack.Children.Add(btnDown);
+                Grid.SetColumn(btnStack, 1);
+                itemGrid.Children.Add(btnStack);
+
+                itemBorder.Child = itemGrid;
+                listStack.Children.Add(itemBorder);
+
+                productList.Add((product.Id, product.Kod, itemBorder));
+
+                // Event handlers dla przycisków
+                var currentProduct = product;
+                btnUp.Click += (s, e) =>
+                {
+                    int index = productList.FindIndex(p => p.Id == currentProduct.Id);
+                    if (index > 0)
+                    {
+                        // Zamień miejscami
+                        var temp = productList[index];
+                        productList[index] = productList[index - 1];
+                        productList[index - 1] = temp;
+
+                        // Przebuduj UI
+                        listStack.Children.Clear();
+                        foreach (var p in productList)
+                            listStack.Children.Add(p.Border);
+                    }
+                };
+
+                btnDown.Click += (s, e) =>
+                {
+                    int index = productList.FindIndex(p => p.Id == currentProduct.Id);
+                    if (index < productList.Count - 1)
+                    {
+                        // Zamień miejscami
+                        var temp = productList[index];
+                        productList[index] = productList[index + 1];
+                        productList[index + 1] = temp;
+
+                        // Przebuduj UI
+                        listStack.Children.Clear();
+                        foreach (var p in productList)
+                            listStack.Children.Add(p.Border);
+                    }
+                };
+            }
+
+            scrollViewer.Content = listStack;
+            Grid.SetRow(scrollViewer, 1);
+            mainGrid.Children.Add(scrollViewer);
+
+            // Przyciski na dole
+            var buttonPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(15)
+            };
+
+            var btnSave = new Button
+            {
+                Content = "💾 Zapisz jako domyślną",
+                Padding = new Thickness(15, 8, 15, 8),
+                Margin = new Thickness(0, 0, 10, 0),
+                Background = new SolidColorBrush(Color.FromRgb(39, 174, 96)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+
+            var btnCancel = new Button
+            {
+                Content = "Anuluj",
+                Padding = new Thickness(15, 8, 15, 8),
+                Background = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+
+            btnSave.Click += async (s, e) =>
+            {
+                var orderedIds = productList.Select(p => p.Id).ToList();
+                await SaveProductOrderAsync(orderedIds);
+                _selectedProductIds = orderedIds;
+                dialog.DialogResult = true;
+                _ = LoadDataAsync();
+            };
+
+            btnCancel.Click += (s, e) => dialog.DialogResult = false;
+
+            buttonPanel.Children.Add(btnSave);
+            buttonPanel.Children.Add(btnCancel);
+            Grid.SetRow(buttonPanel, 2);
+            mainGrid.Children.Add(buttonPanel);
+
+            dialog.Content = mainGrid;
+            dialog.ShowDialog();
         }
 
         #endregion

@@ -205,6 +205,10 @@
                     </StackPanel>
 
                     <StackPanel Grid.Column="4" Orientation="Horizontal">
+                        <Button x:Name="btnOrder" Content="↕ Kolejność" Style="{StaticResource ModernButtonStyle}"
+                                Background="#F39C12" Margin="0,0,10,0" Padding="10,6"
+                                ToolTip="Ustaw kolejność wyświetlania produktów"
+                                Click="BtnOrder_Click"/>
                         <Button x:Name="btnSettings" Content="⚙" Style="{StaticResource ModernButtonStyle}"
                                 Background="#95A5A6" Margin="0,0,10,0" Padding="10,6"
                                 ToolTip="Ustawienia progów kolorów paska"
