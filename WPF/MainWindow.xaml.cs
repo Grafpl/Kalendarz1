@@ -3437,44 +3437,7 @@ ORDER BY zm.Id";
                 ElementStyle = roznicaStyle
             });
 
-            // 6. Dynamiczne kolumny grup towarowych (ćwiartka, filet, korpus, skrzydło) z obramowaniem
-            // Dodajemy specjalny styl z obramowaniem dla kolumn produktowych
-            int productColumnStartIndex = dgOrders.Columns.Count;
-            foreach (var kvp in _grupyKolumnDoNazw)
-            {
-                string colName = kvp.Key;
-                string displayName = kvp.Value;
-
-                var grupaStyle = new Style(typeof(TextBlock));
-                grupaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
-                grupaStyle.Setters.Add(new Setter(TextBlock.FontSizeProperty, 11.0));
-                grupaStyle.Setters.Add(new Setter(TextBlock.PaddingProperty, new Thickness(2, 0, 4, 0)));
-
-                // Styl dla nagłówka z tłem, aby wyróżnić grupę kolumn produktowych
-                var headerStyle = new Style(typeof(DataGridColumnHeader));
-                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BackgroundProperty,
-                    new SolidColorBrush(Color.FromRgb(39, 174, 96)))); // Zielony kolor dla produktów
-                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.ForegroundProperty, Brushes.White));
-                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.FontWeightProperty, FontWeights.Bold));
-                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.FontSizeProperty, 10.0));
-                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.PaddingProperty, new Thickness(4, 4, 4, 4)));
-                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BorderBrushProperty,
-                    new SolidColorBrush(Color.FromRgb(46, 204, 113))));
-                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BorderThicknessProperty, new Thickness(1, 0, 1, 0)));
-
-                var col = new DataGridTextColumn
-                {
-                    Header = displayName,
-                    Binding = new System.Windows.Data.Binding(colName) { StringFormat = "N0" },
-                    Width = new DataGridLength(45),
-                    ElementStyle = grupaStyle,
-                    HeaderStyle = headerStyle
-                };
-
-                dgOrders.Columns.Add(col);
-            }
-
-            // 7. Cena - V (zielony) jeśli wszystkie pozycje mają cenę, X (czerwony) jeśli nie
+            // 6. Cena - V (zielony) jeśli wszystkie pozycje mają cenę, X (czerwony) jeśli nie
             var cenaStyle = new Style(typeof(TextBlock));
             cenaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
             cenaStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
@@ -3496,7 +3459,7 @@ ORDER BY zm.Id";
                 ElementStyle = cenaStyle
             });
 
-            // 8. Utworzone przez - po kolumnie Cena
+            // 7. Utworzone przez
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Utworzono",
@@ -3504,51 +3467,11 @@ ORDER BY zm.Id";
                 Width = new DataGridLength(85)
             });
 
-            // 9. Termin - godzina + skrócony dzień tygodnia odbioru
+            // 8. Termin
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Termin",
                 Binding = new System.Windows.Data.Binding("TerminInfo"),
-                Width = new DataGridLength(75),
-                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
-            });
-
-            // 8. Transport - godzina:minuta + skrócony dzień wyjazdu z firmy
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Transport",
-                Binding = new System.Windows.Data.Binding("TransportInfo"),
-                Width = new DataGridLength(75),
-                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
-            });
-
-            // 9. Wypr. - czy wyprodukowane (zielone V / czerwone X)
-            var wyprStyle = new Style(typeof(TextBlock));
-            wyprStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
-            wyprStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
-
-            var wyprGreenTrigger = new DataTrigger { Binding = new System.Windows.Data.Binding("CzyZrealizowane"), Value = true };
-            wyprGreenTrigger.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(0, 150, 0))));
-
-            var wyprRedTrigger = new DataTrigger { Binding = new System.Windows.Data.Binding("CzyZrealizowane"), Value = false };
-            wyprRedTrigger.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(200, 0, 0))));
-
-            wyprStyle.Triggers.Add(wyprGreenTrigger);
-            wyprStyle.Triggers.Add(wyprRedTrigger);
-
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Wypr.",
-                Binding = new System.Windows.Data.Binding("WyprInfo"),
-                Width = new DataGridLength(45),
-                ElementStyle = wyprStyle
-            });
-
-            // 10. Wydano - godzina:minuta + skrócony dzień wydania
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Wydano",
-                Binding = new System.Windows.Data.Binding("WydanoInfo"),
                 Width = new DataGridLength(75),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
