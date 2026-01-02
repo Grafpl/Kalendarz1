@@ -63,6 +63,7 @@ namespace Kalendarz1.WPF
         private readonly Dictionary<int, string> _productCatalogCache = new();
         private readonly Dictionary<int, string> _productCatalogSwieze = new();
         private readonly Dictionary<int, string> _productCatalogMrozone = new();
+        private readonly Dictionary<int, BitmapImage?> _productImages = new();
         private Dictionary<int, string> _mapowanieScalowania = new(); // TowarIdtw -> NazwaGrupy
         private Dictionary<string, List<int>> _grupyDoProduktow = new(); // NazwaGrupy -> lista TowarId
         private List<string> _grupyTowaroweNazwy = new(); // Lista nazw grup towarowych dla kolumn w tabeli zamówień
@@ -4558,6 +4559,9 @@ ORDER BY zm.Id";
             var diagSw = System.Diagnostics.Stopwatch.StartNew();
             var diagTimes = new List<(string name, long ms)>();
 
+            // Załaduj zdjęcia produktów (jeśli jeszcze nie załadowane)
+            await LoadProductImagesAsync();
+
             day = ValidateSqlDate(day);
 
             var dtAgg = new DataTable();
@@ -4747,7 +4751,7 @@ ORDER BY zm.Id";
             decimal sumaWydB = 0m;
             decimal sumaStanB = 0m;
 
-            var produktyB = new List<(string nazwa, decimal plan, decimal fakt, decimal zam, decimal wyd, string stan, decimal stanDec, decimal bilans)>();
+            var produktyB = new List<(string nazwa, decimal plan, decimal fakt, decimal zam, decimal wyd, string stan, decimal stanDec, decimal bilans, int towarId)>();
 
             // Agregacja z uwzględnieniem scalania towarów
             var agregowaneGrupy = new Dictionary<string, (decimal plan, decimal fakt, decimal zam, decimal wyd, decimal stan, decimal procent)>(StringComparer.OrdinalIgnoreCase);
@@ -4825,7 +4829,7 @@ ORDER BY zm.Id";
                     ? $"  {expandIcon} {grupa.Key} ({procent:F1}%)"
                     : $"  {expandIcon} {ikona} {grupa.Key} ({procent:F1}%)";
 
-                produktyB.Add((nazwaZIkonka, plan, fakt, zam, wyd, stanText, stan, balance));
+                produktyB.Add((nazwaZIkonka, plan, fakt, zam, wyd, stanText, stan, balance, 0));
 
                 // Jeśli grupa jest rozwinięta, dodaj szczegóły produktów
                 if (isExpanded && _detaleGrup.TryGetValue(grupa.Key, out var detale))
@@ -4833,7 +4837,7 @@ ORDER BY zm.Id";
                     foreach (var detal in detale)
                     {
                         // Dodaj wydania = 0 dla szczegółów (nie mamy ich w detaleGrup)
-                        produktyB.Add((detal.Item1, detal.Item2, detal.Item3, detal.Item4, 0m, detal.Item5, detal.Item6, detal.Item7));
+                        produktyB.Add((detal.Item1, detal.Item2, detal.Item3, detal.Item4, 0m, detal.Item5, detal.Item6, detal.Item7, 0));
                     }
                 }
 
@@ -4895,7 +4899,7 @@ ORDER BY zm.Id";
                     ? $"  └ {nazwaProdukt} ({procentUdzialu:F1}%)"
                     : $"  └ {ikona} {nazwaProdukt} ({procentUdzialu:F1}%)";
 
-                produktyB.Add((nazwaZIkonka, plannedForProduct, actual, orders, releases, stanText, stanMag, balance));
+                produktyB.Add((nazwaZIkonka, plannedForProduct, actual, orders, releases, stanText, stanMag, balance, produktId));
 
                 sumaPlanB += plannedForProduct;
                 sumaFaktB += actual;
@@ -4954,7 +4958,7 @@ ORDER BY zm.Id";
 
                 var nazwa = ShortenProductName(produkt.nazwa);
                 wpProductCards.Children.Add(CreateDashboardCard(nazwa, produkt.plan, produkt.fakt, produkt.zam, produkt.bilans,
-                    colors[colorIdx % colors.Length], false, produkt.nazwa));
+                    colors[colorIdx % colors.Length], false, produkt.nazwa, produkt.towarId));
                 colorIdx++;
             }
 
@@ -5007,7 +5011,59 @@ ORDER BY zm.Id";
             return name;
         }
 
-        private Border CreateDashboardCard(string nazwa, decimal plan, decimal fakt, decimal zam, decimal bilans, Color barColor, bool isSummary, string tooltip = null)
+        private async Task LoadProductImagesAsync()
+        {
+            if (_productImages.Count > 0) return; // Już załadowane
+
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                const string sql = @"SELECT TowarId, Zdjecie FROM dbo.TowarZdjecia WHERE Aktywne = 1";
+                await using var cmd = new SqlCommand(sql, cn);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+
+                while (await rdr.ReadAsync())
+                {
+                    int towarId = rdr.GetInt32(0);
+                    if (!rdr.IsDBNull(1))
+                    {
+                        byte[] imageData = (byte[])rdr["Zdjecie"];
+                        var image = BytesToBitmapImage(imageData);
+                        _productImages[towarId] = image;
+                    }
+                }
+            }
+            catch { /* Zdjęcia są opcjonalne */ }
+        }
+
+        private BitmapImage? BytesToBitmapImage(byte[] data)
+        {
+            if (data == null || data.Length == 0) return null;
+            try
+            {
+                var image = new BitmapImage();
+                using (var ms = new MemoryStream(data))
+                {
+                    ms.Position = 0;
+                    image.BeginInit();
+                    image.CacheOption = BitmapCacheOption.OnLoad;
+                    image.StreamSource = ms;
+                    image.EndInit();
+                    image.Freeze();
+                }
+                return image;
+            }
+            catch { return null; }
+        }
+
+        private BitmapImage? GetProductImage(int towarId)
+        {
+            return _productImages.TryGetValue(towarId, out var img) ? img : null;
+        }
+
+        private Border CreateDashboardCard(string nazwa, decimal plan, decimal fakt, decimal zam, decimal bilans, Color barColor, bool isSummary, string tooltip = null, int towarId = 0)
         {
             // Oblicz procent realizacji (Zam / Plan lub Fakt)
             decimal baseValue = fakt > 0 ? fakt : plan;
@@ -5021,11 +5077,36 @@ ORDER BY zm.Id";
                 Padding = new Thickness(8, 6, 8, 6),
                 BorderBrush = new SolidColorBrush(Color.FromRgb(210, 210, 210)),
                 BorderThickness = new Thickness(1),
-                Width = 150,
+                Width = 165,
                 ToolTip = tooltip ?? nazwa
             };
 
             var stack = new StackPanel();
+
+            // Nagłówek: zdjęcie + nazwa
+            var headerGrid = new Grid { Margin = new Thickness(0, 0, 0, 5) };
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            // Zdjęcie produktu (jeśli jest)
+            var productImage = towarId > 0 ? GetProductImage(towarId) : null;
+            if (productImage != null)
+            {
+                var imgBorder = new Border
+                {
+                    Width = 32,
+                    Height = 32,
+                    CornerRadius = new CornerRadius(4),
+                    Margin = new Thickness(0, 0, 6, 0),
+                    Background = new ImageBrush
+                    {
+                        ImageSource = productImage,
+                        Stretch = Stretch.UniformToFill
+                    }
+                };
+                Grid.SetColumn(imgBorder, 0);
+                headerGrid.Children.Add(imgBorder);
+            }
 
             // Nazwa produktu
             var titleText = new TextBlock
@@ -5035,9 +5116,12 @@ ORDER BY zm.Id";
                 FontWeight = isSummary ? FontWeights.Bold : FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
                 TextTrimming = TextTrimming.CharacterEllipsis,
-                Margin = new Thickness(0, 0, 0, 5)
+                VerticalAlignment = VerticalAlignment.Center
             };
-            stack.Children.Add(titleText);
+            Grid.SetColumn(titleText, 1);
+            headerGrid.Children.Add(titleText);
+
+            stack.Children.Add(headerGrid);
 
             // Pasek postępu z procentem
             var progressGrid = new Grid { Height = 16, Margin = new Thickness(0, 0, 0, 5) };
