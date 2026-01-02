@@ -885,10 +885,10 @@
 
                                             <!-- Pasek postępu -->
                                             <Grid Grid.Row="1" Margin="0,3,0,2">
-                                                <ProgressBar Value="{Binding Procent}" Maximum="100"
-                                                             Height="14" Foreground="{Binding ProgressColor}"
+                                                <ProgressBar Value="{Binding Procent, Mode=OneWay}" Maximum="100"
+                                                             Height="14" Foreground="{Binding ProgressColor, Mode=OneWay}"
                                                              Background="#E8E8E8"/>
-                                                <TextBlock Text="{Binding ProcentText}"
+                                                <TextBlock Text="{Binding ProcentText, Mode=OneWay}"
                                                            HorizontalAlignment="Center"
                                                            VerticalAlignment="Center"
                                                            FontSize="9" FontWeight="Bold"
@@ -902,8 +902,8 @@
                                             <!-- Plan i Zamówienia -->
                                             <StackPanel Grid.Row="2" Orientation="Horizontal">
                                                 <TextBlock FontSize="9" Foreground="#666">
-                                                    <Run Text="P:"/><Run Text="{Binding PlanText}" FontWeight="SemiBold"/>
-                                                    <Run Text=" Z:"/><Run Text="{Binding ZamText}" FontWeight="SemiBold"/>
+                                                    <Run Text="P:"/><Run Text="{Binding PlanText, Mode=OneWay}" FontWeight="SemiBold"/>
+                                                    <Run Text=" Z:"/><Run Text="{Binding ZamText, Mode=OneWay}" FontWeight="SemiBold"/>
                                                 </TextBlock>
                                             </StackPanel>
                                         </Grid>
