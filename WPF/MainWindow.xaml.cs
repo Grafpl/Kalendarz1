@@ -4846,43 +4846,64 @@ ORDER BY zm.Id";
             // ✅ BILANS CAŁKOWITY
             decimal bilansCalk = balanceA + bilansB;
 
-            // ✅ UTWÓRZ KARTY PRODUKTÓW (styl dashboardowy)
+            // ✅ UTWÓRZ KARTY PRODUKTÓW Z SZABLONU DASHBOARDU
             wpProductCards.Children.Clear();
 
-            // Suma całkowita
-            wpProductCards.Children.Add(CreateDashboardCard("SUMA", planA + sumaPlanB, factA + sumaFaktB, ordersA + sumaZamB, bilansCalk,
-                Color.FromRgb(76, 175, 80), true));
+            // Załaduj produkty z domyślnego widoku dashboardu
+            var dashboardProductIds = await LoadDefaultDashboardProductIdsAsync();
+            var productNames = await LoadProductNamesAsync(dashboardProductIds);
 
-            // Kurczak A
-            wpProductCards.Children.Add(CreateDashboardCard("Kurczak A", planA, factA, ordersA, balanceA,
-                Color.FromRgb(102, 187, 106), true));
-
-            // Kurczak B
-            wpProductCards.Children.Add(CreateDashboardCard("Kurczak B", sumaPlanB, sumaFaktB, sumaZamB, bilansB,
-                Color.FromRgb(66, 165, 245), true));
-
-            // Produkty B - indywidualne karty
             var colors = new[] {
+                Color.FromRgb(52, 152, 219),  // Niebieski
+                Color.FromRgb(46, 204, 113),  // Zielony
                 Color.FromRgb(241, 196, 15),  // Żółty
                 Color.FromRgb(230, 126, 34),  // Pomarańczowy
                 Color.FromRgb(155, 89, 182),  // Fioletowy
-                Color.FromRgb(52, 152, 219),  // Niebieski
                 Color.FromRgb(26, 188, 156),  // Turkusowy
                 Color.FromRgb(231, 76, 60),   // Czerwony
-                Color.FromRgb(149, 165, 166)  // Szary
             };
             int colorIdx = 0;
 
-            foreach (var produkt in produktyB)
+            foreach (var productId in dashboardProductIds)
             {
-                // Pomiń wiersze szczegółowe (z wcięciem)
-                if (produkt.nazwa.StartsWith("  ") || produkt.nazwa.StartsWith("      "))
+                if (!productNames.TryGetValue(productId, out var productName))
                     continue;
 
-                var nazwa = ShortenProductName(produkt.nazwa);
-                wpProductCards.Children.Add(CreateDashboardCard(nazwa, produkt.plan, produkt.fakt, produkt.zam, produkt.bilans,
-                    colors[colorIdx % colors.Length], false, produkt.nazwa, produkt.towarId));
+                // Pobierz dane produktu
+                decimal plan = 0, fakt = 0, zam = 0, bilans = 0;
+
+                // Plan z konfiguracji produktów
+                if (konfiguracjaProduktow.TryGetValue(productId, out var procent))
+                    plan = pulaTuszkiB * (procent / 100m);
+
+                // Fakt z przychodów
+                if (actualIncomeElementy.TryGetValue(productId, out var f))
+                    fakt = f;
+
+                // Zamówienia
+                if (orderSum.TryGetValue(productId, out var z))
+                    zam = z;
+
+                // Bilans
+                decimal baseVal = fakt > 0 ? fakt : plan;
+                decimal stan = stanyMagazynowe.TryGetValue(productId, out var s) ? s : 0;
+                bilans = baseVal + stan - zam;
+
+                wpProductCards.Children.Add(CreateDashboardCard(
+                    productName, plan, fakt, zam, bilans,
+                    colors[colorIdx % colors.Length], false, productName, productId));
                 colorIdx++;
+            }
+
+            // Jeśli brak szablonu - pokaż stare karty
+            if (!dashboardProductIds.Any())
+            {
+                wpProductCards.Children.Add(CreateDashboardCard("SUMA", planA + sumaPlanB, factA + sumaFaktB, ordersA + sumaZamB, bilansCalk,
+                    Color.FromRgb(76, 175, 80), true));
+                wpProductCards.Children.Add(CreateDashboardCard("Kurczak A", planA, factA, ordersA, balanceA,
+                    Color.FromRgb(102, 187, 106), true));
+                wpProductCards.Children.Add(CreateDashboardCard("Kurczak B", sumaPlanB, sumaFaktB, sumaZamB, bilansB,
+                    Color.FromRgb(66, 165, 245), true));
             }
 
             // Zachowaj dane w dtAgg dla kompatybilności
@@ -4959,6 +4980,55 @@ ORDER BY zm.Id";
                 }
             }
             catch { /* Zdjęcia są opcjonalne */ }
+        }
+
+        private async Task<List<int>> LoadDefaultDashboardProductIdsAsync()
+        {
+            var productIds = new List<int>();
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                const string sql = @"SELECT TOP 1 ProduktyIds FROM dbo.DashboardWidoki WHERE IsDomyslny = 1";
+                await using var cmd = new SqlCommand(sql, cn);
+                var result = await cmd.ExecuteScalarAsync();
+
+                if (result != null && result != DBNull.Value)
+                {
+                    var idsStr = result.ToString();
+                    foreach (var idStr in idsStr.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        if (int.TryParse(idStr.Trim(), out int id))
+                            productIds.Add(id);
+                    }
+                }
+            }
+            catch { }
+            return productIds;
+        }
+
+        private async Task<Dictionary<int, string>> LoadProductNamesAsync(List<int> productIds)
+        {
+            var names = new Dictionary<int, string>();
+            if (!productIds.Any()) return names;
+
+            try
+            {
+                await using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync();
+
+                var sql = $"SELECT ID, kod FROM [HM].[TW] WHERE ID IN ({string.Join(",", productIds)})";
+                await using var cmd = new SqlCommand(sql, cn);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+
+                while (await rdr.ReadAsync())
+                {
+                    names[rdr.GetInt32(0)] = rdr.GetString(1);
+                }
+            }
+            catch { }
+            return names;
         }
 
         private BitmapImage? BytesToBitmapImage(byte[] data)
