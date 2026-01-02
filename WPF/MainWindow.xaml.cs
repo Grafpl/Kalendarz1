@@ -5009,18 +5009,19 @@ ORDER BY zm.Id";
 
         private Border CreateDashboardCard(string nazwa, decimal plan, decimal fakt, decimal zam, decimal bilans, Color barColor, bool isSummary, string tooltip = null)
         {
-            double maxBarWidth = 120;
-            decimal maxValue = Math.Max(Math.Max(plan, fakt), Math.Max(zam, 1));
+            // Oblicz procent realizacji (Zam / Plan lub Fakt)
+            decimal baseValue = fakt > 0 ? fakt : plan;
+            double procent = baseValue > 0 ? (double)(zam / baseValue * 100) : 0;
 
             var card = new Border
             {
-                Background = isSummary ? new SolidColorBrush(Color.FromRgb(245, 245, 245)) : Brushes.White,
+                Background = isSummary ? new SolidColorBrush(Color.FromRgb(240, 240, 240)) : Brushes.White,
                 CornerRadius = new CornerRadius(6),
-                Margin = new Thickness(4),
+                Margin = new Thickness(3),
                 Padding = new Thickness(8, 6, 8, 6),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(220, 220, 220)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(210, 210, 210)),
                 BorderThickness = new Thickness(1),
-                Width = 160,
+                Width = 150,
                 ToolTip = tooltip ?? nazwa
             };
 
@@ -5034,90 +5035,59 @@ ORDER BY zm.Id";
                 FontWeight = isSummary ? FontWeights.Bold : FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
                 TextTrimming = TextTrimming.CharacterEllipsis,
-                Margin = new Thickness(0, 0, 0, 4)
+                Margin = new Thickness(0, 0, 0, 5)
             };
             stack.Children.Add(titleText);
 
-            // Pasek PLAN
-            double planWidth = plan > 0 ? (double)(plan / maxValue) * maxBarWidth : 3;
-            var planBar = CreateHorizontalBar("P", plan, planWidth, Color.FromRgb(241, 196, 15), fakt > 0);
-            stack.Children.Add(planBar);
+            // Pasek postępu z procentem
+            var progressGrid = new Grid { Height = 16, Margin = new Thickness(0, 0, 0, 5) };
 
-            // Pasek FAKT (tylko jeśli > 0)
-            if (fakt > 0)
+            // Tło paska
+            progressGrid.Children.Add(new Border
             {
-                double faktWidth = (double)(fakt / maxValue) * maxBarWidth;
-                var faktBar = CreateHorizontalBar("F", fakt, faktWidth, Color.FromRgb(46, 204, 113), false);
-                stack.Children.Add(faktBar);
-            }
+                Background = new SolidColorBrush(Color.FromRgb(230, 230, 230)),
+                CornerRadius = new CornerRadius(3)
+            });
 
-            // Pasek ZAM
-            double zamWidth = zam > 0 ? (double)(zam / maxValue) * maxBarWidth : 3;
-            var zamBar = CreateHorizontalBar("Z", zam, zamWidth, barColor, false);
-            stack.Children.Add(zamBar);
+            // Kolor paska zależny od procentu
+            var progressColor = procent >= 90 ? Color.FromRgb(46, 204, 113)   // Zielony
+                              : procent >= 70 ? Color.FromRgb(241, 196, 15)   // Żółty
+                              : Color.FromRgb(231, 76, 60);                    // Czerwony
 
-            // Bilans
-            var bilansColor = bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60);
-            var bilansText = new TextBlock
+            // Wypełnienie paska
+            progressGrid.Children.Add(new Border
             {
+                Background = new SolidColorBrush(progressColor),
+                CornerRadius = new CornerRadius(3),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Width = 134 * Math.Min(procent, 100) / 100
+            });
+
+            // Tekst procentu na pasku
+            var procentText = new TextBlock
+            {
+                Text = $"{procent:N0}%",
                 FontSize = 9,
-                Margin = new Thickness(0, 3, 0, 0)
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
             };
-            bilansText.Inlines.Add(new Run("Bil: ") { Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)) });
-            bilansText.Inlines.Add(new Run(bilans.ToString("N0")) { FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(bilansColor) });
-            stack.Children.Add(bilansText);
+            procentText.Effect = new System.Windows.Media.Effects.DropShadowEffect { ShadowDepth = 0, BlurRadius = 2, Color = Colors.Black };
+            progressGrid.Children.Add(procentText);
+
+            stack.Children.Add(progressGrid);
+
+            // Wartości P: i Z: w jednej linii
+            var valuesText = new TextBlock { FontSize = 9 };
+            valuesText.Inlines.Add(new Run("P:") { Foreground = new SolidColorBrush(Color.FromRgb(120, 120, 120)) });
+            valuesText.Inlines.Add(new Run($"{baseValue:N0} ") { FontWeight = FontWeights.SemiBold });
+            valuesText.Inlines.Add(new Run("Z:") { Foreground = new SolidColorBrush(Color.FromRgb(120, 120, 120)) });
+            valuesText.Inlines.Add(new Run($"{zam:N0}") { FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(barColor) });
+            stack.Children.Add(valuesText);
 
             card.Child = stack;
             return card;
-        }
-
-        private Grid CreateHorizontalBar(string label, decimal value, double width, Color color, bool strikethrough)
-        {
-            var grid = new Grid { Margin = new Thickness(0, 1, 0, 1) };
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            // Etykieta
-            var labelText = new TextBlock
-            {
-                Text = label,
-                FontSize = 8,
-                FontWeight = FontWeights.Bold,
-                Foreground = strikethrough ? new SolidColorBrush(Color.FromRgb(180, 180, 180)) : new SolidColorBrush(Color.FromRgb(100, 100, 100)),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            Grid.SetColumn(labelText, 0);
-            grid.Children.Add(labelText);
-
-            // Pasek
-            var bar = new Border
-            {
-                Height = 12,
-                Width = Math.Max(width, 3),
-                HorizontalAlignment = HorizontalAlignment.Left,
-                CornerRadius = new CornerRadius(2),
-                Background = strikethrough
-                    ? new SolidColorBrush(Color.FromRgb(200, 200, 200))
-                    : new SolidColorBrush(color)
-            };
-            Grid.SetColumn(bar, 1);
-            grid.Children.Add(bar);
-
-            // Wartość
-            var valueText = new TextBlock
-            {
-                Text = value.ToString("N0"),
-                FontSize = 8,
-                Foreground = strikethrough ? new SolidColorBrush(Color.FromRgb(180, 180, 180)) : new SolidColorBrush(Color.FromRgb(80, 80, 80)),
-                TextDecorations = strikethrough ? TextDecorations.Strikethrough : null,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(4, 0, 0, 0)
-            };
-            Grid.SetColumn(valueText, 2);
-            grid.Children.Add(valueText);
-
-            return grid;
         }
 
         private void DgAggregation_LoadingRow(object sender, DataGridRowEventArgs e)
