@@ -857,60 +857,7 @@
 
                 <Border Grid.Row="2" Style="{StaticResource PanelBorderStyle}">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <ItemsControl x:Name="icProductCards">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel Orientation="Horizontal"/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Margin="3" Padding="6,4" CornerRadius="4"
-                                            Background="{Binding CardBackground}"
-                                            BorderBrush="#E0E0E0" BorderThickness="1"
-                                            MinWidth="140" MaxWidth="180">
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-
-                                            <!-- Nazwa produktu -->
-                                            <TextBlock Grid.Row="0" Text="{Binding Nazwa}"
-                                                       FontWeight="{Binding FontWeight}" FontSize="11"
-                                                       Foreground="{Binding ForegroundColor}"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       ToolTip="{Binding NazwaPelna}"/>
-
-                                            <!-- Pasek postępu -->
-                                            <Grid Grid.Row="1" Margin="0,3,0,2">
-                                                <ProgressBar Value="{Binding Procent, Mode=OneWay}" Maximum="100"
-                                                             Height="14" Foreground="{Binding ProgressColor, Mode=OneWay}"
-                                                             Background="#E8E8E8"/>
-                                                <TextBlock Text="{Binding ProcentText, Mode=OneWay}"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Center"
-                                                           FontSize="9" FontWeight="Bold"
-                                                           Foreground="White">
-                                                    <TextBlock.Effect>
-                                                        <DropShadowEffect ShadowDepth="0" BlurRadius="2" Color="Black"/>
-                                                    </TextBlock.Effect>
-                                                </TextBlock>
-                                            </Grid>
-
-                                            <!-- Plan i Zamówienia -->
-                                            <StackPanel Grid.Row="2" Orientation="Horizontal">
-                                                <TextBlock FontSize="9" Foreground="#666">
-                                                    <Run Text="P:"/><Run Text="{Binding PlanText, Mode=OneWay}" FontWeight="SemiBold"/>
-                                                    <Run Text=" Z:"/><Run Text="{Binding ZamText, Mode=OneWay}" FontWeight="SemiBold"/>
-                                                </TextBlock>
-                                            </StackPanel>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <WrapPanel x:Name="wpProductCards" Orientation="Horizontal"/>
                     </ScrollViewer>
                 </Border>
                 </Grid>

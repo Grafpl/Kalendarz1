@@ -23,25 +23,6 @@ using Kalendarz1.Services;
 
 namespace Kalendarz1.WPF
 {
-    public class ProductCardItem
-    {
-        public string Nazwa { get; set; } = "";
-        public string NazwaPelna { get; set; } = "";
-        public decimal Plan { get; set; }
-        public decimal Fakt { get; set; }
-        public decimal Zam { get; set; }
-        public decimal Bilans { get; set; }
-        public double Procent => Plan > 0 ? Math.Min(100, (double)(Fakt / Plan * 100)) : 0;
-        public string ProcentText => Plan > 0 ? $"{Procent:N0}%" : "-";
-        public string PlanText => Plan.ToString("N0");
-        public string ZamText => Zam.ToString("N0");
-        public Brush CardBackground { get; set; } = Brushes.White;
-        public Brush ProgressColor { get; set; } = Brushes.ForestGreen;
-        public Brush ForegroundColor { get; set; } = Brushes.Black;
-        public FontWeight FontWeight { get; set; } = FontWeights.Normal;
-        public bool IsSummary { get; set; }
-    }
-
     public partial class MainWindow : Window
     {
         private readonly string _connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
@@ -4938,82 +4919,44 @@ ORDER BY zm.Id";
             // ✅ BILANS CAŁKOWITY
             decimal bilansCalk = balanceA + bilansB;
 
-            // ✅ UTWÓRZ KARTY PRODUKTÓW
-            var cards = new List<ProductCardItem>();
+            // ✅ UTWÓRZ KARTY PRODUKTÓW (styl dashboardowy)
+            wpProductCards.Children.Clear();
 
-            // Suma całkowita - duża karta
-            cards.Add(new ProductCardItem
-            {
-                Nazwa = "SUMA",
-                NazwaPelna = "Suma Całkowita",
-                Plan = planA + sumaPlanB,
-                Fakt = factA + sumaFaktB,
-                Zam = ordersA + sumaZamB,
-                Bilans = bilansCalk,
-                CardBackground = new SolidColorBrush(Color.FromRgb(76, 175, 80)),
-                ForegroundColor = Brushes.White,
-                ProgressColor = new SolidColorBrush(Color.FromRgb(56, 142, 60)),
-                FontWeight = FontWeights.Bold,
-                IsSummary = true
-            });
+            // Suma całkowita
+            wpProductCards.Children.Add(CreateDashboardCard("SUMA", planA + sumaPlanB, factA + sumaFaktB, ordersA + sumaZamB, bilansCalk,
+                Color.FromRgb(76, 175, 80), true));
 
             // Kurczak A
-            cards.Add(new ProductCardItem
-            {
-                Nazwa = "Kurczak A",
-                NazwaPelna = "Kurczak A (Tuszka)",
-                Plan = planA,
-                Fakt = factA,
-                Zam = ordersA,
-                Bilans = balanceA,
-                CardBackground = new SolidColorBrush(Color.FromRgb(200, 230, 201)),
-                ProgressColor = new SolidColorBrush(Color.FromRgb(102, 187, 106)),
-                FontWeight = FontWeights.SemiBold
-            });
+            wpProductCards.Children.Add(CreateDashboardCard("Kurczak A", planA, factA, ordersA, balanceA,
+                Color.FromRgb(102, 187, 106), true));
 
             // Kurczak B
-            cards.Add(new ProductCardItem
-            {
-                Nazwa = "Kurczak B",
-                NazwaPelna = "Kurczak B (Elementy)",
-                Plan = sumaPlanB,
-                Fakt = sumaFaktB,
-                Zam = sumaZamB,
-                Bilans = bilansB,
-                CardBackground = new SolidColorBrush(Color.FromRgb(179, 229, 252)),
-                ProgressColor = new SolidColorBrush(Color.FromRgb(66, 165, 245)),
-                FontWeight = FontWeights.SemiBold
-            });
+            wpProductCards.Children.Add(CreateDashboardCard("Kurczak B", sumaPlanB, sumaFaktB, sumaZamB, bilansB,
+                Color.FromRgb(66, 165, 245), true));
 
             // Produkty B - indywidualne karty
+            var colors = new[] {
+                Color.FromRgb(241, 196, 15),  // Żółty
+                Color.FromRgb(230, 126, 34),  // Pomarańczowy
+                Color.FromRgb(155, 89, 182),  // Fioletowy
+                Color.FromRgb(52, 152, 219),  // Niebieski
+                Color.FromRgb(26, 188, 156),  // Turkusowy
+                Color.FromRgb(231, 76, 60),   // Czerwony
+                Color.FromRgb(149, 165, 166)  // Szary
+            };
+            int colorIdx = 0;
+
             foreach (var produkt in produktyB)
             {
                 // Pomiń wiersze szczegółowe (z wcięciem)
                 if (produkt.nazwa.StartsWith("  ") || produkt.nazwa.StartsWith("      "))
                     continue;
 
-                var card = new ProductCardItem
-                {
-                    Nazwa = ShortenProductName(produkt.nazwa),
-                    NazwaPelna = produkt.nazwa,
-                    Plan = produkt.plan,
-                    Fakt = produkt.fakt,
-                    Zam = produkt.zam,
-                    Bilans = produkt.bilans
-                };
-
-                // Kolor paska postępu zależny od procentu
-                if (card.Procent >= 90)
-                    card.ProgressColor = new SolidColorBrush(Color.FromRgb(76, 175, 80)); // Zielony
-                else if (card.Procent >= 70)
-                    card.ProgressColor = new SolidColorBrush(Color.FromRgb(255, 193, 7)); // Żółty
-                else
-                    card.ProgressColor = new SolidColorBrush(Color.FromRgb(244, 67, 54)); // Czerwony
-
-                cards.Add(card);
+                var nazwa = ShortenProductName(produkt.nazwa);
+                wpProductCards.Children.Add(CreateDashboardCard(nazwa, produkt.plan, produkt.fakt, produkt.zam, produkt.bilans,
+                    colors[colorIdx % colors.Length], false, produkt.nazwa));
+                colorIdx++;
             }
-
-            icProductCards.ItemsSource = cards;
 
             // Zachowaj dane w dtAgg dla kompatybilności
             dtAgg.Rows.Add("═══ SUMA CAŁKOWITA ═══", planA + sumaPlanB, factA + sumaFaktB,
@@ -5062,6 +5005,119 @@ ORDER BY zm.Id";
                 return name.Substring(0, 14) + "..";
             }
             return name;
+        }
+
+        private Border CreateDashboardCard(string nazwa, decimal plan, decimal fakt, decimal zam, decimal bilans, Color barColor, bool isSummary, string tooltip = null)
+        {
+            double maxBarWidth = 120;
+            decimal maxValue = Math.Max(Math.Max(plan, fakt), Math.Max(zam, 1));
+
+            var card = new Border
+            {
+                Background = isSummary ? new SolidColorBrush(Color.FromRgb(245, 245, 245)) : Brushes.White,
+                CornerRadius = new CornerRadius(6),
+                Margin = new Thickness(4),
+                Padding = new Thickness(8, 6, 8, 6),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(220, 220, 220)),
+                BorderThickness = new Thickness(1),
+                Width = 160,
+                ToolTip = tooltip ?? nazwa
+            };
+
+            var stack = new StackPanel();
+
+            // Nazwa produktu
+            var titleText = new TextBlock
+            {
+                Text = nazwa,
+                FontSize = isSummary ? 11 : 10,
+                FontWeight = isSummary ? FontWeights.Bold : FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                Margin = new Thickness(0, 0, 0, 4)
+            };
+            stack.Children.Add(titleText);
+
+            // Pasek PLAN
+            double planWidth = plan > 0 ? (double)(plan / maxValue) * maxBarWidth : 3;
+            var planBar = CreateHorizontalBar("P", plan, planWidth, Color.FromRgb(241, 196, 15), fakt > 0);
+            stack.Children.Add(planBar);
+
+            // Pasek FAKT (tylko jeśli > 0)
+            if (fakt > 0)
+            {
+                double faktWidth = (double)(fakt / maxValue) * maxBarWidth;
+                var faktBar = CreateHorizontalBar("F", fakt, faktWidth, Color.FromRgb(46, 204, 113), false);
+                stack.Children.Add(faktBar);
+            }
+
+            // Pasek ZAM
+            double zamWidth = zam > 0 ? (double)(zam / maxValue) * maxBarWidth : 3;
+            var zamBar = CreateHorizontalBar("Z", zam, zamWidth, barColor, false);
+            stack.Children.Add(zamBar);
+
+            // Bilans
+            var bilansColor = bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60);
+            var bilansText = new TextBlock
+            {
+                FontSize = 9,
+                Margin = new Thickness(0, 3, 0, 0)
+            };
+            bilansText.Inlines.Add(new Run("Bil: ") { Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)) });
+            bilansText.Inlines.Add(new Run(bilans.ToString("N0")) { FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(bilansColor) });
+            stack.Children.Add(bilansText);
+
+            card.Child = stack;
+            return card;
+        }
+
+        private Grid CreateHorizontalBar(string label, decimal value, double width, Color color, bool strikethrough)
+        {
+            var grid = new Grid { Margin = new Thickness(0, 1, 0, 1) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            // Etykieta
+            var labelText = new TextBlock
+            {
+                Text = label,
+                FontSize = 8,
+                FontWeight = FontWeights.Bold,
+                Foreground = strikethrough ? new SolidColorBrush(Color.FromRgb(180, 180, 180)) : new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(labelText, 0);
+            grid.Children.Add(labelText);
+
+            // Pasek
+            var bar = new Border
+            {
+                Height = 12,
+                Width = Math.Max(width, 3),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                CornerRadius = new CornerRadius(2),
+                Background = strikethrough
+                    ? new SolidColorBrush(Color.FromRgb(200, 200, 200))
+                    : new SolidColorBrush(color)
+            };
+            Grid.SetColumn(bar, 1);
+            grid.Children.Add(bar);
+
+            // Wartość
+            var valueText = new TextBlock
+            {
+                Text = value.ToString("N0"),
+                FontSize = 8,
+                Foreground = strikethrough ? new SolidColorBrush(Color.FromRgb(180, 180, 180)) : new SolidColorBrush(Color.FromRgb(80, 80, 80)),
+                TextDecorations = strikethrough ? TextDecorations.Strikethrough : null,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(4, 0, 0, 0)
+            };
+            Grid.SetColumn(valueText, 2);
+            grid.Children.Add(valueText);
+
+            return grid;
         }
 
         private void DgAggregation_LoadingRow(object sender, DataGridRowEventArgs e)
