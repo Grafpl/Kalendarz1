@@ -2552,6 +2552,7 @@ namespace Kalendarz1.WPF
             _dtOrders.Columns.Add("Prod", typeof(string));
             _dtOrders.Columns.Add("CzyMaCeny", typeof(bool));
             _dtOrders.Columns.Add("CenaInfo", typeof(string));
+            _dtOrders.Columns.Add("SredniaCena", typeof(decimal));
             _dtOrders.Columns.Add("TerminInfo", typeof(string));
             _dtOrders.Columns.Add("TransportInfo", typeof(string));
             _dtOrders.Columns.Add("CzyZrealizowane", typeof(bool));
@@ -2752,6 +2753,41 @@ ORDER BY zm.Id";
             }
             diagTimes.Add(("GrupyTowarowe", diagSw.ElapsedMilliseconds));
 
+            // ✅ POBIERZ ŚREDNIĄ WAŻONĄ CENĘ DLA KAŻDEGO ZAMÓWIENIA
+            diagSw.Restart();
+            var srednieCenyZamowien = new Dictionary<int, decimal>();
+            if (temp.Rows.Count > 0)
+            {
+                var zamowieniaIdsForCeny = temp.AsEnumerable().Select(r => Convert.ToInt32(r["Id"])).Where(id => id > 0).ToList();
+                if (zamowieniaIdsForCeny.Any())
+                {
+                    try
+                    {
+                        await using var cnLibraCeny = new SqlConnection(_connLibra);
+                        await cnLibraCeny.OpenAsync();
+                        // Średnia ważona: SUM(Ilosc * Cena) / SUM(Ilosc)
+                        var sqlCeny = $@"SELECT ZamowienieId,
+                            CASE WHEN SUM(Ilosc) > 0
+                                 THEN SUM(Ilosc * TRY_CAST(Cena AS DECIMAL(18,2))) / SUM(Ilosc)
+                                 ELSE 0 END AS SredniaCena
+                            FROM [dbo].[ZamowieniaMiesoTowar]
+                            WHERE ZamowienieId IN ({string.Join(",", zamowieniaIdsForCeny)})
+                              AND Cena IS NOT NULL AND Cena <> '' AND Cena <> '0'
+                            GROUP BY ZamowienieId";
+                        await using var cmdCeny = new SqlCommand(sqlCeny, cnLibraCeny);
+                        await using var readerCeny = await cmdCeny.ExecuteReaderAsync();
+                        while (await readerCeny.ReadAsync())
+                        {
+                            int zamId = readerCeny.GetInt32(0);
+                            decimal sredniaCena = readerCeny.IsDBNull(1) ? 0m : Convert.ToDecimal(readerCeny.GetValue(1));
+                            srednieCenyZamowien[zamId] = sredniaCena;
+                        }
+                    }
+                    catch { /* Ignoruj błędy obliczania ceny */ }
+                }
+            }
+            diagTimes.Add(("SrednieCeny", diagSw.ElapsedMilliseconds));
+
             diagSw.Restart();
             decimal totalOrdered = 0m;
             decimal totalReleased = 0m;
@@ -2942,6 +2978,7 @@ ORDER BY zm.Id";
                 newRow["Prod"] = prodColumn;
                 newRow["CzyMaCeny"] = czyMaCeny;
                 newRow["CenaInfo"] = cenaInfo;
+                newRow["SredniaCena"] = srednieCenyZamowien.TryGetValue(id, out var sc) ? sc : 0m;
                 newRow["TerminInfo"] = terminInfo;
                 newRow["TransportInfo"] = transportInfoStr;
                 newRow["CzyZrealizowane"] = czyZrealizowane;
@@ -3004,6 +3041,7 @@ ORDER BY zm.Id";
                 row["Prod"] = "";
                 row["CzyMaCeny"] = false;
                 row["CenaInfo"] = "";
+                row["SredniaCena"] = 0m;
                 row["TerminInfo"] = "";
                 row["TransportInfo"] = "";
                 row["CzyZrealizowane"] = false;
@@ -3079,6 +3117,7 @@ ORDER BY zm.Id";
                 summaryRow["Prod"] = "";
                 summaryRow["CzyMaCeny"] = false;
                 summaryRow["CenaInfo"] = "";
+                summaryRow["SredniaCena"] = 0m;
                 summaryRow["TerminInfo"] = "";
                 summaryRow["TransportInfo"] = "";
                 summaryRow["CzyZrealizowane"] = false;
@@ -3459,7 +3498,20 @@ ORDER BY zm.Id";
                 ElementStyle = cenaStyle
             });
 
-            // 7. Utworzone przez
+            // 7. Średnia cena - wartość średniej ważonej ceny produktów
+            var sredniaCenaStyle = new Style(typeof(TextBlock));
+            sredniaCenaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
+            sredniaCenaStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(100, 100, 100))));
+
+            dgOrders.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Śr.Cena",
+                Binding = new System.Windows.Data.Binding("SredniaCena") { StringFormat = "N2" },
+                Width = new DataGridLength(55),
+                ElementStyle = sredniaCenaStyle
+            });
+
+            // 8. Utworzone przez
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Utworzono",
@@ -4870,27 +4922,51 @@ ORDER BY zm.Id";
                     continue;
 
                 // Pobierz dane produktu
-                decimal plan = 0, fakt = 0, zam = 0, bilans = 0;
+                decimal plan = 0, fakt = 0, zam = 0, wyd = 0, stan = 0, bilans = 0;
 
-                // Plan z konfiguracji produktów
-                if (konfiguracjaProduktow.TryGetValue(productId, out var procent))
-                    plan = pulaTuszkiB * (procent / 100m);
+                // ✅ SPECJALNA OBSŁUGA DLA KURCZAK A
+                if (productId == kurczakA.Key)
+                {
+                    plan = planA;
+                    fakt = factA;
+                    zam = ordersA;
+                    wyd = wydaniaA;
+                    stan = stanMagA;
+                    bilans = balanceA;
+                }
+                else
+                {
+                    // Plan z konfiguracji produktów (Kurczak B)
+                    if (konfiguracjaProduktow.TryGetValue(productId, out var procent))
+                        plan = pulaTuszkiB * (procent / 100m);
 
-                // Fakt z przychodów
-                if (actualIncomeElementy.TryGetValue(productId, out var f))
-                    fakt = f;
+                    // Fakt z przychodów
+                    if (actualIncomeElementy.TryGetValue(productId, out var f))
+                        fakt = f;
 
-                // Zamówienia
-                if (orderSum.TryGetValue(productId, out var z))
-                    zam = z;
+                    // Zamówienia
+                    if (orderSum.TryGetValue(productId, out var z))
+                        zam = z;
 
-                // Bilans
-                decimal baseVal = fakt > 0 ? fakt : plan;
-                decimal stan = stanyMagazynowe.TryGetValue(productId, out var s) ? s : 0;
-                bilans = baseVal + stan - zam;
+                    // Wydania
+                    if (wydaniaSum.TryGetValue(productId, out var w))
+                        wyd = w;
+
+                    // Stan magazynowy
+                    if (stanyMagazynowe.TryGetValue(productId, out var s))
+                        stan = s;
+
+                    // Bilans: (Fakt lub Plan) + Stan - (Zamówienia lub Wydania)
+                    decimal baseVal = fakt > 0 ? fakt : plan;
+                    decimal odejmij = uzywajWydan ? wyd : zam;
+                    bilans = baseVal + stan - odejmij;
+                }
+
+                // ✅ UŻYJ WYD ZAMIAST ZAM JEŚLI WYBRANO RADIO WYD
+                decimal wartoscDoPokazania = uzywajWydan ? wyd : zam;
 
                 wpProductCards.Children.Add(CreateDashboardCard(
-                    productName, plan, fakt, zam, bilans,
+                    productName, plan, fakt, wartoscDoPokazania, bilans, stan,
                     colors[colorIdx % colors.Length], false, productName, productId));
                 colorIdx++;
             }
@@ -4898,11 +4974,15 @@ ORDER BY zm.Id";
             // Jeśli brak szablonu - pokaż stare karty
             if (!dashboardProductIds.Any())
             {
-                wpProductCards.Children.Add(CreateDashboardCard("SUMA", planA + sumaPlanB, factA + sumaFaktB, ordersA + sumaZamB, bilansCalk,
+                decimal sumaZamWyd = uzywajWydan ? (wydaniaA + sumaWydB) : (ordersA + sumaZamB);
+                decimal zamWydA = uzywajWydan ? wydaniaA : ordersA;
+                decimal zamWydB = uzywajWydan ? sumaWydB : sumaZamB;
+
+                wpProductCards.Children.Add(CreateDashboardCard("SUMA", planA + sumaPlanB, factA + sumaFaktB, sumaZamWyd, bilansCalk, stanMagA + sumaStanB,
                     Color.FromRgb(76, 175, 80), true));
-                wpProductCards.Children.Add(CreateDashboardCard("Kurczak A", planA, factA, ordersA, balanceA,
+                wpProductCards.Children.Add(CreateDashboardCard("Kurczak A", planA, factA, zamWydA, balanceA, stanMagA,
                     Color.FromRgb(102, 187, 106), true));
-                wpProductCards.Children.Add(CreateDashboardCard("Kurczak B", sumaPlanB, sumaFaktB, sumaZamB, bilansB,
+                wpProductCards.Children.Add(CreateDashboardCard("Kurczak B", sumaPlanB, sumaFaktB, zamWydB, bilansB, sumaStanB,
                     Color.FromRgb(66, 165, 245), true));
             }
 
@@ -5056,10 +5136,12 @@ ORDER BY zm.Id";
             return _productImages.TryGetValue(towarId, out var img) ? img : null;
         }
 
-        private Border CreateDashboardCard(string nazwa, decimal plan, decimal fakt, decimal zam, decimal bilans, Color barColor, bool isSummary, string tooltip = null, int towarId = 0)
+        private Border CreateDashboardCard(string nazwa, decimal plan, decimal fakt, decimal zamLubWyd, decimal bilans, decimal stan, Color barColor, bool isSummary, string tooltip = null, int towarId = 0)
         {
             bool uzytoFakt = fakt > 0;
-            decimal maxBarValue = Math.Max(Math.Max(plan, fakt), Math.Max(zam, 1));
+            bool uzywajWydan = rbBilansWydania?.IsChecked == true;
+            string zamWydLabel = uzywajWydan ? "wyd" : "zam";
+            decimal maxBarValue = Math.Max(Math.Max(plan, fakt), Math.Max(zamLubWyd, 1));
             double maxBarWidth = 115;
 
             var card = new Border
@@ -5139,9 +5221,18 @@ ORDER BY zm.Id";
                     Color.FromRgb(241, 196, 15), false));
             }
 
-            // === PASEK ZAMÓWIENIA ===
-            stack.Children.Add(CreateMiniBar("zam", zam, maxBarValue, maxBarWidth,
+            // === PASEK ZAMÓWIENIA/WYDANIA ===
+            stack.Children.Add(CreateMiniBar(zamWydLabel, zamLubWyd, maxBarValue, maxBarWidth,
                 Color.FromRgb(52, 152, 219), false));
+
+            // === STAN MAGAZYNOWY (jeśli > 0) ===
+            if (stan > 0)
+            {
+                var stanPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
+                stanPanel.Children.Add(new TextBlock { Text = "Stan: ", FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)) });
+                stanPanel.Children.Add(new TextBlock { Text = $"{stan:N0}", FontSize = 9, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(155, 89, 182)) });
+                stack.Children.Add(stanPanel);
+            }
 
             // === BILANS ===
             var bilansColor = bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60);
