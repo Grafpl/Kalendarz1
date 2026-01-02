@@ -5058,113 +5058,142 @@ ORDER BY zm.Id";
 
         private Border CreateDashboardCard(string nazwa, decimal plan, decimal fakt, decimal zam, decimal bilans, Color barColor, bool isSummary, string tooltip = null, int towarId = 0)
         {
-            // Oblicz procent realizacji (Zam / Plan lub Fakt)
-            decimal baseValue = fakt > 0 ? fakt : plan;
-            double procent = baseValue > 0 ? (double)(zam / baseValue * 100) : 0;
+            bool uzytoFakt = fakt > 0;
+            decimal maxBarValue = Math.Max(Math.Max(plan, fakt), Math.Max(zam, 1));
+            double maxBarWidth = 115;
 
             var card = new Border
             {
-                Background = isSummary ? new SolidColorBrush(Color.FromRgb(240, 240, 240)) : Brushes.White,
+                Background = Brushes.White,
                 CornerRadius = new CornerRadius(6),
-                Margin = new Thickness(3),
-                Padding = new Thickness(8, 6, 8, 6),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(210, 210, 210)),
+                Margin = new Thickness(4),
+                Padding = new Thickness(8),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
                 BorderThickness = new Thickness(1),
-                Width = 165,
+                Width = 160,
                 ToolTip = tooltip ?? nazwa
+            };
+
+            card.Effect = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                ShadowDepth = 1,
+                Opacity = 0.15,
+                BlurRadius = 5
             };
 
             var stack = new StackPanel();
 
-            // Nagłówek: zdjęcie + nazwa
-            var headerGrid = new Grid { Margin = new Thickness(0, 0, 0, 5) };
+            // === NAGŁÓWEK: zdjęcie + nazwa ===
+            var headerGrid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-            // Zdjęcie produktu (jeśli jest)
+            // Zdjęcie produktu
             var productImage = towarId > 0 ? GetProductImage(towarId) : null;
-            if (productImage != null)
+            var imgBorder = new Border
             {
-                var imgBorder = new Border
+                Width = 36,
+                Height = 36,
+                CornerRadius = new CornerRadius(4),
+                Background = productImage != null
+                    ? (Brush)new ImageBrush { ImageSource = productImage, Stretch = Stretch.UniformToFill }
+                    : new SolidColorBrush(Color.FromRgb(236, 240, 241)),
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            if (productImage == null)
+            {
+                imgBorder.Child = new TextBlock
                 {
-                    Width = 32,
-                    Height = 32,
-                    CornerRadius = new CornerRadius(4),
-                    Margin = new Thickness(0, 0, 6, 0),
-                    Background = new ImageBrush
-                    {
-                        ImageSource = productImage,
-                        Stretch = Stretch.UniformToFill
-                    }
+                    Text = "📷",
+                    FontSize = 14,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166))
                 };
-                Grid.SetColumn(imgBorder, 0);
-                headerGrid.Children.Add(imgBorder);
             }
+            Grid.SetColumn(imgBorder, 0);
+            headerGrid.Children.Add(imgBorder);
 
             // Nazwa produktu
             var titleText = new TextBlock
             {
                 Text = nazwa,
-                FontSize = isSummary ? 11 : 10,
-                FontWeight = isSummary ? FontWeights.Bold : FontWeights.SemiBold,
+                FontSize = 10,
+                FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
-                TextTrimming = TextTrimming.CharacterEllipsis,
+                TextWrapping = TextWrapping.Wrap,
                 VerticalAlignment = VerticalAlignment.Center
             };
             Grid.SetColumn(titleText, 1);
             headerGrid.Children.Add(titleText);
-
             stack.Children.Add(headerGrid);
 
-            // Pasek postępu z procentem
-            var progressGrid = new Grid { Height = 16, Margin = new Thickness(0, 0, 0, 5) };
+            // === PASEK PLAN (przekreślony jeśli użyto fakt) ===
+            stack.Children.Add(CreateMiniBar("plan", plan, maxBarValue, maxBarWidth,
+                uzytoFakt ? Color.FromRgb(189, 195, 199) : Color.FromRgb(241, 196, 15), uzytoFakt));
 
-            // Tło paska
-            progressGrid.Children.Add(new Border
+            // === PASEK FAKT (jeśli > 0) ===
+            if (fakt > 0)
             {
-                Background = new SolidColorBrush(Color.FromRgb(230, 230, 230)),
-                CornerRadius = new CornerRadius(3)
-            });
+                stack.Children.Add(CreateMiniBar("fakt", fakt, maxBarValue, maxBarWidth,
+                    Color.FromRgb(241, 196, 15), false));
+            }
 
-            // Kolor paska zależny od procentu
-            var progressColor = procent >= 90 ? Color.FromRgb(46, 204, 113)   // Zielony
-                              : procent >= 70 ? Color.FromRgb(241, 196, 15)   // Żółty
-                              : Color.FromRgb(231, 76, 60);                    // Czerwony
+            // === PASEK ZAMÓWIENIA ===
+            stack.Children.Add(CreateMiniBar("zam", zam, maxBarValue, maxBarWidth,
+                Color.FromRgb(52, 152, 219), false));
 
-            // Wypełnienie paska
-            progressGrid.Children.Add(new Border
+            // === BILANS ===
+            var bilansColor = bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60);
+            var bilansText = new TextBlock
             {
-                Background = new SolidColorBrush(progressColor),
-                CornerRadius = new CornerRadius(3),
-                HorizontalAlignment = HorizontalAlignment.Left,
-                Width = 134 * Math.Min(procent, 100) / 100
-            });
-
-            // Tekst procentu na pasku
-            var procentText = new TextBlock
-            {
-                Text = $"{procent:N0}%",
-                FontSize = 9,
-                FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
+                FontSize = 10,
+                Margin = new Thickness(0, 4, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Right
             };
-            procentText.Effect = new System.Windows.Media.Effects.DropShadowEffect { ShadowDepth = 0, BlurRadius = 2, Color = Colors.Black };
-            progressGrid.Children.Add(procentText);
-
-            stack.Children.Add(progressGrid);
-
-            // Wartości P: i Z: w jednej linii
-            var valuesText = new TextBlock { FontSize = 9 };
-            valuesText.Inlines.Add(new Run("P:") { Foreground = new SolidColorBrush(Color.FromRgb(120, 120, 120)) });
-            valuesText.Inlines.Add(new Run($"{baseValue:N0} ") { FontWeight = FontWeights.SemiBold });
-            valuesText.Inlines.Add(new Run("Z:") { Foreground = new SolidColorBrush(Color.FromRgb(120, 120, 120)) });
-            valuesText.Inlines.Add(new Run($"{zam:N0}") { FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(barColor) });
-            stack.Children.Add(valuesText);
+            bilansText.Inlines.Add(new Run("Bilans: ") { Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)) });
+            bilansText.Inlines.Add(new Run($"{bilans:N0}") { FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(bilansColor) });
+            stack.Children.Add(bilansText);
 
             card.Child = stack;
             return card;
+        }
+
+        private Grid CreateMiniBar(string label, decimal value, decimal maxValue, double maxWidth, Color color, bool strikethrough)
+        {
+            var grid = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            double barWidth = maxValue > 0 ? (double)(value / maxValue) * maxWidth : 5;
+
+            var bar = new Border
+            {
+                Height = 14,
+                Width = Math.Max(barWidth, 5),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                CornerRadius = new CornerRadius(2),
+                Background = new SolidColorBrush(color)
+            };
+            Grid.SetColumn(bar, 0);
+            grid.Children.Add(bar);
+
+            var text = new TextBlock
+            {
+                Text = $"{label} {value:N0}",
+                FontSize = 9,
+                FontWeight = strikethrough ? FontWeights.Normal : FontWeights.SemiBold,
+                Foreground = strikethrough
+                    ? new SolidColorBrush(Color.FromRgb(160, 160, 160))
+                    : new SolidColorBrush(Color.FromRgb(80, 80, 80)),
+                TextDecorations = strikethrough ? TextDecorations.Strikethrough : null,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(4, 0, 0, 0)
+            };
+            Grid.SetColumn(text, 1);
+            grid.Children.Add(text);
+
+            return grid;
         }
 
         private void DgAggregation_LoadingRow(object sender, DataGridRowEventArgs e)
