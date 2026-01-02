@@ -23,6 +23,25 @@ using Kalendarz1.Services;
 
 namespace Kalendarz1.WPF
 {
+    public class ProductCardItem
+    {
+        public string Nazwa { get; set; } = "";
+        public string NazwaPelna { get; set; } = "";
+        public decimal Plan { get; set; }
+        public decimal Fakt { get; set; }
+        public decimal Zam { get; set; }
+        public decimal Bilans { get; set; }
+        public double Procent => Plan > 0 ? Math.Min(100, (double)(Fakt / Plan * 100)) : 0;
+        public string ProcentText => Plan > 0 ? $"{Procent:N0}%" : "-";
+        public string PlanText => Plan.ToString("N0");
+        public string ZamText => Zam.ToString("N0");
+        public Brush CardBackground { get; set; } = Brushes.White;
+        public Brush ProgressColor { get; set; } = Brushes.ForestGreen;
+        public Brush ForegroundColor { get; set; } = Brushes.Black;
+        public FontWeight FontWeight { get; set; } = FontWeights.Normal;
+        public bool IsSummary { get; set; }
+    }
+
     public partial class MainWindow : Window
     {
         private readonly string _connLibra = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
@@ -4919,36 +4938,96 @@ ORDER BY zm.Id";
             // ✅ BILANS CAŁKOWITY
             decimal bilansCalk = balanceA + bilansB;
 
-            // ✅ DODAJ WIERSZE DO TABELI
-            dtAgg.Rows.Add("═══ SUMA CAŁKOWITA ═══",
-                planA + sumaPlanB,
-                factA + sumaFaktB,
+            // ✅ UTWÓRZ KARTY PRODUKTÓW
+            var cards = new List<ProductCardItem>();
+
+            // Suma całkowita - duża karta
+            cards.Add(new ProductCardItem
+            {
+                Nazwa = "SUMA",
+                NazwaPelna = "Suma Całkowita",
+                Plan = planA + sumaPlanB,
+                Fakt = factA + sumaFaktB,
+                Zam = ordersA + sumaZamB,
+                Bilans = bilansCalk,
+                CardBackground = new SolidColorBrush(Color.FromRgb(76, 175, 80)),
+                ForegroundColor = Brushes.White,
+                ProgressColor = new SolidColorBrush(Color.FromRgb(56, 142, 60)),
+                FontWeight = FontWeights.Bold,
+                IsSummary = true
+            });
+
+            // Kurczak A
+            cards.Add(new ProductCardItem
+            {
+                Nazwa = "Kurczak A",
+                NazwaPelna = "Kurczak A (Tuszka)",
+                Plan = planA,
+                Fakt = factA,
+                Zam = ordersA,
+                Bilans = balanceA,
+                CardBackground = new SolidColorBrush(Color.FromRgb(200, 230, 201)),
+                ProgressColor = new SolidColorBrush(Color.FromRgb(102, 187, 106)),
+                FontWeight = FontWeights.SemiBold
+            });
+
+            // Kurczak B
+            cards.Add(new ProductCardItem
+            {
+                Nazwa = "Kurczak B",
+                NazwaPelna = "Kurczak B (Elementy)",
+                Plan = sumaPlanB,
+                Fakt = sumaFaktB,
+                Zam = sumaZamB,
+                Bilans = bilansB,
+                CardBackground = new SolidColorBrush(Color.FromRgb(179, 229, 252)),
+                ProgressColor = new SolidColorBrush(Color.FromRgb(66, 165, 245)),
+                FontWeight = FontWeights.SemiBold
+            });
+
+            // Produkty B - indywidualne karty
+            foreach (var produkt in produktyB)
+            {
+                // Pomiń wiersze szczegółowe (z wcięciem)
+                if (produkt.nazwa.StartsWith("  ") || produkt.nazwa.StartsWith("      "))
+                    continue;
+
+                var card = new ProductCardItem
+                {
+                    Nazwa = ShortenProductName(produkt.nazwa),
+                    NazwaPelna = produkt.nazwa,
+                    Plan = produkt.plan,
+                    Fakt = produkt.fakt,
+                    Zam = produkt.zam,
+                    Bilans = produkt.bilans
+                };
+
+                // Kolor paska postępu zależny od procentu
+                if (card.Procent >= 90)
+                    card.ProgressColor = new SolidColorBrush(Color.FromRgb(76, 175, 80)); // Zielony
+                else if (card.Procent >= 70)
+                    card.ProgressColor = new SolidColorBrush(Color.FromRgb(255, 193, 7)); // Żółty
+                else
+                    card.ProgressColor = new SolidColorBrush(Color.FromRgb(244, 67, 54)); // Czerwony
+
+                cards.Add(card);
+            }
+
+            icProductCards.ItemsSource = cards;
+
+            // Zachowaj dane w dtAgg dla kompatybilności
+            dtAgg.Rows.Add("═══ SUMA CAŁKOWITA ═══", planA + sumaPlanB, factA + sumaFaktB,
                 (stanMagA + sumaStanB > 0 ? (stanMagA + sumaStanB).ToString("N0") : ""),
-                ordersA + sumaZamB,
-                wydaniaA + sumaWydB,
-                bilansCalk);
-
-            dtAgg.Rows.Add("🐔 Kurczak A",
-                planA,
-                factA,
-                stanA,
-                ordersA,
-                wydaniaA,
-                balanceA);
-
-            dtAgg.Rows.Add("🐔 Kurczak B",
-                sumaPlanB,
-                sumaFaktB,
-                (sumaStanB > 0 ? sumaStanB.ToString("N0") : ""),
-                sumaZamB,
-                sumaWydB,
-                bilansB);
-
+                ordersA + sumaZamB, wydaniaA + sumaWydB, bilansCalk);
+            dtAgg.Rows.Add("🐔 Kurczak A", planA, factA, stanA, ordersA, wydaniaA, balanceA);
+            dtAgg.Rows.Add("🐔 Kurczak B", sumaPlanB, sumaFaktB,
+                (sumaStanB > 0 ? sumaStanB.ToString("N0") : ""), sumaZamB, sumaWydB, bilansB);
             foreach (var produkt in produktyB)
             {
                 dtAgg.Rows.Add(produkt.nazwa, produkt.plan, produkt.fakt, produkt.stan, produkt.zam, produkt.wyd, produkt.bilans);
             }
 
+            // Ustaw źródło danych dla ukrytego DataGrid (kompatybilność)
             dgAggregation.ItemsSource = dtAgg.DefaultView;
             SetupAggregationDataGrid();
 
@@ -4958,6 +5037,33 @@ ORDER BY zm.Id";
             diagTimes.Add(("Agregacja", diagSw.ElapsedMilliseconds));
             _lastAggregationDiag = diagTimes;
         }
+
+        private string ShortenProductName(string name)
+        {
+            // Usuń emoji i znaki specjalne
+            name = name.Replace("🍗", "").Replace("🍖", "").Replace("🥩", "").Replace("▶", "").Replace("▼", "").Trim();
+
+            // Skróć długie nazwy produktów
+            if (name.Length > 16)
+            {
+                // Znajdź słowo kluczowe
+                if (name.Contains("Filet", StringComparison.OrdinalIgnoreCase)) return "Filet";
+                if (name.Contains("Udziec", StringComparison.OrdinalIgnoreCase)) return "Udziec";
+                if (name.Contains("Skrzydło", StringComparison.OrdinalIgnoreCase) || name.Contains("Skrzydlo", StringComparison.OrdinalIgnoreCase)) return "Skrzydło";
+                if (name.Contains("Ćwiartka", StringComparison.OrdinalIgnoreCase) || name.Contains("Cwiartka", StringComparison.OrdinalIgnoreCase)) return "Ćwiartka";
+                if (name.Contains("Pierś", StringComparison.OrdinalIgnoreCase) || name.Contains("Piers", StringComparison.OrdinalIgnoreCase)) return "Pierś";
+                if (name.Contains("Noga", StringComparison.OrdinalIgnoreCase)) return "Noga";
+                if (name.Contains("Podudzie", StringComparison.OrdinalIgnoreCase)) return "Podudzie";
+                if (name.Contains("Wątroba", StringComparison.OrdinalIgnoreCase) || name.Contains("Watroba", StringComparison.OrdinalIgnoreCase)) return "Wątroba";
+                if (name.Contains("Serce", StringComparison.OrdinalIgnoreCase)) return "Serce";
+                if (name.Contains("Żołądek", StringComparison.OrdinalIgnoreCase) || name.Contains("Zoladek", StringComparison.OrdinalIgnoreCase)) return "Żołądek";
+
+                // Skróć do 16 znaków
+                return name.Substring(0, 14) + "..";
+            }
+            return name;
+        }
+
         private void DgAggregation_LoadingRow(object sender, DataGridRowEventArgs e)
         {
             if (e.Row.Item is DataRowView rowView)
