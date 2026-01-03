@@ -2512,6 +2512,9 @@ namespace Kalendarz1.WPF
             if (_isRefreshing) return;
             _isRefreshing = true;
 
+            // ✅ Pokaż overlay ładowania
+            loadingOverlay.Visibility = Visibility.Visible;
+
             // Status bar - start
             UpdateStatus("Ładowanie danych...");
             var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -2600,6 +2603,9 @@ namespace Kalendarz1.WPF
             {
                 _isRefreshing = false;
                 sw.Stop();
+
+                // ✅ Ukryj overlay ładowania
+                loadingOverlay.Visibility = Visibility.Collapsed;
 
                 // Status bar - koniec
                 UpdateStatus($"Gotowy - załadowano w {sw.ElapsedMilliseconds}ms");
