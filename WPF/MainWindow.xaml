@@ -219,37 +219,37 @@
                 <StackPanel Grid.Column="3" Orientation="Horizontal" 
                             HorizontalAlignment="Right" VerticalAlignment="Center">
                     <Button x:Name="btnNew" Style="{StaticResource ActionButtonStyle}"
-                            Background="#2ECC71" Content="➕ Nowe" Width="85"
-                            Click="BtnNew_Click" FontSize="12" Height="36"/>
+                            Background="#2ECC71" Content="➕" Width="36" ToolTip="Nowe zamówienie"
+                            Click="BtnNew_Click" FontSize="14" Height="32"/>
 
                     <Button x:Name="btnPrint" Style="{StaticResource ActionButtonStyle}"
-                            Background="#3498DB" Content="🖨️ Drukuj" Width="85"
-                            Click="BtnPrint_Click" Margin="3,0" FontSize="12" Height="36"/>
+                            Background="#3498DB" Content="🖨️" Width="36" ToolTip="Drukuj"
+                            Click="BtnPrint_Click" Margin="2,0" FontSize="14" Height="32"/>
 
                     <Button x:Name="btnRefresh" Style="{StaticResource ActionButtonStyle}"
-                            Background="#9B59B6" Content="🔄" Width="38" ToolTip="Odśwież dane"
-                            Click="BtnRefresh_Click" Margin="3,0" FontSize="14" Height="36"/>
+                            Background="#9B59B6" Content="🔄" Width="36" ToolTip="Odśwież dane"
+                            Click="BtnRefresh_Click" Margin="2,0" FontSize="14" Height="32"/>
 
-                    <!-- Przyciski do otwierania osobnych okien - kompaktowe dla mniejszych monitorów -->
+                    <!-- Przyciski do otwierania osobnych okien -->
                     <Button x:Name="btnOpenDashboard" Style="{StaticResource ActionButtonStyle}"
-                            Background="#2C3E50" Content="Dash" Width="50" ToolTip="Dashboard produktów"
-                            Click="BtnOpenDashboard_Click" Margin="2,0" FontSize="10" Height="36"/>
+                            Background="#2C3E50" Content="📊" Width="36" ToolTip="Dashboard produktów"
+                            Click="BtnOpenDashboard_Click" Margin="2,0" FontSize="14" Height="32"/>
 
                     <Button x:Name="btnOpenStatystyki" Style="{StaticResource ActionButtonStyle}"
-                            Background="#E74C3C" Content="Stat" Width="50" ToolTip="Statystyki anulowanych"
-                            Click="BtnOpenStatystyki_Click" Margin="2,0" FontSize="10" Height="36"/>
+                            Background="#E74C3C" Content="📈" Width="36" ToolTip="Statystyki anulowanych"
+                            Click="BtnOpenStatystyki_Click" Margin="2,0" FontSize="14" Height="32"/>
 
                     <Button x:Name="btnOpenHistoria" Style="{StaticResource ActionButtonStyle}"
-                            Background="#8E44AD" Content="Hist" Width="50" ToolTip="Historia zmian"
-                            Click="BtnOpenHistoria_Click" Margin="2,0" FontSize="10" Height="36"/>
+                            Background="#8E44AD" Content="📜" Width="36" ToolTip="Historia zmian"
+                            Click="BtnOpenHistoria_Click" Margin="2,0" FontSize="14" Height="32"/>
 
                     <Button x:Name="btnOpenTransport" Style="{StaticResource ActionButtonStyle}"
-                            Background="#1ABC9C" Content="Tran" Width="50" ToolTip="Transport"
-                            Click="BtnOpenTransport_Click" Margin="2,0" FontSize="10" Height="36"/>
+                            Background="#1ABC9C" Content="🚚" Width="36" ToolTip="Transport"
+                            Click="BtnOpenTransport_Click" Margin="2,0" FontSize="14" Height="32"/>
 
                     <Button x:Name="btnDelete" Style="{StaticResource ActionButtonStyle}"
-                            Background="#2C3E50" Content="🗑️ Usuń" Width="75"
-                            Click="BtnDelete_Click" Visibility="Collapsed" Height="36" FontSize="11"/>
+                            Background="#C0392B" Content="🗑️" Width="36" ToolTip="Usuń zamówienie"
+                            Click="BtnDelete_Click" Visibility="Collapsed" Height="32" FontSize="14"/>
                     <!-- Preset layoutu - kompaktowy -->
                     <ComboBox x:Name="cbLayoutPreset"
                               Width="65" Height="32"

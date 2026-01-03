@@ -2990,21 +2990,38 @@ ORDER BY zm.Id";
                     {
                         await using var cn = new SqlConnection(_connLibra);
                         await cn.OpenAsync();
-                        var sqlCeny = $@"SELECT ZamowienieId,
-                            CASE WHEN SUM(Ilosc) > 0
-                                 THEN SUM(Ilosc * TRY_CAST(Cena AS DECIMAL(18,2))) / SUM(Ilosc)
-                                 ELSE 0 END AS SredniaCena
-                            FROM [dbo].[ZamowieniaMiesoTowar]
-                            WHERE ZamowienieId IN ({string.Join(",", zamowieniaIds)})
-                              AND Cena IS NOT NULL AND Cena <> '' AND Cena <> '0'
-                            GROUP BY ZamowienieId";
+
+                        string sqlCeny;
+                        if (selectedProductId.HasValue)
+                        {
+                            // Gdy wybrany konkretny produkt - pokaż cenę tego produktu
+                            sqlCeny = $@"SELECT ZamowienieId,
+                                ISNULL(TRY_CAST(Cena AS DECIMAL(18,2)), 0) AS Cena
+                                FROM [dbo].[ZamowieniaMiesoTowar]
+                                WHERE ZamowienieId IN ({string.Join(",", zamowieniaIds)})
+                                  AND KodTowaru = {selectedProductId.Value}
+                                  AND Cena IS NOT NULL AND Cena <> '' AND Cena <> '0'";
+                        }
+                        else
+                        {
+                            // Gdy brak filtra - średnia ważona wszystkich produktów
+                            sqlCeny = $@"SELECT ZamowienieId,
+                                CASE WHEN SUM(Ilosc) > 0
+                                     THEN SUM(Ilosc * TRY_CAST(Cena AS DECIMAL(18,2))) / SUM(Ilosc)
+                                     ELSE 0 END AS SredniaCena
+                                FROM [dbo].[ZamowieniaMiesoTowar]
+                                WHERE ZamowienieId IN ({string.Join(",", zamowieniaIds)})
+                                  AND Cena IS NOT NULL AND Cena <> '' AND Cena <> '0'
+                                GROUP BY ZamowienieId";
+                        }
+
                         await using var cmd = new SqlCommand(sqlCeny, cn);
                         await using var reader = await cmd.ExecuteReaderAsync();
                         while (await reader.ReadAsync())
                         {
                             int zamId = reader.GetInt32(0);
-                            decimal sredniaCena = reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1));
-                            result[zamId] = sredniaCena;
+                            decimal cena = reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1));
+                            result[zamId] = cena;
                         }
                     }
                     catch { }
