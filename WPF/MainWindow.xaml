@@ -216,40 +216,40 @@
                 <StackPanel x:Name="panelDays" Grid.Column="1" Orientation="Horizontal" 
                             Margin="20,0,0,0" VerticalAlignment="Center"/>
 
-                <StackPanel Grid.Column="3" Orientation="Horizontal" 
+                <StackPanel Grid.Column="3" Orientation="Horizontal"
                             HorizontalAlignment="Right" VerticalAlignment="Center">
                     <Button x:Name="btnNew" Style="{StaticResource ActionButtonStyle}"
-                            Background="#2ECC71" Content="➕" Width="36" ToolTip="Nowe zamówienie"
-                            Click="BtnNew_Click" FontSize="14" Height="32"/>
+                            Background="#2ECC71" Content="➕Nowe" Width="55" ToolTip="Nowe zamówienie"
+                            Click="BtnNew_Click" FontSize="10" Height="28"/>
 
                     <Button x:Name="btnPrint" Style="{StaticResource ActionButtonStyle}"
-                            Background="#3498DB" Content="🖨️" Width="36" ToolTip="Drukuj"
-                            Click="BtnPrint_Click" Margin="2,0" FontSize="14" Height="32"/>
+                            Background="#3498DB" Content="🖨️Druk" Width="52" ToolTip="Drukuj"
+                            Click="BtnPrint_Click" Margin="2,0" FontSize="10" Height="28"/>
 
                     <Button x:Name="btnRefresh" Style="{StaticResource ActionButtonStyle}"
-                            Background="#9B59B6" Content="🔄" Width="36" ToolTip="Odśwież dane"
-                            Click="BtnRefresh_Click" Margin="2,0" FontSize="14" Height="32"/>
+                            Background="#9B59B6" Content="🔄" Width="28" ToolTip="Odśwież dane"
+                            Click="BtnRefresh_Click" Margin="2,0" FontSize="12" Height="28"/>
 
                     <!-- Przyciski do otwierania osobnych okien -->
                     <Button x:Name="btnOpenDashboard" Style="{StaticResource ActionButtonStyle}"
-                            Background="#2C3E50" Content="📊" Width="36" ToolTip="Dashboard produktów"
-                            Click="BtnOpenDashboard_Click" Margin="2,0" FontSize="14" Height="32"/>
+                            Background="#2C3E50" Content="📊Dash" Width="52" ToolTip="Dashboard produktów"
+                            Click="BtnOpenDashboard_Click" Margin="2,0" FontSize="10" Height="28"/>
 
                     <Button x:Name="btnOpenStatystyki" Style="{StaticResource ActionButtonStyle}"
-                            Background="#E74C3C" Content="📈" Width="36" ToolTip="Statystyki anulowanych"
-                            Click="BtnOpenStatystyki_Click" Margin="2,0" FontSize="14" Height="32"/>
+                            Background="#E74C3C" Content="📈Stat" Width="48" ToolTip="Statystyki anulowanych"
+                            Click="BtnOpenStatystyki_Click" Margin="2,0" FontSize="10" Height="28"/>
 
                     <Button x:Name="btnOpenHistoria" Style="{StaticResource ActionButtonStyle}"
-                            Background="#8E44AD" Content="📜" Width="36" ToolTip="Historia zmian"
-                            Click="BtnOpenHistoria_Click" Margin="2,0" FontSize="14" Height="32"/>
+                            Background="#8E44AD" Content="📜Hist" Width="48" ToolTip="Historia zmian"
+                            Click="BtnOpenHistoria_Click" Margin="2,0" FontSize="10" Height="28"/>
 
                     <Button x:Name="btnOpenTransport" Style="{StaticResource ActionButtonStyle}"
-                            Background="#1ABC9C" Content="🚚" Width="36" ToolTip="Transport"
-                            Click="BtnOpenTransport_Click" Margin="2,0" FontSize="14" Height="32"/>
+                            Background="#1ABC9C" Content="🚚Tran" Width="50" ToolTip="Transport"
+                            Click="BtnOpenTransport_Click" Margin="2,0" FontSize="10" Height="28"/>
 
                     <Button x:Name="btnDelete" Style="{StaticResource ActionButtonStyle}"
-                            Background="#C0392B" Content="🗑️" Width="36" ToolTip="Usuń zamówienie"
-                            Click="BtnDelete_Click" Visibility="Collapsed" Height="32" FontSize="14"/>
+                            Background="#C0392B" Content="🗑️Usuń" Width="50" ToolTip="Usuń zamówienie"
+                            Click="BtnDelete_Click" Visibility="Collapsed" Height="28" FontSize="10"/>
                     <!-- Preset layoutu - kompaktowy -->
                     <ComboBox x:Name="cbLayoutPreset"
                               Width="65" Height="32"
@@ -818,35 +818,29 @@
                         </Grid.RowDefinitions>
 
                         <Grid Grid.Row="0">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
 
-                            <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal">
-                                <TextBlock Text="Szczegóły zamówienia"
-                                           Style="{StaticResource SectionHeaderStyle}"/>
-                                <TextBlock x:Name="txtOrderInfo" Text=""
-                                           FontSize="11" Foreground="#666"
+                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                <TextBlock Text="Szczegóły:" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="#2C3E50" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="txtOrderClient" Text="" FontSize="12" FontWeight="Bold"
+                                           Foreground="#27AE60" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                <TextBlock x:Name="txtOrderInfo" Text="" FontSize="10" Foreground="#888"
                                            VerticalAlignment="Center" Margin="8,0,0,0"/>
                             </StackPanel>
 
-                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,5,0">
-                                <TextBlock Text="Waluta:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="11"/>
-                                <ComboBox x:Name="cbWalutaPanel" Width="60" Height="22" FontSize="11"
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="Waluta:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="10"/>
+                                <ComboBox x:Name="cbWalutaPanel" Width="55" Height="20" FontSize="10"
                                           SelectionChanged="CbWalutaPanel_SelectionChanged">
                                     <ComboBoxItem Content="PLN" IsSelected="True"/>
                                     <ComboBoxItem Content="EUR"/>
                                 </ComboBox>
                             </StackPanel>
-
-                            <TextBlock x:Name="txtOrderClient" Grid.Row="1" Grid.ColumnSpan="2"
-                                       Text="" FontSize="12" FontWeight="SemiBold"
-                                       Foreground="#2C3E50" Margin="0,2,0,0"/>
                         </Grid>
 
                         <DataGrid x:Name="dgDetails" Grid.Row="1"
