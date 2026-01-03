@@ -714,17 +714,6 @@ namespace Kalendarz1.WPF
             transportWindow.Show();
         }
 
-        private async void BtnOpenGrupowanie_Click(object sender, RoutedEventArgs e)
-        {
-            var grupowanieWindow = new GrupowanieTowarowWindow(_connLibra, _connHandel);
-            grupowanieWindow.Owner = this;
-            if (grupowanieWindow.ShowDialog() == true)
-            {
-                // Odśwież dane po zapisaniu zmian w grupowaniu
-                await RefreshAllDataAsync();
-            }
-        }
-
         #endregion
 
         #region Konfiguracja Wydajności i Produktów
