@@ -692,13 +692,7 @@ namespace Kalendarz1.WPF
             await RefreshAllDataAsync();
         }
 
-        private async void BtnDiag_Click(object sender, RoutedEventArgs e)
-        {
-            _showLoadingDiagnostics = true;
-            btnDiag.Background = new SolidColorBrush(Color.FromRgb(46, 204, 113)); // Zielony = włączone
-            await RefreshAllDataAsync();
-            btnDiag.Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)); // Powrót do szarego
-        }
+        // Diagnostyka czasów usunięta - przycisk już nie istnieje
 
         #region Przyciski otwierania osobnych okien
 
@@ -1292,8 +1286,6 @@ namespace Kalendarz1.WPF
         {
             int delta = ((int)_selectedDate.DayOfWeek + 6) % 7;
             DateTime startOfWeek = _selectedDate.AddDays(-delta);
-
-            lblWeekRange.Text = $"{startOfWeek:dd.MM.yyyy}\n{startOfWeek.AddDays(6):dd.MM.yyyy}";
 
             string[] dayNames = { "Pon", "Wt", "Śr", "Czw", "Pt", "So", "Nd" };
 
