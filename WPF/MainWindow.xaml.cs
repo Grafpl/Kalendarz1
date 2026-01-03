@@ -551,6 +551,20 @@ namespace Kalendarz1.WPF
                 BtnPrint_Click(this, new RoutedEventArgs());
                 e.Handled = true;
             }
+            // F12 - Włącz diagnostykę czasów ładowania
+            else if (e.Key == System.Windows.Input.Key.F12)
+            {
+                _showLoadingDiagnostics = true;
+                MessageBox.Show("Diagnostyka włączona!\n\nTeraz zmień datę lub odśwież (F5),\naby zobaczyć szczegółowe czasy ładowania.",
+                    "Diagnostyka", MessageBoxButton.OK, MessageBoxImage.Information);
+                e.Handled = true;
+            }
+            // F5 - Odśwież dane
+            else if (e.Key == System.Windows.Input.Key.F5)
+            {
+                _ = RefreshAllDataAsync();
+                e.Handled = true;
+            }
         }
 
         private void FilterDebounceTimer_Tick(object sender, EventArgs e)
@@ -2481,28 +2495,88 @@ namespace Kalendarz1.WPF
                 // Pokaż diagnostykę czasów ładowania
                 if (_showLoadingDiagnostics)
                 {
-                    var details = new System.Text.StringBuilder();
-                    details.AppendLine("═══ ŁADOWANIE ZAMÓWIEŃ ═══");
-                    foreach (var t in _lastLoadOrdersDiag)
-                        details.AppendLine($"  {t.name}: {t.ms} ms");
-                    details.AppendLine($"  SUMA: {_lastLoadOrdersDiag.Sum(x => x.ms)} ms");
-
-                    details.AppendLine("\n═══ PODSUMOWANIE PRODUKTÓW ═══");
-                    foreach (var t in _lastAggregationDiag)
-                        details.AppendLine($"  {t.name}: {t.ms} ms");
-                    details.AppendLine($"  SUMA: {_lastAggregationDiag.Sum(x => x.ms)} ms");
-
-                    details.AppendLine($"\n══════════════════════");
-                    details.AppendLine($"ŁĄCZNIE: {sw.ElapsedMilliseconds} ms");
-
-                    MessageBox.Show(details.ToString(),
-                        $"Diagnostyka ładowania - {_selectedDate:dd.MM.yyyy}",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
-
-                    // Wyłącz po pierwszym pokazaniu (aby nie irytować)
+                    ShowDiagnosticsWindow(sw.ElapsedMilliseconds);
                     _showLoadingDiagnostics = false;
                 }
             }
+        }
+
+        private void ShowDiagnosticsWindow(long totalMs)
+        {
+            var allTimes = new List<(string category, string name, long ms)>();
+
+            foreach (var t in _lastLoadOrdersDiag)
+                allTimes.Add(("Zamówienia", t.name, t.ms));
+            foreach (var t in _lastAggregationDiag)
+                allTimes.Add(("Podsumowanie", t.name, t.ms));
+
+            long maxMs = allTimes.Any() ? allTimes.Max(x => x.ms) : 1;
+            const int barMaxLen = 30;
+
+            var details = new System.Text.StringBuilder();
+            details.AppendLine("╔══════════════════════════════════════════════════════════════╗");
+            details.AppendLine("║          DIAGNOSTYKA CZASÓW ŁADOWANIA                        ║");
+            details.AppendLine("╠══════════════════════════════════════════════════════════════╣");
+
+            details.AppendLine("║                                                              ║");
+            details.AppendLine("║  📋 ŁADOWANIE ZAMÓWIEŃ                                       ║");
+            details.AppendLine("║  ────────────────────────────────────────────────────────    ║");
+            long sumaZam = 0;
+            foreach (var t in _lastLoadOrdersDiag)
+            {
+                int barLen = maxMs > 0 ? (int)((t.ms * barMaxLen) / maxMs) : 0;
+                string bar = new string('█', barLen) + new string('░', barMaxLen - barLen);
+                string warning = t.ms > 500 ? " ⚠️" : (t.ms > 200 ? " ⏱" : "");
+                details.AppendLine($"║  {t.name,-16} {bar} {t.ms,5} ms{warning,-3}   ║");
+                sumaZam += t.ms;
+            }
+            details.AppendLine($"║  {"SUMA",-16} {"",barMaxLen} {sumaZam,5} ms     ║");
+
+            details.AppendLine("║                                                              ║");
+            details.AppendLine("║  📊 PODSUMOWANIE PRODUKTÓW                                   ║");
+            details.AppendLine("║  ────────────────────────────────────────────────────────    ║");
+            long sumaAgg = 0;
+            foreach (var t in _lastAggregationDiag)
+            {
+                int barLen = maxMs > 0 ? (int)((t.ms * barMaxLen) / maxMs) : 0;
+                string bar = new string('█', barLen) + new string('░', barMaxLen - barLen);
+                string warning = t.ms > 500 ? " ⚠️" : (t.ms > 200 ? " ⏱" : "");
+                details.AppendLine($"║  {t.name,-16} {bar} {t.ms,5} ms{warning,-3}   ║");
+                sumaAgg += t.ms;
+            }
+            details.AppendLine($"║  {"SUMA",-16} {"",barMaxLen} {sumaAgg,5} ms     ║");
+
+            details.AppendLine("║                                                              ║");
+            details.AppendLine("╠══════════════════════════════════════════════════════════════╣");
+            details.AppendLine($"║  🏁 ŁĄCZNIE: {totalMs} ms                                        ║");
+            details.AppendLine("╚══════════════════════════════════════════════════════════════╝");
+
+            // Analiza wąskich gardeł
+            var slowItems = allTimes.Where(x => x.ms > 200).OrderByDescending(x => x.ms).ToList();
+            if (slowItems.Any())
+            {
+                details.AppendLine();
+                details.AppendLine("⚡ WĄSKIE GARDŁA (>200ms):");
+                foreach (var item in slowItems)
+                {
+                    double pct = totalMs > 0 ? (item.ms * 100.0 / totalMs) : 0;
+                    details.AppendLine($"   • {item.name}: {item.ms}ms ({pct:F1}% całości)");
+                }
+            }
+
+            // Wskazówki optymalizacji
+            var sqlItems = allTimes.Where(x => x.name.Contains("Sql") || x.name.Contains("SQL")).Sum(x => x.ms);
+            if (sqlItems > totalMs * 0.7)
+            {
+                details.AppendLine();
+                details.AppendLine("💡 WSKAZÓWKI:");
+                details.AppendLine($"   SQL stanowi {sqlItems * 100.0 / totalMs:F0}% czasu.");
+                details.AppendLine("   Rozważ indeksy na kolumnach DataUboju, DataZamowienia.");
+            }
+
+            MessageBox.Show(details.ToString(),
+                $"Diagnostyka - {_selectedDate:dd.MM.yyyy}",
+                MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void UpdateStatus(string message)
