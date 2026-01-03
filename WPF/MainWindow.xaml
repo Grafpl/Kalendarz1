@@ -266,7 +266,6 @@
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="85"/>
-                        <ColumnDefinition Width="85"/>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
@@ -276,7 +275,7 @@
                              Tag="Odbiorca..." Margin="0,0,5,0"
                              TextChanged="TxtFilterRecipient_TextChanged"/>
 
-                    <StackPanel Grid.Column="2" Orientation="Vertical" VerticalAlignment="Center" Margin="5,0">
+                    <StackPanel Grid.Column="1" Orientation="Vertical" VerticalAlignment="Center" Margin="5,0">
                         <RadioButton x:Name="rbSwieze" Content="Św" GroupName="ProductCatalog"
                                      VerticalAlignment="Center" Margin="0,0,0,2" IsChecked="True"
                                      Checked="RbProductCatalog_Checked"/>
@@ -285,7 +284,7 @@
                                      Checked="RbProductCatalog_Checked"/>
                     </StackPanel>
 
-                    <ScrollViewer Grid.Column="3" HorizontalScrollBarVisibility="Auto"
+                    <ScrollViewer Grid.Column="2" HorizontalScrollBarVisibility="Auto"
                                   VerticalScrollBarVisibility="Disabled" Margin="5,0,0,0">
                         <WrapPanel x:Name="pnlProductButtons" Orientation="Horizontal"/>
                     </ScrollViewer>

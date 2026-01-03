@@ -490,9 +490,9 @@ namespace Kalendarz1.WPF
             // ✅ WYWOŁAJ PO RefreshAllDataAsync, gdy wszystkie kontrolki są już utworzone
             ApplyResponsiveLayout();
 
-            // Auto-odświeżanie co 1 minutę
+            // Auto-odświeżanie co 3 minuty
             _autoRefreshTimer = new System.Windows.Threading.DispatcherTimer();
-            _autoRefreshTimer.Interval = TimeSpan.FromMinutes(1);
+            _autoRefreshTimer.Interval = TimeSpan.FromMinutes(3);
             _autoRefreshTimer.Tick += AutoRefreshTimer_Tick;
             _autoRefreshTimer.Start();
 
