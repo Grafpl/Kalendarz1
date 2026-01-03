@@ -14,7 +14,8 @@ namespace Kalendarz1.WPF
         private readonly string _connLibra;
         private readonly string _connHandel;
         private ObservableCollection<ProduktGrupaItem> _produkty = new();
-        private List<string> _dostepneGrupy = new();
+        private ObservableCollection<ProduktGrupaItem> _produktyFiltered = new();
+        private ObservableCollection<GrupaInfo> _grupy = new();
 
         public GrupowanieTowarowWindow(string connLibra, string connHandel)
         {
@@ -28,8 +29,7 @@ namespace Kalendarz1.WPF
         private async System.Threading.Tasks.Task LoadDataAsync()
         {
             _produkty.Clear();
-            _dostepneGrupy.Clear();
-            _dostepneGrupy.Add(""); // Pusta opcja = brak grupy
+            _grupy.Clear();
 
             try
             {
@@ -69,16 +69,8 @@ namespace Kalendarz1.WPF
                         string nazwaGrupy = reader.GetString(1);
                         int kolejnosc = reader.GetInt32(2);
                         scalowania[towarId] = (nazwaGrupy, kolejnosc);
-
-                        // Dodaj do dostępnych grup
-                        if (!_dostepneGrupy.Contains(nazwaGrupy))
-                            _dostepneGrupy.Add(nazwaGrupy);
                     }
                 }
-
-                // Sortuj grupy
-                _dostepneGrupy = _dostepneGrupy.OrderBy(g => g).ToList();
-                _dostepneGrupy.Insert(0, ""); // Pusta na początku
 
                 // Utwórz listę produktów
                 foreach (var kv in produktyDict.OrderBy(p => p.Value))
@@ -88,15 +80,13 @@ namespace Kalendarz1.WPF
                         TowarId = kv.Key,
                         NazwaProduktu = kv.Value,
                         NazwaGrupy = scalowania.TryGetValue(kv.Key, out var sc) ? sc.Grupa : "",
-                        Kolejnosc = scalowania.TryGetValue(kv.Key, out var sc2) ? sc2.Kolejnosc : 0,
-                        Aktywne = true
+                        Kolejnosc = scalowania.TryGetValue(kv.Key, out var sc2) ? sc2.Kolejnosc : 0
                     };
                     _produkty.Add(item);
                 }
 
-                dgProdukty.ItemsSource = _produkty;
-                colGrupa.ItemsSource = _dostepneGrupy;
-
+                RefreshGrupyList();
+                ApplyFilter();
                 UpdateGrupyCount();
             }
             catch (Exception ex)
@@ -108,14 +98,12 @@ namespace Kalendarz1.WPF
 
         private async System.Threading.Tasks.Task EnsureTableExistsAsync(SqlConnection cn)
         {
-            // Sprawdź czy tabela istnieje
             const string checkSql = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'ScalowanieTowarow'";
             await using var checkCmd = new SqlCommand(checkSql, cn);
             bool exists = (int)await checkCmd.ExecuteScalarAsync()! > 0;
 
             if (!exists)
             {
-                // Utwórz tabelę
                 const string createSql = @"
                     CREATE TABLE [dbo].[ScalowanieTowarow] (
                         [Id] INT IDENTITY(1,1) PRIMARY KEY,
@@ -128,7 +116,6 @@ namespace Kalendarz1.WPF
             }
             else
             {
-                // Sprawdź czy kolumna Kolejnosc istnieje
                 const string checkColSql = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
                                             WHERE TABLE_NAME = 'ScalowanieTowarow' AND COLUMN_NAME = 'Kolejnosc'";
                 await using var checkColCmd = new SqlCommand(checkColSql, cn);
@@ -143,46 +130,231 @@ namespace Kalendarz1.WPF
             }
         }
 
+        private void RefreshGrupyList()
+        {
+            _grupy.Clear();
+
+            var grupyDict = _produkty
+                .Where(p => !string.IsNullOrEmpty(p.NazwaGrupy))
+                .GroupBy(p => p.NazwaGrupy)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            foreach (var kv in grupyDict.OrderBy(g => g.Key))
+            {
+                _grupy.Add(new GrupaInfo { Nazwa = kv.Key, IloscProduktow = kv.Value });
+            }
+
+            lstGrupy.ItemsSource = _grupy;
+        }
+
+        private void ApplyFilter()
+        {
+            var search = txtSearch?.Text?.ToLower() ?? "";
+            bool onlyGrouped = chkShowOnlyGrouped?.IsChecked == true;
+            bool onlyUngrouped = chkShowOnlyUngrouped?.IsChecked == true;
+
+            var filtered = _produkty.Where(p =>
+            {
+                bool matchesSearch = string.IsNullOrEmpty(search) ||
+                    p.NazwaProduktu.ToLower().Contains(search) ||
+                    p.TowarId.ToString().Contains(search);
+
+                bool matchesGroupFilter = true;
+                if (onlyGrouped)
+                    matchesGroupFilter = !string.IsNullOrEmpty(p.NazwaGrupy);
+                else if (onlyUngrouped)
+                    matchesGroupFilter = string.IsNullOrEmpty(p.NazwaGrupy);
+
+                return matchesSearch && matchesGroupFilter;
+            }).ToList();
+
+            _produktyFiltered = new ObservableCollection<ProduktGrupaItem>(filtered);
+            dgProdukty.ItemsSource = _produktyFiltered;
+        }
+
         private void UpdateGrupyCount()
         {
             int count = _produkty.Count(p => !string.IsNullOrEmpty(p.NazwaGrupy));
             txtGrupyCount.Text = count.ToString();
         }
 
+        private void UpdateSelectedCount()
+        {
+            int count = dgProdukty.SelectedItems.Count;
+            txtSelectedCount.Text = $"Zaznaczono: {count}";
+
+            bool hasSelection = count > 0;
+            bool hasGroupSelected = lstGrupy.SelectedItem != null;
+            btnPrzypisz.IsEnabled = hasSelection && hasGroupSelected;
+            btnOdpinij.IsEnabled = hasSelection;
+        }
+
+        private void UpdateGroupButtons()
+        {
+            bool hasGroupSelected = lstGrupy.SelectedItem != null;
+            btnZmienNazwe.IsEnabled = hasGroupSelected;
+            btnUsunGrupe.IsEnabled = hasGroupSelected;
+            btnPrzypisz.IsEnabled = hasGroupSelected && dgProdukty.SelectedItems.Count > 0;
+        }
+
+        #region Event Handlers
+
+        private void TxtSearch_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            ApplyFilter();
+        }
+
+        private void ChkShowOnlyGrouped_Changed(object sender, RoutedEventArgs e)
+        {
+            if (chkShowOnlyUngrouped != null && chkShowOnlyGrouped?.IsChecked == true)
+                chkShowOnlyUngrouped.IsChecked = false;
+            ApplyFilter();
+        }
+
+        private void ChkShowOnlyUngrouped_Changed(object sender, RoutedEventArgs e)
+        {
+            if (chkShowOnlyGrouped != null && chkShowOnlyUngrouped?.IsChecked == true)
+                chkShowOnlyGrouped.IsChecked = false;
+            ApplyFilter();
+        }
+
+        private void DgProdukty_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            UpdateSelectedCount();
+        }
+
+        private void LstGrupy_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            UpdateGroupButtons();
+        }
+
         private void BtnNowaGrupa_Click(object sender, RoutedEventArgs e)
         {
             var dialog = new InputDialog("Nowa grupa", "Podaj nazwę nowej grupy (np. Ćwiartka):");
+            dialog.Owner = this;
             if (dialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(dialog.ResponseText))
             {
                 string nowaGrupa = dialog.ResponseText.Trim();
-                if (!_dostepneGrupy.Contains(nowaGrupa))
+
+                if (_grupy.Any(g => g.Nazwa.Equals(nowaGrupa, StringComparison.OrdinalIgnoreCase)))
                 {
-                    _dostepneGrupy.Add(nowaGrupa);
-                    _dostepneGrupy = _dostepneGrupy.OrderBy(g => g).ToList();
-                    _dostepneGrupy.Remove("");
-                    _dostepneGrupy.Insert(0, "");
-                    colGrupa.ItemsSource = null;
-                    colGrupa.ItemsSource = _dostepneGrupy;
+                    MessageBox.Show($"Grupa '{nowaGrupa}' już istnieje!", "Uwaga",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
                 }
 
-                // Ustaw grupę dla zaznaczonego produktu
-                if (dgProdukty.SelectedItem is ProduktGrupaItem selected)
+                _grupy.Add(new GrupaInfo { Nazwa = nowaGrupa, IloscProduktow = 0 });
+                lstGrupy.ItemsSource = null;
+                lstGrupy.ItemsSource = _grupy.OrderBy(g => g.Nazwa).ToList();
+
+                // Zaznacz nową grupę
+                lstGrupy.SelectedItem = _grupy.FirstOrDefault(g => g.Nazwa == nowaGrupa);
+
+                MessageBox.Show($"Utworzono grupę '{nowaGrupa}'.\nTeraz zaznacz produkty i kliknij 'Przypisz do grupy'.",
+                    "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void BtnZmienNazwe_Click(object sender, RoutedEventArgs e)
+        {
+            if (lstGrupy.SelectedItem is not GrupaInfo selected) return;
+
+            var dialog = new InputDialog("Zmień nazwę grupy", $"Nowa nazwa dla grupy '{selected.Nazwa}':");
+            dialog.Owner = this;
+            if (dialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(dialog.ResponseText))
+            {
+                string nowaNazwa = dialog.ResponseText.Trim();
+
+                if (_grupy.Any(g => g.Nazwa.Equals(nowaNazwa, StringComparison.OrdinalIgnoreCase) && g != selected))
                 {
-                    selected.NazwaGrupy = nowaGrupa;
-                    dgProdukty.Items.Refresh();
-                    UpdateGrupyCount();
+                    MessageBox.Show($"Grupa '{nowaNazwa}' już istnieje!", "Uwaga",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
                 }
+
+                string staraNazwa = selected.Nazwa;
+
+                // Zmień nazwę we wszystkich produktach
+                foreach (var produkt in _produkty.Where(p => p.NazwaGrupy == staraNazwa))
+                {
+                    produkt.NazwaGrupy = nowaNazwa;
+                }
+
+                RefreshGrupyList();
+                ApplyFilter();
+
+                MessageBox.Show($"Zmieniono nazwę grupy z '{staraNazwa}' na '{nowaNazwa}'.",
+                    "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
         private void BtnUsunGrupe_Click(object sender, RoutedEventArgs e)
         {
-            if (dgProdukty.SelectedItem is ProduktGrupaItem selected)
+            if (lstGrupy.SelectedItem is not GrupaInfo selected) return;
+
+            var result = MessageBox.Show(
+                $"Czy na pewno chcesz usunąć grupę '{selected.Nazwa}'?\n\n" +
+                $"Produkty ({selected.IloscProduktow}) zostaną odpięte od grupy.",
+                "Potwierdź usunięcie",
+                MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (result != MessageBoxResult.Yes) return;
+
+            // Usuń grupę z produktów
+            foreach (var produkt in _produkty.Where(p => p.NazwaGrupy == selected.Nazwa))
             {
-                selected.NazwaGrupy = "";
-                dgProdukty.Items.Refresh();
-                UpdateGrupyCount();
+                produkt.NazwaGrupy = "";
             }
+
+            RefreshGrupyList();
+            ApplyFilter();
+            UpdateGrupyCount();
+
+            MessageBox.Show($"Usunięto grupę '{selected.Nazwa}'.", "Sukces",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void BtnPrzypisz_Click(object sender, RoutedEventArgs e)
+        {
+            if (lstGrupy.SelectedItem is not GrupaInfo selectedGrupa) return;
+            if (dgProdukty.SelectedItems.Count == 0) return;
+
+            int count = 0;
+            foreach (var item in dgProdukty.SelectedItems.OfType<ProduktGrupaItem>())
+            {
+                item.NazwaGrupy = selectedGrupa.Nazwa;
+                count++;
+            }
+
+            RefreshGrupyList();
+            ApplyFilter();
+            UpdateGrupyCount();
+
+            MessageBox.Show($"Przypisano {count} produktów do grupy '{selectedGrupa.Nazwa}'.",
+                "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void BtnOdpinij_Click(object sender, RoutedEventArgs e)
+        {
+            if (dgProdukty.SelectedItems.Count == 0) return;
+
+            int count = 0;
+            foreach (var item in dgProdukty.SelectedItems.OfType<ProduktGrupaItem>())
+            {
+                if (!string.IsNullOrEmpty(item.NazwaGrupy))
+                {
+                    item.NazwaGrupy = "";
+                    count++;
+                }
+            }
+
+            RefreshGrupyList();
+            ApplyFilter();
+            UpdateGrupyCount();
+
+            if (count > 0)
+                MessageBox.Show($"Usunięto {count} produktów z grup.", "Sukces",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private async void BtnZapisz_Click(object sender, RoutedEventArgs e)
@@ -198,6 +370,7 @@ namespace Kalendarz1.WPF
                 await deleteCmd.ExecuteNonQueryAsync();
 
                 // Dodaj nowe scalowania
+                int saved = 0;
                 foreach (var produkt in _produkty.Where(p => !string.IsNullOrEmpty(p.NazwaGrupy)))
                 {
                     const string insertSql = @"INSERT INTO [dbo].[ScalowanieTowarow] (TowarIdtw, NazwaGrupy, Kolejnosc)
@@ -207,9 +380,10 @@ namespace Kalendarz1.WPF
                     insertCmd.Parameters.AddWithValue("@NazwaGrupy", produkt.NazwaGrupy);
                     insertCmd.Parameters.AddWithValue("@Kolejnosc", produkt.Kolejnosc);
                     await insertCmd.ExecuteNonQueryAsync();
+                    saved++;
                 }
 
-                MessageBox.Show($"Zapisano {_produkty.Count(p => !string.IsNullOrEmpty(p.NazwaGrupy))} produktów w grupach.",
+                MessageBox.Show($"Zapisano {saved} produktów w {_grupy.Count} grupach.",
                     "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
 
                 DialogResult = true;
@@ -227,13 +401,14 @@ namespace Kalendarz1.WPF
             DialogResult = false;
             Close();
         }
+
+        #endregion
     }
 
     public class ProduktGrupaItem : INotifyPropertyChanged
     {
         private string _nazwaGrupy = "";
         private int _kolejnosc;
-        private bool _aktywne = true;
 
         public int TowarId { get; set; }
         public string NazwaProduktu { get; set; } = "";
@@ -250,14 +425,14 @@ namespace Kalendarz1.WPF
             set { _kolejnosc = value; OnPropertyChanged(nameof(Kolejnosc)); }
         }
 
-        public bool Aktywne
-        {
-            get => _aktywne;
-            set { _aktywne = value; OnPropertyChanged(nameof(Aktywne)); }
-        }
-
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged(string name) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
+
+    public class GrupaInfo
+    {
+        public string Nazwa { get; set; } = "";
+        public int IloscProduktow { get; set; }
     }
 }
