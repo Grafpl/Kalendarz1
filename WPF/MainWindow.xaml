@@ -250,18 +250,6 @@
                     <Button x:Name="btnDelete" Style="{StaticResource ActionButtonStyle}"
                             Background="#C0392B" Content="🗑️Usuń" Width="50" ToolTip="Usuń zamówienie"
                             Click="BtnDelete_Click" Visibility="Collapsed" Height="28" FontSize="10"/>
-                    <!-- Preset layoutu - kompaktowy -->
-                    <ComboBox x:Name="cbLayoutPreset"
-                              Width="65" Height="32"
-                              Margin="3,0"
-                              SelectionChanged="CbLayoutPreset_SelectionChanged"
-                              VerticalContentAlignment="Center"
-                              FontSize="10">
-                        <ComboBoxItem Content="S" Tag="Small" ToolTip="Mały layout"/>
-                        <ComboBoxItem Content="M" Tag="Medium" IsSelected="True" ToolTip="Średni layout"/>
-                        <ComboBoxItem Content="L" Tag="Large" ToolTip="Duży layout"/>
-                        <ComboBoxItem Content="XL" Tag="ExtraLarge" ToolTip="Bardzo duży layout"/>
-                    </ComboBox>
                 </StackPanel>
             </Grid>
         </Border>
@@ -325,7 +313,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition x:Name="leftColumnDef" Width="*" MinWidth="300"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition x:Name="rightColumnDef" Width="650" MinWidth="400"/>
+                    <ColumnDefinition x:Name="rightColumnDef" Width="750" MinWidth="400"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Lewa kolumna - zakładki -->

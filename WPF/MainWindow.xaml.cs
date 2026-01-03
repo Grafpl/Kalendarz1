@@ -58,7 +58,7 @@ namespace Kalendarz1.WPF
         private readonly DataTable _dtTransport = new();
         private readonly DataTable _dtHistoriaZmian = new();
         private readonly DataTable _dtDashboard = new();
-        private GridLength _savedRightColumnWidth = new GridLength(650);
+        private GridLength _savedRightColumnWidth = new GridLength(750);
         private bool _rightPanelHidden = false; // Flaga czy prawy panel został ukryty
         private readonly Dictionary<int, string> _productCodeCache = new();
         private readonly Dictionary<int, string> _productCatalogCache = new();
@@ -468,17 +468,6 @@ namespace Kalendarz1.WPF
             catch
             {
                 // Ignoruj błędy podczas zmiany rozmiaru
-            }
-        }
-        private void CbLayoutPreset_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (cbLayoutPreset.SelectedItem is ComboBoxItem item && item.Tag != null)
-            {
-                var presetName = item.Tag.ToString();
-                if (Enum.TryParse<LayoutPreset>(presetName, out var preset))
-                {
-                    ApplyPreset(preset);
-                }
             }
         }
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
