@@ -5476,8 +5476,48 @@ ORDER BY zm.Id";
                 BorderBrush = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
                 BorderThickness = new Thickness(1),
                 Width = 160,
-                ToolTip = tooltip ?? nazwa
+                ToolTip = tooltip ?? nazwa,
+                Tag = new { TowarId = towarId, Nazwa = nazwa },
+                Cursor = Cursors.Hand
             };
+
+            // ✅ KLIKNIĘCIE - filtruj zamówienia po tym produkcie
+            if (towarId > 0)
+            {
+                card.MouseLeftButtonUp += (s, e) =>
+                {
+                    FilterOrdersByProduct(towarId, nazwa);
+                };
+            }
+
+            // ✅ MENU KONTEKSTOWE (prawy przycisk)
+            var contextMenu = new ContextMenu();
+
+            var menuPowieksz = new MenuItem { Header = "🔍 Powiększ do nowego okna" };
+            menuPowieksz.Click += (s, e) =>
+            {
+                ShowProductDetailWindow(nazwa, towarId, plan, fakt, zamLubWyd, bilans, stan);
+            };
+            contextMenu.Items.Add(menuPowieksz);
+
+            if (towarId > 0)
+            {
+                var menuPotencjalni = new MenuItem { Header = "👥 Potencjalni klienci" };
+                menuPotencjalni.Click += (s, e) =>
+                {
+                    ShowPotentialClientsWindow(towarId, nazwa);
+                };
+                contextMenu.Items.Add(menuPotencjalni);
+
+                var menuFiltruj = new MenuItem { Header = "🔎 Filtruj zamówienia" };
+                menuFiltruj.Click += (s, e) =>
+                {
+                    FilterOrdersByProduct(towarId, nazwa);
+                };
+                contextMenu.Items.Add(menuFiltruj);
+            }
+
+            card.ContextMenu = contextMenu;
 
             card.Effect = new System.Windows.Media.Effects.DropShadowEffect
             {
@@ -5608,6 +5648,316 @@ ORDER BY zm.Id";
             grid.Children.Add(text);
 
             return grid;
+        }
+
+        /// <summary>
+        /// Filtruje zamówienia w dgOrders po określonym produkcie (towarId)
+        /// </summary>
+        private void FilterOrdersByProduct(int towarId, string nazwa)
+        {
+            // Znajdź odpowiedni przycisk produktu i symuluj kliknięcie
+            foreach (var child in pnlProductButtons.Children.OfType<Button>())
+            {
+                if (child.Tag is int tagId && tagId == towarId)
+                {
+                    // Symuluj kliknięcie przycisku
+                    child.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    return;
+                }
+            }
+
+            // Jeśli nie znaleziono przycisku, ustaw filtr ręcznie
+            _selectedProductId = towarId;
+            _ = RefreshAllDataAsync();
+        }
+
+        /// <summary>
+        /// Pokazuje szczegóły produktu w nowym oknie (powiększenie)
+        /// </summary>
+        private void ShowProductDetailWindow(string nazwa, int towarId, decimal plan, decimal fakt, decimal zamLubWyd, decimal bilans, decimal stan)
+        {
+            var window = new Window
+            {
+                Title = $"📊 Szczegóły produktu: {nazwa}",
+                Width = 450,
+                Height = 400,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Background = Brushes.White
+            };
+
+            var stack = new StackPanel { Margin = new Thickness(20) };
+
+            // Zdjęcie produktu
+            var productImage = towarId > 0 ? GetProductImage(towarId) : null;
+            var imgBorder = new Border
+            {
+                Width = 120,
+                Height = 120,
+                CornerRadius = new CornerRadius(10),
+                Background = productImage != null
+                    ? (Brush)new ImageBrush { ImageSource = productImage, Stretch = Stretch.UniformToFill }
+                    : new SolidColorBrush(Color.FromRgb(236, 240, 241)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 20)
+            };
+            if (productImage == null)
+            {
+                imgBorder.Child = new TextBlock
+                {
+                    Text = "📷",
+                    FontSize = 40,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166))
+                };
+            }
+            stack.Children.Add(imgBorder);
+
+            // Nazwa produktu
+            stack.Children.Add(new TextBlock
+            {
+                Text = nazwa,
+                FontSize = 22,
+                FontWeight = FontWeights.Bold,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 20)
+            });
+
+            // Dane
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            bool uzywajWydan = rbBilansWydania?.IsChecked == true;
+            string zamWydLabel = uzywajWydan ? "Wydania" : "Zamówienia";
+            bool uzytoFakt = fakt > 0;
+
+            var dataItems = new[]
+            {
+                ("📅 Plan:", plan, Color.FromRgb(241, 196, 15), uzytoFakt),
+                ("✅ Fakt:", fakt, Color.FromRgb(46, 204, 113), false),
+                ($"📦 {zamWydLabel}:", zamLubWyd, Color.FromRgb(52, 152, 219), false),
+                ("🏭 Stan mag.:", stan, Color.FromRgb(155, 89, 182), false),
+                ("⚖️ Bilans:", bilans, bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60), false)
+            };
+
+            int row = 0;
+            foreach (var (label, value, color, strike) in dataItems)
+            {
+                if (label.Contains("Fakt") && fakt <= 0) continue;
+                if (label.Contains("Stan") && stan <= 0) continue;
+
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+                var lblText = new TextBlock
+                {
+                    Text = label,
+                    FontSize = 14,
+                    Margin = new Thickness(0, 4, 10, 4),
+                    TextDecorations = strike ? TextDecorations.Strikethrough : null,
+                    Foreground = strike ? new SolidColorBrush(Color.FromRgb(160, 160, 160)) : Brushes.Black
+                };
+                Grid.SetRow(lblText, row);
+                Grid.SetColumn(lblText, 0);
+                grid.Children.Add(lblText);
+
+                var valText = new TextBlock
+                {
+                    Text = $"{value:N0} kg",
+                    FontSize = 14,
+                    FontWeight = FontWeights.Bold,
+                    Margin = new Thickness(0, 4, 0, 4),
+                    Foreground = new SolidColorBrush(color),
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    TextDecorations = strike ? TextDecorations.Strikethrough : null
+                };
+                Grid.SetRow(valText, row);
+                Grid.SetColumn(valText, 1);
+                grid.Children.Add(valText);
+
+                row++;
+            }
+
+            stack.Children.Add(grid);
+
+            // Przycisk zamknij
+            var btnClose = new Button
+            {
+                Content = "Zamknij",
+                Padding = new Thickness(20, 8, 20, 8),
+                Margin = new Thickness(0, 20, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand
+            };
+            btnClose.Click += (s, e) => window.Close();
+            stack.Children.Add(btnClose);
+
+            window.Content = stack;
+            window.Show();
+        }
+
+        /// <summary>
+        /// Pokazuje okno z potencjalnymi klientami dla produktu
+        /// </summary>
+        private async void ShowPotentialClientsWindow(int towarId, string nazwa)
+        {
+            var window = new Window
+            {
+                Title = $"👥 Potencjalni klienci dla: {nazwa}",
+                Width = 600,
+                Height = 500,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Background = Brushes.White
+            };
+
+            var mainStack = new StackPanel { Margin = new Thickness(15) };
+
+            // Nagłówek
+            mainStack.Children.Add(new TextBlock
+            {
+                Text = $"Klienci kupujący: {nazwa}",
+                FontSize = 18,
+                FontWeight = FontWeights.Bold,
+                Margin = new Thickness(0, 0, 0, 15)
+            });
+
+            // Loading
+            var loadingText = new TextBlock
+            {
+                Text = "🐔 Ładowanie danych...",
+                FontSize = 14,
+                Foreground = new SolidColorBrush(Color.FromRgb(46, 204, 113)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 20, 0, 20)
+            };
+            mainStack.Children.Add(loadingText);
+
+            window.Content = mainStack;
+            window.Show();
+
+            // Pobierz dane klientów asynchronicznie
+            try
+            {
+                var clients = await Task.Run(() => GetClientsForProduct(towarId));
+
+                // Usuń loading i dodaj dane
+                mainStack.Children.Remove(loadingText);
+
+                if (clients.Count == 0)
+                {
+                    mainStack.Children.Add(new TextBlock
+                    {
+                        Text = "Brak zamówień dla tego produktu w ostatnim okresie.",
+                        FontSize = 14,
+                        Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)),
+                        HorizontalAlignment = HorizontalAlignment.Center
+                    });
+                }
+                else
+                {
+                    // Tabela z klientami
+                    var dataGrid = new DataGrid
+                    {
+                        AutoGenerateColumns = false,
+                        IsReadOnly = true,
+                        HeadersVisibility = DataGridHeadersVisibility.Column,
+                        GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                        CanUserAddRows = false,
+                        CanUserDeleteRows = false,
+                        Height = 350
+                    };
+
+                    dataGrid.Columns.Add(new DataGridTextColumn { Header = "Klient", Binding = new System.Windows.Data.Binding("Nazwa"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+                    dataGrid.Columns.Add(new DataGridTextColumn { Header = "Ilość zam.", Binding = new System.Windows.Data.Binding("IloscZamowien"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    dataGrid.Columns.Add(new DataGridTextColumn { Header = "Suma kg", Binding = new System.Windows.Data.Binding("SumaKg") { StringFormat = "N0" }, Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    dataGrid.Columns.Add(new DataGridTextColumn { Header = "Ostatnie zam.", Binding = new System.Windows.Data.Binding("OstatnieZamowienie") { StringFormat = "dd.MM.yyyy" }, Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+
+                    dataGrid.ItemsSource = clients;
+                    mainStack.Children.Add(dataGrid);
+
+                    // Podsumowanie
+                    mainStack.Children.Add(new TextBlock
+                    {
+                        Text = $"Łącznie {clients.Count} klientów, {clients.Sum(c => c.SumaKg):N0} kg",
+                        FontSize = 12,
+                        FontWeight = FontWeights.SemiBold,
+                        Foreground = new SolidColorBrush(Color.FromRgb(46, 204, 113)),
+                        Margin = new Thickness(0, 10, 0, 0)
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                mainStack.Children.Remove(loadingText);
+                mainStack.Children.Add(new TextBlock
+                {
+                    Text = $"Błąd: {ex.Message}",
+                    Foreground = Brushes.Red,
+                    TextWrapping = TextWrapping.Wrap
+                });
+            }
+        }
+
+        /// <summary>
+        /// Pobiera listę klientów kupujących dany produkt
+        /// </summary>
+        private List<ClientProductInfo> GetClientsForProduct(int towarId)
+        {
+            var result = new List<ClientProductInfo>();
+
+            string sql = @"
+                SELECT
+                    k.Nazwa,
+                    COUNT(DISTINCT z.Id) AS IloscZamowien,
+                    SUM(CAST(zmt.Ilosc AS DECIMAL(18,2))) AS SumaKg,
+                    MAX(z.DataDostawy) AS OstatnieZamowienie
+                FROM [dbo].[ZamowieniaMiesoTowar] zmt
+                INNER JOIN [dbo].[ZamowieniaMieso] z ON zmt.ZamowienieId = z.Id
+                INNER JOIN [dbo].[Kontrahenci] k ON z.KontrahentId = k.Id
+                WHERE zmt.KodTowaru = @TowarId
+                  AND z.Status NOT IN ('Anulowane')
+                  AND z.DataDostawy >= DATEADD(MONTH, -3, GETDATE())
+                GROUP BY k.Id, k.Nazwa
+                ORDER BY SumaKg DESC";
+
+            using (var conn = new System.Data.SqlClient.SqlConnection(_connectionString))
+            {
+                conn.Open();
+                using (var cmd = new System.Data.SqlClient.SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@TowarId", towarId);
+
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            result.Add(new ClientProductInfo
+                            {
+                                Nazwa = reader.GetString(0),
+                                IloscZamowien = reader.GetInt32(1),
+                                SumaKg = reader.IsDBNull(2) ? 0 : reader.GetDecimal(2),
+                                OstatnieZamowienie = reader.IsDBNull(3) ? DateTime.MinValue : reader.GetDateTime(3)
+                            });
+                        }
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Klasa pomocnicza do przechowywania informacji o kliencie dla produktu
+        /// </summary>
+        private class ClientProductInfo
+        {
+            public string Nazwa { get; set; }
+            public int IloscZamowien { get; set; }
+            public decimal SumaKg { get; set; }
+            public DateTime OstatnieZamowienie { get; set; }
         }
 
         private void DgAggregation_LoadingRow(object sender, DataGridRowEventArgs e)
