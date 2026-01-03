@@ -3656,20 +3656,20 @@ ORDER BY zm.Id";
             dgOrders.LoadingRow -= DgOrders_LoadingRow;
             dgOrders.LoadingRow += DgOrders_LoadingRow;
 
-            // 1. Odbiorca - poszerzona kolumna
+            // 1. Odbiorca - poszerzona kolumna (rozmiar M)
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Odbiorca",
                 Binding = new System.Windows.Data.Binding("Odbiorca"),
-                Width = new DataGridLength(150)
+                Width = new DataGridLength(180)
             });
 
-            // 2. Handlowiec
+            // 2. Handlowiec (rozmiar M)
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Hand.",
                 Binding = new System.Windows.Data.Binding("Handlowiec"),
-                Width = new DataGridLength(50),
+                Width = new DataGridLength(60),
                 ElementStyle = (Style)FindResource("BoldCellStyle")
             });
 
@@ -3682,11 +3682,11 @@ ORDER BY zm.Id";
             {
                 Header = "Zam.",
                 Binding = new System.Windows.Data.Binding("IloscZamowiona") { StringFormat = "N0" },
-                Width = new DataGridLength(55),
+                Width = new DataGridLength(70),
                 ElementStyle = zamowioneStyle
             });
 
-            // 4. Wydano - pogrubione
+            // 4. Wydano - pogrubione (rozmiar M)
             var wydaneStyle = new Style(typeof(TextBlock));
             wydaneStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
             wydaneStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
@@ -3695,11 +3695,11 @@ ORDER BY zm.Id";
             {
                 Header = "Wyd.",
                 Binding = new System.Windows.Data.Binding("IloscFaktyczna") { StringFormat = "N0" },
-                Width = new DataGridLength(55),
+                Width = new DataGridLength(70),
                 ElementStyle = wydaneStyle
             });
 
-            // 5. +/- (Różnica: Zam - Wyd)
+            // 5. +/- (Różnica: Zam - Wyd) (rozmiar M)
             var roznicaStyle = new Style(typeof(TextBlock));
             roznicaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
             roznicaStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
@@ -3708,7 +3708,7 @@ ORDER BY zm.Id";
             {
                 Header = "+/-",
                 Binding = new System.Windows.Data.Binding("Roznica") { StringFormat = "N0" },
-                Width = new DataGridLength(50),
+                Width = new DataGridLength(60),
                 ElementStyle = roznicaStyle
             });
 
@@ -3730,11 +3730,11 @@ ORDER BY zm.Id";
             {
                 Header = "Cena",
                 Binding = new System.Windows.Data.Binding("CenaInfo"),
-                Width = new DataGridLength(45),
+                Width = new DataGridLength(50),
                 ElementStyle = cenaStyle
             });
 
-            // 7. Średnia cena - wartość średniej ważonej ceny produktów
+            // 7. Średnia cena - wartość średniej ważonej ceny produktów (rozmiar M)
             var sredniaCenaStyle = new Style(typeof(TextBlock));
             sredniaCenaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
             sredniaCenaStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(100, 100, 100))));
@@ -3743,24 +3743,24 @@ ORDER BY zm.Id";
             {
                 Header = "Śr.Cena",
                 Binding = new System.Windows.Data.Binding("SredniaCena") { StringFormat = "N2" },
-                Width = new DataGridLength(55),
+                Width = new DataGridLength(70),
                 ElementStyle = sredniaCenaStyle
             });
 
-            // 8. Utworzone przez
+            // 8. Utworzone przez (rozmiar M)
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Utworzono",
                 Binding = new System.Windows.Data.Binding("UtworzonePrzez"),
-                Width = new DataGridLength(85)
+                Width = new DataGridLength(120)
             });
 
-            // 8. Termin
+            // 9. Termin (rozmiar M)
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Termin",
                 Binding = new System.Windows.Data.Binding("TerminInfo"),
-                Width = new DataGridLength(75),
+                Width = new DataGridLength(100),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
         }
