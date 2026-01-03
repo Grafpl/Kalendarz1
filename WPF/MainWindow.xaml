@@ -320,11 +320,12 @@
                 </Grid>
             </Border>
 
-            <!-- ZAWARTOŚĆ - dwie kolumny -->
+            <!-- ZAWARTOŚĆ - dwie kolumny z przesuwnym splitterem -->
             <Grid Grid.Row="1">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition x:Name="leftColumnDef" Width="*"/>
-                    <ColumnDefinition x:Name="rightColumnDef" Width="1000"/>
+                    <ColumnDefinition x:Name="leftColumnDef" Width="*" MinWidth="300"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition x:Name="rightColumnDef" Width="1000" MinWidth="400"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Lewa kolumna - zakładki -->
@@ -794,8 +795,14 @@
                     </TabItem>
                 </TabControl>
 
+                <!-- SPLITTER - przeciągnij aby zmienić szerokość paneli -->
+                <GridSplitter Grid.Column="1" Width="6"
+                              HorizontalAlignment="Center" VerticalAlignment="Stretch"
+                              Background="#E0E0E0" Cursor="SizeWE"
+                              ShowsPreview="True"/>
+
                 <!-- Prawa kolumna - szczegóły i podsumowanie -->
-                <Grid x:Name="rightPanel" Grid.Column="1" Margin="5,0,10,10">
+                <Grid x:Name="rightPanel" Grid.Column="2" Margin="5,0,10,10">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="60*"/>
                     <RowDefinition Height="Auto"/>
