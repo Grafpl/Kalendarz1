@@ -75,6 +75,10 @@ namespace Kalendarz1.WPF
         private Dictionary<int, decimal> _cachedPrzychodyElementy = new();
         private DateTime _cachedPrzychodyDate = DateTime.MinValue;
 
+        // ✅ CACHE dla kontrahentów - dane klientów rzadko się zmieniają
+        private Dictionary<int, (string Name, string Salesman)> _cachedKontrahenci = new();
+        private DateTime _cachedKontrahenciTime = DateTime.MinValue;
+
         private Dictionary<string, List<int>> _grupyDoProduktow = new(); // NazwaGrupy -> lista TowarId
         private List<string> _grupyTowaroweNazwy = new(); // Lista nazw grup towarowych dla kolumn w tabeli zamówień
         private Dictionary<string, string> _grupyKolumnDoNazw = new(); // Sanitized column name -> original display name
@@ -2774,9 +2778,18 @@ namespace Kalendarz1.WPF
             var contractors = new Dictionary<int, (string Name, string Salesman)>();
             Dictionary<int, Dictionary<int, decimal>> releasesPerClientProduct = null;
 
-            // Zadanie 1: Kontrahenci z HANDEL
+            // ✅ OPTYMALIZACJA: Użyj cache kontrahentów (ważne przez 5 minut)
+            bool kontrahenciFromCache = _cachedKontrahenci.Count > 0 &&
+                                        (DateTime.Now - _cachedKontrahenciTime).TotalMinutes < 5;
+
+            // Zadanie 1: Kontrahenci z HANDEL (lub cache)
             var taskKontrahenci = Task.Run(async () =>
             {
+                if (kontrahenciFromCache)
+                {
+                    return _cachedKontrahenci;
+                }
+
                 var result = new Dictionary<int, (string Name, string Salesman)>();
                 await using var cn = new SqlConnection(_connHandel);
                 await cn.OpenAsync();
@@ -2793,6 +2806,11 @@ namespace Kalendarz1.WPF
                     string salesman = rd.IsDBNull(2) ? "" : rd.GetString(2);
                     result[id] = (string.IsNullOrWhiteSpace(shortcut) ? $"KH {id}" : shortcut, salesman);
                 }
+
+                // Zapisz do cache
+                _cachedKontrahenci = result;
+                _cachedKontrahenciTime = DateTime.Now;
+
                 return result;
             });
 
@@ -2881,14 +2899,25 @@ ORDER BY zm.Id";
             _cachedWydaniaSum = wydaniaSumPerProduct;
             _cachedWydaniaDate = day.Date;
 
-            diagTimes.Add(("Kontr+Zam+Wyd(||)", diagSw.ElapsedMilliseconds));
+            string kontrLabel = kontrahenciFromCache ? "Kontr©+Zam+Wyd(||)" : "Kontr+Zam+Wyd(||)";
+            diagTimes.Add((kontrLabel, diagSw.ElapsedMilliseconds));
 
-            // TransportKurs - zależy od temp (zamówień)
+            // ✅ OPTYMALIZACJA: Zbierz dane potrzebne do równoległych zapytań
             diagSw.Restart();
-            var transportTimes = new Dictionary<long, (TimeSpan? GodzWyjazdu, DateTime? DataKursu)>();
             var transportKursIds = new List<long>();
+            var zamowieniaIds = new List<int>();
+            var anulowaneZamowieniaIds = new HashSet<int>();
+
             foreach (DataRow r in temp.Rows)
             {
+                int id = Convert.ToInt32(r["Id"]);
+                if (id > 0)
+                {
+                    zamowieniaIds.Add(id);
+                    string status = r["Status"]?.ToString() ?? "";
+                    if (string.Equals(status, "Anulowane", StringComparison.OrdinalIgnoreCase))
+                        anulowaneZamowieniaIds.Add(id);
+                }
                 if (temp.Columns.Contains("TransportKursID") && !(r["TransportKursID"] is DBNull))
                 {
                     long kursId = Convert.ToInt64(r["TransportKursID"]);
@@ -2897,117 +2926,111 @@ ORDER BY zm.Id";
                 }
             }
 
-            if (transportKursIds.Any())
-            {
-                try
-                {
-                    await using var cnTransport = new SqlConnection(_connTransport);
-                    await cnTransport.OpenAsync();
-                    var kursIdsList = string.Join(",", transportKursIds);
-                    var sqlKurs = $"SELECT KursID, GodzWyjazdu, DataKursu FROM dbo.Kurs WHERE KursID IN ({kursIdsList})";
-                    await using var cmdKurs = new SqlCommand(sqlKurs, cnTransport);
-                    await using var rdKurs = await cmdKurs.ExecuteReaderAsync();
-                    while (await rdKurs.ReadAsync())
-                    {
-                        long kursId = rdKurs.GetInt64(0);
-                        TimeSpan? godzWyjazdu = rdKurs.IsDBNull(1) ? null : rdKurs.GetTimeSpan(1);
-                        DateTime? dataKursu = rdKurs.IsDBNull(2) ? null : rdKurs.GetDateTime(2);
-                        transportTimes[kursId] = (godzWyjazdu, dataKursu);
-                    }
-                }
-                catch { /* Ignore transport errors - show just checkmark */ }
-            }
-            diagTimes.Add(("TransportKurs", diagSw.ElapsedMilliseconds));
-
-            diagSw.Restart();
-            var transportInfo = await GetTransportInfoAsync(day);
-            diagTimes.Add(("TransportInfo", diagSw.ElapsedMilliseconds));
-            var cultureInfo = new CultureInfo("pl-PL");
-
-            // Polskie skróty miesięcy dla formatu "Sty 12 (Ania)"
-            string[] polskieMiesiaceSkrot = { "", "Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru" };
-
-            diagSw.Restart();
-            // Pobierz sumy per zamówienie per grupa towarowa
+            // ✅ RÓWNOLEGŁE ZAPYTANIA: TransportKurs, TransportInfo, GrupyTowarowe, SrednieCeny
+            var transportTimes = new Dictionary<long, (TimeSpan? GodzWyjazdu, DateTime? DataKursu)>();
             var sumaPerZamowieniePerGrupa = new Dictionary<int, Dictionary<string, decimal>>();
-            var anulowaneZamowieniaIds = new HashSet<int>(); // Śledzenie anulowanych zamówień
-            if (_grupyTowaroweNazwy.Any() && temp.Rows.Count > 0)
-            {
-                // Zbierz ID anulowanych zamówień
-                foreach (DataRow r in temp.Rows)
-                {
-                    int id = Convert.ToInt32(r["Id"]);
-                    string status = r["Status"]?.ToString() ?? "";
-                    if (id > 0 && string.Equals(status, "Anulowane", StringComparison.OrdinalIgnoreCase))
-                    {
-                        anulowaneZamowieniaIds.Add(id);
-                    }
-                }
-
-                var zamowieniaIds = temp.AsEnumerable().Select(r => Convert.ToInt32(r["Id"])).Where(id => id > 0).ToList();
-                if (zamowieniaIds.Any())
-                {
-                    await using var cnLibraGrupy = new SqlConnection(_connLibra);
-                    await cnLibraGrupy.OpenAsync();
-                    var sqlGrupy = $"SELECT ZamowienieId, KodTowaru, SUM(Ilosc) AS Ilosc FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId IN ({string.Join(",", zamowieniaIds)}) GROUP BY ZamowienieId, KodTowaru";
-                    await using var cmdGrupy = new SqlCommand(sqlGrupy, cnLibraGrupy);
-                    await using var readerGrupy = await cmdGrupy.ExecuteReaderAsync();
-                    while (await readerGrupy.ReadAsync())
-                    {
-                        int zamId = readerGrupy.GetInt32(0);
-                        int kodTowaru = readerGrupy.GetInt32(1);
-                        decimal iloscTowaru = readerGrupy.IsDBNull(2) ? 0m : Convert.ToDecimal(readerGrupy.GetValue(2));
-
-                        // Znajdź grupę dla tego towaru
-                        if (_mapowanieScalowania.TryGetValue(kodTowaru, out var nazwaGrupy))
-                        {
-                            if (!sumaPerZamowieniePerGrupa.ContainsKey(zamId))
-                                sumaPerZamowieniePerGrupa[zamId] = new Dictionary<string, decimal>();
-
-                            if (!sumaPerZamowieniePerGrupa[zamId].ContainsKey(nazwaGrupy))
-                                sumaPerZamowieniePerGrupa[zamId][nazwaGrupy] = 0m;
-
-                            sumaPerZamowieniePerGrupa[zamId][nazwaGrupy] += iloscTowaru;
-                        }
-                    }
-                }
-            }
-            diagTimes.Add(("GrupyTowarowe", diagSw.ElapsedMilliseconds));
-
-            // ✅ POBIERZ ŚREDNIĄ WAŻONĄ CENĘ DLA KAŻDEGO ZAMÓWIENIA
-            diagSw.Restart();
             var srednieCenyZamowien = new Dictionary<int, decimal>();
-            if (temp.Rows.Count > 0)
+            Dictionary<int, string> transportInfo = null;
+
+            var taskTransportKurs = Task.Run(async () =>
             {
-                var zamowieniaIdsForCeny = temp.AsEnumerable().Select(r => Convert.ToInt32(r["Id"])).Where(id => id > 0).ToList();
-                if (zamowieniaIdsForCeny.Any())
+                var result = new Dictionary<long, (TimeSpan? GodzWyjazdu, DateTime? DataKursu)>();
+                if (transportKursIds.Any())
                 {
                     try
                     {
-                        await using var cnLibraCeny = new SqlConnection(_connLibra);
-                        await cnLibraCeny.OpenAsync();
-                        // Średnia ważona: SUM(Ilosc * Cena) / SUM(Ilosc)
+                        await using var cn = new SqlConnection(_connTransport);
+                        await cn.OpenAsync();
+                        var kursIdsList = string.Join(",", transportKursIds);
+                        var sqlKurs = $"SELECT KursID, GodzWyjazdu, DataKursu FROM dbo.Kurs WHERE KursID IN ({kursIdsList})";
+                        await using var cmd = new SqlCommand(sqlKurs, cn);
+                        await using var rd = await cmd.ExecuteReaderAsync();
+                        while (await rd.ReadAsync())
+                        {
+                            long kursId = rd.GetInt64(0);
+                            TimeSpan? godzWyjazdu = rd.IsDBNull(1) ? null : rd.GetTimeSpan(1);
+                            DateTime? dataKursu = rd.IsDBNull(2) ? null : rd.GetDateTime(2);
+                            result[kursId] = (godzWyjazdu, dataKursu);
+                        }
+                    }
+                    catch { }
+                }
+                return result;
+            });
+
+            var taskTransportInfo = GetTransportInfoAsync(day);
+
+            var taskGrupyTowarowe = Task.Run(async () =>
+            {
+                var result = new Dictionary<int, Dictionary<string, decimal>>();
+                if (_grupyTowaroweNazwy.Any() && zamowieniaIds.Any())
+                {
+                    await using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
+                    var sqlGrupy = $"SELECT ZamowienieId, KodTowaru, SUM(Ilosc) AS Ilosc FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId IN ({string.Join(",", zamowieniaIds)}) GROUP BY ZamowienieId, KodTowaru";
+                    await using var cmd = new SqlCommand(sqlGrupy, cn);
+                    await using var reader = await cmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        int zamId = reader.GetInt32(0);
+                        int kodTowaru = reader.GetInt32(1);
+                        decimal iloscTowaru = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
+                        if (_mapowanieScalowania.TryGetValue(kodTowaru, out var nazwaGrupy))
+                        {
+                            if (!result.ContainsKey(zamId))
+                                result[zamId] = new Dictionary<string, decimal>();
+                            if (!result[zamId].ContainsKey(nazwaGrupy))
+                                result[zamId][nazwaGrupy] = 0m;
+                            result[zamId][nazwaGrupy] += iloscTowaru;
+                        }
+                    }
+                }
+                return result;
+            });
+
+            var taskSrednieCeny = Task.Run(async () =>
+            {
+                var result = new Dictionary<int, decimal>();
+                if (zamowieniaIds.Any())
+                {
+                    try
+                    {
+                        await using var cn = new SqlConnection(_connLibra);
+                        await cn.OpenAsync();
                         var sqlCeny = $@"SELECT ZamowienieId,
                             CASE WHEN SUM(Ilosc) > 0
                                  THEN SUM(Ilosc * TRY_CAST(Cena AS DECIMAL(18,2))) / SUM(Ilosc)
                                  ELSE 0 END AS SredniaCena
                             FROM [dbo].[ZamowieniaMiesoTowar]
-                            WHERE ZamowienieId IN ({string.Join(",", zamowieniaIdsForCeny)})
+                            WHERE ZamowienieId IN ({string.Join(",", zamowieniaIds)})
                               AND Cena IS NOT NULL AND Cena <> '' AND Cena <> '0'
                             GROUP BY ZamowienieId";
-                        await using var cmdCeny = new SqlCommand(sqlCeny, cnLibraCeny);
-                        await using var readerCeny = await cmdCeny.ExecuteReaderAsync();
-                        while (await readerCeny.ReadAsync())
+                        await using var cmd = new SqlCommand(sqlCeny, cn);
+                        await using var reader = await cmd.ExecuteReaderAsync();
+                        while (await reader.ReadAsync())
                         {
-                            int zamId = readerCeny.GetInt32(0);
-                            decimal sredniaCena = readerCeny.IsDBNull(1) ? 0m : Convert.ToDecimal(readerCeny.GetValue(1));
-                            srednieCenyZamowien[zamId] = sredniaCena;
+                            int zamId = reader.GetInt32(0);
+                            decimal sredniaCena = reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1));
+                            result[zamId] = sredniaCena;
                         }
                     }
-                    catch { /* Ignoruj błędy obliczania ceny */ }
+                    catch { }
                 }
-            }
-            diagTimes.Add(("SrednieCeny", diagSw.ElapsedMilliseconds));
+                return result;
+            });
+
+            // Czekaj na wszystkie równoległe zadania
+            await Task.WhenAll(taskTransportKurs, taskTransportInfo, taskGrupyTowarowe, taskSrednieCeny);
+            transportTimes = await taskTransportKurs;
+            transportInfo = await taskTransportInfo;
+            sumaPerZamowieniePerGrupa = await taskGrupyTowarowe;
+            srednieCenyZamowien = await taskSrednieCeny;
+
+            diagTimes.Add(("Trans+Grupy+Ceny(||)", diagSw.ElapsedMilliseconds));
+            var cultureInfo = new CultureInfo("pl-PL");
+
+            // Polskie skróty miesięcy dla formatu "Sty 12 (Ania)"
+            string[] polskieMiesiaceSkrot = { "", "Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru" };
 
             diagSw.Restart();
             decimal totalOrdered = 0m;
