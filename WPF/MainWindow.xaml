@@ -247,6 +247,10 @@
                             Background="#1ABC9C" Content="🚚Tran" Width="50" ToolTip="Transport"
                             Click="BtnOpenTransport_Click" Margin="2,0" FontSize="10" Height="28"/>
 
+                    <Button x:Name="btnOpenGrupowanie" Style="{StaticResource ActionButtonStyle}"
+                            Background="#F39C12" Content="⚙️Grupy" Width="54" ToolTip="Grupowanie towarów (scalanie)"
+                            Click="BtnOpenGrupowanie_Click" Margin="2,0" FontSize="10" Height="28"/>
+
                     <Button x:Name="btnDelete" Style="{StaticResource ActionButtonStyle}"
                             Background="#C0392B" Content="🗑️Usuń" Width="50" ToolTip="Usuń zamówienie"
                             Click="BtnDelete_Click" Visibility="Collapsed" Height="28" FontSize="10"/>
