@@ -551,8 +551,10 @@ namespace Kalendarz1.WPF
                 BtnPrint_Click(this, new RoutedEventArgs());
                 e.Handled = true;
             }
-            // F12 - Włącz diagnostykę czasów ładowania
-            else if (e.Key == System.Windows.Input.Key.F12)
+            // Ctrl+Shift+D - Włącz diagnostykę czasów ładowania
+            else if (e.Key == System.Windows.Input.Key.D &&
+                (System.Windows.Input.Keyboard.Modifiers & (System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift))
+                == (System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift))
             {
                 _showLoadingDiagnostics = true;
                 MessageBox.Show("Diagnostyka włączona!\n\nTeraz zmień datę lub odśwież (F5),\naby zobaczyć szczegółowe czasy ładowania.",
