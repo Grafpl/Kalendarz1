@@ -58,7 +58,7 @@ namespace Kalendarz1.WPF
         private readonly DataTable _dtTransport = new();
         private readonly DataTable _dtHistoriaZmian = new();
         private readonly DataTable _dtDashboard = new();
-        private GridLength _savedRightColumnWidth = new GridLength(1000);
+        private GridLength _savedRightColumnWidth = new GridLength(750);
         private bool _rightPanelHidden = false; // Flaga czy prawy panel został ukryty
         private readonly Dictionary<int, string> _productCodeCache = new();
         private readonly Dictionary<int, string> _productCatalogCache = new();
