@@ -5505,7 +5505,16 @@ ORDER BY zm.Id";
                 var menuPotencjalni = new MenuItem { Header = "👥 Potencjalni klienci" };
                 menuPotencjalni.Click += (s, e) =>
                 {
-                    ShowPotentialClientsWindow(towarId, nazwa);
+                    var okno = new PotencjalniOdbiorcy(
+                        _connHandel,
+                        towarId,
+                        nazwa,
+                        plan,
+                        fakt,
+                        zamLubWyd,
+                        bilans,
+                        _selectedDate);
+                    okno.Show();
                 };
                 contextMenu.Items.Add(menuPotencjalni);
 
@@ -5797,167 +5806,6 @@ ORDER BY zm.Id";
 
             window.Content = stack;
             window.Show();
-        }
-
-        /// <summary>
-        /// Pokazuje okno z potencjalnymi klientami dla produktu
-        /// </summary>
-        private async void ShowPotentialClientsWindow(int towarId, string nazwa)
-        {
-            var window = new Window
-            {
-                Title = $"👥 Potencjalni klienci dla: {nazwa}",
-                Width = 600,
-                Height = 500,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                Background = Brushes.White
-            };
-
-            var mainStack = new StackPanel { Margin = new Thickness(15) };
-
-            // Nagłówek
-            mainStack.Children.Add(new TextBlock
-            {
-                Text = $"Klienci kupujący: {nazwa}",
-                FontSize = 18,
-                FontWeight = FontWeights.Bold,
-                Margin = new Thickness(0, 0, 0, 15)
-            });
-
-            // Loading
-            var loadingText = new TextBlock
-            {
-                Text = "🐔 Ładowanie danych...",
-                FontSize = 14,
-                Foreground = new SolidColorBrush(Color.FromRgb(46, 204, 113)),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 20, 0, 20)
-            };
-            mainStack.Children.Add(loadingText);
-
-            window.Content = mainStack;
-            window.Show();
-
-            // Pobierz dane klientów asynchronicznie
-            try
-            {
-                var clients = await Task.Run(() => GetClientsForProduct(towarId));
-
-                // Usuń loading i dodaj dane
-                mainStack.Children.Remove(loadingText);
-
-                if (clients.Count == 0)
-                {
-                    mainStack.Children.Add(new TextBlock
-                    {
-                        Text = "Brak zamówień dla tego produktu w ostatnim okresie.",
-                        FontSize = 14,
-                        Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)),
-                        HorizontalAlignment = HorizontalAlignment.Center
-                    });
-                }
-                else
-                {
-                    // Tabela z klientami
-                    var dataGrid = new DataGrid
-                    {
-                        AutoGenerateColumns = false,
-                        IsReadOnly = true,
-                        HeadersVisibility = DataGridHeadersVisibility.Column,
-                        GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
-                        CanUserAddRows = false,
-                        CanUserDeleteRows = false,
-                        Height = 350
-                    };
-
-                    dataGrid.Columns.Add(new DataGridTextColumn { Header = "Klient", Binding = new System.Windows.Data.Binding("Nazwa"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-                    dataGrid.Columns.Add(new DataGridTextColumn { Header = "Ilość zam.", Binding = new System.Windows.Data.Binding("IloscZamowien"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                    dataGrid.Columns.Add(new DataGridTextColumn { Header = "Suma kg", Binding = new System.Windows.Data.Binding("SumaKg") { StringFormat = "N0" }, Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                    dataGrid.Columns.Add(new DataGridTextColumn { Header = "Ostatnie zam.", Binding = new System.Windows.Data.Binding("OstatnieZamowienie") { StringFormat = "dd.MM.yyyy" }, Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-
-                    dataGrid.ItemsSource = clients;
-                    mainStack.Children.Add(dataGrid);
-
-                    // Podsumowanie
-                    mainStack.Children.Add(new TextBlock
-                    {
-                        Text = $"Łącznie {clients.Count} klientów, {clients.Sum(c => c.SumaKg):N0} kg",
-                        FontSize = 12,
-                        FontWeight = FontWeights.SemiBold,
-                        Foreground = new SolidColorBrush(Color.FromRgb(46, 204, 113)),
-                        Margin = new Thickness(0, 10, 0, 0)
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                mainStack.Children.Remove(loadingText);
-                mainStack.Children.Add(new TextBlock
-                {
-                    Text = $"Błąd: {ex.Message}",
-                    Foreground = Brushes.Red,
-                    TextWrapping = TextWrapping.Wrap
-                });
-            }
-        }
-
-        /// <summary>
-        /// Pobiera listę klientów kupujących dany produkt
-        /// </summary>
-        private List<ClientProductInfo> GetClientsForProduct(int towarId)
-        {
-            var result = new List<ClientProductInfo>();
-
-            string sql = @"
-                SELECT
-                    k.Nazwa,
-                    COUNT(DISTINCT z.Id) AS IloscZamowien,
-                    SUM(CAST(zmt.Ilosc AS DECIMAL(18,2))) AS SumaKg,
-                    MAX(z.DataDostawy) AS OstatnieZamowienie
-                FROM [dbo].[ZamowieniaMiesoTowar] zmt
-                INNER JOIN [dbo].[ZamowieniaMieso] z ON zmt.ZamowienieId = z.Id
-                INNER JOIN [dbo].[Kontrahenci] k ON z.KontrahentId = k.Id
-                WHERE zmt.KodTowaru = @TowarId
-                  AND z.Status NOT IN ('Anulowane')
-                  AND z.DataDostawy >= DATEADD(MONTH, -3, GETDATE())
-                GROUP BY k.Id, k.Nazwa
-                ORDER BY SumaKg DESC";
-
-            using (var conn = new System.Data.SqlClient.SqlConnection(_connHandel))
-            {
-                conn.Open();
-                using (var cmd = new System.Data.SqlClient.SqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@TowarId", towarId);
-
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            result.Add(new ClientProductInfo
-                            {
-                                Nazwa = reader.GetString(0),
-                                IloscZamowien = reader.GetInt32(1),
-                                SumaKg = reader.IsDBNull(2) ? 0 : reader.GetDecimal(2),
-                                OstatnieZamowienie = reader.IsDBNull(3) ? DateTime.MinValue : reader.GetDateTime(3)
-                            });
-                        }
-                    }
-                }
-            }
-
-            return result;
-        }
-
-        /// <summary>
-        /// Klasa pomocnicza do przechowywania informacji o kliencie dla produktu
-        /// </summary>
-        private class ClientProductInfo
-        {
-            public string Nazwa { get; set; }
-            public int IloscZamowien { get; set; }
-            public decimal SumaKg { get; set; }
-            public DateTime OstatnieZamowienie { get; set; }
         }
 
         private void DgAggregation_LoadingRow(object sender, DataGridRowEventArgs e)
