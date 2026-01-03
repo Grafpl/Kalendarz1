@@ -325,7 +325,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition x:Name="leftColumnDef" Width="*" MinWidth="300"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition x:Name="rightColumnDef" Width="750" MinWidth="400"/>
+                    <ColumnDefinition x:Name="rightColumnDef" Width="650" MinWidth="400"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Lewa kolumna - zakładki -->
