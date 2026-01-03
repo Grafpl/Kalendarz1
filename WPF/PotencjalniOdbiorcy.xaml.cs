@@ -320,17 +320,6 @@ ORDER BY OT.DniTemu ASC, SK.SumaWartosc DESC;";
                 dgOdbiorcy.LoadingRow += DgOdbiorcy_LoadingRow;
 
                 AktualizujStatystyki();
-
-                if (_dtOdbiorcy.Rows.Count == 0)
-                {
-                    MessageBox.Show($"Nie znaleziono odbiorców dla produktu '{_produktNazwa}' w ostatnich 12 miesiącach.",
-                        "Brak danych", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-                else
-                {
-                    MessageBox.Show($"✓ Załadowano {_dtOdbiorcy.Rows.Count} odbiorców dla produktu '{_produktNazwa}'",
-                        "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
             }
             catch (Exception ex)
             {

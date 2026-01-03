@@ -4009,6 +4009,14 @@ ORDER BY zm.Id";
                 Width = new DataGridLength(1.5, DataGridLengthUnitType.Star),
                 MinWidth = 150
             });
+
+            dgHistoriaZmian.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Data uboju",
+                Binding = new System.Windows.Data.Binding("DataUboju") { StringFormat = "yyyy-MM-dd" },
+                Width = new DataGridLength(90),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+            });
         }
 
         private async Task LoadHistoriaZmianAsync(DateTime startDate, DateTime endDate)
@@ -4026,6 +4034,7 @@ ORDER BY zm.Id";
                 _dtHistoriaZmian.Columns.Add("Odbiorca", typeof(string));
                 _dtHistoriaZmian.Columns.Add("UzytkownikNazwa", typeof(string));
                 _dtHistoriaZmian.Columns.Add("OpisZmiany", typeof(string));
+                _dtHistoriaZmian.Columns.Add("DataUboju", typeof(DateTime));
             }
 
             // Pobierz dane kontrahentów
@@ -4049,8 +4058,9 @@ ORDER BY zm.Id";
                 }
             }
 
-            // Pobierz mapowanie zamówień do klientów
+            // Pobierz mapowanie zamówień do klientów i DataUboju
             var orderToClient = new Dictionary<int, int>();
+            var orderToDataUboju = new Dictionary<int, DateTime>();
             await using (var cnLibra = new SqlConnection(_connLibra))
             {
                 await cnLibra.OpenAsync();
@@ -4069,7 +4079,7 @@ ORDER BY zm.Id";
 
                 // Pobierz zamówienia z zakresu dat
                 string dateColumn = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
-                string sqlOrders = $@"SELECT Id, KlientId FROM dbo.ZamowieniaMieso
+                string sqlOrders = $@"SELECT Id, KlientId, DataUboju FROM dbo.ZamowieniaMieso
                                      WHERE {dateColumn} BETWEEN @StartDate AND @EndDate";
                 await using var cmdOrders = new SqlCommand(sqlOrders, cnLibra);
                 cmdOrders.Parameters.AddWithValue("@StartDate", startDate);
@@ -4080,7 +4090,9 @@ ORDER BY zm.Id";
                 {
                     int orderId = rdrOrders.GetInt32(0);
                     int clientId = rdrOrders.GetInt32(1);
+                    DateTime dataUboju = rdrOrders.IsDBNull(2) ? DateTime.MinValue : rdrOrders.GetDateTime(2);
                     orderToClient[orderId] = clientId;
+                    orderToDataUboju[orderId] = dataUboju;
                 }
 
                 await rdrOrders.CloseAsync();
@@ -4112,15 +4124,20 @@ ORDER BY zm.Id";
 
                     string handlowiec = "";
                     string odbiorca = "";
+                    DateTime dataUboju = DateTime.MinValue;
                     if (orderToClient.TryGetValue(zamowienieId, out int clientId) &&
                         contractors.TryGetValue(clientId, out var contr))
                     {
                         handlowiec = contr.Salesman;
                         odbiorca = contr.Name;
                     }
+                    if (orderToDataUboju.TryGetValue(zamowienieId, out var du))
+                    {
+                        dataUboju = du;
+                    }
 
                     _dtHistoriaZmian.Rows.Add(id, zamowienieId, dataZmiany, typZmiany,
-                        handlowiec, odbiorca, uzytkownikNazwa, opisZmiany);
+                        handlowiec, odbiorca, uzytkownikNazwa, opisZmiany, dataUboju);
                 }
             }
 
@@ -4136,6 +4153,7 @@ ORDER BY zm.Id";
             var selectedTyp = cmbHistoriaTyp?.SelectedItem?.ToString();
             var selectedHandlowiec = cmbHistoriaHandlowiec?.SelectedItem?.ToString();
             var selectedTowar = cmbHistoriaTowar?.SelectedItem?.ToString();
+            var selectedDataUboju = cmbHistoriaDataUboju?.SelectedItem?.ToString();
 
             // Pobierz unikalne wartości z danych
             var ktoEdytowalList = new List<string> { "(Wszystkie)" };
@@ -4143,6 +4161,7 @@ ORDER BY zm.Id";
             var typList = new List<string> { "(Wszystkie)" };
             var handlowiecList = new List<string> { "(Wszystkie)" };
             var towarList = new List<string> { "(Wszystkie)" };
+            var dataUbojuList = new List<string> { "(Wszystkie)" };
 
             foreach (DataRow row in _dtHistoriaZmian.Rows)
             {
@@ -4151,6 +4170,9 @@ ORDER BY zm.Id";
                 string typ = row["TypZmiany"]?.ToString() ?? "";
                 string handlowiec = row["Handlowiec"]?.ToString() ?? "";
                 string opis = row["OpisZmiany"]?.ToString() ?? "";
+                var dataUboju = row["DataUboju"] as DateTime?;
+                string dataUbojuStr = dataUboju.HasValue && dataUboju.Value > DateTime.MinValue
+                    ? dataUboju.Value.ToString("yyyy-MM-dd") : "";
 
                 if (!string.IsNullOrWhiteSpace(kto) && !ktoEdytowalList.Contains(kto))
                     ktoEdytowalList.Add(kto);
@@ -4160,6 +4182,8 @@ ORDER BY zm.Id";
                     typList.Add(typ);
                 if (!string.IsNullOrWhiteSpace(handlowiec) && !handlowiecList.Contains(handlowiec))
                     handlowiecList.Add(handlowiec);
+                if (!string.IsNullOrWhiteSpace(dataUbojuStr) && !dataUbojuList.Contains(dataUbojuStr))
+                    dataUbojuList.Add(dataUbojuStr);
 
                 // Wyciągnij nazwy towarów z opisu zmiany
                 if (!string.IsNullOrWhiteSpace(opis))
@@ -4214,6 +4238,12 @@ ORDER BY zm.Id";
                 towarList = new List<string> { "(Wszystkie)" };
                 towarList.AddRange(sorted);
             }
+            if (dataUbojuList.Count > 1)
+            {
+                var sorted = dataUbojuList.Skip(1).OrderByDescending(x => x).ToList();
+                dataUbojuList = new List<string> { "(Wszystkie)" };
+                dataUbojuList.AddRange(sorted);
+            }
 
             // Wypełnij ComboBox
             if (cmbHistoriaKtoEdytowal != null)
@@ -4246,6 +4276,12 @@ ORDER BY zm.Id";
                 cmbHistoriaTowar.SelectedIndex = string.IsNullOrEmpty(selectedTowar) ? 0 :
                     Math.Max(0, towarList.IndexOf(selectedTowar));
             }
+            if (cmbHistoriaDataUboju != null)
+            {
+                cmbHistoriaDataUboju.ItemsSource = dataUbojuList;
+                cmbHistoriaDataUboju.SelectedIndex = string.IsNullOrEmpty(selectedDataUboju) ? 0 :
+                    Math.Max(0, dataUbojuList.IndexOf(selectedDataUboju));
+            }
         }
 
         private void CmbHistoriaFiltr_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -4260,6 +4296,7 @@ ORDER BY zm.Id";
             if (cmbHistoriaTyp != null) cmbHistoriaTyp.SelectedIndex = 0;
             if (cmbHistoriaHandlowiec != null) cmbHistoriaHandlowiec.SelectedIndex = 0;
             if (cmbHistoriaTowar != null) cmbHistoriaTowar.SelectedIndex = 0;
+            if (cmbHistoriaDataUboju != null) cmbHistoriaDataUboju.SelectedIndex = 0;
             ApplyHistoriaFilters();
         }
 
@@ -4296,6 +4333,16 @@ ORDER BY zm.Id";
             if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "(Wszystkie)")
             {
                 filters.Add($"Handlowiec = '{handlowiec.Replace("'", "''")}'");
+            }
+
+            // Filtr: Data uboju
+            string dataUboju = cmbHistoriaDataUboju?.SelectedItem?.ToString();
+            if (!string.IsNullOrEmpty(dataUboju) && dataUboju != "(Wszystkie)")
+            {
+                if (DateTime.TryParse(dataUboju, out var dt))
+                {
+                    filters.Add($"DataUboju = '{dt:yyyy-MM-dd}'");
+                }
             }
 
             // Filtr: Towar (wyszukiwanie w opisie zmiany)
