@@ -4567,13 +4567,14 @@ ORDER BY zm.Id";
                 decimal sumaZam = orderItems.Sum(x => x.Quantity);
                 int iloscPozycji = orderItems.Count;
 
+                // Usunięto txtOrderInfo (ID, Pozycji, Suma) - więcej miejsca na dane
                 if (txtOrderInfo != null)
                 {
-                    txtOrderInfo.Text = $"(ID: {orderId} | Pozycji: {iloscPozycji} | Suma: {sumaZam:#,##0} kg)";
+                    txtOrderInfo.Text = "";
                 }
                 if (txtOrderClient != null)
                 {
-                    txtOrderClient.Text = !string.IsNullOrEmpty(clientName) ? $"👤 {clientName}" : "";
+                    txtOrderClient.Text = !string.IsNullOrEmpty(clientName) ? clientName : "";
                 }
 
                 // Ustaw walutę w panelu
