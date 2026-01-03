@@ -58,7 +58,8 @@ namespace Kalendarz1.WPF
         private readonly DataTable _dtTransport = new();
         private readonly DataTable _dtHistoriaZmian = new();
         private readonly DataTable _dtDashboard = new();
-        private GridLength _savedRightColumnWidth = new GridLength(550);
+        private GridLength _savedRightColumnWidth = new GridLength(1000);
+        private bool _rightPanelHidden = false; // Flaga czy prawy panel został ukryty
         private readonly Dictionary<int, string> _productCodeCache = new();
         private readonly Dictionary<int, string> _productCatalogCache = new();
         private readonly Dictionary<int, string> _productCatalogSwieze = new();
@@ -3790,11 +3791,15 @@ ORDER BY zm.Id";
 
             if (selectedTab == tabDashboard)
             {
-                // Ukryj prawy panel i rozszerz lewy
-                _savedRightColumnWidth = rightColumnDef.Width;
-                rightPanel.Visibility = Visibility.Collapsed;
-                rightColumnDef.Width = new GridLength(0);
-                leftColumnDef.Width = new GridLength(1, GridUnitType.Star);
+                // Ukryj prawy panel i rozszerz lewy (tylko jeśli nie był ukryty)
+                if (!_rightPanelHidden)
+                {
+                    _savedRightColumnWidth = rightColumnDef.Width;
+                    rightPanel.Visibility = Visibility.Collapsed;
+                    rightColumnDef.Width = new GridLength(0);
+                    leftColumnDef.Width = new GridLength(1, GridUnitType.Star);
+                    _rightPanelHidden = true;
+                }
 
                 // Lazy loading - załaduj dane Dashboard tylko gdy zakładka jest aktywna
                 if (!_dashboardLoaded)
@@ -3805,11 +3810,15 @@ ORDER BY zm.Id";
             }
             else if (selectedTab == tabStatystyki)
             {
-                // Ukryj prawy panel dla statystyk
-                _savedRightColumnWidth = rightColumnDef.Width;
-                rightPanel.Visibility = Visibility.Collapsed;
-                rightColumnDef.Width = new GridLength(0);
-                leftColumnDef.Width = new GridLength(1, GridUnitType.Star);
+                // Ukryj prawy panel dla statystyk (tylko jeśli nie był ukryty)
+                if (!_rightPanelHidden)
+                {
+                    _savedRightColumnWidth = rightColumnDef.Width;
+                    rightPanel.Visibility = Visibility.Collapsed;
+                    rightColumnDef.Width = new GridLength(0);
+                    leftColumnDef.Width = new GridLength(1, GridUnitType.Star);
+                    _rightPanelHidden = true;
+                }
 
                 // Lazy loading - załaduj statystyki tylko gdy zakładka jest aktywna
                 if (!_statystykiLoaded)
@@ -3821,10 +3830,13 @@ ORDER BY zm.Id";
             }
             else if (selectedTab?.Header?.ToString()?.Contains("Transport") == true)
             {
-                // Przywróć prawy panel
-                rightPanel.Visibility = Visibility.Visible;
-                rightColumnDef.Width = _savedRightColumnWidth;
-                leftColumnDef.Width = new GridLength(1, GridUnitType.Star);
+                // Przywróć prawy panel tylko jeśli był ukryty
+                if (_rightPanelHidden)
+                {
+                    rightPanel.Visibility = Visibility.Visible;
+                    rightColumnDef.Width = _savedRightColumnWidth;
+                    _rightPanelHidden = false;
+                }
 
                 // Lazy loading - załaduj transport tylko gdy zakładka jest aktywna
                 if (!_transportLoaded)
@@ -3835,10 +3847,13 @@ ORDER BY zm.Id";
             }
             else if (selectedTab?.Header?.ToString()?.Contains("Historia") == true)
             {
-                // Przywróć prawy panel
-                rightPanel.Visibility = Visibility.Visible;
-                rightColumnDef.Width = _savedRightColumnWidth;
-                leftColumnDef.Width = new GridLength(1, GridUnitType.Star);
+                // Przywróć prawy panel tylko jeśli był ukryty
+                if (_rightPanelHidden)
+                {
+                    rightPanel.Visibility = Visibility.Visible;
+                    rightColumnDef.Width = _savedRightColumnWidth;
+                    _rightPanelHidden = false;
+                }
 
                 // Lazy loading - załaduj historię zmian tylko gdy zakładka jest aktywna
                 if (!_historiaLoaded)
@@ -3852,10 +3867,13 @@ ORDER BY zm.Id";
             }
             else
             {
-                // Przywróć prawy panel
-                rightPanel.Visibility = Visibility.Visible;
-                rightColumnDef.Width = _savedRightColumnWidth;
-                leftColumnDef.Width = new GridLength(1, GridUnitType.Star);
+                // Przywróć prawy panel tylko jeśli był ukryty
+                if (_rightPanelHidden)
+                {
+                    rightPanel.Visibility = Visibility.Visible;
+                    rightColumnDef.Width = _savedRightColumnWidth;
+                    _rightPanelHidden = false;
+                }
             }
         }
 
