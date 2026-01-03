@@ -69,6 +69,12 @@ namespace Kalendarz1.WPF
         // ✅ CACHE dla wydań - unikamy duplikacji zapytań
         private Dictionary<int, decimal> _cachedWydaniaSum = new();
         private DateTime _cachedWydaniaDate = DateTime.MinValue;
+
+        // ✅ CACHE dla przychodów - unikamy duplikacji zapytań
+        private Dictionary<int, decimal> _cachedPrzychodyTuszkaA = new();
+        private Dictionary<int, decimal> _cachedPrzychodyElementy = new();
+        private DateTime _cachedPrzychodyDate = DateTime.MinValue;
+
         private Dictionary<string, List<int>> _grupyDoProduktow = new(); // NazwaGrupy -> lista TowarId
         private List<string> _grupyTowaroweNazwy = new(); // Lista nazw grup towarowych dla kolumn w tabeli zamówień
         private Dictionary<string, string> _grupyKolumnDoNazw = new(); // Sanitized column name -> original display name
@@ -510,6 +516,99 @@ namespace Kalendarz1.WPF
 
             // Obsługa edycji notatek - zapisz przy utracie fokusa
             txtNotes.LostFocus += TxtNotes_LostFocus;
+
+            // ✅ PRELOAD: Załaduj dane dla sąsiednich dat w tle (przyspiesza przełączanie)
+            _ = PreloadAdjacentDatesAsync(_selectedDate);
+        }
+
+        /// <summary>
+        /// Preload danych dla sąsiednich dat (poprzedni i następny dzień) w tle
+        /// </summary>
+        private async Task PreloadAdjacentDatesAsync(DateTime centerDate)
+        {
+            await Task.Delay(500); // Poczekaj aż główne UI się załaduje
+
+            var datesToPreload = new[]
+            {
+                centerDate.AddDays(-1),
+                centerDate.AddDays(1)
+            };
+
+            foreach (var date in datesToPreload)
+            {
+                try
+                {
+                    // Preload wydań i przychodów dla tej daty
+                    await PreloadDataForDateAsync(date);
+                }
+                catch { /* Ignoruj błędy preloadu */ }
+            }
+        }
+
+        /// <summary>
+        /// Preload wydań i przychodów dla konkretnej daty (bez wyświetlania)
+        /// </summary>
+        private async Task PreloadDataForDateAsync(DateTime date)
+        {
+            date = ValidateSqlDate(date);
+
+            // Preload wydań (jeśli nie ma w cache)
+            if (_cachedWydaniaDate != date.Date)
+            {
+                var wydaniaTask = Task.Run(async () =>
+                {
+                    var result = new Dictionary<int, decimal>();
+                    await using var cn = new SqlConnection(_connHandel);
+                    await cn.OpenAsync();
+                    const string sql = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc))
+                        FROM [HANDEL].[HM].[MZ] MZ
+                        JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
+                        WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny=1 AND MG.data = @Day
+                        GROUP BY MZ.idtw";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Day", date.Date);
+                    await using var reader = await cmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        int productId = reader.GetInt32(0);
+                        decimal qty = reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1));
+                        result[productId] = qty;
+                    }
+                    return result;
+                });
+
+                // Preload przychodów równolegle
+                var przychodyTask = Task.Run(async () =>
+                {
+                    var tuszkaA = new Dictionary<int, decimal>();
+                    var elementy = new Dictionary<int, decimal>();
+                    await using var cn = new SqlConnection(_connHandel);
+                    await cn.OpenAsync();
+                    const string sql = @"
+                        SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) AS Ilosc,
+                               CASE WHEN MG.seria = 'sPWU' THEN 'T' ELSE 'E' END AS Typ
+                        FROM [HANDEL].[HM].[MZ] MZ
+                        JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
+                        WHERE MG.seria IN ('sPWU', 'sPWP', 'PWP') AND MG.aktywny=1 AND MG.data = @Day
+                        GROUP BY MZ.idtw, CASE WHEN MG.seria = 'sPWU' THEN 'T' ELSE 'E' END";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Day", date.Date);
+                    await using var rdr = await cmd.ExecuteReaderAsync();
+                    while (await rdr.ReadAsync())
+                    {
+                        int productId = rdr.GetInt32(0);
+                        decimal qty = rdr.IsDBNull(1) ? 0m : Convert.ToDecimal(rdr.GetValue(1));
+                        string typ = rdr.GetString(2);
+                        if (typ == "T") tuszkaA[productId] = qty;
+                        else elementy[productId] = qty;
+                    }
+                    return (tuszkaA, elementy);
+                });
+
+                await Task.WhenAll(wydaniaTask, przychodyTask);
+                // Nie zapisujemy do głównego cache - to tylko preload
+                // Cache zostanie zaktualizowany gdy użytkownik przełączy się na tę datę
+            }
         }
 
         private void MainWindow_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
@@ -2512,6 +2611,9 @@ namespace Kalendarz1.WPF
                     ShowDiagnosticsWindow(sw.ElapsedMilliseconds);
                     _showLoadingDiagnostics = false;
                 }
+
+                // ✅ PRELOAD: Załaduj dane dla sąsiednich dat w tle
+                _ = PreloadAdjacentDatesAsync(_selectedDate);
             }
         }
 
@@ -2656,64 +2758,66 @@ namespace Kalendarz1.WPF
                 _dtOrders.Columns.Add(colName, typeof(decimal));
             }
 
+            // ✅ OPTYMALIZACJA: Równoległe ładowanie Kontrahenci + Zamówienia + Wydania
             diagSw.Restart();
+            int? selectedProductId = _selectedProductId;
+            var temp = new DataTable();
+            var clientsWithOrders = new HashSet<int>();
+            _processedOrderIds.Clear();
+
             var contractors = new Dictionary<int, (string Name, string Salesman)>();
-            await using (var cnHandel = new SqlConnection(_connHandel))
+            Dictionary<int, Dictionary<int, decimal>> releasesPerClientProduct = null;
+
+            // Zadanie 1: Kontrahenci z HANDEL
+            var taskKontrahenci = Task.Run(async () =>
             {
-                await cnHandel.OpenAsync();
+                var result = new Dictionary<int, (string Name, string Salesman)>();
+                await using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync();
                 const string sqlContr = @"SELECT c.Id, c.Shortcut, wym.CDim_Handlowiec_Val
                                 FROM [HANDEL].[SSCommon].[STContractors] c
                                 LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] wym
                                 ON c.Id = wym.ElementId";
-                await using var cmdContr = new SqlCommand(sqlContr, cnHandel);
-                await using var rd = await cmdContr.ExecuteReaderAsync();
-
+                await using var cmd = new SqlCommand(sqlContr, cn);
+                await using var rd = await cmd.ExecuteReaderAsync();
                 while (await rd.ReadAsync())
                 {
                     int id = rd.GetInt32(0);
                     string shortcut = rd.IsDBNull(1) ? "" : rd.GetString(1);
                     string salesman = rd.IsDBNull(2) ? "" : rd.GetString(2);
-                    contractors[id] = (string.IsNullOrWhiteSpace(shortcut) ? $"KH {id}" : shortcut, salesman);
+                    result[id] = (string.IsNullOrWhiteSpace(shortcut) ? $"KH {id}" : shortcut, salesman);
                 }
-            }
-            diagTimes.Add(("Kontrahenci", diagSw.ElapsedMilliseconds));
+                return result;
+            });
 
-            int? selectedProductId = _selectedProductId;
+            // Zadanie 2: Zamówienia z LIBRA (KlienciZam + SQL Zamówienia)
+            string dateColumn = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
+            string dateColumnZm = (_showBySlaughterDate && _slaughterDateColumnExists) ? "zm.DataUboju" : "zm.DataZamowienia";
+            string slaughterDateSelect = _slaughterDateColumnExists ? ", zm.DataUboju" : "";
+            string slaughterDateGroupBy = _slaughterDateColumnExists ? ", zm.DataUboju" : "";
 
-            diagSw.Restart();
-            var temp = new DataTable();
-            var clientsWithOrders = new HashSet<int>();
-            _processedOrderIds.Clear();
-
-            await using (var cnLibra = new SqlConnection(_connLibra))
+            var taskZamowienia = Task.Run(async () =>
             {
-                await cnLibra.OpenAsync();
-                string dateColumn = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
+                var clients = new HashSet<int>();
+                var ordersTable = new DataTable();
 
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // KlienciZam
                 string sqlClients = $@"SELECT DISTINCT KlientId FROM [dbo].[ZamowieniaMieso]
                               WHERE {dateColumn} = @Day AND KlientId IS NOT NULL";
-                await using var cmdClients = new SqlCommand(sqlClients, cnLibra);
-                cmdClients.Parameters.AddWithValue("@Day", day);
-                await using var readerClients = await cmdClients.ExecuteReaderAsync();
-
-                while (await readerClients.ReadAsync())
+                await using (var cmdClients = new SqlCommand(sqlClients, cn))
                 {
-                    clientsWithOrders.Add(readerClients.GetInt32(0));
+                    cmdClients.Parameters.AddWithValue("@Day", day);
+                    await using var readerClients = await cmdClients.ExecuteReaderAsync();
+                    while (await readerClients.ReadAsync())
+                        clients.Add(readerClients.GetInt32(0));
                 }
-            }
-            diagTimes.Add(("KlienciZam", diagSw.ElapsedMilliseconds));
 
-            diagSw.Restart();
-            if (_productCatalogCache.Keys.Any())
-            {
-                await using (var cnLibra = new SqlConnection(_connLibra))
+                // SQL Zamówienia
+                if (_productCatalogCache.Keys.Any())
                 {
-                    await cnLibra.OpenAsync();
-                    var idwList = string.Join(",", _productCatalogCache.Keys);
-                    string dateColumn = (_showBySlaughterDate && _slaughterDateColumnExists) ? "zm.DataUboju" : "zm.DataZamowienia";
-                    string slaughterDateSelect = _slaughterDateColumnExists ? ", zm.DataUboju" : "";
-                    string slaughterDateGroupBy = _slaughterDateColumnExists ? ", zm.DataUboju" : "";
-
                     string sql = $@"
 SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc,
        zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
@@ -2729,25 +2833,52 @@ SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc,
        zm.DataWydania{slaughterDateSelect}
 FROM [dbo].[ZamowieniaMieso] zm
 LEFT JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
-WHERE {dateColumn} = @Day " +
-                                (selectedProductId.HasValue ? "AND (zmt.KodTowaru = @ProductId OR zmt.KodTowaru IS NULL) " : "") +
-                                $@"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
+WHERE {dateColumnZm} = @Day " +
+                        (selectedProductId.HasValue ? "AND (zmt.KodTowaru = @ProductId OR zmt.KodTowaru IS NULL) " : "") +
+                        $@"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
      zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID, zm.CzyZrealizowane, zm.DataWydania{slaughterDateGroupBy}
 ORDER BY zm.Id";
 
-                    await using var cmd = new SqlCommand(sql, cnLibra);
+                    await using var cmd = new SqlCommand(sql, cn);
                     cmd.Parameters.AddWithValue("@Day", day);
                     if (selectedProductId.HasValue)
                         cmd.Parameters.AddWithValue("@ProductId", selectedProductId.Value);
 
                     using var da = new SqlDataAdapter(cmd);
-                    da.Fill(temp);
+                    da.Fill(ordersTable);
+                }
+                return (clients, ordersTable);
+            });
+
+            // Zadanie 3: Wydania z HANDEL (równolegle!)
+            var taskWydania = GetReleasesPerClientProductAsync(day);
+
+            // Czekaj na wszystkie zadania
+            await Task.WhenAll(taskKontrahenci, taskZamowienia, taskWydania);
+            contractors = await taskKontrahenci;
+            var zamResult = await taskZamowienia;
+            clientsWithOrders = zamResult.clients;
+            temp = zamResult.ordersTable;
+            releasesPerClientProduct = await taskWydania;
+
+            // Cache wydań
+            var wydaniaSumPerProduct = new Dictionary<int, decimal>();
+            foreach (var clientReleases in releasesPerClientProduct.Values)
+            {
+                foreach (var kvp in clientReleases)
+                {
+                    if (!wydaniaSumPerProduct.ContainsKey(kvp.Key))
+                        wydaniaSumPerProduct[kvp.Key] = 0;
+                    wydaniaSumPerProduct[kvp.Key] += kvp.Value;
                 }
             }
-            diagTimes.Add(("SQL Zamówienia", diagSw.ElapsedMilliseconds));
+            _cachedWydaniaSum = wydaniaSumPerProduct;
+            _cachedWydaniaDate = day.Date;
 
+            diagTimes.Add(("Kontr+Zam+Wyd(||)", diagSw.ElapsedMilliseconds));
+
+            // TransportKurs - zależy od temp (zamówień)
             diagSw.Restart();
-            // Load transport departure times from dbo.Kurs
             var transportTimes = new Dictionary<long, (TimeSpan? GodzWyjazdu, DateTime? DataKursu)>();
             var transportKursIds = new List<long>();
             foreach (DataRow r in temp.Rows)
@@ -2781,24 +2912,6 @@ ORDER BY zm.Id";
                 catch { /* Ignore transport errors - show just checkmark */ }
             }
             diagTimes.Add(("TransportKurs", diagSw.ElapsedMilliseconds));
-
-            diagSw.Restart();
-            var releasesPerClientProduct = await GetReleasesPerClientProductAsync(day);
-
-            // ✅ CACHE: Zsumuj wydania per produkt i zapisz do cache (dla DisplayProductAggregationAsync)
-            var wydaniaSumPerProduct = new Dictionary<int, decimal>();
-            foreach (var clientReleases in releasesPerClientProduct.Values)
-            {
-                foreach (var kvp in clientReleases)
-                {
-                    if (!wydaniaSumPerProduct.ContainsKey(kvp.Key))
-                        wydaniaSumPerProduct[kvp.Key] = 0;
-                    wydaniaSumPerProduct[kvp.Key] += kvp.Value;
-                }
-            }
-            _cachedWydaniaSum = wydaniaSumPerProduct;
-            _cachedWydaniaDate = day.Date;
-            diagTimes.Add(("Wydania", diagSw.ElapsedMilliseconds));
 
             diagSw.Restart();
             var transportInfo = await GetTransportInfoAsync(day);
@@ -4683,7 +4796,7 @@ ORDER BY zm.Id";
             decimal pulaTuszkiA = pulaTuszki * (procentA / 100m);
             decimal pulaTuszkiB = pulaTuszki * (procentB / 100m);
 
-            // ✅ OPTYMALIZACJA: Równoległe wykonanie zapytań do HANDEL i LIBRA
+            // ✅ OPTYMALIZACJA: Cache przychodów + równoległe zapytania
             diagSw.Restart();
             var actualIncomeTuszkaA = new Dictionary<int, decimal>();
             var actualIncomeElementy = new Dictionary<int, decimal>();
@@ -4696,38 +4809,15 @@ ORDER BY zm.Id";
                 .Where(id => id > 0)
                 .ToList();
 
-            // Zadanie 1: Przychody z HANDEL
-            var taskPrzychody = Task.Run(async () =>
-            {
-                var tuszkaA = new Dictionary<int, decimal>();
-                var elementy = new Dictionary<int, decimal>();
-                await using var cn = new SqlConnection(_connHandel);
-                await cn.OpenAsync();
-                const string sql = @"
-                    SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) AS Ilosc,
-                           CASE WHEN MG.seria = 'sPWU' THEN 'T' ELSE 'E' END AS Typ
-                    FROM [HANDEL].[HM].[MZ] MZ
-                    JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
-                    WHERE MG.seria IN ('sPWU', 'sPWP', 'PWP') AND MG.aktywny=1 AND MG.data = @Day
-                    GROUP BY MZ.idtw, CASE WHEN MG.seria = 'sPWU' THEN 'T' ELSE 'E' END";
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@Day", day.Date);
-                await using var rdr = await cmd.ExecuteReaderAsync();
-                while (await rdr.ReadAsync())
-                {
-                    int productId = rdr.GetInt32(0);
-                    decimal qty = rdr.IsDBNull(1) ? 0m : Convert.ToDecimal(rdr.GetValue(1));
-                    string typ = rdr.GetString(2);
-                    if (typ == "T") tuszkaA[productId] = qty;
-                    else elementy[productId] = qty;
-                }
-                return (tuszkaA, elementy);
-            });
+            // ✅ UŻYJ CACHE PRZYCHODÓW (jeśli dostępny) - oszczędza ~500-1000ms!
+            bool przychodyFromCache = _cachedPrzychodyDate == day.Date && (_cachedPrzychodyTuszkaA.Any() || _cachedPrzychodyElementy.Any());
 
-            // Zadanie 2: Zamówienia z LIBRA (równolegle!)
-            var taskZamowienia = Task.Run(async () =>
+            if (przychodyFromCache)
             {
-                var orders = new Dictionary<int, decimal>();
+                actualIncomeTuszkaA = _cachedPrzychodyTuszkaA;
+                actualIncomeElementy = _cachedPrzychodyElementy;
+
+                // Tylko zamówienia z LIBRA (przychody z cache)
                 if (orderIds.Any())
                 {
                     await using var cn = new SqlConnection(_connLibra);
@@ -4737,18 +4827,69 @@ ORDER BY zm.Id";
                     using var cmd = new SqlCommand(sql, cn);
                     using var reader = await cmd.ExecuteReaderAsync();
                     while (await reader.ReadAsync())
-                        orders[reader.GetInt32(0)] = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
+                        orderSum[reader.GetInt32(0)] = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
                 }
-                return orders;
-            });
+            }
+            else
+            {
+                // Zadanie 1: Przychody z HANDEL
+                var taskPrzychody = Task.Run(async () =>
+                {
+                    var tuszkaA = new Dictionary<int, decimal>();
+                    var elementy = new Dictionary<int, decimal>();
+                    await using var cn = new SqlConnection(_connHandel);
+                    await cn.OpenAsync();
+                    const string sql = @"
+                        SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) AS Ilosc,
+                               CASE WHEN MG.seria = 'sPWU' THEN 'T' ELSE 'E' END AS Typ
+                        FROM [HANDEL].[HM].[MZ] MZ
+                        JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
+                        WHERE MG.seria IN ('sPWU', 'sPWP', 'PWP') AND MG.aktywny=1 AND MG.data = @Day
+                        GROUP BY MZ.idtw, CASE WHEN MG.seria = 'sPWU' THEN 'T' ELSE 'E' END";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Day", day.Date);
+                    await using var rdr = await cmd.ExecuteReaderAsync();
+                    while (await rdr.ReadAsync())
+                    {
+                        int productId = rdr.GetInt32(0);
+                        decimal qty = rdr.IsDBNull(1) ? 0m : Convert.ToDecimal(rdr.GetValue(1));
+                        string typ = rdr.GetString(2);
+                        if (typ == "T") tuszkaA[productId] = qty;
+                        else elementy[productId] = qty;
+                    }
+                    return (tuszkaA, elementy);
+                });
 
-            // Czekaj na oba zadania równocześnie
-            await Task.WhenAll(taskPrzychody, taskZamowienia);
-            var przychodResult = await taskPrzychody;
-            actualIncomeTuszkaA = przychodResult.tuszkaA;
-            actualIncomeElementy = przychodResult.elementy;
-            orderSum = await taskZamowienia;
-            diagTimes.Add(("PrzychZam(||)", diagSw.ElapsedMilliseconds));
+                // Zadanie 2: Zamówienia z LIBRA (równolegle!)
+                var taskZamowienia = Task.Run(async () =>
+                {
+                    var orders = new Dictionary<int, decimal>();
+                    if (orderIds.Any())
+                    {
+                        await using var cn = new SqlConnection(_connLibra);
+                        await cn.OpenAsync();
+                        var sql = $"SELECT KodTowaru, SUM(Ilosc) FROM [dbo].[ZamowieniaMiesoTowar] " +
+                                 $"WHERE ZamowienieId IN ({string.Join(",", orderIds)}) GROUP BY KodTowaru";
+                        using var cmd = new SqlCommand(sql, cn);
+                        using var reader = await cmd.ExecuteReaderAsync();
+                        while (await reader.ReadAsync())
+                            orders[reader.GetInt32(0)] = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
+                    }
+                    return orders;
+                });
+
+                await Task.WhenAll(taskPrzychody, taskZamowienia);
+                var przychodResult = await taskPrzychody;
+                actualIncomeTuszkaA = przychodResult.tuszkaA;
+                actualIncomeElementy = przychodResult.elementy;
+                orderSum = await taskZamowienia;
+
+                // Zapisz do cache
+                _cachedPrzychodyTuszkaA = actualIncomeTuszkaA;
+                _cachedPrzychodyElementy = actualIncomeElementy;
+                _cachedPrzychodyDate = day.Date;
+            }
+            diagTimes.Add(("PrzychZam" + (przychodyFromCache ? "©" : "(||)"), diagSw.ElapsedMilliseconds));
 
             diagSw.Restart();
             // ✅ POBIERZ WYDANIA (WZ)
