@@ -213,6 +213,10 @@
                             Background="#9B59B6" Content="🔄" Width="38" ToolTip="Odśwież dane"
                             Click="BtnRefresh_Click" Margin="3,0" FontSize="14" Height="36"/>
 
+                    <Button x:Name="btnDiag" Style="{StaticResource ActionButtonStyle}"
+                            Background="#34495E" Content="⏱" Width="32" ToolTip="Diagnostyka czasów (kliknij, potem odśwież)"
+                            Click="BtnDiag_Click" Margin="1,0" FontSize="12" Height="36"/>
+
                     <!-- Przyciski do otwierania osobnych okien - kompaktowe dla mniejszych monitorów -->
                     <Button x:Name="btnOpenDashboard" Style="{StaticResource ActionButtonStyle}"
                             Background="#2C3E50" Content="Dash" Width="50" ToolTip="Dashboard produktów"

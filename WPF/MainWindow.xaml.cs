@@ -585,6 +585,14 @@ namespace Kalendarz1.WPF
             await RefreshAllDataAsync();
         }
 
+        private async void BtnDiag_Click(object sender, RoutedEventArgs e)
+        {
+            _showLoadingDiagnostics = true;
+            btnDiag.Background = new SolidColorBrush(Color.FromRgb(46, 204, 113)); // Zielony = włączone
+            await RefreshAllDataAsync();
+            btnDiag.Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)); // Powrót do szarego
+        }
+
         #region Przyciski otwierania osobnych okien
 
         private void BtnOpenDashboard_Click(object sender, RoutedEventArgs e)
