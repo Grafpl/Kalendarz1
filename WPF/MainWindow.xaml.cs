@@ -4810,7 +4810,7 @@ ORDER BY zm.Id";
                 .ToList();
 
             // ✅ UŻYJ CACHE PRZYCHODÓW (jeśli dostępny) - oszczędza ~500-1000ms!
-            bool przychodyFromCache = _cachedPrzychodyDate == day.Date && (_cachedPrzychodyTuszkaA.Any() || _cachedPrzychodyElementy.Any());
+            bool przychodyFromCache = _cachedPrzychodyDate == day.Date;
 
             if (przychodyFromCache)
             {
@@ -4895,7 +4895,8 @@ ORDER BY zm.Id";
             // ✅ POBIERZ WYDANIA (WZ)
             // ✅ UŻYJ CACHE WYDAŃ (jeśli dostępny dla tej daty) - oszczędza ~500-800ms!
             var wydaniaSum = new Dictionary<int, decimal>();
-            if (_cachedWydaniaDate == day.Date && _cachedWydaniaSum.Any())
+            bool wydaniaFromCache = _cachedWydaniaDate == day.Date;
+            if (wydaniaFromCache)
             {
                 wydaniaSum = _cachedWydaniaSum;
             }
@@ -4952,7 +4953,7 @@ ORDER BY zm.Id";
             {
                 // Tabela może nie istnieć jeszcze - ignoruj błąd
             }
-            diagTimes.Add(("WydaniaStany", diagSw.ElapsedMilliseconds));
+            diagTimes.Add(("WydStany" + (wydaniaFromCache ? "©" : ""), diagSw.ElapsedMilliseconds));
 
             diagSw.Restart();
             var kurczakA = _productCatalogCache.FirstOrDefault(p =>
