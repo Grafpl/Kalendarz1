@@ -5478,7 +5478,7 @@ ORDER BY zm.Id";
                 Width = 160,
                 ToolTip = tooltip ?? nazwa,
                 Tag = new { TowarId = towarId, Nazwa = nazwa },
-                Cursor = Cursors.Hand
+                Cursor = System.Windows.Input.Cursors.Hand
             };
 
             // ✅ KLIKNIĘCIE - filtruj zamówienia po tym produkcie
@@ -5790,7 +5790,7 @@ ORDER BY zm.Id";
                 Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
                 Foreground = Brushes.White,
                 BorderThickness = new Thickness(0),
-                Cursor = Cursors.Hand
+                Cursor = System.Windows.Input.Cursors.Hand
             };
             btnClose.Click += (s, e) => window.Close();
             stack.Children.Add(btnClose);
@@ -5923,7 +5923,7 @@ ORDER BY zm.Id";
                 GROUP BY k.Id, k.Nazwa
                 ORDER BY SumaKg DESC";
 
-            using (var conn = new System.Data.SqlClient.SqlConnection(_connectionString))
+            using (var conn = new System.Data.SqlClient.SqlConnection(_connHandel))
             {
                 conn.Open();
                 using (var cmd = new System.Data.SqlClient.SqlCommand(sql, conn))
