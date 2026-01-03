@@ -168,10 +168,10 @@
             <RowDefinition Height="24"/>
         </Grid.RowDefinitions>
 
-        <!-- ✅ LOADING OVERLAY -->
-        <Border x:Name="loadingOverlay" Grid.RowSpan="3"
+        <!-- ✅ LOADING OVERLAY - pokazuje się podczas ładowania danych -->
+        <Border x:Name="loadingOverlay" Grid.Row="0" Grid.RowSpan="3"
                 Background="#80000000" Visibility="Collapsed"
-                Panel.ZIndex="1000">
+                Panel.ZIndex="1000" IsHitTestVisible="True">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                 <Border Background="White" CornerRadius="12" Padding="30,20">
                     <StackPanel>

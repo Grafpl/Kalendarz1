@@ -2930,7 +2930,7 @@ ORDER BY zm.Id";
             var transportTimes = new Dictionary<long, (TimeSpan? GodzWyjazdu, DateTime? DataKursu)>();
             var sumaPerZamowieniePerGrupa = new Dictionary<int, Dictionary<string, decimal>>();
             var srednieCenyZamowien = new Dictionary<int, decimal>();
-            Dictionary<int, string> transportInfo = null;
+            Dictionary<long, (DateTime DataKursu, TimeSpan? GodzWyjazdu, string Kierowca)> transportInfo = null;
 
             var taskTransportKurs = Task.Run(async () =>
             {
