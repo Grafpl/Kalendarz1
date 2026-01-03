@@ -1033,10 +1033,7 @@ namespace Kalendarz1.WPF
                 }
             }
 
-            var salesmenList = new List<string> { "— Wszyscy —" };
-            salesmenList.AddRange(_salesmenCache);
-            cbFilterSalesman.ItemsSource = salesmenList;
-            cbFilterSalesman.SelectedIndex = 0;
+            // Salesmen cache is kept for potential future use
 
             if (_slaughterDateColumnExists)
             {
@@ -6338,9 +6335,6 @@ ORDER BY zm.Id";
         private void ApplyFilters()
         {
             var txt = txtFilterRecipient.Text?.Trim().Replace("'", "''");
-            string salesmanFilter = null;
-            if (cbFilterSalesman.SelectedIndex > 0)
-                salesmanFilter = cbFilterSalesman.SelectedItem?.ToString()?.Replace("'", "''");
 
             // Filtruj zamówienia - sprawdź czy kolumny istnieją
             if (_dtOrders.Columns.Count > 0 && _dtOrders.Columns.Contains("Status"))
@@ -6349,9 +6343,6 @@ ORDER BY zm.Id";
 
                 if (!string.IsNullOrEmpty(txt) && _dtOrders.Columns.Contains("Odbiorca"))
                     conditions.Add($"Odbiorca LIKE '%{txt}%'");
-
-                if (!string.IsNullOrEmpty(salesmanFilter) && _dtOrders.Columns.Contains("Handlowiec"))
-                    conditions.Add($"Handlowiec = '{salesmanFilter}'");
 
                 if (!_showReleasesWithoutOrders)
                     conditions.Add("Status <> 'Wydanie bez zamówienia'");
