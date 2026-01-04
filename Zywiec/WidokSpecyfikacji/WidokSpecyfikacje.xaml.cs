@@ -987,8 +987,8 @@ namespace Kalendarz1
             var currentColumn = dataGridView1.CurrentColumn;
             if (currentColumn == null) return;
 
-            // Używaj Tag zamiast Header - odporne na zmiany UI
-            string columnKey = currentColumn.Tag as string ?? currentColumn.Header?.ToString() ?? "";
+            // Używaj SortMemberPath lub Header
+            string columnKey = currentColumn.SortMemberPath ?? currentColumn.Header?.ToString() ?? "";
             bool copied = false;
 
             switch (columnKey)
@@ -1045,8 +1045,8 @@ namespace Kalendarz1
             var currentColumn = dataGridView1.CurrentColumn;
             if (currentColumn == null) return;
 
-            // Używaj Tag zamiast Header - odporne na zmiany UI
-            string columnKey = currentColumn.Tag as string ?? currentColumn.Header?.ToString() ?? "";
+            // Używaj SortMemberPath lub Header
+            string columnKey = currentColumn.SortMemberPath ?? currentColumn.Header?.ToString() ?? "";
 
             // Mapuj na SupplierFieldMask i użyj batch update
             SupplierFieldMask field = SupplierFieldMask.None;
