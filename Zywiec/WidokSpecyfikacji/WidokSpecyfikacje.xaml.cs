@@ -905,7 +905,7 @@ namespace Kalendarz1
                     break;
                 case "Szt.Dek":
                     currentRow.SztukiDek = rowAbove.SztukiDek;
-                    QueueSaveRow(currentRow.ID);
+                    QueueRowForSave(currentRow.ID);
                     copied = true;
                     break;
             }
