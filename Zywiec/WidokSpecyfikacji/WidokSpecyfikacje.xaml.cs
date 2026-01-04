@@ -1023,18 +1023,24 @@ namespace Kalendarz1
         private void SupplierListBox_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
             var listBox = sender as ListBox;
-            if (listBox?.SelectedItem == null) return;
+            if (listBox == null) return;
 
-            // Znajdź TextBox (parent popup -> sibling textbox)
-            var popup = FindVisualParent<Popup>(listBox);
-            if (popup == null) return;
+            // Pobierz kliknięty element z visual tree (PreviewMouseUp jest przed ustawieniem SelectedItem)
+            var clickedElement = e.OriginalSource as DependencyObject;
+            if (clickedElement == null) return;
 
-            var grid = popup.Parent as Grid;
-            var textBox = grid?.Children.OfType<TextBox>().FirstOrDefault();
+            // Znajdź ListBoxItem który został kliknięty
+            var listBoxItem = FindVisualParent<ListBoxItem>(clickedElement);
+            if (listBoxItem == null) return;
 
-            if (textBox != null)
+            // Pobierz DostawcaItem z DataContext
+            var selected = listBoxItem.DataContext as DostawcaItem;
+            if (selected == null) return;
+
+            // Użyj zapisanego TextBox (ustawionego w TextChanged)
+            if (_currentSupplierTextBox != null)
             {
-                SelectSupplierFromList(textBox, listBox.SelectedItem as DostawcaItem);
+                SelectSupplierFromList(_currentSupplierTextBox, selected);
             }
         }
 
@@ -1047,15 +1053,13 @@ namespace Kalendarz1
             if (listBox == null) return;
 
             var popup = FindVisualParent<Popup>(listBox);
-            var grid = popup?.Parent as Grid;
-            var textBox = grid?.Children.OfType<TextBox>().FirstOrDefault();
 
             switch (e.Key)
             {
                 case Key.Enter:
-                    if (listBox.SelectedItem != null && textBox != null)
+                    if (listBox.SelectedItem != null && _currentSupplierTextBox != null)
                     {
-                        SelectSupplierFromList(textBox, listBox.SelectedItem as DostawcaItem);
+                        SelectSupplierFromList(_currentSupplierTextBox, listBox.SelectedItem as DostawcaItem);
                         e.Handled = true;
                     }
                     break;
@@ -1064,16 +1068,16 @@ namespace Kalendarz1
                     if (popup != null)
                     {
                         popup.IsOpen = false;
-                        textBox?.Focus();
+                        _currentSupplierTextBox?.Focus();
                         e.Handled = true;
                     }
                     break;
 
                 case Key.Up:
-                    if (listBox.SelectedIndex == 0 && textBox != null)
+                    if (listBox.SelectedIndex == 0 && _currentSupplierTextBox != null)
                     {
                         // Wróć do TextBox
-                        textBox.Focus();
+                        _currentSupplierTextBox.Focus();
                         e.Handled = true;
                     }
                     break;
