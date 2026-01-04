@@ -2017,7 +2017,7 @@ namespace Kalendarz1
         // === BATCH: Zapis wybranych pól dla wielu wierszy w jednym zapytaniu SQL ===
         private void SaveSupplierFieldsBatch(List<int> rowIds, SupplierFieldMask fields,
             decimal? cena = null, decimal? dodatek = null, decimal? ubytek = null,
-            string typCeny = null, int? terminDni = null)
+            string typCeny = null, int? terminDni = null, bool? piK = null)
         {
             if (rowIds == null || rowIds.Count == 0 || fields == SupplierFieldMask.None) return;
 
@@ -2027,6 +2027,7 @@ namespace Kalendarz1
             if (fields.HasFlag(SupplierFieldMask.Ubytek)) setClauses.Add("Loss = @Ubytek");
             if (fields.HasFlag(SupplierFieldMask.TypCeny)) setClauses.Add("PriceType = @TypCeny");
             if (fields.HasFlag(SupplierFieldMask.TerminDni)) setClauses.Add("TerminDni = @TerminDni");
+            if (fields.HasFlag(SupplierFieldMask.PiK)) setClauses.Add("IncDeadConf = @PiK");
 
             if (setClauses.Count == 0) return;
 
@@ -2052,6 +2053,8 @@ namespace Kalendarz1
                             cmd.Parameters.AddWithValue("@TypCeny", (object)typCeny ?? DBNull.Value);
                         if (fields.HasFlag(SupplierFieldMask.TerminDni))
                             cmd.Parameters.AddWithValue("@TerminDni", terminDni ?? 0);
+                        if (fields.HasFlag(SupplierFieldMask.PiK))
+                            cmd.Parameters.AddWithValue("@PiK", piK ?? false);
 
                         int affected = cmd.ExecuteNonQuery();
                         UpdateStatus($"Batch: Zaktualizowano {affected} wierszy");
@@ -2083,12 +2086,17 @@ namespace Kalendarz1
                 if (fields.HasFlag(SupplierFieldMask.Ubytek)) row.Ubytek = currentRow.Ubytek;
                 if (fields.HasFlag(SupplierFieldMask.TypCeny)) row.TypCeny = currentRow.TypCeny;
                 if (fields.HasFlag(SupplierFieldMask.TerminDni)) row.TerminDni = currentRow.TerminDni;
+                if (fields.HasFlag(SupplierFieldMask.PiK)) row.PiK = currentRow.PiK;
             }
 
             // Batch zapis do bazy
             SaveSupplierFieldsBatch(idsToUpdate, fields,
                 currentRow.Cena, currentRow.Dodatek, currentRow.Ubytek,
-                currentRow.TypCeny, currentRow.TerminDni);
+                currentRow.TypCeny, currentRow.TerminDni, currentRow.PiK);
+
+            // Zapisz do historii zmian
+            AddChangeLogEntry($"Zastosowano do dostawcy: {currentRow.RealDostawca}",
+                $"{rowsToUpdate.Count} wierszy: {GetFieldMaskDescription(fields, currentRow)}");
 
             // Status message
             var fieldNames = new List<string>();
@@ -2097,9 +2105,9 @@ namespace Kalendarz1
             if (fields.HasFlag(SupplierFieldMask.Ubytek)) fieldNames.Add($"Ubytek={currentRow.Ubytek:F2}%");
             if (fields.HasFlag(SupplierFieldMask.TypCeny)) fieldNames.Add($"TypCeny={currentRow.TypCeny}");
             if (fields.HasFlag(SupplierFieldMask.TerminDni)) fieldNames.Add($"Termin={currentRow.TerminDni}dni");
+            if (fields.HasFlag(SupplierFieldMask.PiK)) fieldNames.Add($"PiK={currentRow.PiK}");
 
             UpdateStatus($"Batch: {string.Join(", ", fieldNames)} -> {rowsToUpdate.Count} wierszy ({currentRow.RealDostawca})");
-            // Nie potrzeba Items.Refresh() - INotifyPropertyChanged aktualizuje UI
         }
 
         // === BATCH: Zastosuj WSZYSTKIE pola cenowe do dostawcy ===
@@ -2107,6 +2115,64 @@ namespace Kalendarz1
         {
             ApplyFieldsToSupplier(SupplierFieldMask.All);
         }
+
+        #region === HISTORIA ZMIAN ===
+
+        /// <summary>
+        /// Dodaje wpis do historii zmian
+        /// </summary>
+        private void AddChangeLogEntry(string action, string details)
+        {
+            _changeLog.Add(new ChangeLogEntry
+            {
+                Timestamp = DateTime.Now,
+                Action = action,
+                NewValue = details,
+                UserName = Environment.UserName
+            });
+        }
+
+        /// <summary>
+        /// Generuje opis zastosowanych pól
+        /// </summary>
+        private string GetFieldMaskDescription(SupplierFieldMask fields, SpecyfikacjaRow row)
+        {
+            var parts = new List<string>();
+            if (fields.HasFlag(SupplierFieldMask.Cena)) parts.Add($"Cena={row.Cena:F2}");
+            if (fields.HasFlag(SupplierFieldMask.Dodatek)) parts.Add($"Dodatek={row.Dodatek:F2}");
+            if (fields.HasFlag(SupplierFieldMask.Ubytek)) parts.Add($"Ubytek={row.Ubytek:F2}%");
+            if (fields.HasFlag(SupplierFieldMask.TypCeny)) parts.Add($"TypCeny={row.TypCeny}");
+            if (fields.HasFlag(SupplierFieldMask.TerminDni)) parts.Add($"Termin={row.TerminDni}dni");
+            if (fields.HasFlag(SupplierFieldMask.PiK)) parts.Add($"PiK={row.PiK}");
+            return string.Join(", ", parts);
+        }
+
+        /// <summary>
+        /// Pokazuje okno z historią zmian
+        /// </summary>
+        private void ShowChangeLog_Click(object sender, RoutedEventArgs e)
+        {
+            if (_changeLog.Count == 0)
+            {
+                MessageBox.Show("Brak zmian w tej sesji.", "Historia zmian", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"Historia zmian ({_changeLog.Count} wpisów):");
+            sb.AppendLine(new string('=', 50));
+
+            foreach (var entry in _changeLog.OrderByDescending(x => x.Timestamp))
+            {
+                sb.AppendLine($"\n[{entry.Timestamp:HH:mm:ss}] {entry.Action}");
+                if (!string.IsNullOrEmpty(entry.NewValue))
+                    sb.AppendLine($"   {entry.NewValue}");
+            }
+
+            MessageBox.Show(sb.ToString(), "Historia zmian", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        #endregion
 
         #region === SZABLON DOSTAWCY: Auto-wypełnianie z historii ===
 
@@ -2273,8 +2339,6 @@ namespace Kalendarz1
 
             // Prosta pętla - iteruj po WSZYSTKICH wierszach, bez LINQ
             int count = specyfikacjeData.Count;
-            int highlighted = 0;
-            var highlightedRows = new StringBuilder();
 
             for (int i = 0; i < count; i++)
             {
@@ -2290,24 +2354,7 @@ namespace Kalendarz1
                 {
                     row.IsHighlighted = shouldHighlight;
                 }
-
-                if (shouldHighlight)
-                {
-                    highlighted++;
-                    highlightedRows.AppendLine($"  LP {row.Nr}: '{row.Dostawca}'");
-                }
             }
-
-            // DEBUG: Pokaż MessageBox z informacją
-            MessageBox.Show(
-                $"Szukany klucz: '{dostawcaNazwa}'\n" +
-                $"Znormalizowany: '{searchKey}'\n" +
-                $"Wszystkich wierszy: {count}\n" +
-                $"Podświetlonych: {highlighted}\n\n" +
-                $"Podświetlone wiersze:\n{highlightedRows}",
-                "DEBUG: Podświetlenie grupy",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
         }
 
         /// <summary>
@@ -5814,7 +5861,8 @@ namespace Kalendarz1
         Ubytek = 4,
         TypCeny = 8,
         TerminDni = 16,
-        All = Cena | Dodatek | Ubytek | TypCeny | TerminDni
+        PiK = 32,
+        All = Cena | Dodatek | Ubytek | TypCeny | TerminDni | PiK
     }
 
     /// <summary>
@@ -5827,7 +5875,8 @@ namespace Kalendarz1
         public decimal? Ubytek { get; set; }
         public string TypCeny { get; set; }
         public int? TerminDni { get; set; }
-        public bool HasData => Cena.HasValue || Dodatek.HasValue || Ubytek.HasValue || TypCeny != null || TerminDni.HasValue;
+        public bool? PiK { get; set; }
+        public bool HasData => Cena.HasValue || Dodatek.HasValue || Ubytek.HasValue || TypCeny != null || TerminDni.HasValue || PiK.HasValue;
 
         public void Clear()
         {
@@ -5836,6 +5885,7 @@ namespace Kalendarz1
             Ubytek = null;
             TypCeny = null;
             TerminDni = null;
+            PiK = null;
         }
 
         public void CopyFrom(SpecyfikacjaRow row)
@@ -5845,6 +5895,7 @@ namespace Kalendarz1
             Ubytek = row.Ubytek;
             TypCeny = row.TypCeny;
             TerminDni = row.TerminDni;
+            PiK = row.PiK;
         }
 
         public override string ToString()
@@ -5855,6 +5906,7 @@ namespace Kalendarz1
             if (Ubytek.HasValue) parts.Add($"Ubytek={Ubytek:F2}%");
             if (TypCeny != null) parts.Add($"TypCeny={TypCeny}");
             if (TerminDni.HasValue) parts.Add($"Termin={TerminDni}dni");
+            if (PiK.HasValue) parts.Add($"PiK={PiK}");
             return string.Join(", ", parts);
         }
     }

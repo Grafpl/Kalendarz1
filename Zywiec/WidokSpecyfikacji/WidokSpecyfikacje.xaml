@@ -70,19 +70,18 @@
         </Style>
 
         <Style x:Key="DataGridRowHoverStyle" TargetType="DataGridRow">
-            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Background" Value="White"/>
             <Setter Property="Foreground" Value="Black"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
             <Style.Triggers>
                 <!-- 1. Hover (najniższy priorytet) -->
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="#E3F2FD"/>
-                    <Setter Property="Foreground" Value="Black"/>
                 </Trigger>
                 <!-- 2. Zaznaczenie -->
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="#BBDEFB"/>
-                    <Setter Property="Foreground" Value="Black"/>
                 </Trigger>
                 <!-- 3. Hover + Zaznaczenie -->
                 <MultiTrigger>
@@ -91,28 +90,32 @@
                         <Condition Property="IsSelected" Value="True"/>
                     </MultiTrigger.Conditions>
                     <Setter Property="Background" Value="#90CAF9"/>
-                    <Setter Property="Foreground" Value="Black"/>
                 </MultiTrigger>
-                <!-- 4. Podświetlenie grupy dostawcy (niezaznaczony) - NAJWYŻSZY PRIORYTET -->
+                <!-- 4. PODŚWIETLENIE GRUPY - wyraźny pomarańczowy -->
+                <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
+                    <Setter Property="Background" Value="#FFD54F"/>
+                    <Setter Property="BorderBrush" Value="#FF9800"/>
+                    <Setter Property="BorderThickness" Value="4,1,0,1"/>
+                </DataTrigger>
+                <!-- 5. Podświetlenie + hover - ciemniejszy -->
                 <MultiDataTrigger>
                     <MultiDataTrigger.Conditions>
                         <Condition Binding="{Binding IsHighlighted}" Value="True"/>
-                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="False"/>
-                    </MultiDataTrigger.Conditions>
-                    <Setter Property="Background" Value="#FFECB3"/>
-                    <Setter Property="BorderBrush" Value="#FFB74D"/>
-                    <Setter Property="BorderThickness" Value="2,0,0,0"/>
-                </MultiDataTrigger>
-                <!-- 5. Podświetlenie grupy + hover -->
-                <MultiDataTrigger>
-                    <MultiDataTrigger.Conditions>
-                        <Condition Binding="{Binding IsHighlighted}" Value="True"/>
-                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="False"/>
                         <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True"/>
                     </MultiDataTrigger.Conditions>
-                    <Setter Property="Background" Value="#FFE082"/>
-                    <Setter Property="BorderBrush" Value="#FFA000"/>
-                    <Setter Property="BorderThickness" Value="2,0,0,0"/>
+                    <Setter Property="Background" Value="#FFCA28"/>
+                    <Setter Property="BorderBrush" Value="#F57C00"/>
+                    <Setter Property="BorderThickness" Value="4,1,0,1"/>
+                </MultiDataTrigger>
+                <!-- 6. Podświetlenie + zaznaczenie - najciemniejszy -->
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsHighlighted}" Value="True"/>
+                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="True"/>
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Background" Value="#FFB300"/>
+                    <Setter Property="BorderBrush" Value="#E65100"/>
+                    <Setter Property="BorderThickness" Value="4,1,0,1"/>
                 </MultiDataTrigger>
             </Style.Triggers>
         </Style>
@@ -603,6 +606,13 @@
 
                                 <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
 
+                                <Button x:Name="btnShowChangeLog" Click="ShowChangeLog_Click"
+                                        Content="📋 Historia zmian" ToolTip="Pokaz wszystkie zmiany wprowadzone w tej sesji"
+                                        Padding="10,4" Margin="5,0,5,0" Background="#607D8B" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand"/>
+
+                                <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
+
                                 <TextBlock x:Name="lblClipboardInfo" Text="" VerticalAlignment="Center"
                                            FontStyle="Italic" Foreground="#757575" Margin="10,0,0,0"/>
                             </StackPanel>
@@ -622,7 +632,6 @@
                       Background="White"
                       BorderThickness="0"
                       FontSize="11"
-                      AlternatingRowBackground="#FAFAFA"
                       ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
                       RowStyle="{StaticResource DataGridRowHoverStyle}"
                       CellEditEnding="DataGridView1_CellEditEnding"
