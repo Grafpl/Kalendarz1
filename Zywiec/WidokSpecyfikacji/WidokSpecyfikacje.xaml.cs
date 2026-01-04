@@ -2259,30 +2259,41 @@ namespace Kalendarz1
         #region === PODSWIETLENIE GRUPY DOSTAWCY ===
 
         /// <summary>
-        /// Podświetl wszystkie wiersze tego samego dostawcy (po nazwie wyświetlanej)
+        /// Podświetl wszystkie wiersze tego samego dostawcy
+        /// PROSTA IMPLEMENTACJA - bez LINQ, jawna pętla po WSZYSTKICH wierszach
         /// </summary>
         private void HighlightSupplierGroup(string dostawcaNazwa)
         {
-            var trimmedName = dostawcaNazwa?.Trim();
-            if (_highlightedSupplier == trimmedName) return;
+            // Normalizuj klucz wyszukiwania
+            string searchKey = (dostawcaNazwa ?? "").Trim().ToLowerInvariant();
 
-            // Usuń poprzednie podświetlenie - WSZYSTKIE wiersze
-            foreach (var row in specyfikacjeData.Where(x => x.IsHighlighted))
-            {
-                row.IsHighlighted = false;
-            }
+            // Jeśli ten sam klucz - nie rób nic
+            if (_highlightedSupplier == searchKey) return;
+            _highlightedSupplier = searchKey;
 
-            // Dodaj nowe podświetlenie
-            _highlightedSupplier = trimmedName;
-            if (!string.IsNullOrEmpty(trimmedName))
+            // Prosta pętla - iteruj po WSZYSTKICH wierszach, bez LINQ
+            int count = specyfikacjeData.Count;
+            int highlighted = 0;
+
+            for (int i = 0; i < count; i++)
             {
-                foreach (var row in specyfikacjeData.Where(x =>
-                    !string.IsNullOrEmpty(x.Dostawca) &&
-                    x.Dostawca.Trim().Equals(trimmedName, StringComparison.OrdinalIgnoreCase)))
+                var row = specyfikacjeData[i];
+
+                // Normalizuj nazwę dostawcy w wierszu
+                string rowKey = (row.Dostawca ?? "").Trim().ToLowerInvariant();
+
+                // Porównaj - jeśli pasuje i klucz nie jest pusty, podświetl
+                bool shouldHighlight = !string.IsNullOrEmpty(searchKey) && rowKey == searchKey;
+
+                if (row.IsHighlighted != shouldHighlight)
                 {
-                    row.IsHighlighted = true;
+                    row.IsHighlighted = shouldHighlight;
                 }
+
+                if (shouldHighlight) highlighted++;
             }
+
+            System.Diagnostics.Debug.WriteLine($"HighlightSupplierGroup: '{dostawcaNazwa}' -> podświetlono {highlighted}/{count} wierszy");
         }
 
         /// <summary>
@@ -2290,11 +2301,16 @@ namespace Kalendarz1
         /// </summary>
         private void ClearSupplierHighlight()
         {
-            foreach (var row in specyfikacjeData.Where(x => x.IsHighlighted))
-            {
-                row.IsHighlighted = false;
-            }
             _highlightedSupplier = null;
+
+            int count = specyfikacjeData.Count;
+            for (int i = 0; i < count; i++)
+            {
+                if (specyfikacjeData[i].IsHighlighted)
+                {
+                    specyfikacjeData[i].IsHighlighted = false;
+                }
+            }
         }
 
         #endregion
