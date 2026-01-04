@@ -362,29 +362,71 @@
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
                     <Button x:Name="btnMoveUp"
                             Click="BtnMoveUp_Click"
-                            Style="{StaticResource SecondaryButtonStyle}"
                             Background="#27AE60"
+                            Foreground="White"
                             Width="32"
                             Height="28"
                             Margin="0,0,2,0"
+                            FontSize="16"
+                            FontWeight="Bold"
+                            Content="▲"
+                            Cursor="Hand"
+                            BorderThickness="0"
                             ToolTip="Przesuń wiersz w górę">
-                        <Path Data="M8,0 L16,10 L11,10 L11,16 L5,16 L5,10 L0,10 Z"
-                              Fill="White"
-                              Stretch="Uniform"
-                              Width="12" Height="12"/>
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4" Padding="0">
+                                    <TextBlock Text="{TemplateBinding Content}"
+                                               Foreground="{TemplateBinding Foreground}"
+                                               FontSize="{TemplateBinding FontSize}"
+                                               FontWeight="{TemplateBinding FontWeight}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#2ECC71"/>
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#1E8449"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
                     </Button>
                     <Button x:Name="btnMoveDown"
                             Click="BtnMoveDown_Click"
-                            Style="{StaticResource SecondaryButtonStyle}"
                             Background="#E74C3C"
+                            Foreground="White"
                             Width="32"
                             Height="28"
                             Margin="0,0,5,0"
+                            FontSize="16"
+                            FontWeight="Bold"
+                            Content="▼"
+                            Cursor="Hand"
+                            BorderThickness="0"
                             ToolTip="Przesuń wiersz w dół">
-                        <Path Data="M8,16 L16,6 L11,6 L11,0 L5,0 L5,6 L0,6 Z"
-                              Fill="White"
-                              Stretch="Uniform"
-                              Width="12" Height="12"/>
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4" Padding="0">
+                                    <TextBlock Text="{TemplateBinding Content}"
+                                               Foreground="{TemplateBinding Foreground}"
+                                               FontSize="{TemplateBinding FontSize}"
+                                               FontWeight="{TemplateBinding FontWeight}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#EC7063"/>
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#C0392B"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
                     </Button>
                     <Button Content="AVILOG"
                             x:Name="buttonBon"

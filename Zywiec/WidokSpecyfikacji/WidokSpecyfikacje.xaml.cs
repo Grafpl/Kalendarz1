@@ -629,15 +629,33 @@ namespace Kalendarz1
         // === KLIKNIĘCIE: Zaznaczenie wiersza i edycja komórki ===
         private void DataGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            // Znajdź wiersz pod kursorem
-            var row = FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject);
-            if (row != null)
+            // Sprawdź czy kliknięto na ComboBox - jeśli tak, nie ingeruj!
+            var comboBox = FindVisualParent<ComboBox>(e.OriginalSource as DependencyObject);
+            if (comboBox != null)
             {
-                var clickedRow = row.Item as SpecyfikacjaRow;
+                // Tylko zaznacz wiersz, ale NIE wywołuj BeginEdit() - pozwól ComboBox działać normalnie
+                var row = FindVisualParent<DataGridRow>(comboBox);
+                if (row != null)
+                {
+                    var item = row.Item as SpecyfikacjaRow;
+                    if (item != null)
+                    {
+                        dataGridView1.SelectedItem = item;
+                        selectedRow = item;
+                    }
+                }
+                return; // Nie blokuj - pozwól ComboBox obsłużyć kliknięcie
+            }
+
+            // Znajdź wiersz pod kursorem (dla innych komórek)
+            var dataRow = FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject);
+            if (dataRow != null)
+            {
+                var clickedRow = dataRow.Item as SpecyfikacjaRow;
                 dataGridView1.SelectedItem = clickedRow;
                 selectedRow = clickedRow;
 
-                // === SINGLE-CLICK EDIT: Rozpocznij edycję po kliknięciu na komórkę ===
+                // === SINGLE-CLICK EDIT: Rozpocznij edycję po kliknięciu na komórkę (ale nie ComboBox) ===
                 var cell = FindVisualParent<DataGridCell>(e.OriginalSource as DependencyObject);
                 if (cell != null && !cell.IsReadOnly && !cell.IsEditing)
                 {
@@ -726,24 +744,20 @@ namespace Kalendarz1
             var comboBox = sender as ComboBox;
             if (comboBox == null) return;
 
-            // Zaznacz wiersz w którym jest ComboBox
-            var row = FindVisualParent<DataGridRow>(comboBox);
-            if (row != null)
+            // Sprawdź czy kliknięcie jest na strzałce dropdown (ToggleButton)
+            // Jeśli tak, pozwól normalnej obsłudze działać
+            var toggleButton = FindVisualParent<System.Windows.Controls.Primitives.ToggleButton>(e.OriginalSource as DependencyObject);
+            if (toggleButton != null)
             {
-                var item = row.Item as SpecyfikacjaRow;
-                if (item != null)
-                {
-                    dataGridView1.SelectedItem = item;
-                    selectedRow = item;
-                }
+                return; // Pozwól normalnej obsłudze strzałki dropdown
             }
 
-            // Jeśli dropdown nie jest otwarty, otwórz go natychmiast
+            // Kliknięcie na tekst/obszar ComboBox - otwórz dropdown
             if (!comboBox.IsDropDownOpen)
             {
                 comboBox.IsDropDownOpen = true;
-                e.Handled = true; // Zatrzymaj dalsze przetwarzanie
             }
+            // NIE ustawiaj e.Handled = true - pozwól na normalne przetwarzanie
         }
 
         // === ComboBox: Automatyczne zaznaczenie wiersza przy otwarciu ===
