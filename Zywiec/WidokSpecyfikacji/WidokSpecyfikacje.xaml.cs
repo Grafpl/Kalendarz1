@@ -2274,6 +2274,7 @@ namespace Kalendarz1
             // Prosta pętla - iteruj po WSZYSTKICH wierszach, bez LINQ
             int count = specyfikacjeData.Count;
             int highlighted = 0;
+            var highlightedRows = new StringBuilder();
 
             for (int i = 0; i < count; i++)
             {
@@ -2290,10 +2291,23 @@ namespace Kalendarz1
                     row.IsHighlighted = shouldHighlight;
                 }
 
-                if (shouldHighlight) highlighted++;
+                if (shouldHighlight)
+                {
+                    highlighted++;
+                    highlightedRows.AppendLine($"  LP {row.Nr}: '{row.Dostawca}'");
+                }
             }
 
-            System.Diagnostics.Debug.WriteLine($"HighlightSupplierGroup: '{dostawcaNazwa}' -> podświetlono {highlighted}/{count} wierszy");
+            // DEBUG: Pokaż MessageBox z informacją
+            MessageBox.Show(
+                $"Szukany klucz: '{dostawcaNazwa}'\n" +
+                $"Znormalizowany: '{searchKey}'\n" +
+                $"Wszystkich wierszy: {count}\n" +
+                $"Podświetlonych: {highlighted}\n\n" +
+                $"Podświetlone wiersze:\n{highlightedRows}",
+                "DEBUG: Podświetlenie grupy",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
         }
 
         /// <summary>
