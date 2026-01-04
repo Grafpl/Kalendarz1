@@ -681,37 +681,79 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
 
-                                <DataGridTemplateColumn Header="Dostawca" Width="160">
+                                <DataGridTemplateColumn Header="Dostawca" Width="160" SortMemberPath="Dostawca">
                                     <DataGridTemplateColumn.CellStyle>
                                         <Style TargetType="DataGridCell">
                                             <Setter Property="Background" Value="#E8F5E9"/>
                                             <Setter Property="BorderThickness" Value="0"/>
                                         </Style>
                                     </DataGridTemplateColumn.CellStyle>
+                                    <!-- CellTemplate: Wyświetlanie (tylko tekst) -->
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=DataContext.ListaDostawcow}"
-                                                      SelectedValue="{Binding DostawcaGID, UpdateSourceTrigger=PropertyChanged}"
-                                                      SelectedValuePath="GID"
-                                                      DisplayMemberPath="ShortName"
-                                                      SelectionChanged="ComboBox_Dostawca_SelectionChanged"
-                                                      Background="#E8F5E9"
-                                                      Padding="5"
-                                                      VerticalContentAlignment="Center"
-                                                      IsHitTestVisible="True"
-                                                      MaxDropDownHeight="300"
-                                                      VirtualizingStackPanel.IsVirtualizing="True"
-                                                      VirtualizingStackPanel.VirtualizationMode="Recycling"
-                                                      ScrollViewer.CanContentScroll="True">
-                                                <!-- Wirtualizacja: renderuje tylko widoczne elementy -->
-                                                <ComboBox.ItemsPanel>
-                                                    <ItemsPanelTemplate>
-                                                        <VirtualizingStackPanel IsVirtualizing="True" VirtualizationMode="Recycling"/>
-                                                    </ItemsPanelTemplate>
-                                                </ComboBox.ItemsPanel>
-                                            </ComboBox>
+                                            <TextBlock Text="{Binding Dostawca}"
+                                                       VerticalAlignment="Center"
+                                                       Padding="5,0"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Background="#E8F5E9"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
+                                    <!-- CellEditingTemplate: Edycja z autocomplete -->
+                                    <DataGridTemplateColumn.CellEditingTemplate>
+                                        <DataTemplate>
+                                            <Grid>
+                                                <TextBox x:Name="txtSupplierAutocomplete"
+                                                         Text="{Binding Dostawca, UpdateSourceTrigger=PropertyChanged}"
+                                                         Background="White"
+                                                         Padding="4,2"
+                                                         VerticalContentAlignment="Center"
+                                                         TextChanged="SupplierTextBox_TextChanged"
+                                                         PreviewKeyDown="SupplierTextBox_PreviewKeyDown"
+                                                         LostFocus="SupplierTextBox_LostFocus"
+                                                         Tag="{Binding}"/>
+                                                <Popup x:Name="popupSupplierSuggestions"
+                                                       PlacementTarget="{Binding ElementName=txtSupplierAutocomplete}"
+                                                       Placement="Bottom"
+                                                       StaysOpen="False"
+                                                       AllowsTransparency="True"
+                                                       PopupAnimation="Slide"
+                                                       Width="250">
+                                                    <Border Background="White"
+                                                            BorderBrush="#1976D2"
+                                                            BorderThickness="1"
+                                                            CornerRadius="0,0,4,4">
+                                                        <Border.Effect>
+                                                            <DropShadowEffect ShadowDepth="3" Opacity="0.3" BlurRadius="8"/>
+                                                        </Border.Effect>
+                                                        <ListBox x:Name="lstSupplierSuggestions"
+                                                                 ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=SupplierSuggestions}"
+                                                                 DisplayMemberPath="ShortName"
+                                                                 MaxHeight="200"
+                                                                 BorderThickness="0"
+                                                                 PreviewMouseLeftButtonUp="SupplierListBox_PreviewMouseLeftButtonUp"
+                                                                 PreviewKeyDown="SupplierListBox_PreviewKeyDown"
+                                                                 VirtualizingStackPanel.IsVirtualizing="True"
+                                                                 VirtualizingStackPanel.VirtualizationMode="Recycling">
+                                                            <ListBox.ItemContainerStyle>
+                                                                <Style TargetType="ListBoxItem">
+                                                                    <Setter Property="Padding" Value="8,4"/>
+                                                                    <Setter Property="Cursor" Value="Hand"/>
+                                                                    <Style.Triggers>
+                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                            <Setter Property="Background" Value="#E3F2FD"/>
+                                                                        </Trigger>
+                                                                        <Trigger Property="IsSelected" Value="True">
+                                                                            <Setter Property="Background" Value="#BBDEFB"/>
+                                                                        </Trigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </ListBox.ItemContainerStyle>
+                                                        </ListBox>
+                                                    </Border>
+                                                </Popup>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellEditingTemplate>
                                 </DataGridTemplateColumn>
 
                                 <DataGridTemplateColumn Header="Szt.Dek" Width="65" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">

@@ -14,7 +14,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -77,14 +77,25 @@ namespace Kalendarz1
         // === HIGHLIGHT: Aktualnie podświetlona grupa dostawcy ===
         private string _highlightedSupplier = null;
 
+        // === AUTOCOMPLETE DOSTAWCY: TextBox + Popup + ListBox ===
+        public ObservableCollection<DostawcaItem> SupplierSuggestions { get; set; } = new ObservableCollection<DostawcaItem>();
+        private DispatcherTimer _supplierFilterTimer;
+        private TextBox _currentSupplierTextBox;
+        private const int SupplierFilterDelayMs = 200;
+
         public WidokSpecyfikacje()
         {
             InitializeComponent();
 
-            // Inicjalizuj timer debounce
+            // Inicjalizuj timer debounce dla auto-zapisu
             _debounceTimer = new DispatcherTimer();
             _debounceTimer.Interval = TimeSpan.FromMilliseconds(DebounceDelayMs);
             _debounceTimer.Tick += DebounceTimer_Tick;
+
+            // Inicjalizuj timer debounce dla autocomplete dostawcy
+            _supplierFilterTimer = new DispatcherTimer();
+            _supplierFilterTimer.Interval = TimeSpan.FromMilliseconds(SupplierFilterDelayMs);
+            _supplierFilterTimer.Tick += SupplierFilterTimer_Tick;
 
             // WAŻNE: Załaduj listy PRZED ustawieniem DataContext
             // aby binding do ListaDostawcow i ListaTypowCen działał poprawnie
@@ -778,6 +789,384 @@ namespace Kalendarz1
                 catch (Exception ex)
                 {
                     UpdateStatus($"Błąd zapisu dostawcy: {ex.Message}");
+                }
+            }
+        }
+
+        // === AUTOCOMPLETE DOSTAWCY: Handlery ===
+
+        /// <summary>
+        /// Timer debounce - filtruje dostawców po 200ms nieaktywności
+        /// </summary>
+        private void SupplierFilterTimer_Tick(object sender, EventArgs e)
+        {
+            _supplierFilterTimer.Stop();
+
+            if (_currentSupplierTextBox == null) return;
+
+            var searchText = _currentSupplierTextBox.Text?.Trim() ?? "";
+            FilterSupplierSuggestions(searchText, _currentSupplierTextBox);
+        }
+
+        /// <summary>
+        /// Filtruje listę dostawców - Contains match z priorytetem StartsWith
+        /// </summary>
+        private void FilterSupplierSuggestions(string searchText, TextBox textBox)
+        {
+            SupplierSuggestions.Clear();
+
+            if (string.IsNullOrEmpty(searchText) || searchText.Length < 2)
+            {
+                CloseSupplierPopup(textBox);
+                return;
+            }
+
+            var searchUpper = searchText.ToUpperInvariant();
+
+            // Filtruj: StartsWith ma priorytet, potem Contains
+            var startsWithMatches = ListaDostawcow
+                .Where(d => !string.IsNullOrEmpty(d.ShortName) &&
+                            d.ShortName.ToUpperInvariant().StartsWith(searchUpper))
+                .OrderBy(d => d.ShortName)
+                .ToList();
+
+            var containsMatches = ListaDostawcow
+                .Where(d => !string.IsNullOrEmpty(d.ShortName) &&
+                            !d.ShortName.ToUpperInvariant().StartsWith(searchUpper) &&
+                            d.ShortName.ToUpperInvariant().Contains(searchUpper))
+                .OrderBy(d => d.ShortName)
+                .ToList();
+
+            // Połącz: najpierw StartsWith, potem Contains (max 20 wyników)
+            var allMatches = startsWithMatches.Concat(containsMatches).Take(20).ToList();
+
+            if (allMatches.Count == 0)
+            {
+                CloseSupplierPopup(textBox);
+                return;
+            }
+
+            foreach (var match in allMatches)
+            {
+                SupplierSuggestions.Add(match);
+            }
+
+            // Otwórz popup
+            OpenSupplierPopup(textBox);
+        }
+
+        /// <summary>
+        /// Otwiera popup z sugestiami
+        /// </summary>
+        private void OpenSupplierPopup(TextBox textBox)
+        {
+            var popup = FindVisualSibling<Popup>(textBox, "popupSupplierSuggestions");
+            if (popup != null)
+            {
+                popup.IsOpen = true;
+            }
+        }
+
+        /// <summary>
+        /// Zamyka popup z sugestiami
+        /// </summary>
+        private void CloseSupplierPopup(TextBox textBox)
+        {
+            var popup = FindVisualSibling<Popup>(textBox, "popupSupplierSuggestions");
+            if (popup != null)
+            {
+                popup.IsOpen = false;
+            }
+        }
+
+        /// <summary>
+        /// Znajduje sibling element w tym samym kontenerze
+        /// </summary>
+        private T FindVisualSibling<T>(DependencyObject element, string name) where T : FrameworkElement
+        {
+            var parent = VisualTreeHelper.GetParent(element);
+            if (parent == null) return null;
+
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T found && found.Name == name)
+                    return found;
+
+                // Szukaj rekurencyjnie w dzieciach
+                var result = FindChildByName<T>(child, name);
+                if (result != null)
+                    return result;
+            }
+            return null;
+        }
+
+        private T FindChildByName<T>(DependencyObject parent, string name) where T : FrameworkElement
+        {
+            if (parent == null) return null;
+
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T found && found.Name == name)
+                    return found;
+
+                var result = FindChildByName<T>(child, name);
+                if (result != null)
+                    return result;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// TextBox TextChanged - uruchamia debounce timer
+        /// </summary>
+        private void SupplierTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            _currentSupplierTextBox = textBox;
+
+            // Restart debounce timer
+            _supplierFilterTimer.Stop();
+            _supplierFilterTimer.Start();
+        }
+
+        /// <summary>
+        /// TextBox PreviewKeyDown - nawigacja klawiaturą
+        /// </summary>
+        private void SupplierTextBox_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var popup = FindVisualSibling<Popup>(textBox, "popupSupplierSuggestions");
+            var listBox = popup != null ? FindChildByName<ListBox>(popup.Child, "lstSupplierSuggestions") : null;
+
+            switch (e.Key)
+            {
+                case Key.Down:
+                    if (popup?.IsOpen == true && listBox != null)
+                    {
+                        // Przenieś fokus do listy
+                        if (listBox.Items.Count > 0)
+                        {
+                            listBox.SelectedIndex = Math.Max(0, listBox.SelectedIndex);
+                            if (listBox.SelectedIndex < 0) listBox.SelectedIndex = 0;
+                            listBox.Focus();
+                            var item = listBox.ItemContainerGenerator.ContainerFromIndex(listBox.SelectedIndex) as ListBoxItem;
+                            item?.Focus();
+                        }
+                        e.Handled = true;
+                    }
+                    break;
+
+                case Key.Escape:
+                    // Zamknij popup i przywróć oryginalną wartość
+                    if (popup?.IsOpen == true)
+                    {
+                        popup.IsOpen = false;
+                        e.Handled = true;
+                    }
+                    break;
+
+                case Key.Enter:
+                    if (popup?.IsOpen == true && listBox?.SelectedItem != null)
+                    {
+                        // Wybierz zaznaczony element
+                        SelectSupplierFromList(textBox, listBox.SelectedItem as DostawcaItem);
+                        e.Handled = true;
+                    }
+                    else if (popup?.IsOpen == true && listBox?.Items.Count > 0)
+                    {
+                        // Wybierz pierwszy element
+                        SelectSupplierFromList(textBox, listBox.Items[0] as DostawcaItem);
+                        e.Handled = true;
+                    }
+                    break;
+
+                case Key.Tab:
+                    // Zamknij popup przy Tab
+                    if (popup?.IsOpen == true)
+                    {
+                        popup.IsOpen = false;
+                    }
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// TextBox LostFocus - zamknij popup
+        /// </summary>
+        private void SupplierTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            // Małe opóźnienie aby pozwolić na kliknięcie w ListBox
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                // Sprawdź czy fokus nie przeszedł do ListBox
+                var focused = FocusManager.GetFocusedElement(this);
+                if (!(focused is ListBoxItem))
+                {
+                    CloseSupplierPopup(textBox);
+                    SaveSupplierFromTextBox(textBox);
+                }
+            }), System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        /// <summary>
+        /// ListBox kliknięcie - wybierz dostawcę
+        /// </summary>
+        private void SupplierListBox_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            var listBox = sender as ListBox;
+            if (listBox?.SelectedItem == null) return;
+
+            // Znajdź TextBox (parent popup -> sibling textbox)
+            var popup = FindVisualParent<Popup>(listBox);
+            if (popup == null) return;
+
+            var grid = popup.Parent as Grid;
+            var textBox = grid?.Children.OfType<TextBox>().FirstOrDefault();
+
+            if (textBox != null)
+            {
+                SelectSupplierFromList(textBox, listBox.SelectedItem as DostawcaItem);
+            }
+        }
+
+        /// <summary>
+        /// ListBox PreviewKeyDown - Enter wybiera, Escape zamyka
+        /// </summary>
+        private void SupplierListBox_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            var listBox = sender as ListBox;
+            if (listBox == null) return;
+
+            var popup = FindVisualParent<Popup>(listBox);
+            var grid = popup?.Parent as Grid;
+            var textBox = grid?.Children.OfType<TextBox>().FirstOrDefault();
+
+            switch (e.Key)
+            {
+                case Key.Enter:
+                    if (listBox.SelectedItem != null && textBox != null)
+                    {
+                        SelectSupplierFromList(textBox, listBox.SelectedItem as DostawcaItem);
+                        e.Handled = true;
+                    }
+                    break;
+
+                case Key.Escape:
+                    if (popup != null)
+                    {
+                        popup.IsOpen = false;
+                        textBox?.Focus();
+                        e.Handled = true;
+                    }
+                    break;
+
+                case Key.Up:
+                    if (listBox.SelectedIndex == 0 && textBox != null)
+                    {
+                        // Wróć do TextBox
+                        textBox.Focus();
+                        e.Handled = true;
+                    }
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Wybiera dostawcę z listy i aktualizuje wiersz
+        /// </summary>
+        private void SelectSupplierFromList(TextBox textBox, DostawcaItem selected)
+        {
+            if (selected == null || textBox == null) return;
+
+            // Zamknij popup
+            CloseSupplierPopup(textBox);
+
+            // Aktualizuj TextBox
+            textBox.Text = selected.ShortName;
+            textBox.CaretIndex = textBox.Text.Length;
+
+            // Pobierz wiersz danych z Tag
+            var specRow = textBox.Tag as SpecyfikacjaRow;
+            if (specRow == null) return;
+
+            // Aktualizuj dane wiersza
+            specRow.Dostawca = selected.ShortName;
+            specRow.DostawcaGID = selected.GID;
+            specRow.RealDostawca = selected.ShortName;
+
+            // Zapisz do bazy
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    string query = "UPDATE dbo.FarmerCalc SET CustomerGID = @GID WHERE ID = @ID";
+                    using (SqlCommand cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@GID", (object)selected.GID ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@ID", specRow.ID);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+                UpdateStatus($"Wybrano dostawcę: {selected.ShortName}");
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Błąd zapisu dostawcy: {ex.Message}");
+            }
+
+            // Przejdź do następnej kolumny
+            textBox.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+        }
+
+        /// <summary>
+        /// Zapisuje dostawcę wpisanego ręcznie (jeśli pasuje do listy)
+        /// </summary>
+        private void SaveSupplierFromTextBox(TextBox textBox)
+        {
+            if (textBox == null) return;
+
+            var text = textBox.Text?.Trim() ?? "";
+            if (string.IsNullOrEmpty(text)) return;
+
+            // Znajdź dokładne dopasowanie
+            var match = ListaDostawcow.FirstOrDefault(d =>
+                d.ShortName?.Equals(text, StringComparison.OrdinalIgnoreCase) == true);
+
+            if (match != null)
+            {
+                var specRow = textBox.Tag as SpecyfikacjaRow;
+                if (specRow != null && specRow.DostawcaGID != match.GID)
+                {
+                    specRow.Dostawca = match.ShortName;
+                    specRow.DostawcaGID = match.GID;
+                    specRow.RealDostawca = match.ShortName;
+
+                    // Zapisz do bazy
+                    try
+                    {
+                        using (SqlConnection connection = new SqlConnection(connectionString))
+                        {
+                            connection.Open();
+                            string query = "UPDATE dbo.FarmerCalc SET CustomerGID = @GID WHERE ID = @ID";
+                            using (SqlCommand cmd = new SqlCommand(query, connection))
+                            {
+                                cmd.Parameters.AddWithValue("@GID", (object)match.GID ?? DBNull.Value);
+                                cmd.Parameters.AddWithValue("@ID", specRow.ID);
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
+                    }
+                    catch { }
                 }
             }
         }
