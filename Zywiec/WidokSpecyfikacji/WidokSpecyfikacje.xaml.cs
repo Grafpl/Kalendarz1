@@ -760,6 +760,44 @@ namespace Kalendarz1
             // NIE ustawiaj e.Handled = true - pozwól na normalne przetwarzanie
         }
 
+        // === KLUCZOWA METODA: Obsługa kliknięcia w komórkę z ComboBoxem (Single Click) ===
+        private void DataGridCell_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            DataGridCell cell = sender as DataGridCell;
+            if (cell == null || cell.IsEditing || cell.IsReadOnly)
+                return;
+
+            // Znajdź ComboBox wewnątrz komórki
+            var comboBox = FindVisualChild<ComboBox>(cell);
+            if (comboBox == null)
+                return;
+
+            // Zaznacz wiersz w DataGrid
+            var row = FindVisualParent<DataGridRow>(cell);
+            if (row != null)
+            {
+                var item = row.Item as SpecyfikacjaRow;
+                if (item != null)
+                {
+                    dataGridView1.SelectedItem = item;
+                    selectedRow = item;
+                }
+            }
+
+            // Ustaw fokus i otwórz dropdown
+            if (!cell.IsFocused)
+            {
+                cell.Focus();
+            }
+
+            // Otwórz ComboBox
+            comboBox.Focus();
+            comboBox.IsDropDownOpen = true;
+
+            // WAŻNE: Zatrzymaj event żeby DataGrid nie zamknął dropdowna
+            e.Handled = true;
+        }
+
         // === ComboBox: Automatyczne zaznaczenie wiersza przy otwarciu ===
         private void CboDostawca_DropDownOpened(object sender, EventArgs e)
         {

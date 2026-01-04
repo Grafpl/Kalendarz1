@@ -589,6 +589,7 @@
                                         <Style TargetType="DataGridCell">
                                             <Setter Property="Background" Value="#E8F5E9"/>
                                             <Setter Property="BorderThickness" Value="0"/>
+                                            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="DataGridCell_PreviewMouseLeftButtonDown"/>
                                         </Style>
                                     </DataGridTemplateColumn.CellStyle>
                                     <DataGridTemplateColumn.CellTemplate>
@@ -862,6 +863,7 @@
                                         <Style TargetType="DataGridCell">
                                             <Setter Property="Background" Value="#BBDEFB"/>
                                             <Setter Property="BorderThickness" Value="0"/>
+                                            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="DataGridCell_PreviewMouseLeftButtonDown"/>
                                         </Style>
                                     </DataGridTemplateColumn.CellStyle>
                                     <DataGridTemplateColumn.CellTemplate>
