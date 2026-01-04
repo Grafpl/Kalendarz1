@@ -775,24 +775,53 @@ namespace Kalendarz1
             return null;
         }
 
-        // Rozpocznij edycję po naciśnięciu klawisza (cyfry, litery)
+        // === NAWIGACJA EXCEL-LIKE: Kompleksowa obsługa klawiszy ===
         private void DataGridView1_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            // Obsługa ENTER -> Przejście do wiersza niżej
+            // === ENTER: Przejście w dół (Shift+Enter = góra) ===
             if (e.Key == Key.Enter)
             {
                 e.Handled = true;
+                var direction = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)
+                    ? FocusNavigationDirection.Up
+                    : FocusNavigationDirection.Down;
 
-                // Logika przejścia w dół
+                var uiElement = e.OriginalSource as UIElement;
+                uiElement?.MoveFocus(new TraversalRequest(direction));
+            }
+
+            // === TAB: Przejście w prawo (Shift+Tab = lewo) ===
+            else if (e.Key == Key.Tab)
+            {
+                // Domyślne zachowanie Tab jest OK, ale upewniamy się że działa
+                var direction = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)
+                    ? FocusNavigationDirection.Left
+                    : FocusNavigationDirection.Right;
+
                 var uiElement = e.OriginalSource as UIElement;
                 if (uiElement != null)
                 {
-                    uiElement.MoveFocus(new TraversalRequest(FocusNavigationDirection.Down));
+                    e.Handled = true;
+                    uiElement.MoveFocus(new TraversalRequest(direction));
                 }
             }
 
-            // (Opcjonalnie) Obsługa F2 dla standardowych kolumn, jeśli jakieś zostały
-            if (e.Key == Key.F2)
+            // === CTRL+D: Kopiuj wartość z komórki powyżej ===
+            else if (e.Key == Key.D && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            {
+                e.Handled = true;
+                CopyValueFromCellAbove();
+            }
+
+            // === CTRL+SHIFT+D: Kopiuj wartość do wszystkich wierszy tego dostawcy ===
+            else if (e.Key == Key.D && Keyboard.Modifiers.HasFlag(ModifierKeys.Control | ModifierKeys.Shift))
+            {
+                e.Handled = true;
+                ApplyValueToAllRowsOfSupplier();
+            }
+
+            // === F2: Wejdź w edycję i zaznacz wszystko ===
+            else if (e.Key == Key.F2)
             {
                 var cellInfo = dataGridView1.CurrentCell;
                 if (cellInfo.IsValid)
@@ -806,7 +835,211 @@ namespace Kalendarz1
                     }
                 }
             }
+
+            // === DELETE: Wyczyść zawartość komórki ===
+            else if (e.Key == Key.Delete)
+            {
+                var cellInfo = dataGridView1.CurrentCell;
+                if (cellInfo.IsValid && !cellInfo.Column.IsReadOnly)
+                {
+                    var cellContent = cellInfo.Column.GetCellContent(cellInfo.Item);
+                    var textBox = FindVisualChild<TextBox>(cellContent);
+                    if (textBox != null)
+                    {
+                        textBox.Text = "";
+                        e.Handled = true;
+                    }
+                }
+            }
+
+            // === ESCAPE: Anuluj edycję ===
+            else if (e.Key == Key.Escape)
+            {
+                dataGridView1.CancelEdit();
+            }
         }
+
+        // === CTRL+D: Kopiuj wartość z komórki powyżej ===
+        private void CopyValueFromCellAbove()
+        {
+            var currentRow = selectedRow ?? dataGridView1.SelectedItem as SpecyfikacjaRow;
+            if (currentRow == null) return;
+
+            int currentIndex = specyfikacjeData.IndexOf(currentRow);
+            if (currentIndex <= 0) return; // Brak wiersza powyżej
+
+            var rowAbove = specyfikacjeData[currentIndex - 1];
+            var currentColumn = dataGridView1.CurrentColumn;
+            if (currentColumn == null) return;
+
+            // Mapowanie kolumn na właściwości
+            string header = currentColumn.Header?.ToString() ?? "";
+            bool copied = false;
+
+            switch (header)
+            {
+                case "Cena":
+                    currentRow.Cena = rowAbove.Cena;
+                    SaveFieldToDatabase(currentRow.ID, "Price", currentRow.Cena);
+                    copied = true;
+                    break;
+                case "Dodatek":
+                    currentRow.Dodatek = rowAbove.Dodatek;
+                    SaveFieldToDatabase(currentRow.ID, "Addition", currentRow.Dodatek);
+                    copied = true;
+                    break;
+                case "Ubytek%":
+                    currentRow.Ubytek = rowAbove.Ubytek;
+                    SaveFieldToDatabase(currentRow.ID, "Loss", currentRow.Ubytek / 100);
+                    copied = true;
+                    break;
+                case "Typ Ceny":
+                    currentRow.TypCeny = rowAbove.TypCeny;
+                    SaveFieldToDatabase(currentRow.ID, "PriceType", currentRow.TypCeny);
+                    copied = true;
+                    break;
+                case "Termin":
+                    currentRow.TerminDni = rowAbove.TerminDni;
+                    SaveFieldToDatabase(currentRow.ID, "TermDays", currentRow.TerminDni);
+                    copied = true;
+                    break;
+                case "Szt.Dek":
+                    currentRow.SztukiDek = rowAbove.SztukiDek;
+                    QueueSaveRow(currentRow.ID);
+                    copied = true;
+                    break;
+            }
+
+            if (copied)
+            {
+                UpdateStatus($"Ctrl+D: Skopiowano wartość z wiersza powyżej");
+                dataGridView1.Items.Refresh();
+            }
+        }
+
+        // === CTRL+SHIFT+D: Zastosuj wartość do wszystkich wierszy tego samego dostawcy ===
+        private void ApplyValueToAllRowsOfSupplier()
+        {
+            var currentRow = selectedRow ?? dataGridView1.SelectedItem as SpecyfikacjaRow;
+            if (currentRow == null || string.IsNullOrEmpty(currentRow.RealDostawca)) return;
+
+            var currentColumn = dataGridView1.CurrentColumn;
+            if (currentColumn == null) return;
+
+            string header = currentColumn.Header?.ToString() ?? "";
+            var rowsToUpdate = specyfikacjeData.Where(x => x.RealDostawca == currentRow.RealDostawca).ToList();
+            int count = 0;
+
+            foreach (var row in rowsToUpdate)
+            {
+                switch (header)
+                {
+                    case "Cena":
+                        row.Cena = currentRow.Cena;
+                        SaveFieldToDatabase(row.ID, "Price", row.Cena);
+                        count++;
+                        break;
+                    case "Dodatek":
+                        row.Dodatek = currentRow.Dodatek;
+                        SaveFieldToDatabase(row.ID, "Addition", row.Dodatek);
+                        count++;
+                        break;
+                    case "Ubytek%":
+                        row.Ubytek = currentRow.Ubytek;
+                        SaveFieldToDatabase(row.ID, "Loss", row.Ubytek / 100);
+                        count++;
+                        break;
+                    case "Typ Ceny":
+                        row.TypCeny = currentRow.TypCeny;
+                        SaveFieldToDatabase(row.ID, "PriceType", row.TypCeny);
+                        count++;
+                        break;
+                }
+            }
+
+            if (count > 0)
+            {
+                UpdateStatus($"Ctrl+Shift+D: Zastosowano do {count} wierszy dostawcy {currentRow.RealDostawca}");
+                dataGridView1.Items.Refresh();
+            }
+        }
+
+        #region === MENU KONTEKSTOWE: Handlery ===
+
+        private void ContextMenu_CopyFromAbove(object sender, RoutedEventArgs e)
+        {
+            CopyValueFromCellAbove();
+        }
+
+        private void ContextMenu_ApplyCenaToSupplier(object sender, RoutedEventArgs e)
+        {
+            var currentRow = selectedRow ?? dataGridView1.SelectedItem as SpecyfikacjaRow;
+            if (currentRow == null || string.IsNullOrEmpty(currentRow.RealDostawca)) return;
+
+            var rowsToUpdate = specyfikacjeData.Where(x => x.RealDostawca == currentRow.RealDostawca).ToList();
+            foreach (var row in rowsToUpdate)
+            {
+                row.Cena = currentRow.Cena;
+                SaveFieldToDatabase(row.ID, "Price", row.Cena);
+            }
+            UpdateStatus($"💰 Cena {currentRow.Cena:F2} zł → {rowsToUpdate.Count} wierszy dostawcy {currentRow.RealDostawca}");
+            dataGridView1.Items.Refresh();
+        }
+
+        private void ContextMenu_ApplyDodatekToSupplier(object sender, RoutedEventArgs e)
+        {
+            var currentRow = selectedRow ?? dataGridView1.SelectedItem as SpecyfikacjaRow;
+            if (currentRow == null || string.IsNullOrEmpty(currentRow.RealDostawca)) return;
+
+            var rowsToUpdate = specyfikacjeData.Where(x => x.RealDostawca == currentRow.RealDostawca).ToList();
+            foreach (var row in rowsToUpdate)
+            {
+                row.Dodatek = currentRow.Dodatek;
+                SaveFieldToDatabase(row.ID, "Addition", row.Dodatek);
+            }
+            UpdateStatus($"➕ Dodatek {currentRow.Dodatek:F2} zł → {rowsToUpdate.Count} wierszy dostawcy {currentRow.RealDostawca}");
+            dataGridView1.Items.Refresh();
+        }
+
+        private void ContextMenu_ApplyUbytekToSupplier(object sender, RoutedEventArgs e)
+        {
+            var currentRow = selectedRow ?? dataGridView1.SelectedItem as SpecyfikacjaRow;
+            if (currentRow == null || string.IsNullOrEmpty(currentRow.RealDostawca)) return;
+
+            var rowsToUpdate = specyfikacjeData.Where(x => x.RealDostawca == currentRow.RealDostawca).ToList();
+            foreach (var row in rowsToUpdate)
+            {
+                row.Ubytek = currentRow.Ubytek;
+                SaveFieldToDatabase(row.ID, "Loss", row.Ubytek / 100);
+            }
+            UpdateStatus($"📉 Ubytek {currentRow.Ubytek:F2}% → {rowsToUpdate.Count} wierszy dostawcy {currentRow.RealDostawca}");
+            dataGridView1.Items.Refresh();
+        }
+
+        private void ContextMenu_ApplyTypCenyToSupplier(object sender, RoutedEventArgs e)
+        {
+            var currentRow = selectedRow ?? dataGridView1.SelectedItem as SpecyfikacjaRow;
+            if (currentRow == null || string.IsNullOrEmpty(currentRow.RealDostawca)) return;
+
+            var rowsToUpdate = specyfikacjeData.Where(x => x.RealDostawca == currentRow.RealDostawca).ToList();
+            foreach (var row in rowsToUpdate)
+            {
+                row.TypCeny = currentRow.TypCeny;
+                SaveFieldToDatabase(row.ID, "PriceType", row.TypCeny);
+            }
+            UpdateStatus($"🏷️ Typ ceny '{currentRow.TypCeny}' → {rowsToUpdate.Count} wierszy dostawcy {currentRow.RealDostawca}");
+            dataGridView1.Items.Refresh();
+        }
+
+        private void ContextMenu_RefreshData(object sender, RoutedEventArgs e)
+        {
+            // Odśwież dane z bazy
+            LoadData(dateTimePicker1.SelectedDate ?? DateTime.Today);
+            UpdateStatus("🔄 Dane odświeżone");
+        }
+
+        #endregion
+
         // === NATYCHMIASTOWA EDYCJA: Wpisywanie znaków od razu ===
         private void DataGridView1_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
@@ -3735,7 +3968,9 @@ namespace Kalendarz1
 
         #endregion
 
-        // Handler dla Cena - Enter pyta czy zastosować do wszystkich
+        // === UPROSZCZONE HANDLERY: Enter tylko zapisuje i przechodzi dalej ===
+        // Użyj Ctrl+Shift+D aby zastosować wartość do wszystkich wierszy dostawcy
+
         private void Cena_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter)
@@ -3743,46 +3978,21 @@ namespace Kalendarz1
                 var textBox = sender as TextBox;
                 if (textBox == null) return;
 
-                // Pobierz wiersz z DataContext
                 var row = textBox.DataContext as SpecyfikacjaRow;
                 if (row == null) return;
 
-                // Parsuj wartość
                 string input = textBox.Text.Replace(',', '.');
-                if (!decimal.TryParse(input, System.Globalization.NumberStyles.Any,
+                if (decimal.TryParse(input, System.Globalization.NumberStyles.Any,
                     System.Globalization.CultureInfo.InvariantCulture, out decimal cena))
-                    return;
-
-                // Zapisz do bieżącego wiersza i bazy
-                row.Cena = cena;
-                SaveFieldToDatabase(row.ID, "Price", cena);
-
-                // Pytaj czy zastosować do wszystkich
-                var result = MessageBox.Show(
-                    $"Czy zastosować cenę {cena:F2} zł do wszystkich dostaw od dostawcy \"{row.RealDostawca}\"?",
-                    "Zastosuj do wszystkich",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.Yes)
                 {
-                    foreach (var r in specyfikacjeData.Where(x => x.RealDostawca == row.RealDostawca))
-                    {
-                        r.Cena = cena;
-                        SaveFieldToDatabase(r.ID, "Price", cena);
-                    }
-                    UpdateStatus($"Cena {cena:F2} zł zastosowana do wszystkich dostaw od {row.RealDostawca}");
+                    row.Cena = cena;
+                    SaveFieldToDatabase(row.ID, "Price", cena);
+                    UpdateStatus($"✓ Cena {cena:F2} zł | Ctrl+Shift+D = dla całego dostawcy");
                 }
-                else
-                {
-                    UpdateStatus($"Zapisano cenę {cena:F2} zł");
-                }
-
-                e.Handled = true;
+                // Nie blokuj Enter - pozwól DataGrid przejść do następnej komórki
             }
         }
 
-        // Handler dla Dodatek - Enter pyta czy zastosować do wszystkich
         private void Dodatek_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter)
@@ -3794,38 +4004,16 @@ namespace Kalendarz1
                 if (row == null) return;
 
                 string input = textBox.Text.Replace(',', '.');
-                if (!decimal.TryParse(input, System.Globalization.NumberStyles.Any,
+                if (decimal.TryParse(input, System.Globalization.NumberStyles.Any,
                     System.Globalization.CultureInfo.InvariantCulture, out decimal dodatek))
-                    return;
-
-                row.Dodatek = dodatek;
-                SaveFieldToDatabase(row.ID, "Addition", dodatek);
-
-                var result = MessageBox.Show(
-                    $"Czy zastosować dodatek {dodatek:F2} zł do wszystkich dostaw od dostawcy \"{row.RealDostawca}\"?",
-                    "Zastosuj do wszystkich",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.Yes)
                 {
-                    foreach (var r in specyfikacjeData.Where(x => x.RealDostawca == row.RealDostawca))
-                    {
-                        r.Dodatek = dodatek;
-                        SaveFieldToDatabase(r.ID, "Addition", dodatek);
-                    }
-                    UpdateStatus($"Dodatek {dodatek:F2} zł zastosowany do wszystkich dostaw od {row.RealDostawca}");
+                    row.Dodatek = dodatek;
+                    SaveFieldToDatabase(row.ID, "Addition", dodatek);
+                    UpdateStatus($"✓ Dodatek {dodatek:F2} zł | Ctrl+Shift+D = dla całego dostawcy");
                 }
-                else
-                {
-                    UpdateStatus($"Zapisano dodatek {dodatek:F2} zł");
-                }
-
-                e.Handled = true;
             }
         }
 
-        // Handler dla Ubytek - Enter pyta czy zastosować do wszystkich
         private void Ubytek_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter)
@@ -3837,35 +4025,13 @@ namespace Kalendarz1
                 if (row == null) return;
 
                 string input = textBox.Text.Replace(',', '.');
-                if (!decimal.TryParse(input, System.Globalization.NumberStyles.Any,
+                if (decimal.TryParse(input, System.Globalization.NumberStyles.Any,
                     System.Globalization.CultureInfo.InvariantCulture, out decimal ubytek))
-                    return;
-
-                row.Ubytek = ubytek;
-                // W bazie Loss jest przechowywany jako ułamek (1.5% = 0.015)
-                SaveFieldToDatabase(row.ID, "Loss", ubytek / 100);
-
-                var result = MessageBox.Show(
-                    $"Czy zastosować ubytek {ubytek:F2}% do wszystkich dostaw od dostawcy \"{row.RealDostawca}\"?",
-                    "Zastosuj do wszystkich",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.Yes)
                 {
-                    foreach (var r in specyfikacjeData.Where(x => x.RealDostawca == row.RealDostawca))
-                    {
-                        r.Ubytek = ubytek;
-                        SaveFieldToDatabase(r.ID, "Loss", ubytek / 100);
-                    }
-                    UpdateStatus($"Ubytek {ubytek:F2}% zastosowany do wszystkich dostaw od {row.RealDostawca}");
+                    row.Ubytek = ubytek;
+                    SaveFieldToDatabase(row.ID, "Loss", ubytek / 100);
+                    UpdateStatus($"✓ Ubytek {ubytek:F2}% | Ctrl+Shift+D = dla całego dostawcy");
                 }
-                else
-                {
-                    UpdateStatus($"Zapisano ubytek {ubytek:F2}%");
-                }
-
-                e.Handled = true;
             }
         }
 

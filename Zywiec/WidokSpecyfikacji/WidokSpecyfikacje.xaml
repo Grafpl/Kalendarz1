@@ -555,6 +555,20 @@
                       VirtualizingPanel.VirtualizationMode="Recycling"
                       VirtualizingPanel.ScrollUnit="Pixel">
 
+                            <!-- === MENU KONTEKSTOWE: Masowe operacje === -->
+                            <DataGrid.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="📋 Kopiuj wartość z wiersza powyżej (Ctrl+D)" Click="ContextMenu_CopyFromAbove"/>
+                                    <Separator/>
+                                    <MenuItem Header="💰 Zastosuj CENĘ do wszystkich wierszy dostawcy" Click="ContextMenu_ApplyCenaToSupplier"/>
+                                    <MenuItem Header="➕ Zastosuj DODATEK do wszystkich wierszy dostawcy" Click="ContextMenu_ApplyDodatekToSupplier"/>
+                                    <MenuItem Header="📉 Zastosuj UBYTEK do wszystkich wierszy dostawcy" Click="ContextMenu_ApplyUbytekToSupplier"/>
+                                    <MenuItem Header="🏷️ Zastosuj TYP CENY do wszystkich wierszy dostawcy" Click="ContextMenu_ApplyTypCenyToSupplier"/>
+                                    <Separator/>
+                                    <MenuItem Header="🔄 Odśwież dane" Click="ContextMenu_RefreshData"/>
+                                </ContextMenu>
+                            </DataGrid.ContextMenu>
+
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="LP" Binding="{Binding Nr}" Width="45" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
