@@ -614,7 +614,18 @@
                                                       Background="#E8F5E9"
                                                       Padding="5"
                                                       VerticalContentAlignment="Center"
-                                                      IsHitTestVisible="True"/>
+                                                      IsHitTestVisible="True"
+                                                      MaxDropDownHeight="300"
+                                                      VirtualizingStackPanel.IsVirtualizing="True"
+                                                      VirtualizingStackPanel.VirtualizationMode="Recycling"
+                                                      ScrollViewer.CanContentScroll="True">
+                                                <!-- Wirtualizacja: renderuje tylko widoczne elementy -->
+                                                <ComboBox.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <VirtualizingStackPanel IsVirtualizing="True" VirtualizationMode="Recycling"/>
+                                                    </ItemsPanelTemplate>
+                                                </ComboBox.ItemsPanel>
+                                            </ComboBox>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -885,7 +896,14 @@
                                                       Padding="5"
                                                       VerticalContentAlignment="Center"
                                                       SelectionChanged="TypCeny_SelectionChanged"
-                                                      IsHitTestVisible="True"/>
+                                                      IsHitTestVisible="True"
+                                                      MaxDropDownHeight="200">
+                                                <ComboBox.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <VirtualizingStackPanel IsVirtualizing="True" VirtualizationMode="Recycling"/>
+                                                    </ItemsPanelTemplate>
+                                                </ComboBox.ItemsPanel>
+                                            </ComboBox>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>

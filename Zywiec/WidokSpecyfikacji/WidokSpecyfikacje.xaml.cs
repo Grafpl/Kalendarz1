@@ -46,9 +46,10 @@ namespace Kalendarz1
         // Arrow buttons for row movement (replaces drag & drop)
 
         // === WYDAJNOŚĆ: Cache dostawców (static - współdzielony między oknami) ===
+        // Cache przechowuje dostawców przez 10 minut - drugie otwarcie okna = instant load
         private static List<DostawcaItem> _cachedDostawcy = null;
         private static DateTime _cacheTimestamp = DateTime.MinValue;
-        private static readonly TimeSpan CacheExpiration = TimeSpan.FromMinutes(5);
+        private static readonly TimeSpan CacheExpiration = TimeSpan.FromMinutes(10);
 
         // === WYDAJNOŚĆ: Debounce dla auto-zapisu ===
         private DispatcherTimer _debounceTimer;
