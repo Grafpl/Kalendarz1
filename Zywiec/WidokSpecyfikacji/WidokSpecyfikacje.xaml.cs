@@ -636,53 +636,36 @@ namespace Kalendarz1
 
         private void DataGridView1_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Użyj e.AddedItems aby pobrać nowo wybrany wiersz bezpośrednio
-            SpecyfikacjaRow newSelected = null;
-
-            if (e.AddedItems.Count > 0)
+            // Użyj Dispatcher aby upewnić się że zaznaczenie jest kompletne
+            Dispatcher.BeginInvoke(new Action(() =>
             {
-                newSelected = e.AddedItems[0] as SpecyfikacjaRow;
-            }
-
-            if (newSelected == null && dataGridView1.SelectedItem != null)
-            {
-                newSelected = dataGridView1.SelectedItem as SpecyfikacjaRow;
-            }
-
-            if (newSelected != null)
-            {
-                selectedRow = newSelected;
-
-                // Podswietl grupe dostawcy przy zaznaczeniu
-                var dostawcaNazwa = newSelected.Dostawca?.Trim();
-                if (!string.IsNullOrEmpty(dostawcaNazwa))
+                var selected = dataGridView1.SelectedItem as SpecyfikacjaRow;
+                if (selected != null)
                 {
-                    HighlightSupplierGroup(dostawcaNazwa);
+                    selectedRow = selected;
+                    var dostawca = selected.Dostawca?.Trim();
+                    if (!string.IsNullOrEmpty(dostawca))
+                    {
+                        HighlightSupplierGroup(dostawca);
+                    }
+                    else
+                    {
+                        ClearSupplierHighlight();
+                    }
                 }
                 else
                 {
                     ClearSupplierHighlight();
                 }
-            }
+            }), System.Windows.Threading.DispatcherPriority.Background);
         }
 
-        // === CurrentCellChanged: Aktualizacja wybranego wiersza i podświetlenia ===
+        // === CurrentCellChanged: Tylko aktualizacja selectedRow ===
         private void DataGridView1_CurrentCellChanged(object sender, EventArgs e)
         {
             if (dataGridView1.CurrentCell != null && dataGridView1.CurrentCell.Item is SpecyfikacjaRow currentRow)
             {
                 selectedRow = currentRow;
-
-                // Aktualizuj podświetlenie przy zmianie komórki
-                var dostawcaNazwa = currentRow.Dostawca?.Trim();
-                if (!string.IsNullOrEmpty(dostawcaNazwa))
-                {
-                    HighlightSupplierGroup(dostawcaNazwa);
-                }
-                else
-                {
-                    ClearSupplierHighlight();
-                }
             }
         }
 
