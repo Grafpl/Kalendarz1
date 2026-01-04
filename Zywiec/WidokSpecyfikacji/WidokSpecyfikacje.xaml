@@ -532,7 +532,7 @@
                       CanUserDeleteRows="False"
                       CanUserReorderColumns="False"
                       SelectionMode="Single"
-                      SelectionUnit="CellOrRowHeader"
+                      SelectionUnit="FullRow"
                       GridLinesVisibility="All"
                       HorizontalGridLinesBrush="#E0E0E0"
                       VerticalGridLinesBrush="#EEEEEE"
@@ -549,7 +549,6 @@
                       CurrentCellChanged="DataGridView1_CurrentCellChanged"
                       PreviewKeyDown="DataGridView1_PreviewKeyDown"
                       PreviewTextInput="DataGridView1_PreviewTextInput"
-                      PreviewMouseLeftButtonDown="DataGrid_PreviewMouseLeftButtonDown"
                       EnableRowVirtualization="True"
                       EnableColumnVirtualization="True"
                       VirtualizingPanel.IsVirtualizing="True"
@@ -589,20 +588,19 @@
                                         <Style TargetType="DataGridCell">
                                             <Setter Property="Background" Value="#E8F5E9"/>
                                             <Setter Property="BorderThickness" Value="0"/>
-                                            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="DataGridCell_PreviewMouseLeftButtonDown"/>
                                         </Style>
                                     </DataGridTemplateColumn.CellStyle>
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=DataContext.ListaDostawcow}"
-                                          SelectedValue="{Binding DostawcaGID, UpdateSourceTrigger=PropertyChanged}"
-                                          SelectedValuePath="GID"
-                                          DisplayMemberPath="ShortName"
-                                          SelectionChanged="ComboBox_Dostawca_SelectionChanged"
-                                          PreviewMouseLeftButtonDown="ComboBox_PreviewMouseLeftButtonDown"
-                                          Background="#E8F5E9"
-                                          Padding="5"
-                                          VerticalContentAlignment="Center"/>
+                                                      SelectedValue="{Binding DostawcaGID, UpdateSourceTrigger=PropertyChanged}"
+                                                      SelectedValuePath="GID"
+                                                      DisplayMemberPath="ShortName"
+                                                      SelectionChanged="ComboBox_Dostawca_SelectionChanged"
+                                                      Background="#E8F5E9"
+                                                      Padding="5"
+                                                      VerticalContentAlignment="Center"
+                                                      IsHitTestVisible="True"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -863,18 +861,17 @@
                                         <Style TargetType="DataGridCell">
                                             <Setter Property="Background" Value="#BBDEFB"/>
                                             <Setter Property="BorderThickness" Value="0"/>
-                                            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="DataGridCell_PreviewMouseLeftButtonDown"/>
                                         </Style>
                                     </DataGridTemplateColumn.CellStyle>
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ListaTypowCen}"
-                                          SelectedItem="{Binding TypCeny, UpdateSourceTrigger=PropertyChanged}"
-                                          Background="#BBDEFB"
-                                          Padding="5"
-                                          VerticalContentAlignment="Center"
-                                          SelectionChanged="TypCeny_SelectionChanged"
-                                          PreviewMouseLeftButtonDown="ComboBox_PreviewMouseLeftButtonDown"/>
+                                                      SelectedItem="{Binding TypCeny, UpdateSourceTrigger=PropertyChanged}"
+                                                      Background="#BBDEFB"
+                                                      Padding="5"
+                                                      VerticalContentAlignment="Center"
+                                                      SelectionChanged="TypCeny_SelectionChanged"
+                                                      IsHitTestVisible="True"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>

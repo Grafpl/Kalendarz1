@@ -626,48 +626,6 @@ namespace Kalendarz1
             }
         }
 
-        // === KLIKNIĘCIE: Zaznaczenie wiersza i edycja komórki ===
-        private void DataGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            // Sprawdź czy kliknięto na ComboBox - jeśli tak, nie ingeruj!
-            var comboBox = FindVisualParent<ComboBox>(e.OriginalSource as DependencyObject);
-            if (comboBox != null)
-            {
-                // Tylko zaznacz wiersz, ale NIE wywołuj BeginEdit() - pozwól ComboBox działać normalnie
-                var row = FindVisualParent<DataGridRow>(comboBox);
-                if (row != null)
-                {
-                    var item = row.Item as SpecyfikacjaRow;
-                    if (item != null)
-                    {
-                        dataGridView1.SelectedItem = item;
-                        selectedRow = item;
-                    }
-                }
-                return; // Nie blokuj - pozwól ComboBox obsłużyć kliknięcie
-            }
-
-            // Znajdź wiersz pod kursorem (dla innych komórek)
-            var dataRow = FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject);
-            if (dataRow != null)
-            {
-                var clickedRow = dataRow.Item as SpecyfikacjaRow;
-                dataGridView1.SelectedItem = clickedRow;
-                selectedRow = clickedRow;
-
-                // === SINGLE-CLICK EDIT: Rozpocznij edycję po kliknięciu na komórkę (ale nie ComboBox) ===
-                var cell = FindVisualParent<DataGridCell>(e.OriginalSource as DependencyObject);
-                if (cell != null && !cell.IsReadOnly && !cell.IsEditing)
-                {
-                    Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        cell.Focus();
-                        dataGridView1.BeginEdit();
-                    }), System.Windows.Threading.DispatcherPriority.Background);
-                }
-            }
-        }
-
         // === PRZYCISK STRZAŁKA W GÓRĘ: Przesuń wiersz w górę ===
         private void BtnMoveUp_Click(object sender, RoutedEventArgs e)
         {
@@ -736,66 +694,6 @@ namespace Kalendarz1
             {
                 specyfikacjeData[i].Nr = i + 1;
             }
-        }
-
-        // === ComboBox: Natychmiastowe otwarcie dropdown przy pierwszym kliknięciu ===
-        private void ComboBox_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            var comboBox = sender as ComboBox;
-            if (comboBox == null) return;
-
-            // Sprawdź czy kliknięcie jest na strzałce dropdown (ToggleButton)
-            // Jeśli tak, pozwól normalnej obsłudze działać
-            var toggleButton = FindVisualParent<System.Windows.Controls.Primitives.ToggleButton>(e.OriginalSource as DependencyObject);
-            if (toggleButton != null)
-            {
-                return; // Pozwól normalnej obsłudze strzałki dropdown
-            }
-
-            // Kliknięcie na tekst/obszar ComboBox - otwórz dropdown
-            if (!comboBox.IsDropDownOpen)
-            {
-                comboBox.IsDropDownOpen = true;
-            }
-            // NIE ustawiaj e.Handled = true - pozwól na normalne przetwarzanie
-        }
-
-        // === KLUCZOWA METODA: Obsługa kliknięcia w komórkę z ComboBoxem (Single Click) ===
-        private void DataGridCell_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            DataGridCell cell = sender as DataGridCell;
-            if (cell == null || cell.IsEditing || cell.IsReadOnly)
-                return;
-
-            // Znajdź ComboBox wewnątrz komórki
-            var comboBox = FindVisualChild<ComboBox>(cell);
-            if (comboBox == null)
-                return;
-
-            // Zaznacz wiersz w DataGrid
-            var row = FindVisualParent<DataGridRow>(cell);
-            if (row != null)
-            {
-                var item = row.Item as SpecyfikacjaRow;
-                if (item != null)
-                {
-                    dataGridView1.SelectedItem = item;
-                    selectedRow = item;
-                }
-            }
-
-            // Ustaw fokus i otwórz dropdown
-            if (!cell.IsFocused)
-            {
-                cell.Focus();
-            }
-
-            // Otwórz ComboBox
-            comboBox.Focus();
-            comboBox.IsDropDownOpen = true;
-
-            // WAŻNE: Zatrzymaj event żeby DataGrid nie zamknął dropdowna
-            e.Handled = true;
         }
 
         // === ComboBox: Automatyczne zaznaczenie wiersza przy otwarciu ===
