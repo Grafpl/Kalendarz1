@@ -70,6 +70,12 @@ namespace Kalendarz1
         private ObservableCollection<HarmonogramRow> harmonogramDataLeft;
         private ObservableCollection<HarmonogramRow> harmonogramDataRight;
 
+        // === SCHOWEK: Ctrl+Shift+C/V dla ustawień cenowych ===
+        private SupplierClipboard _supplierClipboard = new SupplierClipboard();
+
+        // === HIGHLIGHT: Aktualnie podświetlona grupa dostawcy ===
+        private string _highlightedSupplier = null;
+
         public WidokSpecyfikacje()
         {
             InitializeComponent();
@@ -616,6 +622,12 @@ namespace Kalendarz1
             {
                 selectedRow = dataGridView1.CurrentCell.Item as SpecyfikacjaRow;
             }
+
+            // Podswietl grupe dostawcy przy zaznaczeniu
+            if (selectedRow != null)
+            {
+                HighlightSupplierGroup(selectedRow.RealDostawca);
+            }
         }
 
         // === CurrentCellChanged: Aktualizacja wybranego wiersza ===
@@ -858,6 +870,97 @@ namespace Kalendarz1
             {
                 dataGridView1.CancelEdit();
             }
+
+            // === CTRL+SHIFT+C: Kopiuj ustawienia cenowe wiersza do schowka ===
+            else if (e.Key == Key.C && Keyboard.Modifiers.HasFlag(ModifierKeys.Control | ModifierKeys.Shift))
+            {
+                e.Handled = true;
+                CopyRowSettingsToClipboard();
+            }
+
+            // === CTRL+SHIFT+V: Wklej ustawienia ze schowka ===
+            else if (e.Key == Key.V && Keyboard.Modifiers.HasFlag(ModifierKeys.Control | ModifierKeys.Shift))
+            {
+                e.Handled = true;
+                PasteRowSettingsFromClipboard();
+            }
+
+            // === CTRL+SHIFT+A: Zastosuj WSZYSTKIE pola do dostawcy ===
+            else if (e.Key == Key.A && Keyboard.Modifiers.HasFlag(ModifierKeys.Control | ModifierKeys.Shift))
+            {
+                e.Handled = true;
+                ApplyFieldsToSupplier(SupplierFieldMask.All);
+            }
+        }
+
+        // === SCHOWEK: Kopiuj ustawienia cenowe wiersza ===
+        private void CopyRowSettingsToClipboard()
+        {
+            var currentRow = selectedRow ?? dataGridView1.SelectedItem as SpecyfikacjaRow;
+            if (currentRow == null) return;
+
+            _supplierClipboard.CopyFrom(currentRow);
+            UpdateStatus($"Skopiowano: {_supplierClipboard} (Ctrl+Shift+V aby wkleić)");
+        }
+
+        // === SCHOWEK: Wklej ustawienia do aktualnego wiersza ===
+        private void PasteRowSettingsFromClipboard()
+        {
+            var currentRow = selectedRow ?? dataGridView1.SelectedItem as SpecyfikacjaRow;
+            if (currentRow == null || !_supplierClipboard.HasData)
+            {
+                UpdateStatus("Schowek jest pusty. Użyj Ctrl+Shift+C aby skopiować ustawienia.");
+                return;
+            }
+
+            // Zastosuj wartości ze schowka
+            if (_supplierClipboard.Cena.HasValue) currentRow.Cena = _supplierClipboard.Cena.Value;
+            if (_supplierClipboard.Dodatek.HasValue) currentRow.Dodatek = _supplierClipboard.Dodatek.Value;
+            if (_supplierClipboard.Ubytek.HasValue) currentRow.Ubytek = _supplierClipboard.Ubytek.Value;
+            if (_supplierClipboard.TypCeny != null) currentRow.TypCeny = _supplierClipboard.TypCeny;
+            if (_supplierClipboard.TerminDni.HasValue) currentRow.TerminDni = _supplierClipboard.TerminDni.Value;
+
+            // Zapisz do bazy
+            QueueRowForSave(currentRow.ID);
+
+            UpdateStatus($"Wklejono: {_supplierClipboard}");
+            dataGridView1.Items.Refresh();
+        }
+
+        // === SCHOWEK: Wklej ustawienia do wszystkich wierszy dostawcy ===
+        private void PasteRowSettingsToSupplier()
+        {
+            var currentRow = selectedRow ?? dataGridView1.SelectedItem as SpecyfikacjaRow;
+            if (currentRow == null || string.IsNullOrEmpty(currentRow.RealDostawca) || !_supplierClipboard.HasData) return;
+
+            var rowsToUpdate = specyfikacjeData.Where(x => x.RealDostawca == currentRow.RealDostawca).ToList();
+            var idsToUpdate = rowsToUpdate.Select(r => r.ID).ToList();
+
+            // Określ które pola mają być zaktualizowane
+            var fields = SupplierFieldMask.None;
+            if (_supplierClipboard.Cena.HasValue) fields |= SupplierFieldMask.Cena;
+            if (_supplierClipboard.Dodatek.HasValue) fields |= SupplierFieldMask.Dodatek;
+            if (_supplierClipboard.Ubytek.HasValue) fields |= SupplierFieldMask.Ubytek;
+            if (_supplierClipboard.TypCeny != null) fields |= SupplierFieldMask.TypCeny;
+            if (_supplierClipboard.TerminDni.HasValue) fields |= SupplierFieldMask.TerminDni;
+
+            // Aktualizuj UI
+            foreach (var row in rowsToUpdate)
+            {
+                if (_supplierClipboard.Cena.HasValue) row.Cena = _supplierClipboard.Cena.Value;
+                if (_supplierClipboard.Dodatek.HasValue) row.Dodatek = _supplierClipboard.Dodatek.Value;
+                if (_supplierClipboard.Ubytek.HasValue) row.Ubytek = _supplierClipboard.Ubytek.Value;
+                if (_supplierClipboard.TypCeny != null) row.TypCeny = _supplierClipboard.TypCeny;
+                if (_supplierClipboard.TerminDni.HasValue) row.TerminDni = _supplierClipboard.TerminDni.Value;
+            }
+
+            // Batch update
+            SaveSupplierFieldsBatch(idsToUpdate, fields,
+                _supplierClipboard.Cena, _supplierClipboard.Dodatek, _supplierClipboard.Ubytek,
+                _supplierClipboard.TypCeny, _supplierClipboard.TerminDni);
+
+            UpdateStatus($"Wklejono {_supplierClipboard} -> {rowsToUpdate.Count} wierszy ({currentRow.RealDostawca})");
+            dataGridView1.Items.Refresh();
         }
 
         // === CTRL+D: Kopiuj wartość z komórki powyżej ===
@@ -974,69 +1077,116 @@ namespace Kalendarz1
 
         private void ContextMenu_ApplyCenaToSupplier(object sender, RoutedEventArgs e)
         {
-            var currentRow = selectedRow ?? dataGridView1.SelectedItem as SpecyfikacjaRow;
-            if (currentRow == null || string.IsNullOrEmpty(currentRow.RealDostawca)) return;
-
-            var rowsToUpdate = specyfikacjeData.Where(x => x.RealDostawca == currentRow.RealDostawca).ToList();
-            foreach (var row in rowsToUpdate)
-            {
-                row.Cena = currentRow.Cena;
-                SaveFieldToDatabase(row.ID, "Price", row.Cena);
-            }
-            UpdateStatus($"💰 Cena {currentRow.Cena:F2} zł → {rowsToUpdate.Count} wierszy dostawcy {currentRow.RealDostawca}");
-            dataGridView1.Items.Refresh();
+            // Używa batch update - jedna operacja SQL
+            ApplyFieldsToSupplier(SupplierFieldMask.Cena);
         }
 
         private void ContextMenu_ApplyDodatekToSupplier(object sender, RoutedEventArgs e)
         {
-            var currentRow = selectedRow ?? dataGridView1.SelectedItem as SpecyfikacjaRow;
-            if (currentRow == null || string.IsNullOrEmpty(currentRow.RealDostawca)) return;
-
-            var rowsToUpdate = specyfikacjeData.Where(x => x.RealDostawca == currentRow.RealDostawca).ToList();
-            foreach (var row in rowsToUpdate)
-            {
-                row.Dodatek = currentRow.Dodatek;
-                SaveFieldToDatabase(row.ID, "Addition", row.Dodatek);
-            }
-            UpdateStatus($"➕ Dodatek {currentRow.Dodatek:F2} zł → {rowsToUpdate.Count} wierszy dostawcy {currentRow.RealDostawca}");
-            dataGridView1.Items.Refresh();
+            // Używa batch update - jedna operacja SQL
+            ApplyFieldsToSupplier(SupplierFieldMask.Dodatek);
         }
 
         private void ContextMenu_ApplyUbytekToSupplier(object sender, RoutedEventArgs e)
         {
-            var currentRow = selectedRow ?? dataGridView1.SelectedItem as SpecyfikacjaRow;
-            if (currentRow == null || string.IsNullOrEmpty(currentRow.RealDostawca)) return;
-
-            var rowsToUpdate = specyfikacjeData.Where(x => x.RealDostawca == currentRow.RealDostawca).ToList();
-            foreach (var row in rowsToUpdate)
-            {
-                row.Ubytek = currentRow.Ubytek;
-                SaveFieldToDatabase(row.ID, "Loss", row.Ubytek / 100);
-            }
-            UpdateStatus($"📉 Ubytek {currentRow.Ubytek:F2}% → {rowsToUpdate.Count} wierszy dostawcy {currentRow.RealDostawca}");
-            dataGridView1.Items.Refresh();
+            // Używa batch update - jedna operacja SQL
+            ApplyFieldsToSupplier(SupplierFieldMask.Ubytek);
         }
 
         private void ContextMenu_ApplyTypCenyToSupplier(object sender, RoutedEventArgs e)
         {
-            var currentRow = selectedRow ?? dataGridView1.SelectedItem as SpecyfikacjaRow;
-            if (currentRow == null || string.IsNullOrEmpty(currentRow.RealDostawca)) return;
+            // Używa batch update - jedna operacja SQL
+            ApplyFieldsToSupplier(SupplierFieldMask.TypCeny);
+        }
 
-            var rowsToUpdate = specyfikacjeData.Where(x => x.RealDostawca == currentRow.RealDostawca).ToList();
-            foreach (var row in rowsToUpdate)
-            {
-                row.TypCeny = currentRow.TypCeny;
-                SaveFieldToDatabase(row.ID, "PriceType", row.TypCeny);
-            }
-            UpdateStatus($"🏷️ Typ ceny '{currentRow.TypCeny}' → {rowsToUpdate.Count} wierszy dostawcy {currentRow.RealDostawca}");
-            dataGridView1.Items.Refresh();
+        private void ContextMenu_ApplyAllToSupplier(object sender, RoutedEventArgs e)
+        {
+            // Batch update WSZYSTKICH pól cenowych
+            ApplyFieldsToSupplier(SupplierFieldMask.All);
+        }
+
+        private void ContextMenu_CopySettings(object sender, RoutedEventArgs e)
+        {
+            CopyRowSettingsToClipboard();
+        }
+
+        private void ContextMenu_PasteSettings(object sender, RoutedEventArgs e)
+        {
+            PasteRowSettingsFromClipboard();
+        }
+
+        private void ContextMenu_PasteSettingsToSupplier(object sender, RoutedEventArgs e)
+        {
+            PasteRowSettingsToSupplier();
+        }
+
+        private void ContextMenu_ApplyTemplate(object sender, RoutedEventArgs e)
+        {
+            ApplySupplierTemplateToAll();
         }
 
         private void ContextMenu_RefreshData(object sender, RoutedEventArgs e)
         {
             // Odśwież dane z bazy
             LoadData(dateTimePicker1.SelectedDate ?? DateTime.Today);
-            UpdateStatus("🔄 Dane odświeżone");
+            UpdateStatus("Dane odswiezone");
+        }
+
+        #endregion
+
+        #region === TOOLBAR: Handlery przycisków ===
+
+        private void ToolBar_CopySettings(object sender, RoutedEventArgs e)
+        {
+            CopyRowSettingsToClipboard();
+            UpdateClipboardInfo();
+        }
+
+        private void ToolBar_PasteSettings(object sender, RoutedEventArgs e)
+        {
+            PasteRowSettingsFromClipboard();
+        }
+
+        private void ToolBar_ApplyAllToSupplier(object sender, RoutedEventArgs e)
+        {
+            ApplyFieldsToSupplier(SupplierFieldMask.All);
+        }
+
+        private void ToolBar_ApplyCenaToSupplier(object sender, RoutedEventArgs e)
+        {
+            ApplyFieldsToSupplier(SupplierFieldMask.Cena);
+        }
+
+        private void ToolBar_ApplyDodatekToSupplier(object sender, RoutedEventArgs e)
+        {
+            ApplyFieldsToSupplier(SupplierFieldMask.Dodatek);
+        }
+
+        private void ToolBar_ApplyUbytekToSupplier(object sender, RoutedEventArgs e)
+        {
+            ApplyFieldsToSupplier(SupplierFieldMask.Ubytek);
+        }
+
+        private void ToolBar_ApplyTypCenyToSupplier(object sender, RoutedEventArgs e)
+        {
+            ApplyFieldsToSupplier(SupplierFieldMask.TypCeny);
+        }
+
+        private void UpdateClipboardInfo()
+        {
+            if (_supplierClipboard.HasData)
+            {
+                lblClipboardInfo.Text = $"Schowek: {_supplierClipboard}";
+            }
+            else
+            {
+                lblClipboardInfo.Text = "";
+            }
+        }
+
+        private void ToolBar_ApplyTemplate(object sender, RoutedEventArgs e)
+        {
+            ApplySupplierTemplateToAll();
         }
 
         #endregion
@@ -1450,6 +1600,294 @@ namespace Kalendarz1
                 UpdateStatus($"Błąd batch zapisu: {ex.Message}");
             }
         }
+
+        // === BATCH: Zapis wybranych pól dla wielu wierszy w jednym zapytaniu SQL ===
+        private void SaveSupplierFieldsBatch(List<int> rowIds, SupplierFieldMask fields,
+            decimal? cena = null, decimal? dodatek = null, decimal? ubytek = null,
+            string typCeny = null, int? terminDni = null)
+        {
+            if (rowIds == null || rowIds.Count == 0 || fields == SupplierFieldMask.None) return;
+
+            var setClauses = new List<string>();
+            if (fields.HasFlag(SupplierFieldMask.Cena)) setClauses.Add("Price = @Cena");
+            if (fields.HasFlag(SupplierFieldMask.Dodatek)) setClauses.Add("Addition = @Dodatek");
+            if (fields.HasFlag(SupplierFieldMask.Ubytek)) setClauses.Add("Loss = @Ubytek");
+            if (fields.HasFlag(SupplierFieldMask.TypCeny)) setClauses.Add("PriceType = @TypCeny");
+            if (fields.HasFlag(SupplierFieldMask.TerminDni)) setClauses.Add("TerminDni = @TerminDni");
+
+            if (setClauses.Count == 0) return;
+
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    // Jedna operacja UPDATE z WHERE ID IN (...)
+                    string idList = string.Join(",", rowIds);
+                    string query = $"UPDATE dbo.FarmerCalc SET {string.Join(", ", setClauses)} WHERE ID IN ({idList})";
+
+                    using (SqlCommand cmd = new SqlCommand(query, connection))
+                    {
+                        if (fields.HasFlag(SupplierFieldMask.Cena))
+                            cmd.Parameters.AddWithValue("@Cena", cena ?? 0m);
+                        if (fields.HasFlag(SupplierFieldMask.Dodatek))
+                            cmd.Parameters.AddWithValue("@Dodatek", dodatek ?? 0m);
+                        if (fields.HasFlag(SupplierFieldMask.Ubytek))
+                            cmd.Parameters.AddWithValue("@Ubytek", (ubytek ?? 0m) / 100m);
+                        if (fields.HasFlag(SupplierFieldMask.TypCeny))
+                            cmd.Parameters.AddWithValue("@TypCeny", (object)typCeny ?? DBNull.Value);
+                        if (fields.HasFlag(SupplierFieldMask.TerminDni))
+                            cmd.Parameters.AddWithValue("@TerminDni", terminDni ?? 0);
+
+                        int affected = cmd.ExecuteNonQuery();
+                        UpdateStatus($"Batch: Zaktualizowano {affected} wierszy");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Błąd batch zapisu pól: {ex.Message}");
+            }
+        }
+
+        // === BATCH: Zastosuj wybrane pola do wszystkich wierszy dostawcy ===
+        private void ApplyFieldsToSupplier(SupplierFieldMask fields, SpecyfikacjaRow sourceRow = null)
+        {
+            var currentRow = sourceRow ?? selectedRow ?? dataGridView1.SelectedItem as SpecyfikacjaRow;
+            if (currentRow == null || string.IsNullOrEmpty(currentRow.RealDostawca)) return;
+
+            var rowsToUpdate = specyfikacjeData.Where(x => x.RealDostawca == currentRow.RealDostawca).ToList();
+            var idsToUpdate = rowsToUpdate.Select(r => r.ID).ToList();
+
+            if (idsToUpdate.Count == 0) return;
+
+            // Aktualizuj UI
+            foreach (var row in rowsToUpdate)
+            {
+                if (fields.HasFlag(SupplierFieldMask.Cena)) row.Cena = currentRow.Cena;
+                if (fields.HasFlag(SupplierFieldMask.Dodatek)) row.Dodatek = currentRow.Dodatek;
+                if (fields.HasFlag(SupplierFieldMask.Ubytek)) row.Ubytek = currentRow.Ubytek;
+                if (fields.HasFlag(SupplierFieldMask.TypCeny)) row.TypCeny = currentRow.TypCeny;
+                if (fields.HasFlag(SupplierFieldMask.TerminDni)) row.TerminDni = currentRow.TerminDni;
+            }
+
+            // Batch zapis do bazy
+            SaveSupplierFieldsBatch(idsToUpdate, fields,
+                currentRow.Cena, currentRow.Dodatek, currentRow.Ubytek,
+                currentRow.TypCeny, currentRow.TerminDni);
+
+            // Status message
+            var fieldNames = new List<string>();
+            if (fields.HasFlag(SupplierFieldMask.Cena)) fieldNames.Add($"Cena={currentRow.Cena:F2}");
+            if (fields.HasFlag(SupplierFieldMask.Dodatek)) fieldNames.Add($"Dodatek={currentRow.Dodatek:F2}");
+            if (fields.HasFlag(SupplierFieldMask.Ubytek)) fieldNames.Add($"Ubytek={currentRow.Ubytek:F2}%");
+            if (fields.HasFlag(SupplierFieldMask.TypCeny)) fieldNames.Add($"TypCeny={currentRow.TypCeny}");
+            if (fields.HasFlag(SupplierFieldMask.TerminDni)) fieldNames.Add($"Termin={currentRow.TerminDni}dni");
+
+            UpdateStatus($"Batch: {string.Join(", ", fieldNames)} -> {rowsToUpdate.Count} wierszy ({currentRow.RealDostawca})");
+            dataGridView1.Items.Refresh();
+        }
+
+        // === BATCH: Zastosuj WSZYSTKIE pola cenowe do dostawcy ===
+        private void ApplyAllFieldsToSupplier()
+        {
+            ApplyFieldsToSupplier(SupplierFieldMask.All);
+        }
+
+        #region === SZABLON DOSTAWCY: Auto-wypełnianie z historii ===
+
+        /// <summary>
+        /// Pobiera ostatnie ustawienia cenowe dla dostawcy z historii
+        /// </summary>
+        private SupplierClipboard GetSupplierTemplate(string dostawcaGID)
+        {
+            if (string.IsNullOrEmpty(dostawcaGID)) return null;
+
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    // Pobierz ostatnie ustawienia z FarmerCalc dla tego dostawcy
+                    string query = @"
+                        SELECT TOP 1 Price, Addition, Loss, PriceType, TerminDni
+                        FROM dbo.FarmerCalc
+                        WHERE CustomerGID = @DostawcaGID
+                          AND CalcDate < @Today
+                          AND Price > 0
+                        ORDER BY CalcDate DESC, ID DESC";
+
+                    using (SqlCommand cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@DostawcaGID", dostawcaGID);
+                        cmd.Parameters.AddWithValue("@Today", dateTimePicker1.SelectedDate ?? DateTime.Today);
+
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                return new SupplierClipboard
+                                {
+                                    Cena = reader["Price"] != DBNull.Value ? Convert.ToDecimal(reader["Price"]) : (decimal?)null,
+                                    Dodatek = reader["Addition"] != DBNull.Value ? Convert.ToDecimal(reader["Addition"]) : (decimal?)null,
+                                    Ubytek = reader["Loss"] != DBNull.Value ? Convert.ToDecimal(reader["Loss"]) * 100 : (decimal?)null,
+                                    TypCeny = reader["PriceType"]?.ToString(),
+                                    TerminDni = reader["TerminDni"] != DBNull.Value ? Convert.ToInt32(reader["TerminDni"]) : (int?)null
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Blad pobierania szablonu: {ex.Message}");
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Zastosuj szablon dostawcy do aktualnego wiersza
+        /// </summary>
+        private void ApplySupplierTemplate()
+        {
+            var currentRow = selectedRow ?? dataGridView1.SelectedItem as SpecyfikacjaRow;
+            if (currentRow == null || string.IsNullOrEmpty(currentRow.DostawcaGID)) return;
+
+            var template = GetSupplierTemplate(currentRow.DostawcaGID);
+            if (template == null || !template.HasData)
+            {
+                UpdateStatus($"Brak szablonu dla dostawcy {currentRow.RealDostawca}");
+                return;
+            }
+
+            // Zastosuj tylko pola które są puste lub zerowe
+            bool applied = false;
+            if (currentRow.Cena == 0 && template.Cena.HasValue)
+            {
+                currentRow.Cena = template.Cena.Value;
+                applied = true;
+            }
+            if (currentRow.Dodatek == 0 && template.Dodatek.HasValue)
+            {
+                currentRow.Dodatek = template.Dodatek.Value;
+                applied = true;
+            }
+            if (currentRow.Ubytek == 0 && template.Ubytek.HasValue)
+            {
+                currentRow.Ubytek = template.Ubytek.Value;
+                applied = true;
+            }
+            if (string.IsNullOrEmpty(currentRow.TypCeny) && !string.IsNullOrEmpty(template.TypCeny))
+            {
+                currentRow.TypCeny = template.TypCeny;
+                applied = true;
+            }
+            if (currentRow.TerminDni == 0 && template.TerminDni.HasValue)
+            {
+                currentRow.TerminDni = template.TerminDni.Value;
+                applied = true;
+            }
+
+            if (applied)
+            {
+                QueueRowForSave(currentRow.ID);
+                UpdateStatus($"Szablon dostawcy: {template}");
+                dataGridView1.Items.Refresh();
+            }
+        }
+
+        /// <summary>
+        /// Zastosuj szablon dostawcy do wszystkich wierszy tego dostawcy
+        /// </summary>
+        private void ApplySupplierTemplateToAll()
+        {
+            var currentRow = selectedRow ?? dataGridView1.SelectedItem as SpecyfikacjaRow;
+            if (currentRow == null || string.IsNullOrEmpty(currentRow.DostawcaGID)) return;
+
+            var template = GetSupplierTemplate(currentRow.DostawcaGID);
+            if (template == null || !template.HasData)
+            {
+                UpdateStatus($"Brak szablonu dla dostawcy {currentRow.RealDostawca}");
+                return;
+            }
+
+            var rowsToUpdate = specyfikacjeData.Where(x => x.DostawcaGID == currentRow.DostawcaGID).ToList();
+            var idsToUpdate = new List<int>();
+
+            foreach (var row in rowsToUpdate)
+            {
+                bool updated = false;
+                if (row.Cena == 0 && template.Cena.HasValue) { row.Cena = template.Cena.Value; updated = true; }
+                if (row.Dodatek == 0 && template.Dodatek.HasValue) { row.Dodatek = template.Dodatek.Value; updated = true; }
+                if (row.Ubytek == 0 && template.Ubytek.HasValue) { row.Ubytek = template.Ubytek.Value; updated = true; }
+                if (string.IsNullOrEmpty(row.TypCeny) && !string.IsNullOrEmpty(template.TypCeny)) { row.TypCeny = template.TypCeny; updated = true; }
+                if (row.TerminDni == 0 && template.TerminDni.HasValue) { row.TerminDni = template.TerminDni.Value; updated = true; }
+
+                if (updated) idsToUpdate.Add(row.ID);
+            }
+
+            if (idsToUpdate.Count > 0)
+            {
+                // Batch update
+                SaveSupplierFieldsBatch(idsToUpdate, SupplierFieldMask.All,
+                    template.Cena, template.Dodatek, template.Ubytek, template.TypCeny, template.TerminDni);
+
+                UpdateStatus($"Szablon zastosowany do {idsToUpdate.Count} wierszy: {template}");
+                dataGridView1.Items.Refresh();
+            }
+        }
+
+        #endregion
+
+        #region === PODSWIETLENIE GRUPY DOSTAWCY ===
+
+        /// <summary>
+        /// Podświetl wszystkie wiersze tego samego dostawcy
+        /// </summary>
+        private void HighlightSupplierGroup(string realDostawca)
+        {
+            if (_highlightedSupplier == realDostawca) return;
+
+            // Usuń poprzednie podświetlenie
+            if (!string.IsNullOrEmpty(_highlightedSupplier))
+            {
+                foreach (var row in specyfikacjeData.Where(x => x.RealDostawca == _highlightedSupplier))
+                {
+                    row.IsHighlighted = false;
+                }
+            }
+
+            // Dodaj nowe podświetlenie
+            _highlightedSupplier = realDostawca;
+            if (!string.IsNullOrEmpty(realDostawca))
+            {
+                foreach (var row in specyfikacjeData.Where(x => x.RealDostawca == realDostawca))
+                {
+                    row.IsHighlighted = true;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Wyczyść podświetlenie grupy
+        /// </summary>
+        private void ClearSupplierHighlight()
+        {
+            if (!string.IsNullOrEmpty(_highlightedSupplier))
+            {
+                foreach (var row in specyfikacjeData.Where(x => x.RealDostawca == _highlightedSupplier))
+                {
+                    row.IsHighlighted = false;
+                }
+                _highlightedSupplier = null;
+            }
+        }
+
+        #endregion
 
         // === WYDAJNOŚĆ: Async batch zapis pozycji wierszy ===
         private async Task SaveAllRowPositionsAsync()
@@ -4333,6 +4771,15 @@ namespace Kalendarz1
         private DateTime? _arrivalTime;
         private string _kierowcaNazwa;
 
+        // Podświetlenie grupy dostawcy
+        private bool _isHighlighted;
+
+        public bool IsHighlighted
+        {
+            get => _isHighlighted;
+            set { _isHighlighted = value; OnPropertyChanged(nameof(IsHighlighted)); }
+        }
+
         public bool Wydrukowano
         {
             get => _wydrukowano;
@@ -4912,8 +5359,63 @@ namespace Kalendarz1
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
-    
+    }
 
-   
+    /// <summary>
+    /// Flagi do masowego kopiowania pól dostawcy
+    /// Pozwala na kopiowanie wielu pól jednocześnie w jednej operacji SQL
+    /// </summary>
+    [Flags]
+    public enum SupplierFieldMask
+    {
+        None = 0,
+        Cena = 1,
+        Dodatek = 2,
+        Ubytek = 4,
+        TypCeny = 8,
+        TerminDni = 16,
+        All = Cena | Dodatek | Ubytek | TypCeny | TerminDni
+    }
+
+    /// <summary>
+    /// Schowek do kopiowania ustawień wiersza (Ctrl+Shift+C/V)
+    /// </summary>
+    public class SupplierClipboard
+    {
+        public decimal? Cena { get; set; }
+        public decimal? Dodatek { get; set; }
+        public decimal? Ubytek { get; set; }
+        public string TypCeny { get; set; }
+        public int? TerminDni { get; set; }
+        public bool HasData => Cena.HasValue || Dodatek.HasValue || Ubytek.HasValue || TypCeny != null || TerminDni.HasValue;
+
+        public void Clear()
+        {
+            Cena = null;
+            Dodatek = null;
+            Ubytek = null;
+            TypCeny = null;
+            TerminDni = null;
+        }
+
+        public void CopyFrom(SpecyfikacjaRow row)
+        {
+            Cena = row.Cena;
+            Dodatek = row.Dodatek;
+            Ubytek = row.Ubytek;
+            TypCeny = row.TypCeny;
+            TerminDni = row.TerminDni;
+        }
+
+        public override string ToString()
+        {
+            var parts = new List<string>();
+            if (Cena.HasValue) parts.Add($"Cena={Cena:F2}");
+            if (Dodatek.HasValue) parts.Add($"Dodatek={Dodatek:F2}");
+            if (Ubytek.HasValue) parts.Add($"Ubytek={Ubytek:F2}%");
+            if (TypCeny != null) parts.Add($"TypCeny={TypCeny}");
+            if (TerminDni.HasValue) parts.Add($"Termin={TerminDni}dni");
+            return string.Join(", ", parts);
+        }
     }
 }

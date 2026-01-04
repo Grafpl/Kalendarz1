@@ -72,6 +72,12 @@
             <Setter Property="Foreground" Value="Black"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Style.Triggers>
+                <!-- Podswietlenie grupy dostawcy -->
+                <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
+                    <Setter Property="Background" Value="#FFF8E1"/>
+                    <Setter Property="BorderBrush" Value="#FFB74D"/>
+                    <Setter Property="BorderThickness" Value="0,1,0,1"/>
+                </DataTrigger>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="#E3F2FD"/>
                     <Setter Property="Foreground" Value="Black"/>
@@ -88,6 +94,14 @@
                     <Setter Property="Background" Value="#90CAF9"/>
                     <Setter Property="Foreground" Value="Black"/>
                 </MultiTrigger>
+                <!-- Podswietlenie grupy + zaznaczenie -->
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsHighlighted}" Value="True"/>
+                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="False"/>
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Background" Value="#FFF8E1"/>
+                </MultiDataTrigger>
             </Style.Triggers>
         </Style>
 
@@ -522,11 +536,67 @@
                     </Border.Effect>
                     <Grid>
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="200"/>
                         </Grid.RowDefinitions>
 
-                        <DataGrid Grid.Row="0" x:Name="dataGridView1"
+                        <!-- === TOOLBAR: Szybkie akcje masowe === -->
+                        <Border Grid.Row="0" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="8,6">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Szybkie akcje:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,10,0"/>
+
+                                <Button x:Name="btnCopySettings" Click="ToolBar_CopySettings"
+                                        Content="Kopiuj" ToolTip="Kopiuj ustawienia cenowe wiersza (Ctrl+Shift+C)"
+                                        Padding="10,4" Margin="0,0,5,0" Background="#2196F3" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand"/>
+                                <Button x:Name="btnPasteSettings" Click="ToolBar_PasteSettings"
+                                        Content="Wklej" ToolTip="Wklej ustawienia cenowe (Ctrl+Shift+V)"
+                                        Padding="10,4" Margin="0,0,5,0" Background="#4CAF50" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand"/>
+
+                                <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
+
+                                <Button x:Name="btnApplyAllToSupplier" Click="ToolBar_ApplyAllToSupplier"
+                                        Content="Zastosuj WSZYSTKO do dostawcy"
+                                        ToolTip="Zastosuj wszystkie ustawienia cenowe do wierszy tego samego dostawcy (Ctrl+Shift+A)"
+                                        Padding="10,4" Margin="5,0,5,0" Background="#FF9800" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+
+                                <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
+
+                                <Button x:Name="btnApplyCenaToSupplier" Click="ToolBar_ApplyCenaToSupplier"
+                                        Content="Cena" ToolTip="Zastosuj cene do wszystkich wierszy dostawcy"
+                                        Padding="8,4" Margin="5,0,2,0" Background="#1976D2" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand"/>
+                                <Button x:Name="btnApplyDodatekToSupplier" Click="ToolBar_ApplyDodatekToSupplier"
+                                        Content="Dodatek" ToolTip="Zastosuj dodatek do wszystkich wierszy dostawcy"
+                                        Padding="8,4" Margin="2,0,2,0" Background="#1976D2" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand"/>
+                                <Button x:Name="btnApplyUbytekToSupplier" Click="ToolBar_ApplyUbytekToSupplier"
+                                        Content="Ubytek" ToolTip="Zastosuj ubytek do wszystkich wierszy dostawcy"
+                                        Padding="8,4" Margin="2,0,2,0" Background="#1976D2" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand"/>
+                                <Button x:Name="btnApplyTypCenyToSupplier" Click="ToolBar_ApplyTypCenyToSupplier"
+                                        Content="Typ Ceny" ToolTip="Zastosuj typ ceny do wszystkich wierszy dostawcy"
+                                        Padding="8,4" Margin="2,0,5,0" Background="#1976D2" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand"/>
+
+                                <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
+
+                                <Button x:Name="btnApplyTemplate" Click="ToolBar_ApplyTemplate"
+                                        Content="Szablon z historii" ToolTip="Wypelnij puste pola ustawieniami z ostatniej dostawy tego dostawcy"
+                                        Padding="10,4" Margin="5,0,5,0" Background="#9C27B0" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand"/>
+
+                                <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
+
+                                <TextBlock x:Name="lblClipboardInfo" Text="" VerticalAlignment="Center"
+                                           FontStyle="Italic" Foreground="#757575" Margin="10,0,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <DataGrid Grid.Row="1" x:Name="dataGridView1"
                       AutoGenerateColumns="False"
                       CanUserAddRows="False"
                       CanUserDeleteRows="False"
@@ -558,14 +628,26 @@
                             <!-- === MENU KONTEKSTOWE: Masowe operacje === -->
                             <DataGrid.ContextMenu>
                                 <ContextMenu>
-                                    <MenuItem Header="📋 Kopiuj wartość z wiersza powyżej (Ctrl+D)" Click="ContextMenu_CopyFromAbove"/>
+                                    <MenuItem Header="Kopiuj z wiersza powyzej (Ctrl+D)" Click="ContextMenu_CopyFromAbove"/>
                                     <Separator/>
-                                    <MenuItem Header="💰 Zastosuj CENĘ do wszystkich wierszy dostawcy" Click="ContextMenu_ApplyCenaToSupplier"/>
-                                    <MenuItem Header="➕ Zastosuj DODATEK do wszystkich wierszy dostawcy" Click="ContextMenu_ApplyDodatekToSupplier"/>
-                                    <MenuItem Header="📉 Zastosuj UBYTEK do wszystkich wierszy dostawcy" Click="ContextMenu_ApplyUbytekToSupplier"/>
-                                    <MenuItem Header="🏷️ Zastosuj TYP CENY do wszystkich wierszy dostawcy" Click="ContextMenu_ApplyTypCenyToSupplier"/>
+                                    <MenuItem Header="Schowek ustawien cenowych">
+                                        <MenuItem Header="Kopiuj ustawienia (Ctrl+Shift+C)" Click="ContextMenu_CopySettings"/>
+                                        <MenuItem Header="Wklej ustawienia (Ctrl+Shift+V)" Click="ContextMenu_PasteSettings"/>
+                                        <MenuItem Header="Wklej do wszystkich wierszy dostawcy" Click="ContextMenu_PasteSettingsToSupplier"/>
+                                    </MenuItem>
                                     <Separator/>
-                                    <MenuItem Header="🔄 Odśwież dane" Click="ContextMenu_RefreshData"/>
+                                    <MenuItem Header="Zastosuj do dostawcy">
+                                        <MenuItem Header="Tylko CENE" Click="ContextMenu_ApplyCenaToSupplier"/>
+                                        <MenuItem Header="Tylko DODATEK" Click="ContextMenu_ApplyDodatekToSupplier"/>
+                                        <MenuItem Header="Tylko UBYTEK" Click="ContextMenu_ApplyUbytekToSupplier"/>
+                                        <MenuItem Header="Tylko TYP CENY" Click="ContextMenu_ApplyTypCenyToSupplier"/>
+                                        <Separator/>
+                                        <MenuItem Header="WSZYSTKIE pola (Ctrl+Shift+A)" Click="ContextMenu_ApplyAllToSupplier" FontWeight="Bold"/>
+                                        <Separator/>
+                                        <MenuItem Header="Szablon z historii (uzupelnij puste)" Click="ContextMenu_ApplyTemplate"/>
+                                    </MenuItem>
+                                    <Separator/>
+                                    <MenuItem Header="Odswiez dane" Click="ContextMenu_RefreshData"/>
                                 </ContextMenu>
                             </DataGrid.ContextMenu>
 
@@ -1023,7 +1105,7 @@
                         </DataGrid>
 
                         <!-- Sekcja Harmonogram z subtelnym stylem -->
-                        <Border Grid.Row="1" Background="#F8F9FA" CornerRadius="8" Margin="5,8,5,5" BorderBrush="#E0E0E0" BorderThickness="1">
+                        <Border Grid.Row="2" Background="#F8F9FA" CornerRadius="8" Margin="5,8,5,5" BorderBrush="#E0E0E0" BorderThickness="1">
                             <Border.Effect>
                                 <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.08" BlurRadius="6"/>
                             </Border.Effect>
