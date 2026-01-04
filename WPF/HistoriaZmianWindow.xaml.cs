@@ -41,6 +41,7 @@ namespace Kalendarz1.WPF
             _dtHistoria.Columns.Add("Towar", typeof(string));
             _dtHistoria.Columns.Add("KodTowaru", typeof(int));
             _dtHistoria.Columns.Add("OpisZmiany", typeof(string));
+            _dtHistoria.Columns.Add("DataUboju", typeof(DateTime));
 
             dgHistoria.ItemsSource = _dtHistoria.DefaultView;
             SetupDataGrid();
@@ -98,6 +99,13 @@ namespace Kalendarz1.WPF
                 Binding = new Binding("OpisZmiany"),
                 Width = new DataGridLength(1, DataGridLengthUnitType.Star)
             });
+
+            dgHistoria.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Data uboju",
+                Binding = new Binding("DataUboju") { StringFormat = "yyyy-MM-dd" },
+                Width = new DataGridLength(100)
+            });
         }
 
         private async System.Threading.Tasks.Task LoadDataAsync()
@@ -153,6 +161,7 @@ namespace Kalendarz1.WPF
 
                 // Pobierz wszystkie zamówienia
                 var orderToClient = new Dictionary<int, int>();
+                var orderToDataUboju = new Dictionary<int, DateTime>();
                 await using (var cnLibra = new SqlConnection(_connLibra))
                 {
                     await cnLibra.OpenAsync();
@@ -170,8 +179,19 @@ namespace Kalendarz1.WPF
                         return;
                     }
 
+                    // Sprawdź czy kolumna DataUboju istnieje
+                    bool hasDataUboju = false;
+                    const string checkDataUbojuSql = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                                                      WHERE TABLE_NAME = 'ZamowieniaMieso' AND COLUMN_NAME = 'DataUboju'";
+                    await using (var checkDuCmd = new SqlCommand(checkDataUbojuSql, cnLibra))
+                    {
+                        hasDataUboju = (int)await checkDuCmd.ExecuteScalarAsync() > 0;
+                    }
+
                     // Pobierz wszystkie zamówienia
-                    string sqlOrders = @"SELECT Id, KlientId FROM dbo.ZamowieniaMieso";
+                    string sqlOrders = hasDataUboju
+                        ? @"SELECT Id, KlientId, DataUboju FROM dbo.ZamowieniaMieso"
+                        : @"SELECT Id, KlientId FROM dbo.ZamowieniaMieso";
                     await using var cmdOrders = new SqlCommand(sqlOrders, cnLibra);
                     await using var rdrOrders = await cmdOrders.ExecuteReaderAsync();
 
@@ -180,6 +200,11 @@ namespace Kalendarz1.WPF
                         int orderId = rdrOrders.GetInt32(0);
                         int clientId = rdrOrders.IsDBNull(1) ? 0 : rdrOrders.GetInt32(1);
                         orderToClient[orderId] = clientId;
+
+                        if (hasDataUboju && !rdrOrders.IsDBNull(2))
+                        {
+                            orderToDataUboju[orderId] = rdrOrders.GetDateTime(2);
+                        }
                     }
 
                     await rdrOrders.CloseAsync();
@@ -237,8 +262,12 @@ namespace Kalendarz1.WPF
                             odbiorca = contr.Name;
                         }
 
+                        // Pobierz DataUboju dla zamówienia
+                        DateTime? dataUboju = orderToDataUboju.TryGetValue(zamowienieId, out var du) ? du : null;
+
                         _dtHistoria.Rows.Add(id, zamowienieId, dataZmiany, typZmiany,
-                            handlowiec, odbiorca, uzytkownikNazwa, towar, kodTowaru, opisZmiany);
+                            handlowiec, odbiorca, uzytkownikNazwa, towar, kodTowaru, opisZmiany,
+                            dataUboju.HasValue ? (object)dataUboju.Value : DBNull.Value);
                     }
                 }
 
@@ -298,6 +327,7 @@ namespace Kalendarz1.WPF
             var odbiorcy = new List<string> { "(Wszystkie)" };
             var typy = new List<string> { "(Wszystkie)" };
             var handlowcy = new List<string> { "(Wszystkie)" };
+            var datyUboju = new List<string> { "(Wszystkie)" };
 
             foreach (DataRow row in _dtHistoria.Rows)
             {
@@ -305,22 +335,29 @@ namespace Kalendarz1.WPF
                 var odbiorca = row["Odbiorca"]?.ToString();
                 var typ = row["TypZmiany"]?.ToString();
                 var handlowiec = row["Handlowiec"]?.ToString();
+                var dataUboju = row["DataUboju"] as DateTime?;
+                string dataUbojuStr = dataUboju.HasValue && dataUboju.Value > DateTime.MinValue
+                    ? dataUboju.Value.ToString("yyyy-MM-dd") : "";
 
                 if (!string.IsNullOrEmpty(user) && !users.Contains(user)) users.Add(user);
                 if (!string.IsNullOrEmpty(odbiorca) && !odbiorcy.Contains(odbiorca)) odbiorcy.Add(odbiorca);
                 if (!string.IsNullOrEmpty(typ) && !typy.Contains(typ)) typy.Add(typ);
                 if (!string.IsNullOrEmpty(handlowiec) && !handlowcy.Contains(handlowiec)) handlowcy.Add(handlowiec);
+                if (!string.IsNullOrEmpty(dataUbojuStr) && !datyUboju.Contains(dataUbojuStr)) datyUboju.Add(dataUbojuStr);
             }
 
             cmbKtoEdytowal.ItemsSource = users.OrderBy(x => x).ToList();
             cmbOdbiorca.ItemsSource = odbiorcy.OrderBy(x => x).ToList();
             cmbTyp.ItemsSource = typy.OrderBy(x => x).ToList();
             cmbHandlowiec.ItemsSource = handlowcy.OrderBy(x => x).ToList();
+            // Data uboju - sortuj od najnowszej
+            cmbDataUboju.ItemsSource = datyUboju.Take(1).Concat(datyUboju.Skip(1).OrderByDescending(x => x)).ToList();
 
             cmbKtoEdytowal.SelectedIndex = 0;
             cmbOdbiorca.SelectedIndex = 0;
             cmbTyp.SelectedIndex = 0;
             cmbHandlowiec.SelectedIndex = 0;
+            cmbDataUboju.SelectedIndex = 0;
         }
 
         private void ApplyFilters()
@@ -352,6 +389,12 @@ namespace Kalendarz1.WPF
             if (cmbHandlowiec.SelectedItem?.ToString() is string handlowiec && handlowiec != "(Wszystkie)")
                 filters.Add($"Handlowiec = '{handlowiec.Replace("'", "''")}'");
 
+            if (cmbDataUboju.SelectedItem?.ToString() is string dataUboju && dataUboju != "(Wszystkie)")
+            {
+                if (DateTime.TryParse(dataUboju, out var dt))
+                    filters.Add($"DataUboju = '{dt:yyyy-MM-dd}'");
+            }
+
             dv.RowFilter = filters.Count > 0 ? string.Join(" AND ", filters) : "";
             UpdateDisplayedCount();
         }
@@ -375,6 +418,7 @@ namespace Kalendarz1.WPF
             cmbOdbiorca.SelectedIndex = 0;
             cmbTyp.SelectedIndex = 0;
             cmbHandlowiec.SelectedIndex = 0;
+            cmbDataUboju.SelectedIndex = 0;
             txtHistoriaTitle.Text = "HISTORIA ZMIAN";
             _dtHistoria.DefaultView.RowFilter = "";
             UpdateDisplayedCount();

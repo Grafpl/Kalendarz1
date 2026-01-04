@@ -58,12 +58,28 @@ namespace Kalendarz1.WPF
         private readonly DataTable _dtTransport = new();
         private readonly DataTable _dtHistoriaZmian = new();
         private readonly DataTable _dtDashboard = new();
-        private GridLength _savedRightColumnWidth = new GridLength(550);
+        private GridLength _savedRightColumnWidth = new GridLength(750);
+        private bool _rightPanelHidden = false; // Flaga czy prawy panel został ukryty
         private readonly Dictionary<int, string> _productCodeCache = new();
         private readonly Dictionary<int, string> _productCatalogCache = new();
         private readonly Dictionary<int, string> _productCatalogSwieze = new();
         private readonly Dictionary<int, string> _productCatalogMrozone = new();
+        private readonly Dictionary<int, BitmapImage?> _productImages = new();
         private Dictionary<int, string> _mapowanieScalowania = new(); // TowarIdtw -> NazwaGrupy
+
+        // ✅ CACHE dla wydań - unikamy duplikacji zapytań
+        private Dictionary<int, decimal> _cachedWydaniaSum = new();
+        private DateTime _cachedWydaniaDate = DateTime.MinValue;
+
+        // ✅ CACHE dla przychodów - unikamy duplikacji zapytań
+        private Dictionary<int, decimal> _cachedPrzychodyTuszkaA = new();
+        private Dictionary<int, decimal> _cachedPrzychodyElementy = new();
+        private DateTime _cachedPrzychodyDate = DateTime.MinValue;
+
+        // ✅ CACHE dla kontrahentów - dane klientów rzadko się zmieniają
+        private Dictionary<int, (string Name, string Salesman)> _cachedKontrahenci = new();
+        private DateTime _cachedKontrahenciTime = DateTime.MinValue;
+
         private Dictionary<string, List<int>> _grupyDoProduktow = new(); // NazwaGrupy -> lista TowarId
         private List<string> _grupyTowaroweNazwy = new(); // Lista nazw grup towarowych dla kolumn w tabeli zamówień
         private Dictionary<string, string> _grupyKolumnDoNazw = new(); // Sanitized column name -> original display name
@@ -454,17 +470,6 @@ namespace Kalendarz1.WPF
                 // Ignoruj błędy podczas zmiany rozmiaru
             }
         }
-        private void CbLayoutPreset_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (cbLayoutPreset.SelectedItem is ComboBoxItem item && item.Tag != null)
-            {
-                var presetName = item.Tag.ToString();
-                if (Enum.TryParse<LayoutPreset>(presetName, out var preset))
-                {
-                    ApplyPreset(preset);
-                }
-            }
-        }
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             if (_isInitialized) return;
@@ -485,9 +490,9 @@ namespace Kalendarz1.WPF
             // ✅ WYWOŁAJ PO RefreshAllDataAsync, gdy wszystkie kontrolki są już utworzone
             ApplyResponsiveLayout();
 
-            // Auto-odświeżanie co 1 minutę
+            // Auto-odświeżanie co 3 minuty
             _autoRefreshTimer = new System.Windows.Threading.DispatcherTimer();
-            _autoRefreshTimer.Interval = TimeSpan.FromMinutes(1);
+            _autoRefreshTimer.Interval = TimeSpan.FromMinutes(3);
             _autoRefreshTimer.Tick += AutoRefreshTimer_Tick;
             _autoRefreshTimer.Start();
 
@@ -505,6 +510,99 @@ namespace Kalendarz1.WPF
 
             // Obsługa edycji notatek - zapisz przy utracie fokusa
             txtNotes.LostFocus += TxtNotes_LostFocus;
+
+            // ✅ PRELOAD: Załaduj dane dla sąsiednich dat w tle (przyspiesza przełączanie)
+            _ = PreloadAdjacentDatesAsync(_selectedDate);
+        }
+
+        /// <summary>
+        /// Preload danych dla sąsiednich dat (poprzedni i następny dzień) w tle
+        /// </summary>
+        private async Task PreloadAdjacentDatesAsync(DateTime centerDate)
+        {
+            await Task.Delay(500); // Poczekaj aż główne UI się załaduje
+
+            var datesToPreload = new[]
+            {
+                centerDate.AddDays(-1),
+                centerDate.AddDays(1)
+            };
+
+            foreach (var date in datesToPreload)
+            {
+                try
+                {
+                    // Preload wydań i przychodów dla tej daty
+                    await PreloadDataForDateAsync(date);
+                }
+                catch { /* Ignoruj błędy preloadu */ }
+            }
+        }
+
+        /// <summary>
+        /// Preload wydań i przychodów dla konkretnej daty (bez wyświetlania)
+        /// </summary>
+        private async Task PreloadDataForDateAsync(DateTime date)
+        {
+            date = ValidateSqlDate(date);
+
+            // Preload wydań (jeśli nie ma w cache)
+            if (_cachedWydaniaDate != date.Date)
+            {
+                var wydaniaTask = Task.Run(async () =>
+                {
+                    var result = new Dictionary<int, decimal>();
+                    await using var cn = new SqlConnection(_connHandel);
+                    await cn.OpenAsync();
+                    const string sql = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc))
+                        FROM [HANDEL].[HM].[MZ] MZ
+                        JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
+                        WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny=1 AND MG.data = @Day
+                        GROUP BY MZ.idtw";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Day", date.Date);
+                    await using var reader = await cmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        int productId = reader.GetInt32(0);
+                        decimal qty = reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1));
+                        result[productId] = qty;
+                    }
+                    return result;
+                });
+
+                // Preload przychodów równolegle
+                var przychodyTask = Task.Run(async () =>
+                {
+                    var tuszkaA = new Dictionary<int, decimal>();
+                    var elementy = new Dictionary<int, decimal>();
+                    await using var cn = new SqlConnection(_connHandel);
+                    await cn.OpenAsync();
+                    const string sql = @"
+                        SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) AS Ilosc,
+                               CASE WHEN MG.seria = 'sPWU' THEN 'T' ELSE 'E' END AS Typ
+                        FROM [HANDEL].[HM].[MZ] MZ
+                        JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
+                        WHERE MG.seria IN ('sPWU', 'sPWP', 'PWP') AND MG.aktywny=1 AND MG.data = @Day
+                        GROUP BY MZ.idtw, CASE WHEN MG.seria = 'sPWU' THEN 'T' ELSE 'E' END";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Day", date.Date);
+                    await using var rdr = await cmd.ExecuteReaderAsync();
+                    while (await rdr.ReadAsync())
+                    {
+                        int productId = rdr.GetInt32(0);
+                        decimal qty = rdr.IsDBNull(1) ? 0m : Convert.ToDecimal(rdr.GetValue(1));
+                        string typ = rdr.GetString(2);
+                        if (typ == "T") tuszkaA[productId] = qty;
+                        else elementy[productId] = qty;
+                    }
+                    return (tuszkaA, elementy);
+                });
+
+                await Task.WhenAll(wydaniaTask, przychodyTask);
+                // Nie zapisujemy do głównego cache - to tylko preload
+                // Cache zostanie zaktualizowany gdy użytkownik przełączy się na tę datę
+            }
         }
 
         private void MainWindow_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
@@ -550,6 +648,22 @@ namespace Kalendarz1.WPF
                 BtnPrint_Click(this, new RoutedEventArgs());
                 e.Handled = true;
             }
+            // Ctrl+Shift+D - Włącz diagnostykę czasów ładowania
+            else if (e.Key == System.Windows.Input.Key.D &&
+                (System.Windows.Input.Keyboard.Modifiers & (System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift))
+                == (System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift))
+            {
+                _showLoadingDiagnostics = true;
+                MessageBox.Show("Diagnostyka włączona!\n\nTeraz zmień datę lub odśwież (F5),\naby zobaczyć szczegółowe czasy ładowania.",
+                    "Diagnostyka", MessageBoxButton.OK, MessageBoxImage.Information);
+                e.Handled = true;
+            }
+            // F5 - Odśwież dane
+            else if (e.Key == System.Windows.Input.Key.F5)
+            {
+                _ = RefreshAllDataAsync();
+                e.Handled = true;
+            }
         }
 
         private void FilterDebounceTimer_Tick(object sender, EventArgs e)
@@ -567,6 +681,8 @@ namespace Kalendarz1.WPF
         {
             await RefreshAllDataAsync();
         }
+
+        // Diagnostyka czasów usunięta - przycisk już nie istnieje
 
         #region Przyciski otwierania osobnych okien
 
@@ -917,10 +1033,7 @@ namespace Kalendarz1.WPF
                 }
             }
 
-            var salesmenList = new List<string> { "— Wszyscy —" };
-            salesmenList.AddRange(_salesmenCache);
-            cbFilterSalesman.ItemsSource = salesmenList;
-            cbFilterSalesman.SelectedIndex = 0;
+            // Salesmen cache is kept for potential future use
 
             if (_slaughterDateColumnExists)
             {
@@ -1160,8 +1273,6 @@ namespace Kalendarz1.WPF
         {
             int delta = ((int)_selectedDate.DayOfWeek + 6) % 7;
             DateTime startOfWeek = _selectedDate.AddDays(-delta);
-
-            lblWeekRange.Text = $"{startOfWeek:dd.MM.yyyy}\n{startOfWeek.AddDays(6):dd.MM.yyyy}";
 
             string[] dayNames = { "Pon", "Wt", "Śr", "Czw", "Pt", "So", "Nd" };
 
@@ -2384,6 +2495,9 @@ namespace Kalendarz1.WPF
             if (_isRefreshing) return;
             _isRefreshing = true;
 
+            // ✅ Pokaż overlay ładowania
+            loadingOverlay.Visibility = Visibility.Visible;
+
             // Status bar - start
             UpdateStatus("Ładowanie danych...");
             var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -2473,6 +2587,9 @@ namespace Kalendarz1.WPF
                 _isRefreshing = false;
                 sw.Stop();
 
+                // ✅ Ukryj overlay ładowania
+                loadingOverlay.Visibility = Visibility.Collapsed;
+
                 // Status bar - koniec
                 UpdateStatus($"Gotowy - załadowano w {sw.ElapsedMilliseconds}ms");
                 txtStatusTime.Text = $"Ostatnia aktualizacja: {DateTime.Now:HH:mm:ss}";
@@ -2480,28 +2597,91 @@ namespace Kalendarz1.WPF
                 // Pokaż diagnostykę czasów ładowania
                 if (_showLoadingDiagnostics)
                 {
-                    var details = new System.Text.StringBuilder();
-                    details.AppendLine("═══ ŁADOWANIE ZAMÓWIEŃ ═══");
-                    foreach (var t in _lastLoadOrdersDiag)
-                        details.AppendLine($"  {t.name}: {t.ms} ms");
-                    details.AppendLine($"  SUMA: {_lastLoadOrdersDiag.Sum(x => x.ms)} ms");
-
-                    details.AppendLine("\n═══ PODSUMOWANIE PRODUKTÓW ═══");
-                    foreach (var t in _lastAggregationDiag)
-                        details.AppendLine($"  {t.name}: {t.ms} ms");
-                    details.AppendLine($"  SUMA: {_lastAggregationDiag.Sum(x => x.ms)} ms");
-
-                    details.AppendLine($"\n══════════════════════");
-                    details.AppendLine($"ŁĄCZNIE: {sw.ElapsedMilliseconds} ms");
-
-                    MessageBox.Show(details.ToString(),
-                        $"Diagnostyka ładowania - {_selectedDate:dd.MM.yyyy}",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
-
-                    // Wyłącz po pierwszym pokazaniu (aby nie irytować)
+                    ShowDiagnosticsWindow(sw.ElapsedMilliseconds);
                     _showLoadingDiagnostics = false;
                 }
+
+                // ✅ PRELOAD: Załaduj dane dla sąsiednich dat w tle
+                _ = PreloadAdjacentDatesAsync(_selectedDate);
             }
+        }
+
+        private void ShowDiagnosticsWindow(long totalMs)
+        {
+            var allTimes = new List<(string category, string name, long ms)>();
+
+            foreach (var t in _lastLoadOrdersDiag)
+                allTimes.Add(("Zamówienia", t.name, t.ms));
+            foreach (var t in _lastAggregationDiag)
+                allTimes.Add(("Podsumowanie", t.name, t.ms));
+
+            long maxMs = allTimes.Any() ? allTimes.Max(x => x.ms) : 1;
+            const int barMaxLen = 30;
+
+            var details = new System.Text.StringBuilder();
+            details.AppendLine("╔══════════════════════════════════════════════════════════════╗");
+            details.AppendLine("║          DIAGNOSTYKA CZASÓW ŁADOWANIA                        ║");
+            details.AppendLine("╠══════════════════════════════════════════════════════════════╣");
+
+            details.AppendLine("║                                                              ║");
+            details.AppendLine("║  📋 ŁADOWANIE ZAMÓWIEŃ                                       ║");
+            details.AppendLine("║  ────────────────────────────────────────────────────────    ║");
+            long sumaZam = 0;
+            foreach (var t in _lastLoadOrdersDiag)
+            {
+                int barLen = maxMs > 0 ? (int)((t.ms * barMaxLen) / maxMs) : 0;
+                string bar = new string('█', barLen) + new string('░', barMaxLen - barLen);
+                string warning = t.ms > 500 ? " ⚠️" : (t.ms > 200 ? " ⏱" : "");
+                details.AppendLine($"║  {t.name,-16} {bar} {t.ms,5} ms{warning,-3}   ║");
+                sumaZam += t.ms;
+            }
+            details.AppendLine($"║  {"SUMA",-16} {"",barMaxLen} {sumaZam,5} ms     ║");
+
+            details.AppendLine("║                                                              ║");
+            details.AppendLine("║  📊 PODSUMOWANIE PRODUKTÓW                                   ║");
+            details.AppendLine("║  ────────────────────────────────────────────────────────    ║");
+            long sumaAgg = 0;
+            foreach (var t in _lastAggregationDiag)
+            {
+                int barLen = maxMs > 0 ? (int)((t.ms * barMaxLen) / maxMs) : 0;
+                string bar = new string('█', barLen) + new string('░', barMaxLen - barLen);
+                string warning = t.ms > 500 ? " ⚠️" : (t.ms > 200 ? " ⏱" : "");
+                details.AppendLine($"║  {t.name,-16} {bar} {t.ms,5} ms{warning,-3}   ║");
+                sumaAgg += t.ms;
+            }
+            details.AppendLine($"║  {"SUMA",-16} {"",barMaxLen} {sumaAgg,5} ms     ║");
+
+            details.AppendLine("║                                                              ║");
+            details.AppendLine("╠══════════════════════════════════════════════════════════════╣");
+            details.AppendLine($"║  🏁 ŁĄCZNIE: {totalMs} ms                                        ║");
+            details.AppendLine("╚══════════════════════════════════════════════════════════════╝");
+
+            // Analiza wąskich gardeł
+            var slowItems = allTimes.Where(x => x.ms > 200).OrderByDescending(x => x.ms).ToList();
+            if (slowItems.Any())
+            {
+                details.AppendLine();
+                details.AppendLine("⚡ WĄSKIE GARDŁA (>200ms):");
+                foreach (var item in slowItems)
+                {
+                    double pct = totalMs > 0 ? (item.ms * 100.0 / totalMs) : 0;
+                    details.AppendLine($"   • {item.name}: {item.ms}ms ({pct:F1}% całości)");
+                }
+            }
+
+            // Wskazówki optymalizacji
+            var sqlItems = allTimes.Where(x => x.name.Contains("Sql") || x.name.Contains("SQL")).Sum(x => x.ms);
+            if (sqlItems > totalMs * 0.7)
+            {
+                details.AppendLine();
+                details.AppendLine("💡 WSKAZÓWKI:");
+                details.AppendLine($"   SQL stanowi {sqlItems * 100.0 / totalMs:F0}% czasu.");
+                details.AppendLine("   Rozważ indeksy na kolumnach DataUboju, DataZamowienia.");
+            }
+
+            MessageBox.Show(details.ToString(),
+                $"Diagnostyka - {_selectedDate:dd.MM.yyyy}",
+                MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void UpdateStatus(string message)
@@ -2551,6 +2731,7 @@ namespace Kalendarz1.WPF
             _dtOrders.Columns.Add("Prod", typeof(string));
             _dtOrders.Columns.Add("CzyMaCeny", typeof(bool));
             _dtOrders.Columns.Add("CenaInfo", typeof(string));
+            _dtOrders.Columns.Add("SredniaCena", typeof(decimal));
             _dtOrders.Columns.Add("TerminInfo", typeof(string));
             _dtOrders.Columns.Add("TransportInfo", typeof(string));
             _dtOrders.Columns.Add("CzyZrealizowane", typeof(bool));
@@ -2566,64 +2747,80 @@ namespace Kalendarz1.WPF
                 _dtOrders.Columns.Add(colName, typeof(decimal));
             }
 
+            // ✅ OPTYMALIZACJA: Równoległe ładowanie Kontrahenci + Zamówienia + Wydania
             diagSw.Restart();
+            int? selectedProductId = _selectedProductId;
+            var temp = new DataTable();
+            var clientsWithOrders = new HashSet<int>();
+            _processedOrderIds.Clear();
+
             var contractors = new Dictionary<int, (string Name, string Salesman)>();
-            await using (var cnHandel = new SqlConnection(_connHandel))
+            Dictionary<int, Dictionary<int, decimal>> releasesPerClientProduct = null;
+
+            // ✅ OPTYMALIZACJA: Użyj cache kontrahentów (ważne przez 5 minut)
+            bool kontrahenciFromCache = _cachedKontrahenci.Count > 0 &&
+                                        (DateTime.Now - _cachedKontrahenciTime).TotalMinutes < 5;
+
+            // Zadanie 1: Kontrahenci z HANDEL (lub cache)
+            var taskKontrahenci = Task.Run(async () =>
             {
-                await cnHandel.OpenAsync();
+                if (kontrahenciFromCache)
+                {
+                    return _cachedKontrahenci;
+                }
+
+                var result = new Dictionary<int, (string Name, string Salesman)>();
+                await using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync();
                 const string sqlContr = @"SELECT c.Id, c.Shortcut, wym.CDim_Handlowiec_Val
                                 FROM [HANDEL].[SSCommon].[STContractors] c
                                 LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] wym
                                 ON c.Id = wym.ElementId";
-                await using var cmdContr = new SqlCommand(sqlContr, cnHandel);
-                await using var rd = await cmdContr.ExecuteReaderAsync();
-
+                await using var cmd = new SqlCommand(sqlContr, cn);
+                await using var rd = await cmd.ExecuteReaderAsync();
                 while (await rd.ReadAsync())
                 {
                     int id = rd.GetInt32(0);
                     string shortcut = rd.IsDBNull(1) ? "" : rd.GetString(1);
                     string salesman = rd.IsDBNull(2) ? "" : rd.GetString(2);
-                    contractors[id] = (string.IsNullOrWhiteSpace(shortcut) ? $"KH {id}" : shortcut, salesman);
+                    result[id] = (string.IsNullOrWhiteSpace(shortcut) ? $"KH {id}" : shortcut, salesman);
                 }
-            }
-            diagTimes.Add(("Kontrahenci", diagSw.ElapsedMilliseconds));
 
-            int? selectedProductId = _selectedProductId;
+                // Zapisz do cache
+                _cachedKontrahenci = result;
+                _cachedKontrahenciTime = DateTime.Now;
 
-            diagSw.Restart();
-            var temp = new DataTable();
-            var clientsWithOrders = new HashSet<int>();
-            _processedOrderIds.Clear();
+                return result;
+            });
 
-            await using (var cnLibra = new SqlConnection(_connLibra))
+            // Zadanie 2: Zamówienia z LIBRA (KlienciZam + SQL Zamówienia)
+            string dateColumn = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
+            string dateColumnZm = (_showBySlaughterDate && _slaughterDateColumnExists) ? "zm.DataUboju" : "zm.DataZamowienia";
+            string slaughterDateSelect = _slaughterDateColumnExists ? ", zm.DataUboju" : "";
+            string slaughterDateGroupBy = _slaughterDateColumnExists ? ", zm.DataUboju" : "";
+
+            var taskZamowienia = Task.Run(async () =>
             {
-                await cnLibra.OpenAsync();
-                string dateColumn = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
+                var clients = new HashSet<int>();
+                var ordersTable = new DataTable();
 
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                // KlienciZam
                 string sqlClients = $@"SELECT DISTINCT KlientId FROM [dbo].[ZamowieniaMieso]
                               WHERE {dateColumn} = @Day AND KlientId IS NOT NULL";
-                await using var cmdClients = new SqlCommand(sqlClients, cnLibra);
-                cmdClients.Parameters.AddWithValue("@Day", day);
-                await using var readerClients = await cmdClients.ExecuteReaderAsync();
-
-                while (await readerClients.ReadAsync())
+                await using (var cmdClients = new SqlCommand(sqlClients, cn))
                 {
-                    clientsWithOrders.Add(readerClients.GetInt32(0));
+                    cmdClients.Parameters.AddWithValue("@Day", day);
+                    await using var readerClients = await cmdClients.ExecuteReaderAsync();
+                    while (await readerClients.ReadAsync())
+                        clients.Add(readerClients.GetInt32(0));
                 }
-            }
-            diagTimes.Add(("KlienciZam", diagSw.ElapsedMilliseconds));
 
-            diagSw.Restart();
-            if (_productCatalogCache.Keys.Any())
-            {
-                await using (var cnLibra = new SqlConnection(_connLibra))
+                // SQL Zamówienia
+                if (_productCatalogCache.Keys.Any())
                 {
-                    await cnLibra.OpenAsync();
-                    var idwList = string.Join(",", _productCatalogCache.Keys);
-                    string dateColumn = (_showBySlaughterDate && _slaughterDateColumnExists) ? "zm.DataUboju" : "zm.DataZamowienia";
-                    string slaughterDateSelect = _slaughterDateColumnExists ? ", zm.DataUboju" : "";
-                    string slaughterDateGroupBy = _slaughterDateColumnExists ? ", zm.DataUboju" : "";
-
                     string sql = $@"
 SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc,
        zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
@@ -2639,29 +2836,67 @@ SELECT zm.Id, zm.KlientId, SUM(ISNULL(zmt.Ilosc,0)) AS Ilosc,
        zm.DataWydania{slaughterDateSelect}
 FROM [dbo].[ZamowieniaMieso] zm
 LEFT JOIN [dbo].[ZamowieniaMiesoTowar] zmt ON zm.Id = zmt.ZamowienieId
-WHERE {dateColumn} = @Day " +
-                                (selectedProductId.HasValue ? "AND (zmt.KodTowaru = @ProductId OR zmt.KodTowaru IS NULL) " : "") +
-                                $@"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
+WHERE {dateColumnZm} = @Day " +
+                        (selectedProductId.HasValue ? "AND (zmt.KodTowaru = @ProductId OR zmt.KodTowaru IS NULL) " : "") +
+                        $@"GROUP BY zm.Id, zm.KlientId, zm.DataPrzyjazdu, zm.DataUtworzenia, zm.IdUser, zm.Status,
      zm.LiczbaPojemnikow, zm.LiczbaPalet, zm.TrybE2, zm.Uwagi, zm.TransportKursID, zm.CzyZrealizowane, zm.DataWydania{slaughterDateGroupBy}
 ORDER BY zm.Id";
 
-                    await using var cmd = new SqlCommand(sql, cnLibra);
+                    await using var cmd = new SqlCommand(sql, cn);
                     cmd.Parameters.AddWithValue("@Day", day);
                     if (selectedProductId.HasValue)
                         cmd.Parameters.AddWithValue("@ProductId", selectedProductId.Value);
 
                     using var da = new SqlDataAdapter(cmd);
-                    da.Fill(temp);
+                    da.Fill(ordersTable);
+                }
+                return (clients, ordersTable);
+            });
+
+            // Zadanie 3: Wydania z HANDEL (równolegle!)
+            var taskWydania = GetReleasesPerClientProductAsync(day);
+
+            // Czekaj na wszystkie zadania
+            await Task.WhenAll(taskKontrahenci, taskZamowienia, taskWydania);
+            contractors = await taskKontrahenci;
+            var zamResult = await taskZamowienia;
+            clientsWithOrders = zamResult.clients;
+            temp = zamResult.ordersTable;
+            releasesPerClientProduct = await taskWydania;
+
+            // Cache wydań
+            var wydaniaSumPerProduct = new Dictionary<int, decimal>();
+            foreach (var clientReleases in releasesPerClientProduct.Values)
+            {
+                foreach (var kvp in clientReleases)
+                {
+                    if (!wydaniaSumPerProduct.ContainsKey(kvp.Key))
+                        wydaniaSumPerProduct[kvp.Key] = 0;
+                    wydaniaSumPerProduct[kvp.Key] += kvp.Value;
                 }
             }
-            diagTimes.Add(("SQL Zamówienia", diagSw.ElapsedMilliseconds));
+            _cachedWydaniaSum = wydaniaSumPerProduct;
+            _cachedWydaniaDate = day.Date;
 
+            string kontrLabel = kontrahenciFromCache ? "Kontr©+Zam+Wyd(||)" : "Kontr+Zam+Wyd(||)";
+            diagTimes.Add((kontrLabel, diagSw.ElapsedMilliseconds));
+
+            // ✅ OPTYMALIZACJA: Zbierz dane potrzebne do równoległych zapytań
             diagSw.Restart();
-            // Load transport departure times from dbo.Kurs
-            var transportTimes = new Dictionary<long, (TimeSpan? GodzWyjazdu, DateTime? DataKursu)>();
             var transportKursIds = new List<long>();
+            var zamowieniaIds = new List<int>();
+            var anulowaneZamowieniaIds = new HashSet<int>();
+
             foreach (DataRow r in temp.Rows)
             {
+                int id = Convert.ToInt32(r["Id"]);
+                if (id > 0)
+                {
+                    zamowieniaIds.Add(id);
+                    string status = r["Status"]?.ToString() ?? "";
+                    if (string.Equals(status, "Anulowane", StringComparison.OrdinalIgnoreCase))
+                        anulowaneZamowieniaIds.Add(id);
+                }
                 if (temp.Columns.Contains("TransportKursID") && !(r["TransportKursID"] is DBNull))
                 {
                     long kursId = Convert.ToInt64(r["TransportKursID"]);
@@ -2670,86 +2905,128 @@ ORDER BY zm.Id";
                 }
             }
 
-            if (transportKursIds.Any())
+            // ✅ RÓWNOLEGŁE ZAPYTANIA: TransportKurs, TransportInfo, GrupyTowarowe, SrednieCeny
+            var transportTimes = new Dictionary<long, (TimeSpan? GodzWyjazdu, DateTime? DataKursu)>();
+            var sumaPerZamowieniePerGrupa = new Dictionary<int, Dictionary<string, decimal>>();
+            var srednieCenyZamowien = new Dictionary<int, decimal>();
+            Dictionary<long, (DateTime DataKursu, TimeSpan? GodzWyjazdu, string Kierowca)> transportInfo = null;
+
+            var taskTransportKurs = Task.Run(async () =>
             {
-                try
+                var result = new Dictionary<long, (TimeSpan? GodzWyjazdu, DateTime? DataKursu)>();
+                if (transportKursIds.Any())
                 {
-                    await using var cnTransport = new SqlConnection(_connTransport);
-                    await cnTransport.OpenAsync();
-                    var kursIdsList = string.Join(",", transportKursIds);
-                    var sqlKurs = $"SELECT KursID, GodzWyjazdu, DataKursu FROM dbo.Kurs WHERE KursID IN ({kursIdsList})";
-                    await using var cmdKurs = new SqlCommand(sqlKurs, cnTransport);
-                    await using var rdKurs = await cmdKurs.ExecuteReaderAsync();
-                    while (await rdKurs.ReadAsync())
+                    try
                     {
-                        long kursId = rdKurs.GetInt64(0);
-                        TimeSpan? godzWyjazdu = rdKurs.IsDBNull(1) ? null : rdKurs.GetTimeSpan(1);
-                        DateTime? dataKursu = rdKurs.IsDBNull(2) ? null : rdKurs.GetDateTime(2);
-                        transportTimes[kursId] = (godzWyjazdu, dataKursu);
+                        await using var cn = new SqlConnection(_connTransport);
+                        await cn.OpenAsync();
+                        var kursIdsList = string.Join(",", transportKursIds);
+                        var sqlKurs = $"SELECT KursID, GodzWyjazdu, DataKursu FROM dbo.Kurs WHERE KursID IN ({kursIdsList})";
+                        await using var cmd = new SqlCommand(sqlKurs, cn);
+                        await using var rd = await cmd.ExecuteReaderAsync();
+                        while (await rd.ReadAsync())
+                        {
+                            long kursId = rd.GetInt64(0);
+                            TimeSpan? godzWyjazdu = rd.IsDBNull(1) ? null : rd.GetTimeSpan(1);
+                            DateTime? dataKursu = rd.IsDBNull(2) ? null : rd.GetDateTime(2);
+                            result[kursId] = (godzWyjazdu, dataKursu);
+                        }
+                    }
+                    catch { }
+                }
+                return result;
+            });
+
+            var taskTransportInfo = GetTransportInfoAsync(day);
+
+            var taskGrupyTowarowe = Task.Run(async () =>
+            {
+                var result = new Dictionary<int, Dictionary<string, decimal>>();
+                if (_grupyTowaroweNazwy.Any() && zamowieniaIds.Any())
+                {
+                    await using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
+                    var sqlGrupy = $"SELECT ZamowienieId, KodTowaru, SUM(Ilosc) AS Ilosc FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId IN ({string.Join(",", zamowieniaIds)}) GROUP BY ZamowienieId, KodTowaru";
+                    await using var cmd = new SqlCommand(sqlGrupy, cn);
+                    await using var reader = await cmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        int zamId = reader.GetInt32(0);
+                        int kodTowaru = reader.GetInt32(1);
+                        decimal iloscTowaru = reader.IsDBNull(2) ? 0m : Convert.ToDecimal(reader.GetValue(2));
+                        if (_mapowanieScalowania.TryGetValue(kodTowaru, out var nazwaGrupy))
+                        {
+                            if (!result.ContainsKey(zamId))
+                                result[zamId] = new Dictionary<string, decimal>();
+                            if (!result[zamId].ContainsKey(nazwaGrupy))
+                                result[zamId][nazwaGrupy] = 0m;
+                            result[zamId][nazwaGrupy] += iloscTowaru;
+                        }
                     }
                 }
-                catch { /* Ignore transport errors - show just checkmark */ }
-            }
-            diagTimes.Add(("TransportKurs", diagSw.ElapsedMilliseconds));
+                return result;
+            });
 
-            diagSw.Restart();
-            var releasesPerClientProduct = await GetReleasesPerClientProductAsync(day);
-            diagTimes.Add(("Wydania", diagSw.ElapsedMilliseconds));
+            var taskSrednieCeny = Task.Run(async () =>
+            {
+                var result = new Dictionary<int, decimal>();
+                if (zamowieniaIds.Any())
+                {
+                    try
+                    {
+                        await using var cn = new SqlConnection(_connLibra);
+                        await cn.OpenAsync();
 
-            diagSw.Restart();
-            var transportInfo = await GetTransportInfoAsync(day);
-            diagTimes.Add(("TransportInfo", diagSw.ElapsedMilliseconds));
+                        string sqlCeny;
+                        if (selectedProductId.HasValue)
+                        {
+                            // Gdy wybrany konkretny produkt - pokaż cenę tego produktu
+                            sqlCeny = $@"SELECT ZamowienieId,
+                                ISNULL(TRY_CAST(Cena AS DECIMAL(18,2)), 0) AS Cena
+                                FROM [dbo].[ZamowieniaMiesoTowar]
+                                WHERE ZamowienieId IN ({string.Join(",", zamowieniaIds)})
+                                  AND KodTowaru = {selectedProductId.Value}
+                                  AND Cena IS NOT NULL AND Cena <> '' AND Cena <> '0'";
+                        }
+                        else
+                        {
+                            // Gdy brak filtra - średnia ważona wszystkich produktów
+                            sqlCeny = $@"SELECT ZamowienieId,
+                                CASE WHEN SUM(Ilosc) > 0
+                                     THEN SUM(Ilosc * TRY_CAST(Cena AS DECIMAL(18,2))) / SUM(Ilosc)
+                                     ELSE 0 END AS SredniaCena
+                                FROM [dbo].[ZamowieniaMiesoTowar]
+                                WHERE ZamowienieId IN ({string.Join(",", zamowieniaIds)})
+                                  AND Cena IS NOT NULL AND Cena <> '' AND Cena <> '0'
+                                GROUP BY ZamowienieId";
+                        }
+
+                        await using var cmd = new SqlCommand(sqlCeny, cn);
+                        await using var reader = await cmd.ExecuteReaderAsync();
+                        while (await reader.ReadAsync())
+                        {
+                            int zamId = reader.GetInt32(0);
+                            decimal cena = reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1));
+                            result[zamId] = cena;
+                        }
+                    }
+                    catch { }
+                }
+                return result;
+            });
+
+            // Czekaj na wszystkie równoległe zadania
+            await Task.WhenAll(taskTransportKurs, taskTransportInfo, taskGrupyTowarowe, taskSrednieCeny);
+            transportTimes = await taskTransportKurs;
+            transportInfo = await taskTransportInfo;
+            sumaPerZamowieniePerGrupa = await taskGrupyTowarowe;
+            srednieCenyZamowien = await taskSrednieCeny;
+
+            diagTimes.Add(("Trans+Grupy+Ceny(||)", diagSw.ElapsedMilliseconds));
             var cultureInfo = new CultureInfo("pl-PL");
 
             // Polskie skróty miesięcy dla formatu "Sty 12 (Ania)"
             string[] polskieMiesiaceSkrot = { "", "Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru" };
-
-            diagSw.Restart();
-            // Pobierz sumy per zamówienie per grupa towarowa
-            var sumaPerZamowieniePerGrupa = new Dictionary<int, Dictionary<string, decimal>>();
-            var anulowaneZamowieniaIds = new HashSet<int>(); // Śledzenie anulowanych zamówień
-            if (_grupyTowaroweNazwy.Any() && temp.Rows.Count > 0)
-            {
-                // Zbierz ID anulowanych zamówień
-                foreach (DataRow r in temp.Rows)
-                {
-                    int id = Convert.ToInt32(r["Id"]);
-                    string status = r["Status"]?.ToString() ?? "";
-                    if (id > 0 && string.Equals(status, "Anulowane", StringComparison.OrdinalIgnoreCase))
-                    {
-                        anulowaneZamowieniaIds.Add(id);
-                    }
-                }
-
-                var zamowieniaIds = temp.AsEnumerable().Select(r => Convert.ToInt32(r["Id"])).Where(id => id > 0).ToList();
-                if (zamowieniaIds.Any())
-                {
-                    await using var cnLibraGrupy = new SqlConnection(_connLibra);
-                    await cnLibraGrupy.OpenAsync();
-                    var sqlGrupy = $"SELECT ZamowienieId, KodTowaru, SUM(Ilosc) AS Ilosc FROM [dbo].[ZamowieniaMiesoTowar] WHERE ZamowienieId IN ({string.Join(",", zamowieniaIds)}) GROUP BY ZamowienieId, KodTowaru";
-                    await using var cmdGrupy = new SqlCommand(sqlGrupy, cnLibraGrupy);
-                    await using var readerGrupy = await cmdGrupy.ExecuteReaderAsync();
-                    while (await readerGrupy.ReadAsync())
-                    {
-                        int zamId = readerGrupy.GetInt32(0);
-                        int kodTowaru = readerGrupy.GetInt32(1);
-                        decimal iloscTowaru = readerGrupy.IsDBNull(2) ? 0m : Convert.ToDecimal(readerGrupy.GetValue(2));
-
-                        // Znajdź grupę dla tego towaru
-                        if (_mapowanieScalowania.TryGetValue(kodTowaru, out var nazwaGrupy))
-                        {
-                            if (!sumaPerZamowieniePerGrupa.ContainsKey(zamId))
-                                sumaPerZamowieniePerGrupa[zamId] = new Dictionary<string, decimal>();
-
-                            if (!sumaPerZamowieniePerGrupa[zamId].ContainsKey(nazwaGrupy))
-                                sumaPerZamowieniePerGrupa[zamId][nazwaGrupy] = 0m;
-
-                            sumaPerZamowieniePerGrupa[zamId][nazwaGrupy] += iloscTowaru;
-                        }
-                    }
-                }
-            }
-            diagTimes.Add(("GrupyTowarowe", diagSw.ElapsedMilliseconds));
 
             diagSw.Restart();
             decimal totalOrdered = 0m;
@@ -2941,6 +3218,7 @@ ORDER BY zm.Id";
                 newRow["Prod"] = prodColumn;
                 newRow["CzyMaCeny"] = czyMaCeny;
                 newRow["CenaInfo"] = cenaInfo;
+                newRow["SredniaCena"] = srednieCenyZamowien.TryGetValue(id, out var sc) ? sc : 0m;
                 newRow["TerminInfo"] = terminInfo;
                 newRow["TransportInfo"] = transportInfoStr;
                 newRow["CzyZrealizowane"] = czyZrealizowane;
@@ -3003,6 +3281,7 @@ ORDER BY zm.Id";
                 row["Prod"] = "";
                 row["CzyMaCeny"] = false;
                 row["CenaInfo"] = "";
+                row["SredniaCena"] = 0m;
                 row["TerminInfo"] = "";
                 row["TransportInfo"] = "";
                 row["CzyZrealizowane"] = false;
@@ -3078,6 +3357,7 @@ ORDER BY zm.Id";
                 summaryRow["Prod"] = "";
                 summaryRow["CzyMaCeny"] = false;
                 summaryRow["CenaInfo"] = "";
+                summaryRow["SredniaCena"] = 0m;
                 summaryRow["TerminInfo"] = "";
                 summaryRow["TransportInfo"] = "";
                 summaryRow["CzyZrealizowane"] = false;
@@ -3380,20 +3660,20 @@ ORDER BY zm.Id";
             dgOrders.LoadingRow -= DgOrders_LoadingRow;
             dgOrders.LoadingRow += DgOrders_LoadingRow;
 
-            // 1. Odbiorca - poszerzona kolumna
+            // 1. Odbiorca - poszerzona kolumna (rozmiar M)
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Odbiorca",
                 Binding = new System.Windows.Data.Binding("Odbiorca"),
-                Width = new DataGridLength(150)
+                Width = new DataGridLength(180)
             });
 
-            // 2. Handlowiec
+            // 2. Handlowiec (rozmiar M)
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Hand.",
                 Binding = new System.Windows.Data.Binding("Handlowiec"),
-                Width = new DataGridLength(50),
+                Width = new DataGridLength(60),
                 ElementStyle = (Style)FindResource("BoldCellStyle")
             });
 
@@ -3406,11 +3686,11 @@ ORDER BY zm.Id";
             {
                 Header = "Zam.",
                 Binding = new System.Windows.Data.Binding("IloscZamowiona") { StringFormat = "N0" },
-                Width = new DataGridLength(55),
+                Width = new DataGridLength(70),
                 ElementStyle = zamowioneStyle
             });
 
-            // 4. Wydano - pogrubione
+            // 4. Wydano - pogrubione (rozmiar M)
             var wydaneStyle = new Style(typeof(TextBlock));
             wydaneStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
             wydaneStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
@@ -3419,11 +3699,11 @@ ORDER BY zm.Id";
             {
                 Header = "Wyd.",
                 Binding = new System.Windows.Data.Binding("IloscFaktyczna") { StringFormat = "N0" },
-                Width = new DataGridLength(55),
+                Width = new DataGridLength(70),
                 ElementStyle = wydaneStyle
             });
 
-            // 5. +/- (Różnica: Zam - Wyd)
+            // 5. +/- (Różnica: Zam - Wyd) (rozmiar M)
             var roznicaStyle = new Style(typeof(TextBlock));
             roznicaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
             roznicaStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
@@ -3432,48 +3712,11 @@ ORDER BY zm.Id";
             {
                 Header = "+/-",
                 Binding = new System.Windows.Data.Binding("Roznica") { StringFormat = "N0" },
-                Width = new DataGridLength(50),
+                Width = new DataGridLength(60),
                 ElementStyle = roznicaStyle
             });
 
-            // 6. Dynamiczne kolumny grup towarowych (ćwiartka, filet, korpus, skrzydło) z obramowaniem
-            // Dodajemy specjalny styl z obramowaniem dla kolumn produktowych
-            int productColumnStartIndex = dgOrders.Columns.Count;
-            foreach (var kvp in _grupyKolumnDoNazw)
-            {
-                string colName = kvp.Key;
-                string displayName = kvp.Value;
-
-                var grupaStyle = new Style(typeof(TextBlock));
-                grupaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
-                grupaStyle.Setters.Add(new Setter(TextBlock.FontSizeProperty, 11.0));
-                grupaStyle.Setters.Add(new Setter(TextBlock.PaddingProperty, new Thickness(2, 0, 4, 0)));
-
-                // Styl dla nagłówka z tłem, aby wyróżnić grupę kolumn produktowych
-                var headerStyle = new Style(typeof(DataGridColumnHeader));
-                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BackgroundProperty,
-                    new SolidColorBrush(Color.FromRgb(39, 174, 96)))); // Zielony kolor dla produktów
-                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.ForegroundProperty, Brushes.White));
-                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.FontWeightProperty, FontWeights.Bold));
-                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.FontSizeProperty, 10.0));
-                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.PaddingProperty, new Thickness(4, 4, 4, 4)));
-                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BorderBrushProperty,
-                    new SolidColorBrush(Color.FromRgb(46, 204, 113))));
-                headerStyle.Setters.Add(new Setter(DataGridColumnHeader.BorderThicknessProperty, new Thickness(1, 0, 1, 0)));
-
-                var col = new DataGridTextColumn
-                {
-                    Header = displayName,
-                    Binding = new System.Windows.Data.Binding(colName) { StringFormat = "N0" },
-                    Width = new DataGridLength(45),
-                    ElementStyle = grupaStyle,
-                    HeaderStyle = headerStyle
-                };
-
-                dgOrders.Columns.Add(col);
-            }
-
-            // 7. Cena - V (zielony) jeśli wszystkie pozycje mają cenę, X (czerwony) jeśli nie
+            // 6. Cena - V (zielony) jeśli wszystkie pozycje mają cenę, X (czerwony) jeśli nie
             var cenaStyle = new Style(typeof(TextBlock));
             cenaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
             cenaStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
@@ -3491,64 +3734,37 @@ ORDER BY zm.Id";
             {
                 Header = "Cena",
                 Binding = new System.Windows.Data.Binding("CenaInfo"),
-                Width = new DataGridLength(45),
+                Width = new DataGridLength(50),
                 ElementStyle = cenaStyle
             });
 
-            // 8. Utworzone przez - po kolumnie Cena
+            // 7. Średnia cena - wartość średniej ważonej ceny produktów (rozmiar M)
+            var sredniaCenaStyle = new Style(typeof(TextBlock));
+            sredniaCenaStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Right));
+            sredniaCenaStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(100, 100, 100))));
+
+            dgOrders.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Śr.Cena",
+                Binding = new System.Windows.Data.Binding("SredniaCena") { StringFormat = "N2" },
+                Width = new DataGridLength(70),
+                ElementStyle = sredniaCenaStyle
+            });
+
+            // 8. Utworzone przez (rozmiar M)
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Utworzono",
                 Binding = new System.Windows.Data.Binding("UtworzonePrzez"),
-                Width = new DataGridLength(85)
+                Width = new DataGridLength(120)
             });
 
-            // 9. Termin - godzina + skrócony dzień tygodnia odbioru
+            // 9. Termin (rozmiar M)
             dgOrders.Columns.Add(new DataGridTextColumn
             {
                 Header = "Termin",
                 Binding = new System.Windows.Data.Binding("TerminInfo"),
-                Width = new DataGridLength(75),
-                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
-            });
-
-            // 8. Transport - godzina:minuta + skrócony dzień wyjazdu z firmy
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Transport",
-                Binding = new System.Windows.Data.Binding("TransportInfo"),
-                Width = new DataGridLength(75),
-                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
-            });
-
-            // 9. Wypr. - czy wyprodukowane (zielone V / czerwone X)
-            var wyprStyle = new Style(typeof(TextBlock));
-            wyprStyle.Setters.Add(new Setter(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center));
-            wyprStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.Bold));
-
-            var wyprGreenTrigger = new DataTrigger { Binding = new System.Windows.Data.Binding("CzyZrealizowane"), Value = true };
-            wyprGreenTrigger.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(0, 150, 0))));
-
-            var wyprRedTrigger = new DataTrigger { Binding = new System.Windows.Data.Binding("CzyZrealizowane"), Value = false };
-            wyprRedTrigger.Setters.Add(new Setter(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(200, 0, 0))));
-
-            wyprStyle.Triggers.Add(wyprGreenTrigger);
-            wyprStyle.Triggers.Add(wyprRedTrigger);
-
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Wypr.",
-                Binding = new System.Windows.Data.Binding("WyprInfo"),
-                Width = new DataGridLength(45),
-                ElementStyle = wyprStyle
-            });
-
-            // 10. Wydano - godzina:minuta + skrócony dzień wydania
-            dgOrders.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Wydano",
-                Binding = new System.Windows.Data.Binding("WydanoInfo"),
-                Width = new DataGridLength(75),
+                Width = new DataGridLength(100),
                 ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
             });
         }
@@ -3578,11 +3794,15 @@ ORDER BY zm.Id";
 
             if (selectedTab == tabDashboard)
             {
-                // Ukryj prawy panel i rozszerz lewy
-                _savedRightColumnWidth = rightColumnDef.Width;
-                rightPanel.Visibility = Visibility.Collapsed;
-                rightColumnDef.Width = new GridLength(0);
-                leftColumnDef.Width = new GridLength(1, GridUnitType.Star);
+                // Ukryj prawy panel i rozszerz lewy (tylko jeśli nie był ukryty)
+                if (!_rightPanelHidden)
+                {
+                    _savedRightColumnWidth = rightColumnDef.Width;
+                    rightPanel.Visibility = Visibility.Collapsed;
+                    rightColumnDef.Width = new GridLength(0);
+                    leftColumnDef.Width = new GridLength(1, GridUnitType.Star);
+                    _rightPanelHidden = true;
+                }
 
                 // Lazy loading - załaduj dane Dashboard tylko gdy zakładka jest aktywna
                 if (!_dashboardLoaded)
@@ -3593,11 +3813,15 @@ ORDER BY zm.Id";
             }
             else if (selectedTab == tabStatystyki)
             {
-                // Ukryj prawy panel dla statystyk
-                _savedRightColumnWidth = rightColumnDef.Width;
-                rightPanel.Visibility = Visibility.Collapsed;
-                rightColumnDef.Width = new GridLength(0);
-                leftColumnDef.Width = new GridLength(1, GridUnitType.Star);
+                // Ukryj prawy panel dla statystyk (tylko jeśli nie był ukryty)
+                if (!_rightPanelHidden)
+                {
+                    _savedRightColumnWidth = rightColumnDef.Width;
+                    rightPanel.Visibility = Visibility.Collapsed;
+                    rightColumnDef.Width = new GridLength(0);
+                    leftColumnDef.Width = new GridLength(1, GridUnitType.Star);
+                    _rightPanelHidden = true;
+                }
 
                 // Lazy loading - załaduj statystyki tylko gdy zakładka jest aktywna
                 if (!_statystykiLoaded)
@@ -3609,10 +3833,13 @@ ORDER BY zm.Id";
             }
             else if (selectedTab?.Header?.ToString()?.Contains("Transport") == true)
             {
-                // Przywróć prawy panel
-                rightPanel.Visibility = Visibility.Visible;
-                rightColumnDef.Width = _savedRightColumnWidth;
-                leftColumnDef.Width = new GridLength(1, GridUnitType.Star);
+                // Przywróć prawy panel tylko jeśli był ukryty
+                if (_rightPanelHidden)
+                {
+                    rightPanel.Visibility = Visibility.Visible;
+                    rightColumnDef.Width = _savedRightColumnWidth;
+                    _rightPanelHidden = false;
+                }
 
                 // Lazy loading - załaduj transport tylko gdy zakładka jest aktywna
                 if (!_transportLoaded)
@@ -3623,10 +3850,13 @@ ORDER BY zm.Id";
             }
             else if (selectedTab?.Header?.ToString()?.Contains("Historia") == true)
             {
-                // Przywróć prawy panel
-                rightPanel.Visibility = Visibility.Visible;
-                rightColumnDef.Width = _savedRightColumnWidth;
-                leftColumnDef.Width = new GridLength(1, GridUnitType.Star);
+                // Przywróć prawy panel tylko jeśli był ukryty
+                if (_rightPanelHidden)
+                {
+                    rightPanel.Visibility = Visibility.Visible;
+                    rightColumnDef.Width = _savedRightColumnWidth;
+                    _rightPanelHidden = false;
+                }
 
                 // Lazy loading - załaduj historię zmian tylko gdy zakładka jest aktywna
                 if (!_historiaLoaded)
@@ -3640,10 +3870,13 @@ ORDER BY zm.Id";
             }
             else
             {
-                // Przywróć prawy panel
-                rightPanel.Visibility = Visibility.Visible;
-                rightColumnDef.Width = _savedRightColumnWidth;
-                leftColumnDef.Width = new GridLength(1, GridUnitType.Star);
+                // Przywróć prawy panel tylko jeśli był ukryty
+                if (_rightPanelHidden)
+                {
+                    rightPanel.Visibility = Visibility.Visible;
+                    rightColumnDef.Width = _savedRightColumnWidth;
+                    _rightPanelHidden = false;
+                }
             }
         }
 
@@ -3773,6 +4006,14 @@ ORDER BY zm.Id";
                 Width = new DataGridLength(1.5, DataGridLengthUnitType.Star),
                 MinWidth = 150
             });
+
+            dgHistoriaZmian.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Data uboju",
+                Binding = new System.Windows.Data.Binding("DataUboju") { StringFormat = "yyyy-MM-dd" },
+                Width = new DataGridLength(90),
+                ElementStyle = (Style)FindResource("CenterAlignedCellStyle")
+            });
         }
 
         private async Task LoadHistoriaZmianAsync(DateTime startDate, DateTime endDate)
@@ -3790,6 +4031,7 @@ ORDER BY zm.Id";
                 _dtHistoriaZmian.Columns.Add("Odbiorca", typeof(string));
                 _dtHistoriaZmian.Columns.Add("UzytkownikNazwa", typeof(string));
                 _dtHistoriaZmian.Columns.Add("OpisZmiany", typeof(string));
+                _dtHistoriaZmian.Columns.Add("DataUboju", typeof(DateTime));
             }
 
             // Pobierz dane kontrahentów
@@ -3813,8 +4055,9 @@ ORDER BY zm.Id";
                 }
             }
 
-            // Pobierz mapowanie zamówień do klientów
+            // Pobierz mapowanie zamówień do klientów i DataUboju
             var orderToClient = new Dictionary<int, int>();
+            var orderToDataUboju = new Dictionary<int, DateTime>();
             await using (var cnLibra = new SqlConnection(_connLibra))
             {
                 await cnLibra.OpenAsync();
@@ -3833,7 +4076,7 @@ ORDER BY zm.Id";
 
                 // Pobierz zamówienia z zakresu dat
                 string dateColumn = (_showBySlaughterDate && _slaughterDateColumnExists) ? "DataUboju" : "DataZamowienia";
-                string sqlOrders = $@"SELECT Id, KlientId FROM dbo.ZamowieniaMieso
+                string sqlOrders = $@"SELECT Id, KlientId, DataUboju FROM dbo.ZamowieniaMieso
                                      WHERE {dateColumn} BETWEEN @StartDate AND @EndDate";
                 await using var cmdOrders = new SqlCommand(sqlOrders, cnLibra);
                 cmdOrders.Parameters.AddWithValue("@StartDate", startDate);
@@ -3844,7 +4087,9 @@ ORDER BY zm.Id";
                 {
                     int orderId = rdrOrders.GetInt32(0);
                     int clientId = rdrOrders.GetInt32(1);
+                    DateTime dataUboju = rdrOrders.IsDBNull(2) ? DateTime.MinValue : rdrOrders.GetDateTime(2);
                     orderToClient[orderId] = clientId;
+                    orderToDataUboju[orderId] = dataUboju;
                 }
 
                 await rdrOrders.CloseAsync();
@@ -3876,15 +4121,20 @@ ORDER BY zm.Id";
 
                     string handlowiec = "";
                     string odbiorca = "";
+                    DateTime dataUboju = DateTime.MinValue;
                     if (orderToClient.TryGetValue(zamowienieId, out int clientId) &&
                         contractors.TryGetValue(clientId, out var contr))
                     {
                         handlowiec = contr.Salesman;
                         odbiorca = contr.Name;
                     }
+                    if (orderToDataUboju.TryGetValue(zamowienieId, out var du))
+                    {
+                        dataUboju = du;
+                    }
 
                     _dtHistoriaZmian.Rows.Add(id, zamowienieId, dataZmiany, typZmiany,
-                        handlowiec, odbiorca, uzytkownikNazwa, opisZmiany);
+                        handlowiec, odbiorca, uzytkownikNazwa, opisZmiany, dataUboju);
                 }
             }
 
@@ -3900,6 +4150,7 @@ ORDER BY zm.Id";
             var selectedTyp = cmbHistoriaTyp?.SelectedItem?.ToString();
             var selectedHandlowiec = cmbHistoriaHandlowiec?.SelectedItem?.ToString();
             var selectedTowar = cmbHistoriaTowar?.SelectedItem?.ToString();
+            var selectedDataUboju = cmbHistoriaDataUboju?.SelectedItem?.ToString();
 
             // Pobierz unikalne wartości z danych
             var ktoEdytowalList = new List<string> { "(Wszystkie)" };
@@ -3907,6 +4158,7 @@ ORDER BY zm.Id";
             var typList = new List<string> { "(Wszystkie)" };
             var handlowiecList = new List<string> { "(Wszystkie)" };
             var towarList = new List<string> { "(Wszystkie)" };
+            var dataUbojuList = new List<string> { "(Wszystkie)" };
 
             foreach (DataRow row in _dtHistoriaZmian.Rows)
             {
@@ -3915,6 +4167,9 @@ ORDER BY zm.Id";
                 string typ = row["TypZmiany"]?.ToString() ?? "";
                 string handlowiec = row["Handlowiec"]?.ToString() ?? "";
                 string opis = row["OpisZmiany"]?.ToString() ?? "";
+                var dataUboju = row["DataUboju"] as DateTime?;
+                string dataUbojuStr = dataUboju.HasValue && dataUboju.Value > DateTime.MinValue
+                    ? dataUboju.Value.ToString("yyyy-MM-dd") : "";
 
                 if (!string.IsNullOrWhiteSpace(kto) && !ktoEdytowalList.Contains(kto))
                     ktoEdytowalList.Add(kto);
@@ -3924,6 +4179,8 @@ ORDER BY zm.Id";
                     typList.Add(typ);
                 if (!string.IsNullOrWhiteSpace(handlowiec) && !handlowiecList.Contains(handlowiec))
                     handlowiecList.Add(handlowiec);
+                if (!string.IsNullOrWhiteSpace(dataUbojuStr) && !dataUbojuList.Contains(dataUbojuStr))
+                    dataUbojuList.Add(dataUbojuStr);
 
                 // Wyciągnij nazwy towarów z opisu zmiany
                 if (!string.IsNullOrWhiteSpace(opis))
@@ -3978,6 +4235,12 @@ ORDER BY zm.Id";
                 towarList = new List<string> { "(Wszystkie)" };
                 towarList.AddRange(sorted);
             }
+            if (dataUbojuList.Count > 1)
+            {
+                var sorted = dataUbojuList.Skip(1).OrderByDescending(x => x).ToList();
+                dataUbojuList = new List<string> { "(Wszystkie)" };
+                dataUbojuList.AddRange(sorted);
+            }
 
             // Wypełnij ComboBox
             if (cmbHistoriaKtoEdytowal != null)
@@ -4010,6 +4273,12 @@ ORDER BY zm.Id";
                 cmbHistoriaTowar.SelectedIndex = string.IsNullOrEmpty(selectedTowar) ? 0 :
                     Math.Max(0, towarList.IndexOf(selectedTowar));
             }
+            if (cmbHistoriaDataUboju != null)
+            {
+                cmbHistoriaDataUboju.ItemsSource = dataUbojuList;
+                cmbHistoriaDataUboju.SelectedIndex = string.IsNullOrEmpty(selectedDataUboju) ? 0 :
+                    Math.Max(0, dataUbojuList.IndexOf(selectedDataUboju));
+            }
         }
 
         private void CmbHistoriaFiltr_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -4024,6 +4293,7 @@ ORDER BY zm.Id";
             if (cmbHistoriaTyp != null) cmbHistoriaTyp.SelectedIndex = 0;
             if (cmbHistoriaHandlowiec != null) cmbHistoriaHandlowiec.SelectedIndex = 0;
             if (cmbHistoriaTowar != null) cmbHistoriaTowar.SelectedIndex = 0;
+            if (cmbHistoriaDataUboju != null) cmbHistoriaDataUboju.SelectedIndex = 0;
             ApplyHistoriaFilters();
         }
 
@@ -4060,6 +4330,16 @@ ORDER BY zm.Id";
             if (!string.IsNullOrEmpty(handlowiec) && handlowiec != "(Wszystkie)")
             {
                 filters.Add($"Handlowiec = '{handlowiec.Replace("'", "''")}'");
+            }
+
+            // Filtr: Data uboju
+            string dataUboju = cmbHistoriaDataUboju?.SelectedItem?.ToString();
+            if (!string.IsNullOrEmpty(dataUboju) && dataUboju != "(Wszystkie)")
+            {
+                if (DateTime.TryParse(dataUboju, out var dt))
+                {
+                    filters.Add($"DataUboju = '{dt:yyyy-MM-dd}'");
+                }
             }
 
             // Filtr: Towar (wyszukiwanie w opisie zmiany)
@@ -4320,13 +4600,14 @@ ORDER BY zm.Id";
                 decimal sumaZam = orderItems.Sum(x => x.Quantity);
                 int iloscPozycji = orderItems.Count;
 
+                // Usunięto txtOrderInfo (ID, Pozycji, Suma) - więcej miejsca na dane
                 if (txtOrderInfo != null)
                 {
-                    txtOrderInfo.Text = $"(ID: {orderId} | Pozycji: {iloscPozycji} | Suma: {sumaZam:#,##0} kg)";
+                    txtOrderInfo.Text = "";
                 }
                 if (txtOrderClient != null)
                 {
-                    txtOrderClient.Text = !string.IsNullOrEmpty(clientName) ? $"👤 {clientName}" : "";
+                    txtOrderClient.Text = !string.IsNullOrEmpty(clientName) ? clientName : "";
                 }
 
                 // Ustaw walutę w panelu
@@ -4558,6 +4839,9 @@ ORDER BY zm.Id";
             var diagSw = System.Diagnostics.Stopwatch.StartNew();
             var diagTimes = new List<(string name, long ms)>();
 
+            // Załaduj zdjęcia produktów (jeśli jeszcze nie załadowane)
+            await LoadProductImagesAsync();
+
             day = ValidateSqlDate(day);
 
             var dtAgg = new DataTable();
@@ -4602,41 +4886,12 @@ ORDER BY zm.Id";
             decimal pulaTuszkiA = pulaTuszki * (procentA / 100m);
             decimal pulaTuszkiB = pulaTuszki * (procentB / 100m);
 
+            // ✅ OPTYMALIZACJA: Cache przychodów + równoległe zapytania
             diagSw.Restart();
-            // OPTYMALIZACJA: Jedno zapytanie zamiast dwóch + jedno połączenie
             var actualIncomeTuszkaA = new Dictionary<int, decimal>();
             var actualIncomeElementy = new Dictionary<int, decimal>();
-            await using (var cn = new SqlConnection(_connHandel))
-            {
-                await cn.OpenAsync();
-                // Połączone zapytanie - pobiera oba typy w jednym wywołaniu
-                const string sql = @"
-                    SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) AS Ilosc,
-                           CASE WHEN MG.seria = 'sPWU' THEN 'T' ELSE 'E' END AS Typ
-                    FROM [HANDEL].[HM].[MZ] MZ
-                    JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
-                    WHERE MG.seria IN ('sPWU', 'sPWP', 'PWP') AND MG.aktywny=1 AND MG.data = @Day
-                    GROUP BY MZ.idtw, CASE WHEN MG.seria = 'sPWU' THEN 'T' ELSE 'E' END";
-                await using var cmd = new SqlCommand(sql, cn);
-                cmd.Parameters.AddWithValue("@Day", day.Date);
-                await using var rdr = await cmd.ExecuteReaderAsync();
-
-                while (await rdr.ReadAsync())
-                {
-                    int productId = rdr.GetInt32(0);
-                    decimal qty = rdr.IsDBNull(1) ? 0m : Convert.ToDecimal(rdr.GetValue(1));
-                    string typ = rdr.GetString(2);
-
-                    if (typ == "T")
-                        actualIncomeTuszkaA[productId] = qty;
-                    else
-                        actualIncomeElementy[productId] = qty;
-                }
-            }
-            diagTimes.Add(("PrzychodySql", diagSw.ElapsedMilliseconds));
-
-            diagSw.Restart();
             var orderSum = new Dictionary<int, decimal>();
+
             var orderIds = _dtOrders.AsEnumerable()
                 .Where(r => !string.Equals(r.Field<string>("Status"), "Anulowane", StringComparison.OrdinalIgnoreCase))
                 .Where(r => r.Field<string>("Status") != "SUMA")
@@ -4644,41 +4899,121 @@ ORDER BY zm.Id";
                 .Where(id => id > 0)
                 .ToList();
 
-            if (orderIds.Any())
-            {
-                await using var cn = new SqlConnection(_connLibra);
-                await cn.OpenAsync();
-                var sql = $"SELECT KodTowaru, SUM(Ilosc) FROM [dbo].[ZamowieniaMiesoTowar] " +
-                         $"WHERE ZamowienieId IN ({string.Join(",", orderIds)}) GROUP BY KodTowaru";
-                using var cmd = new SqlCommand(sql, cn);
-                using var reader = await cmd.ExecuteReaderAsync();
+            // ✅ UŻYJ CACHE PRZYCHODÓW (jeśli dostępny) - oszczędza ~500-1000ms!
+            bool przychodyFromCache = _cachedPrzychodyDate == day.Date;
 
-                while (await reader.ReadAsync())
-                    orderSum[reader.GetInt32(0)] = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
+            if (przychodyFromCache)
+            {
+                actualIncomeTuszkaA = _cachedPrzychodyTuszkaA;
+                actualIncomeElementy = _cachedPrzychodyElementy;
+
+                // Tylko zamówienia z LIBRA (przychody z cache)
+                if (orderIds.Any())
+                {
+                    await using var cn = new SqlConnection(_connLibra);
+                    await cn.OpenAsync();
+                    var sql = $"SELECT KodTowaru, SUM(Ilosc) FROM [dbo].[ZamowieniaMiesoTowar] " +
+                             $"WHERE ZamowienieId IN ({string.Join(",", orderIds)}) GROUP BY KodTowaru";
+                    using var cmd = new SqlCommand(sql, cn);
+                    using var reader = await cmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                        orderSum[reader.GetInt32(0)] = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
+                }
             }
-            diagTimes.Add(("ZamówieniaSql", diagSw.ElapsedMilliseconds));
+            else
+            {
+                // Zadanie 1: Przychody z HANDEL
+                var taskPrzychody = Task.Run(async () =>
+                {
+                    var tuszkaA = new Dictionary<int, decimal>();
+                    var elementy = new Dictionary<int, decimal>();
+                    await using var cn = new SqlConnection(_connHandel);
+                    await cn.OpenAsync();
+                    const string sql = @"
+                        SELECT MZ.idtw, SUM(ABS(MZ.ilosc)) AS Ilosc,
+                               CASE WHEN MG.seria = 'sPWU' THEN 'T' ELSE 'E' END AS Typ
+                        FROM [HANDEL].[HM].[MZ] MZ
+                        JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
+                        WHERE MG.seria IN ('sPWU', 'sPWP', 'PWP') AND MG.aktywny=1 AND MG.data = @Day
+                        GROUP BY MZ.idtw, CASE WHEN MG.seria = 'sPWU' THEN 'T' ELSE 'E' END";
+                    await using var cmd = new SqlCommand(sql, cn);
+                    cmd.Parameters.AddWithValue("@Day", day.Date);
+                    await using var rdr = await cmd.ExecuteReaderAsync();
+                    while (await rdr.ReadAsync())
+                    {
+                        int productId = rdr.GetInt32(0);
+                        decimal qty = rdr.IsDBNull(1) ? 0m : Convert.ToDecimal(rdr.GetValue(1));
+                        string typ = rdr.GetString(2);
+                        if (typ == "T") tuszkaA[productId] = qty;
+                        else elementy[productId] = qty;
+                    }
+                    return (tuszkaA, elementy);
+                });
+
+                // Zadanie 2: Zamówienia z LIBRA (równolegle!)
+                var taskZamowienia = Task.Run(async () =>
+                {
+                    var orders = new Dictionary<int, decimal>();
+                    if (orderIds.Any())
+                    {
+                        await using var cn = new SqlConnection(_connLibra);
+                        await cn.OpenAsync();
+                        var sql = $"SELECT KodTowaru, SUM(Ilosc) FROM [dbo].[ZamowieniaMiesoTowar] " +
+                                 $"WHERE ZamowienieId IN ({string.Join(",", orderIds)}) GROUP BY KodTowaru";
+                        using var cmd = new SqlCommand(sql, cn);
+                        using var reader = await cmd.ExecuteReaderAsync();
+                        while (await reader.ReadAsync())
+                            orders[reader.GetInt32(0)] = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
+                    }
+                    return orders;
+                });
+
+                await Task.WhenAll(taskPrzychody, taskZamowienia);
+                var przychodResult = await taskPrzychody;
+                actualIncomeTuszkaA = przychodResult.tuszkaA;
+                actualIncomeElementy = przychodResult.elementy;
+                orderSum = await taskZamowienia;
+
+                // Zapisz do cache
+                _cachedPrzychodyTuszkaA = actualIncomeTuszkaA;
+                _cachedPrzychodyElementy = actualIncomeElementy;
+                _cachedPrzychodyDate = day.Date;
+            }
+            diagTimes.Add(("PrzychZam" + (przychodyFromCache ? "©" : "(||)"), diagSw.ElapsedMilliseconds));
 
             diagSw.Restart();
             // ✅ POBIERZ WYDANIA (WZ)
+            // ✅ UŻYJ CACHE WYDAŃ (jeśli dostępny dla tej daty) - oszczędza ~500-800ms!
             var wydaniaSum = new Dictionary<int, decimal>();
-            await using (var cn = new SqlConnection(_connHandel))
+            bool wydaniaFromCache = _cachedWydaniaDate == day.Date;
+            if (wydaniaFromCache)
             {
-                await cn.OpenAsync();
-                const string sqlWydania = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc))
-                    FROM [HANDEL].[HM].[MZ] MZ
-                    JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
-                    WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny=1 AND MG.data = @Day
-                    GROUP BY MZ.idtw";
-                await using var cmd = new SqlCommand(sqlWydania, cn);
-                cmd.Parameters.AddWithValue("@Day", day.Date);
-                await using var reader = await cmd.ExecuteReaderAsync();
-
-                while (await reader.ReadAsync())
+                wydaniaSum = _cachedWydaniaSum;
+            }
+            else
+            {
+                await using (var cn = new SqlConnection(_connHandel))
                 {
-                    int productId = reader.GetInt32(0);
-                    decimal qty = reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1));
-                    wydaniaSum[productId] = qty;
+                    await cn.OpenAsync();
+                    const string sqlWydania = @"SELECT MZ.idtw, SUM(ABS(MZ.ilosc))
+                        FROM [HANDEL].[HM].[MZ] MZ
+                        JOIN [HANDEL].[HM].[MG] ON MZ.super = MG.id
+                        WHERE MG.seria IN ('sWZ','sWZ-W') AND MG.aktywny=1 AND MG.data = @Day
+                        GROUP BY MZ.idtw";
+                    await using var cmd = new SqlCommand(sqlWydania, cn);
+                    cmd.Parameters.AddWithValue("@Day", day.Date);
+                    await using var reader = await cmd.ExecuteReaderAsync();
+
+                    while (await reader.ReadAsync())
+                    {
+                        int productId = reader.GetInt32(0);
+                        decimal qty = reader.IsDBNull(1) ? 0m : Convert.ToDecimal(reader.GetValue(1));
+                        wydaniaSum[productId] = qty;
+                    }
                 }
+                // Zapisz do cache
+                _cachedWydaniaSum = wydaniaSum;
+                _cachedWydaniaDate = day.Date;
             }
 
             // ✅ POBIERZ STANY MAGAZYNOWE
@@ -4708,7 +5043,7 @@ ORDER BY zm.Id";
             {
                 // Tabela może nie istnieć jeszcze - ignoruj błąd
             }
-            diagTimes.Add(("WydaniaStany", diagSw.ElapsedMilliseconds));
+            diagTimes.Add(("WydStany" + (wydaniaFromCache ? "©" : ""), diagSw.ElapsedMilliseconds));
 
             diagSw.Restart();
             var kurczakA = _productCatalogCache.FirstOrDefault(p =>
@@ -4747,7 +5082,7 @@ ORDER BY zm.Id";
             decimal sumaWydB = 0m;
             decimal sumaStanB = 0m;
 
-            var produktyB = new List<(string nazwa, decimal plan, decimal fakt, decimal zam, decimal wyd, string stan, decimal stanDec, decimal bilans)>();
+            var produktyB = new List<(string nazwa, decimal plan, decimal fakt, decimal zam, decimal wyd, string stan, decimal stanDec, decimal bilans, int towarId)>();
 
             // Agregacja z uwzględnieniem scalania towarów
             var agregowaneGrupy = new Dictionary<string, (decimal plan, decimal fakt, decimal zam, decimal wyd, decimal stan, decimal procent)>(StringComparer.OrdinalIgnoreCase);
@@ -4825,7 +5160,7 @@ ORDER BY zm.Id";
                     ? $"  {expandIcon} {grupa.Key} ({procent:F1}%)"
                     : $"  {expandIcon} {ikona} {grupa.Key} ({procent:F1}%)";
 
-                produktyB.Add((nazwaZIkonka, plan, fakt, zam, wyd, stanText, stan, balance));
+                produktyB.Add((nazwaZIkonka, plan, fakt, zam, wyd, stanText, stan, balance, 0));
 
                 // Jeśli grupa jest rozwinięta, dodaj szczegóły produktów
                 if (isExpanded && _detaleGrup.TryGetValue(grupa.Key, out var detale))
@@ -4833,7 +5168,7 @@ ORDER BY zm.Id";
                     foreach (var detal in detale)
                     {
                         // Dodaj wydania = 0 dla szczegółów (nie mamy ich w detaleGrup)
-                        produktyB.Add((detal.Item1, detal.Item2, detal.Item3, detal.Item4, 0m, detal.Item5, detal.Item6, detal.Item7));
+                        produktyB.Add((detal.Item1, detal.Item2, detal.Item3, detal.Item4, 0m, detal.Item5, detal.Item6, detal.Item7, 0));
                     }
                 }
 
@@ -4895,7 +5230,7 @@ ORDER BY zm.Id";
                     ? $"  └ {nazwaProdukt} ({procentUdzialu:F1}%)"
                     : $"  └ {ikona} {nazwaProdukt} ({procentUdzialu:F1}%)";
 
-                produktyB.Add((nazwaZIkonka, plannedForProduct, actual, orders, releases, stanText, stanMag, balance));
+                produktyB.Add((nazwaZIkonka, plannedForProduct, actual, orders, releases, stanText, stanMag, balance, produktId));
 
                 sumaPlanB += plannedForProduct;
                 sumaFaktB += actual;
@@ -4919,36 +5254,107 @@ ORDER BY zm.Id";
             // ✅ BILANS CAŁKOWITY
             decimal bilansCalk = balanceA + bilansB;
 
-            // ✅ DODAJ WIERSZE DO TABELI
-            dtAgg.Rows.Add("═══ SUMA CAŁKOWITA ═══",
-                planA + sumaPlanB,
-                factA + sumaFaktB,
+            // ✅ UTWÓRZ KARTY PRODUKTÓW Z SZABLONU DASHBOARDU
+            wpProductCards.Children.Clear();
+
+            // Załaduj produkty z domyślnego widoku dashboardu
+            var dashboardProductIds = await LoadDefaultDashboardProductIdsAsync();
+            var productNames = await LoadProductNamesAsync(dashboardProductIds);
+
+            var colors = new[] {
+                Color.FromRgb(52, 152, 219),  // Niebieski
+                Color.FromRgb(46, 204, 113),  // Zielony
+                Color.FromRgb(241, 196, 15),  // Żółty
+                Color.FromRgb(230, 126, 34),  // Pomarańczowy
+                Color.FromRgb(155, 89, 182),  // Fioletowy
+                Color.FromRgb(26, 188, 156),  // Turkusowy
+                Color.FromRgb(231, 76, 60),   // Czerwony
+            };
+            int colorIdx = 0;
+
+            foreach (var productId in dashboardProductIds)
+            {
+                if (!productNames.TryGetValue(productId, out var productName))
+                    continue;
+
+                // Pobierz dane produktu
+                decimal plan = 0, fakt = 0, zam = 0, wyd = 0, stan = 0, bilans = 0;
+
+                // ✅ SPECJALNA OBSŁUGA DLA KURCZAK A
+                if (productId == kurczakA.Key)
+                {
+                    plan = planA;
+                    fakt = factA;
+                    zam = ordersA;
+                    wyd = wydaniaA;
+                    stan = stanMagA;
+                    bilans = balanceA;
+                }
+                else
+                {
+                    // Plan z konfiguracji produktów (Kurczak B)
+                    if (konfiguracjaProduktow.TryGetValue(productId, out var procent))
+                        plan = pulaTuszkiB * (procent / 100m);
+
+                    // Fakt z przychodów
+                    if (actualIncomeElementy.TryGetValue(productId, out var f))
+                        fakt = f;
+
+                    // Zamówienia
+                    if (orderSum.TryGetValue(productId, out var z))
+                        zam = z;
+
+                    // Wydania
+                    if (wydaniaSum.TryGetValue(productId, out var w))
+                        wyd = w;
+
+                    // Stan magazynowy
+                    if (stanyMagazynowe.TryGetValue(productId, out var s))
+                        stan = s;
+
+                    // Bilans: (Fakt lub Plan) + Stan - (Zamówienia lub Wydania)
+                    decimal baseVal = fakt > 0 ? fakt : plan;
+                    decimal odejmij = uzywajWydan ? wyd : zam;
+                    bilans = baseVal + stan - odejmij;
+                }
+
+                // ✅ UŻYJ WYD ZAMIAST ZAM JEŚLI WYBRANO RADIO WYD
+                decimal wartoscDoPokazania = uzywajWydan ? wyd : zam;
+
+                wpProductCards.Children.Add(CreateDashboardCard(
+                    productName, plan, fakt, wartoscDoPokazania, bilans, stan,
+                    colors[colorIdx % colors.Length], false, productName, productId));
+                colorIdx++;
+            }
+
+            // Jeśli brak szablonu - pokaż stare karty
+            if (!dashboardProductIds.Any())
+            {
+                decimal sumaZamWyd = uzywajWydan ? (wydaniaA + sumaWydB) : (ordersA + sumaZamB);
+                decimal zamWydA = uzywajWydan ? wydaniaA : ordersA;
+                decimal zamWydB = uzywajWydan ? sumaWydB : sumaZamB;
+
+                wpProductCards.Children.Add(CreateDashboardCard("SUMA", planA + sumaPlanB, factA + sumaFaktB, sumaZamWyd, bilansCalk, stanMagA + sumaStanB,
+                    Color.FromRgb(76, 175, 80), true));
+                wpProductCards.Children.Add(CreateDashboardCard("Kurczak A", planA, factA, zamWydA, balanceA, stanMagA,
+                    Color.FromRgb(102, 187, 106), true));
+                wpProductCards.Children.Add(CreateDashboardCard("Kurczak B", sumaPlanB, sumaFaktB, zamWydB, bilansB, sumaStanB,
+                    Color.FromRgb(66, 165, 245), true));
+            }
+
+            // Zachowaj dane w dtAgg dla kompatybilności
+            dtAgg.Rows.Add("═══ SUMA CAŁKOWITA ═══", planA + sumaPlanB, factA + sumaFaktB,
                 (stanMagA + sumaStanB > 0 ? (stanMagA + sumaStanB).ToString("N0") : ""),
-                ordersA + sumaZamB,
-                wydaniaA + sumaWydB,
-                bilansCalk);
-
-            dtAgg.Rows.Add("🐔 Kurczak A",
-                planA,
-                factA,
-                stanA,
-                ordersA,
-                wydaniaA,
-                balanceA);
-
-            dtAgg.Rows.Add("🐔 Kurczak B",
-                sumaPlanB,
-                sumaFaktB,
-                (sumaStanB > 0 ? sumaStanB.ToString("N0") : ""),
-                sumaZamB,
-                sumaWydB,
-                bilansB);
-
+                ordersA + sumaZamB, wydaniaA + sumaWydB, bilansCalk);
+            dtAgg.Rows.Add("🐔 Kurczak A", planA, factA, stanA, ordersA, wydaniaA, balanceA);
+            dtAgg.Rows.Add("🐔 Kurczak B", sumaPlanB, sumaFaktB,
+                (sumaStanB > 0 ? sumaStanB.ToString("N0") : ""), sumaZamB, sumaWydB, bilansB);
             foreach (var produkt in produktyB)
             {
                 dtAgg.Rows.Add(produkt.nazwa, produkt.plan, produkt.fakt, produkt.stan, produkt.zam, produkt.wyd, produkt.bilans);
             }
 
+            // Ustaw źródło danych dla ukrytego DataGrid (kompatybilność)
             dgAggregation.ItemsSource = dtAgg.DefaultView;
             SetupAggregationDataGrid();
 
@@ -4958,6 +5364,509 @@ ORDER BY zm.Id";
             diagTimes.Add(("Agregacja", diagSw.ElapsedMilliseconds));
             _lastAggregationDiag = diagTimes;
         }
+
+        private string ShortenProductName(string name)
+        {
+            // Usuń emoji i znaki specjalne
+            name = name.Replace("🍗", "").Replace("🍖", "").Replace("🥩", "").Replace("▶", "").Replace("▼", "").Trim();
+
+            // Skróć długie nazwy produktów
+            if (name.Length > 16)
+            {
+                // Znajdź słowo kluczowe
+                if (name.Contains("Filet", StringComparison.OrdinalIgnoreCase)) return "Filet";
+                if (name.Contains("Udziec", StringComparison.OrdinalIgnoreCase)) return "Udziec";
+                if (name.Contains("Skrzydło", StringComparison.OrdinalIgnoreCase) || name.Contains("Skrzydlo", StringComparison.OrdinalIgnoreCase)) return "Skrzydło";
+                if (name.Contains("Ćwiartka", StringComparison.OrdinalIgnoreCase) || name.Contains("Cwiartka", StringComparison.OrdinalIgnoreCase)) return "Ćwiartka";
+                if (name.Contains("Pierś", StringComparison.OrdinalIgnoreCase) || name.Contains("Piers", StringComparison.OrdinalIgnoreCase)) return "Pierś";
+                if (name.Contains("Noga", StringComparison.OrdinalIgnoreCase)) return "Noga";
+                if (name.Contains("Podudzie", StringComparison.OrdinalIgnoreCase)) return "Podudzie";
+                if (name.Contains("Wątroba", StringComparison.OrdinalIgnoreCase) || name.Contains("Watroba", StringComparison.OrdinalIgnoreCase)) return "Wątroba";
+                if (name.Contains("Serce", StringComparison.OrdinalIgnoreCase)) return "Serce";
+                if (name.Contains("Żołądek", StringComparison.OrdinalIgnoreCase) || name.Contains("Zoladek", StringComparison.OrdinalIgnoreCase)) return "Żołądek";
+
+                // Skróć do 16 znaków
+                return name.Substring(0, 14) + "..";
+            }
+            return name;
+        }
+
+        private async Task LoadProductImagesAsync()
+        {
+            if (_productImages.Count > 0) return; // Już załadowane
+
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                const string sql = @"SELECT TowarId, Zdjecie FROM dbo.TowarZdjecia WHERE Aktywne = 1";
+                await using var cmd = new SqlCommand(sql, cn);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+
+                while (await rdr.ReadAsync())
+                {
+                    int towarId = rdr.GetInt32(0);
+                    if (!rdr.IsDBNull(1))
+                    {
+                        byte[] imageData = (byte[])rdr["Zdjecie"];
+                        var image = BytesToBitmapImage(imageData);
+                        _productImages[towarId] = image;
+                    }
+                }
+            }
+            catch { /* Zdjęcia są opcjonalne */ }
+        }
+
+        private async Task<List<int>> LoadDefaultDashboardProductIdsAsync()
+        {
+            var productIds = new List<int>();
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                const string sql = @"SELECT TOP 1 ProduktyIds FROM dbo.DashboardWidoki WHERE IsDomyslny = 1";
+                await using var cmd = new SqlCommand(sql, cn);
+                var result = await cmd.ExecuteScalarAsync();
+
+                if (result != null && result != DBNull.Value)
+                {
+                    var idsStr = result.ToString();
+                    foreach (var idStr in idsStr.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        if (int.TryParse(idStr.Trim(), out int id))
+                            productIds.Add(id);
+                    }
+                }
+            }
+            catch { }
+            return productIds;
+        }
+
+        private async Task<Dictionary<int, string>> LoadProductNamesAsync(List<int> productIds)
+        {
+            var names = new Dictionary<int, string>();
+            if (!productIds.Any()) return names;
+
+            try
+            {
+                await using var cn = new SqlConnection(_connHandel);
+                await cn.OpenAsync();
+
+                var sql = $"SELECT ID, kod FROM [HM].[TW] WHERE ID IN ({string.Join(",", productIds)})";
+                await using var cmd = new SqlCommand(sql, cn);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+
+                while (await rdr.ReadAsync())
+                {
+                    names[rdr.GetInt32(0)] = rdr.GetString(1);
+                }
+            }
+            catch { }
+            return names;
+        }
+
+        private BitmapImage? BytesToBitmapImage(byte[] data)
+        {
+            if (data == null || data.Length == 0) return null;
+            try
+            {
+                var image = new BitmapImage();
+                using (var ms = new MemoryStream(data))
+                {
+                    ms.Position = 0;
+                    image.BeginInit();
+                    image.CacheOption = BitmapCacheOption.OnLoad;
+                    image.StreamSource = ms;
+                    image.EndInit();
+                    image.Freeze();
+                }
+                return image;
+            }
+            catch { return null; }
+        }
+
+        private BitmapImage? GetProductImage(int towarId)
+        {
+            return _productImages.TryGetValue(towarId, out var img) ? img : null;
+        }
+
+        private Border CreateDashboardCard(string nazwa, decimal plan, decimal fakt, decimal zamLubWyd, decimal bilans, decimal stan, Color barColor, bool isSummary, string tooltip = null, int towarId = 0)
+        {
+            bool uzytoFakt = fakt > 0;
+            bool uzywajWydan = rbBilansWydania?.IsChecked == true;
+            string zamWydLabel = uzywajWydan ? "wyd" : "zam";
+            decimal maxBarValue = Math.Max(Math.Max(plan, fakt), Math.Max(zamLubWyd, 1));
+            double maxBarWidth = 155;  // Rozmiar L
+
+            var card = new Border
+            {
+                Background = Brushes.White,
+                CornerRadius = new CornerRadius(6),
+                Margin = new Thickness(4),
+                Padding = new Thickness(10),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                BorderThickness = new Thickness(1),
+                Width = 200,  // Rozmiar L (S=140, M=160, L=200)
+                ToolTip = tooltip ?? nazwa,
+                Tag = new { TowarId = towarId, Nazwa = nazwa },
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+
+            // ✅ KLIKNIĘCIE - filtruj zamówienia po tym produkcie
+            if (towarId > 0)
+            {
+                card.MouseLeftButtonUp += (s, e) =>
+                {
+                    FilterOrdersByProduct(towarId, nazwa);
+                };
+            }
+
+            // ✅ MENU KONTEKSTOWE (prawy przycisk)
+            var contextMenu = new ContextMenu();
+
+            var menuPowieksz = new MenuItem { Header = "🔍 Powiększ do nowego okna" };
+            menuPowieksz.Click += (s, e) =>
+            {
+                ShowProductDetailWindow(nazwa, towarId, plan, fakt, zamLubWyd, bilans, stan);
+            };
+            contextMenu.Items.Add(menuPowieksz);
+
+            if (towarId > 0)
+            {
+                var menuPotencjalni = new MenuItem { Header = "👥 Potencjalni klienci" };
+                menuPotencjalni.Click += (s, e) =>
+                {
+                    var okno = new PotencjalniOdbiorcy(
+                        _connHandel,
+                        towarId,
+                        nazwa,
+                        plan,
+                        fakt,
+                        zamLubWyd,
+                        bilans,
+                        _selectedDate);
+                    okno.Show();
+                };
+                contextMenu.Items.Add(menuPotencjalni);
+
+                var menuFiltruj = new MenuItem { Header = "🔎 Filtruj zamówienia" };
+                menuFiltruj.Click += (s, e) =>
+                {
+                    FilterOrdersByProduct(towarId, nazwa);
+                };
+                contextMenu.Items.Add(menuFiltruj);
+            }
+
+            card.ContextMenu = contextMenu;
+
+            card.Effect = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                ShadowDepth = 1,
+                Opacity = 0.15,
+                BlurRadius = 5
+            };
+
+            var stack = new StackPanel();
+
+            // === NAGŁÓWEK: zdjęcie + nazwa ===
+            var headerGrid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            // Zdjęcie produktu - rozmiar L
+            var productImage = towarId > 0 ? GetProductImage(towarId) : null;
+            var imgBorder = new Border
+            {
+                Width = 44,
+                Height = 44,
+                CornerRadius = new CornerRadius(5),
+                Background = productImage != null
+                    ? (Brush)new ImageBrush { ImageSource = productImage, Stretch = Stretch.UniformToFill }
+                    : new SolidColorBrush(Color.FromRgb(236, 240, 241)),
+                Margin = new Thickness(0, 0, 10, 0)
+            };
+            if (productImage == null)
+            {
+                imgBorder.Child = new TextBlock
+                {
+                    Text = "📷",
+                    FontSize = 18,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166))
+                };
+            }
+            Grid.SetColumn(imgBorder, 0);
+            headerGrid.Children.Add(imgBorder);
+
+            // Nazwa produktu - rozmiar L
+            var titleText = new TextBlock
+            {
+                Text = nazwa,
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                TextWrapping = TextWrapping.Wrap,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(titleText, 1);
+            headerGrid.Children.Add(titleText);
+            stack.Children.Add(headerGrid);
+
+            // === PASEK PLAN (przekreślony jeśli użyto fakt) ===
+            stack.Children.Add(CreateMiniBar("plan", plan, maxBarValue, maxBarWidth,
+                uzytoFakt ? Color.FromRgb(189, 195, 199) : Color.FromRgb(241, 196, 15), uzytoFakt));
+
+            // === PASEK FAKT (jeśli > 0) ===
+            if (fakt > 0)
+            {
+                stack.Children.Add(CreateMiniBar("fakt", fakt, maxBarValue, maxBarWidth,
+                    Color.FromRgb(241, 196, 15), false));
+            }
+
+            // === PASEK ZAMÓWIENIA/WYDANIA ===
+            stack.Children.Add(CreateMiniBar(zamWydLabel, zamLubWyd, maxBarValue, maxBarWidth,
+                Color.FromRgb(52, 152, 219), false));
+
+            // === STAN MAGAZYNOWY (jeśli > 0) - rozmiar L ===
+            if (stan > 0)
+            {
+                var stanPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
+                stanPanel.Children.Add(new TextBlock { Text = "Stan: ", FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)) });
+                stanPanel.Children.Add(new TextBlock { Text = $"{stan:N0}", FontSize = 10, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(155, 89, 182)) });
+                stack.Children.Add(stanPanel);
+            }
+
+            // === BILANS - rozmiar L ===
+            var bilansColor = bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60);
+            var bilansText = new TextBlock
+            {
+                FontSize = 11,
+                Margin = new Thickness(0, 5, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+            bilansText.Inlines.Add(new Run("Bilans: ") { Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)) });
+            bilansText.Inlines.Add(new Run($"{bilans:N0}") { FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(bilansColor) });
+            stack.Children.Add(bilansText);
+
+            card.Child = stack;
+            return card;
+        }
+
+        private Grid CreateMiniBar(string label, decimal value, decimal maxValue, double maxWidth, Color color, bool strikethrough)
+        {
+            var grid = new Grid { Margin = new Thickness(0, 3, 0, 3) };  // Rozmiar L
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            double barWidth = maxValue > 0 ? (double)(value / maxValue) * maxWidth : 5;
+
+            var bar = new Border
+            {
+                Height = 18,  // Rozmiar L (S=12, M=14, L=18)
+                Width = Math.Max(barWidth, 5),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                CornerRadius = new CornerRadius(3),
+                Background = new SolidColorBrush(color)
+            };
+            Grid.SetColumn(bar, 0);
+            grid.Children.Add(bar);
+
+            var text = new TextBlock
+            {
+                Text = $"{label} {value:N0}",
+                FontSize = 10,  // Rozmiar L (S=8, M=9, L=10)
+                FontWeight = strikethrough ? FontWeights.Normal : FontWeights.SemiBold,
+                Foreground = strikethrough
+                    ? new SolidColorBrush(Color.FromRgb(160, 160, 160))
+                    : new SolidColorBrush(Color.FromRgb(80, 80, 80)),
+                TextDecorations = strikethrough ? TextDecorations.Strikethrough : null,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(4, 0, 0, 0)
+            };
+            Grid.SetColumn(text, 1);
+            grid.Children.Add(text);
+
+            return grid;
+        }
+
+        /// <summary>
+        /// Filtruje zamówienia w dgOrders po określonym produkcie (towarId)
+        /// </summary>
+        private void FilterOrdersByProduct(int towarId, string nazwa)
+        {
+            // Znajdź odpowiedni przycisk produktu i symuluj kliknięcie
+            foreach (var child in pnlProductButtons.Children.OfType<Button>())
+            {
+                if (child.Tag is int tagId && tagId == towarId)
+                {
+                    // Symuluj kliknięcie przycisku
+                    child.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    return;
+                }
+            }
+
+            // Jeśli nie znaleziono przycisku, ustaw filtr ręcznie
+            _selectedProductId = towarId;
+            _ = RefreshAllDataAsync();
+        }
+
+        /// <summary>
+        /// Pokazuje szczegóły produktu w nowym oknie (powiększenie) - styl jak w DashboardWindow
+        /// </summary>
+        private void ShowProductDetailWindow(string nazwa, int towarId, decimal plan, decimal fakt, decimal zamLubWyd, decimal bilans, decimal stan)
+        {
+            bool uzywajWydan = rbBilansWydania?.IsChecked == true;
+            bool uzytoFakt = fakt > 0;
+            decimal cel = uzytoFakt ? fakt : plan;
+            decimal procentRealizacji = cel > 0 ? (zamLubWyd / cel) * 100 : 0;
+            bool przekroczono = procentRealizacji > 100;
+
+            var dialog = new Window
+            {
+                Title = $"[{towarId}] {nazwa}",
+                WindowState = WindowState.Maximized,
+                WindowStyle = WindowStyle.None,
+                Background = new SolidColorBrush(Color.FromRgb(20, 25, 30)),
+                ResizeMode = ResizeMode.NoResize
+            };
+
+            // === GŁÓWNY KONTENER ===
+            var mainGrid = new Grid { Margin = new Thickness(60) };
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            // === NAGŁÓWEK ===
+            var headerPanel = new Grid { Margin = new Thickness(0, 0, 0, 30) };
+            headerPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            headerPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            headerPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            // Zdjęcie produktu
+            var productImage = towarId > 0 ? GetProductImage(towarId) : null;
+            var imageBorder = new Border
+            {
+                Width = 120, Height = 120,
+                CornerRadius = new CornerRadius(15),
+                Background = productImage != null
+                    ? (Brush)new ImageBrush { ImageSource = productImage, Stretch = Stretch.UniformToFill }
+                    : new SolidColorBrush(Color.FromRgb(52, 73, 94)),
+                Margin = new Thickness(0, 0, 30, 0)
+            };
+            if (productImage == null)
+                imageBorder.Child = new TextBlock { Text = "📦", FontSize = 50, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)) };
+            Grid.SetColumn(imageBorder, 0);
+            headerPanel.Children.Add(imageBorder);
+
+            // Nazwa produktu i data
+            var titleStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            titleStack.Children.Add(new TextBlock { Text = nazwa, FontSize = 48, FontWeight = FontWeights.Bold, Foreground = Brushes.White });
+            titleStack.Children.Add(new TextBlock { Text = _selectedDate.ToString("dddd, d MMMM yyyy", new CultureInfo("pl-PL")), FontSize = 20, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)), Margin = new Thickness(0, 5, 0, 0) });
+            Grid.SetColumn(titleStack, 1);
+            headerPanel.Children.Add(titleStack);
+
+            // BILANS - duży wyświetlacz
+            var bilansBorder = new Border
+            {
+                Background = new SolidColorBrush(bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60)),
+                CornerRadius = new CornerRadius(20), Padding = new Thickness(40, 20, 40, 20),
+                Margin = new Thickness(30, 0, 30, 0), VerticalAlignment = VerticalAlignment.Center
+            };
+            var bilansStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+            bilansStack.Children.Add(new TextBlock { Text = "BILANS", FontSize = 18, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, Opacity = 0.9 });
+            bilansStack.Children.Add(new TextBlock { Text = $"{bilans:N0} kg", FontSize = 56, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center });
+            bilansBorder.Child = bilansStack;
+            Grid.SetColumn(bilansBorder, 2);
+            headerPanel.Children.Add(bilansBorder);
+
+            // Przycisk zamknij
+            var closeBtn = new Button { Content = "✕", FontSize = 32, Width = 60, Height = 60, Background = new SolidColorBrush(Color.FromRgb(231, 76, 60)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = System.Windows.Input.Cursors.Hand };
+            closeBtn.Click += (s, e) => dialog.Close();
+            Grid.SetColumn(closeBtn, 3);
+            headerPanel.Children.Add(closeBtn);
+            Grid.SetRow(headerPanel, 0);
+            mainGrid.Children.Add(headerPanel);
+
+            // === GŁÓWNA SEKCJA - FORMUŁA I DANE ===
+            var contentPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+
+            // Formuła bilansu
+            var formulaBorder = new Border { Background = new SolidColorBrush(Color.FromRgb(44, 62, 80)), CornerRadius = new CornerRadius(15), Padding = new Thickness(40, 25, 40, 25), Margin = new Thickness(0, 0, 0, 40), HorizontalAlignment = HorizontalAlignment.Center };
+            var formulaPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+
+            if (uzytoFakt)
+            {
+                formulaPanel.Children.Add(new TextBlock { Text = $"PLAN {plan:N0}", FontSize = 28, Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)), TextDecorations = TextDecorations.Strikethrough, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 20, 0) });
+                formulaPanel.Children.Add(new TextBlock { Text = $"FAKT {fakt:N0}", FontSize = 36, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(155, 89, 182)), VerticalAlignment = VerticalAlignment.Center });
+            }
+            else
+            {
+                formulaPanel.Children.Add(new TextBlock { Text = $"PLAN {plan:N0}", FontSize = 36, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219)), VerticalAlignment = VerticalAlignment.Center });
+            }
+            formulaPanel.Children.Add(new TextBlock { Text = "  +  ", FontSize = 36, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
+            formulaPanel.Children.Add(new TextBlock { Text = $"STAN {stan:N0}", FontSize = 36, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(26, 188, 156)), VerticalAlignment = VerticalAlignment.Center });
+            formulaPanel.Children.Add(new TextBlock { Text = "  −  ", FontSize = 36, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
+            string zamWydLabel = uzywajWydan ? "WYD" : "ZAM";
+            formulaPanel.Children.Add(new TextBlock { Text = $"{zamWydLabel} {zamLubWyd:N0}", FontSize = 36, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(uzywajWydan ? Color.FromRgb(192, 57, 43) : Color.FromRgb(230, 126, 34)), VerticalAlignment = VerticalAlignment.Center });
+            formulaPanel.Children.Add(new TextBlock { Text = "  =  ", FontSize = 36, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
+            formulaPanel.Children.Add(new TextBlock { Text = $"{bilans:N0}", FontSize = 44, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60)), VerticalAlignment = VerticalAlignment.Center });
+            formulaBorder.Child = formulaPanel;
+            contentPanel.Children.Add(formulaBorder);
+
+            // Pasek postępu realizacji
+            var progressBorder = new Border { Background = new SolidColorBrush(Color.FromRgb(39, 55, 70)), CornerRadius = new CornerRadius(15), Padding = new Thickness(40, 30, 40, 30), HorizontalAlignment = HorizontalAlignment.Center, MinWidth = 800 };
+            var progressStack = new StackPanel();
+
+            // Label
+            var progressHeader = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 15) };
+            progressHeader.Children.Add(new TextBlock { Text = "REALIZACJA: ", FontSize = 24, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
+            progressHeader.Children.Add(new TextBlock { Text = $"{procentRealizacji:N1}%", FontSize = 32, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(przekroczono ? Color.FromRgb(155, 89, 182) : procentRealizacji >= 90 ? Color.FromRgb(39, 174, 96) : procentRealizacji >= 70 ? Color.FromRgb(241, 196, 15) : Color.FromRgb(231, 76, 60)), VerticalAlignment = VerticalAlignment.Center });
+            progressStack.Children.Add(progressHeader);
+
+            // Pasek
+            var barContainer = new Grid { Height = 40 };
+            barContainer.Children.Add(new Border { Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)), CornerRadius = new CornerRadius(10) });
+            double displayPct = Math.Min((double)procentRealizacji, 140) / 140 * 100;
+            Color barColor = przekroczono ? Color.FromRgb(155, 89, 182) : procentRealizacji >= 90 ? Color.FromRgb(39, 174, 96) : procentRealizacji >= 70 ? Color.FromRgb(241, 196, 15) : Color.FromRgb(231, 76, 60);
+            var progressBar = new Border { Background = new SolidColorBrush(barColor), CornerRadius = new CornerRadius(10), HorizontalAlignment = HorizontalAlignment.Left };
+            progressBar.SetValue(Border.WidthProperty, new GridLength(displayPct, GridUnitType.Star).Value * 7); // Scale to ~700px max
+            barContainer.Children.Add(progressBar);
+
+            // Marker 100%
+            var marker100 = new Border { Width = 3, Background = Brushes.White, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(500, 0, 0, 0) }; // ~71% of 700
+            barContainer.Children.Add(marker100);
+
+            progressStack.Children.Add(barContainer);
+
+            // Legenda
+            var legendPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 15, 0, 0), HorizontalAlignment = HorizontalAlignment.Center };
+            legendPanel.Children.Add(new TextBlock { Text = $"CEL: {cel:N0} kg", FontSize = 18, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)), Margin = new Thickness(0, 0, 40, 0) });
+            legendPanel.Children.Add(new TextBlock { Text = $"WYKONANO: {zamLubWyd:N0} kg", FontSize = 18, Foreground = new SolidColorBrush(barColor) });
+            progressStack.Children.Add(legendPanel);
+
+            progressBorder.Child = progressStack;
+            contentPanel.Children.Add(progressBorder);
+
+            Grid.SetRow(contentPanel, 1);
+            mainGrid.Children.Add(contentPanel);
+
+            // === STOPKA - ESC info ===
+            var footerText = new TextBlock { Text = "Naciśnij ESC lub ✕ aby zamknąć", FontSize = 16, Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 30, 0, 0) };
+            Grid.SetRow(footerText, 2);
+            mainGrid.Children.Add(footerText);
+
+            dialog.Content = mainGrid;
+
+            // Obsługa klawisza ESC
+            dialog.KeyDown += (s, e) => { if (e.Key == System.Windows.Input.Key.Escape) dialog.Close(); };
+
+            dialog.Show();
+        }
+
         private void DgAggregation_LoadingRow(object sender, DataGridRowEventArgs e)
         {
             if (e.Row.Item is DataRowView rowView)
@@ -5426,9 +6335,6 @@ ORDER BY zm.Id";
         private void ApplyFilters()
         {
             var txt = txtFilterRecipient.Text?.Trim().Replace("'", "''");
-            string salesmanFilter = null;
-            if (cbFilterSalesman.SelectedIndex > 0)
-                salesmanFilter = cbFilterSalesman.SelectedItem?.ToString()?.Replace("'", "''");
 
             // Filtruj zamówienia - sprawdź czy kolumny istnieją
             if (_dtOrders.Columns.Count > 0 && _dtOrders.Columns.Contains("Status"))
@@ -5437,9 +6343,6 @@ ORDER BY zm.Id";
 
                 if (!string.IsNullOrEmpty(txt) && _dtOrders.Columns.Contains("Odbiorca"))
                     conditions.Add($"Odbiorca LIKE '%{txt}%'");
-
-                if (!string.IsNullOrEmpty(salesmanFilter) && _dtOrders.Columns.Contains("Handlowiec"))
-                    conditions.Add($"Handlowiec = '{salesmanFilter}'");
 
                 if (!_showReleasesWithoutOrders)
                     conditions.Add("Status <> 'Wydanie bez zamówienia'");

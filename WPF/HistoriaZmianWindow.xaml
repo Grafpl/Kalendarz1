@@ -200,6 +200,13 @@
                         <ComboBox x:Name="cmbKtoEdytowal" Width="140" Style="{StaticResource ModernComboBoxStyle}"
                                   SelectionChanged="Filter_SelectionChanged"/>
                     </StackPanel>
+
+                    <!-- Data uboju -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,12,0">
+                        <TextBlock Text="Data uboju:" Style="{StaticResource FilterLabelStyle}"/>
+                        <ComboBox x:Name="cmbDataUboju" Width="120" Style="{StaticResource ModernComboBoxStyle}"
+                                  SelectionChanged="Filter_SelectionChanged"/>
+                    </StackPanel>
                 </WrapPanel>
 
                 <!-- Przyciski -->
