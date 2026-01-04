@@ -18,6 +18,8 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
         <local:ZeroToEmptyConverter x:Key="ZeroToEmptyConverter"/>
+        <local:ZeroToRedBrushConverter x:Key="ZeroToRedBrush"/>
+        <local:ZeroToBoldConverter x:Key="ZeroToBold"/>
 
         <Storyboard x:Key="ShakeAnimation">
             <DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)">
@@ -606,10 +608,10 @@
                       GridLinesVisibility="All"
                       HorizontalGridLinesBrush="#E0E0E0"
                       VerticalGridLinesBrush="#EEEEEE"
-                      RowHeight="36"
+                      RowHeight="26"
                       Background="White"
                       BorderThickness="0"
-                      FontSize="12"
+                      FontSize="11"
                       AlternatingRowBackground="#FAFAFA"
                       ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
                       RowStyle="{StaticResource DataGridRowHoverStyle}"
@@ -1126,7 +1128,9 @@
                                 <Grid Grid.Row="1" Margin="5">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="6"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
 
@@ -1162,7 +1166,41 @@
 
                                     <Border Grid.Column="1" Background="#E0E0E0" Width="1" HorizontalAlignment="Center" Margin="0,5"/>
 
+                                    <!-- SRODKOWA KOLUMNA HARMONOGRAMU -->
                                     <DataGrid Grid.Column="2"
+                                              x:Name="dataGridHarmonogramCenter"
+                                              AutoGenerateColumns="False"
+                                              CanUserAddRows="False"
+                                              CanUserDeleteRows="False"
+                                              IsReadOnly="True"
+                                              SelectionMode="Single"
+                                              GridLinesVisibility="All"
+                                              HorizontalGridLinesBrush="#E0E0E0"
+                                              VerticalGridLinesBrush="#EEEEEE"
+                                              RowHeight="26"
+                                              FontSize="11"
+                                              Background="White"
+                                              BorderThickness="0"
+                                              AlternatingRowBackground="#F0FFF0"
+                                              ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+                                              RowStyle="{StaticResource DataGridRowHoverStyle}"
+                                              EnableRowVirtualization="True">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="*" ElementStyle="{StaticResource NormalStyle}"/>
+                                            <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDek, StringFormat={}{0:N0}}" Width="55" ElementStyle="{StaticResource RightOrangeStyle}" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}"/>
+                                            <DataGridTextColumn Header="Waga" Binding="{Binding WagaDek, StringFormat={}{0:N2}}" Width="55" ElementStyle="{StaticResource RightStyle}"/>
+                                            <DataGridTextColumn Header="KG" Binding="{Binding RazemKg, StringFormat={}{0:N0}}" Width="65" ElementStyle="{StaticResource RightGreenStyle}" HeaderStyle="{StaticResource WagiUbojniHeaderStyle}"/>
+                                            <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat={}{0:N2}}" Width="55" ElementStyle="{StaticResource RightBlueStyle}" HeaderStyle="{StaticResource CenaHeaderStyle}"/>
+                                            <DataGridTextColumn Header="Dod." Binding="{Binding Dodatek, StringFormat={}{0:N2}}" Width="50" ElementStyle="{StaticResource RightStyle}"/>
+                                            <DataGridTextColumn Header="Typ" Binding="{Binding TypCeny}" Width="55" ElementStyle="{StaticResource CenterStyle}"/>
+                                            <DataGridTextColumn Header="Auta" Binding="{Binding Auta}" Width="40" ElementStyle="{StaticResource CenterBoldStyle}"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+
+                                    <Border Grid.Column="3" Background="#E0E0E0" Width="1" HorizontalAlignment="Center" Margin="0,5"/>
+
+                                    <!-- PRAWA KOLUMNA HARMONOGRAMU -->
+                                    <DataGrid Grid.Column="4"
                                               x:Name="dataGridHarmonogramRight"
                                               AutoGenerateColumns="False"
                                               CanUserAddRows="False"

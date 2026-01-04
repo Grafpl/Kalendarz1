@@ -66,8 +66,9 @@ namespace Kalendarz1
         // === TRANSPORT: Dane transportowe ===
         private ObservableCollection<TransportRow> transportData;
 
-        // === HARMONOGRAM: Dane harmonogramu dostaw ===
+        // === HARMONOGRAM: Dane harmonogramu dostaw (3 kolumny) ===
         private ObservableCollection<HarmonogramRow> harmonogramDataLeft;
+        private ObservableCollection<HarmonogramRow> harmonogramDataCenter;
         private ObservableCollection<HarmonogramRow> harmonogramDataRight;
 
         // === SCHOWEK: Ctrl+Shift+C/V dla ustawień cenowych ===
@@ -99,10 +100,13 @@ namespace Kalendarz1
             transportData = new ObservableCollection<TransportRow>();
             dataGridTransport.ItemsSource = transportData;
 
+            // Harmonogram na 3 kolumny - maksymalne wykorzystanie szerokiego ekranu
             harmonogramDataLeft = new ObservableCollection<HarmonogramRow>();
+            harmonogramDataCenter = new ObservableCollection<HarmonogramRow>();
             harmonogramDataRight = new ObservableCollection<HarmonogramRow>();
-            // Bindujemy do nowych DataGridów (jeśli nazwałeś je tak jak w XAML wyżej)
+
             dataGridHarmonogramLeft.ItemsSource = harmonogramDataLeft;
+            dataGridHarmonogramCenter.ItemsSource = harmonogramDataCenter;
             dataGridHarmonogramRight.ItemsSource = harmonogramDataRight;
 
             dateTimePicker1.SelectedDate = DateTime.Today;
@@ -310,8 +314,9 @@ namespace Kalendarz1
 
         private void LoadHarmonogramData()
         {
-            // Czyścimy obie listy
+            // Czyścimy wszystkie 3 listy
             harmonogramDataLeft.Clear();
+            harmonogramDataCenter.Clear();
             harmonogramDataRight.Clear();
 
             if (!dateTimePicker1.SelectedDate.HasValue)
@@ -373,14 +378,20 @@ namespace Kalendarz1
                                 allRows.Add(row);
                             }
 
-                            // === LOGIKA PODZIAŁU NA DWIE TABELE ===
-                            int halfPoint = (int)Math.Ceiling(allRows.Count / 2.0);
+                            // === LOGIKA PODZIAŁU NA 3 TABELE (lepsze wykorzystanie szerokiego ekranu) ===
+                            int partSize = (int)Math.Ceiling(allRows.Count / 3.0);
+                            int secondPartStart = partSize;
+                            int thirdPartStart = partSize * 2;
 
                             for (int i = 0; i < allRows.Count; i++)
                             {
-                                if (i < halfPoint)
+                                if (i < secondPartStart)
                                 {
                                     harmonogramDataLeft.Add(allRows[i]);
+                                }
+                                else if (i < thirdPartStart)
+                                {
+                                    harmonogramDataCenter.Add(allRows[i]);
                                 }
                                 else
                                 {
@@ -924,7 +935,7 @@ namespace Kalendarz1
             QueueRowForSave(currentRow.ID);
 
             UpdateStatus($"Wklejono: {_supplierClipboard}");
-            dataGridView1.Items.Refresh();
+            // Nie potrzeba Items.Refresh() - INotifyPropertyChanged aktualizuje UI
         }
 
         // === SCHOWEK: Wklej ustawienia do wszystkich wierszy dostawcy ===
@@ -960,7 +971,7 @@ namespace Kalendarz1
                 _supplierClipboard.TypCeny, _supplierClipboard.TerminDni);
 
             UpdateStatus($"Wklejono {_supplierClipboard} -> {rowsToUpdate.Count} wierszy ({currentRow.RealDostawca})");
-            dataGridView1.Items.Refresh();
+            // Nie potrzeba Items.Refresh() - INotifyPropertyChanged aktualizuje UI
         }
 
         // === CTRL+D: Kopiuj wartość z komórki powyżej ===
@@ -976,37 +987,41 @@ namespace Kalendarz1
             var currentColumn = dataGridView1.CurrentColumn;
             if (currentColumn == null) return;
 
-            // Mapowanie kolumn na właściwości
-            string header = currentColumn.Header?.ToString() ?? "";
+            // Używaj Tag zamiast Header - odporne na zmiany UI
+            string columnKey = currentColumn.Tag as string ?? currentColumn.Header?.ToString() ?? "";
             bool copied = false;
 
-            switch (header)
+            switch (columnKey)
             {
                 case "Cena":
                     currentRow.Cena = rowAbove.Cena;
-                    SaveFieldToDatabase(currentRow.ID, "Price", currentRow.Cena);
+                    QueueRowForSave(currentRow.ID);
                     copied = true;
                     break;
                 case "Dodatek":
                     currentRow.Dodatek = rowAbove.Dodatek;
-                    SaveFieldToDatabase(currentRow.ID, "Addition", currentRow.Dodatek);
+                    QueueRowForSave(currentRow.ID);
                     copied = true;
                     break;
+                case "Ubytek":
                 case "Ubytek%":
                     currentRow.Ubytek = rowAbove.Ubytek;
-                    SaveFieldToDatabase(currentRow.ID, "Loss", currentRow.Ubytek / 100);
+                    QueueRowForSave(currentRow.ID);
                     copied = true;
                     break;
+                case "TypCeny":
                 case "Typ Ceny":
                     currentRow.TypCeny = rowAbove.TypCeny;
-                    SaveFieldToDatabase(currentRow.ID, "PriceType", currentRow.TypCeny);
+                    QueueRowForSave(currentRow.ID);
                     copied = true;
                     break;
+                case "TerminDni":
                 case "Termin":
                     currentRow.TerminDni = rowAbove.TerminDni;
-                    SaveFieldToDatabase(currentRow.ID, "TermDays", currentRow.TerminDni);
+                    QueueRowForSave(currentRow.ID);
                     copied = true;
                     break;
+                case "SztukiDek":
                 case "Szt.Dek":
                     currentRow.SztukiDek = rowAbove.SztukiDek;
                     QueueRowForSave(currentRow.ID);
@@ -1016,8 +1031,8 @@ namespace Kalendarz1
 
             if (copied)
             {
-                UpdateStatus($"Ctrl+D: Skopiowano wartość z wiersza powyżej");
-                dataGridView1.Items.Refresh();
+                UpdateStatus($"Ctrl+D: Skopiowano wartosc z wiersza powyzej");
+                // Nie potrzeba Items.Refresh() - INotifyPropertyChanged aktualizuje UI
             }
         }
 
@@ -1030,41 +1045,37 @@ namespace Kalendarz1
             var currentColumn = dataGridView1.CurrentColumn;
             if (currentColumn == null) return;
 
-            string header = currentColumn.Header?.ToString() ?? "";
-            var rowsToUpdate = specyfikacjeData.Where(x => x.RealDostawca == currentRow.RealDostawca).ToList();
-            int count = 0;
+            // Używaj Tag zamiast Header - odporne na zmiany UI
+            string columnKey = currentColumn.Tag as string ?? currentColumn.Header?.ToString() ?? "";
 
-            foreach (var row in rowsToUpdate)
+            // Mapuj na SupplierFieldMask i użyj batch update
+            SupplierFieldMask field = SupplierFieldMask.None;
+            switch (columnKey)
             {
-                switch (header)
-                {
-                    case "Cena":
-                        row.Cena = currentRow.Cena;
-                        SaveFieldToDatabase(row.ID, "Price", row.Cena);
-                        count++;
-                        break;
-                    case "Dodatek":
-                        row.Dodatek = currentRow.Dodatek;
-                        SaveFieldToDatabase(row.ID, "Addition", row.Dodatek);
-                        count++;
-                        break;
-                    case "Ubytek%":
-                        row.Ubytek = currentRow.Ubytek;
-                        SaveFieldToDatabase(row.ID, "Loss", row.Ubytek / 100);
-                        count++;
-                        break;
-                    case "Typ Ceny":
-                        row.TypCeny = currentRow.TypCeny;
-                        SaveFieldToDatabase(row.ID, "PriceType", row.TypCeny);
-                        count++;
-                        break;
-                }
+                case "Cena":
+                    field = SupplierFieldMask.Cena;
+                    break;
+                case "Dodatek":
+                    field = SupplierFieldMask.Dodatek;
+                    break;
+                case "Ubytek":
+                case "Ubytek%":
+                    field = SupplierFieldMask.Ubytek;
+                    break;
+                case "TypCeny":
+                case "Typ Ceny":
+                    field = SupplierFieldMask.TypCeny;
+                    break;
+                case "TerminDni":
+                case "Termin":
+                    field = SupplierFieldMask.TerminDni;
+                    break;
             }
 
-            if (count > 0)
+            if (field != SupplierFieldMask.None)
             {
-                UpdateStatus($"Ctrl+Shift+D: Zastosowano do {count} wierszy dostawcy {currentRow.RealDostawca}");
-                dataGridView1.Items.Refresh();
+                // Użyj batch update - jedna operacja SQL
+                ApplyFieldsToSupplier(field);
             }
         }
 
@@ -1420,16 +1431,15 @@ namespace Kalendarz1
             try
             {
                 UpdateStatus("Zapisywanie wszystkich zmian...");
-                int savedCount = 0;
 
-                foreach (var row in specyfikacjeData)
+                // Użyj batch update zamiast pętli - jedna transakcja SQL
+                var allIds = specyfikacjeData.Select(r => r.ID).ToList();
+                if (allIds.Count > 0)
                 {
-                    SaveRowToDatabase(row);
-                    savedCount++;
+                    SaveRowsBatch(allIds);
+                    MessageBox.Show($"Zapisano {allIds.Count} rekordów.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                    UpdateStatus($"Batch: Zapisano {allIds.Count} rekordów");
                 }
-
-                MessageBox.Show($"Zapisano {savedCount} rekordów.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-                UpdateStatus($"Zapisano {savedCount} rekordów");
             }
             catch (Exception ex)
             {
@@ -1686,7 +1696,7 @@ namespace Kalendarz1
             if (fields.HasFlag(SupplierFieldMask.TerminDni)) fieldNames.Add($"Termin={currentRow.TerminDni}dni");
 
             UpdateStatus($"Batch: {string.Join(", ", fieldNames)} -> {rowsToUpdate.Count} wierszy ({currentRow.RealDostawca})");
-            dataGridView1.Items.Refresh();
+            // Nie potrzeba Items.Refresh() - INotifyPropertyChanged aktualizuje UI
         }
 
         // === BATCH: Zastosuj WSZYSTKIE pola cenowe do dostawcy ===
@@ -1796,7 +1806,7 @@ namespace Kalendarz1
             {
                 QueueRowForSave(currentRow.ID);
                 UpdateStatus($"Szablon dostawcy: {template}");
-                dataGridView1.Items.Refresh();
+                // Nie potrzeba Items.Refresh() - INotifyPropertyChanged aktualizuje UI
             }
         }
 
@@ -1837,7 +1847,7 @@ namespace Kalendarz1
                     template.Cena, template.Dodatek, template.Ubytek, template.TypCeny, template.TerminDni);
 
                 UpdateStatus($"Szablon zastosowany do {idsToUpdate.Count} wierszy: {template}");
-                dataGridView1.Items.Refresh();
+                // Nie potrzeba Items.Refresh() - INotifyPropertyChanged aktualizuje UI
             }
         }
 
@@ -5416,6 +5426,56 @@ namespace Kalendarz1
             if (TypCeny != null) parts.Add($"TypCeny={TypCeny}");
             if (TerminDni.HasValue) parts.Add($"Termin={TerminDni}dni");
             return string.Join(", ", parts);
+        }
+    }
+
+    /// <summary>
+    /// Konwerter walidacji - zwraca czerwony kolor dla wartosci 0 lub pustych
+    /// Uzycie: Foreground="{Binding Cena, Converter={StaticResource ZeroToRedBrush}}"
+    /// </summary>
+    public class ZeroToRedBrushConverter : System.Windows.Data.IValueConverter
+    {
+        private static readonly System.Windows.Media.SolidColorBrush RedBrush =
+            new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(211, 47, 47)); // #D32F2F
+        private static readonly System.Windows.Media.SolidColorBrush BlackBrush =
+            new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black);
+
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value == null) return RedBrush;
+
+            if (value is decimal decValue && decValue == 0) return RedBrush;
+            if (value is int intValue && intValue == 0) return RedBrush;
+            if (value is double dblValue && dblValue == 0) return RedBrush;
+            if (value is string strValue && string.IsNullOrWhiteSpace(strValue)) return RedBrush;
+
+            return BlackBrush;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    /// <summary>
+    /// Konwerter walidacji - zwraca Bold dla wartosci 0 (podkreslenie braku danych)
+    /// </summary>
+    public class ZeroToBoldConverter : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value == null) return System.Windows.FontWeights.Bold;
+
+            if (value is decimal decValue && decValue == 0) return System.Windows.FontWeights.Bold;
+            if (value is int intValue && intValue == 0) return System.Windows.FontWeights.Bold;
+
+            return System.Windows.FontWeights.Normal;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
         }
     }
 }
