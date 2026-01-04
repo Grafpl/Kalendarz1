@@ -557,6 +557,7 @@ namespace Kalendarz1
                         UpdateStatistics();
                         LoadTransportData(); // Załaduj dane transportowe
                         LoadHarmonogramData(); // Załaduj harmonogram dostaw
+                        LoadPdfStatusForAllRows(); // Załaduj status PDF dla wszystkich wierszy
                         UpdateStatus($"Załadowano {dataTable.Rows.Count} rekordów");
                     }
                     else
@@ -716,6 +717,32 @@ namespace Kalendarz1
             for (int i = 0; i < specyfikacjeData.Count; i++)
             {
                 specyfikacjeData[i].Nr = i + 1;
+            }
+        }
+
+        // === ComboBox: Natychmiastowe otwarcie dropdown przy pierwszym kliknięciu ===
+        private void ComboBox_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            var comboBox = sender as ComboBox;
+            if (comboBox == null) return;
+
+            // Zaznacz wiersz w którym jest ComboBox
+            var row = FindVisualParent<DataGridRow>(comboBox);
+            if (row != null)
+            {
+                var item = row.Item as SpecyfikacjaRow;
+                if (item != null)
+                {
+                    dataGridView1.SelectedItem = item;
+                    selectedRow = item;
+                }
+            }
+
+            // Jeśli dropdown nie jest otwarty, otwórz go natychmiast
+            if (!comboBox.IsDropDownOpen)
+            {
+                comboBox.IsDropDownOpen = true;
+                e.Handled = true; // Zatrzymaj dalsze przetwarzanie
             }
         }
 
@@ -2440,6 +2467,10 @@ namespace Kalendarz1
                 doc.Close();
             }
 
+            // Zapisz historię PDF do bazy danych
+            int? dostawcaGID = zapytaniasql.PobierzInformacjeZBazyDanych<int?>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerGID");
+            SavePdfHistory(ids, dostawcaGID, sellerName, dzienUbojowy, filePath);
+
             if (showMessage)
             {
                 MessageBox.Show($"Wygenerowano skrócony PDF:\n{Path.GetFileName(filePath)}", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -3103,6 +3134,10 @@ namespace Kalendarz1
                 doc.Close();
             }
 
+            // Zapisz historię PDF do bazy danych
+            int? dostawcaGID = zapytaniasql.PobierzInformacjeZBazyDanych<int?>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerGID");
+            SavePdfHistory(ids, dostawcaGID, sellerName, dzienUbojowy, filePath);
+
             if (showMessage)
             {
                 MessageBox.Show($"Wygenerowano dokument PDF:\n{Path.GetFileName(filePath)}\n\nŚcieżka:\n{filePath}",
@@ -3550,6 +3585,205 @@ namespace Kalendarz1
                 UpdateStatus($"Błąd zapisu: {ex.Message}");
             }
         }
+
+        #region === PDF HISTORY ===
+
+        // Zapisz historię wygenerowanego PDF
+        private void SavePdfHistory(List<int> ids, int? dostawcaGID, string dostawcaNazwa, DateTime calcDate, string pdfPath)
+        {
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    // Sprawdź czy tabela istnieje
+                    string checkTable = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'PdfHistory'";
+                    using (SqlCommand checkCmd = new SqlCommand(checkTable, connection))
+                    {
+                        int exists = (int)checkCmd.ExecuteScalar();
+                        if (exists == 0)
+                        {
+                            // Tabela nie istnieje - utwórz ją
+                            string createTable = @"CREATE TABLE [dbo].[PdfHistory] (
+                                [ID] INT IDENTITY(1,1) PRIMARY KEY,
+                                [FarmerCalcIDs] NVARCHAR(500) NOT NULL,
+                                [DostawcaGID] INT NULL,
+                                [DostawcaNazwa] NVARCHAR(200) NULL,
+                                [CalcDate] DATE NOT NULL,
+                                [PdfPath] NVARCHAR(500) NOT NULL,
+                                [PdfFileName] NVARCHAR(200) NOT NULL,
+                                [GeneratedBy] NVARCHAR(100) NOT NULL,
+                                [GeneratedAt] DATETIME NOT NULL DEFAULT GETDATE(),
+                                [FileSize] BIGINT NULL,
+                                [IsDeleted] BIT NOT NULL DEFAULT 0
+                            )";
+                            using (SqlCommand createCmd = new SqlCommand(createTable, connection))
+                            {
+                                createCmd.ExecuteNonQuery();
+                            }
+                        }
+                    }
+
+                    // Pobierz rozmiar pliku
+                    long? fileSize = null;
+                    if (File.Exists(pdfPath))
+                    {
+                        fileSize = new FileInfo(pdfPath).Length;
+                    }
+
+                    string query = @"INSERT INTO [dbo].[PdfHistory]
+                        ([FarmerCalcIDs], [DostawcaGID], [DostawcaNazwa], [CalcDate], [PdfPath], [PdfFileName], [GeneratedBy], [FileSize])
+                        VALUES (@IDs, @DostawcaGID, @DostawcaNazwa, @CalcDate, @PdfPath, @PdfFileName, @GeneratedBy, @FileSize)";
+
+                    using (SqlCommand cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@IDs", string.Join(",", ids));
+                        cmd.Parameters.AddWithValue("@DostawcaGID", (object)dostawcaGID ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@DostawcaNazwa", dostawcaNazwa ?? "");
+                        cmd.Parameters.AddWithValue("@CalcDate", calcDate);
+                        cmd.Parameters.AddWithValue("@PdfPath", pdfPath);
+                        cmd.Parameters.AddWithValue("@PdfFileName", Path.GetFileName(pdfPath));
+                        cmd.Parameters.AddWithValue("@GeneratedBy", Environment.UserName);
+                        cmd.Parameters.AddWithValue("@FileSize", (object)fileSize ?? DBNull.Value);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+
+                // Odśwież status PDF dla wierszy
+                RefreshPdfStatus(ids);
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Błąd zapisu historii PDF: {ex.Message}");
+            }
+        }
+
+        // Sprawdź czy PDF istnieje dla danego dostawcy i dnia
+        private string GetPdfPathForIds(List<int> ids)
+        {
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    // Sprawdź czy tabela istnieje
+                    string checkTable = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'PdfHistory'";
+                    using (SqlCommand checkCmd = new SqlCommand(checkTable, connection))
+                    {
+                        int exists = (int)checkCmd.ExecuteScalar();
+                        if (exists == 0) return null;
+                    }
+
+                    string idsString = string.Join(",", ids);
+                    string query = @"SELECT TOP 1 PdfPath FROM [dbo].[PdfHistory]
+                        WHERE FarmerCalcIDs = @IDs AND IsDeleted = 0
+                        ORDER BY GeneratedAt DESC";
+
+                    using (SqlCommand cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@IDs", idsString);
+                        object result = cmd.ExecuteScalar();
+                        return result as string;
+                    }
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        // Odśwież status PDF dla wierszy
+        private void RefreshPdfStatus(List<int> ids)
+        {
+            foreach (var row in specyfikacjeData.Where(r => ids.Contains(r.ID)))
+            {
+                row.HasPdf = true;
+            }
+        }
+
+        // Załaduj status PDF dla wszystkich wierszy
+        private void LoadPdfStatusForAllRows()
+        {
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    // Sprawdź czy tabela istnieje
+                    string checkTable = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'PdfHistory'";
+                    using (SqlCommand checkCmd = new SqlCommand(checkTable, connection))
+                    {
+                        int exists = (int)checkCmd.ExecuteScalar();
+                        if (exists == 0) return;
+                    }
+
+                    string query = @"SELECT FarmerCalcIDs, PdfPath FROM [dbo].[PdfHistory] WHERE IsDeleted = 0";
+                    using (SqlCommand cmd = new SqlCommand(query, connection))
+                    {
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                string idsString = reader.GetString(0);
+                                string pdfPath = reader.GetString(1);
+
+                                // Sprawdź czy plik istnieje
+                                bool fileExists = File.Exists(pdfPath);
+
+                                var idsList = idsString.Split(',').Select(s => int.TryParse(s, out int id) ? id : 0).Where(id => id > 0).ToList();
+                                foreach (var row in specyfikacjeData.Where(r => idsList.Contains(r.ID)))
+                                {
+                                    row.HasPdf = fileExists;
+                                    row.PdfPath = pdfPath;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Błąd ładowania statusu PDF: {ex.Message}");
+            }
+        }
+
+        // Kliknięcie na status PDF - otwórz plik
+        private void PdfStatus_Click(object sender, MouseButtonEventArgs e)
+        {
+            var textBlock = sender as TextBlock;
+            if (textBlock == null) return;
+
+            var row = textBlock.DataContext as SpecyfikacjaRow;
+            if (row == null || !row.HasPdf || string.IsNullOrEmpty(row.PdfPath)) return;
+
+            if (File.Exists(row.PdfPath))
+            {
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = row.PdfPath,
+                        UseShellExecute = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Nie można otworzyć pliku:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            else
+            {
+                row.HasPdf = false;
+                row.PdfPath = null;
+                MessageBox.Show("Plik PDF nie istnieje.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        #endregion
 
         // Handler dla Cena - Enter pyta czy zastosować do wszystkich
         private void Cena_KeyDown(object sender, KeyEventArgs e)
@@ -4278,6 +4512,24 @@ namespace Kalendarz1
             OnPropertyChanged(nameof(DoZaplaty));
             OnPropertyChanged(nameof(Wartosc));
         }
+
+        // === PDF STATUS ===
+        private bool _hasPdf = false;
+        private string _pdfPath = null;
+
+        public bool HasPdf
+        {
+            get => _hasPdf;
+            set { _hasPdf = value; OnPropertyChanged(nameof(HasPdf)); OnPropertyChanged(nameof(PdfStatus)); }
+        }
+
+        public string PdfPath
+        {
+            get => _pdfPath;
+            set { _pdfPath = value; OnPropertyChanged(nameof(PdfPath)); }
+        }
+
+        public string PdfStatus => HasPdf ? "✓" : "";
 
         public event PropertyChangedEventHandler PropertyChanged;
 
