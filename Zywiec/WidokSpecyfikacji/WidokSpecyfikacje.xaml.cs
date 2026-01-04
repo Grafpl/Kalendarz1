@@ -645,10 +645,14 @@ namespace Kalendarz1
                 selectedRow = dataGridView1.CurrentCell.Item as SpecyfikacjaRow;
             }
 
-            // Podswietl grupe dostawcy przy zaznaczeniu
-            if (selectedRow != null)
+            // Podswietl grupe dostawcy przy zaznaczeniu - używamy Dostawca (wyświetlanej nazwy)
+            if (selectedRow != null && !string.IsNullOrEmpty(selectedRow.Dostawca))
             {
-                HighlightSupplierGroup(selectedRow.RealDostawca);
+                HighlightSupplierGroup(selectedRow.Dostawca);
+            }
+            else
+            {
+                ClearSupplierHighlight();
             }
         }
 
@@ -2249,26 +2253,26 @@ namespace Kalendarz1
         #region === PODSWIETLENIE GRUPY DOSTAWCY ===
 
         /// <summary>
-        /// Podświetl wszystkie wiersze tego samego dostawcy
+        /// Podświetl wszystkie wiersze tego samego dostawcy (po nazwie wyświetlanej)
         /// </summary>
-        private void HighlightSupplierGroup(string realDostawca)
+        private void HighlightSupplierGroup(string dostawcaNazwa)
         {
-            if (_highlightedSupplier == realDostawca) return;
+            if (_highlightedSupplier == dostawcaNazwa) return;
 
             // Usuń poprzednie podświetlenie
             if (!string.IsNullOrEmpty(_highlightedSupplier))
             {
-                foreach (var row in specyfikacjeData.Where(x => x.RealDostawca == _highlightedSupplier))
+                foreach (var row in specyfikacjeData.Where(x => x.Dostawca == _highlightedSupplier))
                 {
                     row.IsHighlighted = false;
                 }
             }
 
             // Dodaj nowe podświetlenie
-            _highlightedSupplier = realDostawca;
-            if (!string.IsNullOrEmpty(realDostawca))
+            _highlightedSupplier = dostawcaNazwa;
+            if (!string.IsNullOrEmpty(dostawcaNazwa))
             {
-                foreach (var row in specyfikacjeData.Where(x => x.RealDostawca == realDostawca))
+                foreach (var row in specyfikacjeData.Where(x => x.Dostawca == dostawcaNazwa))
                 {
                     row.IsHighlighted = true;
                 }
@@ -2282,7 +2286,7 @@ namespace Kalendarz1
         {
             if (!string.IsNullOrEmpty(_highlightedSupplier))
             {
-                foreach (var row in specyfikacjeData.Where(x => x.RealDostawca == _highlightedSupplier))
+                foreach (var row in specyfikacjeData.Where(x => x.Dostawca == _highlightedSupplier))
                 {
                     row.IsHighlighted = false;
                 }
