@@ -91,31 +91,25 @@
                     </MultiTrigger.Conditions>
                     <Setter Property="Background" Value="#90CAF9"/>
                 </MultiTrigger>
-                <!-- 4. PODŚWIETLENIE GRUPY - wyraźny pomarańczowy -->
+                <!-- 4. PODŚWIETLENIE GRUPY - subtelne, bez zmiany układu -->
                 <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
-                    <Setter Property="Background" Value="#FFD54F"/>
-                    <Setter Property="BorderBrush" Value="#FF9800"/>
-                    <Setter Property="BorderThickness" Value="4,1,0,1"/>
+                    <Setter Property="Background" Value="#FFF8E1"/>
                 </DataTrigger>
-                <!-- 5. Podświetlenie + hover - ciemniejszy -->
+                <!-- 5. Podświetlenie + hover -->
                 <MultiDataTrigger>
                     <MultiDataTrigger.Conditions>
                         <Condition Binding="{Binding IsHighlighted}" Value="True"/>
                         <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True"/>
                     </MultiDataTrigger.Conditions>
-                    <Setter Property="Background" Value="#FFCA28"/>
-                    <Setter Property="BorderBrush" Value="#F57C00"/>
-                    <Setter Property="BorderThickness" Value="4,1,0,1"/>
+                    <Setter Property="Background" Value="#FFECB3"/>
                 </MultiDataTrigger>
-                <!-- 6. Podświetlenie + zaznaczenie - najciemniejszy -->
+                <!-- 6. Podświetlenie + zaznaczenie -->
                 <MultiDataTrigger>
                     <MultiDataTrigger.Conditions>
                         <Condition Binding="{Binding IsHighlighted}" Value="True"/>
                         <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="True"/>
                     </MultiDataTrigger.Conditions>
-                    <Setter Property="Background" Value="#FFB300"/>
-                    <Setter Property="BorderBrush" Value="#E65100"/>
-                    <Setter Property="BorderThickness" Value="4,1,0,1"/>
+                    <Setter Property="Background" Value="#FFE082"/>
                 </MultiDataTrigger>
             </Style.Triggers>
         </Style>
