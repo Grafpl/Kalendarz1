@@ -185,7 +185,6 @@ SELECT TOP 1000
     cl.ID,
     cl.FarmerCalcID,
     fc.CalcDate AS DzienUbojowy,
-    c.ShortName AS Dostawca,
     cl.FieldName,
     cl.OldValue,
     cl.NewValue,
@@ -193,9 +192,7 @@ SELECT TOP 1000
     cl.ChangedAt,
     cl.ChangeSource
 FROM [dbo].[FarmerCalcChangeLog] cl
-LEFT JOIN [dbo].[FarmerCalc] fc ON cl.FarmerCalcID = fc.ID
-LEFT JOIN [dbo].[Customer] c ON fc.CustomerGID = c.GID
-ORDER BY cl.ChangedAt DESC;
+LEFT JOIN [dbo].[FarmerCalc] fc ON cl.FarmerCalcID = fc.ID;
 GO
 
 PRINT 'Utworzono widok VW_FarmerCalcRecentChanges';
