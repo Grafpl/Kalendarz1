@@ -18,6 +18,8 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
         <local:ZeroToEmptyConverter x:Key="ZeroToEmptyConverter"/>
+        <local:ZeroToRedBrushConverter x:Key="ZeroToRedBrush"/>
+        <local:ZeroToBoldConverter x:Key="ZeroToBold"/>
 
         <Storyboard x:Key="ShakeAnimation">
             <DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)">
@@ -72,14 +74,17 @@
             <Setter Property="Foreground" Value="Black"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Style.Triggers>
+                <!-- 1. Hover (najniższy priorytet) -->
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="#E3F2FD"/>
                     <Setter Property="Foreground" Value="Black"/>
                 </Trigger>
+                <!-- 2. Zaznaczenie -->
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="#BBDEFB"/>
                     <Setter Property="Foreground" Value="Black"/>
                 </Trigger>
+                <!-- 3. Hover + Zaznaczenie -->
                 <MultiTrigger>
                     <MultiTrigger.Conditions>
                         <Condition Property="IsMouseOver" Value="True"/>
@@ -88,6 +93,27 @@
                     <Setter Property="Background" Value="#90CAF9"/>
                     <Setter Property="Foreground" Value="Black"/>
                 </MultiTrigger>
+                <!-- 4. Podświetlenie grupy dostawcy (niezaznaczony) - NAJWYŻSZY PRIORYTET -->
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsHighlighted}" Value="True"/>
+                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="False"/>
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Background" Value="#FFECB3"/>
+                    <Setter Property="BorderBrush" Value="#FFB74D"/>
+                    <Setter Property="BorderThickness" Value="2,0,0,0"/>
+                </MultiDataTrigger>
+                <!-- 5. Podświetlenie grupy + hover -->
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsHighlighted}" Value="True"/>
+                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="False"/>
+                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True"/>
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Background" Value="#FFE082"/>
+                    <Setter Property="BorderBrush" Value="#FFA000"/>
+                    <Setter Property="BorderThickness" Value="2,0,0,0"/>
+                </MultiDataTrigger>
             </Style.Triggers>
         </Style>
 
@@ -360,22 +386,74 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
-                    <Button Content="▲"
-                            x:Name="btnMoveUp"
+                    <Button x:Name="btnMoveUp"
                             Click="BtnMoveUp_Click"
-                            Style="{StaticResource SecondaryButtonStyle}"
-                            Background="#7F8C8D"
-                            FontSize="14"
-                            Width="35"
-                            ToolTip="Przesuń wiersz w górę"/>
-                    <Button Content="▼"
-                            x:Name="btnMoveDown"
+                            Background="#27AE60"
+                            Foreground="White"
+                            Width="32"
+                            Height="28"
+                            Margin="0,0,2,0"
+                            FontSize="16"
+                            FontWeight="Bold"
+                            Content="▲"
+                            Cursor="Hand"
+                            BorderThickness="0"
+                            ToolTip="Przesuń wiersz w górę">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4" Padding="0">
+                                    <TextBlock Text="{TemplateBinding Content}"
+                                               Foreground="{TemplateBinding Foreground}"
+                                               FontSize="{TemplateBinding FontSize}"
+                                               FontWeight="{TemplateBinding FontWeight}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#2ECC71"/>
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#1E8449"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                    <Button x:Name="btnMoveDown"
                             Click="BtnMoveDown_Click"
-                            Style="{StaticResource SecondaryButtonStyle}"
-                            Background="#7F8C8D"
-                            FontSize="14"
-                            Width="35"
-                            ToolTip="Przesuń wiersz w dół"/>
+                            Background="#E74C3C"
+                            Foreground="White"
+                            Width="32"
+                            Height="28"
+                            Margin="0,0,5,0"
+                            FontSize="16"
+                            FontWeight="Bold"
+                            Content="▼"
+                            Cursor="Hand"
+                            BorderThickness="0"
+                            ToolTip="Przesuń wiersz w dół">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4" Padding="0">
+                                    <TextBlock Text="{TemplateBinding Content}"
+                                               Foreground="{TemplateBinding Foreground}"
+                                               FontSize="{TemplateBinding FontSize}"
+                                               FontWeight="{TemplateBinding FontWeight}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#EC7063"/>
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#C0392B"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
                     <Button Content="AVILOG"
                             x:Name="buttonBon"
                             Click="ButtonBon_Click"
@@ -470,24 +548,80 @@
                     </Border.Effect>
                     <Grid>
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="200"/>
                         </Grid.RowDefinitions>
 
-                        <DataGrid Grid.Row="0" x:Name="dataGridView1"
+                        <!-- === TOOLBAR: Szybkie akcje masowe === -->
+                        <Border Grid.Row="0" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="8,6">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Szybkie akcje:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,10,0"/>
+
+                                <Button x:Name="btnCopySettings" Click="ToolBar_CopySettings"
+                                        Content="Kopiuj" ToolTip="Kopiuj ustawienia cenowe wiersza (Ctrl+Shift+C)"
+                                        Padding="10,4" Margin="0,0,5,0" Background="#2196F3" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand"/>
+                                <Button x:Name="btnPasteSettings" Click="ToolBar_PasteSettings"
+                                        Content="Wklej" ToolTip="Wklej ustawienia cenowe (Ctrl+Shift+V)"
+                                        Padding="10,4" Margin="0,0,5,0" Background="#4CAF50" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand"/>
+
+                                <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
+
+                                <Button x:Name="btnApplyAllToSupplier" Click="ToolBar_ApplyAllToSupplier"
+                                        Content="Zastosuj WSZYSTKO do dostawcy"
+                                        ToolTip="Zastosuj wszystkie ustawienia cenowe do wierszy tego samego dostawcy (Ctrl+Shift+A)"
+                                        Padding="10,4" Margin="5,0,5,0" Background="#FF9800" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+
+                                <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
+
+                                <Button x:Name="btnApplyCenaToSupplier" Click="ToolBar_ApplyCenaToSupplier"
+                                        Content="Cena" ToolTip="Zastosuj cene do wszystkich wierszy dostawcy"
+                                        Padding="8,4" Margin="5,0,2,0" Background="#1976D2" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand"/>
+                                <Button x:Name="btnApplyDodatekToSupplier" Click="ToolBar_ApplyDodatekToSupplier"
+                                        Content="Dodatek" ToolTip="Zastosuj dodatek do wszystkich wierszy dostawcy"
+                                        Padding="8,4" Margin="2,0,2,0" Background="#1976D2" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand"/>
+                                <Button x:Name="btnApplyUbytekToSupplier" Click="ToolBar_ApplyUbytekToSupplier"
+                                        Content="Ubytek" ToolTip="Zastosuj ubytek do wszystkich wierszy dostawcy"
+                                        Padding="8,4" Margin="2,0,2,0" Background="#1976D2" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand"/>
+                                <Button x:Name="btnApplyTypCenyToSupplier" Click="ToolBar_ApplyTypCenyToSupplier"
+                                        Content="Typ Ceny" ToolTip="Zastosuj typ ceny do wszystkich wierszy dostawcy"
+                                        Padding="8,4" Margin="2,0,5,0" Background="#1976D2" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand"/>
+
+                                <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
+
+                                <Button x:Name="btnApplyTemplate" Click="ToolBar_ApplyTemplate"
+                                        Content="Szablon z historii" ToolTip="Wypelnij puste pola ustawieniami z ostatniej dostawy tego dostawcy"
+                                        Padding="10,4" Margin="5,0,5,0" Background="#9C27B0" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand"/>
+
+                                <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
+
+                                <TextBlock x:Name="lblClipboardInfo" Text="" VerticalAlignment="Center"
+                                           FontStyle="Italic" Foreground="#757575" Margin="10,0,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <DataGrid Grid.Row="1" x:Name="dataGridView1"
                       AutoGenerateColumns="False"
                       CanUserAddRows="False"
                       CanUserDeleteRows="False"
                       CanUserReorderColumns="False"
                       SelectionMode="Single"
-                      SelectionUnit="CellOrRowHeader"
+                      SelectionUnit="FullRow"
                       GridLinesVisibility="All"
                       HorizontalGridLinesBrush="#E0E0E0"
                       VerticalGridLinesBrush="#EEEEEE"
-                      RowHeight="36"
+                      RowHeight="26"
                       Background="White"
                       BorderThickness="0"
-                      FontSize="12"
+                      FontSize="11"
                       AlternatingRowBackground="#FAFAFA"
                       ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
                       RowStyle="{StaticResource DataGridRowHoverStyle}"
@@ -497,12 +631,37 @@
                       CurrentCellChanged="DataGridView1_CurrentCellChanged"
                       PreviewKeyDown="DataGridView1_PreviewKeyDown"
                       PreviewTextInput="DataGridView1_PreviewTextInput"
-                      PreviewMouseLeftButtonDown="DataGrid_PreviewMouseLeftButtonDown"
                       EnableRowVirtualization="True"
                       EnableColumnVirtualization="True"
                       VirtualizingPanel.IsVirtualizing="True"
                       VirtualizingPanel.VirtualizationMode="Recycling"
                       VirtualizingPanel.ScrollUnit="Pixel">
+
+                            <!-- === MENU KONTEKSTOWE: Masowe operacje === -->
+                            <DataGrid.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Kopiuj z wiersza powyzej (Ctrl+D)" Click="ContextMenu_CopyFromAbove"/>
+                                    <Separator/>
+                                    <MenuItem Header="Schowek ustawien cenowych">
+                                        <MenuItem Header="Kopiuj ustawienia (Ctrl+Shift+C)" Click="ContextMenu_CopySettings"/>
+                                        <MenuItem Header="Wklej ustawienia (Ctrl+Shift+V)" Click="ContextMenu_PasteSettings"/>
+                                        <MenuItem Header="Wklej do wszystkich wierszy dostawcy" Click="ContextMenu_PasteSettingsToSupplier"/>
+                                    </MenuItem>
+                                    <Separator/>
+                                    <MenuItem Header="Zastosuj do dostawcy">
+                                        <MenuItem Header="Tylko CENE" Click="ContextMenu_ApplyCenaToSupplier"/>
+                                        <MenuItem Header="Tylko DODATEK" Click="ContextMenu_ApplyDodatekToSupplier"/>
+                                        <MenuItem Header="Tylko UBYTEK" Click="ContextMenu_ApplyUbytekToSupplier"/>
+                                        <MenuItem Header="Tylko TYP CENY" Click="ContextMenu_ApplyTypCenyToSupplier"/>
+                                        <Separator/>
+                                        <MenuItem Header="WSZYSTKIE pola (Ctrl+Shift+A)" Click="ContextMenu_ApplyAllToSupplier" FontWeight="Bold"/>
+                                        <Separator/>
+                                        <MenuItem Header="Szablon z historii (uzupelnij puste)" Click="ContextMenu_ApplyTemplate"/>
+                                    </MenuItem>
+                                    <Separator/>
+                                    <MenuItem Header="Odswiez dane" Click="ContextMenu_RefreshData"/>
+                                </ContextMenu>
+                            </DataGrid.ContextMenu>
 
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="LP" Binding="{Binding Nr}" Width="45" IsReadOnly="True">
@@ -516,39 +675,95 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTemplateColumn Header="✓" Width="30" IsReadOnly="True">
+                                <DataGridTemplateColumn Header="PDF" Width="35" IsReadOnly="True" ToolTipService.ToolTip="Status PDF - kliknij aby otworzyć">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="✓"
+                                            <TextBlock Text="{Binding PdfStatus}"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center"
                                            FontWeight="Bold"
                                            FontSize="16"
                                            Foreground="#4CAF50"
-                                           Visibility="{Binding Wydrukowano, Converter={StaticResource BoolToVis}}"/>
+                                           Cursor="Hand"
+                                           MouseLeftButtonDown="PdfStatus_Click"
+                                           ToolTip="{Binding PdfPath}"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
 
-                                <DataGridTemplateColumn Header="Dostawca" Width="160">
+                                <DataGridTemplateColumn Header="Dostawca" Width="160" SortMemberPath="Dostawca">
                                     <DataGridTemplateColumn.CellStyle>
                                         <Style TargetType="DataGridCell">
                                             <Setter Property="Background" Value="#E8F5E9"/>
                                             <Setter Property="BorderThickness" Value="0"/>
                                         </Style>
                                     </DataGridTemplateColumn.CellStyle>
+                                    <!-- CellTemplate: Wyświetlanie (tylko tekst) -->
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=DataContext.ListaDostawcow}"
-                                          SelectedValue="{Binding DostawcaGID, UpdateSourceTrigger=PropertyChanged}"
-                                          SelectedValuePath="GID"
-                                          DisplayMemberPath="ShortName"
-                                          SelectionChanged="ComboBox_Dostawca_SelectionChanged"
-                                          Background="#E8F5E9"
-                                          Padding="5"
-                                          VerticalContentAlignment="Center"/>
+                                            <TextBlock Text="{Binding Dostawca}"
+                                                       VerticalAlignment="Center"
+                                                       Padding="5,0"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Background="#E8F5E9"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
+                                    <!-- CellEditingTemplate: Edycja z autocomplete -->
+                                    <DataGridTemplateColumn.CellEditingTemplate>
+                                        <DataTemplate>
+                                            <Grid>
+                                                <TextBox x:Name="txtSupplierAutocomplete"
+                                                         Text="{Binding Dostawca, UpdateSourceTrigger=PropertyChanged}"
+                                                         Background="White"
+                                                         Padding="4,2"
+                                                         VerticalContentAlignment="Center"
+                                                         TextChanged="SupplierTextBox_TextChanged"
+                                                         PreviewKeyDown="SupplierTextBox_PreviewKeyDown"
+                                                         LostFocus="SupplierTextBox_LostFocus"
+                                                         Tag="{Binding}"/>
+                                                <Popup x:Name="popupSupplierSuggestions"
+                                                       PlacementTarget="{Binding ElementName=txtSupplierAutocomplete}"
+                                                       Placement="Bottom"
+                                                       StaysOpen="False"
+                                                       AllowsTransparency="True"
+                                                       PopupAnimation="Slide"
+                                                       Width="250">
+                                                    <Border Background="White"
+                                                            BorderBrush="#1976D2"
+                                                            BorderThickness="1"
+                                                            CornerRadius="0,0,4,4">
+                                                        <Border.Effect>
+                                                            <DropShadowEffect ShadowDepth="3" Opacity="0.3" BlurRadius="8"/>
+                                                        </Border.Effect>
+                                                        <ListBox x:Name="lstSupplierSuggestions"
+                                                                 ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=SupplierSuggestions}"
+                                                                 DisplayMemberPath="ShortName"
+                                                                 MaxHeight="200"
+                                                                 BorderThickness="0"
+                                                                 PreviewMouseLeftButtonUp="SupplierListBox_PreviewMouseLeftButtonUp"
+                                                                 PreviewKeyDown="SupplierListBox_PreviewKeyDown"
+                                                                 VirtualizingStackPanel.IsVirtualizing="True"
+                                                                 VirtualizingStackPanel.VirtualizationMode="Recycling">
+                                                            <ListBox.ItemContainerStyle>
+                                                                <Style TargetType="ListBoxItem">
+                                                                    <Setter Property="Padding" Value="8,4"/>
+                                                                    <Setter Property="Cursor" Value="Hand"/>
+                                                                    <Style.Triggers>
+                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                            <Setter Property="Background" Value="#E3F2FD"/>
+                                                                        </Trigger>
+                                                                        <Trigger Property="IsSelected" Value="True">
+                                                                            <Setter Property="Background" Value="#BBDEFB"/>
+                                                                        </Trigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </ListBox.ItemContainerStyle>
+                                                        </ListBox>
+                                                    </Border>
+                                                </Popup>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellEditingTemplate>
                                 </DataGridTemplateColumn>
 
                                 <DataGridTemplateColumn Header="Szt.Dek" Width="65" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">
@@ -812,11 +1027,19 @@
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ListaTypowCen}"
-                                          SelectedItem="{Binding TypCeny, UpdateSourceTrigger=PropertyChanged}"
-                                          Background="#BBDEFB"
-                                          Padding="5"
-                                          VerticalContentAlignment="Center"
-                                          SelectionChanged="TypCeny_SelectionChanged"/>
+                                                      SelectedItem="{Binding TypCeny, UpdateSourceTrigger=PropertyChanged}"
+                                                      Background="#BBDEFB"
+                                                      Padding="5"
+                                                      VerticalContentAlignment="Center"
+                                                      SelectionChanged="TypCeny_SelectionChanged"
+                                                      IsHitTestVisible="True"
+                                                      MaxDropDownHeight="200">
+                                                <ComboBox.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <VirtualizingStackPanel IsVirtualizing="True" VirtualizationMode="Recycling"/>
+                                                    </ItemsPanelTemplate>
+                                                </ComboBox.ItemsPanel>
+                                            </ComboBox>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -936,7 +1159,7 @@
                         </DataGrid>
 
                         <!-- Sekcja Harmonogram z subtelnym stylem -->
-                        <Border Grid.Row="1" Background="#F8F9FA" CornerRadius="8" Margin="5,8,5,5" BorderBrush="#E0E0E0" BorderThickness="1">
+                        <Border Grid.Row="2" Background="#F8F9FA" CornerRadius="8" Margin="5,8,5,5" BorderBrush="#E0E0E0" BorderThickness="1">
                             <Border.Effect>
                                 <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.08" BlurRadius="6"/>
                             </Border.Effect>
@@ -957,7 +1180,9 @@
                                 <Grid Grid.Row="1" Margin="5">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="6"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
 
@@ -980,22 +1205,54 @@
               RowStyle="{StaticResource DataGridRowHoverStyle}"
               EnableRowVirtualization="True">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="LP" Binding="{Binding LP}" Width="35" ElementStyle="{StaticResource CenterBoldStyle}"/>
                                     <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="*" ElementStyle="{StaticResource NormalStyle}"/>
-                                    <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDek, StringFormat={}{0:N0}}" Width="50" ElementStyle="{StaticResource RightOrangeStyle}" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}"/>
-                                    <DataGridTextColumn Header="Waga" Binding="{Binding WagaDek, StringFormat={}{0:N2}}" Width="50" ElementStyle="{StaticResource RightStyle}"/>
-                                    <DataGridTextColumn Header="KG" Binding="{Binding RazemKg, StringFormat={}{0:N0}}" Width="60" ElementStyle="{StaticResource RightGreenStyle}" HeaderStyle="{StaticResource WagiUbojniHeaderStyle}"/>
-                                    <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat={}{0:N2}}" Width="50" ElementStyle="{StaticResource RightBlueStyle}" HeaderStyle="{StaticResource CenaHeaderStyle}"/>
-                                    <DataGridTextColumn Header="Dod." Binding="{Binding Dodatek, StringFormat={}{0:N2}}" Width="45" ElementStyle="{StaticResource RightStyle}"/>
-                                    <DataGridTextColumn Header="Typ" Binding="{Binding TypCeny}" Width="50" ElementStyle="{StaticResource CenterStyle}"/>
-                                    <DataGridTextColumn Header="Auta" Binding="{Binding Auta}" Width="35" ElementStyle="{StaticResource CenterBoldStyle}"/>
-                                    <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="80" ElementStyle="{StaticResource ItalicStyle}"/>
+                                    <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDek, StringFormat={}{0:N0}}" Width="55" ElementStyle="{StaticResource RightOrangeStyle}" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}"/>
+                                    <DataGridTextColumn Header="Waga" Binding="{Binding WagaDek, StringFormat={}{0:N2}}" Width="55" ElementStyle="{StaticResource RightStyle}"/>
+                                    <DataGridTextColumn Header="KG" Binding="{Binding RazemKg, StringFormat={}{0:N0}}" Width="65" ElementStyle="{StaticResource RightGreenStyle}" HeaderStyle="{StaticResource WagiUbojniHeaderStyle}"/>
+                                    <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat={}{0:N2}}" Width="55" ElementStyle="{StaticResource RightBlueStyle}" HeaderStyle="{StaticResource CenaHeaderStyle}"/>
+                                    <DataGridTextColumn Header="Dod." Binding="{Binding Dodatek, StringFormat={}{0:N2}}" Width="50" ElementStyle="{StaticResource RightStyle}"/>
+                                    <DataGridTextColumn Header="Typ" Binding="{Binding TypCeny}" Width="55" ElementStyle="{StaticResource CenterStyle}"/>
+                                    <DataGridTextColumn Header="Auta" Binding="{Binding Auta}" Width="40" ElementStyle="{StaticResource CenterBoldStyle}"/>
                                     </DataGrid.Columns>
                                     </DataGrid>
 
                                     <Border Grid.Column="1" Background="#E0E0E0" Width="1" HorizontalAlignment="Center" Margin="0,5"/>
 
+                                    <!-- SRODKOWA KOLUMNA HARMONOGRAMU -->
                                     <DataGrid Grid.Column="2"
+                                              x:Name="dataGridHarmonogramCenter"
+                                              AutoGenerateColumns="False"
+                                              CanUserAddRows="False"
+                                              CanUserDeleteRows="False"
+                                              IsReadOnly="True"
+                                              SelectionMode="Single"
+                                              GridLinesVisibility="All"
+                                              HorizontalGridLinesBrush="#E0E0E0"
+                                              VerticalGridLinesBrush="#EEEEEE"
+                                              RowHeight="26"
+                                              FontSize="11"
+                                              Background="White"
+                                              BorderThickness="0"
+                                              AlternatingRowBackground="#F0FFF0"
+                                              ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+                                              RowStyle="{StaticResource DataGridRowHoverStyle}"
+                                              EnableRowVirtualization="True">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="*" ElementStyle="{StaticResource NormalStyle}"/>
+                                            <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDek, StringFormat={}{0:N0}}" Width="55" ElementStyle="{StaticResource RightOrangeStyle}" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}"/>
+                                            <DataGridTextColumn Header="Waga" Binding="{Binding WagaDek, StringFormat={}{0:N2}}" Width="55" ElementStyle="{StaticResource RightStyle}"/>
+                                            <DataGridTextColumn Header="KG" Binding="{Binding RazemKg, StringFormat={}{0:N0}}" Width="65" ElementStyle="{StaticResource RightGreenStyle}" HeaderStyle="{StaticResource WagiUbojniHeaderStyle}"/>
+                                            <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat={}{0:N2}}" Width="55" ElementStyle="{StaticResource RightBlueStyle}" HeaderStyle="{StaticResource CenaHeaderStyle}"/>
+                                            <DataGridTextColumn Header="Dod." Binding="{Binding Dodatek, StringFormat={}{0:N2}}" Width="50" ElementStyle="{StaticResource RightStyle}"/>
+                                            <DataGridTextColumn Header="Typ" Binding="{Binding TypCeny}" Width="55" ElementStyle="{StaticResource CenterStyle}"/>
+                                            <DataGridTextColumn Header="Auta" Binding="{Binding Auta}" Width="40" ElementStyle="{StaticResource CenterBoldStyle}"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+
+                                    <Border Grid.Column="3" Background="#E0E0E0" Width="1" HorizontalAlignment="Center" Margin="0,5"/>
+
+                                    <!-- PRAWA KOLUMNA HARMONOGRAMU -->
+                                    <DataGrid Grid.Column="4"
                                               x:Name="dataGridHarmonogramRight"
                                               AutoGenerateColumns="False"
                                               CanUserAddRows="False"
@@ -1014,16 +1271,14 @@
                                               RowStyle="{StaticResource DataGridRowHoverStyle}"
                                               EnableRowVirtualization="True">
                                         <DataGrid.Columns>
-                                            <DataGridTextColumn Header="LP" Binding="{Binding LP}" Width="35" ElementStyle="{StaticResource CenterBoldStyle}"/>
                                             <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="*" ElementStyle="{StaticResource NormalStyle}"/>
-                                            <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDek, StringFormat={}{0:N0}}" Width="50" ElementStyle="{StaticResource RightOrangeStyle}" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}"/>
-                                            <DataGridTextColumn Header="Waga" Binding="{Binding WagaDek, StringFormat={}{0:N2}}" Width="50" ElementStyle="{StaticResource RightStyle}"/>
-                                            <DataGridTextColumn Header="KG" Binding="{Binding RazemKg, StringFormat={}{0:N0}}" Width="60" ElementStyle="{StaticResource RightGreenStyle}" HeaderStyle="{StaticResource WagiUbojniHeaderStyle}"/>
-                                            <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat={}{0:N2}}" Width="50" ElementStyle="{StaticResource RightBlueStyle}" HeaderStyle="{StaticResource CenaHeaderStyle}"/>
-                                            <DataGridTextColumn Header="Dod." Binding="{Binding Dodatek, StringFormat={}{0:N2}}" Width="45" ElementStyle="{StaticResource RightStyle}"/>
-                                            <DataGridTextColumn Header="Typ" Binding="{Binding TypCeny}" Width="50" ElementStyle="{StaticResource CenterStyle}"/>
-                                            <DataGridTextColumn Header="Auta" Binding="{Binding Auta}" Width="35" ElementStyle="{StaticResource CenterBoldStyle}"/>
-                                            <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi}" Width="80" ElementStyle="{StaticResource ItalicStyle}"/>
+                                            <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDek, StringFormat={}{0:N0}}" Width="55" ElementStyle="{StaticResource RightOrangeStyle}" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}"/>
+                                            <DataGridTextColumn Header="Waga" Binding="{Binding WagaDek, StringFormat={}{0:N2}}" Width="55" ElementStyle="{StaticResource RightStyle}"/>
+                                            <DataGridTextColumn Header="KG" Binding="{Binding RazemKg, StringFormat={}{0:N0}}" Width="65" ElementStyle="{StaticResource RightGreenStyle}" HeaderStyle="{StaticResource WagiUbojniHeaderStyle}"/>
+                                            <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat={}{0:N2}}" Width="55" ElementStyle="{StaticResource RightBlueStyle}" HeaderStyle="{StaticResource CenaHeaderStyle}"/>
+                                            <DataGridTextColumn Header="Dod." Binding="{Binding Dodatek, StringFormat={}{0:N2}}" Width="50" ElementStyle="{StaticResource RightStyle}"/>
+                                            <DataGridTextColumn Header="Typ" Binding="{Binding TypCeny}" Width="55" ElementStyle="{StaticResource CenterStyle}"/>
+                                            <DataGridTextColumn Header="Auta" Binding="{Binding Auta}" Width="40" ElementStyle="{StaticResource CenterBoldStyle}"/>
                                         </DataGrid.Columns>
                                     </DataGrid>
                                 </Grid>
