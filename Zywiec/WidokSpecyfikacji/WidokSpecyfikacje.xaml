@@ -74,20 +74,17 @@
             <Setter Property="Foreground" Value="Black"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Style.Triggers>
-                <!-- Podswietlenie grupy dostawcy -->
-                <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
-                    <Setter Property="Background" Value="#FFF8E1"/>
-                    <Setter Property="BorderBrush" Value="#FFB74D"/>
-                    <Setter Property="BorderThickness" Value="0,1,0,1"/>
-                </DataTrigger>
+                <!-- 1. Hover (najniższy priorytet) -->
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="#E3F2FD"/>
                     <Setter Property="Foreground" Value="Black"/>
                 </Trigger>
+                <!-- 2. Zaznaczenie -->
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="#BBDEFB"/>
                     <Setter Property="Foreground" Value="Black"/>
                 </Trigger>
+                <!-- 3. Hover + Zaznaczenie -->
                 <MultiTrigger>
                     <MultiTrigger.Conditions>
                         <Condition Property="IsMouseOver" Value="True"/>
@@ -96,13 +93,26 @@
                     <Setter Property="Background" Value="#90CAF9"/>
                     <Setter Property="Foreground" Value="Black"/>
                 </MultiTrigger>
-                <!-- Podswietlenie grupy + zaznaczenie -->
+                <!-- 4. Podświetlenie grupy dostawcy (niezaznaczony) - NAJWYŻSZY PRIORYTET -->
                 <MultiDataTrigger>
                     <MultiDataTrigger.Conditions>
                         <Condition Binding="{Binding IsHighlighted}" Value="True"/>
                         <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="False"/>
                     </MultiDataTrigger.Conditions>
-                    <Setter Property="Background" Value="#FFF8E1"/>
+                    <Setter Property="Background" Value="#FFECB3"/>
+                    <Setter Property="BorderBrush" Value="#FFB74D"/>
+                    <Setter Property="BorderThickness" Value="2,0,0,0"/>
+                </MultiDataTrigger>
+                <!-- 5. Podświetlenie grupy + hover -->
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsHighlighted}" Value="True"/>
+                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="False"/>
+                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True"/>
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Background" Value="#FFE082"/>
+                    <Setter Property="BorderBrush" Value="#FFA000"/>
+                    <Setter Property="BorderThickness" Value="2,0,0,0"/>
                 </MultiDataTrigger>
             </Style.Triggers>
         </Style>
