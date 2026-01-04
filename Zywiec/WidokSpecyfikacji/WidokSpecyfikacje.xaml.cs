@@ -636,32 +636,53 @@ namespace Kalendarz1
 
         private void DataGridView1_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (dataGridView1.SelectedItem != null)
+            // Użyj e.AddedItems aby pobrać nowo wybrany wiersz bezpośrednio
+            SpecyfikacjaRow newSelected = null;
+
+            if (e.AddedItems.Count > 0)
             {
-                selectedRow = dataGridView1.SelectedItem as SpecyfikacjaRow;
-            }
-            else if (dataGridView1.CurrentCell != null && dataGridView1.CurrentCell.Item != null)
-            {
-                selectedRow = dataGridView1.CurrentCell.Item as SpecyfikacjaRow;
+                newSelected = e.AddedItems[0] as SpecyfikacjaRow;
             }
 
-            // Podswietl grupe dostawcy przy zaznaczeniu - używamy Dostawca (wyświetlanej nazwy)
-            if (selectedRow != null && !string.IsNullOrEmpty(selectedRow.Dostawca))
+            if (newSelected == null && dataGridView1.SelectedItem != null)
             {
-                HighlightSupplierGroup(selectedRow.Dostawca);
+                newSelected = dataGridView1.SelectedItem as SpecyfikacjaRow;
             }
-            else
+
+            if (newSelected != null)
             {
-                ClearSupplierHighlight();
+                selectedRow = newSelected;
+
+                // Podswietl grupe dostawcy przy zaznaczeniu
+                var dostawcaNazwa = newSelected.Dostawca?.Trim();
+                if (!string.IsNullOrEmpty(dostawcaNazwa))
+                {
+                    HighlightSupplierGroup(dostawcaNazwa);
+                }
+                else
+                {
+                    ClearSupplierHighlight();
+                }
             }
         }
 
-        // === CurrentCellChanged: Aktualizacja wybranego wiersza ===
+        // === CurrentCellChanged: Aktualizacja wybranego wiersza i podświetlenia ===
         private void DataGridView1_CurrentCellChanged(object sender, EventArgs e)
         {
-            if (dataGridView1.CurrentCell.Item != null)
+            if (dataGridView1.CurrentCell != null && dataGridView1.CurrentCell.Item is SpecyfikacjaRow currentRow)
             {
-                selectedRow = dataGridView1.CurrentCell.Item as SpecyfikacjaRow;
+                selectedRow = currentRow;
+
+                // Aktualizuj podświetlenie przy zmianie komórki
+                var dostawcaNazwa = currentRow.Dostawca?.Trim();
+                if (!string.IsNullOrEmpty(dostawcaNazwa))
+                {
+                    HighlightSupplierGroup(dostawcaNazwa);
+                }
+                else
+                {
+                    ClearSupplierHighlight();
+                }
             }
         }
 
@@ -2257,22 +2278,22 @@ namespace Kalendarz1
         /// </summary>
         private void HighlightSupplierGroup(string dostawcaNazwa)
         {
-            if (_highlightedSupplier == dostawcaNazwa) return;
+            var trimmedName = dostawcaNazwa?.Trim();
+            if (_highlightedSupplier == trimmedName) return;
 
-            // Usuń poprzednie podświetlenie
-            if (!string.IsNullOrEmpty(_highlightedSupplier))
+            // Usuń poprzednie podświetlenie - WSZYSTKIE wiersze
+            foreach (var row in specyfikacjeData.Where(x => x.IsHighlighted))
             {
-                foreach (var row in specyfikacjeData.Where(x => x.Dostawca == _highlightedSupplier))
-                {
-                    row.IsHighlighted = false;
-                }
+                row.IsHighlighted = false;
             }
 
             // Dodaj nowe podświetlenie
-            _highlightedSupplier = dostawcaNazwa;
-            if (!string.IsNullOrEmpty(dostawcaNazwa))
+            _highlightedSupplier = trimmedName;
+            if (!string.IsNullOrEmpty(trimmedName))
             {
-                foreach (var row in specyfikacjeData.Where(x => x.Dostawca == dostawcaNazwa))
+                foreach (var row in specyfikacjeData.Where(x =>
+                    !string.IsNullOrEmpty(x.Dostawca) &&
+                    x.Dostawca.Trim().Equals(trimmedName, StringComparison.OrdinalIgnoreCase)))
                 {
                     row.IsHighlighted = true;
                 }
@@ -2284,14 +2305,11 @@ namespace Kalendarz1
         /// </summary>
         private void ClearSupplierHighlight()
         {
-            if (!string.IsNullOrEmpty(_highlightedSupplier))
+            foreach (var row in specyfikacjeData.Where(x => x.IsHighlighted))
             {
-                foreach (var row in specyfikacjeData.Where(x => x.Dostawca == _highlightedSupplier))
-                {
-                    row.IsHighlighted = false;
-                }
-                _highlightedSupplier = null;
+                row.IsHighlighted = false;
             }
+            _highlightedSupplier = null;
         }
 
         #endregion
