@@ -636,28 +636,30 @@ namespace Kalendarz1
 
         private void DataGridView1_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Użyj Dispatcher aby upewnić się że zaznaczenie jest kompletne
+            // KLUCZ: Pobierz wiersz z e.AddedItems PRZED Dispatcherem (nie z SelectedItem!)
+            if (e.AddedItems.Count == 0) return;
+
+            var selected = e.AddedItems[0] as SpecyfikacjaRow;
+            if (selected == null) return;
+
+            // Zapisz wybrany wiersz od razu
+            selectedRow = selected;
+
+            // Pobierz klucz dostawcy TERAZ (przed Dispatcherem)
+            var dostawcaKey = selected.Dostawca?.Trim();
+
+            // Dispatcher tylko do UI - przekazujemy już pobraną wartość
             Dispatcher.BeginInvoke(new Action(() =>
             {
-                var selected = dataGridView1.SelectedItem as SpecyfikacjaRow;
-                if (selected != null)
+                if (!string.IsNullOrEmpty(dostawcaKey))
                 {
-                    selectedRow = selected;
-                    var dostawca = selected.Dostawca?.Trim();
-                    if (!string.IsNullOrEmpty(dostawca))
-                    {
-                        HighlightSupplierGroup(dostawca);
-                    }
-                    else
-                    {
-                        ClearSupplierHighlight();
-                    }
+                    HighlightSupplierGroup(dostawcaKey);
                 }
                 else
                 {
                     ClearSupplierHighlight();
                 }
-            }), System.Windows.Threading.DispatcherPriority.Background);
+            }), System.Windows.Threading.DispatcherPriority.Input);
         }
 
         // === CurrentCellChanged: Tylko aktualizacja selectedRow ===
