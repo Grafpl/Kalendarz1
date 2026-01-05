@@ -16,13 +16,12 @@ namespace Kalendarz1
     /// </summary>
     public partial class HistoriaZmianWindow : Window
     {
-        private readonly string connectionString;
+        private readonly string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private List<FarmerCalcChangeLogEntry> allChanges = new List<FarmerCalcChangeLogEntry>();
 
         public HistoriaZmianWindow()
         {
             InitializeComponent();
-            connectionString = Globalne.connectionStringLN;
 
             // Ustaw domyslne daty
             dpDateFrom.SelectedDate = DateTime.Today;
