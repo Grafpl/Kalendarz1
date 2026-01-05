@@ -342,7 +342,12 @@ namespace Kalendarz1
                                 ISNULL(PriceTypeID, -1) AS PriceTypeID,
                                 Number,
                                 YearNumber,
-                                CarLp
+                                CarLp,
+                                PoczatekUslugi,
+                                DojazdHodowca,
+                                ZaladunekKoniec,
+                                WyjazdHodowca,
+                                KoniecUslugi
                             FROM [LibraNet].[dbo].[FarmerCalc]
                             WHERE CalcDate = @SelectedDate
                             ORDER BY CarLp, LpDostawy";
@@ -495,6 +500,18 @@ namespace Kalendarz1
                                     ? Convert.ToInt32(row["PriceTypeID"]) : (int?)null;
                                 matrycaRow.Number = table.Columns.Contains("Number") && row["Number"] != DBNull.Value
                                     ? Convert.ToInt32(row["Number"]) : (int?)null;
+
+                                // Wczytaj dodatkowe czasy
+                                matrycaRow.PoczatekUslugi = table.Columns.Contains("PoczatekUslugi") && row["PoczatekUslugi"] != DBNull.Value
+                                    ? Convert.ToDateTime(row["PoczatekUslugi"]) : (DateTime?)null;
+                                matrycaRow.DojazdHodowca = table.Columns.Contains("DojazdHodowca") && row["DojazdHodowca"] != DBNull.Value
+                                    ? Convert.ToDateTime(row["DojazdHodowca"]) : (DateTime?)null;
+                                matrycaRow.ZaladunekKoniec = table.Columns.Contains("ZaladunekKoniec") && row["ZaladunekKoniec"] != DBNull.Value
+                                    ? Convert.ToDateTime(row["ZaladunekKoniec"]) : (DateTime?)null;
+                                matrycaRow.WyjazdHodowca = table.Columns.Contains("WyjazdHodowca") && row["WyjazdHodowca"] != DBNull.Value
+                                    ? Convert.ToDateTime(row["WyjazdHodowca"]) : (DateTime?)null;
+                                matrycaRow.KoniecUslugi = table.Columns.Contains("KoniecUslugi") && row["KoniecUslugi"] != DBNull.Value
+                                    ? Convert.ToDateTime(row["KoniecUslugi"]) : (DateTime?)null;
                             }
                             else
                             {
@@ -1896,11 +1913,13 @@ namespace Kalendarz1
                     string sql = @"INSERT INTO dbo.FarmerCalc
                         (ID, CalcDate, CustomerGID, CustomerRealGID, DriverGID, LpDostawy, CarLp, SztPoj, WagaDek,
                          CarID, TrailerID, NotkaWozek, Wyjazd, Zaladunek, Przyjazd, Price,
-                         Loss, PriceTypeID, YearNumber, Number)
+                         Loss, PriceTypeID, YearNumber, Number,
+                         PoczatekUslugi, DojazdHodowca, ZaladunekKoniec, WyjazdHodowca, KoniecUslugi)
                         VALUES
                         (@ID, @Date, @Dostawca, @Dostawca, @Kierowca, @LpDostawy, @CarLp, @SztPoj, @WagaDek,
                          @Ciagnik, @Naczepa, @NotkaWozek, @Wyjazd, @Zaladunek,
-                         @Przyjazd, @Cena, @Ubytek, @TypCeny, @YearNumber, @Number)";
+                         @Przyjazd, @Cena, @Ubytek, @TypCeny, @YearNumber, @Number,
+                         @PoczatekUslugi, @DojazdHodowca, @ZaladunekKoniec, @WyjazdHodowca, @KoniecUslugi)";
 
                     using (SqlTransaction transaction = conn.BeginTransaction())
                     {
@@ -1969,6 +1988,13 @@ namespace Kalendarz1
                                     cmd.Parameters.AddWithValue("@YearNumber", selectedDate.Year);
                                     // Number = numer specyfikacji (jeśli ustawiony w wierszu)
                                     cmd.Parameters.AddWithValue("@Number", row.Number ?? (object)DBNull.Value);
+
+                                    // Dodatkowe czasy usługi
+                                    cmd.Parameters.AddWithValue("@PoczatekUslugi", row.PoczatekUslugi ?? (object)DBNull.Value);
+                                    cmd.Parameters.AddWithValue("@DojazdHodowca", row.DojazdHodowca ?? (object)DBNull.Value);
+                                    cmd.Parameters.AddWithValue("@ZaladunekKoniec", row.ZaladunekKoniec ?? (object)DBNull.Value);
+                                    cmd.Parameters.AddWithValue("@WyjazdHodowca", row.WyjazdHodowca ?? (object)DBNull.Value);
+                                    cmd.Parameters.AddWithValue("@KoniecUslugi", row.KoniecUslugi ?? (object)DBNull.Value);
 
                                     cmd.ExecuteNonQuery();
                                     savedCount++;
@@ -2316,6 +2342,11 @@ namespace Kalendarz1
         private DateTime? _wyjazd;
         private DateTime? _zaladunek;
         private DateTime? _przyjazd;
+        private DateTime? _poczatekUslugi;
+        private DateTime? _dojazdHodowca;
+        private DateTime? _zaladunekKoniec;
+        private DateTime? _wyjazdHodowca;
+        private DateTime? _koniecUslugi;
         private string _notkaWozek;
         private string _adres;
         private string _miejscowosc;
@@ -2411,7 +2442,131 @@ namespace Kalendarz1
         public DateTime? Przyjazd
         {
             get => _przyjazd;
-            set { _przyjazd = value; OnPropertyChanged(nameof(Przyjazd)); }
+            set { _przyjazd = value; OnPropertyChanged(nameof(Przyjazd)); OnPropertyChanged(nameof(CzasRozladunek)); OnPropertyChanged(nameof(CzasCalkowity)); }
+        }
+
+        public DateTime? PoczatekUslugi
+        {
+            get => _poczatekUslugi;
+            set { _poczatekUslugi = value; OnPropertyChanged(nameof(PoczatekUslugi)); OnPropertyChanged(nameof(CzasCalkowity)); }
+        }
+
+        public DateTime? DojazdHodowca
+        {
+            get => _dojazdHodowca;
+            set { _dojazdHodowca = value; OnPropertyChanged(nameof(DojazdHodowca)); OnPropertyChanged(nameof(CzasDojazd)); }
+        }
+
+        public DateTime? ZaladunekKoniec
+        {
+            get => _zaladunekKoniec;
+            set { _zaladunekKoniec = value; OnPropertyChanged(nameof(ZaladunekKoniec)); OnPropertyChanged(nameof(CzasZaladunek)); }
+        }
+
+        public DateTime? WyjazdHodowca
+        {
+            get => _wyjazdHodowca;
+            set { _wyjazdHodowca = value; OnPropertyChanged(nameof(WyjazdHodowca)); OnPropertyChanged(nameof(CzasPostoj)); }
+        }
+
+        public DateTime? KoniecUslugi
+        {
+            get => _koniecUslugi;
+            set { _koniecUslugi = value; OnPropertyChanged(nameof(KoniecUslugi)); OnPropertyChanged(nameof(CzasCalkowity)); }
+        }
+
+        // === Obliczone czasy trwania ===
+
+        /// <summary>
+        /// Czas dojazdu do hodowcy (Wyjazd -> DojazdHodowca)
+        /// </summary>
+        public string CzasDojazd
+        {
+            get
+            {
+                if (Wyjazd.HasValue && DojazdHodowca.HasValue)
+                {
+                    var diff = DojazdHodowca.Value - Wyjazd.Value;
+                    return FormatTimeSpan(diff);
+                }
+                return "";
+            }
+        }
+
+        /// <summary>
+        /// Czas załadunku (Zaladunek -> ZaladunekKoniec)
+        /// </summary>
+        public string CzasZaladunek
+        {
+            get
+            {
+                if (Zaladunek.HasValue && ZaladunekKoniec.HasValue)
+                {
+                    var diff = ZaladunekKoniec.Value - Zaladunek.Value;
+                    return FormatTimeSpan(diff);
+                }
+                return "";
+            }
+        }
+
+        /// <summary>
+        /// Czas postoju u hodowcy (DojazdHodowca -> WyjazdHodowca)
+        /// </summary>
+        public string CzasPostoj
+        {
+            get
+            {
+                if (DojazdHodowca.HasValue && WyjazdHodowca.HasValue)
+                {
+                    var diff = WyjazdHodowca.Value - DojazdHodowca.Value;
+                    return FormatTimeSpan(diff);
+                }
+                return "";
+            }
+        }
+
+        /// <summary>
+        /// Czas powrotu (WyjazdHodowca -> Przyjazd)
+        /// </summary>
+        public string CzasRozladunek
+        {
+            get
+            {
+                if (WyjazdHodowca.HasValue && Przyjazd.HasValue)
+                {
+                    var diff = Przyjazd.Value - WyjazdHodowca.Value;
+                    return FormatTimeSpan(diff);
+                }
+                return "";
+            }
+        }
+
+        /// <summary>
+        /// Całkowity czas usługi (PoczatekUslugi -> KoniecUslugi lub Wyjazd -> Przyjazd)
+        /// </summary>
+        public string CzasCalkowity
+        {
+            get
+            {
+                if (PoczatekUslugi.HasValue && KoniecUslugi.HasValue)
+                {
+                    var diff = KoniecUslugi.Value - PoczatekUslugi.Value;
+                    return FormatTimeSpan(diff);
+                }
+                if (Wyjazd.HasValue && Przyjazd.HasValue)
+                {
+                    var diff = Przyjazd.Value - Wyjazd.Value;
+                    return FormatTimeSpan(diff);
+                }
+                return "";
+            }
+        }
+
+        private string FormatTimeSpan(TimeSpan ts)
+        {
+            if (ts.TotalHours >= 24)
+                return $"{(int)ts.TotalHours}:{ts.Minutes:D2}";
+            return $"{(int)ts.TotalHours}:{ts.Minutes:D2}";
         }
 
         public string NotkaWozek

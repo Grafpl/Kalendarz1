@@ -618,10 +618,27 @@
                                                     Width="100"
                                                     HeaderStyle="{StaticResource TransportHeaderStyle}"/>
 
-                            <!-- Godziny - z konwerterem obsługującym skróty -->
-                            <DataGridTemplateColumn Header="Wyjazd" Width="70"
-                                                    HeaderStyle="{StaticResource CzasHeaderStyle}"
-                                                    CellStyle="{StaticResource CellStylePurple}">
+                            <!-- === GODZINY USŁUGI === -->
+
+                            <!-- Początek usługi -->
+                            <DataGridTemplateColumn Header="Start" Width="55" HeaderStyle="{StaticResource CzasHeaderStyle}">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding PoczatekUslugi, Converter={StaticResource TimeShortcutConverter}}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" Foreground="#37474F"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                                <DataGridTemplateColumn.CellEditingTemplate>
+                                    <DataTemplate>
+                                        <TextBox Text="{Binding PoczatekUslugi, Converter={StaticResource TimeShortcutConverter}, UpdateSourceTrigger=LostFocus, Mode=TwoWay}"
+                                                 HorizontalContentAlignment="Center" BorderThickness="0" Background="White"
+                                                 PreviewKeyDown="TimeTextBox_PreviewKeyDown" Loaded="TimeTextBox_Loaded"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellEditingTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- Wyjazd z bazy -->
+                            <DataGridTemplateColumn Header="Wyjazd" Width="55" HeaderStyle="{StaticResource CzasHeaderStyle}" CellStyle="{StaticResource CellStylePurple}">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding Wyjazd, Converter={StaticResource TimeShortcutConverter}}"
@@ -631,17 +648,42 @@
                                 <DataGridTemplateColumn.CellEditingTemplate>
                                     <DataTemplate>
                                         <TextBox Text="{Binding Wyjazd, Converter={StaticResource TimeShortcutConverter}, UpdateSourceTrigger=LostFocus, Mode=TwoWay}"
-                                                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                                 BorderThickness="0" Background="White"
-                                                 PreviewKeyDown="TimeTextBox_PreviewKeyDown"
-                                                 Loaded="TimeTextBox_Loaded"/>
+                                                 HorizontalContentAlignment="Center" BorderThickness="0" Background="White"
+                                                 PreviewKeyDown="TimeTextBox_PreviewKeyDown" Loaded="TimeTextBox_Loaded"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellEditingTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTemplateColumn Header="Załadunek" Width="85"
-                                                    HeaderStyle="{StaticResource CzasHeaderStyle}"
-                                                    CellStyle="{StaticResource CellStylePurple}">
+                            <!-- Dojazd do hodowcy -->
+                            <DataGridTemplateColumn Header="Dojazd" Width="55" HeaderStyle="{StaticResource CzasHeaderStyle}">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding DojazdHodowca, Converter={StaticResource TimeShortcutConverter}}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" Foreground="#FF6F00"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                                <DataGridTemplateColumn.CellEditingTemplate>
+                                    <DataTemplate>
+                                        <TextBox Text="{Binding DojazdHodowca, Converter={StaticResource TimeShortcutConverter}, UpdateSourceTrigger=LostFocus, Mode=TwoWay}"
+                                                 HorizontalContentAlignment="Center" BorderThickness="0" Background="White"
+                                                 PreviewKeyDown="TimeTextBox_PreviewKeyDown" Loaded="TimeTextBox_Loaded"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellEditingTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- Czas dojazdu (obliczony) -->
+                            <DataGridTextColumn Header="T.Doj" Width="45" Binding="{Binding CzasDojazd}" IsReadOnly="True">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="Foreground" Value="#FF6F00"/>
+                                        <Setter Property="FontSize" Value="10"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- Załadunek początek -->
+                            <DataGridTemplateColumn Header="Zał." Width="55" HeaderStyle="{StaticResource CzasHeaderStyle}" CellStyle="{StaticResource CellStylePurple}">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding Zaladunek, Converter={StaticResource TimeShortcutConverter}}"
@@ -651,17 +693,70 @@
                                 <DataGridTemplateColumn.CellEditingTemplate>
                                     <DataTemplate>
                                         <TextBox Text="{Binding Zaladunek, Converter={StaticResource TimeShortcutConverter}, UpdateSourceTrigger=LostFocus, Mode=TwoWay}"
-                                                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                                 BorderThickness="0" Background="White"
-                                                 PreviewKeyDown="TimeTextBox_PreviewKeyDown"
-                                                 Loaded="TimeTextBox_Loaded"/>
+                                                 HorizontalContentAlignment="Center" BorderThickness="0" Background="White"
+                                                 PreviewKeyDown="TimeTextBox_PreviewKeyDown" Loaded="TimeTextBox_Loaded"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellEditingTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTemplateColumn Header="Przyjazd" Width="75"
-                                                    HeaderStyle="{StaticResource CzasHeaderStyle}"
-                                                    CellStyle="{StaticResource CellStylePurple}">
+                            <!-- Załadunek koniec -->
+                            <DataGridTemplateColumn Header="Zał.K" Width="55" HeaderStyle="{StaticResource CzasHeaderStyle}">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding ZaladunekKoniec, Converter={StaticResource TimeShortcutConverter}}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" Foreground="#7B1FA2"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                                <DataGridTemplateColumn.CellEditingTemplate>
+                                    <DataTemplate>
+                                        <TextBox Text="{Binding ZaladunekKoniec, Converter={StaticResource TimeShortcutConverter}, UpdateSourceTrigger=LostFocus, Mode=TwoWay}"
+                                                 HorizontalContentAlignment="Center" BorderThickness="0" Background="White"
+                                                 PreviewKeyDown="TimeTextBox_PreviewKeyDown" Loaded="TimeTextBox_Loaded"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellEditingTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- Czas załadunku (obliczony) -->
+                            <DataGridTextColumn Header="T.Zał" Width="45" Binding="{Binding CzasZaladunek}" IsReadOnly="True">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="Foreground" Value="#7B1FA2"/>
+                                        <Setter Property="FontSize" Value="10"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- Wyjazd od hodowcy -->
+                            <DataGridTemplateColumn Header="WyjH" Width="55" HeaderStyle="{StaticResource CzasHeaderStyle}">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding WyjazdHodowca, Converter={StaticResource TimeShortcutConverter}}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" Foreground="#2E7D32"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                                <DataGridTemplateColumn.CellEditingTemplate>
+                                    <DataTemplate>
+                                        <TextBox Text="{Binding WyjazdHodowca, Converter={StaticResource TimeShortcutConverter}, UpdateSourceTrigger=LostFocus, Mode=TwoWay}"
+                                                 HorizontalContentAlignment="Center" BorderThickness="0" Background="White"
+                                                 PreviewKeyDown="TimeTextBox_PreviewKeyDown" Loaded="TimeTextBox_Loaded"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellEditingTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- Czas postoju (obliczony) -->
+                            <DataGridTextColumn Header="Post" Width="45" Binding="{Binding CzasPostoj}" IsReadOnly="True">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="Foreground" Value="#2E7D32"/>
+                                        <Setter Property="FontSize" Value="10"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- Przyjazd do ubojni -->
+                            <DataGridTemplateColumn Header="Przyj" Width="55" HeaderStyle="{StaticResource CzasHeaderStyle}" CellStyle="{StaticResource CellStylePurple}">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding Przyjazd, Converter={StaticResource TimeShortcutConverter}}"
@@ -671,13 +766,51 @@
                                 <DataGridTemplateColumn.CellEditingTemplate>
                                     <DataTemplate>
                                         <TextBox Text="{Binding Przyjazd, Converter={StaticResource TimeShortcutConverter}, UpdateSourceTrigger=LostFocus, Mode=TwoWay}"
-                                                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                                 BorderThickness="0" Background="White"
-                                                 PreviewKeyDown="TimeTextBox_PreviewKeyDown"
-                                                 Loaded="TimeTextBox_Loaded"/>
+                                                 HorizontalContentAlignment="Center" BorderThickness="0" Background="White"
+                                                 PreviewKeyDown="TimeTextBox_PreviewKeyDown" Loaded="TimeTextBox_Loaded"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellEditingTemplate>
                             </DataGridTemplateColumn>
+
+                            <!-- Czas powrotu (obliczony) -->
+                            <DataGridTextColumn Header="T.Pow" Width="45" Binding="{Binding CzasRozladunek}" IsReadOnly="True">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="Foreground" Value="#1565C0"/>
+                                        <Setter Property="FontSize" Value="10"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- Koniec usługi -->
+                            <DataGridTemplateColumn Header="Koniec" Width="55" HeaderStyle="{StaticResource CzasHeaderStyle}">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding KoniecUslugi, Converter={StaticResource TimeShortcutConverter}}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" Foreground="#37474F"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                                <DataGridTemplateColumn.CellEditingTemplate>
+                                    <DataTemplate>
+                                        <TextBox Text="{Binding KoniecUslugi, Converter={StaticResource TimeShortcutConverter}, UpdateSourceTrigger=LostFocus, Mode=TwoWay}"
+                                                 HorizontalContentAlignment="Center" BorderThickness="0" Background="White"
+                                                 PreviewKeyDown="TimeTextBox_PreviewKeyDown" Loaded="TimeTextBox_Loaded"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellEditingTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- Całkowity czas (obliczony) -->
+                            <DataGridTextColumn Header="SUMA" Width="50" Binding="{Binding CzasCalkowity}" IsReadOnly="True">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="Foreground" Value="#D32F2F"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="FontSize" Value="11"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
 
                             <!-- Wózek - ComboBox -->
                             <DataGridComboBoxColumn x:Name="colWozek"
