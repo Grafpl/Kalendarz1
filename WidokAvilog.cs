@@ -254,20 +254,13 @@ namespace Kalendarz1
                             decimal waga = reader.GetDecimal(reader.GetOrdinal("WagaDek"));
                             buforhSrednia.Text = waga.ToString(); // Konwersja wartości decimal na string
                         }
+                        // SztPoj to całkowita liczba sztuk - wpisujemy do SumaSztuk, nie do LiczbaSztuk (per szuflada)
                         if (!reader.IsDBNull(reader.GetOrdinal("SztPoj")))
                         {
-                            decimal waga = reader.GetDecimal(reader.GetOrdinal("SztPoj"));
-                            hLiczbaSztuk.Text = waga.ToString(); // Konwersja wartości decimal na string
-                        }
-                        if (!reader.IsDBNull(reader.GetOrdinal("SztPoj")))
-                        {
-                            decimal waga = reader.GetDecimal(reader.GetOrdinal("SztPoj"));
-                            buforhLiczbaSztuk.Text = waga.ToString(); // Konwersja wartości decimal na string
-                        }
-                        if (!reader.IsDBNull(reader.GetOrdinal("SztPoj")))
-                        {
-                            decimal waga = reader.GetDecimal(reader.GetOrdinal("SztPoj"));
-                            uLiczbaSztuk.Text = waga.ToString(); // Konwersja wartości decimal na string
+                            decimal sztuki = reader.GetDecimal(reader.GetOrdinal("SztPoj"));
+                            hSumaSztuk.Text = sztuki.ToString();
+                            buforSumaSztuk.Text = sztuki.ToString();
+                            uSumaSztuk.Text = sztuki.ToString();
                         }
                     }
                     else
