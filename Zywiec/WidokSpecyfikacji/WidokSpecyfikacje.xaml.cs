@@ -3965,6 +3965,7 @@ namespace Kalendarz1
                 decimal sredniaWagaSuma = 0;
                 bool czyByloUbytku = false;
                 decimal sumaUbytekKG = 0; // Suma kg odliczonych przez Ubytek %
+                decimal ubytekProcWyswietlany = 0; // Procent ubytku do wyświetlenia w formule
 
                 // Dane tabeli
                 for (int i = 0; i < ids.Count; i++)
@@ -4019,6 +4020,7 @@ namespace Kalendarz1
                     if (ubytek > 0)
                     {
                         czyByloUbytku = true;
+                        ubytekProcWyswietlany = ubytek; // Zapisz procent ubytku
                     }
                     sumaUbytekKG += ubytekKG;
 
@@ -4127,7 +4129,8 @@ namespace Kalendarz1
                 {
                     Paragraph formula5b = new Paragraph();
                     formula5b.Add(new Chunk("Ubytek [kg] = Netto × Ubytek%: ", legendaBoldFont));
-                    formula5b.Add(new Chunk($"{sumaNetto:N0} × ... = {sumaUbytekKG:N0} kg", legendaFont));
+                    // ubytekProcWyswietlany jest ułamkiem (np. 0.005 = 0.5%), więc mnożymy przez 100 dla wyświetlenia
+                    formula5b.Add(new Chunk($"{sumaNetto:N0} × {ubytekProcWyswietlany * 100:N2}% = {sumaUbytekKG:N0} kg", legendaFont));
                     formulaCell.AddElement(formula5b);
                 }
 
