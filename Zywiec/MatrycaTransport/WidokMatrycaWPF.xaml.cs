@@ -371,7 +371,10 @@ namespace Kalendarz1
                                 CAST(NULL AS DATETIME) AS Wyjazd,
                                 CAST(NULL AS DATETIME) AS Zaladunek,
                                 CAST(NULL AS DATETIME) AS Przyjazd,
-                                CAST(NULL AS VARCHAR(100)) AS NotkaWozek
+                                CAST(NULL AS VARCHAR(100)) AS NotkaWozek,
+                                ISNULL(Cena, 0) AS Price,
+                                ISNULL(Ubytek, 0) AS Loss,
+                                ISNULL(typCeny, '') AS TypCeny
                             FROM dbo.HarmonogramDostaw
                             WHERE DataOdbioru = @StartDate
                             AND Bufor = 'Potwierdzony'
@@ -481,7 +484,7 @@ namespace Kalendarz1
                                 IloscAutUHodowcy = iloscAut
                             };
 
-                            // Wczytaj dane cenowe jeśli są z FarmerCalc
+                            // Wczytaj dane cenowe
                             if (isFarmerCalc)
                             {
                                 matrycaRow.Price = table.Columns.Contains("Price") && row["Price"] != DBNull.Value
@@ -492,6 +495,23 @@ namespace Kalendarz1
                                     ? Convert.ToInt32(row["PriceTypeID"]) : (int?)null;
                                 matrycaRow.Number = table.Columns.Contains("Number") && row["Number"] != DBNull.Value
                                     ? Convert.ToInt32(row["Number"]) : (int?)null;
+                            }
+                            else
+                            {
+                                // Dane z HarmonogramDostaw - wczytaj ceny i znajdź PriceTypeID
+                                matrycaRow.Price = table.Columns.Contains("Price") && row["Price"] != DBNull.Value
+                                    ? Convert.ToDecimal(row["Price"]) : 0;
+                                matrycaRow.Loss = table.Columns.Contains("Loss") && row["Loss"] != DBNull.Value
+                                    ? Convert.ToDecimal(row["Loss"]) : 0;
+
+                                // Znajdź PriceTypeID na podstawie nazwy typu ceny
+                                string typCeny = table.Columns.Contains("TypCeny") && row["TypCeny"] != DBNull.Value
+                                    ? row["TypCeny"].ToString().Trim() : "";
+                                if (!string.IsNullOrEmpty(typCeny))
+                                {
+                                    matrycaRow.PriceTypeName = typCeny;
+                                    matrycaRow.PriceTypeID = zapytaniasql.ZnajdzIdCeny(typCeny);
+                                }
                             }
 
                             matrycaData.Add(matrycaRow);
