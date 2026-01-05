@@ -1439,7 +1439,7 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="T.Doj" Binding="{Binding CzasDojazd}" Width="45" IsReadOnly="True">
+                                <DataGridTextColumn Header="Czas dojazdu" Binding="{Binding CzasDojazd}" Width="80" IsReadOnly="True">
                                     <DataGridTextColumn.HeaderStyle>
                                         <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
                                             <Setter Property="Background" Value="#00BCD4"/>
@@ -1485,7 +1485,7 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="T.Zał" Binding="{Binding CzasZaladunek}" Width="45" IsReadOnly="True">
+                                <DataGridTextColumn Header="Czas załadunku" Binding="{Binding CzasZaladunek}" Width="90" IsReadOnly="True">
                                     <DataGridTextColumn.HeaderStyle>
                                         <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
                                             <Setter Property="Background" Value="#E91E63"/>
@@ -1516,7 +1516,7 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="Post" Binding="{Binding CzasPostoj}" Width="45" IsReadOnly="True">
+                                <DataGridTextColumn Header="Postój" Binding="{Binding CzasPostoj}" Width="55" IsReadOnly="True">
                                     <DataGridTextColumn.HeaderStyle>
                                         <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
                                             <Setter Property="Background" Value="#FF9800"/>
@@ -1548,7 +1548,7 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="T.Pow" Binding="{Binding CzasRozladunek}" Width="50" IsReadOnly="True">
+                                <DataGridTextColumn Header="Czas powrotu" Binding="{Binding CzasRozladunek}" Width="80" IsReadOnly="True">
                                     <DataGridTextColumn.HeaderStyle>
                                         <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
                                             <Setter Property="Background" Value="#795548"/>
@@ -1579,7 +1579,7 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="SUMA" Binding="{Binding CzasCalkowity}" Width="55" IsReadOnly="True">
+                                <DataGridTextColumn Header="Czas całkowity" Binding="{Binding CzasCalkowity}" Width="85" IsReadOnly="True">
                                     <DataGridTextColumn.HeaderStyle>
                                         <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
                                             <Setter Property="Background" Value="#D32F2F"/>
