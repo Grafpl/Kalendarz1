@@ -17,7 +17,7 @@ namespace Kalendarz1
     public partial class HistoriaZmianWindow : Window
     {
         private readonly string connectionString;
-        private List<ChangeLogEntry> allChanges = new List<ChangeLogEntry>();
+        private List<FarmerCalcChangeLogEntry> allChanges = new List<FarmerCalcChangeLogEntry>();
 
         public HistoriaZmianWindow()
         {
@@ -85,7 +85,7 @@ namespace Kalendarz1
                         {
                             while (reader.Read())
                             {
-                                allChanges.Add(new ChangeLogEntry
+                                allChanges.Add(new FarmerCalcChangeLogEntry
                                 {
                                     ID = reader.GetInt32(0),
                                     FarmerCalcID = reader.GetInt32(1),
@@ -203,7 +203,7 @@ namespace Kalendarz1
         {
             try
             {
-                var data = dgChanges.ItemsSource as List<ChangeLogEntry>;
+                var data = dgChanges.ItemsSource as List<FarmerCalcChangeLogEntry>;
                 if (data == null || data.Count == 0)
                 {
                     MessageBox.Show("Brak danych do eksportu.", "Eksport", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -245,9 +245,9 @@ namespace Kalendarz1
     }
 
     /// <summary>
-    /// Model danych dla wpisu w logu zmian
+    /// Model danych dla wpisu w logu zmian FarmerCalc
     /// </summary>
-    public class ChangeLogEntry
+    public class FarmerCalcChangeLogEntry
     {
         public int ID { get; set; }
         public int FarmerCalcID { get; set; }
