@@ -512,6 +512,7 @@
                               AllowDrop="True"
                               PreviewMouseLeftButtonDown="DataGrid_PreviewMouseLeftButtonDown"
                               PreviewMouseMove="DataGrid_PreviewMouseMove"
+                              CellEditEnding="DataGridMatryca_CellEditEnding"
                               Drop="DataGrid_Drop"
                               DragOver="DataGrid_DragOver"
                               SelectionChanged="DataGridMatryca_SelectionChanged"
@@ -530,6 +531,28 @@
                                         <Setter Property="Foreground" Value="#1976D2"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- Numer Specyfikacji -->
+                            <DataGridTextColumn Header="Nr Spec" Binding="{Binding Number, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="70"
+                                                HeaderStyle="{StaticResource DataGridHeaderStyle}">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="FontSize" Value="13"/>
+                                        <Setter Property="Foreground" Value="#D32F2F"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                                <DataGridTextColumn.EditingElementStyle>
+                                    <Style TargetType="TextBox">
+                                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                        <Setter Property="VerticalContentAlignment" Value="Center"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="FontSize" Value="13"/>
+                                    </Style>
+                                </DataGridTextColumn.EditingElementStyle>
                             </DataGridTextColumn>
 
                             <!-- Hodowca - ComboBox -->

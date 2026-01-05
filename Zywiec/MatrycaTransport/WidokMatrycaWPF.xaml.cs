@@ -1380,6 +1380,51 @@ namespace Kalendarz1
             UpdateInfoPanel();
         }
 
+        /// <summary>
+        /// Obsługa zakończenia edycji komórki - automatyczne nadawanie numerów specyfikacji
+        /// </summary>
+        private void DataGridMatryca_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        {
+            if (e.EditAction == DataGridEditAction.Commit)
+            {
+                // Sprawdź czy edytowano kolumnę "Nr Spec" (Number)
+                var column = e.Column as DataGridTextColumn;
+                if (column != null && column.Header?.ToString() == "Nr Spec")
+                {
+                    var editedRow = e.Row.Item as MatrycaRow;
+                    if (editedRow != null)
+                    {
+                        var textBox = e.EditingElement as System.Windows.Controls.TextBox;
+                        if (textBox != null && int.TryParse(textBox.Text, out int firstNumber))
+                        {
+                            // Jeśli edytowano pierwszy wiersz, zapytaj czy wypełnić wszystkie
+                            int rowIndex = matrycaData.IndexOf(editedRow);
+                            if (rowIndex == 0 && matrycaData.Count > 1)
+                            {
+                                var result = MessageBox.Show(
+                                    $"Czy chcesz automatycznie nadać numery specyfikacji dla wszystkich wierszy?\n\n" +
+                                    $"Pierwszy wiersz: {firstNumber}\n" +
+                                    $"Kolejne wiersze: {firstNumber + 1}, {firstNumber + 2}, ...",
+                                    "Automatyczne numerowanie",
+                                    MessageBoxButton.YesNo,
+                                    MessageBoxImage.Question);
+
+                                if (result == MessageBoxResult.Yes)
+                                {
+                                    // Wypełnij numery dla wszystkich wierszy
+                                    for (int i = 0; i < matrycaData.Count; i++)
+                                    {
+                                        matrycaData[i].Number = firstNumber + i;
+                                    }
+                                    dataGridMatryca.Items.Refresh();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         private void UpdateInfoPanel()
         {
             if (selectedMatrycaRow == null)
@@ -1793,11 +1838,11 @@ namespace Kalendarz1
                     string sql = @"INSERT INTO dbo.FarmerCalc
                         (ID, CalcDate, CustomerGID, CustomerRealGID, DriverGID, LpDostawy, CarLp, SztPoj, WagaDek,
                          CarID, TrailerID, NotkaWozek, Wyjazd, Zaladunek, Przyjazd, Price,
-                         Loss, PriceTypeID)
+                         Loss, PriceTypeID, YearNumber, Number)
                         VALUES
                         (@ID, @Date, @Dostawca, @Dostawca, @Kierowca, @LpDostawy, @CarLp, @SztPoj, @WagaDek,
                          @Ciagnik, @Naczepa, @NotkaWozek, @Wyjazd, @Zaladunek,
-                         @Przyjazd, @Cena, @Ubytek, @TypCeny)";
+                         @Przyjazd, @Cena, @Ubytek, @TypCeny, @YearNumber, @Number)";
 
                     using (SqlTransaction transaction = conn.BeginTransaction())
                     {
@@ -1861,6 +1906,11 @@ namespace Kalendarz1
                                     cmd.Parameters.AddWithValue("@Ciagnik", string.IsNullOrEmpty(row.CarID) ? DBNull.Value : row.CarID);
                                     cmd.Parameters.AddWithValue("@Naczepa", string.IsNullOrEmpty(row.TrailerID) ? DBNull.Value : row.TrailerID);
                                     cmd.Parameters.AddWithValue("@NotkaWozek", string.IsNullOrEmpty(row.NotkaWozek) ? DBNull.Value : row.NotkaWozek);
+
+                                    // YearNumber = rok z wybranej daty
+                                    cmd.Parameters.AddWithValue("@YearNumber", selectedDate.Year);
+                                    // Number = numer specyfikacji (jeśli ustawiony w wierszu)
+                                    cmd.Parameters.AddWithValue("@Number", row.Number ?? (object)DBNull.Value);
 
                                     cmd.ExecuteNonQuery();
                                     savedCount++;
@@ -2197,6 +2247,7 @@ namespace Kalendarz1
     {
         private long _id;
         private string _lpDostawy;
+        private int? _number; // Numer specyfikacji
         private string _customerGID;
         private string _hodowcaNazwa;
         private decimal _wagaDek;
@@ -2234,6 +2285,15 @@ namespace Kalendarz1
         {
             get => _lpDostawy;
             set { _lpDostawy = value; OnPropertyChanged(nameof(LpDostawy)); }
+        }
+
+        /// <summary>
+        /// Numer specyfikacji
+        /// </summary>
+        public int? Number
+        {
+            get => _number;
+            set { _number = value; OnPropertyChanged(nameof(Number)); }
         }
 
         public string CustomerGID
