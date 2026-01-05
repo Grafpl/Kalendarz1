@@ -1195,7 +1195,15 @@ END";
                                     }
                                     else
                                     {
-                                        wartosc = (T)Convert.ChangeType(value, typeof(T));
+                                        // Obsługa typów Nullable - Convert.ChangeType nie obsługuje bezpośrednio Nullable<T>
+                                        Type targetType = typeof(T);
+                                        Type underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+                                        if (value != null && value != DBNull.Value)
+                                        {
+                                            object convertedValue = Convert.ChangeType(value, underlyingType, CultureInfo.CurrentCulture);
+                                            wartosc = (T)convertedValue;
+                                        }
                                     }
                                 }
                             }
@@ -1206,6 +1214,10 @@ END";
             catch (SqlException ex)
             {
                 MessageBox.Show($"Błąd połączenia z bazą danych: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (Exception)
+            {
+                // Jeśli konwersja się nie powiedzie, zwróć wartość domyślną
             }
 
             return wartosc;
@@ -1232,9 +1244,25 @@ END";
                         {
                             if (reader.Read())
                             {
-                                if (!reader.IsDBNull(reader.GetOrdinal(kolumna))) // Sprawdzenie, czy wartość w kolumnie nie jest DBNull
+                                if (!reader.IsDBNull(reader.GetOrdinal(kolumna)))
                                 {
-                                    wartosc = (T)reader[kolumna];
+                                    object value = reader[kolumna];
+                                    if (value is T castedValue)
+                                    {
+                                        wartosc = castedValue;
+                                    }
+                                    else
+                                    {
+                                        // Obsługa typów Nullable
+                                        Type targetType = typeof(T);
+                                        Type underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+                                        if (value != null && value != DBNull.Value)
+                                        {
+                                            object convertedValue = Convert.ChangeType(value, underlyingType, CultureInfo.CurrentCulture);
+                                            wartosc = (T)convertedValue;
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1244,6 +1272,10 @@ END";
             catch (SqlException ex)
             {
                 MessageBox.Show($"Błąd połączenia z bazą danych: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (Exception)
+            {
+                // Jeśli konwersja się nie powiedzie, zwróć wartość domyślną
             }
 
             return wartosc;
