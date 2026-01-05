@@ -467,12 +467,6 @@
                             Style="{StaticResource MainButtonStyle}"
                             Background="#E67E22"
                             ToolTip="Drukuj specyfikację dla wybranego dostawcy"/>
-                    <Button Content="DRUKUJ WSZYSTKO"
-                            x:Name="btnPrintAll"
-                            Click="BtnPrintAll_Click"
-                            Style="{StaticResource MainButtonStyle}"
-                            Background="#D35400"
-                            ToolTip="Drukuj wszystkie specyfikacje z dnia"/>
                     <Button Content="📁"
                             x:Name="btnPdfSettings"
                             Click="BtnPdfSettings_Click"
@@ -486,12 +480,6 @@
                             Style="{StaticResource MainButtonStyle}"
                             Background="#16A085"
                             ToolTip="SMS z rozliczeniem"/>
-                    <Button Content="🚛 ZAŁADUNEK"
-                            x:Name="btnSmsZaladunek"
-                            Click="BtnSmsZaladunek_Click"
-                            Style="{StaticResource MainButtonStyle}"
-                            Background="#3498DB"
-                            ToolTip="SMS z godziną przyjazdu auta"/>
                     <Button Content="📧 EMAIL"
                             x:Name="btnSendEmail"
                             Click="BtnSendEmail_Click"
@@ -998,6 +986,7 @@
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
                                                      KeyDown="Cena_KeyDown"
+                                                     GotFocus="Cena_GotFocus"
                                                      LostFocus="Cena_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -1015,6 +1004,7 @@
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
                                                      KeyDown="Dodatek_KeyDown"
+                                                     GotFocus="Dodatek_GotFocus"
                                                      LostFocus="Dodatek_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -1057,6 +1047,7 @@
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
                                                      KeyDown="Ubytek_KeyDown"
+                                                     GotFocus="Ubytek_GotFocus"
                                                      LostFocus="Ubytek_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>

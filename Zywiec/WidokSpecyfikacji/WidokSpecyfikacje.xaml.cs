@@ -62,6 +62,7 @@ namespace Kalendarz1
 
         // === HISTORIA: Log zmian ===
         private List<ChangeLogEntry> _changeLog = new List<ChangeLogEntry>();
+        private Dictionary<string, string> _oldFieldValues = new Dictionary<string, string>(); // Przechowuje stare wartości pól
 
         // === TRANSPORT: Dane transportowe ===
         private ObservableCollection<TransportRow> transportData;
@@ -2136,7 +2137,74 @@ namespace Kalendarz1
         #region === HISTORIA ZMIAN ===
 
         /// <summary>
-        /// Dodaje wpis do historii zmian
+        /// Zapisuje zmianę do bazy danych FarmerCalcChangeLog
+        /// </summary>
+        private void LogChangeToDatabase(int recordId, string fieldName, string oldValue, string newValue, string dostawca = "")
+        {
+            try
+            {
+                // Nie loguj jeśli wartości są takie same
+                if (oldValue == newValue) return;
+
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Sprawdź czy tabela istnieje, jeśli nie - utwórz
+                    string checkTable = @"IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FarmerCalcChangeLog')
+                        CREATE TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] (
+                            [ID] INT IDENTITY(1,1) PRIMARY KEY,
+                            [RecordID] INT NOT NULL,
+                            [FieldName] NVARCHAR(50) NOT NULL,
+                            [OldValue] NVARCHAR(500),
+                            [NewValue] NVARCHAR(500),
+                            [Dostawca] NVARCHAR(200),
+                            [UserName] NVARCHAR(100),
+                            [ChangeDate] DATETIME DEFAULT GETDATE(),
+                            [CalcDate] DATE
+                        )";
+                    using (SqlCommand cmd = new SqlCommand(checkTable, conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Zapisz zmianę
+                    string sql = @"INSERT INTO [LibraNet].[dbo].[FarmerCalcChangeLog]
+                        (RecordID, FieldName, OldValue, NewValue, Dostawca, UserName, CalcDate)
+                        VALUES (@RecordID, @FieldName, @OldValue, @NewValue, @Dostawca, @UserName, @CalcDate)";
+
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@RecordID", recordId);
+                        cmd.Parameters.AddWithValue("@FieldName", fieldName);
+                        cmd.Parameters.AddWithValue("@OldValue", oldValue ?? "");
+                        cmd.Parameters.AddWithValue("@NewValue", newValue ?? "");
+                        cmd.Parameters.AddWithValue("@Dostawca", dostawca ?? "");
+                        cmd.Parameters.AddWithValue("@UserName", Environment.UserName);
+                        cmd.Parameters.AddWithValue("@CalcDate", dateTimePicker1.SelectedDate ?? DateTime.Today);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+
+                // Dodaj też do lokalnej listy
+                _changeLog.Add(new ChangeLogEntry
+                {
+                    Timestamp = DateTime.Now,
+                    RowId = recordId,
+                    PropertyName = fieldName,
+                    OldValue = oldValue,
+                    NewValue = newValue,
+                    UserName = Environment.UserName
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd logowania zmiany: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Dodaje wpis do historii zmian (lokalna lista)
         /// </summary>
         private void AddChangeLogEntry(string action, string details)
         {
@@ -2165,28 +2233,93 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Pokazuje okno z historią zmian
+        /// Pokazuje okno z historią zmian z bazy danych
         /// </summary>
         private void ShowChangeLog_Click(object sender, RoutedEventArgs e)
         {
-            if (_changeLog.Count == 0)
+            try
             {
-                MessageBox.Show("Brak zmian w tej sesji.", "Historia zmian", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
+                var changes = new List<ChangeLogEntry>();
+
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Pobierz zmiany dla wybranej daty
+                    string sql = @"SELECT RecordID, FieldName, OldValue, NewValue, Dostawca, UserName, ChangeDate
+                        FROM [LibraNet].[dbo].[FarmerCalcChangeLog]
+                        WHERE CalcDate = @CalcDate
+                        ORDER BY ChangeDate DESC";
+
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@CalcDate", dateTimePicker1.SelectedDate ?? DateTime.Today);
+
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                changes.Add(new ChangeLogEntry
+                                {
+                                    RowId = reader.GetInt32(0),
+                                    PropertyName = reader.GetString(1),
+                                    OldValue = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                                    NewValue = reader.IsDBNull(3) ? "" : reader.GetString(3),
+                                    Action = reader.IsDBNull(4) ? "" : reader.GetString(4), // Dostawca
+                                    UserName = reader.IsDBNull(5) ? "" : reader.GetString(5),
+                                    Timestamp = reader.GetDateTime(6)
+                                });
+                            }
+                        }
+                    }
+                }
+
+                if (changes.Count == 0)
+                {
+                    MessageBox.Show("Brak zmian dla wybranej daty.", "Historia zmian", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                // Wyświetl w czytelnym formacie
+                var sb = new StringBuilder();
+                sb.AppendLine($"Historia zmian dla dnia {dateTimePicker1.SelectedDate:dd.MM.yyyy}");
+                sb.AppendLine($"Liczba zmian: {changes.Count}");
+                sb.AppendLine(new string('═', 60));
+
+                foreach (var entry in changes)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine($"[{entry.Timestamp:HH:mm:ss}] {entry.UserName}");
+                    sb.AppendLine($"   Dostawca: {entry.Action}");
+                    sb.AppendLine($"   Pole: {GetFieldDisplayName(entry.PropertyName)}");
+                    sb.AppendLine($"   Zmiana: {entry.OldValue} → {entry.NewValue}");
+                }
+
+                MessageBox.Show(sb.ToString(), "Historia zmian", MessageBoxButton.OK, MessageBoxImage.Information);
             }
-
-            var sb = new StringBuilder();
-            sb.AppendLine($"Historia zmian ({_changeLog.Count} wpisów):");
-            sb.AppendLine(new string('=', 50));
-
-            foreach (var entry in _changeLog.OrderByDescending(x => x.Timestamp))
+            catch (Exception ex)
             {
-                sb.AppendLine($"\n[{entry.Timestamp:HH:mm:ss}] {entry.Action}");
-                if (!string.IsNullOrEmpty(entry.NewValue))
-                    sb.AppendLine($"   {entry.NewValue}");
+                MessageBox.Show($"Błąd pobierania historii: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
 
-            MessageBox.Show(sb.ToString(), "Historia zmian", MessageBoxButton.OK, MessageBoxImage.Information);
+        /// <summary>
+        /// Zwraca czytelną nazwę pola
+        /// </summary>
+        private string GetFieldDisplayName(string fieldName)
+        {
+            switch (fieldName)
+            {
+                case "Price": return "Cena";
+                case "Addition": return "Dodatek";
+                case "Loss": return "Ubytek";
+                case "PriceTypeID": return "Typ ceny";
+                case "IncDeadConf": return "PiK";
+                case "TerminDni": return "Termin płatności";
+                case "Opasienie": return "Opasienie";
+                case "KlasaB": return "Klasa B";
+                default: return fieldName;
+            }
         }
 
         #endregion
@@ -4981,6 +5114,31 @@ namespace Kalendarz1
             }
         }
 
+        // === GotFocus handlers - zapisują starą wartość przed edycją ===
+        private void Cena_GotFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var row = textBox?.DataContext as SpecyfikacjaRow;
+            if (row != null)
+                _oldFieldValues[$"Cena_{row.ID}"] = row.Cena.ToString("F2");
+        }
+
+        private void Dodatek_GotFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var row = textBox?.DataContext as SpecyfikacjaRow;
+            if (row != null)
+                _oldFieldValues[$"Dodatek_{row.ID}"] = row.Dodatek.ToString("F2");
+        }
+
+        private void Ubytek_GotFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var row = textBox?.DataContext as SpecyfikacjaRow;
+            if (row != null)
+                _oldFieldValues[$"Ubytek_{row.ID}"] = row.Ubytek.ToString("F2");
+        }
+
         // Handler LostFocus dla Cena - zapisuje do bazy po opuszczeniu pola
         private void Cena_LostFocus(object sender, RoutedEventArgs e)
         {
@@ -4990,9 +5148,26 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Pobierz starą wartość
+            string oldValue = "";
+            string key = $"Cena_{row.ID}";
+            if (_oldFieldValues.ContainsKey(key))
+            {
+                oldValue = _oldFieldValues[key];
+                _oldFieldValues.Remove(key);
+            }
+
             // WAŻNE: Wymuś aktualizację bindingu przed zapisem
             var binding = textBox.GetBindingExpression(TextBox.TextProperty);
             binding?.UpdateSource();
+
+            string newValue = row.Cena.ToString("F2");
+
+            // Loguj zmianę jeśli się różni
+            if (oldValue != newValue)
+            {
+                LogChangeToDatabase(row.ID, "Price", oldValue, newValue, row.RealDostawca ?? row.Dostawca);
+            }
 
             SaveFieldToDatabase(row.ID, "Price", row.Cena);
             UpdateStatus($"Zapisano cenę: {row.Cena:N2} dla LP {row.Nr}");
@@ -5007,9 +5182,26 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Pobierz starą wartość
+            string oldValue = "";
+            string key = $"Dodatek_{row.ID}";
+            if (_oldFieldValues.ContainsKey(key))
+            {
+                oldValue = _oldFieldValues[key];
+                _oldFieldValues.Remove(key);
+            }
+
             // WAŻNE: Wymuś aktualizację bindingu przed zapisem
             var binding = textBox.GetBindingExpression(TextBox.TextProperty);
             binding?.UpdateSource();
+
+            string newValue = row.Dodatek.ToString("F2");
+
+            // Loguj zmianę jeśli się różni
+            if (oldValue != newValue)
+            {
+                LogChangeToDatabase(row.ID, "Addition", oldValue, newValue, row.RealDostawca ?? row.Dostawca);
+            }
 
             SaveFieldToDatabase(row.ID, "Addition", row.Dodatek);
             UpdateStatus($"Zapisano dodatek: {row.Dodatek:N2} dla LP {row.Nr}");
@@ -5024,9 +5216,26 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Pobierz starą wartość
+            string oldValue = "";
+            string key = $"Ubytek_{row.ID}";
+            if (_oldFieldValues.ContainsKey(key))
+            {
+                oldValue = _oldFieldValues[key];
+                _oldFieldValues.Remove(key);
+            }
+
             // WAŻNE: Wymuś aktualizację bindingu przed zapisem
             var binding = textBox.GetBindingExpression(TextBox.TextProperty);
             binding?.UpdateSource();
+
+            string newValue = row.Ubytek.ToString("F2");
+
+            // Loguj zmianę jeśli się różni
+            if (oldValue != newValue)
+            {
+                LogChangeToDatabase(row.ID, "Loss", oldValue + "%", newValue + "%", row.RealDostawca ?? row.Dostawca);
+            }
 
             // W bazie Loss jest przechowywany jako ułamek (1.5% = 0.015)
             SaveFieldToDatabase(row.ID, "Loss", row.Ubytek / 100);
@@ -5042,10 +5251,18 @@ namespace Kalendarz1
             var row = checkBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Loguj zmianę
+            string oldValue = row.PiK ? "NIE" : "TAK"; // Wartość przed zmianą jest odwrotna
+            string newValue = row.PiK ? "TAK" : "NIE";
+            LogChangeToDatabase(row.ID, "IncDeadConf", oldValue, newValue, row.RealDostawca ?? row.Dostawca);
+
             // Binding już zaktualizował wartość
             SaveFieldToDatabase(row.ID, "IncDeadConf", row.PiK);
             UpdateStatus($"Zapisano PiK: {(row.PiK ? "TAK" : "NIE")} dla LP {row.Nr}");
         }
+
+        // Zmienna do śledzenia starego typu ceny
+        private string _oldTypCeny = "";
 
         // Handler dla zmiany TypCeny (ComboBox) - zapisuje do bazy natychmiast
         private void TypCeny_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -5056,6 +5273,11 @@ namespace Kalendarz1
             var row = comboBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Pobierz starą wartość z e.RemovedItems
+            string oldValue = "";
+            if (e.RemovedItems.Count > 0)
+                oldValue = e.RemovedItems[0]?.ToString() ?? "";
+
             // Znajdź ID typu ceny
             int priceTypeId = -1;
             if (!string.IsNullOrEmpty(row.TypCeny))
@@ -5065,6 +5287,12 @@ namespace Kalendarz1
 
             if (priceTypeId > 0)
             {
+                // Loguj zmianę
+                if (!string.IsNullOrEmpty(oldValue) && oldValue != row.TypCeny)
+                {
+                    LogChangeToDatabase(row.ID, "PriceTypeID", oldValue, row.TypCeny, row.RealDostawca ?? row.Dostawca);
+                }
+
                 SaveFieldToDatabase(row.ID, "PriceTypeID", priceTypeId);
                 UpdateStatus($"Zapisano typ ceny: {row.TypCeny} dla LP {row.Nr}");
             }
