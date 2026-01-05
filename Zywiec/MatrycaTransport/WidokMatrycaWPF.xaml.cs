@@ -336,10 +336,16 @@ namespace Kalendarz1
                                 Wyjazd,
                                 Zaladunek,
                                 Przyjazd,
-                                NotkaWozek
+                                NotkaWozek,
+                                ISNULL(Price, 0) AS Price,
+                                ISNULL(Loss, 0) AS Loss,
+                                ISNULL(PriceTypeID, -1) AS PriceTypeID,
+                                Number,
+                                YearNumber,
+                                CarLp
                             FROM [LibraNet].[dbo].[FarmerCalc]
                             WHERE CalcDate = @SelectedDate
-                            ORDER BY LpDostawy";
+                            ORDER BY CarLp, LpDostawy";
 
                         SqlCommand command = new SqlCommand(query, connection);
                         command.Parameters.AddWithValue("@SelectedDate", selectedDate);
@@ -474,6 +480,19 @@ namespace Kalendarz1
                                 AutoNrUHodowcy = autoNr + 1,
                                 IloscAutUHodowcy = iloscAut
                             };
+
+                            // Wczytaj dane cenowe jeśli są z FarmerCalc
+                            if (isFarmerCalc)
+                            {
+                                matrycaRow.Price = table.Columns.Contains("Price") && row["Price"] != DBNull.Value
+                                    ? Convert.ToDecimal(row["Price"]) : 0;
+                                matrycaRow.Loss = table.Columns.Contains("Loss") && row["Loss"] != DBNull.Value
+                                    ? Convert.ToDecimal(row["Loss"]) : 0;
+                                matrycaRow.PriceTypeID = table.Columns.Contains("PriceTypeID") && row["PriceTypeID"] != DBNull.Value
+                                    ? Convert.ToInt32(row["PriceTypeID"]) : (int?)null;
+                                matrycaRow.Number = table.Columns.Contains("Number") && row["Number"] != DBNull.Value
+                                    ? Convert.ToInt32(row["Number"]) : (int?)null;
+                            }
 
                             matrycaData.Add(matrycaRow);
                             lpCounter++;
