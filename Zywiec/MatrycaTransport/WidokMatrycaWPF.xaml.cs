@@ -646,7 +646,7 @@ namespace Kalendarz1
                             CustomerGID = importRow.MappedHodowcaGID ?? "",
                             HodowcaNazwa = hodowcaNazwa,
                             WagaDek = importRow.WagaDek,
-                            SztPoj = importRow.SztukiNaSkrzynke, // Liczba sztuk na skrzynkę (z "16 x 264" -> 16)
+                            SztPoj = importRow.Sztuki, // Dla PDF używamy całkowitej liczby sztuk
                             DriverGID = importRow.MappedKierowcaGID,
                             CarID = importRow.MappedCiagnikID ?? importRow.Ciagnik,
                             TrailerID = importRow.MappedNaczepaID ?? importRow.Naczepa,
