@@ -997,13 +997,17 @@ END";
         }
         public int ZnajdzIdCeny(string name)
         {
-            int userId = -1; // Jeśli nie znajdziemy użytkownika, zwrócimy -1
+            if (string.IsNullOrWhiteSpace(name))
+                return -1;
+
+            int userId = -1; // Jeśli nie znajdziemy, zwrócimy -1
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
                 conn.Open();
-                using (SqlCommand cmd = new SqlCommand("SELECT ID FROM dbo.PriceType WHERE Name = @Name", conn))
+                // Porównanie case-insensitive z COLLATE Polish_CI_AI
+                using (SqlCommand cmd = new SqlCommand("SELECT ID FROM dbo.PriceType WHERE LTRIM(RTRIM(Name)) = LTRIM(RTRIM(@Name)) COLLATE Polish_CI_AI", conn))
                 {
-                    cmd.Parameters.AddWithValue("@Name", name);
+                    cmd.Parameters.AddWithValue("@Name", name.Trim());
 
                     object result = cmd.ExecuteScalar();
                     if (result != null)
