@@ -1000,6 +1000,24 @@ END";
             if (string.IsNullOrWhiteSpace(name))
                 return -1;
 
+            // Mapowanie aliasów nazw typów cen
+            string normalizedName = name.Trim().ToLowerInvariant();
+            switch (normalizedName)
+            {
+                case "wolnyrynek":
+                case "wolny rynek":
+                    normalizedName = "wolnorynkowa";
+                    break;
+                case "laczona":
+                case "łaczona":
+                    normalizedName = "łączona";
+                    break;
+                case "ministerial":
+                case "minister":
+                    normalizedName = "ministerialna";
+                    break;
+            }
+
             int userId = -1; // Jeśli nie znajdziemy, zwrócimy -1
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
@@ -1007,7 +1025,7 @@ END";
                 // Porównanie case-insensitive z COLLATE Polish_CI_AI
                 using (SqlCommand cmd = new SqlCommand("SELECT ID FROM dbo.PriceType WHERE LTRIM(RTRIM(Name)) = LTRIM(RTRIM(@Name)) COLLATE Polish_CI_AI", conn))
                 {
-                    cmd.Parameters.AddWithValue("@Name", name.Trim());
+                    cmd.Parameters.AddWithValue("@Name", normalizedName);
 
                     object result = cmd.ExecuteScalar();
                     if (result != null)
