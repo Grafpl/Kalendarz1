@@ -212,6 +212,7 @@ namespace Kalendarz1
                     row.Price = selectedDostawa.Cena;
                     row.Loss = selectedDostawa.Ubytek;
                     row.PriceTypeName = selectedDostawa.TypCeny;
+                    row.HarmonogramLP = selectedDostawa.LP;
                     // Pobierz PriceTypeID z nazwy
                     row.PriceTypeID = zapytaniasql.ZnajdzIdCeny(selectedDostawa.TypCeny);
                     count++;
@@ -224,9 +225,77 @@ namespace Kalendarz1
             }
             else
             {
-                MessageBox.Show($"Nie znaleziono wierszy dla dostawcy: {selectedDostawa.Dostawca}\n\nSprawdź czy dane są załadowane.",
+                MessageBox.Show($"Nie znaleziono wierszy dla dostawcy: {selectedDostawa.Dostawca}\n\nUżyj przycisku 'Wklej ręcznie' aby zastosować do zaznaczonego wiersza.",
                     "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
             }
+        }
+
+        /// <summary>
+        /// Ręczne wklejenie ceny z wybranej dostawy do zaznaczonego wiersza i wszystkich z tym samym dostawcą
+        /// </summary>
+        private void BtnApplyHarmonogramPriceManual_Click(object sender, RoutedEventArgs e)
+        {
+            var selectedDostawa = cmbHarmonogramDostawy.SelectedItem as HarmonogramDostawaItem;
+            if (selectedDostawa == null)
+            {
+                MessageBox.Show("Wybierz dostawę z harmonogramu.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var selectedRow = dataGridMatryca.SelectedItem as MatrycaRow;
+            if (selectedRow == null)
+            {
+                MessageBox.Show("Zaznacz wiersz w tabeli do którego chcesz wkleić cenę.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // Pytanie: tylko zaznaczony wiersz czy wszyscy o tej samej nazwie dostawcy?
+            var result = MessageBox.Show(
+                $"Zastosować cenę z dostawy LP:{selectedDostawa.LP} ({selectedDostawa.Dostawca}):\n" +
+                $"  Cena: {selectedDostawa.Cena:N2}\n" +
+                $"  Ubytek: {selectedDostawa.Ubytek:N2}%\n" +
+                $"  Typ: {selectedDostawa.TypCeny}\n\n" +
+                $"TAK = Tylko zaznaczony wiersz ({selectedRow.HodowcaNazwa})\n" +
+                $"NIE = Wszystkie wiersze o nazwie: {selectedRow.HodowcaNazwa}",
+                "Ręczne wklejenie ceny",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Cancel)
+                return;
+
+            int count = 0;
+            string targetDostawca = selectedRow.HodowcaNazwa?.Trim().ToLowerInvariant() ?? "";
+
+            if (result == MessageBoxResult.Yes)
+            {
+                // Tylko zaznaczony wiersz
+                selectedRow.Price = selectedDostawa.Cena;
+                selectedRow.Loss = selectedDostawa.Ubytek;
+                selectedRow.PriceTypeName = selectedDostawa.TypCeny;
+                selectedRow.HarmonogramLP = selectedDostawa.LP;
+                selectedRow.PriceTypeID = zapytaniasql.ZnajdzIdCeny(selectedDostawa.TypCeny);
+                count = 1;
+            }
+            else
+            {
+                // Wszystkie wiersze o tej samej nazwie dostawcy
+                foreach (var row in matrycaData)
+                {
+                    string rowDostawca = row.HodowcaNazwa?.Trim().ToLowerInvariant() ?? "";
+                    if (rowDostawca == targetDostawca)
+                    {
+                        row.Price = selectedDostawa.Cena;
+                        row.Loss = selectedDostawa.Ubytek;
+                        row.PriceTypeName = selectedDostawa.TypCeny;
+                        row.HarmonogramLP = selectedDostawa.LP;
+                        row.PriceTypeID = zapytaniasql.ZnajdzIdCeny(selectedDostawa.TypCeny);
+                        count++;
+                    }
+                }
+            }
+
+            UpdateStatus($"Zastosowano cenę do {count} wierszy");
         }
 
         private void LoadData()
@@ -1722,11 +1791,11 @@ namespace Kalendarz1
                     conn.Open();
 
                     string sql = @"INSERT INTO dbo.FarmerCalc
-                        (ID, CalcDate, CustomerGID, CustomerRealGID, DriverGID, LpDostawy, SztPoj, WagaDek,
+                        (ID, CalcDate, CustomerGID, CustomerRealGID, DriverGID, LpDostawy, CarLp, SztPoj, WagaDek,
                          CarID, TrailerID, NotkaWozek, Wyjazd, Zaladunek, Przyjazd, Price,
                          Loss, PriceTypeID)
                         VALUES
-                        (@ID, @Date, @Dostawca, @Dostawca, @Kierowca, @LpDostawy, @SztPoj, @WagaDek,
+                        (@ID, @Date, @Dostawca, @Dostawca, @Kierowca, @LpDostawy, @CarLp, @SztPoj, @WagaDek,
                          @Ciagnik, @Naczepa, @NotkaWozek, @Wyjazd, @Zaladunek,
                          @Przyjazd, @Cena, @Ubytek, @TypCeny)";
 
@@ -1774,7 +1843,9 @@ namespace Kalendarz1
                                     cmd.Parameters.AddWithValue("@ID", maxLP);
                                     cmd.Parameters.AddWithValue("@Dostawca", dostawcaId);
                                     cmd.Parameters.AddWithValue("@Kierowca", row.DriverGID ?? (object)DBNull.Value);
-                                    cmd.Parameters.AddWithValue("@LpDostawy", string.IsNullOrEmpty(row.LpDostawy) ? DBNull.Value : row.LpDostawy);
+                                    // LpDostawy = LP z harmonogramu, CarLp = kolejność auta (numer wiersza)
+                                    cmd.Parameters.AddWithValue("@LpDostawy", row.HarmonogramLP ?? (object)DBNull.Value);
+                                    cmd.Parameters.AddWithValue("@CarLp", savedCount + 1);
                                     cmd.Parameters.AddWithValue("@SztPoj", row.SztPoj);
                                     cmd.Parameters.AddWithValue("@WagaDek", row.WagaDek);
                                     cmd.Parameters.AddWithValue("@Date", selectedDate);
@@ -2353,6 +2424,14 @@ namespace Kalendarz1
         {
             get => _priceTypeName;
             set { _priceTypeName = value; OnPropertyChanged(nameof(PriceTypeName)); }
+        }
+
+        // LP z harmonogramu dostaw (do zapisu w FarmerCalc.LpDostawy)
+        private int? _harmonogramLP;
+        public int? HarmonogramLP
+        {
+            get => _harmonogramLP;
+            set { _harmonogramLP = value; OnPropertyChanged(nameof(HarmonogramLP)); }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

@@ -334,16 +334,40 @@
                                                   SelectionChanged="CmbHarmonogramDostawy_SelectionChanged"
                                                   ToolTip="Wybierz dostawę z harmonogramu aby skopiować cenę, ubytek i typ ceny do wierszy tego dostawcy"/>
                                         <Button x:Name="btnApplyHarmonogramPrice"
-                                                Content="Zastosuj cenę"
+                                                Content="Zastosuj"
                                                 Click="BtnApplyHarmonogramPrice_Click"
-                                                Background="#FF9800"
+                                                Background="#4CAF50"
                                                 Foreground="White"
                                                 FontWeight="SemiBold"
                                                 Padding="10,4"
                                                 Margin="8,0,0,0"
                                                 Cursor="Hand"
                                                 BorderThickness="0"
-                                                ToolTip="Zastosuj cenę, ubytek i typ ceny z wybranej dostawy do wszystkich wierszy tego dostawcy">
+                                                ToolTip="Automatycznie zastosuj cenę do wierszy z tym samym dostawcą (po nazwie)">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="border" Property="Background" Value="#388E3C"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                        <Button x:Name="btnApplyHarmonogramPriceManual"
+                                                Content="Wklej ręcznie"
+                                                Click="BtnApplyHarmonogramPriceManual_Click"
+                                                Background="#FF9800"
+                                                Foreground="White"
+                                                FontWeight="SemiBold"
+                                                Padding="10,4"
+                                                Margin="4,0,0,0"
+                                                Cursor="Hand"
+                                                BorderThickness="0"
+                                                ToolTip="Ręcznie wklej cenę do zaznaczonego wiersza (gdy nazwy się różnią)">
                                             <Button.Template>
                                                 <ControlTemplate TargetType="Button">
                                                     <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
