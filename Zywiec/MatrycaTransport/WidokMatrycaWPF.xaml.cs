@@ -646,7 +646,7 @@ namespace Kalendarz1
                             CustomerGID = importRow.MappedHodowcaGID ?? "",
                             HodowcaNazwa = hodowcaNazwa,
                             WagaDek = importRow.WagaDek,
-                            SztPoj = importRow.Sztuki,
+                            SztPoj = importRow.SztukiNaSkrzynke, // Liczba sztuk na skrzynkę (z "16 x 264" -> 16)
                             DriverGID = importRow.MappedKierowcaGID,
                             CarID = importRow.MappedCiagnikID ?? importRow.Ciagnik,
                             TrailerID = importRow.MappedNaczepaID ?? importRow.Naczepa,
@@ -769,7 +769,7 @@ namespace Kalendarz1
                             CustomerGID = importRow.MappedHodowcaGID ?? "",
                             HodowcaNazwa = hodowcaNazwa,
                             WagaDek = importRow.WagaDek,
-                            SztPoj = importRow.Sztuki,
+                            SztPoj = importRow.SztukiNaSkrzynke, // Liczba sztuk na skrzynkę (z "16 x 264" -> 16)
                             DriverGID = importRow.MappedKierowcaGID,
                             CarID = !string.IsNullOrEmpty(importRow.MappedCiagnikID) ? importRow.MappedCiagnikID : importRow.Ciagnik,
                             TrailerID = !string.IsNullOrEmpty(importRow.MappedNaczepaID) ? importRow.MappedNaczepaID : importRow.Naczepa,
