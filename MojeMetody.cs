@@ -1358,6 +1358,17 @@ END";
             {
                 MessageBox.Show($"Błąd połączenia z bazą danych: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+
+            // Mapowanie nazw z bazy na nazwy w ComboBox
+            if (!string.IsNullOrEmpty(wartosc))
+            {
+                switch (wartosc.ToLowerInvariant().Trim())
+                {
+                    case "wolnorynkowa":
+                        return "wolnyrynek";
+                }
+            }
+
             return wartosc;
         }
         public static T GetValueOrDefault<T>(DataRow row, string columnName, T defaultValue = default)
