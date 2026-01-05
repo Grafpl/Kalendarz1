@@ -257,7 +257,7 @@ namespace Kalendarz1
                         // SztPoj to całkowita liczba sztuk - wpisujemy do SumaSztuk, nie do LiczbaSztuk (per szuflada)
                         if (!reader.IsDBNull(reader.GetOrdinal("SztPoj")))
                         {
-                            decimal sztuki = reader.GetDecimal(reader.GetOrdinal("SztPoj"));
+                            int sztuki = (int)reader.GetDecimal(reader.GetOrdinal("SztPoj"));
                             hSumaSztuk.Text = sztuki.ToString();
                             buforSumaSztuk.Text = sztuki.ToString();
                             uSumaSztuk.Text = sztuki.ToString();
