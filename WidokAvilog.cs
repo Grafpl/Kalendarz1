@@ -48,7 +48,7 @@ namespace Kalendarz1
             UstawDostawce(idSpecyfikacji, Dostawca, RealDostawca);
             UstawgodzinyAviloga(idSpecyfikacji, poczatekUslugiData,  wyjazdZakladData,  dojazdHodowcaData,  poczatekZaladunekData,  koniecZaladunekData,  wyjazdHodowcaData,  powrotZakladData, koniecUslugiData);
             UstawKierowceAuta(idSpecyfikacji, Naczepa, Auto, Kierowca);
-            UstawRozliczenia(idSpecyfikacji, hBrutto, hTara, uBrutto, uTara, hLiczbaSztuk, uLiczbaSztuk, buforhLiczbaSztuk, hSrednia, buforhSrednia);
+            UstawRozliczenia(idSpecyfikacji, hBrutto, hTara, uBrutto, uTara, hLiczbaSztuk, uLiczbaSztuk, buforhLiczbaSztuk, hSrednia, buforhSrednia, hSumaSztuk, buforSumaSztuk, uSumaSztuk);
             UstawKilometry(idSpecyfikacji, kmWyjazd, kmPowrot);
             UstawKilometry(idSpecyfikacji, kmWyjazd, kmPowrot);
             //ZczytajDane(idSpecyfikacji, Dostawca, RealDostawca);
@@ -206,7 +206,7 @@ namespace Kalendarz1
                 Console.WriteLine("Wystąpił błąd podczas pobierania danych: " + ex.Message);
             }
         }
-        private static void UstawRozliczenia(int id, TextBox hBrutto, TextBox hTara, TextBox uBrutto, TextBox uTara, TextBox hLiczbaSztuk, TextBox uLiczbaSztuk, TextBox buforhLiczbaSztuk, TextBox hSrednia, TextBox buforhSrednia)
+        private static void UstawRozliczenia(int id, TextBox hBrutto, TextBox hTara, TextBox uBrutto, TextBox uTara, TextBox hLiczbaSztuk, TextBox uLiczbaSztuk, TextBox buforhLiczbaSztuk, TextBox hSrednia, TextBox buforhSrednia, TextBox hSumaSztuk, TextBox buforSumaSztuk, TextBox uSumaSztuk)
         {
             try
             {
@@ -254,20 +254,13 @@ namespace Kalendarz1
                             decimal waga = reader.GetDecimal(reader.GetOrdinal("WagaDek"));
                             buforhSrednia.Text = waga.ToString(); // Konwersja wartości decimal na string
                         }
+                        // SztPoj to całkowita liczba sztuk - wpisujemy do SumaSztuk, nie do LiczbaSztuk (per szuflada)
                         if (!reader.IsDBNull(reader.GetOrdinal("SztPoj")))
                         {
-                            decimal waga = reader.GetDecimal(reader.GetOrdinal("SztPoj"));
-                            hLiczbaSztuk.Text = waga.ToString(); // Konwersja wartości decimal na string
-                        }
-                        if (!reader.IsDBNull(reader.GetOrdinal("SztPoj")))
-                        {
-                            decimal waga = reader.GetDecimal(reader.GetOrdinal("SztPoj"));
-                            buforhLiczbaSztuk.Text = waga.ToString(); // Konwersja wartości decimal na string
-                        }
-                        if (!reader.IsDBNull(reader.GetOrdinal("SztPoj")))
-                        {
-                            decimal waga = reader.GetDecimal(reader.GetOrdinal("SztPoj"));
-                            uLiczbaSztuk.Text = waga.ToString(); // Konwersja wartości decimal na string
+                            decimal sztuki = reader.GetDecimal(reader.GetOrdinal("SztPoj"));
+                            hSumaSztuk.Text = sztuki.ToString();
+                            buforSumaSztuk.Text = sztuki.ToString();
+                            uSumaSztuk.Text = sztuki.ToString();
                         }
                     }
                     else
