@@ -1833,6 +1833,25 @@ namespace Kalendarz1
 
         #endregion
 
+        #region Historia Zmian
+
+        private void BtnHistoriaZmian_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var historiaWindow = new HistoriaZmianWindow();
+                historiaWindow.Show();
+                UpdateStatus("Otwarto okno historii zmian");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas otwierania historii zmian:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        #endregion
+
         #region Save to Database
 
         private void BtnSaveToDatabase_Click(object sender, RoutedEventArgs e)

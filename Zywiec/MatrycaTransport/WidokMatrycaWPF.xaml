@@ -1003,6 +1003,15 @@
                                     HorizontalAlignment="Stretch"
                                     ToolTip="Zobacz kto wysyła najwięcej SMS"/>
 
+                            <Button x:Name="btnHistoriaZmian"
+                                    Content="📜 HISTORIA ZMIAN"
+                                    Click="BtnHistoriaZmian_Click"
+                                    Style="{StaticResource MainButtonStyle}"
+                                    Background="#607D8B"
+                                    FontSize="12"
+                                    HorizontalAlignment="Stretch"
+                                    ToolTip="Zobacz historię zmian w specyfikacji (audit log)"/>
+
                             <Button x:Name="btnShowSpecyfikacja"
                                     Content="📋 OTWÓRZ SPECYFIKACJĘ"
                                     Click="BtnShowFullSpecyfikacja_Click"
