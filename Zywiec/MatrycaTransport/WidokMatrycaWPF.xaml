@@ -102,6 +102,10 @@
             <Setter Property="Background" Value="#388E3C"/>
         </Style>
 
+        <Style x:Key="CenaHeaderStyle" TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
+            <Setter Property="Background" Value="#1976D2"/>
+        </Style>
+
         <!-- Style dla komórek -->
         <Style x:Key="CellStyleOrange" TargetType="DataGridCell">
             <Setter Property="Background" Value="#FFF3E0"/>
@@ -319,6 +323,43 @@
 
                             <!-- Przyciski kolejności -->
                             <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                <!-- ComboBox z dostawami z harmonogramu -->
+                                <Border Background="#E3F2FD" CornerRadius="4" Padding="8,4" Margin="4" VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Dostawa:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,8,0"/>
+                                        <ComboBox x:Name="cmbHarmonogramDostawy"
+                                                  Width="280"
+                                                  DisplayMemberPath="DisplayText"
+                                                  SelectedValuePath="LP"
+                                                  SelectionChanged="CmbHarmonogramDostawy_SelectionChanged"
+                                                  ToolTip="Wybierz dostawę z harmonogramu aby skopiować cenę, ubytek i typ ceny do wierszy tego dostawcy"/>
+                                        <Button x:Name="btnApplyHarmonogramPrice"
+                                                Content="Zastosuj cenę"
+                                                Click="BtnApplyHarmonogramPrice_Click"
+                                                Background="#FF9800"
+                                                Foreground="White"
+                                                FontWeight="SemiBold"
+                                                Padding="10,4"
+                                                Margin="8,0,0,0"
+                                                Cursor="Hand"
+                                                BorderThickness="0"
+                                                ToolTip="Zastosuj cenę, ubytek i typ ceny z wybranej dostawy do wszystkich wierszy tego dostawcy">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="border" Property="Background" Value="#F57C00"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                    </StackPanel>
+                                </Border>
+                                <Border Width="1" Background="#E0E0E0" Margin="8,5"/>
                                 <Button x:Name="btnImportAvilog"
                                         Content="📄 IMPORT PDF"
                                         Click="BtnImportAvilog_Click"
@@ -476,24 +517,6 @@
                                                     Width="180"
                                                     HeaderStyle="{StaticResource HodowcaHeaderStyle}"/>
 
-                            <!-- Numer auta u hodowcy -->
-                            <DataGridTemplateColumn Header="Auto" Width="55" IsReadOnly="True"
-                                                    HeaderStyle="{StaticResource HodowcaHeaderStyle}"
-                                                    CellStyle="{StaticResource CellStyleOrange}">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold">
-                                            <TextBlock.Text>
-                                                <MultiBinding StringFormat="{}{0}/{1}">
-                                                    <Binding Path="AutoNrUHodowcy"/>
-                                                    <Binding Path="IloscAutUHodowcy"/>
-                                                </MultiBinding>
-                                            </TextBlock.Text>
-                                        </TextBlock>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-
                             <!-- Waga deklarowana -->
                             <DataGridTextColumn Header="Waga (kg)" Binding="{Binding WagaDek, StringFormat={}{0:N2}}" Width="90"
                                                 HeaderStyle="{StaticResource DaneHeaderStyle}"
@@ -615,23 +638,42 @@
                                                     Width="140"
                                                     HeaderStyle="{StaticResource TransportHeaderStyle}"/>
 
-                            <!-- Odległość (KM) -->
-                            <DataGridTextColumn Header="KM" Binding="{Binding Odleglosc}" Width="60" IsReadOnly="True"
-                                                HeaderStyle="{StaticResource DataGridHeaderStyle}"
+                            <!-- Cena -->
+                            <DataGridTextColumn Header="Cena" Binding="{Binding Price, StringFormat={}{0:N2}}" Width="70"
+                                                HeaderStyle="{StaticResource CenaHeaderStyle}"
+                                                CellStyle="{StaticResource CellStyleBlue}">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Padding" Value="0,0,8,0"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="Foreground" Value="#1565C0"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- Ubytek (Loss) -->
+                            <DataGridTextColumn Header="Ubytek%" Binding="{Binding Loss, StringFormat={}{0:N2}}" Width="70"
+                                                HeaderStyle="{StaticResource CenaHeaderStyle}"
                                                 CellStyle="{StaticResource CellStyleBlue}">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="HorizontalAlignment" Value="Center"/>
                                         <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                        <Setter Property="Foreground" Value="#C62828"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
-                            <!-- Miejscowość -->
-                            <DataGridTextColumn Header="Miejscowość" Binding="{Binding Miejscowosc}" Width="120" IsReadOnly="True">
+                            <!-- Typ Ceny -->
+                            <DataGridTextColumn Header="TypCeny" Binding="{Binding PriceTypeName}" Width="90"
+                                                HeaderStyle="{StaticResource CenaHeaderStyle}"
+                                                CellStyle="{StaticResource CellStyleBlue}">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
-                                        <Setter Property="Padding" Value="8,5"/>
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
                                         <Setter Property="VerticalAlignment" Value="Center"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>

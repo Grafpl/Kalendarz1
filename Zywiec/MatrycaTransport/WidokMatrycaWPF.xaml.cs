@@ -33,11 +33,16 @@ namespace Kalendarz1
         private DataTable naczepyTable;
         private DataTable hodowcyTable;
 
+        // Dostawy z harmonogramu (bufor='Potwierdzone')
+        private ObservableCollection<HarmonogramDostawaItem> harmonogramDostawy;
+
         public WidokMatrycaWPF()
         {
             InitializeComponent();
             matrycaData = new ObservableCollection<MatrycaRow>();
+            harmonogramDostawy = new ObservableCollection<HarmonogramDostawaItem>();
             dataGridMatryca.ItemsSource = matrycaData;
+            cmbHarmonogramDostawy.ItemsSource = harmonogramDostawy;
             dateTimePicker1.SelectedDate = DateTime.Today;
 
             // Ustawienie ItemsSource dla ComboBox Wózek
@@ -53,6 +58,7 @@ namespace Kalendarz1
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             LoadComboBoxSources();
+            LoadHarmonogramDostawy();
             UpdateDayOfWeekLabel();
             UpdateStatistics();
             UpdateStatus("Wybierz datę i kliknij 'WCZYTAJ Z BAZY' lub zaimportuj dane z PDF/Excel");
@@ -101,6 +107,125 @@ namespace Kalendarz1
             {
                 MessageBox.Show($"Błąd podczas ładowania danych słownikowych:\n{ex.Message}",
                     "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Ładuje dostawy z harmonogramu (bufor = 'Potwierdzone') dla wybranej daty
+        /// </summary>
+        private void LoadHarmonogramDostawy()
+        {
+            try
+            {
+                harmonogramDostawy.Clear();
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    string query = @"SELECT
+                                        LP,
+                                        Dostawca,
+                                        SztukiDek,
+                                        WagaDek,
+                                        ISNULL(Cena, 0) as Cena,
+                                        ISNULL(Ubytek, 0) as Ubytek,
+                                        ISNULL(typCeny, '') as TypCeny
+                                    FROM [LibraNet].[dbo].[HarmonogramDostaw]
+                                    WHERE DataOdbioru = @SelectedDate
+                                    AND Bufor IN ('Potwierdzony', 'Potwierdzone')
+                                    ORDER BY LP";
+
+                    using (SqlCommand command = new SqlCommand(query, connection))
+                    {
+                        command.Parameters.AddWithValue("@SelectedDate", selectedDate);
+
+                        using (SqlDataReader reader = command.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                int lp = reader["LP"] != DBNull.Value ? Convert.ToInt32(reader["LP"]) : 0;
+                                string dostawca = reader["Dostawca"]?.ToString()?.Trim() ?? "";
+                                int sztuki = reader["SztukiDek"] != DBNull.Value ? Convert.ToInt32(reader["SztukiDek"]) : 0;
+                                decimal waga = reader["WagaDek"] != DBNull.Value ? Convert.ToDecimal(reader["WagaDek"]) : 0;
+                                decimal cena = reader["Cena"] != DBNull.Value ? Convert.ToDecimal(reader["Cena"]) : 0;
+                                decimal ubytek = reader["Ubytek"] != DBNull.Value ? Convert.ToDecimal(reader["Ubytek"]) : 0;
+                                string typCeny = reader["TypCeny"]?.ToString()?.Trim() ?? "";
+
+                                harmonogramDostawy.Add(new HarmonogramDostawaItem
+                                {
+                                    LP = lp,
+                                    Dostawca = dostawca,
+                                    SztukiDek = sztuki,
+                                    WagaDek = waga,
+                                    Cena = cena,
+                                    Ubytek = ubytek,
+                                    TypCeny = typCeny,
+                                    DisplayText = $"LP:{lp} - {dostawca} (Szt:{sztuki}, Cena:{cena:N2}, Ubytek:{ubytek:N2}%)"
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd ładowania harmonogramu: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Obsługa zmiany wybranej dostawy z harmonogramu
+        /// </summary>
+        private void CmbHarmonogramDostawy_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Nic nie robimy przy zmianie - czekamy na kliknięcie przycisku "Zastosuj cenę"
+        }
+
+        /// <summary>
+        /// Zastosuj cenę, ubytek i typ ceny z wybranej dostawy do wszystkich wierszy tego dostawcy
+        /// </summary>
+        private void BtnApplyHarmonogramPrice_Click(object sender, RoutedEventArgs e)
+        {
+            var selectedDostawa = cmbHarmonogramDostawy.SelectedItem as HarmonogramDostawaItem;
+            if (selectedDostawa == null)
+            {
+                MessageBox.Show("Wybierz dostawę z harmonogramu.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            string dostawcaNazwa = selectedDostawa.Dostawca?.Trim().ToLowerInvariant() ?? "";
+            if (string.IsNullOrEmpty(dostawcaNazwa))
+            {
+                MessageBox.Show("Wybrana dostawa nie ma nazwy dostawcy.", "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Znajdź wszystkie wiersze z tym samym dostawcą
+            int count = 0;
+            foreach (var row in matrycaData)
+            {
+                string rowDostawca = row.HodowcaNazwa?.Trim().ToLowerInvariant() ?? "";
+                if (rowDostawca == dostawcaNazwa)
+                {
+                    row.Price = selectedDostawa.Cena;
+                    row.Loss = selectedDostawa.Ubytek;
+                    row.PriceTypeName = selectedDostawa.TypCeny;
+                    // Pobierz PriceTypeID z nazwy
+                    row.PriceTypeID = zapytaniasql.ZnajdzIdCeny(selectedDostawa.TypCeny);
+                    count++;
+                }
+            }
+
+            if (count > 0)
+            {
+                UpdateStatus($"Zastosowano cenę do {count} wierszy dostawcy: {selectedDostawa.Dostawca}");
+            }
+            else
+            {
+                MessageBox.Show($"Nie znaleziono wierszy dla dostawcy: {selectedDostawa.Dostawca}\n\nSprawdź czy dane są załadowane.",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
@@ -312,6 +437,9 @@ namespace Kalendarz1
             {
                 // Tylko aktualizuj dzień tygodnia - dane wczytaj ręcznie przyciskiem
                 UpdateDayOfWeekLabel();
+
+                // Załaduj dostawy z harmonogramu dla nowej daty
+                LoadHarmonogramDostawy();
 
                 // Wyczyść matrycę i pokaż informację
                 if (matrycaData.Count > 0)
@@ -1611,30 +1739,10 @@ namespace Kalendarz1
 
                             foreach (var row in matrycaData)
                             {
-                                double Ubytek = 0.0;
-                                double Cena = 0.0;
-                                int intTypCeny = -1;
-
-                                string lpDoZapytan = !string.IsNullOrEmpty(row.OryginalneLP) ? row.OryginalneLP : row.LpDostawy;
-
-                                if (!string.IsNullOrWhiteSpace(lpDoZapytan))
-                                {
-                                    try
-                                    {
-                                        double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(lpDoZapytan, "Ubytek"), out Ubytek);
-                                        double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(lpDoZapytan, "Cena"), out Cena);
-                                        string typCeny = zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(lpDoZapytan, "TypCeny");
-
-                                        if (!string.IsNullOrWhiteSpace(typCeny))
-                                        {
-                                            intTypCeny = zapytaniasql.ZnajdzIdCeny(typCeny);
-                                        }
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        System.Diagnostics.Debug.WriteLine($"Błąd pobierania danych dla LP {lpDoZapytan}: {ex.Message}");
-                                    }
-                                }
+                                // Użyj wartości z wiersza (ustawione przez "Zastosuj cenę" z harmonogramu)
+                                double Ubytek = (double)row.Loss;
+                                double Cena = (double)row.Price;
+                                int intTypCeny = row.PriceTypeID ?? -1;
 
                                 // Znajdź ID hodowcy
                                 string dostawcaId = "-1";
@@ -2217,6 +2325,36 @@ namespace Kalendarz1
             }
         }
 
+        // === DANE CENOWE Z HARMONOGRAMU ===
+        private decimal _price;
+        private decimal _loss;
+        private int? _priceTypeID;
+        private string _priceTypeName;
+
+        public decimal Price
+        {
+            get => _price;
+            set { _price = value; OnPropertyChanged(nameof(Price)); }
+        }
+
+        public decimal Loss
+        {
+            get => _loss;
+            set { _loss = value; OnPropertyChanged(nameof(Loss)); }
+        }
+
+        public int? PriceTypeID
+        {
+            get => _priceTypeID;
+            set { _priceTypeID = value; OnPropertyChanged(nameof(PriceTypeID)); }
+        }
+
+        public string PriceTypeName
+        {
+            get => _priceTypeName;
+            set { _priceTypeName = value; OnPropertyChanged(nameof(PriceTypeName)); }
+        }
+
         public event PropertyChangedEventHandler PropertyChanged;
 
         protected void OnPropertyChanged(string propertyName)
@@ -2314,5 +2452,20 @@ namespace Kalendarz1
 
             return Binding.DoNothing;
         }
+    }
+
+    /// <summary>
+    /// Model danych dla dostawy z harmonogramu
+    /// </summary>
+    public class HarmonogramDostawaItem
+    {
+        public int LP { get; set; }
+        public string Dostawca { get; set; }
+        public int SztukiDek { get; set; }
+        public decimal WagaDek { get; set; }
+        public decimal Cena { get; set; }
+        public decimal Ubytek { get; set; }
+        public string TypCeny { get; set; }
+        public string DisplayText { get; set; }
     }
 }
