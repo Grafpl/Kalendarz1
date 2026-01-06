@@ -205,6 +205,7 @@ namespace Kalendarz1
                 case "ZM": return "Zamarznięte";
                 case "LUMEL": return "LUMEL";
                 case "DeclI2": return "Padłe";
+                case "Number": return "Nr specyfikacji";
 
                 // Avilog - wagi
                 case "FullFarmWeight":
@@ -423,6 +424,7 @@ namespace Kalendarz1
                     case "ZM": return "Zamarznięte";
                     case "LUMEL": return "LUMEL";
                     case "DeclI2": return "Padłe";
+                    case "Number": return "Nr specyfikacji";
 
                     // Avilog - wagi
                     case "Waga Brutto Hodowca": return "Waga Brutto Hod.";

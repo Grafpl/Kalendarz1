@@ -682,25 +682,27 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
 
-                                <DataGridTextColumn Header="Nr" Binding="{Binding Number}" Width="45" IsReadOnly="True">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Center"/>
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                            <Setter Property="FontSize" Value="12"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-
-                                <DataGridTextColumn Header="Nr/Rok" Binding="{Binding YearNumber}" Width="55" IsReadOnly="True" ToolTipService.ToolTip="Numer w roku">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Center"/>
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                            <Setter Property="FontSize" Value="12"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                <DataGridTemplateColumn Header="Nr spec." Width="55" SortMemberPath="Number" ToolTipService.ToolTip="Numer specyfikacji - edytowalny, następne wiersze +1">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Number}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="12"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                    <DataGridTemplateColumn.CellEditingTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Number, UpdateSourceTrigger=PropertyChanged}"
+                                                     HorizontalContentAlignment="Center"
+                                                     VerticalContentAlignment="Center"
+                                                     FontSize="12"
+                                                     GotFocus="Number_GotFocus"
+                                                     LostFocus="Number_LostFocus"
+                                                     Tag="{Binding}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellEditingTemplate>
+                                </DataGridTemplateColumn>
 
                                 <DataGridTemplateColumn Header="Dostawca" Width="160" SortMemberPath="Dostawca">
                                     <DataGridTemplateColumn.CellStyle>

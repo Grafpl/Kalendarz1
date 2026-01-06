@@ -2375,6 +2375,7 @@ namespace Kalendarz1
                 case "NW": return "Niedowaga";
                 case "ZM": return "Zamarznięte";
                 case "LUMEL": return "LUMEL";
+                case "Number": return "Nr specyfikacji";
                 default: return fieldName;
             }
         }
@@ -5204,6 +5205,14 @@ namespace Kalendarz1
                 _oldFieldValues[$"SztukiDek_{row.ID}"] = row.SztukiDek.ToString();
         }
 
+        private void Number_GotFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var row = textBox?.DataContext as SpecyfikacjaRow;
+            if (row != null)
+                _oldFieldValues[$"Number_{row.ID}"] = row.Number.ToString();
+        }
+
         private void Padle_GotFocus(object sender, RoutedEventArgs e)
         {
             var textBox = sender as TextBox;
@@ -5558,6 +5567,69 @@ namespace Kalendarz1
 
             SaveFieldToDatabase(row.ID, "DeclI1", row.SztukiDek);
             UpdateStatus($"Zapisano Szt.Dek: {row.SztukiDek} dla LP {row.Nr}");
+        }
+
+        // Handler LostFocus dla Number (Nr specyfikacji) - zapisuje do bazy i auto-increment dla następnych wierszy
+        private void Number_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var row = textBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            // Pobierz starą wartość
+            string oldValue = "";
+            string key = $"Number_{row.ID}";
+            if (_oldFieldValues.ContainsKey(key))
+            {
+                oldValue = _oldFieldValues[key];
+                _oldFieldValues.Remove(key);
+            }
+
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+
+            string newValue = row.Number.ToString();
+
+            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA i się różni
+            if (!string.IsNullOrEmpty(oldValue) && oldValue != newValue)
+            {
+                LogChangeToDatabase(row.ID, "Number", oldValue, newValue, row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+            }
+
+            // Zapisz do bazy
+            SaveFieldToDatabase(row.ID, "Number", row.Number);
+
+            // Auto-increment dla następnych wierszy
+            int currentIndex = specyfikacjeData.IndexOf(row);
+            int currentNumber = row.Number;
+
+            if (currentIndex >= 0 && currentNumber > 0)
+            {
+                for (int i = currentIndex + 1; i < specyfikacjeData.Count; i++)
+                {
+                    currentNumber++;
+                    var nextRow = specyfikacjeData[i];
+
+                    // Loguj zmianę dla każdego wiersza
+                    string nextOldValue = nextRow.Number.ToString();
+                    if (nextOldValue != currentNumber.ToString())
+                    {
+                        LogChangeToDatabase(nextRow.ID, "Number", nextOldValue, currentNumber.ToString(),
+                            nextRow.RealDostawca ?? nextRow.Dostawca, nextRow.Nr, nextRow.CarID ?? "");
+                    }
+
+                    nextRow.Number = currentNumber;
+                    SaveFieldToDatabase(nextRow.ID, "Number", currentNumber);
+                }
+
+                UpdateStatus($"Zapisano Nr spec. {row.Number} dla LP {row.Nr} i auto-increment dla {specyfikacjeData.Count - currentIndex - 1} następnych wierszy");
+            }
+            else
+            {
+                UpdateStatus($"Zapisano Nr spec.: {row.Number} dla LP {row.Nr}");
+            }
         }
 
         // Handler LostFocus dla Padle - zapisuje do bazy (DeclI2)
