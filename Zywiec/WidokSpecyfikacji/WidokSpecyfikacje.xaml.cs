@@ -2270,70 +2270,19 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Pokazuje okno z historią zmian z bazy danych
+        /// Pokazuje okno z historią zmian
         /// </summary>
         private void ShowChangeLog_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                var changes = new List<ChangeLogEntry>();
-
-                using (SqlConnection conn = new SqlConnection(connectionString))
-                {
-                    conn.Open();
-
-                    // Pobierz zmiany (ostatnie 100)
-                    string sql = @"SELECT TOP 100 FarmerCalcID, FieldName, OldValue, NewValue, Dostawca, ChangedBy, ChangeDate, CalcDate
-                        FROM [dbo].[FarmerCalcChangeLog]
-                        ORDER BY ChangeDate DESC";
-
-                    using (SqlCommand cmd = new SqlCommand(sql, conn))
-                    {
-                        using (SqlDataReader reader = cmd.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                changes.Add(new ChangeLogEntry
-                                {
-                                    RowId = reader.IsDBNull(0) ? 0 : reader.GetInt32(0),
-                                    PropertyName = reader.IsDBNull(1) ? "" : reader.GetString(1),
-                                    OldValue = reader.IsDBNull(2) ? "" : reader.GetString(2),
-                                    NewValue = reader.IsDBNull(3) ? "" : reader.GetString(3),
-                                    Action = reader.IsDBNull(4) ? "" : reader.GetString(4), // Dostawca
-                                    UserName = reader.IsDBNull(5) ? "" : reader.GetString(5),
-                                    Timestamp = reader.IsDBNull(6) ? DateTime.Now : reader.GetDateTime(6)
-                                });
-                            }
-                        }
-                    }
-                }
-
-                if (changes.Count == 0)
-                {
-                    MessageBox.Show("Brak zmian w tabeli FarmerCalcChangeLog.\n\nSprawdź pasek statusu podczas edycji - powinien pokazywać komunikaty o logowaniu.", "Historia zmian", MessageBoxButton.OK, MessageBoxImage.Information);
-                    return;
-                }
-
-                // Wyświetl w czytelnym formacie
-                var sb = new StringBuilder();
-                sb.AppendLine($"Historia zmian (ostatnie 100)");
-                sb.AppendLine($"Znaleziono: {changes.Count}");
-                sb.AppendLine(new string('═', 60));
-
-                foreach (var entry in changes)
-                {
-                    sb.AppendLine();
-                    sb.AppendLine($"[{entry.Timestamp:dd.MM HH:mm:ss}] {entry.UserName}");
-                    sb.AppendLine($"   Dostawca: {entry.Action}");
-                    sb.AppendLine($"   Pole: {GetFieldDisplayName(entry.PropertyName)}");
-                    sb.AppendLine($"   Zmiana: {entry.OldValue} → {entry.NewValue}");
-                }
-
-                MessageBox.Show(sb.ToString(), "Historia zmian", MessageBoxButton.OK, MessageBoxImage.Information);
+                var historiaWindow = new HistoriaZmianWindow(connectionString);
+                historiaWindow.Owner = Window.GetWindow(this);
+                historiaWindow.ShowDialog();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd pobierania historii: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Błąd otwierania historii zmian: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
