@@ -1008,13 +1008,13 @@
                                                             <DataTrigger Binding="{Binding TypCeny}" Value="wolnyrynek">
                                                                 <Setter Property="Background" Value="#FFEB3B"/>
                                                             </DataTrigger>
-                                                            <DataTrigger Binding="{Binding TypCeny}" Value="Łączona">
+                                                            <DataTrigger Binding="{Binding TypCeny}" Value="łączona">
                                                                 <Setter Property="Background" Value="#CE93D8"/>
                                                             </DataTrigger>
-                                                            <DataTrigger Binding="{Binding TypCeny}" Value="Ministerialny">
+                                                            <DataTrigger Binding="{Binding TypCeny}" Value="ministerialna">
                                                                 <Setter Property="Background" Value="#64B5F6"/>
                                                             </DataTrigger>
-                                                            <DataTrigger Binding="{Binding TypCeny}" Value="Rolnicza">
+                                                            <DataTrigger Binding="{Binding TypCeny}" Value="rolnicza">
                                                                 <Setter Property="Background" Value="#81C784"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>
