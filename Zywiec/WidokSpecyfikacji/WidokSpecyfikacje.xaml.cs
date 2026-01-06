@@ -244,6 +244,9 @@ namespace Kalendarz1
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            // Wczytaj ustawienia administracyjne
+            LoadAdminSettings();
+
             LoadData(dateTimePicker1.SelectedDate ?? DateTime.Today);
             UpdateFullDateLabel();
             UpdateTransportDateLabel();
@@ -5284,6 +5287,9 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Sprawdź blokadę edycji
+            if (!CheckEditingAllowed(row.DataUboju)) return;
+
             // Pobierz starą wartość
             string oldValue = "";
             string key = $"Cena_{row.ID}";
@@ -5390,6 +5396,14 @@ namespace Kalendarz1
             var row = checkBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Sprawdź blokadę edycji
+            if (!CheckEditingAllowed(row.DataUboju))
+            {
+                // Przywróć poprzednią wartość
+                checkBox.IsChecked = !row.PiK;
+                return;
+            }
+
             // Loguj zmianę
             string oldValue = row.PiK ? "NIE" : "TAK"; // Wartość przed zmianą jest odwrotna
             string newValue = row.PiK ? "TAK" : "NIE";
@@ -5432,6 +5446,14 @@ namespace Kalendarz1
             string oldValue = "";
             if (e.RemovedItems.Count > 0)
                 oldValue = e.RemovedItems[0]?.ToString() ?? "";
+
+            // Sprawdź blokadę edycji
+            if (!string.IsNullOrEmpty(oldValue) && !CheckEditingAllowed(row.DataUboju))
+            {
+                // Przywróć poprzednią wartość
+                comboBox.SelectedItem = oldValue;
+                return;
+            }
 
             // Znajdź ID typu ceny
             int priceTypeId = -1;
@@ -5823,6 +5845,335 @@ namespace Kalendarz1
             // TODO: Implementacja eksportu do Symfonii
             MessageBox.Show("Funkcja eksportu do Symfonii w przygotowaniu.",
                 "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        #endregion
+
+        #region Admin Panel
+
+        private int _dniBlokady = 3;
+        private List<string> _przelozeni = new List<string> { "admin", "kierownik" };
+        private Dictionary<DateTime, bool> _odblokowaneDni = new Dictionary<DateTime, bool>();
+
+        private void BtnAdmin_Click(object sender, RoutedEventArgs e)
+        {
+            // Sprawdź czy użytkownik ma uprawnienia
+            string currentUser = Environment.UserName.ToLower();
+            if (!_przelozeni.Any(p => p.ToLower() == currentUser))
+            {
+                MessageBox.Show("Brak uprawnień do panelu administracyjnego.\nSkontaktuj się z przełożonym.",
+                    "Brak dostępu", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Pokaż/ukryj panel
+            adminPanel.Visibility = adminPanel.Visibility == Visibility.Visible
+                ? Visibility.Collapsed
+                : Visibility.Visible;
+
+            if (adminPanel.Visibility == Visibility.Visible)
+            {
+                LoadAdminSettings();
+                UpdateBlockingStatus();
+            }
+        }
+
+        private void BtnCloseAdmin_Click(object sender, RoutedEventArgs e)
+        {
+            adminPanel.Visibility = Visibility.Collapsed;
+        }
+
+        private void BtnSaveAdminSettings_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Pobierz wartości z UI
+                if (int.TryParse(txtDniBlokady.Text, out int dni))
+                {
+                    _dniBlokady = dni;
+                }
+
+                _przelozeni = txtPrzelozeni.Text
+                    .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(p => p.Trim())
+                    .Where(p => !string.IsNullOrEmpty(p))
+                    .ToList();
+
+                // Zapisz do bazy
+                SaveAdminSettings();
+
+                MessageBox.Show("Ustawienia zostały zapisane.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                UpdateBlockingStatus();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd zapisu ustawień: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnOdblokujDzien_Click(object sender, RoutedEventArgs e)
+        {
+            DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+            _odblokowaneDni[selectedDate] = true;
+            SaveDayUnlockStatus(selectedDate, true);
+            UpdateBlockingStatus();
+            UpdateStatus($"Dzień {selectedDate:yyyy-MM-dd} został odblokowany do edycji");
+        }
+
+        private void BtnZablokujDzien_Click(object sender, RoutedEventArgs e)
+        {
+            DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+            _odblokowaneDni[selectedDate] = false;
+            SaveDayUnlockStatus(selectedDate, false);
+            UpdateBlockingStatus();
+            UpdateStatus($"Dzień {selectedDate:yyyy-MM-dd} został zablokowany");
+        }
+
+        private void UpdateBlockingStatus()
+        {
+            DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+            int dniOdDostawy = (DateTime.Today - selectedDate).Days;
+            bool isUnlocked = _odblokowaneDni.ContainsKey(selectedDate) && _odblokowaneDni[selectedDate];
+
+            if (isUnlocked)
+            {
+                lblStatusBlokady.Text = $"Dzień {selectedDate:yyyy-MM-dd} - ODBLOKOWANY przez przełożonego";
+                lblStatusBlokady.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2E7D32"));
+                btnOdblokujDzien.Visibility = Visibility.Collapsed;
+                btnZablokujDzien.Visibility = Visibility.Visible;
+            }
+            else if (dniOdDostawy > _dniBlokady)
+            {
+                lblStatusBlokady.Text = $"Dzień {selectedDate:yyyy-MM-dd} - ZABLOKOWANY ({dniOdDostawy} dni temu)";
+                lblStatusBlokady.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C62828"));
+                btnOdblokujDzien.Visibility = Visibility.Visible;
+                btnZablokujDzien.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                lblStatusBlokady.Text = $"Dzień {selectedDate:yyyy-MM-dd} - edycja dozwolona (pozostało {_dniBlokady - dniOdDostawy} dni)";
+                lblStatusBlokady.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2E7D32"));
+                btnOdblokujDzien.Visibility = Visibility.Collapsed;
+                btnZablokujDzien.Visibility = Visibility.Visible;
+            }
+        }
+
+        private bool IsEditingAllowed(DateTime calcDate)
+        {
+            // Sprawdź czy dzień jest odblokowany
+            if (_odblokowaneDni.ContainsKey(calcDate) && _odblokowaneDni[calcDate])
+                return true;
+
+            // Sprawdź czy minęło więcej niż X dni
+            int dniOdDostawy = (DateTime.Today - calcDate).Days;
+            if (dniOdDostawy > _dniBlokady)
+            {
+                // Sprawdź czy użytkownik jest przełożonym
+                string currentUser = Environment.UserName.ToLower();
+                return _przelozeni.Any(p => p.ToLower() == currentUser);
+            }
+
+            return true;
+        }
+
+        private bool CheckEditingAllowed(DateTime calcDate)
+        {
+            if (IsEditingAllowed(calcDate))
+                return true;
+
+            int dniOdDostawy = (DateTime.Today - calcDate).Days;
+            MessageBox.Show(
+                $"Edycja dnia {calcDate:yyyy-MM-dd} jest zablokowana.\n\n" +
+                $"Minęło {dniOdDostawy} dni od daty dostawy (limit: {_dniBlokady} dni).\n\n" +
+                "Skontaktuj się z przełożonym w celu odblokowania.",
+                "Blokada edycji",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return false;
+        }
+
+        private void EnsureSettingsTableExists()
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    string createTableSql = @"
+                        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FarmerCalcSettings')
+                        BEGIN
+                            CREATE TABLE [dbo].[FarmerCalcSettings] (
+                                [ID] INT IDENTITY(1,1) PRIMARY KEY,
+                                [SettingName] NVARCHAR(100) NOT NULL,
+                                [SettingValue] NVARCHAR(500) NULL,
+                                [ModifiedDate] DATETIME DEFAULT GETDATE(),
+                                [ModifiedBy] NVARCHAR(100) NULL
+                            )
+                        END;
+
+                        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FarmerCalcDayUnlock')
+                        BEGIN
+                            CREATE TABLE [dbo].[FarmerCalcDayUnlock] (
+                                [ID] INT IDENTITY(1,1) PRIMARY KEY,
+                                [CalcDate] DATE NOT NULL,
+                                [IsUnlocked] BIT DEFAULT 0,
+                                [UnlockedBy] NVARCHAR(100) NULL,
+                                [UnlockedDate] DATETIME DEFAULT GETDATE()
+                            )
+                        END";
+
+                    using (SqlCommand cmd = new SqlCommand(createTableSql, conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error creating settings tables: {ex.Message}");
+            }
+        }
+
+        private void LoadAdminSettings()
+        {
+            EnsureSettingsTableExists();
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Wczytaj dni blokady
+                    string queryDni = "SELECT SettingValue FROM FarmerCalcSettings WHERE SettingName = 'DniBlokady'";
+                    using (SqlCommand cmd = new SqlCommand(queryDni, conn))
+                    {
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && int.TryParse(result.ToString(), out int dni))
+                        {
+                            _dniBlokady = dni;
+                            txtDniBlokady.Text = dni.ToString();
+                        }
+                    }
+
+                    // Wczytaj przełożonych
+                    string queryPrzel = "SELECT SettingValue FROM FarmerCalcSettings WHERE SettingName = 'Przelozeni'";
+                    using (SqlCommand cmd = new SqlCommand(queryPrzel, conn))
+                    {
+                        var result = cmd.ExecuteScalar();
+                        if (result != null)
+                        {
+                            txtPrzelozeni.Text = result.ToString().Replace(";", Environment.NewLine);
+                            _przelozeni = result.ToString()
+                                .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                                .Select(p => p.Trim())
+                                .ToList();
+                        }
+                    }
+
+                    // Wczytaj odblokowane dni
+                    _odblokowaneDni.Clear();
+                    string queryUnlock = "SELECT CalcDate, IsUnlocked FROM FarmerCalcDayUnlock WHERE IsUnlocked = 1";
+                    using (SqlCommand cmd = new SqlCommand(queryUnlock, conn))
+                    {
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                DateTime date = reader.GetDateTime(0);
+                                _odblokowaneDni[date] = true;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error loading admin settings: {ex.Message}");
+            }
+        }
+
+        private void SaveAdminSettings()
+        {
+            EnsureSettingsTableExists();
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string user = Environment.UserName;
+
+                    // Zapisz dni blokady
+                    string mergeDni = @"
+                        MERGE FarmerCalcSettings AS target
+                        USING (SELECT 'DniBlokady' AS SettingName) AS source
+                        ON target.SettingName = source.SettingName
+                        WHEN MATCHED THEN UPDATE SET SettingValue = @Value, ModifiedDate = GETDATE(), ModifiedBy = @User
+                        WHEN NOT MATCHED THEN INSERT (SettingName, SettingValue, ModifiedBy) VALUES ('DniBlokady', @Value, @User);";
+
+                    using (SqlCommand cmd = new SqlCommand(mergeDni, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Value", _dniBlokady.ToString());
+                        cmd.Parameters.AddWithValue("@User", user);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Zapisz przełożonych (rozdzielonych średnikiem)
+                    string przelozeniStr = string.Join(";", _przelozeni);
+                    string mergePrzel = @"
+                        MERGE FarmerCalcSettings AS target
+                        USING (SELECT 'Przelozeni' AS SettingName) AS source
+                        ON target.SettingName = source.SettingName
+                        WHEN MATCHED THEN UPDATE SET SettingValue = @Value, ModifiedDate = GETDATE(), ModifiedBy = @User
+                        WHEN NOT MATCHED THEN INSERT (SettingName, SettingValue, ModifiedBy) VALUES ('Przelozeni', @Value, @User);";
+
+                    using (SqlCommand cmd = new SqlCommand(mergePrzel, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Value", przelozeniStr);
+                        cmd.Parameters.AddWithValue("@User", user);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd zapisu do bazy: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void SaveDayUnlockStatus(DateTime date, bool isUnlocked)
+        {
+            EnsureSettingsTableExists();
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string user = Environment.UserName;
+
+                    string mergeSql = @"
+                        MERGE FarmerCalcDayUnlock AS target
+                        USING (SELECT @CalcDate AS CalcDate) AS source
+                        ON target.CalcDate = source.CalcDate
+                        WHEN MATCHED THEN UPDATE SET IsUnlocked = @IsUnlocked, UnlockedBy = @User, UnlockedDate = GETDATE()
+                        WHEN NOT MATCHED THEN INSERT (CalcDate, IsUnlocked, UnlockedBy) VALUES (@CalcDate, @IsUnlocked, @User);";
+
+                    using (SqlCommand cmd = new SqlCommand(mergeSql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@CalcDate", date.Date);
+                        cmd.Parameters.AddWithValue("@IsUnlocked", isUnlocked);
+                        cmd.Parameters.AddWithValue("@User", user);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error saving day unlock status: {ex.Message}");
+            }
         }
 
         #endregion

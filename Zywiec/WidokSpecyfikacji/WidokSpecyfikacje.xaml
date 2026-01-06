@@ -408,8 +408,76 @@
                             Style="{StaticResource MainButtonStyle}"
                             Background="#E74C3C"
                             ToolTip="Wyślij email z PDF w załączniku"/>
+                    <Button Content="⚙️ Admin"
+                            x:Name="btnAdmin"
+                            Click="BtnAdmin_Click"
+                            Style="{StaticResource MainButtonStyle}"
+                            Background="#34495E"
+                            ToolTip="Panel administracyjny - ustawienia blokady edycji"/>
                 </StackPanel>
             </Grid>
+        </Border>
+
+        <!-- Panel Administracyjny (domyślnie ukryty) -->
+        <Border x:Name="adminPanel" Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Right"
+                Background="White" CornerRadius="10" Margin="20,60,20,0" Padding="15"
+                Visibility="Collapsed" Panel.ZIndex="1000">
+            <Border.Effect>
+                <DropShadowEffect ShadowDepth="3" Color="#000000" Opacity="0.2" BlurRadius="15"/>
+            </Border.Effect>
+            <StackPanel Width="350">
+                <TextBlock Text="⚙️ Panel Administracyjny" FontSize="16" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,15"/>
+
+                <!-- Ustawienia blokady -->
+                <Border Background="#F5F5F5" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="Blokada edycji" FontWeight="SemiBold" Foreground="#34495E" Margin="0,0,0,8"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                            <TextBlock Text="Dni od przyjęcia drobiu:" VerticalAlignment="Center" Width="150"/>
+                            <TextBox x:Name="txtDniBlokady" Width="60" Text="3" TextAlignment="Center"
+                                     VerticalContentAlignment="Center" Height="28"/>
+                            <TextBlock Text="dni" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                        </StackPanel>
+                        <TextBlock Text="Po tym czasie edycja wymaga zgody przełożonego"
+                                   FontSize="11" Foreground="#7F8C8D" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Status blokady dla wybranego dnia -->
+                <Border Background="#FFF3E0" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="Status wybranego dnia" FontWeight="SemiBold" Foreground="#E65100" Margin="0,0,0,5"/>
+                        <TextBlock x:Name="lblStatusBlokady" Text="Dzień odblokowany do edycji" Foreground="#2E7D32"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button x:Name="btnOdblokujDzien" Content="🔓 Odblokuj dzień"
+                                    Padding="10,5" Background="#27AE60" Foreground="White"
+                                    BorderThickness="0" Cursor="Hand" Click="BtnOdblokujDzien_Click"
+                                    Margin="0,0,10,0" Visibility="Collapsed"/>
+                            <Button x:Name="btnZablokujDzien" Content="🔒 Zablokuj dzień"
+                                    Padding="10,5" Background="#E74C3C" Foreground="White"
+                                    BorderThickness="0" Cursor="Hand" Click="BtnZablokujDzien_Click"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Lista przełożonych -->
+                <Border Background="#E8F5E9" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="Przełożeni (mogą odblokować)" FontWeight="SemiBold" Foreground="#2E7D32" Margin="0,0,0,5"/>
+                        <TextBox x:Name="txtPrzelozeni" Height="60" TextWrapping="Wrap" AcceptsReturn="True"
+                                 Text="admin&#x0a;kierownik" VerticalScrollBarVisibility="Auto"/>
+                        <TextBlock Text="Jeden login na linię" FontSize="11" Foreground="#7F8C8D" Margin="0,3,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Przyciski -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Zapisz ustawienia" Padding="15,8" Background="#3498DB" Foreground="White"
+                            BorderThickness="0" Cursor="Hand" Click="BtnSaveAdminSettings_Click" Margin="0,0,10,0"/>
+                    <Button Content="Zamknij" Padding="15,8" Background="#95A5A6" Foreground="White"
+                            BorderThickness="0" Cursor="Hand" Click="BtnCloseAdmin_Click"/>
+                </StackPanel>
+            </StackPanel>
         </Border>
 
         <TabControl Grid.Row="1" Margin="20,15,20,10" x:Name="mainTabControl" SelectionChanged="MainTabControl_SelectionChanged">
