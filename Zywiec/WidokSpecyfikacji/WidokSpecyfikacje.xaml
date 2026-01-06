@@ -451,16 +451,6 @@
                             </ControlTemplate>
                         </Button.Template>
                     </Button>
-                    <Button Content="AVILOG"
-                            x:Name="buttonBon"
-                            Click="ButtonBon_Click"
-                            Style="{StaticResource MainButtonStyle}"
-                            Background="#3498DB"/>
-                    <Button Content="LUMEL"
-                            x:Name="btnLoadData"
-                            Click="BtnLoadData_Click"
-                            Style="{StaticResource MainButtonStyle}"
-                            Background="#9B59B6"/>
                     <Button Content="DRUKUJ PDF"
                             x:Name="button1"
                             Click="Button1_Click"
@@ -543,57 +533,22 @@
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Szybkie akcje:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,10,0"/>
 
-                                <Button x:Name="btnCopySettings" Click="ToolBar_CopySettings"
-                                        Content="Kopiuj" ToolTip="Kopiuj ustawienia cenowe wiersza (Ctrl+Shift+C)"
-                                        Padding="10,4" Margin="0,0,5,0" Background="#2196F3" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand"/>
-                                <Button x:Name="btnPasteSettings" Click="ToolBar_PasteSettings"
-                                        Content="Wklej" ToolTip="Wklej ustawienia cenowe (Ctrl+Shift+V)"
-                                        Padding="10,4" Margin="0,0,5,0" Background="#4CAF50" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand"/>
-
-                                <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
-
                                 <Button x:Name="btnApplyAllToSupplier" Click="ToolBar_ApplyAllToSupplier"
                                         Content="Zastosuj WSZYSTKO do dostawcy"
                                         ToolTip="Zastosuj wszystkie ustawienia cenowe do wierszy tego samego dostawcy (Ctrl+Shift+A)"
-                                        Padding="10,4" Margin="5,0,5,0" Background="#FF9800" Foreground="White"
+                                        Padding="10,4" Margin="0,0,5,0" Background="#FF9800" Foreground="White"
                                         BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
 
                                 <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
 
-                                <Button x:Name="btnApplyCenaToSupplier" Click="ToolBar_ApplyCenaToSupplier"
-                                        Content="Cena" ToolTip="Zastosuj cene do wszystkich wierszy dostawcy"
-                                        Padding="8,4" Margin="5,0,2,0" Background="#1976D2" Foreground="White"
+                                <Button x:Name="buttonBon" Click="ButtonBon_Click"
+                                        Content="AVILOG" ToolTip="Wczytaj dane z AVILOG"
+                                        Padding="10,4" Margin="5,0,2,0" Background="#3498DB" Foreground="White"
                                         BorderThickness="0" Cursor="Hand"/>
-                                <Button x:Name="btnApplyDodatekToSupplier" Click="ToolBar_ApplyDodatekToSupplier"
-                                        Content="Dodatek" ToolTip="Zastosuj dodatek do wszystkich wierszy dostawcy"
-                                        Padding="8,4" Margin="2,0,2,0" Background="#1976D2" Foreground="White"
+                                <Button x:Name="btnLoadData" Click="BtnLoadData_Click"
+                                        Content="LUMEL" ToolTip="Wczytaj dane z LUMEL"
+                                        Padding="10,4" Margin="2,0,5,0" Background="#9B59B6" Foreground="White"
                                         BorderThickness="0" Cursor="Hand"/>
-                                <Button x:Name="btnApplyUbytekToSupplier" Click="ToolBar_ApplyUbytekToSupplier"
-                                        Content="Ubytek" ToolTip="Zastosuj ubytek do wszystkich wierszy dostawcy"
-                                        Padding="8,4" Margin="2,0,2,0" Background="#1976D2" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand"/>
-                                <Button x:Name="btnApplyTypCenyToSupplier" Click="ToolBar_ApplyTypCenyToSupplier"
-                                        Content="Typ Ceny" ToolTip="Zastosuj typ ceny do wszystkich wierszy dostawcy"
-                                        Padding="8,4" Margin="2,0,5,0" Background="#1976D2" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand"/>
-
-                                <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
-
-                                <Button x:Name="btnApplyTemplate" Click="ToolBar_ApplyTemplate"
-                                        Content="Szablon z historii" ToolTip="Wypelnij puste pola ustawieniami z ostatniej dostawy tego dostawcy"
-                                        Padding="10,4" Margin="5,0,5,0" Background="#9C27B0" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand"/>
-
-                                <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
-
-                                <Button x:Name="btnShowChangeLog" Click="ShowChangeLog_Click"
-                                        Content="📋 Historia zmian" ToolTip="Pokaz wszystkie zmiany wprowadzone w tej sesji"
-                                        Padding="10,4" Margin="5,0,5,0" Background="#607D8B" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand"/>
-
-                                <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
 
                                 <TextBlock x:Name="lblClipboardInfo" Text="" VerticalAlignment="Center"
                                            FontStyle="Italic" Foreground="#757575" Margin="10,0,0,0"/>
@@ -1049,12 +1004,30 @@
                                         <DataTemplate>
                                             <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ListaTypowCen}"
                                                       SelectedItem="{Binding TypCeny, UpdateSourceTrigger=PropertyChanged}"
-                                                      Background="#BBDEFB"
                                                       Padding="5"
                                                       VerticalContentAlignment="Center"
                                                       SelectionChanged="TypCeny_SelectionChanged"
                                                       IsHitTestVisible="True"
                                                       MaxDropDownHeight="200">
+                                                <ComboBox.Style>
+                                                    <Style TargetType="ComboBox">
+                                                        <Setter Property="Background" Value="#BBDEFB"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding TypCeny}" Value="wolnyrynek">
+                                                                <Setter Property="Background" Value="#FFEB3B"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding TypCeny}" Value="Łączona">
+                                                                <Setter Property="Background" Value="#CE93D8"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding TypCeny}" Value="Ministerialny">
+                                                                <Setter Property="Background" Value="#64B5F6"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding TypCeny}" Value="Rolnicza">
+                                                                <Setter Property="Background" Value="#81C784"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </ComboBox.Style>
                                                 <ComboBox.ItemsPanel>
                                                     <ItemsPanelTemplate>
                                                         <VirtualizingStackPanel IsVirtualizing="True" VirtualizationMode="Recycling"/>
@@ -1127,44 +1100,6 @@
                                                      Padding="0,0,8,0"
                                                      GotFocus="KlasaB_GotFocus"
                                                      LostFocus="KlasaB_LostFocus"/>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-
-                                <DataGridTemplateColumn Header="Do zapł." Width="75" IsReadOnly="True" HeaderStyle="{StaticResource CenaHeaderStyle}">
-                                    <DataGridTemplateColumn.CellStyle>
-                                        <Style TargetType="DataGridCell">
-                                            <Setter Property="Background" Value="#A5D6A7"/>
-                                            <Setter Property="BorderThickness" Value="0"/>
-                                        </Style>
-                                    </DataGridTemplateColumn.CellStyle>
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding DoZaplaty, Converter={StaticResource ZeroToEmptyConverter}}"
-                                           HorizontalAlignment="Right"
-                                           VerticalAlignment="Center"
-                                           Padding="0,0,8,0"
-                                           FontWeight="Bold"
-                                           Foreground="#2E7D32"/>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-
-                                <DataGridTemplateColumn Header="Wartość" Width="100" IsReadOnly="True" HeaderStyle="{StaticResource CenaHeaderStyle}">
-                                    <DataGridTemplateColumn.CellStyle>
-                                        <Style TargetType="DataGridCell">
-                                            <Setter Property="Background" Value="#A5D6A7"/>
-                                            <Setter Property="BorderThickness" Value="0"/>
-                                        </Style>
-                                    </DataGridTemplateColumn.CellStyle>
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding Wartosc, Converter={StaticResource ZeroToEmptyConverter}}"
-                                           HorizontalAlignment="Right"
-                                           VerticalAlignment="Center"
-                                           Padding="0,0,8,0"
-                                           FontWeight="Bold"
-                                           Foreground="#1B5E20"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
