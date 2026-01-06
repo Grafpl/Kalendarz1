@@ -60,116 +60,22 @@ ELSE
 GO
 
 -- =============================================================================
--- 3. TRIGGER - Automatyczne logowanie zmian w FarmerCalc
+-- 3. TRIGGER - USUNIĘTY (logowanie obsługiwane przez aplikację)
+-- =============================================================================
+-- Trigger został usunięty, ponieważ logowanie zmian jest teraz obsługiwane
+-- przez aplikację w LogChangeToDatabase() z pełnymi danymi:
+-- - Nr (LP wiersza)
+-- - CarID (numer rejestracyjny auta)
+-- - UserID (ID użytkownika z logowania)
+-- - ChangedBy (nazwa użytkownika)
+-- - Dostawca (nazwa dostawcy)
+-- - CalcDate (data specyfikacji)
 -- =============================================================================
 IF EXISTS (SELECT * FROM sys.triggers WHERE name = 'TR_FarmerCalc_AuditLog')
-    DROP TRIGGER [dbo].[TR_FarmerCalc_AuditLog];
-GO
-
-CREATE TRIGGER [dbo].[TR_FarmerCalc_AuditLog]
-ON [dbo].[FarmerCalc]
-AFTER UPDATE
-AS
 BEGIN
-    SET NOCOUNT ON;
-
-    DECLARE @UserName NVARCHAR(100) = SUSER_SNAME();
-
-    -- Loguj zmiany tylko dla wybranych pól (te które edytuje użytkownik w Specyfikacji)
-
-    -- Price (Cena)
-    INSERT INTO [dbo].[FarmerCalcChangeLog] ([FarmerCalcID], [FieldName], [OldValue], [NewValue], [ChangedBy], [ChangeSource])
-    SELECT i.ID, 'Price', CAST(d.Price AS NVARCHAR(MAX)), CAST(i.Price AS NVARCHAR(MAX)), @UserName, 'TRIGGER'
-    FROM inserted i INNER JOIN deleted d ON i.ID = d.ID
-    WHERE ISNULL(i.Price, 0) <> ISNULL(d.Price, 0);
-
-    -- Addition (Dodatek)
-    INSERT INTO [dbo].[FarmerCalcChangeLog] ([FarmerCalcID], [FieldName], [OldValue], [NewValue], [ChangedBy], [ChangeSource])
-    SELECT i.ID, 'Addition', CAST(d.Addition AS NVARCHAR(MAX)), CAST(i.Addition AS NVARCHAR(MAX)), @UserName, 'TRIGGER'
-    FROM inserted i INNER JOIN deleted d ON i.ID = d.ID
-    WHERE ISNULL(i.Addition, 0) <> ISNULL(d.Addition, 0);
-
-    -- Loss (Ubytek%)
-    INSERT INTO [dbo].[FarmerCalcChangeLog] ([FarmerCalcID], [FieldName], [OldValue], [NewValue], [ChangedBy], [ChangeSource])
-    SELECT i.ID, 'Loss', CAST(d.Loss AS NVARCHAR(MAX)), CAST(i.Loss AS NVARCHAR(MAX)), @UserName, 'TRIGGER'
-    FROM inserted i INNER JOIN deleted d ON i.ID = d.ID
-    WHERE ISNULL(i.Loss, 0) <> ISNULL(d.Loss, 0);
-
-    -- PriceTypeID (Typ Ceny)
-    INSERT INTO [dbo].[FarmerCalcChangeLog] ([FarmerCalcID], [FieldName], [OldValue], [NewValue], [ChangedBy], [ChangeSource])
-    SELECT i.ID, 'PriceTypeID', CAST(d.PriceTypeID AS NVARCHAR(MAX)), CAST(i.PriceTypeID AS NVARCHAR(MAX)), @UserName, 'TRIGGER'
-    FROM inserted i INNER JOIN deleted d ON i.ID = d.ID
-    WHERE ISNULL(i.PriceTypeID, 0) <> ISNULL(d.PriceTypeID, 0);
-
-    -- CustomerGID (Dostawca)
-    INSERT INTO [dbo].[FarmerCalcChangeLog] ([FarmerCalcID], [FieldName], [OldValue], [NewValue], [ChangedBy], [ChangeSource])
-    SELECT i.ID, 'CustomerGID', CAST(d.CustomerGID AS NVARCHAR(MAX)), CAST(i.CustomerGID AS NVARCHAR(MAX)), @UserName, 'TRIGGER'
-    FROM inserted i INNER JOIN deleted d ON i.ID = d.ID
-    WHERE ISNULL(i.CustomerGID, 0) <> ISNULL(d.CustomerGID, 0);
-
-    -- LumQnt (LUMEL)
-    INSERT INTO [dbo].[FarmerCalcChangeLog] ([FarmerCalcID], [FieldName], [OldValue], [NewValue], [ChangedBy], [ChangeSource])
-    SELECT i.ID, 'LumQnt', CAST(d.LumQnt AS NVARCHAR(MAX)), CAST(i.LumQnt AS NVARCHAR(MAX)), @UserName, 'TRIGGER'
-    FROM inserted i INNER JOIN deleted d ON i.ID = d.ID
-    WHERE ISNULL(i.LumQnt, 0) <> ISNULL(d.LumQnt, 0);
-
-    -- DeclI1 (SztukiDek)
-    INSERT INTO [dbo].[FarmerCalcChangeLog] ([FarmerCalcID], [FieldName], [OldValue], [NewValue], [ChangedBy], [ChangeSource])
-    SELECT i.ID, 'DeclI1', CAST(d.DeclI1 AS NVARCHAR(MAX)), CAST(i.DeclI1 AS NVARCHAR(MAX)), @UserName, 'TRIGGER'
-    FROM inserted i INNER JOIN deleted d ON i.ID = d.ID
-    WHERE ISNULL(i.DeclI1, 0) <> ISNULL(d.DeclI1, 0);
-
-    -- DeclI2 (Padłe)
-    INSERT INTO [dbo].[FarmerCalcChangeLog] ([FarmerCalcID], [FieldName], [OldValue], [NewValue], [ChangedBy], [ChangeSource])
-    SELECT i.ID, 'DeclI2', CAST(d.DeclI2 AS NVARCHAR(MAX)), CAST(i.DeclI2 AS NVARCHAR(MAX)), @UserName, 'TRIGGER'
-    FROM inserted i INNER JOIN deleted d ON i.ID = d.ID
-    WHERE ISNULL(i.DeclI2, 0) <> ISNULL(d.DeclI2, 0);
-
-    -- DeclI3 (CH)
-    INSERT INTO [dbo].[FarmerCalcChangeLog] ([FarmerCalcID], [FieldName], [OldValue], [NewValue], [ChangedBy], [ChangeSource])
-    SELECT i.ID, 'DeclI3', CAST(d.DeclI3 AS NVARCHAR(MAX)), CAST(i.DeclI3 AS NVARCHAR(MAX)), @UserName, 'TRIGGER'
-    FROM inserted i INNER JOIN deleted d ON i.ID = d.ID
-    WHERE ISNULL(i.DeclI3, 0) <> ISNULL(d.DeclI3, 0);
-
-    -- DeclI4 (NW)
-    INSERT INTO [dbo].[FarmerCalcChangeLog] ([FarmerCalcID], [FieldName], [OldValue], [NewValue], [ChangedBy], [ChangeSource])
-    SELECT i.ID, 'DeclI4', CAST(d.DeclI4 AS NVARCHAR(MAX)), CAST(i.DeclI4 AS NVARCHAR(MAX)), @UserName, 'TRIGGER'
-    FROM inserted i INNER JOIN deleted d ON i.ID = d.ID
-    WHERE ISNULL(i.DeclI4, 0) <> ISNULL(d.DeclI4, 0);
-
-    -- DeclI5 (ZM)
-    INSERT INTO [dbo].[FarmerCalcChangeLog] ([FarmerCalcID], [FieldName], [OldValue], [NewValue], [ChangedBy], [ChangeSource])
-    SELECT i.ID, 'DeclI5', CAST(d.DeclI5 AS NVARCHAR(MAX)), CAST(i.DeclI5 AS NVARCHAR(MAX)), @UserName, 'TRIGGER'
-    FROM inserted i INNER JOIN deleted d ON i.ID = d.ID
-    WHERE ISNULL(i.DeclI5, 0) <> ISNULL(d.DeclI5, 0);
-
-    -- Opasienie
-    INSERT INTO [dbo].[FarmerCalcChangeLog] ([FarmerCalcID], [FieldName], [OldValue], [NewValue], [ChangedBy], [ChangeSource])
-    SELECT i.ID, 'Opasienie', CAST(d.Opasienie AS NVARCHAR(MAX)), CAST(i.Opasienie AS NVARCHAR(MAX)), @UserName, 'TRIGGER'
-    FROM inserted i INNER JOIN deleted d ON i.ID = d.ID
-    WHERE ISNULL(i.Opasienie, 0) <> ISNULL(d.Opasienie, 0);
-
-    -- KlasaB
-    INSERT INTO [dbo].[FarmerCalcChangeLog] ([FarmerCalcID], [FieldName], [OldValue], [NewValue], [ChangedBy], [ChangeSource])
-    SELECT i.ID, 'KlasaB', CAST(d.KlasaB AS NVARCHAR(MAX)), CAST(i.KlasaB AS NVARCHAR(MAX)), @UserName, 'TRIGGER'
-    FROM inserted i INNER JOIN deleted d ON i.ID = d.ID
-    WHERE ISNULL(i.KlasaB, 0) <> ISNULL(d.KlasaB, 0);
-
-    -- IncDeadConf (PiK)
-    INSERT INTO [dbo].[FarmerCalcChangeLog] ([FarmerCalcID], [FieldName], [OldValue], [NewValue], [ChangedBy], [ChangeSource])
-    SELECT i.ID, 'IncDeadConf', CAST(d.IncDeadConf AS NVARCHAR(MAX)), CAST(i.IncDeadConf AS NVARCHAR(MAX)), @UserName, 'TRIGGER'
-    FROM inserted i INNER JOIN deleted d ON i.ID = d.ID
-    WHERE ISNULL(i.IncDeadConf, 0) <> ISNULL(d.IncDeadConf, 0);
-
-    -- CarLp (Kolejność)
-    INSERT INTO [dbo].[FarmerCalcChangeLog] ([FarmerCalcID], [FieldName], [OldValue], [NewValue], [ChangedBy], [ChangeSource])
-    SELECT i.ID, 'CarLp', CAST(d.CarLp AS NVARCHAR(MAX)), CAST(i.CarLp AS NVARCHAR(MAX)), @UserName, 'TRIGGER'
-    FROM inserted i INNER JOIN deleted d ON i.ID = d.ID
-    WHERE ISNULL(i.CarLp, 0) <> ISNULL(d.CarLp, 0);
-END;
-GO
-
-PRINT 'Utworzono trigger TR_FarmerCalc_AuditLog';
+    DROP TRIGGER [dbo].[TR_FarmerCalc_AuditLog];
+    PRINT 'Usunięto trigger TR_FarmerCalc_AuditLog - logowanie obsługiwane przez aplikację';
+END
 GO
 
 -- =============================================================================
