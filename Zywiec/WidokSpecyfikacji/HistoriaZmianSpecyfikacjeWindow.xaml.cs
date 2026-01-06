@@ -186,6 +186,7 @@ namespace Kalendarz1
         {
             switch (fieldName)
             {
+                // Specyfikacja - ceny
                 case "Price":
                 case "Cena": return "Cena";
                 case "Addition":
@@ -204,6 +205,47 @@ namespace Kalendarz1
                 case "ZM": return "Zamarznięte";
                 case "LUMEL": return "LUMEL";
                 case "DeclI2": return "Padłe";
+
+                // Avilog - wagi
+                case "FullFarmWeight":
+                case "Waga Brutto Hodowca": return "Waga Brutto Hod.";
+                case "EmptyFarmWeight":
+                case "Waga Tara Hodowca": return "Waga Tara Hod.";
+                case "FullWeight":
+                case "Waga Brutto Ubojnia": return "Waga Brutto Uboj.";
+                case "EmptyWeight":
+                case "Waga Tara Ubojnia": return "Waga Tara Uboj.";
+
+                // Avilog - kilometry
+                case "StartKM":
+                case "KM Wyjazd": return "KM Wyjazd";
+                case "StopKM":
+                case "KM Powrót": return "KM Powrót";
+
+                // Avilog - auto/naczepa
+                case "CarID":
+                case "Auto": return "Auto";
+                case "TrailerID":
+                case "Naczepa": return "Naczepa";
+
+                // Avilog - czasy
+                case "PoczatekUslugi":
+                case "Początek Usługi": return "Początek Usługi";
+                case "Wyjazd":
+                case "Wyjazd Zakład": return "Wyjazd Zakład";
+                case "DojazdHodowca":
+                case "Dojazd Hodowca": return "Dojazd Hodowca";
+                case "Zaladunek":
+                case "Początek Załadunku": return "Początek Załad.";
+                case "ZaladunekKoniec":
+                case "Koniec Załadunku": return "Koniec Załad.";
+                case "WyjazdHodowca":
+                case "Wyjazd Hodowca": return "Wyjazd Hodowca";
+                case "Przyjazd":
+                case "Powrót Zakład": return "Powrót Zakład";
+                case "KoniecUslugi":
+                case "Koniec Usługi": return "Koniec Usługi";
+
                 default: return fieldName;
             }
         }
@@ -362,6 +404,7 @@ namespace Kalendarz1
             {
                 switch (FieldName)
                 {
+                    // Specyfikacja - ceny
                     case "Price":
                     case "Cena": return "Cena";
                     case "Addition":
@@ -380,6 +423,31 @@ namespace Kalendarz1
                     case "ZM": return "Zamarznięte";
                     case "LUMEL": return "LUMEL";
                     case "DeclI2": return "Padłe";
+
+                    // Avilog - wagi
+                    case "Waga Brutto Hodowca": return "Waga Brutto Hod.";
+                    case "Waga Tara Hodowca": return "Waga Tara Hod.";
+                    case "Waga Brutto Ubojnia": return "Waga Brutto Uboj.";
+                    case "Waga Tara Ubojnia": return "Waga Tara Uboj.";
+
+                    // Avilog - kilometry
+                    case "KM Wyjazd": return "KM Wyjazd";
+                    case "KM Powrót": return "KM Powrót";
+
+                    // Avilog - auto/naczepa
+                    case "Auto": return "Auto";
+                    case "Naczepa": return "Naczepa";
+
+                    // Avilog - czasy
+                    case "Początek Usługi": return "Początek Usługi";
+                    case "Wyjazd Zakład": return "Wyjazd Zakład";
+                    case "Dojazd Hodowca": return "Dojazd Hodowca";
+                    case "Początek Załadunku": return "Początek Załad.";
+                    case "Koniec Załadunku": return "Koniec Załad.";
+                    case "Wyjazd Hodowca": return "Wyjazd Hodowca";
+                    case "Powrót Zakład": return "Powrót Zakład";
+                    case "Koniec Usługi": return "Koniec Usługi";
+
                     default: return FieldName;
                 }
             }
