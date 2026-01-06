@@ -244,6 +244,9 @@ namespace Kalendarz1
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            // Upewnij się że kolumna Symfonia istnieje w bazie
+            EnsureSymfoniaColumnExists();
+
             // Wczytaj ustawienia administracyjne
             LoadAdminSettings();
 
@@ -606,8 +609,8 @@ namespace Kalendarz1
                                 ZaladunekKoniec = row["ZaladunekKoniec"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["ZaladunekKoniec"]) : null,
                                 WyjazdHodowca = row["WyjazdHodowca"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["WyjazdHodowca"]) : null,
                                 KoniecUslugi = row["KoniecUslugi"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["KoniecUslugi"]) : null,
-                                // Pole Symfonia
-                                Symfonia = row["Symfonia"] != DBNull.Value && Convert.ToBoolean(row["Symfonia"])
+                                // Pole Symfonia (sprawdź czy kolumna istnieje)
+                                Symfonia = dataTable.Columns.Contains("Symfonia") && row["Symfonia"] != DBNull.Value && Convert.ToBoolean(row["Symfonia"])
                             };
 
                             specyfikacjeData.Add(specRow);
@@ -5990,6 +5993,30 @@ namespace Kalendarz1
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
             return false;
+        }
+
+        private void EnsureSymfoniaColumnExists()
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string addColumnSql = @"
+                        IF COL_LENGTH('FarmerCalc', 'Symfonia') IS NULL
+                        BEGIN
+                            ALTER TABLE dbo.FarmerCalc ADD Symfonia BIT DEFAULT 0
+                        END";
+                    using (SqlCommand cmd = new SqlCommand(addColumnSql, conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error adding Symfonia column: {ex.Message}");
+            }
         }
 
         private void EnsureSettingsTableExists()
