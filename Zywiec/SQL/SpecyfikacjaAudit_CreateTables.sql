@@ -79,6 +79,24 @@ END
 GO
 
 -- =============================================================================
+-- 3a. CZYSZCZENIE - Usuń stare wpisy bez pełnych danych (z triggera)
+-- =============================================================================
+-- Usuń wpisy które mają:
+-- - ChangedBy = 'pronova' lub podobne (wpisy z triggera SQL)
+-- - Brak Nr (LP = 0 lub NULL)
+-- - Brak CarID
+-- - Brak UserID
+-- Te wpisy pochodzą ze starego triggera i nie zawierają pełnych informacji
+-- =============================================================================
+DELETE FROM [dbo].[FarmerCalcChangeLog]
+WHERE (Nr IS NULL OR Nr = 0)
+  AND (CarID IS NULL OR CarID = '')
+  AND (UserID IS NULL OR UserID = '');
+
+PRINT 'Usunięto stare wpisy bez pełnych danych (z triggera)';
+GO
+
+-- =============================================================================
 -- 4. WIDOK - Podgląd ostatnich zmian (opcjonalny)
 -- =============================================================================
 IF EXISTS (SELECT * FROM sys.views WHERE name = 'VW_FarmerCalcRecentChanges')

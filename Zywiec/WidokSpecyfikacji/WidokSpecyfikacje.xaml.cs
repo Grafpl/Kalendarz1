@@ -2096,9 +2096,42 @@ namespace Kalendarz1
 
             if (idsToUpdate.Count == 0) return;
 
-            // Aktualizuj UI
+            // Zapisz stare wartości przed aktualizacją i loguj zmiany do bazy
             foreach (var row in rowsToUpdate)
             {
+                // Loguj zmiany dla każdego pola które się zmienia
+                if (fields.HasFlag(SupplierFieldMask.Cena) && row.Cena != currentRow.Cena)
+                {
+                    LogChangeToDatabase(row.ID, "Cena", row.Cena.ToString("F2"), currentRow.Cena.ToString("F2"),
+                        row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+                }
+                if (fields.HasFlag(SupplierFieldMask.Dodatek) && row.Dodatek != currentRow.Dodatek)
+                {
+                    LogChangeToDatabase(row.ID, "Dodatek", row.Dodatek.ToString("F2"), currentRow.Dodatek.ToString("F2"),
+                        row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+                }
+                if (fields.HasFlag(SupplierFieldMask.Ubytek) && row.Ubytek != currentRow.Ubytek)
+                {
+                    LogChangeToDatabase(row.ID, "Ubytek", row.Ubytek.ToString("F2") + "%", currentRow.Ubytek.ToString("F2") + "%",
+                        row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+                }
+                if (fields.HasFlag(SupplierFieldMask.TypCeny) && row.TypCeny != currentRow.TypCeny)
+                {
+                    LogChangeToDatabase(row.ID, "PriceTypeID", row.TypCeny ?? "", currentRow.TypCeny ?? "",
+                        row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+                }
+                if (fields.HasFlag(SupplierFieldMask.TerminDni) && row.TerminDni != currentRow.TerminDni)
+                {
+                    LogChangeToDatabase(row.ID, "TerminDni", row.TerminDni.ToString(), currentRow.TerminDni.ToString(),
+                        row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+                }
+                if (fields.HasFlag(SupplierFieldMask.PiK) && row.PiK != currentRow.PiK)
+                {
+                    LogChangeToDatabase(row.ID, "IncDeadConf", row.PiK ? "TAK" : "NIE", currentRow.PiK ? "TAK" : "NIE",
+                        row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+                }
+
+                // Aktualizuj UI
                 if (fields.HasFlag(SupplierFieldMask.Cena)) row.Cena = currentRow.Cena;
                 if (fields.HasFlag(SupplierFieldMask.Dodatek)) row.Dodatek = currentRow.Dodatek;
                 if (fields.HasFlag(SupplierFieldMask.Ubytek)) row.Ubytek = currentRow.Ubytek;
@@ -2111,10 +2144,6 @@ namespace Kalendarz1
             SaveSupplierFieldsBatch(idsToUpdate, fields,
                 currentRow.Cena, currentRow.Dodatek, currentRow.Ubytek,
                 currentRow.TypCeny, currentRow.TerminDni, currentRow.PiK);
-
-            // Zapisz do historii zmian
-            AddChangeLogEntry($"Zastosowano do dostawcy: {currentRow.RealDostawca}",
-                $"{rowsToUpdate.Count} wierszy: {GetFieldMaskDescription(fields, currentRow)}");
 
             // Status message
             var fieldNames = new List<string>();
