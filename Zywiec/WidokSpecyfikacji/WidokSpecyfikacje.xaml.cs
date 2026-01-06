@@ -2198,14 +2198,14 @@ namespace Kalendarz1
                         catch { /* Ignoruj błędy ALTER - kolumna może już istnieć */ }
                     }
 
-                    // Zapisz zmianę
+                    // Zapisz zmianę - FarmerCalcID to nazwa kolumny w istniejącej tabeli
                     string sql = @"INSERT INTO [dbo].[FarmerCalcChangeLog]
-                        (RecordID, FieldName, OldValue, NewValue, Dostawca, UserName, ChangeDate, CalcDate)
-                        VALUES (@RecordID, @FieldName, @OldValue, @NewValue, @Dostawca, @UserName, GETDATE(), @CalcDate)";
+                        (FarmerCalcID, FieldName, OldValue, NewValue, Dostawca, UserName, ChangeDate, CalcDate)
+                        VALUES (@FarmerCalcID, @FieldName, @OldValue, @NewValue, @Dostawca, @UserName, GETDATE(), @CalcDate)";
 
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
-                        cmd.Parameters.AddWithValue("@RecordID", recordId);
+                        cmd.Parameters.AddWithValue("@FarmerCalcID", recordId);
                         cmd.Parameters.AddWithValue("@FieldName", fieldName ?? "");
                         cmd.Parameters.AddWithValue("@OldValue", oldValue ?? "");
                         cmd.Parameters.AddWithValue("@NewValue", newValue ?? "");
@@ -2282,8 +2282,8 @@ namespace Kalendarz1
                 {
                     conn.Open();
 
-                    // Pobierz zmiany dla wybranej daty (bez filtrowania po dacie - pokaż wszystkie)
-                    string sql = @"SELECT TOP 100 RecordID, FieldName, OldValue, NewValue, Dostawca, UserName, ChangeDate, CalcDate
+                    // Pobierz zmiany (ostatnie 100)
+                    string sql = @"SELECT TOP 100 FarmerCalcID, FieldName, OldValue, NewValue, Dostawca, UserName, ChangeDate, CalcDate
                         FROM [dbo].[FarmerCalcChangeLog]
                         ORDER BY ChangeDate DESC";
 
