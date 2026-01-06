@@ -954,20 +954,6 @@
                                                 <ComboBox.Style>
                                                     <Style TargetType="ComboBox">
                                                         <Setter Property="Background" Value="#BBDEFB"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding TypCeny}" Value="wolnyrynek">
-                                                                <Setter Property="Background" Value="#FFEB3B"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding TypCeny}" Value="Łączona">
-                                                                <Setter Property="Background" Value="#CE93D8"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding TypCeny}" Value="Ministerialny">
-                                                                <Setter Property="Background" Value="#64B5F6"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding TypCeny}" Value="Rolnicza">
-                                                                <Setter Property="Background" Value="#81C784"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
                                                         <Setter Property="Template">
                                                             <Setter.Value>
                                                                 <ControlTemplate TargetType="ComboBox">
@@ -1018,6 +1004,20 @@
                                                                 </ControlTemplate>
                                                             </Setter.Value>
                                                         </Setter>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding TypCeny}" Value="wolnyrynek">
+                                                                <Setter Property="Background" Value="#FFEB3B"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding TypCeny}" Value="Łączona">
+                                                                <Setter Property="Background" Value="#CE93D8"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding TypCeny}" Value="Ministerialny">
+                                                                <Setter Property="Background" Value="#64B5F6"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding TypCeny}" Value="Rolnicza">
+                                                                <Setter Property="Background" Value="#81C784"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
                                                     </Style>
                                                 </ComboBox.Style>
                                             </ComboBox>
