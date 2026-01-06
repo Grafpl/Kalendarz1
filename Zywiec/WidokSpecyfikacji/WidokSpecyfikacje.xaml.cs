@@ -2150,20 +2150,44 @@ namespace Kalendarz1
                 {
                     conn.Open();
 
-                    // Sprawdź czy tabela istnieje, jeśli nie - utwórz
-                    string checkTable = @"IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FarmerCalcChangeLog')
-                        CREATE TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] (
-                            [ID] INT IDENTITY(1,1) PRIMARY KEY,
-                            [RecordID] INT NOT NULL,
-                            [FieldName] NVARCHAR(50) NOT NULL,
-                            [OldValue] NVARCHAR(500),
-                            [NewValue] NVARCHAR(500),
-                            [Dostawca] NVARCHAR(200),
-                            [UserName] NVARCHAR(100),
-                            [ChangeDate] DATETIME DEFAULT GETDATE(),
-                            [CalcDate] DATE
-                        )";
-                    using (SqlCommand cmd = new SqlCommand(checkTable, conn))
+                    // Sprawdź czy tabela istnieje, jeśli nie - utwórz, jeśli tak - dodaj brakujące kolumny
+                    string ensureTable = @"
+                        -- Utwórz tabelę jeśli nie istnieje
+                        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FarmerCalcChangeLog')
+                        BEGIN
+                            CREATE TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] (
+                                [ID] INT IDENTITY(1,1) PRIMARY KEY,
+                                [RecordID] INT NOT NULL,
+                                [FieldName] NVARCHAR(50) NOT NULL,
+                                [OldValue] NVARCHAR(500),
+                                [NewValue] NVARCHAR(500),
+                                [Dostawca] NVARCHAR(200),
+                                [UserName] NVARCHAR(100),
+                                [ChangeDate] DATETIME DEFAULT GETDATE(),
+                                [CalcDate] DATE
+                            )
+                        END
+                        ELSE
+                        BEGIN
+                            -- Dodaj brakujące kolumny do istniejącej tabeli
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'RecordID')
+                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [RecordID] INT NULL;
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'FieldName')
+                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [FieldName] NVARCHAR(50) NULL;
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'OldValue')
+                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [OldValue] NVARCHAR(500) NULL;
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'NewValue')
+                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [NewValue] NVARCHAR(500) NULL;
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'Dostawca')
+                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [Dostawca] NVARCHAR(200) NULL;
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'UserName')
+                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [UserName] NVARCHAR(100) NULL;
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'ChangeDate')
+                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [ChangeDate] DATETIME DEFAULT GETDATE();
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'CalcDate')
+                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [CalcDate] DATE NULL;
+                        END";
+                    using (SqlCommand cmd = new SqlCommand(ensureTable, conn))
                     {
                         cmd.ExecuteNonQuery();
                     }
@@ -2245,6 +2269,46 @@ namespace Kalendarz1
                 {
                     conn.Open();
 
+                    // Najpierw upewnij się, że tabela ma wszystkie wymagane kolumny
+                    string ensureColumns = @"
+                        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FarmerCalcChangeLog')
+                        BEGIN
+                            CREATE TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] (
+                                [ID] INT IDENTITY(1,1) PRIMARY KEY,
+                                [RecordID] INT NOT NULL,
+                                [FieldName] NVARCHAR(50) NOT NULL,
+                                [OldValue] NVARCHAR(500),
+                                [NewValue] NVARCHAR(500),
+                                [Dostawca] NVARCHAR(200),
+                                [UserName] NVARCHAR(100),
+                                [ChangeDate] DATETIME DEFAULT GETDATE(),
+                                [CalcDate] DATE
+                            )
+                        END
+                        ELSE
+                        BEGIN
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'RecordID')
+                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [RecordID] INT NULL;
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'FieldName')
+                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [FieldName] NVARCHAR(50) NULL;
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'OldValue')
+                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [OldValue] NVARCHAR(500) NULL;
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'NewValue')
+                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [NewValue] NVARCHAR(500) NULL;
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'Dostawca')
+                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [Dostawca] NVARCHAR(200) NULL;
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'UserName')
+                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [UserName] NVARCHAR(100) NULL;
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'ChangeDate')
+                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [ChangeDate] DATETIME DEFAULT GETDATE();
+                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'CalcDate')
+                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [CalcDate] DATE NULL;
+                        END";
+                    using (SqlCommand cmd = new SqlCommand(ensureColumns, conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+
                     // Pobierz zmiany dla wybranej daty
                     string sql = @"SELECT RecordID, FieldName, OldValue, NewValue, Dostawca, UserName, ChangeDate
                         FROM [LibraNet].[dbo].[FarmerCalcChangeLog]
@@ -2261,13 +2325,13 @@ namespace Kalendarz1
                             {
                                 changes.Add(new ChangeLogEntry
                                 {
-                                    RowId = reader.GetInt32(0),
-                                    PropertyName = reader.GetString(1),
+                                    RowId = reader.IsDBNull(0) ? 0 : reader.GetInt32(0),
+                                    PropertyName = reader.IsDBNull(1) ? "" : reader.GetString(1),
                                     OldValue = reader.IsDBNull(2) ? "" : reader.GetString(2),
                                     NewValue = reader.IsDBNull(3) ? "" : reader.GetString(3),
                                     Action = reader.IsDBNull(4) ? "" : reader.GetString(4), // Dostawca
                                     UserName = reader.IsDBNull(5) ? "" : reader.GetString(5),
-                                    Timestamp = reader.GetDateTime(6)
+                                    Timestamp = reader.IsDBNull(6) ? DateTime.Now : reader.GetDateTime(6)
                                 });
                             }
                         }
