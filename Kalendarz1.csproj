@@ -150,4 +150,10 @@
     <Folder Include="Transport\Widoki\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Update="Zywiec\WidokSpecyfikacji\HistoriaZmianWindow.xaml.cs">
+      <DependentUpon>HistoriaZmianWindow.xaml</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
 </Project>
