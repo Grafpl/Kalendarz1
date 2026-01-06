@@ -2374,14 +2374,23 @@ namespace Kalendarz1
         {
             switch (fieldName)
             {
-                case "Price": return "Cena";
-                case "Addition": return "Dodatek";
-                case "Loss": return "Ubytek";
+                case "Price":
+                case "Cena": return "Cena";
+                case "Addition":
+                case "Dodatek": return "Dodatek";
+                case "Loss":
+                case "Ubytek": return "Ubytek";
                 case "PriceTypeID": return "Typ ceny";
                 case "IncDeadConf": return "PiK";
                 case "TerminDni": return "Termin płatności";
                 case "Opasienie": return "Opasienie";
                 case "KlasaB": return "Klasa B";
+                case "Szt.Dek": return "Sztuki deklarowane";
+                case "Padłe": return "Padłe";
+                case "CH": return "Chore";
+                case "NW": return "Niedowaga";
+                case "ZM": return "Zamarznięte";
+                case "LUMEL": return "LUMEL";
                 default: return fieldName;
             }
         }
@@ -5203,6 +5212,70 @@ namespace Kalendarz1
                 _oldFieldValues[$"Ubytek_{row.ID}"] = row.Ubytek.ToString("F2");
         }
 
+        private void SztukiDek_GotFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var row = textBox?.DataContext as SpecyfikacjaRow;
+            if (row != null)
+                _oldFieldValues[$"SztukiDek_{row.ID}"] = row.SztukiDek.ToString();
+        }
+
+        private void Padle_GotFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var row = textBox?.DataContext as SpecyfikacjaRow;
+            if (row != null)
+                _oldFieldValues[$"Padle_{row.ID}"] = row.Padle.ToString();
+        }
+
+        private void CH_GotFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var row = textBox?.DataContext as SpecyfikacjaRow;
+            if (row != null)
+                _oldFieldValues[$"CH_{row.ID}"] = row.CH.ToString();
+        }
+
+        private void NW_GotFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var row = textBox?.DataContext as SpecyfikacjaRow;
+            if (row != null)
+                _oldFieldValues[$"NW_{row.ID}"] = row.NW.ToString();
+        }
+
+        private void ZM_GotFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var row = textBox?.DataContext as SpecyfikacjaRow;
+            if (row != null)
+                _oldFieldValues[$"ZM_{row.ID}"] = row.ZM.ToString();
+        }
+
+        private void LUMEL_GotFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var row = textBox?.DataContext as SpecyfikacjaRow;
+            if (row != null)
+                _oldFieldValues[$"LUMEL_{row.ID}"] = row.LUMEL.ToString();
+        }
+
+        private void Opasienie_GotFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var row = textBox?.DataContext as SpecyfikacjaRow;
+            if (row != null)
+                _oldFieldValues[$"Opasienie_{row.ID}"] = row.Opasienie.ToString("F2");
+        }
+
+        private void KlasaB_GotFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var row = textBox?.DataContext as SpecyfikacjaRow;
+            if (row != null)
+                _oldFieldValues[$"KlasaB_{row.ID}"] = row.KlasaB.ToString("F2");
+        }
+
         // Handler LostFocus dla Cena - zapisuje do bazy po opuszczeniu pola
         private void Cena_LostFocus(object sender, RoutedEventArgs e)
         {
@@ -5227,10 +5300,10 @@ namespace Kalendarz1
 
             string newValue = row.Cena.ToString("F2");
 
-            // Loguj zmianę jeśli się różni
-            if (oldValue != newValue)
+            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
+            if (!string.IsNullOrEmpty(oldValue) && oldValue != "0.00" && oldValue != newValue)
             {
-                LogChangeToDatabase(row.ID, "Price", oldValue, newValue, row.RealDostawca ?? row.Dostawca);
+                LogChangeToDatabase(row.ID, "Cena", oldValue, newValue, row.RealDostawca ?? row.Dostawca);
             }
 
             SaveFieldToDatabase(row.ID, "Price", row.Cena);
@@ -5261,10 +5334,10 @@ namespace Kalendarz1
 
             string newValue = row.Dodatek.ToString("F2");
 
-            // Loguj zmianę jeśli się różni
-            if (oldValue != newValue)
+            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
+            if (!string.IsNullOrEmpty(oldValue) && oldValue != "0.00" && oldValue != newValue)
             {
-                LogChangeToDatabase(row.ID, "Addition", oldValue, newValue, row.RealDostawca ?? row.Dostawca);
+                LogChangeToDatabase(row.ID, "Dodatek", oldValue, newValue, row.RealDostawca ?? row.Dostawca);
             }
 
             SaveFieldToDatabase(row.ID, "Addition", row.Dodatek);
@@ -5295,10 +5368,10 @@ namespace Kalendarz1
 
             string newValue = row.Ubytek.ToString("F2");
 
-            // Loguj zmianę jeśli się różni
-            if (oldValue != newValue)
+            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
+            if (!string.IsNullOrEmpty(oldValue) && oldValue != "0.00" && oldValue != newValue)
             {
-                LogChangeToDatabase(row.ID, "Loss", oldValue + "%", newValue + "%", row.RealDostawca ?? row.Dostawca);
+                LogChangeToDatabase(row.ID, "Ubytek", oldValue + "%", newValue + "%", row.RealDostawca ?? row.Dostawca);
             }
 
             // W bazie Loss jest przechowywany jako ułamek (1.5% = 0.015)
@@ -5371,9 +5444,26 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Pobierz starą wartość
+            string oldValue = "";
+            string key = $"Opasienie_{row.ID}";
+            if (_oldFieldValues.ContainsKey(key))
+            {
+                oldValue = _oldFieldValues[key];
+                _oldFieldValues.Remove(key);
+            }
+
             // WAŻNE: Wymuś aktualizację bindingu przed zapisem
             var binding = textBox.GetBindingExpression(TextBox.TextProperty);
             binding?.UpdateSource();
+
+            string newValue = row.Opasienie.ToString("F2");
+
+            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
+            if (!string.IsNullOrEmpty(oldValue) && oldValue != "0.00" && oldValue != newValue)
+            {
+                LogChangeToDatabase(row.ID, "Opasienie", oldValue + " kg", newValue + " kg", row.RealDostawca ?? row.Dostawca);
+            }
 
             SaveFieldToDatabase(row.ID, "Opasienie", row.Opasienie);
             UpdateStatus($"Zapisano opasienie: {row.Opasienie:N0} kg dla LP {row.Nr}");
@@ -5388,9 +5478,26 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Pobierz starą wartość
+            string oldValue = "";
+            string key = $"KlasaB_{row.ID}";
+            if (_oldFieldValues.ContainsKey(key))
+            {
+                oldValue = _oldFieldValues[key];
+                _oldFieldValues.Remove(key);
+            }
+
             // WAŻNE: Wymuś aktualizację bindingu przed zapisem
             var binding = textBox.GetBindingExpression(TextBox.TextProperty);
             binding?.UpdateSource();
+
+            string newValue = row.KlasaB.ToString("F2");
+
+            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
+            if (!string.IsNullOrEmpty(oldValue) && oldValue != "0.00" && oldValue != newValue)
+            {
+                LogChangeToDatabase(row.ID, "KlasaB", oldValue + " kg", newValue + " kg", row.RealDostawca ?? row.Dostawca);
+            }
 
             SaveFieldToDatabase(row.ID, "KlasaB", row.KlasaB);
             UpdateStatus($"Zapisano klasę B: {row.KlasaB:N0} kg dla LP {row.Nr}");
@@ -5405,8 +5512,25 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Pobierz starą wartość
+            string oldValue = "";
+            string key = $"LUMEL_{row.ID}";
+            if (_oldFieldValues.ContainsKey(key))
+            {
+                oldValue = _oldFieldValues[key];
+                _oldFieldValues.Remove(key);
+            }
+
             var binding = textBox.GetBindingExpression(TextBox.TextProperty);
             binding?.UpdateSource();
+
+            string newValue = row.LUMEL.ToString();
+
+            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
+            if (!string.IsNullOrEmpty(oldValue) && oldValue != "0" && oldValue != newValue)
+            {
+                LogChangeToDatabase(row.ID, "LUMEL", oldValue, newValue, row.RealDostawca ?? row.Dostawca);
+            }
 
             SaveFieldToDatabase(row.ID, "LumQnt", row.LUMEL);
             UpdateStatus($"Zapisano LUMEL: {row.LUMEL} szt dla LP {row.Nr}");
@@ -5421,8 +5545,25 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Pobierz starą wartość
+            string oldValue = "";
+            string key = $"SztukiDek_{row.ID}";
+            if (_oldFieldValues.ContainsKey(key))
+            {
+                oldValue = _oldFieldValues[key];
+                _oldFieldValues.Remove(key);
+            }
+
             var binding = textBox.GetBindingExpression(TextBox.TextProperty);
             binding?.UpdateSource();
+
+            string newValue = row.SztukiDek.ToString();
+
+            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
+            if (!string.IsNullOrEmpty(oldValue) && oldValue != "0" && oldValue != newValue)
+            {
+                LogChangeToDatabase(row.ID, "Szt.Dek", oldValue, newValue, row.RealDostawca ?? row.Dostawca);
+            }
 
             SaveFieldToDatabase(row.ID, "DeclI1", row.SztukiDek);
             UpdateStatus($"Zapisano Szt.Dek: {row.SztukiDek} dla LP {row.Nr}");
@@ -5437,8 +5578,25 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Pobierz starą wartość
+            string oldValue = "";
+            string key = $"Padle_{row.ID}";
+            if (_oldFieldValues.ContainsKey(key))
+            {
+                oldValue = _oldFieldValues[key];
+                _oldFieldValues.Remove(key);
+            }
+
             var binding = textBox.GetBindingExpression(TextBox.TextProperty);
             binding?.UpdateSource();
+
+            string newValue = row.Padle.ToString();
+
+            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
+            if (!string.IsNullOrEmpty(oldValue) && oldValue != "0" && oldValue != newValue)
+            {
+                LogChangeToDatabase(row.ID, "Padłe", oldValue, newValue, row.RealDostawca ?? row.Dostawca);
+            }
 
             SaveFieldToDatabase(row.ID, "DeclI2", row.Padle);
             UpdateStatus($"Zapisano Padłe: {row.Padle} dla LP {row.Nr}");
@@ -5453,8 +5611,25 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Pobierz starą wartość
+            string oldValue = "";
+            string key = $"CH_{row.ID}";
+            if (_oldFieldValues.ContainsKey(key))
+            {
+                oldValue = _oldFieldValues[key];
+                _oldFieldValues.Remove(key);
+            }
+
             var binding = textBox.GetBindingExpression(TextBox.TextProperty);
             binding?.UpdateSource();
+
+            string newValue = row.CH.ToString();
+
+            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
+            if (!string.IsNullOrEmpty(oldValue) && oldValue != "0" && oldValue != newValue)
+            {
+                LogChangeToDatabase(row.ID, "CH", oldValue, newValue, row.RealDostawca ?? row.Dostawca);
+            }
 
             SaveFieldToDatabase(row.ID, "DeclI3", row.CH);
             UpdateStatus($"Zapisano CH: {row.CH} dla LP {row.Nr}");
@@ -5469,8 +5644,25 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Pobierz starą wartość
+            string oldValue = "";
+            string key = $"NW_{row.ID}";
+            if (_oldFieldValues.ContainsKey(key))
+            {
+                oldValue = _oldFieldValues[key];
+                _oldFieldValues.Remove(key);
+            }
+
             var binding = textBox.GetBindingExpression(TextBox.TextProperty);
             binding?.UpdateSource();
+
+            string newValue = row.NW.ToString();
+
+            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
+            if (!string.IsNullOrEmpty(oldValue) && oldValue != "0" && oldValue != newValue)
+            {
+                LogChangeToDatabase(row.ID, "NW", oldValue, newValue, row.RealDostawca ?? row.Dostawca);
+            }
 
             SaveFieldToDatabase(row.ID, "DeclI4", row.NW);
             UpdateStatus($"Zapisano NW: {row.NW} dla LP {row.Nr}");
@@ -5485,8 +5677,25 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Pobierz starą wartość
+            string oldValue = "";
+            string key = $"ZM_{row.ID}";
+            if (_oldFieldValues.ContainsKey(key))
+            {
+                oldValue = _oldFieldValues[key];
+                _oldFieldValues.Remove(key);
+            }
+
             var binding = textBox.GetBindingExpression(TextBox.TextProperty);
             binding?.UpdateSource();
+
+            string newValue = row.ZM.ToString();
+
+            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
+            if (!string.IsNullOrEmpty(oldValue) && oldValue != "0" && oldValue != newValue)
+            {
+                LogChangeToDatabase(row.ID, "ZM", oldValue, newValue, row.RealDostawca ?? row.Dostawca);
+            }
 
             SaveFieldToDatabase(row.ID, "DeclI5", row.ZM);
             UpdateStatus($"Zapisano ZM: {row.ZM} dla LP {row.Nr}");

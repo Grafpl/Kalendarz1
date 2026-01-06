@@ -769,6 +769,7 @@
                                             <TextBox Text="{Binding SztukiDek, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                          Style="{StaticResource NumericTextBoxStyle}"
                                          FontWeight="SemiBold"
+                                         GotFocus="SztukiDek_GotFocus"
                                          LostFocus="SztukiDek_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -786,6 +787,7 @@
                                             <TextBox Text="{Binding Padle, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                          Style="{StaticResource NumericTextBoxStyle}"
                                          Foreground="#BF360C"
+                                         GotFocus="Padle_GotFocus"
                                          LostFocus="Padle_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -802,6 +804,7 @@
                                         <DataTemplate>
                                             <TextBox Text="{Binding CH, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                          Style="{StaticResource NumericTextBoxStyle}"
+                                         GotFocus="CH_GotFocus"
                                          LostFocus="CH_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -818,6 +821,7 @@
                                         <DataTemplate>
                                             <TextBox Text="{Binding NW, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                          Style="{StaticResource NumericTextBoxStyle}"
+                                         GotFocus="NW_GotFocus"
                                          LostFocus="NW_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -834,6 +838,7 @@
                                         <DataTemplate>
                                             <TextBox Text="{Binding ZM, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                          Style="{StaticResource NumericTextBoxStyle}"
+                                         GotFocus="ZM_GotFocus"
                                          LostFocus="ZM_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -852,6 +857,7 @@
                                          Style="{StaticResource NumericTextBoxStyle}"
                                          FontWeight="Bold"
                                          Foreground="#7B1FA2"
+                                         GotFocus="LUMEL_GotFocus"
                                          LostFocus="LUMEL_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -1081,6 +1087,7 @@
                                                      Style="{StaticResource NumericTextBoxStyle}"
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
+                                                     GotFocus="Opasienie_GotFocus"
                                                      LostFocus="Opasienie_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -1096,6 +1103,7 @@
                                                      Style="{StaticResource NumericTextBoxStyle}"
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
+                                                     GotFocus="KlasaB_GotFocus"
                                                      LostFocus="KlasaB_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
