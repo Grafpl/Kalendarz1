@@ -996,21 +996,15 @@
                                 <DataGridTemplateColumn Header="Typ Ceny" Width="105" HeaderStyle="{StaticResource CenaHeaderStyle}">
                                     <DataGridTemplateColumn.CellStyle>
                                         <Style TargetType="DataGridCell">
-                                            <Setter Property="Background" Value="#BBDEFB"/>
+                                            <Setter Property="Background" Value="Transparent"/>
                                             <Setter Property="BorderThickness" Value="0"/>
                                         </Style>
                                     </DataGridTemplateColumn.CellStyle>
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ListaTypowCen}"
-                                                      SelectedItem="{Binding TypCeny, UpdateSourceTrigger=PropertyChanged}"
-                                                      Padding="5"
-                                                      VerticalContentAlignment="Center"
-                                                      SelectionChanged="TypCeny_SelectionChanged"
-                                                      IsHitTestVisible="True"
-                                                      MaxDropDownHeight="200">
-                                                <ComboBox.Style>
-                                                    <Style TargetType="ComboBox">
+                                            <Border Padding="0" Margin="0">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
                                                         <Setter Property="Background" Value="#BBDEFB"/>
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding TypCeny}" Value="wolnyrynek">
@@ -1027,13 +1021,22 @@
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
-                                                </ComboBox.Style>
-                                                <ComboBox.ItemsPanel>
-                                                    <ItemsPanelTemplate>
-                                                        <VirtualizingStackPanel IsVirtualizing="True" VirtualizationMode="Recycling"/>
-                                                    </ItemsPanelTemplate>
-                                                </ComboBox.ItemsPanel>
-                                            </ComboBox>
+                                                </Border.Style>
+                                                <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ListaTypowCen}"
+                                                          SelectedItem="{Binding TypCeny, UpdateSourceTrigger=PropertyChanged}"
+                                                          Padding="5"
+                                                          VerticalContentAlignment="Center"
+                                                          SelectionChanged="TypCeny_SelectionChanged"
+                                                          IsHitTestVisible="True"
+                                                          Background="Transparent"
+                                                          MaxDropDownHeight="200">
+                                                    <ComboBox.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <VirtualizingStackPanel IsVirtualizing="True" VirtualizationMode="Recycling"/>
+                                                        </ItemsPanelTemplate>
+                                                    </ComboBox.ItemsPanel>
+                                                </ComboBox>
+                                            </Border>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
