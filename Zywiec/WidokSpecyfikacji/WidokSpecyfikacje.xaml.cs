@@ -2198,10 +2198,10 @@ namespace Kalendarz1
                         catch { /* Ignoruj błędy ALTER - kolumna może już istnieć */ }
                     }
 
-                    // Zapisz zmianę - FarmerCalcID to nazwa kolumny w istniejącej tabeli
+                    // Zapisz zmianę - użyj nazw kolumn z istniejącej tabeli
                     string sql = @"INSERT INTO [dbo].[FarmerCalcChangeLog]
-                        (FarmerCalcID, FieldName, OldValue, NewValue, Dostawca, UserName, ChangeDate, CalcDate)
-                        VALUES (@FarmerCalcID, @FieldName, @OldValue, @NewValue, @Dostawca, @UserName, GETDATE(), @CalcDate)";
+                        (FarmerCalcID, FieldName, OldValue, NewValue, Dostawca, ChangedBy, ChangeDate, CalcDate)
+                        VALUES (@FarmerCalcID, @FieldName, @OldValue, @NewValue, @Dostawca, @ChangedBy, GETDATE(), @CalcDate)";
 
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
@@ -2210,7 +2210,7 @@ namespace Kalendarz1
                         cmd.Parameters.AddWithValue("@OldValue", oldValue ?? "");
                         cmd.Parameters.AddWithValue("@NewValue", newValue ?? "");
                         cmd.Parameters.AddWithValue("@Dostawca", dostawca ?? "");
-                        cmd.Parameters.AddWithValue("@UserName", Environment.UserName ?? "");
+                        cmd.Parameters.AddWithValue("@ChangedBy", Environment.UserName ?? "system");
                         cmd.Parameters.AddWithValue("@CalcDate", dateTimePicker1.SelectedDate ?? DateTime.Today);
                         int rowsAffected = cmd.ExecuteNonQuery();
 
@@ -2283,7 +2283,7 @@ namespace Kalendarz1
                     conn.Open();
 
                     // Pobierz zmiany (ostatnie 100)
-                    string sql = @"SELECT TOP 100 FarmerCalcID, FieldName, OldValue, NewValue, Dostawca, UserName, ChangeDate, CalcDate
+                    string sql = @"SELECT TOP 100 FarmerCalcID, FieldName, OldValue, NewValue, Dostawca, ChangedBy, ChangeDate, CalcDate
                         FROM [dbo].[FarmerCalcChangeLog]
                         ORDER BY ChangeDate DESC";
 
