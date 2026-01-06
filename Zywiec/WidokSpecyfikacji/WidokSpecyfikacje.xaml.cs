@@ -62,6 +62,7 @@ namespace Kalendarz1
 
         // === HISTORIA: Log zmian ===
         private List<ChangeLogEntry> _changeLog = new List<ChangeLogEntry>();
+        private Dictionary<string, string> _oldFieldValues = new Dictionary<string, string>(); // Przechowuje stare wartości pól
 
         // === TRANSPORT: Dane transportowe ===
         private ObservableCollection<TransportRow> transportData;
@@ -76,6 +77,9 @@ namespace Kalendarz1
 
         // === HIGHLIGHT: Aktualnie podświetlona grupa dostawcy ===
         private string _highlightedSupplier = null;
+
+        // === BLOKADA: Zapobiega logowaniu zmian podczas ładowania danych ===
+        private bool _isLoadingData = false;
 
         // === AUTOCOMPLETE DOSTAWCY: TextBox + Popup + ListBox ===
         public ObservableCollection<DostawcaItem> SupplierSuggestions { get; set; } = new ObservableCollection<DostawcaItem>();
@@ -240,6 +244,12 @@ namespace Kalendarz1
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            // Upewnij się że kolumna Symfonia istnieje w bazie
+            EnsureSymfoniaColumnExists();
+
+            // Wczytaj ustawienia administracyjne
+            LoadAdminSettings();
+
             LoadData(dateTimePicker1.SelectedDate ?? DateTime.Today);
             UpdateFullDateLabel();
             UpdateTransportDateLabel();
@@ -312,11 +322,19 @@ namespace Kalendarz1
                     Kierowca = spec.KierowcaNazwa ?? "",
                     Samochod = spec.CarID ?? "",
                     NrRejestracyjny = spec.TrailerID ?? "",
+                    GodzinaWyjazdu = spec.Wyjazd,
                     GodzinaPrzyjazdu = spec.ArrivalTime,
                     Trasa = spec.Dostawca ?? spec.RealDostawca ?? "",
                     Sztuki = spec.SztukiDek,
                     Kilogramy = spec.NettoUbojniValue,
-                    Status = spec.ArrivalTime.HasValue ? "Zakończony" : "Oczekuje"
+                    Status = spec.ArrivalTime.HasValue ? "Zakończony" : "Oczekuje",
+                    // Godziny transportowe
+                    PoczatekUslugi = spec.PoczatekUslugi,
+                    DojazdHodowca = spec.DojazdHodowca,
+                    Zaladunek = spec.Zaladunek,
+                    ZaladunekKoniec = spec.ZaladunekKoniec,
+                    WyjazdHodowca = spec.WyjazdHodowca,
+                    KoniecUslugi = spec.KoniecUslugi
                 };
 
                 transportData.Add(transportRow);
@@ -505,6 +523,7 @@ namespace Kalendarz1
 
         private void LoadData(DateTime selectedDate)
         {
+            _isLoadingData = true; // Blokuj logowanie zmian podczas ładowania
             try
             {
                 UpdateStatus("Ładowanie danych...");
@@ -513,11 +532,12 @@ namespace Kalendarz1
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
-                    string query = @"SELECT fc.ID, fc.CarLp, fc.CustomerGID, fc.CustomerRealGID, fc.DeclI1, fc.DeclI2, fc.DeclI3, fc.DeclI4, fc.DeclI5,
+                    string query = @"SELECT fc.ID, fc.CarLp, fc.Number, fc.YearNumber, fc.CustomerGID, fc.CustomerRealGID, fc.DeclI1, fc.DeclI2, fc.DeclI3, fc.DeclI4, fc.DeclI5,
                                     fc.LumQnt, fc.ProdQnt, fc.ProdWgt, fc.FullFarmWeight, fc.EmptyFarmWeight, fc.NettoFarmWeight,
                                     fc.FullWeight, fc.EmptyWeight, fc.NettoWeight, fc.Price, fc.Addition, fc.PriceTypeID, fc.IncDeadConf, fc.Loss,
                                     fc.Opasienie, fc.KlasaB, fc.TerminDni, fc.CalcDate,
                                     fc.DriverGID, fc.CarID, fc.TrailerID, fc.Przyjazd,
+                                    fc.PoczatekUslugi, fc.Wyjazd, fc.DojazdHodowca, fc.Zaladunek, fc.ZaladunekKoniec, fc.WyjazdHodowca, fc.KoniecUslugi,
                                     d.Name AS DriverName
                                     FROM [LibraNet].[dbo].[FarmerCalc] fc
                                     LEFT JOIN [LibraNet].[dbo].[Driver] d ON fc.DriverGID = d.GID
@@ -543,6 +563,8 @@ namespace Kalendarz1
                             {
                                 ID = ZapytaniaSQL.GetValueOrDefault<int>(row, "ID", 0),
                                 Nr = ZapytaniaSQL.GetValueOrDefault<int>(row, "CarLp", 0),
+                                Number = ZapytaniaSQL.GetValueOrDefault<int>(row, "Number", 0),
+                                YearNumber = ZapytaniaSQL.GetValueOrDefault<int>(row, "YearNumber", 0),
                                 DostawcaGID = customerGID,
                                 Dostawca = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerGID, "ShortName"),
                                 RealDostawca = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(
@@ -578,7 +600,17 @@ namespace Kalendarz1
                                 CarID = ZapytaniaSQL.GetValueOrDefault<string>(row, "CarID", "")?.Trim(),
                                 TrailerID = ZapytaniaSQL.GetValueOrDefault<string>(row, "TrailerID", "")?.Trim(),
                                 ArrivalTime = row["Przyjazd"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["Przyjazd"]) : null,
-                                KierowcaNazwa = ZapytaniaSQL.GetValueOrDefault<string>(row, "DriverName", "")?.Trim()
+                                KierowcaNazwa = ZapytaniaSQL.GetValueOrDefault<string>(row, "DriverName", "")?.Trim(),
+                                // Godziny transportowe
+                                PoczatekUslugi = row["PoczatekUslugi"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["PoczatekUslugi"]) : null,
+                                Wyjazd = row["Wyjazd"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["Wyjazd"]) : null,
+                                DojazdHodowca = row["DojazdHodowca"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["DojazdHodowca"]) : null,
+                                Zaladunek = row["Zaladunek"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["Zaladunek"]) : null,
+                                ZaladunekKoniec = row["ZaladunekKoniec"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["ZaladunekKoniec"]) : null,
+                                WyjazdHodowca = row["WyjazdHodowca"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["WyjazdHodowca"]) : null,
+                                KoniecUslugi = row["KoniecUslugi"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["KoniecUslugi"]) : null,
+                                // Pole Symfonia (sprawdź czy kolumna istnieje)
+                                Symfonia = dataTable.Columns.Contains("Symfonia") && row["Symfonia"] != DBNull.Value && Convert.ToBoolean(row["Symfonia"])
                             };
 
                             specyfikacjeData.Add(specRow);
@@ -601,6 +633,15 @@ namespace Kalendarz1
             catch (Exception ex)
             {
                 UpdateStatus($"Błąd: {ex.Message}");
+            }
+            finally
+            {
+                // WAŻNE: Resetuj flagę DOPIERO gdy WPF skończy binding checkboxów
+                // Użyj niskiego priorytetu aby poczekać na zakończenie wszystkich operacji UI
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    _isLoadingData = false;
+                }), System.Windows.Threading.DispatcherPriority.ContextIdle);
             }
         }
 
@@ -2017,7 +2058,7 @@ namespace Kalendarz1
         // === BATCH: Zapis wybranych pól dla wielu wierszy w jednym zapytaniu SQL ===
         private void SaveSupplierFieldsBatch(List<int> rowIds, SupplierFieldMask fields,
             decimal? cena = null, decimal? dodatek = null, decimal? ubytek = null,
-            string typCeny = null, int? terminDni = null)
+            string typCeny = null, int? terminDni = null, bool? piK = null)
         {
             if (rowIds == null || rowIds.Count == 0 || fields == SupplierFieldMask.None) return;
 
@@ -2027,6 +2068,7 @@ namespace Kalendarz1
             if (fields.HasFlag(SupplierFieldMask.Ubytek)) setClauses.Add("Loss = @Ubytek");
             if (fields.HasFlag(SupplierFieldMask.TypCeny)) setClauses.Add("PriceType = @TypCeny");
             if (fields.HasFlag(SupplierFieldMask.TerminDni)) setClauses.Add("TerminDni = @TerminDni");
+            if (fields.HasFlag(SupplierFieldMask.PiK)) setClauses.Add("IncDeadConf = @PiK");
 
             if (setClauses.Count == 0) return;
 
@@ -2052,6 +2094,8 @@ namespace Kalendarz1
                             cmd.Parameters.AddWithValue("@TypCeny", (object)typCeny ?? DBNull.Value);
                         if (fields.HasFlag(SupplierFieldMask.TerminDni))
                             cmd.Parameters.AddWithValue("@TerminDni", terminDni ?? 0);
+                        if (fields.HasFlag(SupplierFieldMask.PiK))
+                            cmd.Parameters.AddWithValue("@PiK", piK ?? false);
 
                         int affected = cmd.ExecuteNonQuery();
                         UpdateStatus($"Batch: Zaktualizowano {affected} wierszy");
@@ -2075,20 +2119,54 @@ namespace Kalendarz1
 
             if (idsToUpdate.Count == 0) return;
 
-            // Aktualizuj UI
+            // Zapisz stare wartości przed aktualizacją i loguj zmiany do bazy
             foreach (var row in rowsToUpdate)
             {
+                // Loguj zmiany dla każdego pola które się zmienia
+                if (fields.HasFlag(SupplierFieldMask.Cena) && row.Cena != currentRow.Cena)
+                {
+                    LogChangeToDatabase(row.ID, "Cena", row.Cena.ToString("F2"), currentRow.Cena.ToString("F2"),
+                        row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+                }
+                if (fields.HasFlag(SupplierFieldMask.Dodatek) && row.Dodatek != currentRow.Dodatek)
+                {
+                    LogChangeToDatabase(row.ID, "Dodatek", row.Dodatek.ToString("F2"), currentRow.Dodatek.ToString("F2"),
+                        row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+                }
+                if (fields.HasFlag(SupplierFieldMask.Ubytek) && row.Ubytek != currentRow.Ubytek)
+                {
+                    LogChangeToDatabase(row.ID, "Ubytek", row.Ubytek.ToString("F2") + "%", currentRow.Ubytek.ToString("F2") + "%",
+                        row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+                }
+                if (fields.HasFlag(SupplierFieldMask.TypCeny) && row.TypCeny != currentRow.TypCeny)
+                {
+                    LogChangeToDatabase(row.ID, "PriceTypeID", row.TypCeny ?? "", currentRow.TypCeny ?? "",
+                        row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+                }
+                if (fields.HasFlag(SupplierFieldMask.TerminDni) && row.TerminDni != currentRow.TerminDni)
+                {
+                    LogChangeToDatabase(row.ID, "TerminDni", row.TerminDni.ToString(), currentRow.TerminDni.ToString(),
+                        row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+                }
+                if (fields.HasFlag(SupplierFieldMask.PiK) && row.PiK != currentRow.PiK)
+                {
+                    LogChangeToDatabase(row.ID, "IncDeadConf", row.PiK ? "TAK" : "NIE", currentRow.PiK ? "TAK" : "NIE",
+                        row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+                }
+
+                // Aktualizuj UI
                 if (fields.HasFlag(SupplierFieldMask.Cena)) row.Cena = currentRow.Cena;
                 if (fields.HasFlag(SupplierFieldMask.Dodatek)) row.Dodatek = currentRow.Dodatek;
                 if (fields.HasFlag(SupplierFieldMask.Ubytek)) row.Ubytek = currentRow.Ubytek;
                 if (fields.HasFlag(SupplierFieldMask.TypCeny)) row.TypCeny = currentRow.TypCeny;
                 if (fields.HasFlag(SupplierFieldMask.TerminDni)) row.TerminDni = currentRow.TerminDni;
+                if (fields.HasFlag(SupplierFieldMask.PiK)) row.PiK = currentRow.PiK;
             }
 
             // Batch zapis do bazy
             SaveSupplierFieldsBatch(idsToUpdate, fields,
                 currentRow.Cena, currentRow.Dodatek, currentRow.Ubytek,
-                currentRow.TypCeny, currentRow.TerminDni);
+                currentRow.TypCeny, currentRow.TerminDni, currentRow.PiK);
 
             // Status message
             var fieldNames = new List<string>();
@@ -2097,9 +2175,9 @@ namespace Kalendarz1
             if (fields.HasFlag(SupplierFieldMask.Ubytek)) fieldNames.Add($"Ubytek={currentRow.Ubytek:F2}%");
             if (fields.HasFlag(SupplierFieldMask.TypCeny)) fieldNames.Add($"TypCeny={currentRow.TypCeny}");
             if (fields.HasFlag(SupplierFieldMask.TerminDni)) fieldNames.Add($"Termin={currentRow.TerminDni}dni");
+            if (fields.HasFlag(SupplierFieldMask.PiK)) fieldNames.Add($"PiK={currentRow.PiK}");
 
             UpdateStatus($"Batch: {string.Join(", ", fieldNames)} -> {rowsToUpdate.Count} wierszy ({currentRow.RealDostawca})");
-            // Nie potrzeba Items.Refresh() - INotifyPropertyChanged aktualizuje UI
         }
 
         // === BATCH: Zastosuj WSZYSTKIE pola cenowe do dostawcy ===
@@ -2107,6 +2185,210 @@ namespace Kalendarz1
         {
             ApplyFieldsToSupplier(SupplierFieldMask.All);
         }
+
+        #region === HISTORIA ZMIAN ===
+
+        /// <summary>
+        /// Zapisuje zmianę do bazy danych FarmerCalcChangeLog
+        /// </summary>
+        private void LogChangeToDatabase(int recordId, string fieldName, string oldValue, string newValue, string dostawca = "", int nr = 0, string carId = "")
+        {
+            try
+            {
+                // Nie loguj jeśli wartości są takie same
+                if (oldValue == newValue) return;
+
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Upewnij się, że tabela istnieje z właściwą strukturą
+                    string createTableSql = @"
+                        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FarmerCalcChangeLog')
+                        BEGIN
+                            CREATE TABLE [dbo].[FarmerCalcChangeLog] (
+                                [ID] INT IDENTITY(1,1) PRIMARY KEY,
+                                [FarmerCalcID] INT NULL,
+                                [FieldName] NVARCHAR(100) NULL,
+                                [OldValue] NVARCHAR(500) NULL,
+                                [NewValue] NVARCHAR(500) NULL,
+                                [Dostawca] NVARCHAR(200) NULL,
+                                [ChangedBy] NVARCHAR(100) NULL,
+                                [UserID] NVARCHAR(50) NULL,
+                                [Nr] INT NULL,
+                                [CarID] NVARCHAR(50) NULL,
+                                [ChangeDate] DATETIME DEFAULT GETDATE(),
+                                [CalcDate] DATE NULL
+                            )
+                        END";
+
+                    using (SqlCommand cmd = new SqlCommand(createTableSql, conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Dodaj brakujące kolumny pojedynczo (każda w osobnym bloku try)
+                    string[] alterCommands = new string[]
+                    {
+                        "IF COL_LENGTH('FarmerCalcChangeLog', 'FarmerCalcID') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [FarmerCalcID] INT NULL",
+                        "IF COL_LENGTH('FarmerCalcChangeLog', 'FieldName') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [FieldName] NVARCHAR(100) NULL",
+                        "IF COL_LENGTH('FarmerCalcChangeLog', 'OldValue') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [OldValue] NVARCHAR(500) NULL",
+                        "IF COL_LENGTH('FarmerCalcChangeLog', 'NewValue') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [NewValue] NVARCHAR(500) NULL",
+                        "IF COL_LENGTH('FarmerCalcChangeLog', 'Dostawca') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [Dostawca] NVARCHAR(200) NULL",
+                        "IF COL_LENGTH('FarmerCalcChangeLog', 'ChangedBy') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [ChangedBy] NVARCHAR(100) NULL",
+                        "IF COL_LENGTH('FarmerCalcChangeLog', 'UserID') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [UserID] NVARCHAR(50) NULL",
+                        "IF COL_LENGTH('FarmerCalcChangeLog', 'Nr') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [Nr] INT NULL",
+                        "IF COL_LENGTH('FarmerCalcChangeLog', 'CarID') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [CarID] NVARCHAR(50) NULL",
+                        "IF COL_LENGTH('FarmerCalcChangeLog', 'ChangeDate') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [ChangeDate] DATETIME NULL",
+                        "IF COL_LENGTH('FarmerCalcChangeLog', 'CalcDate') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [CalcDate] DATE NULL"
+                    };
+
+                    foreach (var alterCmd in alterCommands)
+                    {
+                        try
+                        {
+                            using (SqlCommand cmd = new SqlCommand(alterCmd, conn))
+                            {
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
+                        catch { /* Ignoruj błędy ALTER - kolumna może już istnieć */ }
+                    }
+
+                    // Pobierz nazwę użytkownika z bazy na podstawie UserID
+                    string userName = Environment.UserName;
+                    string userId = App.UserID ?? "";
+                    if (!string.IsNullOrEmpty(userId))
+                    {
+                        try
+                        {
+                            NazwaZiD nazwaZiD = new NazwaZiD();
+                            userName = nazwaZiD.GetNameById(userId) ?? userName;
+                        }
+                        catch { }
+                    }
+
+                    // Zapisz zmianę z dodatkowymi polami
+                    string sql = @"INSERT INTO [dbo].[FarmerCalcChangeLog]
+                        (FarmerCalcID, FieldName, OldValue, NewValue, Dostawca, ChangedBy, UserID, Nr, CarID, ChangeDate, CalcDate)
+                        VALUES (@FarmerCalcID, @FieldName, @OldValue, @NewValue, @Dostawca, @ChangedBy, @UserID, @Nr, @CarID, GETDATE(), @CalcDate)";
+
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@FarmerCalcID", recordId);
+                        cmd.Parameters.AddWithValue("@FieldName", fieldName ?? "");
+                        cmd.Parameters.AddWithValue("@OldValue", oldValue ?? "");
+                        cmd.Parameters.AddWithValue("@NewValue", newValue ?? "");
+                        cmd.Parameters.AddWithValue("@Dostawca", dostawca ?? "");
+                        cmd.Parameters.AddWithValue("@ChangedBy", userName ?? "system");
+                        cmd.Parameters.AddWithValue("@UserID", userId ?? "");
+                        cmd.Parameters.AddWithValue("@Nr", nr);
+                        cmd.Parameters.AddWithValue("@CarID", carId ?? "");
+                        cmd.Parameters.AddWithValue("@CalcDate", dateTimePicker1.SelectedDate ?? DateTime.Today);
+                        int rowsAffected = cmd.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
+                        {
+                            UpdateStatus($"✓ Zalogowano zmianę: {fieldName} ({oldValue} → {newValue})");
+                        }
+                    }
+                }
+
+                // Dodaj też do lokalnej listy
+                _changeLog.Add(new ChangeLogEntry
+                {
+                    Timestamp = DateTime.Now,
+                    RowId = recordId,
+                    PropertyName = fieldName,
+                    OldValue = oldValue,
+                    NewValue = newValue,
+                    UserName = App.UserID ?? Environment.UserName
+                });
+            }
+            catch (Exception ex)
+            {
+                // POKAŻ BŁĄD UŻYTKOWNIKOWI!
+                UpdateStatus($"BŁĄD logowania: {ex.Message}");
+                MessageBox.Show($"Błąd zapisu do historii zmian:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Dodaje wpis do historii zmian (lokalna lista)
+        /// </summary>
+        private void AddChangeLogEntry(string action, string details)
+        {
+            _changeLog.Add(new ChangeLogEntry
+            {
+                Timestamp = DateTime.Now,
+                Action = action,
+                NewValue = details,
+                UserName = Environment.UserName
+            });
+        }
+
+        /// <summary>
+        /// Generuje opis zastosowanych pól
+        /// </summary>
+        private string GetFieldMaskDescription(SupplierFieldMask fields, SpecyfikacjaRow row)
+        {
+            var parts = new List<string>();
+            if (fields.HasFlag(SupplierFieldMask.Cena)) parts.Add($"Cena={row.Cena:F2}");
+            if (fields.HasFlag(SupplierFieldMask.Dodatek)) parts.Add($"Dodatek={row.Dodatek:F2}");
+            if (fields.HasFlag(SupplierFieldMask.Ubytek)) parts.Add($"Ubytek={row.Ubytek:F2}%");
+            if (fields.HasFlag(SupplierFieldMask.TypCeny)) parts.Add($"TypCeny={row.TypCeny}");
+            if (fields.HasFlag(SupplierFieldMask.TerminDni)) parts.Add($"Termin={row.TerminDni}dni");
+            if (fields.HasFlag(SupplierFieldMask.PiK)) parts.Add($"PiK={row.PiK}");
+            return string.Join(", ", parts);
+        }
+
+        /// <summary>
+        /// Pokazuje okno z historią zmian
+        /// </summary>
+        private void ShowChangeLog_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var historiaWindow = new HistoriaZmianSpecyfikacjeWindow(connectionString);
+                historiaWindow.Owner = Window.GetWindow(this);
+                historiaWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania historii zmian: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Zwraca czytelną nazwę pola
+        /// </summary>
+        private string GetFieldDisplayName(string fieldName)
+        {
+            switch (fieldName)
+            {
+                case "Price":
+                case "Cena": return "Cena";
+                case "Addition":
+                case "Dodatek": return "Dodatek";
+                case "Loss":
+                case "Ubytek": return "Ubytek";
+                case "PriceTypeID": return "Typ ceny";
+                case "IncDeadConf": return "PiK";
+                case "TerminDni": return "Termin płatności";
+                case "Opasienie": return "Opasienie";
+                case "KlasaB": return "Klasa B";
+                case "Szt.Dek": return "Sztuki deklarowane";
+                case "Padłe": return "Padłe";
+                case "CH": return "Chore";
+                case "NW": return "Niedowaga";
+                case "ZM": return "Zamarznięte";
+                case "LUMEL": return "LUMEL";
+                case "Number": return "Nr specyfikacji";
+                default: return fieldName;
+            }
+        }
+
+        #endregion
 
         #region === SZABLON DOSTAWCY: Auto-wypełnianie z historii ===
 
@@ -2259,28 +2541,34 @@ namespace Kalendarz1
         #region === PODSWIETLENIE GRUPY DOSTAWCY ===
 
         /// <summary>
-        /// Podświetl wszystkie wiersze tego samego dostawcy (po nazwie wyświetlanej)
+        /// Podświetl wszystkie wiersze tego samego dostawcy
+        /// PROSTA IMPLEMENTACJA - bez LINQ, jawna pętla po WSZYSTKICH wierszach
         /// </summary>
         private void HighlightSupplierGroup(string dostawcaNazwa)
         {
-            var trimmedName = dostawcaNazwa?.Trim();
-            if (_highlightedSupplier == trimmedName) return;
+            // Normalizuj klucz wyszukiwania
+            string searchKey = (dostawcaNazwa ?? "").Trim().ToLowerInvariant();
 
-            // Usuń poprzednie podświetlenie - WSZYSTKIE wiersze
-            foreach (var row in specyfikacjeData.Where(x => x.IsHighlighted))
-            {
-                row.IsHighlighted = false;
-            }
+            // Jeśli ten sam klucz - nie rób nic
+            if (_highlightedSupplier == searchKey) return;
+            _highlightedSupplier = searchKey;
 
-            // Dodaj nowe podświetlenie
-            _highlightedSupplier = trimmedName;
-            if (!string.IsNullOrEmpty(trimmedName))
+            // Prosta pętla - iteruj po WSZYSTKICH wierszach, bez LINQ
+            int count = specyfikacjeData.Count;
+
+            for (int i = 0; i < count; i++)
             {
-                foreach (var row in specyfikacjeData.Where(x =>
-                    !string.IsNullOrEmpty(x.Dostawca) &&
-                    x.Dostawca.Trim().Equals(trimmedName, StringComparison.OrdinalIgnoreCase)))
+                var row = specyfikacjeData[i];
+
+                // Normalizuj nazwę dostawcy w wierszu
+                string rowKey = (row.Dostawca ?? "").Trim().ToLowerInvariant();
+
+                // Porównaj - jeśli pasuje i klucz nie jest pusty, podświetl
+                bool shouldHighlight = !string.IsNullOrEmpty(searchKey) && rowKey == searchKey;
+
+                if (row.IsHighlighted != shouldHighlight)
                 {
-                    row.IsHighlighted = true;
+                    row.IsHighlighted = shouldHighlight;
                 }
             }
         }
@@ -2290,11 +2578,16 @@ namespace Kalendarz1
         /// </summary>
         private void ClearSupplierHighlight()
         {
-            foreach (var row in specyfikacjeData.Where(x => x.IsHighlighted))
-            {
-                row.IsHighlighted = false;
-            }
             _highlightedSupplier = null;
+
+            int count = specyfikacjeData.Count;
+            for (int i = 0; i < count; i++)
+            {
+                if (specyfikacjeData[i].IsHighlighted)
+                {
+                    specyfikacjeData[i].IsHighlighted = false;
+                }
+            }
         }
 
         #endregion
@@ -3888,6 +4181,7 @@ namespace Kalendarz1
                 decimal sredniaWagaSuma = 0;
                 bool czyByloUbytku = false;
                 decimal sumaUbytekKG = 0; // Suma kg odliczonych przez Ubytek %
+                decimal ubytekProcWyswietlany = 0; // Procent ubytku do wyświetlenia w formule
 
                 // Dane tabeli
                 for (int i = 0; i < ids.Count; i++)
@@ -3942,6 +4236,7 @@ namespace Kalendarz1
                     if (ubytek > 0)
                     {
                         czyByloUbytku = true;
+                        ubytekProcWyswietlany = ubytek; // Zapisz procent ubytku
                     }
                     sumaUbytekKG += ubytekKG;
 
@@ -4050,7 +4345,8 @@ namespace Kalendarz1
                 {
                     Paragraph formula5b = new Paragraph();
                     formula5b.Add(new Chunk("Ubytek [kg] = Netto × Ubytek%: ", legendaBoldFont));
-                    formula5b.Add(new Chunk($"{sumaNetto:N0} × ... = {sumaUbytekKG:N0} kg", legendaFont));
+                    // ubytekProcWyswietlany jest ułamkiem (np. 0.005 = 0.5%), więc mnożymy przez 100 dla wyświetlenia
+                    formula5b.Add(new Chunk($"{sumaNetto:N0} × {ubytekProcWyswietlany * 100:N2}% = {sumaUbytekKG:N0} kg", legendaFont));
                     formulaCell.AddElement(formula5b);
                 }
 
@@ -4884,6 +5180,107 @@ namespace Kalendarz1
             }
         }
 
+        // === GotFocus handlers - zapisują starą wartość przed edycją ===
+        private void Cena_GotFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var row = textBox?.DataContext as SpecyfikacjaRow;
+            if (row != null)
+                _oldFieldValues[$"Cena_{row.ID}"] = row.Cena.ToString("F2");
+        }
+
+        private void Dodatek_GotFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var row = textBox?.DataContext as SpecyfikacjaRow;
+            if (row != null)
+                _oldFieldValues[$"Dodatek_{row.ID}"] = row.Dodatek.ToString("F2");
+        }
+
+        private void Ubytek_GotFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var row = textBox?.DataContext as SpecyfikacjaRow;
+            if (row != null)
+                _oldFieldValues[$"Ubytek_{row.ID}"] = row.Ubytek.ToString("F2");
+        }
+
+        private void SztukiDek_GotFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var row = textBox?.DataContext as SpecyfikacjaRow;
+            if (row != null)
+                _oldFieldValues[$"SztukiDek_{row.ID}"] = row.SztukiDek.ToString();
+        }
+
+        private void Number_GotFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var row = textBox?.DataContext as SpecyfikacjaRow;
+            if (row != null)
+                _oldFieldValues[$"Number_{row.ID}"] = row.Number.ToString();
+        }
+
+        private void Padle_GotFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var row = textBox?.DataContext as SpecyfikacjaRow;
+            if (row != null)
+            {
+                string oldVal = row.Padle.ToString();
+                _oldFieldValues[$"Padle_{row.ID}"] = oldVal;
+                UpdateStatus($"[GotFocus] Padle LP{row.Nr} = {oldVal}");
+            }
+        }
+
+        private void CH_GotFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var row = textBox?.DataContext as SpecyfikacjaRow;
+            if (row != null)
+                _oldFieldValues[$"CH_{row.ID}"] = row.CH.ToString();
+        }
+
+        private void NW_GotFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var row = textBox?.DataContext as SpecyfikacjaRow;
+            if (row != null)
+                _oldFieldValues[$"NW_{row.ID}"] = row.NW.ToString();
+        }
+
+        private void ZM_GotFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var row = textBox?.DataContext as SpecyfikacjaRow;
+            if (row != null)
+                _oldFieldValues[$"ZM_{row.ID}"] = row.ZM.ToString();
+        }
+
+        private void LUMEL_GotFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var row = textBox?.DataContext as SpecyfikacjaRow;
+            if (row != null)
+                _oldFieldValues[$"LUMEL_{row.ID}"] = row.LUMEL.ToString();
+        }
+
+        private void Opasienie_GotFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var row = textBox?.DataContext as SpecyfikacjaRow;
+            if (row != null)
+                _oldFieldValues[$"Opasienie_{row.ID}"] = row.Opasienie.ToString("F2");
+        }
+
+        private void KlasaB_GotFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var row = textBox?.DataContext as SpecyfikacjaRow;
+            if (row != null)
+                _oldFieldValues[$"KlasaB_{row.ID}"] = row.KlasaB.ToString("F2");
+        }
+
         // Handler LostFocus dla Cena - zapisuje do bazy po opuszczeniu pola
         private void Cena_LostFocus(object sender, RoutedEventArgs e)
         {
@@ -4893,9 +5290,29 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Sprawdź blokadę edycji
+            if (!CheckEditingAllowed(row.DataUboju)) return;
+
+            // Pobierz starą wartość
+            string oldValue = "";
+            string key = $"Cena_{row.ID}";
+            if (_oldFieldValues.ContainsKey(key))
+            {
+                oldValue = _oldFieldValues[key];
+                _oldFieldValues.Remove(key);
+            }
+
             // WAŻNE: Wymuś aktualizację bindingu przed zapisem
             var binding = textBox.GetBindingExpression(TextBox.TextProperty);
             binding?.UpdateSource();
+
+            string newValue = row.Cena.ToString("F2");
+
+            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
+            if (!string.IsNullOrEmpty(oldValue) && oldValue != "0.00" && oldValue != newValue)
+            {
+                LogChangeToDatabase(row.ID, "Cena", oldValue, newValue, row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+            }
 
             SaveFieldToDatabase(row.ID, "Price", row.Cena);
             UpdateStatus($"Zapisano cenę: {row.Cena:N2} dla LP {row.Nr}");
@@ -4910,9 +5327,26 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Pobierz starą wartość
+            string oldValue = "";
+            string key = $"Dodatek_{row.ID}";
+            if (_oldFieldValues.ContainsKey(key))
+            {
+                oldValue = _oldFieldValues[key];
+                _oldFieldValues.Remove(key);
+            }
+
             // WAŻNE: Wymuś aktualizację bindingu przed zapisem
             var binding = textBox.GetBindingExpression(TextBox.TextProperty);
             binding?.UpdateSource();
+
+            string newValue = row.Dodatek.ToString("F2");
+
+            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
+            if (!string.IsNullOrEmpty(oldValue) && oldValue != "0.00" && oldValue != newValue)
+            {
+                LogChangeToDatabase(row.ID, "Dodatek", oldValue, newValue, row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+            }
 
             SaveFieldToDatabase(row.ID, "Addition", row.Dodatek);
             UpdateStatus($"Zapisano dodatek: {row.Dodatek:N2} dla LP {row.Nr}");
@@ -4927,9 +5361,26 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Pobierz starą wartość
+            string oldValue = "";
+            string key = $"Ubytek_{row.ID}";
+            if (_oldFieldValues.ContainsKey(key))
+            {
+                oldValue = _oldFieldValues[key];
+                _oldFieldValues.Remove(key);
+            }
+
             // WAŻNE: Wymuś aktualizację bindingu przed zapisem
             var binding = textBox.GetBindingExpression(TextBox.TextProperty);
             binding?.UpdateSource();
+
+            string newValue = row.Ubytek.ToString("F2");
+
+            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
+            if (!string.IsNullOrEmpty(oldValue) && oldValue != "0.00" && oldValue != newValue)
+            {
+                LogChangeToDatabase(row.ID, "Ubytek", oldValue + "%", newValue + "%", row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+            }
 
             // W bazie Loss jest przechowywany jako ułamek (1.5% = 0.015)
             SaveFieldToDatabase(row.ID, "Loss", row.Ubytek / 100);
@@ -4939,16 +5390,51 @@ namespace Kalendarz1
         // Handler dla zmiany PiK (CheckBox) - zapisuje do bazy natychmiast
         private void PiK_Changed(object sender, RoutedEventArgs e)
         {
+            // BLOKADA: Ignoruj zmiany podczas ładowania danych (binding odpala Checked/Unchecked)
+            if (_isLoadingData) return;
+
             var checkBox = sender as CheckBox;
             if (checkBox == null) return;
 
             var row = checkBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Sprawdź blokadę edycji
+            if (!CheckEditingAllowed(row.DataUboju))
+            {
+                // Przywróć poprzednią wartość
+                checkBox.IsChecked = !row.PiK;
+                return;
+            }
+
+            // Loguj zmianę
+            string oldValue = row.PiK ? "NIE" : "TAK"; // Wartość przed zmianą jest odwrotna
+            string newValue = row.PiK ? "TAK" : "NIE";
+            LogChangeToDatabase(row.ID, "IncDeadConf", oldValue, newValue, row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+
             // Binding już zaktualizował wartość
             SaveFieldToDatabase(row.ID, "IncDeadConf", row.PiK);
             UpdateStatus($"Zapisano PiK: {(row.PiK ? "TAK" : "NIE")} dla LP {row.Nr}");
         }
+
+        // Handler dla zmiany Symfonia (CheckBox) - zapisuje do bazy natychmiast
+        private void Symfonia_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_isLoadingData) return;
+
+            var checkBox = sender as CheckBox;
+            if (checkBox == null) return;
+
+            var row = checkBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            // Zapisz do bazy
+            SaveFieldToDatabase(row.ID, "Symfonia", row.Symfonia);
+            UpdateStatus($"Zapisano Symfonia: {(row.Symfonia ? "TAK" : "NIE")} dla LP {row.Nr}");
+        }
+
+        // Zmienna do śledzenia starego typu ceny
+        private string _oldTypCeny = "";
 
         // Handler dla zmiany TypCeny (ComboBox) - zapisuje do bazy natychmiast
         private void TypCeny_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -4959,6 +5445,19 @@ namespace Kalendarz1
             var row = comboBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Pobierz starą wartość z e.RemovedItems
+            string oldValue = "";
+            if (e.RemovedItems.Count > 0)
+                oldValue = e.RemovedItems[0]?.ToString() ?? "";
+
+            // Sprawdź blokadę edycji
+            if (!string.IsNullOrEmpty(oldValue) && !CheckEditingAllowed(row.DataUboju))
+            {
+                // Przywróć poprzednią wartość
+                comboBox.SelectedItem = oldValue;
+                return;
+            }
+
             // Znajdź ID typu ceny
             int priceTypeId = -1;
             if (!string.IsNullOrEmpty(row.TypCeny))
@@ -4968,6 +5467,12 @@ namespace Kalendarz1
 
             if (priceTypeId > 0)
             {
+                // Loguj zmianę
+                if (!string.IsNullOrEmpty(oldValue) && oldValue != row.TypCeny)
+                {
+                    LogChangeToDatabase(row.ID, "PriceTypeID", oldValue, row.TypCeny, row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+                }
+
                 SaveFieldToDatabase(row.ID, "PriceTypeID", priceTypeId);
                 UpdateStatus($"Zapisano typ ceny: {row.TypCeny} dla LP {row.Nr}");
             }
@@ -4982,9 +5487,26 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Pobierz starą wartość
+            string oldValue = "";
+            string key = $"Opasienie_{row.ID}";
+            if (_oldFieldValues.ContainsKey(key))
+            {
+                oldValue = _oldFieldValues[key];
+                _oldFieldValues.Remove(key);
+            }
+
             // WAŻNE: Wymuś aktualizację bindingu przed zapisem
             var binding = textBox.GetBindingExpression(TextBox.TextProperty);
             binding?.UpdateSource();
+
+            string newValue = row.Opasienie.ToString("F2");
+
+            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
+            if (!string.IsNullOrEmpty(oldValue) && oldValue != "0.00" && oldValue != newValue)
+            {
+                LogChangeToDatabase(row.ID, "Opasienie", oldValue + " kg", newValue + " kg", row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+            }
 
             SaveFieldToDatabase(row.ID, "Opasienie", row.Opasienie);
             UpdateStatus($"Zapisano opasienie: {row.Opasienie:N0} kg dla LP {row.Nr}");
@@ -4999,9 +5521,26 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Pobierz starą wartość
+            string oldValue = "";
+            string key = $"KlasaB_{row.ID}";
+            if (_oldFieldValues.ContainsKey(key))
+            {
+                oldValue = _oldFieldValues[key];
+                _oldFieldValues.Remove(key);
+            }
+
             // WAŻNE: Wymuś aktualizację bindingu przed zapisem
             var binding = textBox.GetBindingExpression(TextBox.TextProperty);
             binding?.UpdateSource();
+
+            string newValue = row.KlasaB.ToString("F2");
+
+            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
+            if (!string.IsNullOrEmpty(oldValue) && oldValue != "0.00" && oldValue != newValue)
+            {
+                LogChangeToDatabase(row.ID, "KlasaB", oldValue + " kg", newValue + " kg", row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+            }
 
             SaveFieldToDatabase(row.ID, "KlasaB", row.KlasaB);
             UpdateStatus($"Zapisano klasę B: {row.KlasaB:N0} kg dla LP {row.Nr}");
@@ -5016,8 +5555,25 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Pobierz starą wartość
+            string oldValue = "";
+            string key = $"LUMEL_{row.ID}";
+            if (_oldFieldValues.ContainsKey(key))
+            {
+                oldValue = _oldFieldValues[key];
+                _oldFieldValues.Remove(key);
+            }
+
             var binding = textBox.GetBindingExpression(TextBox.TextProperty);
             binding?.UpdateSource();
+
+            string newValue = row.LUMEL.ToString();
+
+            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
+            if (!string.IsNullOrEmpty(oldValue) && oldValue != "0" && oldValue != newValue)
+            {
+                LogChangeToDatabase(row.ID, "LUMEL", oldValue, newValue, row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+            }
 
             SaveFieldToDatabase(row.ID, "LumQnt", row.LUMEL);
             UpdateStatus($"Zapisano LUMEL: {row.LUMEL} szt dla LP {row.Nr}");
@@ -5032,11 +5588,91 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Pobierz starą wartość
+            string oldValue = "";
+            string key = $"SztukiDek_{row.ID}";
+            if (_oldFieldValues.ContainsKey(key))
+            {
+                oldValue = _oldFieldValues[key];
+                _oldFieldValues.Remove(key);
+            }
+
             var binding = textBox.GetBindingExpression(TextBox.TextProperty);
             binding?.UpdateSource();
 
+            string newValue = row.SztukiDek.ToString();
+
+            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
+            if (!string.IsNullOrEmpty(oldValue) && oldValue != "0" && oldValue != newValue)
+            {
+                LogChangeToDatabase(row.ID, "Szt.Dek", oldValue, newValue, row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+            }
+
             SaveFieldToDatabase(row.ID, "DeclI1", row.SztukiDek);
             UpdateStatus($"Zapisano Szt.Dek: {row.SztukiDek} dla LP {row.Nr}");
+        }
+
+        // Handler LostFocus dla Number (Nr specyfikacji) - zapisuje do bazy i auto-increment dla następnych wierszy
+        private void Number_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            var row = textBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            // Pobierz starą wartość
+            string oldValue = "";
+            string key = $"Number_{row.ID}";
+            if (_oldFieldValues.ContainsKey(key))
+            {
+                oldValue = _oldFieldValues[key];
+                _oldFieldValues.Remove(key);
+            }
+
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            binding?.UpdateSource();
+
+            string newValue = row.Number.ToString();
+
+            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie pusta i nie 0) i się różni
+            if (!string.IsNullOrEmpty(oldValue) && oldValue != "0" && oldValue != newValue)
+            {
+                LogChangeToDatabase(row.ID, "Number", oldValue, newValue, row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+            }
+
+            // Zapisz do bazy
+            SaveFieldToDatabase(row.ID, "Number", row.Number);
+
+            // Auto-increment dla następnych wierszy
+            int currentIndex = specyfikacjeData.IndexOf(row);
+            int currentNumber = row.Number;
+
+            if (currentIndex >= 0 && currentNumber > 0)
+            {
+                for (int i = currentIndex + 1; i < specyfikacjeData.Count; i++)
+                {
+                    currentNumber++;
+                    var nextRow = specyfikacjeData[i];
+
+                    // Loguj zmianę tylko jeśli stara wartość nie była 0 (nowy rekord)
+                    string nextOldValue = nextRow.Number.ToString();
+                    if (nextOldValue != "0" && nextOldValue != currentNumber.ToString())
+                    {
+                        LogChangeToDatabase(nextRow.ID, "Number", nextOldValue, currentNumber.ToString(),
+                            nextRow.RealDostawca ?? nextRow.Dostawca, nextRow.Nr, nextRow.CarID ?? "");
+                    }
+
+                    nextRow.Number = currentNumber;
+                    SaveFieldToDatabase(nextRow.ID, "Number", currentNumber);
+                }
+
+                UpdateStatus($"Zapisano Nr spec. {row.Number} dla LP {row.Nr} i auto-increment dla {specyfikacjeData.Count - currentIndex - 1} następnych wierszy");
+            }
+            else
+            {
+                UpdateStatus($"Zapisano Nr spec.: {row.Number} dla LP {row.Nr}");
+            }
         }
 
         // Handler LostFocus dla Padle - zapisuje do bazy (DeclI2)
@@ -5048,11 +5684,34 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Pobierz starą wartość z TextBox PRZED aktualizacją bindingu
+            string oldValueFromTextBox = textBox.Text;
+
+            // Pobierz też z naszego słownika (jeśli GotFocus został wywołany)
+            string oldValueFromDict = "";
+            string key = $"Padle_{row.ID}";
+            if (_oldFieldValues.ContainsKey(key))
+            {
+                oldValueFromDict = _oldFieldValues[key];
+                _oldFieldValues.Remove(key);
+            }
+
+            // Użyj wartości ze słownika lub z modelu przed aktualizacją
+            string oldValue = !string.IsNullOrEmpty(oldValueFromDict) ? oldValueFromDict : row.Padle.ToString();
+
             var binding = textBox.GetBindingExpression(TextBox.TextProperty);
             binding?.UpdateSource();
 
+            string newValue = row.Padle.ToString();
+
+            // ZAWSZE loguj jeśli wartość się zmieniła (bez względu na starą wartość)
+            if (oldValue != newValue)
+            {
+                LogChangeToDatabase(row.ID, "Padłe", oldValue, newValue, row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+            }
+
             SaveFieldToDatabase(row.ID, "DeclI2", row.Padle);
-            UpdateStatus($"Zapisano Padłe: {row.Padle} dla LP {row.Nr}");
+            UpdateStatus($"Padłe: {oldValue} → {newValue} dla LP {row.Nr}");
         }
 
         // Handler LostFocus dla CH - zapisuje do bazy (DeclI3)
@@ -5064,8 +5723,25 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Pobierz starą wartość
+            string oldValue = "";
+            string key = $"CH_{row.ID}";
+            if (_oldFieldValues.ContainsKey(key))
+            {
+                oldValue = _oldFieldValues[key];
+                _oldFieldValues.Remove(key);
+            }
+
             var binding = textBox.GetBindingExpression(TextBox.TextProperty);
             binding?.UpdateSource();
+
+            string newValue = row.CH.ToString();
+
+            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
+            if (!string.IsNullOrEmpty(oldValue) && oldValue != "0" && oldValue != newValue)
+            {
+                LogChangeToDatabase(row.ID, "CH", oldValue, newValue, row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+            }
 
             SaveFieldToDatabase(row.ID, "DeclI3", row.CH);
             UpdateStatus($"Zapisano CH: {row.CH} dla LP {row.Nr}");
@@ -5080,8 +5756,25 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Pobierz starą wartość
+            string oldValue = "";
+            string key = $"NW_{row.ID}";
+            if (_oldFieldValues.ContainsKey(key))
+            {
+                oldValue = _oldFieldValues[key];
+                _oldFieldValues.Remove(key);
+            }
+
             var binding = textBox.GetBindingExpression(TextBox.TextProperty);
             binding?.UpdateSource();
+
+            string newValue = row.NW.ToString();
+
+            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
+            if (!string.IsNullOrEmpty(oldValue) && oldValue != "0" && oldValue != newValue)
+            {
+                LogChangeToDatabase(row.ID, "NW", oldValue, newValue, row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+            }
 
             SaveFieldToDatabase(row.ID, "DeclI4", row.NW);
             UpdateStatus($"Zapisano NW: {row.NW} dla LP {row.Nr}");
@@ -5096,11 +5789,418 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Pobierz starą wartość
+            string oldValue = "";
+            string key = $"ZM_{row.ID}";
+            if (_oldFieldValues.ContainsKey(key))
+            {
+                oldValue = _oldFieldValues[key];
+                _oldFieldValues.Remove(key);
+            }
+
             var binding = textBox.GetBindingExpression(TextBox.TextProperty);
             binding?.UpdateSource();
 
+            string newValue = row.ZM.ToString();
+
+            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
+            if (!string.IsNullOrEmpty(oldValue) && oldValue != "0" && oldValue != newValue)
+            {
+                LogChangeToDatabase(row.ID, "ZM", oldValue, newValue, row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
+            }
+
             SaveFieldToDatabase(row.ID, "DeclI5", row.ZM);
             UpdateStatus($"Zapisano ZM: {row.ZM} dla LP {row.Nr}");
+        }
+
+        #endregion
+
+        #region Rozliczenia Tab Handlers
+
+        private void BtnFilterRozliczenia_Click(object sender, RoutedEventArgs e)
+        {
+            LoadRozliczeniaData();
+        }
+
+        private void LoadRozliczeniaData()
+        {
+            // TODO: Implementacja ładowania danych rozliczeń
+            // Na razie placeholder - dane będą ładowane z tej samej tabeli FarmerCalc
+            UpdateStatus("Funkcja rozliczeń w przygotowaniu...");
+        }
+
+        private void BtnZatwierdzDzien_Click(object sender, RoutedEventArgs e)
+        {
+            // TODO: Implementacja zatwierdzania dnia
+            MessageBox.Show("Funkcja zatwierdzania dnia wymaga konfiguracji uprawnień.",
+                "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void BtnCofnijZatwierdzenie_Click(object sender, RoutedEventArgs e)
+        {
+            // TODO: Implementacja cofania zatwierdzenia (wymaga uprawnień przełożonego)
+            MessageBox.Show("Cofnięcie zatwierdzenia wymaga uprawnień przełożonego.",
+                "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void BtnExportSymfonia_Click(object sender, RoutedEventArgs e)
+        {
+            // TODO: Implementacja eksportu do Symfonii
+            MessageBox.Show("Funkcja eksportu do Symfonii w przygotowaniu.",
+                "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        #endregion
+
+        #region Admin Panel
+
+        private int _dniBlokady = 3;
+        private List<string> _przelozeni = new List<string> { "admin", "kierownik" };
+        private Dictionary<DateTime, bool> _odblokowaneDni = new Dictionary<DateTime, bool>();
+
+        private void BtnAdmin_Click(object sender, RoutedEventArgs e)
+        {
+            // Sprawdź czy użytkownik ma uprawnienia
+            string currentUser = Environment.UserName.ToLower();
+            if (!_przelozeni.Any(p => p.ToLower() == currentUser))
+            {
+                MessageBox.Show("Brak uprawnień do panelu administracyjnego.\nSkontaktuj się z przełożonym.",
+                    "Brak dostępu", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Pokaż/ukryj panel
+            adminPanel.Visibility = adminPanel.Visibility == Visibility.Visible
+                ? Visibility.Collapsed
+                : Visibility.Visible;
+
+            if (adminPanel.Visibility == Visibility.Visible)
+            {
+                LoadAdminSettings();
+                UpdateBlockingStatus();
+            }
+        }
+
+        private void BtnCloseAdmin_Click(object sender, RoutedEventArgs e)
+        {
+            adminPanel.Visibility = Visibility.Collapsed;
+        }
+
+        private void BtnSaveAdminSettings_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Pobierz wartości z UI
+                if (int.TryParse(txtDniBlokady.Text, out int dni))
+                {
+                    _dniBlokady = dni;
+                }
+
+                _przelozeni = txtPrzelozeni.Text
+                    .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(p => p.Trim())
+                    .Where(p => !string.IsNullOrEmpty(p))
+                    .ToList();
+
+                // Zapisz do bazy
+                SaveAdminSettings();
+
+                MessageBox.Show("Ustawienia zostały zapisane.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                UpdateBlockingStatus();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd zapisu ustawień: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnOdblokujDzien_Click(object sender, RoutedEventArgs e)
+        {
+            DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+            _odblokowaneDni[selectedDate] = true;
+            SaveDayUnlockStatus(selectedDate, true);
+            UpdateBlockingStatus();
+            UpdateStatus($"Dzień {selectedDate:yyyy-MM-dd} został odblokowany do edycji");
+        }
+
+        private void BtnZablokujDzien_Click(object sender, RoutedEventArgs e)
+        {
+            DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+            _odblokowaneDni[selectedDate] = false;
+            SaveDayUnlockStatus(selectedDate, false);
+            UpdateBlockingStatus();
+            UpdateStatus($"Dzień {selectedDate:yyyy-MM-dd} został zablokowany");
+        }
+
+        private void UpdateBlockingStatus()
+        {
+            DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+            int dniOdDostawy = (DateTime.Today - selectedDate).Days;
+            bool isUnlocked = _odblokowaneDni.ContainsKey(selectedDate) && _odblokowaneDni[selectedDate];
+
+            if (isUnlocked)
+            {
+                lblStatusBlokady.Text = $"Dzień {selectedDate:yyyy-MM-dd} - ODBLOKOWANY przez przełożonego";
+                lblStatusBlokady.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2E7D32"));
+                btnOdblokujDzien.Visibility = Visibility.Collapsed;
+                btnZablokujDzien.Visibility = Visibility.Visible;
+            }
+            else if (dniOdDostawy > _dniBlokady)
+            {
+                lblStatusBlokady.Text = $"Dzień {selectedDate:yyyy-MM-dd} - ZABLOKOWANY ({dniOdDostawy} dni temu)";
+                lblStatusBlokady.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C62828"));
+                btnOdblokujDzien.Visibility = Visibility.Visible;
+                btnZablokujDzien.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                lblStatusBlokady.Text = $"Dzień {selectedDate:yyyy-MM-dd} - edycja dozwolona (pozostało {_dniBlokady - dniOdDostawy} dni)";
+                lblStatusBlokady.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2E7D32"));
+                btnOdblokujDzien.Visibility = Visibility.Collapsed;
+                btnZablokujDzien.Visibility = Visibility.Visible;
+            }
+        }
+
+        private bool IsEditingAllowed(DateTime calcDate)
+        {
+            // Sprawdź czy dzień jest odblokowany
+            if (_odblokowaneDni.ContainsKey(calcDate) && _odblokowaneDni[calcDate])
+                return true;
+
+            // Sprawdź czy minęło więcej niż X dni
+            int dniOdDostawy = (DateTime.Today - calcDate).Days;
+            if (dniOdDostawy > _dniBlokady)
+            {
+                // Sprawdź czy użytkownik jest przełożonym
+                string currentUser = Environment.UserName.ToLower();
+                return _przelozeni.Any(p => p.ToLower() == currentUser);
+            }
+
+            return true;
+        }
+
+        private bool CheckEditingAllowed(DateTime calcDate)
+        {
+            if (IsEditingAllowed(calcDate))
+                return true;
+
+            int dniOdDostawy = (DateTime.Today - calcDate).Days;
+            MessageBox.Show(
+                $"Edycja dnia {calcDate:yyyy-MM-dd} jest zablokowana.\n\n" +
+                $"Minęło {dniOdDostawy} dni od daty dostawy (limit: {_dniBlokady} dni).\n\n" +
+                "Skontaktuj się z przełożonym w celu odblokowania.",
+                "Blokada edycji",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return false;
+        }
+
+        private void EnsureSymfoniaColumnExists()
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string addColumnSql = @"
+                        IF COL_LENGTH('FarmerCalc', 'Symfonia') IS NULL
+                        BEGIN
+                            ALTER TABLE dbo.FarmerCalc ADD Symfonia BIT DEFAULT 0
+                        END";
+                    using (SqlCommand cmd = new SqlCommand(addColumnSql, conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error adding Symfonia column: {ex.Message}");
+            }
+        }
+
+        private void EnsureSettingsTableExists()
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    string createTableSql = @"
+                        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FarmerCalcSettings')
+                        BEGIN
+                            CREATE TABLE [dbo].[FarmerCalcSettings] (
+                                [ID] INT IDENTITY(1,1) PRIMARY KEY,
+                                [SettingName] NVARCHAR(100) NOT NULL,
+                                [SettingValue] NVARCHAR(500) NULL,
+                                [ModifiedDate] DATETIME DEFAULT GETDATE(),
+                                [ModifiedBy] NVARCHAR(100) NULL
+                            )
+                        END;
+
+                        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FarmerCalcDayUnlock')
+                        BEGIN
+                            CREATE TABLE [dbo].[FarmerCalcDayUnlock] (
+                                [ID] INT IDENTITY(1,1) PRIMARY KEY,
+                                [CalcDate] DATE NOT NULL,
+                                [IsUnlocked] BIT DEFAULT 0,
+                                [UnlockedBy] NVARCHAR(100) NULL,
+                                [UnlockedDate] DATETIME DEFAULT GETDATE()
+                            )
+                        END";
+
+                    using (SqlCommand cmd = new SqlCommand(createTableSql, conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error creating settings tables: {ex.Message}");
+            }
+        }
+
+        private void LoadAdminSettings()
+        {
+            EnsureSettingsTableExists();
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Wczytaj dni blokady
+                    string queryDni = "SELECT SettingValue FROM FarmerCalcSettings WHERE SettingName = 'DniBlokady'";
+                    using (SqlCommand cmd = new SqlCommand(queryDni, conn))
+                    {
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && int.TryParse(result.ToString(), out int dni))
+                        {
+                            _dniBlokady = dni;
+                            txtDniBlokady.Text = dni.ToString();
+                        }
+                    }
+
+                    // Wczytaj przełożonych
+                    string queryPrzel = "SELECT SettingValue FROM FarmerCalcSettings WHERE SettingName = 'Przelozeni'";
+                    using (SqlCommand cmd = new SqlCommand(queryPrzel, conn))
+                    {
+                        var result = cmd.ExecuteScalar();
+                        if (result != null)
+                        {
+                            txtPrzelozeni.Text = result.ToString().Replace(";", Environment.NewLine);
+                            _przelozeni = result.ToString()
+                                .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                                .Select(p => p.Trim())
+                                .ToList();
+                        }
+                    }
+
+                    // Wczytaj odblokowane dni
+                    _odblokowaneDni.Clear();
+                    string queryUnlock = "SELECT CalcDate, IsUnlocked FROM FarmerCalcDayUnlock WHERE IsUnlocked = 1";
+                    using (SqlCommand cmd = new SqlCommand(queryUnlock, conn))
+                    {
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                DateTime date = reader.GetDateTime(0);
+                                _odblokowaneDni[date] = true;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error loading admin settings: {ex.Message}");
+            }
+        }
+
+        private void SaveAdminSettings()
+        {
+            EnsureSettingsTableExists();
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string user = Environment.UserName;
+
+                    // Zapisz dni blokady
+                    string mergeDni = @"
+                        MERGE FarmerCalcSettings AS target
+                        USING (SELECT 'DniBlokady' AS SettingName) AS source
+                        ON target.SettingName = source.SettingName
+                        WHEN MATCHED THEN UPDATE SET SettingValue = @Value, ModifiedDate = GETDATE(), ModifiedBy = @User
+                        WHEN NOT MATCHED THEN INSERT (SettingName, SettingValue, ModifiedBy) VALUES ('DniBlokady', @Value, @User);";
+
+                    using (SqlCommand cmd = new SqlCommand(mergeDni, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Value", _dniBlokady.ToString());
+                        cmd.Parameters.AddWithValue("@User", user);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Zapisz przełożonych (rozdzielonych średnikiem)
+                    string przelozeniStr = string.Join(";", _przelozeni);
+                    string mergePrzel = @"
+                        MERGE FarmerCalcSettings AS target
+                        USING (SELECT 'Przelozeni' AS SettingName) AS source
+                        ON target.SettingName = source.SettingName
+                        WHEN MATCHED THEN UPDATE SET SettingValue = @Value, ModifiedDate = GETDATE(), ModifiedBy = @User
+                        WHEN NOT MATCHED THEN INSERT (SettingName, SettingValue, ModifiedBy) VALUES ('Przelozeni', @Value, @User);";
+
+                    using (SqlCommand cmd = new SqlCommand(mergePrzel, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Value", przelozeniStr);
+                        cmd.Parameters.AddWithValue("@User", user);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd zapisu do bazy: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void SaveDayUnlockStatus(DateTime date, bool isUnlocked)
+        {
+            EnsureSettingsTableExists();
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string user = Environment.UserName;
+
+                    string mergeSql = @"
+                        MERGE FarmerCalcDayUnlock AS target
+                        USING (SELECT @CalcDate AS CalcDate) AS source
+                        ON target.CalcDate = source.CalcDate
+                        WHEN MATCHED THEN UPDATE SET IsUnlocked = @IsUnlocked, UnlockedBy = @User, UnlockedDate = GETDATE()
+                        WHEN NOT MATCHED THEN INSERT (CalcDate, IsUnlocked, UnlockedBy) VALUES (@CalcDate, @IsUnlocked, @User);";
+
+                    using (SqlCommand cmd = new SqlCommand(mergeSql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@CalcDate", date.Date);
+                        cmd.Parameters.AddWithValue("@IsUnlocked", isUnlocked);
+                        cmd.Parameters.AddWithValue("@User", user);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error saving day unlock status: {ex.Message}");
+            }
         }
 
         #endregion
@@ -5144,6 +6244,8 @@ namespace Kalendarz1
     {
         private int _id;
         private int _nr;
+        private int _number;        // Numer specyfikacji
+        private int _yearNumber;    // Numer w roku
         private string _dostawcaGID;
         private string _dostawca;
         private string _realDostawca;
@@ -5173,6 +6275,7 @@ namespace Kalendarz1
         private decimal _klasaB;
         private int _terminDni;
         private DateTime _dataUboju;
+        private bool _symfonia;
 
         // Pola transportowe
         private int? _driverGID;
@@ -5180,6 +6283,15 @@ namespace Kalendarz1
         private string _trailerID;
         private DateTime? _arrivalTime;
         private string _kierowcaNazwa;
+
+        // Godziny transportowe
+        private DateTime? _poczatekUslugi;
+        private DateTime? _wyjazd;
+        private DateTime? _dojazdHodowca;
+        private DateTime? _zaladunek;
+        private DateTime? _zaladunekKoniec;
+        private DateTime? _wyjazdHodowca;
+        private DateTime? _koniecUslugi;
 
         // Podświetlenie grupy dostawcy
         private bool _isHighlighted;
@@ -5206,6 +6318,18 @@ namespace Kalendarz1
         {
             get => _nr;
             set { _nr = value; OnPropertyChanged(nameof(Nr)); }
+        }
+
+        public int Number
+        {
+            get => _number;
+            set { _number = value; OnPropertyChanged(nameof(Number)); }
+        }
+
+        public int YearNumber
+        {
+            get => _yearNumber;
+            set { _yearNumber = value; OnPropertyChanged(nameof(YearNumber)); }
         }
 
         public string DostawcaGID
@@ -5366,6 +6490,12 @@ namespace Kalendarz1
             set { _terminDni = value; OnPropertyChanged(nameof(TerminDni)); OnPropertyChanged(nameof(TerminPlatnosci)); }
         }
 
+        public bool Symfonia
+        {
+            get => _symfonia;
+            set { _symfonia = value; OnPropertyChanged(nameof(Symfonia)); }
+        }
+
         public DateTime DataUboju
         {
             get => _dataUboju;
@@ -5401,6 +6531,49 @@ namespace Kalendarz1
         {
             get => _kierowcaNazwa;
             set { _kierowcaNazwa = value; OnPropertyChanged(nameof(KierowcaNazwa)); }
+        }
+
+        // === GODZINY TRANSPORTOWE ===
+        public DateTime? PoczatekUslugi
+        {
+            get => _poczatekUslugi;
+            set { _poczatekUslugi = value; OnPropertyChanged(nameof(PoczatekUslugi)); }
+        }
+
+        public DateTime? Wyjazd
+        {
+            get => _wyjazd;
+            set { _wyjazd = value; OnPropertyChanged(nameof(Wyjazd)); }
+        }
+
+        public DateTime? DojazdHodowca
+        {
+            get => _dojazdHodowca;
+            set { _dojazdHodowca = value; OnPropertyChanged(nameof(DojazdHodowca)); }
+        }
+
+        public DateTime? Zaladunek
+        {
+            get => _zaladunek;
+            set { _zaladunek = value; OnPropertyChanged(nameof(Zaladunek)); }
+        }
+
+        public DateTime? ZaladunekKoniec
+        {
+            get => _zaladunekKoniec;
+            set { _zaladunekKoniec = value; OnPropertyChanged(nameof(ZaladunekKoniec)); }
+        }
+
+        public DateTime? WyjazdHodowca
+        {
+            get => _wyjazdHodowca;
+            set { _wyjazdHodowca = value; OnPropertyChanged(nameof(WyjazdHodowca)); }
+        }
+
+        public DateTime? KoniecUslugi
+        {
+            get => _koniecUslugi;
+            set { _koniecUslugi = value; OnPropertyChanged(nameof(KoniecUslugi)); }
         }
 
         // === WŁAŚCIWOŚCI OBLICZANE ===
@@ -5612,6 +6785,14 @@ namespace Kalendarz1
         private string _status;
         private string _uwagi;
 
+        // Godziny transportowe
+        private DateTime? _poczatekUslugi;
+        private DateTime? _dojazdHodowca;
+        private DateTime? _zaladunek;
+        private DateTime? _zaladunekKoniec;
+        private DateTime? _wyjazdHodowca;
+        private DateTime? _koniecUslugi;
+
         public int Nr
         {
             get => _nr;
@@ -5682,6 +6863,137 @@ namespace Kalendarz1
         {
             get => _uwagi;
             set { _uwagi = value; OnPropertyChanged(nameof(Uwagi)); }
+        }
+
+        // === GODZINY TRANSPORTOWE ===
+        public DateTime? PoczatekUslugi
+        {
+            get => _poczatekUslugi;
+            set { _poczatekUslugi = value; OnPropertyChanged(nameof(PoczatekUslugi)); OnPropertyChanged(nameof(CzasCalkowity)); }
+        }
+
+        public DateTime? DojazdHodowca
+        {
+            get => _dojazdHodowca;
+            set { _dojazdHodowca = value; OnPropertyChanged(nameof(DojazdHodowca)); OnPropertyChanged(nameof(CzasDojazd)); OnPropertyChanged(nameof(CzasPostoj)); }
+        }
+
+        public DateTime? Zaladunek
+        {
+            get => _zaladunek;
+            set { _zaladunek = value; OnPropertyChanged(nameof(Zaladunek)); OnPropertyChanged(nameof(CzasZaladunek)); }
+        }
+
+        public DateTime? ZaladunekKoniec
+        {
+            get => _zaladunekKoniec;
+            set { _zaladunekKoniec = value; OnPropertyChanged(nameof(ZaladunekKoniec)); OnPropertyChanged(nameof(CzasZaladunek)); }
+        }
+
+        public DateTime? WyjazdHodowca
+        {
+            get => _wyjazdHodowca;
+            set { _wyjazdHodowca = value; OnPropertyChanged(nameof(WyjazdHodowca)); OnPropertyChanged(nameof(CzasPostoj)); OnPropertyChanged(nameof(CzasRozladunek)); }
+        }
+
+        public DateTime? KoniecUslugi
+        {
+            get => _koniecUslugi;
+            set { _koniecUslugi = value; OnPropertyChanged(nameof(KoniecUslugi)); OnPropertyChanged(nameof(CzasCalkowity)); }
+        }
+
+        // === OBLICZONE CZASY TRWANIA ===
+
+        /// <summary>
+        /// Czas dojazdu do hodowcy (GodzinaWyjazdu -> DojazdHodowca)
+        /// </summary>
+        public string CzasDojazd
+        {
+            get
+            {
+                if (GodzinaWyjazdu.HasValue && DojazdHodowca.HasValue)
+                {
+                    var diff = DojazdHodowca.Value - GodzinaWyjazdu.Value;
+                    return FormatTimeSpan(diff);
+                }
+                return "";
+            }
+        }
+
+        /// <summary>
+        /// Czas załadunku (Zaladunek -> ZaladunekKoniec)
+        /// </summary>
+        public string CzasZaladunek
+        {
+            get
+            {
+                if (Zaladunek.HasValue && ZaladunekKoniec.HasValue)
+                {
+                    var diff = ZaladunekKoniec.Value - Zaladunek.Value;
+                    return FormatTimeSpan(diff);
+                }
+                return "";
+            }
+        }
+
+        /// <summary>
+        /// Czas postoju u hodowcy (DojazdHodowca -> WyjazdHodowca)
+        /// </summary>
+        public string CzasPostoj
+        {
+            get
+            {
+                if (DojazdHodowca.HasValue && WyjazdHodowca.HasValue)
+                {
+                    var diff = WyjazdHodowca.Value - DojazdHodowca.Value;
+                    return FormatTimeSpan(diff);
+                }
+                return "";
+            }
+        }
+
+        /// <summary>
+        /// Czas powrotu (WyjazdHodowca -> GodzinaPrzyjazdu)
+        /// </summary>
+        public string CzasRozladunek
+        {
+            get
+            {
+                if (WyjazdHodowca.HasValue && GodzinaPrzyjazdu.HasValue)
+                {
+                    var diff = GodzinaPrzyjazdu.Value - WyjazdHodowca.Value;
+                    return FormatTimeSpan(diff);
+                }
+                return "";
+            }
+        }
+
+        /// <summary>
+        /// Całkowity czas usługi (PoczatekUslugi -> KoniecUslugi lub GodzinaWyjazdu -> GodzinaPrzyjazdu)
+        /// </summary>
+        public string CzasCalkowity
+        {
+            get
+            {
+                if (PoczatekUslugi.HasValue && KoniecUslugi.HasValue)
+                {
+                    var diff = KoniecUslugi.Value - PoczatekUslugi.Value;
+                    return FormatTimeSpan(diff);
+                }
+                else if (GodzinaWyjazdu.HasValue && GodzinaPrzyjazdu.HasValue)
+                {
+                    var diff = GodzinaPrzyjazdu.Value - GodzinaWyjazdu.Value;
+                    return FormatTimeSpan(diff);
+                }
+                return "";
+            }
+        }
+
+        private string FormatTimeSpan(TimeSpan ts)
+        {
+            if (ts.TotalHours < 0)
+                return $"-{(int)Math.Abs(ts.TotalHours)}:{Math.Abs(ts.Minutes):D2}";
+            return $"{(int)ts.TotalHours}:{ts.Minutes:D2}";
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -5784,7 +7096,8 @@ namespace Kalendarz1
         Ubytek = 4,
         TypCeny = 8,
         TerminDni = 16,
-        All = Cena | Dodatek | Ubytek | TypCeny | TerminDni
+        PiK = 32,
+        All = Cena | Dodatek | Ubytek | TypCeny | TerminDni | PiK
     }
 
     /// <summary>
@@ -5797,7 +7110,8 @@ namespace Kalendarz1
         public decimal? Ubytek { get; set; }
         public string TypCeny { get; set; }
         public int? TerminDni { get; set; }
-        public bool HasData => Cena.HasValue || Dodatek.HasValue || Ubytek.HasValue || TypCeny != null || TerminDni.HasValue;
+        public bool? PiK { get; set; }
+        public bool HasData => Cena.HasValue || Dodatek.HasValue || Ubytek.HasValue || TypCeny != null || TerminDni.HasValue || PiK.HasValue;
 
         public void Clear()
         {
@@ -5806,6 +7120,7 @@ namespace Kalendarz1
             Ubytek = null;
             TypCeny = null;
             TerminDni = null;
+            PiK = null;
         }
 
         public void CopyFrom(SpecyfikacjaRow row)
@@ -5815,6 +7130,7 @@ namespace Kalendarz1
             Ubytek = row.Ubytek;
             TypCeny = row.TypCeny;
             TerminDni = row.TerminDni;
+            PiK = row.PiK;
         }
 
         public override string ToString()
@@ -5825,6 +7141,7 @@ namespace Kalendarz1
             if (Ubytek.HasValue) parts.Add($"Ubytek={Ubytek:F2}%");
             if (TypCeny != null) parts.Add($"TypCeny={TypCeny}");
             if (TerminDni.HasValue) parts.Add($"Termin={TerminDni}dni");
+            if (PiK.HasValue) parts.Add($"PiK={PiK}");
             return string.Join(", ", parts);
         }
     }
@@ -5876,6 +7193,52 @@ namespace Kalendarz1
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
             throw new NotImplementedException();
+        }
+    }
+
+    /// <summary>
+    /// Klasa modelu danych dla karty Rozliczenia
+    /// </summary>
+    public class RozliczenieRow : INotifyPropertyChanged
+    {
+        public int ID { get; set; }
+        public DateTime Data { get; set; }
+        public int Nr { get; set; }
+        public string Dostawca { get; set; }
+        public int SztukiDek { get; set; }
+        public decimal NettoKg { get; set; }
+        public decimal Cena { get; set; }
+        public string TypCeny { get; set; }
+        public decimal Wartosc { get; set; }
+
+        private bool _symfonia;
+        public bool Symfonia
+        {
+            get => _symfonia;
+            set { _symfonia = value; OnPropertyChanged(nameof(Symfonia)); }
+        }
+
+        private bool _arimr;
+        public bool ARIMR
+        {
+            get => _arimr;
+            set { _arimr = value; OnPropertyChanged(nameof(ARIMR)); }
+        }
+
+        private bool _zatwierdzony;
+        public bool Zatwierdzony
+        {
+            get => _zatwierdzony;
+            set { _zatwierdzony = value; OnPropertyChanged(nameof(Zatwierdzony)); }
+        }
+
+        public string ZatwierdzonePrzez { get; set; }
+        public DateTime? DataZatwierdzenia { get; set; }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 }

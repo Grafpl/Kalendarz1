@@ -70,19 +70,18 @@
         </Style>
 
         <Style x:Key="DataGridRowHoverStyle" TargetType="DataGridRow">
-            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Background" Value="White"/>
             <Setter Property="Foreground" Value="Black"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
             <Style.Triggers>
                 <!-- 1. Hover (najniższy priorytet) -->
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="#E3F2FD"/>
-                    <Setter Property="Foreground" Value="Black"/>
                 </Trigger>
                 <!-- 2. Zaznaczenie -->
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="#BBDEFB"/>
-                    <Setter Property="Foreground" Value="Black"/>
                 </Trigger>
                 <!-- 3. Hover + Zaznaczenie -->
                 <MultiTrigger>
@@ -91,28 +90,26 @@
                         <Condition Property="IsSelected" Value="True"/>
                     </MultiTrigger.Conditions>
                     <Setter Property="Background" Value="#90CAF9"/>
-                    <Setter Property="Foreground" Value="Black"/>
                 </MultiTrigger>
-                <!-- 4. Podświetlenie grupy dostawcy (niezaznaczony) - NAJWYŻSZY PRIORYTET -->
+                <!-- 4. PODŚWIETLENIE GRUPY - subtelne, bez zmiany układu -->
+                <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
+                    <Setter Property="Background" Value="#FFF8E1"/>
+                </DataTrigger>
+                <!-- 5. Podświetlenie + hover -->
                 <MultiDataTrigger>
                     <MultiDataTrigger.Conditions>
                         <Condition Binding="{Binding IsHighlighted}" Value="True"/>
-                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="False"/>
-                    </MultiDataTrigger.Conditions>
-                    <Setter Property="Background" Value="#FFECB3"/>
-                    <Setter Property="BorderBrush" Value="#FFB74D"/>
-                    <Setter Property="BorderThickness" Value="2,0,0,0"/>
-                </MultiDataTrigger>
-                <!-- 5. Podświetlenie grupy + hover -->
-                <MultiDataTrigger>
-                    <MultiDataTrigger.Conditions>
-                        <Condition Binding="{Binding IsHighlighted}" Value="True"/>
-                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="False"/>
                         <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True"/>
                     </MultiDataTrigger.Conditions>
+                    <Setter Property="Background" Value="#FFECB3"/>
+                </MultiDataTrigger>
+                <!-- 6. Podświetlenie + zaznaczenie -->
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsHighlighted}" Value="True"/>
+                        <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="True"/>
+                    </MultiDataTrigger.Conditions>
                     <Setter Property="Background" Value="#FFE082"/>
-                    <Setter Property="BorderBrush" Value="#FFA000"/>
-                    <Setter Property="BorderThickness" Value="2,0,0,0"/>
                 </MultiDataTrigger>
             </Style.Triggers>
         </Style>
@@ -386,96 +383,12 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
-                    <Button x:Name="btnMoveUp"
-                            Click="BtnMoveUp_Click"
-                            Background="#27AE60"
-                            Foreground="White"
-                            Width="32"
-                            Height="28"
-                            Margin="0,0,2,0"
-                            FontSize="16"
-                            FontWeight="Bold"
-                            Content="▲"
-                            Cursor="Hand"
-                            BorderThickness="0"
-                            ToolTip="Przesuń wiersz w górę">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4" Padding="0">
-                                    <TextBlock Text="{TemplateBinding Content}"
-                                               Foreground="{TemplateBinding Foreground}"
-                                               FontSize="{TemplateBinding FontSize}"
-                                               FontWeight="{TemplateBinding FontWeight}"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"/>
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#2ECC71"/>
-                                    </Trigger>
-                                    <Trigger Property="IsPressed" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#1E8449"/>
-                                    </Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
-                    <Button x:Name="btnMoveDown"
-                            Click="BtnMoveDown_Click"
-                            Background="#E74C3C"
-                            Foreground="White"
-                            Width="32"
-                            Height="28"
-                            Margin="0,0,5,0"
-                            FontSize="16"
-                            FontWeight="Bold"
-                            Content="▼"
-                            Cursor="Hand"
-                            BorderThickness="0"
-                            ToolTip="Przesuń wiersz w dół">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4" Padding="0">
-                                    <TextBlock Text="{TemplateBinding Content}"
-                                               Foreground="{TemplateBinding Foreground}"
-                                               FontSize="{TemplateBinding FontSize}"
-                                               FontWeight="{TemplateBinding FontWeight}"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"/>
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#EC7063"/>
-                                    </Trigger>
-                                    <Trigger Property="IsPressed" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#C0392B"/>
-                                    </Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
-                    <Button Content="AVILOG"
-                            x:Name="buttonBon"
-                            Click="ButtonBon_Click"
-                            Style="{StaticResource MainButtonStyle}"
-                            Background="#3498DB"/>
-                    <Button Content="LUMEL"
-                            x:Name="btnLoadData"
-                            Click="BtnLoadData_Click"
-                            Style="{StaticResource MainButtonStyle}"
-                            Background="#9B59B6"/>
                     <Button Content="DRUKUJ PDF"
                             x:Name="button1"
                             Click="Button1_Click"
                             Style="{StaticResource MainButtonStyle}"
                             Background="#E67E22"
                             ToolTip="Drukuj specyfikację dla wybranego dostawcy"/>
-                    <Button Content="DRUKUJ WSZYSTKO"
-                            x:Name="btnPrintAll"
-                            Click="BtnPrintAll_Click"
-                            Style="{StaticResource MainButtonStyle}"
-                            Background="#D35400"
-                            ToolTip="Drukuj wszystkie specyfikacje z dnia"/>
                     <Button Content="📁"
                             x:Name="btnPdfSettings"
                             Click="BtnPdfSettings_Click"
@@ -489,20 +402,82 @@
                             Style="{StaticResource MainButtonStyle}"
                             Background="#16A085"
                             ToolTip="SMS z rozliczeniem"/>
-                    <Button Content="🚛 ZAŁADUNEK"
-                            x:Name="btnSmsZaladunek"
-                            Click="BtnSmsZaladunek_Click"
-                            Style="{StaticResource MainButtonStyle}"
-                            Background="#3498DB"
-                            ToolTip="SMS z godziną przyjazdu auta"/>
                     <Button Content="📧 EMAIL"
                             x:Name="btnSendEmail"
                             Click="BtnSendEmail_Click"
                             Style="{StaticResource MainButtonStyle}"
                             Background="#E74C3C"
                             ToolTip="Wyślij email z PDF w załączniku"/>
+                    <Button Content="⚙️ Admin"
+                            x:Name="btnAdmin"
+                            Click="BtnAdmin_Click"
+                            Style="{StaticResource MainButtonStyle}"
+                            Background="#34495E"
+                            ToolTip="Panel administracyjny - ustawienia blokady edycji"/>
                 </StackPanel>
             </Grid>
+        </Border>
+
+        <!-- Panel Administracyjny (domyślnie ukryty) -->
+        <Border x:Name="adminPanel" Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Right"
+                Background="White" CornerRadius="10" Margin="20,60,20,0" Padding="15"
+                Visibility="Collapsed" Panel.ZIndex="1000">
+            <Border.Effect>
+                <DropShadowEffect ShadowDepth="3" Color="#000000" Opacity="0.2" BlurRadius="15"/>
+            </Border.Effect>
+            <StackPanel Width="350">
+                <TextBlock Text="⚙️ Panel Administracyjny" FontSize="16" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,15"/>
+
+                <!-- Ustawienia blokady -->
+                <Border Background="#F5F5F5" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="Blokada edycji" FontWeight="SemiBold" Foreground="#34495E" Margin="0,0,0,8"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                            <TextBlock Text="Dni od przyjęcia drobiu:" VerticalAlignment="Center" Width="150"/>
+                            <TextBox x:Name="txtDniBlokady" Width="60" Text="3" TextAlignment="Center"
+                                     VerticalContentAlignment="Center" Height="28"/>
+                            <TextBlock Text="dni" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                        </StackPanel>
+                        <TextBlock Text="Po tym czasie edycja wymaga zgody przełożonego"
+                                   FontSize="11" Foreground="#7F8C8D" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Status blokady dla wybranego dnia -->
+                <Border Background="#FFF3E0" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="Status wybranego dnia" FontWeight="SemiBold" Foreground="#E65100" Margin="0,0,0,5"/>
+                        <TextBlock x:Name="lblStatusBlokady" Text="Dzień odblokowany do edycji" Foreground="#2E7D32"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button x:Name="btnOdblokujDzien" Content="🔓 Odblokuj dzień"
+                                    Padding="10,5" Background="#27AE60" Foreground="White"
+                                    BorderThickness="0" Cursor="Hand" Click="BtnOdblokujDzien_Click"
+                                    Margin="0,0,10,0" Visibility="Collapsed"/>
+                            <Button x:Name="btnZablokujDzien" Content="🔒 Zablokuj dzień"
+                                    Padding="10,5" Background="#E74C3C" Foreground="White"
+                                    BorderThickness="0" Cursor="Hand" Click="BtnZablokujDzien_Click"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Lista przełożonych -->
+                <Border Background="#E8F5E9" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="Przełożeni (mogą odblokować)" FontWeight="SemiBold" Foreground="#2E7D32" Margin="0,0,0,5"/>
+                        <TextBox x:Name="txtPrzelozeni" Height="60" TextWrapping="Wrap" AcceptsReturn="True"
+                                 Text="admin&#x0a;kierownik" VerticalScrollBarVisibility="Auto"/>
+                        <TextBlock Text="Jeden login na linię" FontSize="11" Foreground="#7F8C8D" Margin="0,3,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Przyciski -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Zapisz ustawienia" Padding="15,8" Background="#3498DB" Foreground="White"
+                            BorderThickness="0" Cursor="Hand" Click="BtnSaveAdminSettings_Click" Margin="0,0,10,0"/>
+                    <Button Content="Zamknij" Padding="15,8" Background="#95A5A6" Foreground="White"
+                            BorderThickness="0" Cursor="Hand" Click="BtnCloseAdmin_Click"/>
+                </StackPanel>
+            </StackPanel>
         </Border>
 
         <TabControl Grid.Row="1" Margin="20,15,20,10" x:Name="mainTabControl" SelectionChanged="MainTabControl_SelectionChanged">
@@ -558,50 +533,33 @@
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Szybkie akcje:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,10,0"/>
 
-                                <Button x:Name="btnCopySettings" Click="ToolBar_CopySettings"
-                                        Content="Kopiuj" ToolTip="Kopiuj ustawienia cenowe wiersza (Ctrl+Shift+C)"
-                                        Padding="10,4" Margin="0,0,5,0" Background="#2196F3" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand"/>
-                                <Button x:Name="btnPasteSettings" Click="ToolBar_PasteSettings"
-                                        Content="Wklej" ToolTip="Wklej ustawienia cenowe (Ctrl+Shift+V)"
-                                        Padding="10,4" Margin="0,0,5,0" Background="#4CAF50" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand"/>
+                                <Button x:Name="btnMoveUp" Click="BtnMoveUp_Click"
+                                        Content="▲" ToolTip="Przesuń wiersz w górę"
+                                        Padding="8,4" Margin="0,0,2,0" Background="#27AE60" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand" FontWeight="Bold"/>
+                                <Button x:Name="btnMoveDown" Click="BtnMoveDown_Click"
+                                        Content="▼" ToolTip="Przesuń wiersz w dół"
+                                        Padding="8,4" Margin="0,0,5,0" Background="#E74C3C" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand" FontWeight="Bold"/>
 
                                 <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
 
                                 <Button x:Name="btnApplyAllToSupplier" Click="ToolBar_ApplyAllToSupplier"
                                         Content="Zastosuj WSZYSTKO do dostawcy"
                                         ToolTip="Zastosuj wszystkie ustawienia cenowe do wierszy tego samego dostawcy (Ctrl+Shift+A)"
-                                        Padding="10,4" Margin="5,0,5,0" Background="#FF9800" Foreground="White"
+                                        Padding="10,4" Margin="0,0,5,0" Background="#FF9800" Foreground="White"
                                         BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
 
                                 <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
 
-                                <Button x:Name="btnApplyCenaToSupplier" Click="ToolBar_ApplyCenaToSupplier"
-                                        Content="Cena" ToolTip="Zastosuj cene do wszystkich wierszy dostawcy"
-                                        Padding="8,4" Margin="5,0,2,0" Background="#1976D2" Foreground="White"
+                                <Button x:Name="buttonBon" Click="ButtonBon_Click"
+                                        Content="AVILOG" ToolTip="Wczytaj dane z AVILOG"
+                                        Padding="10,4" Margin="5,0,2,0" Background="#3498DB" Foreground="White"
                                         BorderThickness="0" Cursor="Hand"/>
-                                <Button x:Name="btnApplyDodatekToSupplier" Click="ToolBar_ApplyDodatekToSupplier"
-                                        Content="Dodatek" ToolTip="Zastosuj dodatek do wszystkich wierszy dostawcy"
-                                        Padding="8,4" Margin="2,0,2,0" Background="#1976D2" Foreground="White"
+                                <Button x:Name="btnLoadData" Click="BtnLoadData_Click"
+                                        Content="LUMEL" ToolTip="Wczytaj dane z LUMEL"
+                                        Padding="10,4" Margin="2,0,5,0" Background="#9B59B6" Foreground="White"
                                         BorderThickness="0" Cursor="Hand"/>
-                                <Button x:Name="btnApplyUbytekToSupplier" Click="ToolBar_ApplyUbytekToSupplier"
-                                        Content="Ubytek" ToolTip="Zastosuj ubytek do wszystkich wierszy dostawcy"
-                                        Padding="8,4" Margin="2,0,2,0" Background="#1976D2" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand"/>
-                                <Button x:Name="btnApplyTypCenyToSupplier" Click="ToolBar_ApplyTypCenyToSupplier"
-                                        Content="Typ Ceny" ToolTip="Zastosuj typ ceny do wszystkich wierszy dostawcy"
-                                        Padding="8,4" Margin="2,0,5,0" Background="#1976D2" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand"/>
-
-                                <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
-
-                                <Button x:Name="btnApplyTemplate" Click="ToolBar_ApplyTemplate"
-                                        Content="Szablon z historii" ToolTip="Wypelnij puste pola ustawieniami z ostatniej dostawy tego dostawcy"
-                                        Padding="10,4" Margin="5,0,5,0" Background="#9C27B0" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand"/>
-
-                                <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
 
                                 <TextBlock x:Name="lblClipboardInfo" Text="" VerticalAlignment="Center"
                                            FontStyle="Italic" Foreground="#757575" Margin="10,0,0,0"/>
@@ -622,7 +580,6 @@
                       Background="White"
                       BorderThickness="0"
                       FontSize="11"
-                      AlternatingRowBackground="#FAFAFA"
                       ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
                       RowStyle="{StaticResource DataGridRowHoverStyle}"
                       CellEditEnding="DataGridView1_CellEditEnding"
@@ -689,6 +646,28 @@
                                            ToolTip="{Binding PdfPath}"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <DataGridTemplateColumn Header="Nr spec." Width="55" SortMemberPath="Number" ToolTipService.ToolTip="Numer specyfikacji - edytowalny, następne wiersze +1">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Number}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="12"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                    <DataGridTemplateColumn.CellEditingTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding Number, UpdateSourceTrigger=PropertyChanged}"
+                                                     HorizontalContentAlignment="Center"
+                                                     VerticalContentAlignment="Center"
+                                                     FontSize="12"
+                                                     GotFocus="Number_GotFocus"
+                                                     LostFocus="Number_LostFocus"
+                                                     Tag="{Binding}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellEditingTemplate>
                                 </DataGridTemplateColumn>
 
                                 <DataGridTemplateColumn Header="Dostawca" Width="160" SortMemberPath="Dostawca">
@@ -778,6 +757,7 @@
                                             <TextBox Text="{Binding SztukiDek, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                          Style="{StaticResource NumericTextBoxStyle}"
                                          FontWeight="SemiBold"
+                                         GotFocus="SztukiDek_GotFocus"
                                          LostFocus="SztukiDek_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -795,6 +775,7 @@
                                             <TextBox Text="{Binding Padle, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                          Style="{StaticResource NumericTextBoxStyle}"
                                          Foreground="#BF360C"
+                                         GotFocus="Padle_GotFocus"
                                          LostFocus="Padle_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -811,6 +792,7 @@
                                         <DataTemplate>
                                             <TextBox Text="{Binding CH, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                          Style="{StaticResource NumericTextBoxStyle}"
+                                         GotFocus="CH_GotFocus"
                                          LostFocus="CH_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -827,6 +809,7 @@
                                         <DataTemplate>
                                             <TextBox Text="{Binding NW, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                          Style="{StaticResource NumericTextBoxStyle}"
+                                         GotFocus="NW_GotFocus"
                                          LostFocus="NW_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -843,6 +826,7 @@
                                         <DataTemplate>
                                             <TextBox Text="{Binding ZM, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                          Style="{StaticResource NumericTextBoxStyle}"
+                                         GotFocus="ZM_GotFocus"
                                          LostFocus="ZM_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -861,6 +845,7 @@
                                          Style="{StaticResource NumericTextBoxStyle}"
                                          FontWeight="Bold"
                                          Foreground="#7B1FA2"
+                                         GotFocus="LUMEL_GotFocus"
                                          LostFocus="LUMEL_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -995,6 +980,7 @@
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
                                                      KeyDown="Cena_KeyDown"
+                                                     GotFocus="Cena_GotFocus"
                                                      LostFocus="Cena_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -1012,6 +998,7 @@
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
                                                      KeyDown="Dodatek_KeyDown"
+                                                     GotFocus="Dodatek_GotFocus"
                                                      LostFocus="Dodatek_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -1020,7 +1007,7 @@
                                 <DataGridTemplateColumn Header="Typ Ceny" Width="105" HeaderStyle="{StaticResource CenaHeaderStyle}">
                                     <DataGridTemplateColumn.CellStyle>
                                         <Style TargetType="DataGridCell">
-                                            <Setter Property="Background" Value="#BBDEFB"/>
+                                            <Setter Property="Background" Value="Transparent"/>
                                             <Setter Property="BorderThickness" Value="0"/>
                                         </Style>
                                     </DataGridTemplateColumn.CellStyle>
@@ -1028,17 +1015,79 @@
                                         <DataTemplate>
                                             <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ListaTypowCen}"
                                                       SelectedItem="{Binding TypCeny, UpdateSourceTrigger=PropertyChanged}"
-                                                      Background="#BBDEFB"
-                                                      Padding="5"
                                                       VerticalContentAlignment="Center"
                                                       SelectionChanged="TypCeny_SelectionChanged"
                                                       IsHitTestVisible="True"
                                                       MaxDropDownHeight="200">
-                                                <ComboBox.ItemsPanel>
-                                                    <ItemsPanelTemplate>
-                                                        <VirtualizingStackPanel IsVirtualizing="True" VirtualizationMode="Recycling"/>
-                                                    </ItemsPanelTemplate>
-                                                </ComboBox.ItemsPanel>
+                                                <ComboBox.Style>
+                                                    <Style TargetType="ComboBox">
+                                                        <Setter Property="Background" Value="#BBDEFB"/>
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="ComboBox">
+                                                                    <Grid>
+                                                                        <ToggleButton x:Name="ToggleButton"
+                                                                                      Focusable="false"
+                                                                                      IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                                                                      ClickMode="Press">
+                                                                            <ToggleButton.Template>
+                                                                                <ControlTemplate TargetType="ToggleButton">
+                                                                                    <Border x:Name="Border" Background="{Binding Background, RelativeSource={RelativeSource AncestorType=ComboBox}}" BorderBrush="#ABADB3" BorderThickness="1">
+                                                                                        <Grid>
+                                                                                            <Grid.ColumnDefinitions>
+                                                                                                <ColumnDefinition/>
+                                                                                                <ColumnDefinition Width="18"/>
+                                                                                            </Grid.ColumnDefinitions>
+                                                                                            <Path x:Name="Arrow" Grid.Column="1" Fill="#333" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                                                  Data="M 0 0 L 4 4 L 8 0 Z"/>
+                                                                                        </Grid>
+                                                                                    </Border>
+                                                                                </ControlTemplate>
+                                                                            </ToggleButton.Template>
+                                                                        </ToggleButton>
+                                                                        <ContentPresenter x:Name="ContentSite"
+                                                                                          IsHitTestVisible="False"
+                                                                                          Content="{TemplateBinding SelectionBoxItem}"
+                                                                                          ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                                                          ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                                                                          Margin="5,3,23,3"
+                                                                                          VerticalAlignment="Center"
+                                                                                          HorizontalAlignment="Left"/>
+                                                                        <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                                                               AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                                                            <Grid x:Name="DropDown" SnapsToDevicePixels="True"
+                                                                                  MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                                                                <Border x:Name="DropDownBorder" Background="White" BorderBrush="#888" BorderThickness="1"/>
+                                                                                <ScrollViewer Margin="2" SnapsToDevicePixels="True">
+                                                                                    <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                                                                </ScrollViewer>
+                                                                            </Grid>
+                                                                        </Popup>
+                                                                    </Grid>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="IsEnabled" Value="False">
+                                                                            <Setter Property="Foreground" Value="#888"/>
+                                                                        </Trigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding TypCeny}" Value="wolnyrynek">
+                                                                <Setter Property="Background" Value="#FFEB3B"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding TypCeny}" Value="łączona">
+                                                                <Setter Property="Background" Value="#CE93D8"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding TypCeny}" Value="ministerialna">
+                                                                <Setter Property="Background" Value="#64B5F6"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding TypCeny}" Value="rolnicza">
+                                                                <Setter Property="Background" Value="#81C784"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </ComboBox.Style>
                                             </ComboBox>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -1054,6 +1103,7 @@
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
                                                      KeyDown="Ubytek_KeyDown"
+                                                     GotFocus="Ubytek_GotFocus"
                                                      LostFocus="Ubytek_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -1087,6 +1137,7 @@
                                                      Style="{StaticResource NumericTextBoxStyle}"
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
+                                                     GotFocus="Opasienie_GotFocus"
                                                      LostFocus="Opasienie_LostFocus"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -1102,45 +1153,8 @@
                                                      Style="{StaticResource NumericTextBoxStyle}"
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
+                                                     GotFocus="KlasaB_GotFocus"
                                                      LostFocus="KlasaB_LostFocus"/>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-
-                                <DataGridTemplateColumn Header="Do zapł." Width="75" IsReadOnly="True" HeaderStyle="{StaticResource CenaHeaderStyle}">
-                                    <DataGridTemplateColumn.CellStyle>
-                                        <Style TargetType="DataGridCell">
-                                            <Setter Property="Background" Value="#A5D6A7"/>
-                                            <Setter Property="BorderThickness" Value="0"/>
-                                        </Style>
-                                    </DataGridTemplateColumn.CellStyle>
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding DoZaplaty, Converter={StaticResource ZeroToEmptyConverter}}"
-                                           HorizontalAlignment="Right"
-                                           VerticalAlignment="Center"
-                                           Padding="0,0,8,0"
-                                           FontWeight="Bold"
-                                           Foreground="#2E7D32"/>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-
-                                <DataGridTemplateColumn Header="Wartość" Width="100" IsReadOnly="True" HeaderStyle="{StaticResource CenaHeaderStyle}">
-                                    <DataGridTemplateColumn.CellStyle>
-                                        <Style TargetType="DataGridCell">
-                                            <Setter Property="Background" Value="#A5D6A7"/>
-                                            <Setter Property="BorderThickness" Value="0"/>
-                                        </Style>
-                                    </DataGridTemplateColumn.CellStyle>
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding Wartosc, Converter={StaticResource ZeroToEmptyConverter}}"
-                                           HorizontalAlignment="Right"
-                                           VerticalAlignment="Center"
-                                           Padding="0,0,8,0"
-                                           FontWeight="Bold"
-                                           Foreground="#1B5E20"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -1151,6 +1165,24 @@
                                             <TextBox Text="{Binding TerminDni, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                      Style="{StaticResource NumericTextBoxStyle}"
                                                      FontWeight="SemiBold"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <DataGridTemplateColumn Header="Symf." Width="45" ToolTipService.ToolTip="Przeniesione do Symfonii">
+                                    <DataGridTemplateColumn.CellStyle>
+                                        <Style TargetType="DataGridCell">
+                                            <Setter Property="Background" Value="#E1BEE7"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                        </Style>
+                                    </DataGridTemplateColumn.CellStyle>
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding Symfonia, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"
+                                                      Checked="Symfonia_Changed"
+                                                      Unchecked="Symfonia_Changed"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -1351,7 +1383,7 @@
                                   EnableRowVirtualization="True">
 
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="LP" Binding="{Binding Nr}" Width="45" IsReadOnly="True">
+                                <DataGridTextColumn Header="LP" Binding="{Binding Nr}" Width="35" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -1361,7 +1393,7 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="Kierowca" Binding="{Binding Kierowca, Mode=TwoWay}" Width="150">
+                                <DataGridTextColumn Header="Kierowca" Binding="{Binding Kierowca, Mode=TwoWay}" Width="120">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -1370,7 +1402,7 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="Samochód" Binding="{Binding Samochod, Mode=TwoWay}" Width="120">
+                                <DataGridTextColumn Header="Samochód" Binding="{Binding Samochod, Mode=TwoWay}" Width="90">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -1380,7 +1412,7 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="Nr rej." Binding="{Binding NrRejestracyjny, Mode=TwoWay}" Width="100">
+                                <DataGridTextColumn Header="Nr rej." Binding="{Binding NrRejestracyjny, Mode=TwoWay}" Width="85">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -1389,7 +1421,23 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="Wyjazd" Binding="{Binding GodzinaWyjazdu, Mode=TwoWay, StringFormat=HH:mm}" Width="70">
+                                <!-- === GODZINY TRANSPORTOWE === -->
+                                <DataGridTextColumn Header="Start" Binding="{Binding PoczatekUslugi, StringFormat=HH:mm}" Width="50" IsReadOnly="True">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
+                                            <Setter Property="Background" Value="#607D8B"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="Foreground" Value="#607D8B"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <DataGridTextColumn Header="Wyjazd" Binding="{Binding GodzinaWyjazdu, StringFormat=HH:mm}" Width="55" IsReadOnly="True">
                                     <DataGridTextColumn.HeaderStyle>
                                         <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
                                             <Setter Property="Background" Value="#27AE60"/>
@@ -1405,7 +1453,115 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="Przyjazd" Binding="{Binding GodzinaPrzyjazdu, Mode=TwoWay, StringFormat=HH:mm}" Width="70">
+                                <DataGridTextColumn Header="Dojazd" Binding="{Binding DojazdHodowca, StringFormat=HH:mm}" Width="55" IsReadOnly="True">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
+                                            <Setter Property="Background" Value="#2196F3"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="Foreground" Value="#2196F3"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <DataGridTextColumn Header="Czas dojazdu" Binding="{Binding CzasDojazd}" Width="80" IsReadOnly="True">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
+                                            <Setter Property="Background" Value="#00BCD4"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Foreground" Value="#00838F"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <DataGridTextColumn Header="Zał." Binding="{Binding Zaladunek, StringFormat=HH:mm}" Width="45" IsReadOnly="True">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
+                                            <Setter Property="Background" Value="#9C27B0"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="Foreground" Value="#9C27B0"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <DataGridTextColumn Header="Zał.K" Binding="{Binding ZaladunekKoniec, StringFormat=HH:mm}" Width="50" IsReadOnly="True">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
+                                            <Setter Property="Background" Value="#7B1FA2"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="Foreground" Value="#7B1FA2"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <DataGridTextColumn Header="Czas załadunku" Binding="{Binding CzasZaladunek}" Width="90" IsReadOnly="True">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
+                                            <Setter Property="Background" Value="#E91E63"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Foreground" Value="#C2185B"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <DataGridTextColumn Header="WyjH" Binding="{Binding WyjazdHodowca, StringFormat=HH:mm}" Width="50" IsReadOnly="True">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
+                                            <Setter Property="Background" Value="#FF5722"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="Foreground" Value="#FF5722"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <DataGridTextColumn Header="Postój" Binding="{Binding CzasPostoj}" Width="55" IsReadOnly="True">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
+                                            <Setter Property="Background" Value="#FF9800"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Foreground" Value="#EF6C00"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <DataGridTextColumn Header="Przyj" Binding="{Binding GodzinaPrzyjazdu, StringFormat=HH:mm}" Width="50" IsReadOnly="True">
                                     <DataGridTextColumn.HeaderStyle>
                                         <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
                                             <Setter Property="Background" Value="#E67E22"/>
@@ -1421,6 +1577,54 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
+                                <DataGridTextColumn Header="Czas powrotu" Binding="{Binding CzasRozladunek}" Width="80" IsReadOnly="True">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
+                                            <Setter Property="Background" Value="#795548"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Foreground" Value="#5D4037"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <DataGridTextColumn Header="Koniec" Binding="{Binding KoniecUslugi, StringFormat=HH:mm}" Width="55" IsReadOnly="True">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
+                                            <Setter Property="Background" Value="#455A64"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="Foreground" Value="#455A64"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <DataGridTextColumn Header="Czas całkowity" Binding="{Binding CzasCalkowity}" Width="85" IsReadOnly="True">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
+                                            <Setter Property="Background" Value="#D32F2F"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Foreground" Value="#C62828"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- === DANE TRANSPORTOWE === -->
                                 <DataGridTextColumn Header="Trasa / Dostawcy" Binding="{Binding Trasa, Mode=TwoWay}" Width="*">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
@@ -1431,7 +1635,7 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="Skrzynki" Binding="{Binding IloscSkrzynek, Mode=TwoWay}" Width="70">
+                                <DataGridTextColumn Header="Skrz." Binding="{Binding IloscSkrzynek, Mode=TwoWay}" Width="50">
                                     <DataGridTextColumn.HeaderStyle>
                                         <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
                                             <Setter Property="Background" Value="#9B59B6"/>
@@ -1446,7 +1650,7 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="Sztuki" Binding="{Binding Sztuki, Mode=TwoWay}" Width="70">
+                                <DataGridTextColumn Header="Szt" Binding="{Binding Sztuki, Mode=TwoWay}" Width="50">
                                     <DataGridTextColumn.HeaderStyle>
                                         <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
                                             <Setter Property="Background" Value="#F57C00"/>
@@ -1462,7 +1666,7 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="KG" Binding="{Binding Kilogramy, Mode=TwoWay, StringFormat={}{0:N0}}" Width="80">
+                                <DataGridTextColumn Header="KG" Binding="{Binding Kilogramy, Mode=TwoWay, StringFormat={}{0:N0}}" Width="70">
                                     <DataGridTextColumn.HeaderStyle>
                                         <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
                                             <Setter Property="Background" Value="#388E3C"/>
@@ -1479,7 +1683,7 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTemplateColumn Header="Status" Width="100">
+                                <DataGridTemplateColumn Header="Status" Width="90">
                                     <DataGridTemplateColumn.HeaderStyle>
                                         <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
                                             <Setter Property="Background" Value="#1976D2"/>
@@ -1499,7 +1703,7 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
 
-                                <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi, Mode=TwoWay}" Width="150">
+                                <DataGridTextColumn Header="Uwagi" Binding="{Binding Uwagi, Mode=TwoWay}" Width="100">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -1511,6 +1715,158 @@
                                 </DataGridTextColumn>
                             </DataGrid.Columns>
                         </DataGrid>
+                    </Grid>
+                </Border>
+            </TabItem>
+
+            <!-- === KARTA ROZLICZENIA === -->
+            <TabItem Header="💰 Rozliczenia">
+                <Border Background="White" CornerRadius="10" Margin="10" Padding="15">
+                    <Border.Effect>
+                        <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="15"/>
+                    </Border.Effect>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Nagłówek i filtry -->
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                            <TextBlock Text="Rozliczenia dostaw" FontSize="18" FontWeight="Bold" Foreground="#2C3E50" VerticalAlignment="Center"/>
+                            <Border Width="1" Background="#E0E0E0" Margin="15,2"/>
+                            <TextBlock Text="Filtr daty:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <DatePicker x:Name="dpRozliczeniaOd" Width="120" Margin="0,0,10,0"/>
+                            <TextBlock Text="-" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <DatePicker x:Name="dpRozliczeniaDo" Width="120" Margin="0,0,10,0"/>
+                            <Button Content="Filtruj" Padding="15,5" Background="#3498DB" Foreground="White"
+                                    BorderThickness="0" Cursor="Hand" Click="BtnFilterRozliczenia_Click"/>
+                        </StackPanel>
+
+                        <!-- Toolbar zatwierdzania -->
+                        <Border Grid.Row="1" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="8,6" Margin="0,0,0,10">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Zatwierdzanie:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,10,0"/>
+                                <Button x:Name="btnZatwierdzDzien" Content="✓ Zatwierdź wybrany dzień"
+                                        Padding="10,4" Margin="0,0,10,0" Background="#27AE60" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand" Click="BtnZatwierdzDzien_Click"/>
+                                <Button x:Name="btnCofnijZatwierdzenie" Content="✗ Cofnij zatwierdzenie"
+                                        Padding="10,4" Margin="0,0,10,0" Background="#E74C3C" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand" Click="BtnCofnijZatwierdzenie_Click"/>
+                                <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
+                                <Button x:Name="btnExportSymfonia" Content="📤 Eksport do Symfonii"
+                                        Padding="10,4" Margin="5,0,0,0" Background="#9B59B6" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand" Click="BtnExportSymfonia_Click"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- DataGrid rozliczeń -->
+                        <DataGrid Grid.Row="2" x:Name="dataGridRozliczenia"
+                                  AutoGenerateColumns="False"
+                                  CanUserAddRows="False"
+                                  CanUserDeleteRows="False"
+                                  IsReadOnly="True"
+                                  SelectionMode="Extended"
+                                  SelectionUnit="FullRow"
+                                  RowHeight="28"
+                                  AlternatingRowBackground="#F8F9FA"
+                                  GridLinesVisibility="Horizontal"
+                                  HorizontalGridLinesBrush="#E0E0E0"
+                                  BorderThickness="1"
+                                  BorderBrush="#BDBDBD">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat=yyyy-MM-dd}" Width="90"/>
+                                <DataGridTextColumn Header="LP" Binding="{Binding Nr}" Width="40"/>
+                                <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="180"/>
+                                <DataGridTextColumn Header="Szt.Dek" Binding="{Binding SztukiDek, StringFormat={}{0:N0}}" Width="70">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Padding" Value="0,0,8,0"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Netto KG" Binding="{Binding NettoKg, StringFormat={}{0:N0}}" Width="80">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Padding" Value="0,0,8,0"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat={}{0:N2}}" Width="65">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Foreground" Value="#1565C0"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Typ ceny" Binding="{Binding TypCeny}" Width="90"/>
+                                <DataGridTextColumn Header="Wartość" Binding="{Binding Wartosc, StringFormat={}{0:N2}}" Width="100">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Foreground" Value="#2E7D32"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridCheckBoxColumn Header="Symfonia" Binding="{Binding Symfonia}" Width="70"/>
+                                <DataGridCheckBoxColumn Header="ARIMR" Binding="{Binding ARIMR}" Width="60"/>
+                                <DataGridTemplateColumn Header="Status" Width="100">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Padding="5,2" CornerRadius="3" HorizontalAlignment="Center">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="#FFF3E0"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Zatwierdzony}" Value="True">
+                                                                <Setter Property="Background" Value="#E8F5E9"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock HorizontalAlignment="Center">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Text" Value="Oczekuje"/>
+                                                            <Setter Property="Foreground" Value="#E65100"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Zatwierdzony}" Value="True">
+                                                                    <Setter Property="Text" Value="Zatwierdzony"/>
+                                                                    <Setter Property="Foreground" Value="#2E7D32"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Zatwierdził" Binding="{Binding ZatwierdzonePrzez}" Width="100"/>
+                                <DataGridTextColumn Header="Data zatw." Binding="{Binding DataZatwierdzenia, StringFormat=yyyy-MM-dd HH:mm}" Width="120"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <!-- Podsumowanie -->
+                        <Border Grid.Row="3" Background="#ECEFF1" Padding="10" Margin="0,10,0,0" CornerRadius="5">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Suma wierszy: " FontWeight="SemiBold"/>
+                                <TextBlock x:Name="lblRozliczeniaSumaWierszy" Text="0" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,20,0"/>
+                                <TextBlock Text="Suma sztuk: " FontWeight="SemiBold"/>
+                                <TextBlock x:Name="lblRozliczeniaSumaSztuk" Text="0" FontWeight="Bold" Foreground="#E65100" Margin="0,0,20,0"/>
+                                <TextBlock Text="Suma KG: " FontWeight="SemiBold"/>
+                                <TextBlock x:Name="lblRozliczeniaSumaKg" Text="0" FontWeight="Bold" Foreground="#1565C0" Margin="0,0,20,0"/>
+                                <TextBlock Text="Suma wartość: " FontWeight="SemiBold"/>
+                                <TextBlock x:Name="lblRozliczeniaSumaWartosc" Text="0,00" FontWeight="Bold" Foreground="#2E7D32"/>
+                            </StackPanel>
+                        </Border>
                     </Grid>
                 </Border>
             </TabItem>

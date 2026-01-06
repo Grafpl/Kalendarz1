@@ -997,13 +997,35 @@ END";
         }
         public int ZnajdzIdCeny(string name)
         {
-            int userId = -1; // Jeśli nie znajdziemy użytkownika, zwrócimy -1
+            if (string.IsNullOrWhiteSpace(name))
+                return -1;
+
+            // Mapowanie aliasów nazw typów cen
+            string normalizedName = name.Trim().ToLowerInvariant();
+            switch (normalizedName)
+            {
+                case "wolnyrynek":
+                case "wolny rynek":
+                    normalizedName = "wolnorynkowa";
+                    break;
+                case "laczona":
+                case "łaczona":
+                    normalizedName = "łączona";
+                    break;
+                case "ministerial":
+                case "minister":
+                    normalizedName = "ministerialna";
+                    break;
+            }
+
+            int userId = -1; // Jeśli nie znajdziemy, zwrócimy -1
             using (SqlConnection conn = new SqlConnection(connectionString))
             {
                 conn.Open();
-                using (SqlCommand cmd = new SqlCommand("SELECT ID FROM dbo.PriceType WHERE Name = @Name", conn))
+                // Porównanie case-insensitive z COLLATE Polish_CI_AI
+                using (SqlCommand cmd = new SqlCommand("SELECT ID FROM dbo.PriceType WHERE LTRIM(RTRIM(Name)) = LTRIM(RTRIM(@Name)) COLLATE Polish_CI_AI", conn))
                 {
-                    cmd.Parameters.AddWithValue("@Name", name);
+                    cmd.Parameters.AddWithValue("@Name", normalizedName);
 
                     object result = cmd.ExecuteScalar();
                     if (result != null)
@@ -1195,7 +1217,15 @@ END";
                                     }
                                     else
                                     {
-                                        wartosc = (T)Convert.ChangeType(value, typeof(T));
+                                        // Obsługa typów Nullable - Convert.ChangeType nie obsługuje bezpośrednio Nullable<T>
+                                        Type targetType = typeof(T);
+                                        Type underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+                                        if (value != null && value != DBNull.Value)
+                                        {
+                                            object convertedValue = Convert.ChangeType(value, underlyingType, CultureInfo.CurrentCulture);
+                                            wartosc = (T)convertedValue;
+                                        }
                                     }
                                 }
                             }
@@ -1206,6 +1236,10 @@ END";
             catch (SqlException ex)
             {
                 MessageBox.Show($"Błąd połączenia z bazą danych: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (Exception)
+            {
+                // Jeśli konwersja się nie powiedzie, zwróć wartość domyślną
             }
 
             return wartosc;
@@ -1232,9 +1266,25 @@ END";
                         {
                             if (reader.Read())
                             {
-                                if (!reader.IsDBNull(reader.GetOrdinal(kolumna))) // Sprawdzenie, czy wartość w kolumnie nie jest DBNull
+                                if (!reader.IsDBNull(reader.GetOrdinal(kolumna)))
                                 {
-                                    wartosc = (T)reader[kolumna];
+                                    object value = reader[kolumna];
+                                    if (value is T castedValue)
+                                    {
+                                        wartosc = castedValue;
+                                    }
+                                    else
+                                    {
+                                        // Obsługa typów Nullable
+                                        Type targetType = typeof(T);
+                                        Type underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+                                        if (value != null && value != DBNull.Value)
+                                        {
+                                            object convertedValue = Convert.ChangeType(value, underlyingType, CultureInfo.CurrentCulture);
+                                            wartosc = (T)convertedValue;
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1244,6 +1294,10 @@ END";
             catch (SqlException ex)
             {
                 MessageBox.Show($"Błąd połączenia z bazą danych: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (Exception)
+            {
+                // Jeśli konwersja się nie powiedzie, zwróć wartość domyślną
             }
 
             return wartosc;
@@ -1304,6 +1358,17 @@ END";
             {
                 MessageBox.Show($"Błąd połączenia z bazą danych: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+
+            // Mapowanie nazw z bazy na nazwy w ComboBox
+            if (!string.IsNullOrEmpty(wartosc))
+            {
+                switch (wartosc.ToLowerInvariant().Trim())
+                {
+                    case "wolnorynkowa":
+                        return "wolnyrynek";
+                }
+            }
+
             return wartosc;
         }
         public static T GetValueOrDefault<T>(DataRow row, string columnName, T defaultValue = default)
@@ -1710,13 +1775,14 @@ END";
                     using (SqlCommand command = new SqlCommand(strSQL, cnn))
                     {
                         // Dodanie parametrów do zapytania SQL, ustawiając wartość NULL dla pustych pól
+                        // Używamy CultureInfo.CurrentCulture aby obsłużyć format z przecinkiem (np. "4224,00")
                         command.Parameters.AddWithValue("@ID", IdSpecyfikacji);
-                        command.Parameters.AddWithValue("@FullFarmWeight", string.IsNullOrEmpty(FullFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(FullFarmWeight.Text));
-                        command.Parameters.AddWithValue("@EmptyFarmWeight", string.IsNullOrEmpty(EmptyFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(EmptyFarmWeight.Text));
-                        command.Parameters.AddWithValue("@NettoFarmWeight", string.IsNullOrEmpty(NettoFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(NettoFarmWeight.Text));
-                        command.Parameters.AddWithValue("@AvWeightFarm", string.IsNullOrEmpty(AvWeightFarm.Text) ? (object)DBNull.Value : decimal.Parse(AvWeightFarm.Text));
-                        command.Parameters.AddWithValue("@PiecesFarm", string.IsNullOrEmpty(PiecesFarm.Text) ? (object)DBNull.Value : decimal.Parse(PiecesFarm.Text));
-                        command.Parameters.AddWithValue("@SztPoj", string.IsNullOrEmpty(SztPoj.Text) ? (object)DBNull.Value : decimal.Parse(SztPoj.Text));
+                        command.Parameters.AddWithValue("@FullFarmWeight", string.IsNullOrEmpty(FullFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(FullFarmWeight.Text, CultureInfo.CurrentCulture));
+                        command.Parameters.AddWithValue("@EmptyFarmWeight", string.IsNullOrEmpty(EmptyFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(EmptyFarmWeight.Text, CultureInfo.CurrentCulture));
+                        command.Parameters.AddWithValue("@NettoFarmWeight", string.IsNullOrEmpty(NettoFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(NettoFarmWeight.Text, CultureInfo.CurrentCulture));
+                        command.Parameters.AddWithValue("@AvWeightFarm", string.IsNullOrEmpty(AvWeightFarm.Text) ? (object)DBNull.Value : decimal.Parse(AvWeightFarm.Text, CultureInfo.CurrentCulture));
+                        command.Parameters.AddWithValue("@PiecesFarm", string.IsNullOrEmpty(PiecesFarm.Text) ? (object)DBNull.Value : decimal.Parse(PiecesFarm.Text, CultureInfo.CurrentCulture));
+                        command.Parameters.AddWithValue("@SztPoj", string.IsNullOrEmpty(SztPoj.Text) ? (object)DBNull.Value : decimal.Parse(SztPoj.Text, CultureInfo.CurrentCulture));
 
 
                         // Wykonanie zapytania SQL
@@ -1762,13 +1828,14 @@ END";
                     using (SqlCommand command = new SqlCommand(strSQL, cnn))
                     {
                         // Dodanie parametrów do zapytania SQL, ustawiając wartość NULL dla pustych pól
+                        // Używamy CultureInfo.CurrentCulture aby obsłużyć format z przecinkiem (np. "4224,00")
                         command.Parameters.AddWithValue("@ID", IdSpecyfikacji);
-                        command.Parameters.AddWithValue("@FullFarmWeight", string.IsNullOrEmpty(FullFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(FullFarmWeight.Text));
-                        command.Parameters.AddWithValue("@EmptyFarmWeight", string.IsNullOrEmpty(EmptyFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(EmptyFarmWeight.Text));
-                        command.Parameters.AddWithValue("@NettoFarmWeight", string.IsNullOrEmpty(NettoFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(NettoFarmWeight.Text));
-                        command.Parameters.AddWithValue("@AvWeightFarm", string.IsNullOrEmpty(AvWeightFarm.Text) ? (object)DBNull.Value : decimal.Parse(AvWeightFarm.Text));
-                        command.Parameters.AddWithValue("@PiecesFarm", string.IsNullOrEmpty(PiecesFarm.Text) ? (object)DBNull.Value : int.Parse(PiecesFarm.Text));
-                        command.Parameters.AddWithValue("@SztPoj", string.IsNullOrEmpty(SztPoj.Text) ? (object)DBNull.Value : decimal.Parse(SztPoj.Text));
+                        command.Parameters.AddWithValue("@FullFarmWeight", string.IsNullOrEmpty(FullFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(FullFarmWeight.Text, CultureInfo.CurrentCulture));
+                        command.Parameters.AddWithValue("@EmptyFarmWeight", string.IsNullOrEmpty(EmptyFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(EmptyFarmWeight.Text, CultureInfo.CurrentCulture));
+                        command.Parameters.AddWithValue("@NettoFarmWeight", string.IsNullOrEmpty(NettoFarmWeight.Text) ? (object)DBNull.Value : decimal.Parse(NettoFarmWeight.Text, CultureInfo.CurrentCulture));
+                        command.Parameters.AddWithValue("@AvWeightFarm", string.IsNullOrEmpty(AvWeightFarm.Text) ? (object)DBNull.Value : decimal.Parse(AvWeightFarm.Text, CultureInfo.CurrentCulture));
+                        command.Parameters.AddWithValue("@PiecesFarm", string.IsNullOrEmpty(PiecesFarm.Text) ? (object)DBNull.Value : (int)decimal.Parse(PiecesFarm.Text, CultureInfo.CurrentCulture));
+                        command.Parameters.AddWithValue("@SztPoj", string.IsNullOrEmpty(SztPoj.Text) ? (object)DBNull.Value : decimal.Parse(SztPoj.Text, CultureInfo.CurrentCulture));
 
                         // Wykonanie zapytania SQL
                         int rowsAffected = command.ExecuteNonQuery();

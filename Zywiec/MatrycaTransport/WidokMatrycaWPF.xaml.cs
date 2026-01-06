@@ -33,11 +33,16 @@ namespace Kalendarz1
         private DataTable naczepyTable;
         private DataTable hodowcyTable;
 
+        // Dostawy z harmonogramu (bufor='Potwierdzone')
+        private ObservableCollection<HarmonogramDostawaItem> harmonogramDostawy;
+
         public WidokMatrycaWPF()
         {
             InitializeComponent();
             matrycaData = new ObservableCollection<MatrycaRow>();
+            harmonogramDostawy = new ObservableCollection<HarmonogramDostawaItem>();
             dataGridMatryca.ItemsSource = matrycaData;
+            cmbHarmonogramDostawy.ItemsSource = harmonogramDostawy;
             dateTimePicker1.SelectedDate = DateTime.Today;
 
             // Ustawienie ItemsSource dla ComboBox Wózek
@@ -53,6 +58,7 @@ namespace Kalendarz1
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             LoadComboBoxSources();
+            LoadHarmonogramDostawy();
             UpdateDayOfWeekLabel();
             UpdateStatistics();
             UpdateStatus("Wybierz datę i kliknij 'WCZYTAJ Z BAZY' lub zaimportuj dane z PDF/Excel");
@@ -104,6 +110,194 @@ namespace Kalendarz1
             }
         }
 
+        /// <summary>
+        /// Ładuje dostawy z harmonogramu (bufor = 'Potwierdzone') dla wybranej daty
+        /// </summary>
+        private void LoadHarmonogramDostawy()
+        {
+            try
+            {
+                harmonogramDostawy.Clear();
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    string query = @"SELECT
+                                        LP,
+                                        Dostawca,
+                                        SztukiDek,
+                                        WagaDek,
+                                        ISNULL(Cena, 0) as Cena,
+                                        ISNULL(Ubytek, 0) as Ubytek,
+                                        ISNULL(typCeny, '') as TypCeny
+                                    FROM [LibraNet].[dbo].[HarmonogramDostaw]
+                                    WHERE DataOdbioru = @SelectedDate
+                                    AND Bufor IN ('Potwierdzony', 'Potwierdzone')
+                                    ORDER BY LP";
+
+                    using (SqlCommand command = new SqlCommand(query, connection))
+                    {
+                        command.Parameters.AddWithValue("@SelectedDate", selectedDate);
+
+                        using (SqlDataReader reader = command.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                int lp = reader["LP"] != DBNull.Value ? Convert.ToInt32(reader["LP"]) : 0;
+                                string dostawca = reader["Dostawca"]?.ToString()?.Trim() ?? "";
+                                int sztuki = reader["SztukiDek"] != DBNull.Value ? Convert.ToInt32(reader["SztukiDek"]) : 0;
+                                decimal waga = reader["WagaDek"] != DBNull.Value ? Convert.ToDecimal(reader["WagaDek"]) : 0;
+                                decimal cena = reader["Cena"] != DBNull.Value ? Convert.ToDecimal(reader["Cena"]) : 0;
+                                decimal ubytek = reader["Ubytek"] != DBNull.Value ? Convert.ToDecimal(reader["Ubytek"]) : 0;
+                                string typCeny = reader["TypCeny"]?.ToString()?.Trim() ?? "";
+
+                                harmonogramDostawy.Add(new HarmonogramDostawaItem
+                                {
+                                    LP = lp,
+                                    Dostawca = dostawca,
+                                    SztukiDek = sztuki,
+                                    WagaDek = waga,
+                                    Cena = cena,
+                                    Ubytek = ubytek,
+                                    TypCeny = typCeny,
+                                    DisplayText = $"LP:{lp} - {dostawca} (Szt:{sztuki}, Cena:{cena:N2}, Ubytek:{ubytek:N2}%)"
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd ładowania harmonogramu: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Obsługa zmiany wybranej dostawy z harmonogramu
+        /// </summary>
+        private void CmbHarmonogramDostawy_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Nic nie robimy przy zmianie - czekamy na kliknięcie przycisku "Zastosuj cenę"
+        }
+
+        /// <summary>
+        /// Zastosuj cenę, ubytek i typ ceny z wybranej dostawy do wszystkich wierszy tego dostawcy
+        /// </summary>
+        private void BtnApplyHarmonogramPrice_Click(object sender, RoutedEventArgs e)
+        {
+            var selectedDostawa = cmbHarmonogramDostawy.SelectedItem as HarmonogramDostawaItem;
+            if (selectedDostawa == null)
+            {
+                MessageBox.Show("Wybierz dostawę z harmonogramu.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            string dostawcaNazwa = selectedDostawa.Dostawca?.Trim().ToLowerInvariant() ?? "";
+            if (string.IsNullOrEmpty(dostawcaNazwa))
+            {
+                MessageBox.Show("Wybrana dostawa nie ma nazwy dostawcy.", "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Znajdź wszystkie wiersze z tym samym dostawcą
+            int count = 0;
+            foreach (var row in matrycaData)
+            {
+                string rowDostawca = row.HodowcaNazwa?.Trim().ToLowerInvariant() ?? "";
+                if (rowDostawca == dostawcaNazwa)
+                {
+                    row.Price = selectedDostawa.Cena;
+                    row.Loss = selectedDostawa.Ubytek;
+                    row.PriceTypeName = selectedDostawa.TypCeny;
+                    row.HarmonogramLP = selectedDostawa.LP;
+                    // Pobierz PriceTypeID z nazwy
+                    row.PriceTypeID = zapytaniasql.ZnajdzIdCeny(selectedDostawa.TypCeny);
+                    count++;
+                }
+            }
+
+            if (count > 0)
+            {
+                UpdateStatus($"Zastosowano cenę do {count} wierszy dostawcy: {selectedDostawa.Dostawca}");
+            }
+            else
+            {
+                MessageBox.Show($"Nie znaleziono wierszy dla dostawcy: {selectedDostawa.Dostawca}\n\nUżyj przycisku 'Wklej ręcznie' aby zastosować do zaznaczonego wiersza.",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        /// <summary>
+        /// Ręczne wklejenie ceny z wybranej dostawy do zaznaczonego wiersza i wszystkich z tym samym dostawcą
+        /// </summary>
+        private void BtnApplyHarmonogramPriceManual_Click(object sender, RoutedEventArgs e)
+        {
+            var selectedDostawa = cmbHarmonogramDostawy.SelectedItem as HarmonogramDostawaItem;
+            if (selectedDostawa == null)
+            {
+                MessageBox.Show("Wybierz dostawę z harmonogramu.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var selectedRow = dataGridMatryca.SelectedItem as MatrycaRow;
+            if (selectedRow == null)
+            {
+                MessageBox.Show("Zaznacz wiersz w tabeli do którego chcesz wkleić cenę.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // Pytanie: tylko zaznaczony wiersz czy wszyscy o tej samej nazwie dostawcy?
+            var result = MessageBox.Show(
+                $"Zastosować cenę z dostawy LP:{selectedDostawa.LP} ({selectedDostawa.Dostawca}):\n" +
+                $"  Cena: {selectedDostawa.Cena:N2}\n" +
+                $"  Ubytek: {selectedDostawa.Ubytek:N2}%\n" +
+                $"  Typ: {selectedDostawa.TypCeny}\n\n" +
+                $"TAK = Tylko zaznaczony wiersz ({selectedRow.HodowcaNazwa})\n" +
+                $"NIE = Wszystkie wiersze o nazwie: {selectedRow.HodowcaNazwa}",
+                "Ręczne wklejenie ceny",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Cancel)
+                return;
+
+            int count = 0;
+            string targetDostawca = selectedRow.HodowcaNazwa?.Trim().ToLowerInvariant() ?? "";
+
+            if (result == MessageBoxResult.Yes)
+            {
+                // Tylko zaznaczony wiersz
+                selectedRow.Price = selectedDostawa.Cena;
+                selectedRow.Loss = selectedDostawa.Ubytek;
+                selectedRow.PriceTypeName = selectedDostawa.TypCeny;
+                selectedRow.HarmonogramLP = selectedDostawa.LP;
+                selectedRow.PriceTypeID = zapytaniasql.ZnajdzIdCeny(selectedDostawa.TypCeny);
+                count = 1;
+            }
+            else
+            {
+                // Wszystkie wiersze o tej samej nazwie dostawcy
+                foreach (var row in matrycaData)
+                {
+                    string rowDostawca = row.HodowcaNazwa?.Trim().ToLowerInvariant() ?? "";
+                    if (rowDostawca == targetDostawca)
+                    {
+                        row.Price = selectedDostawa.Cena;
+                        row.Loss = selectedDostawa.Ubytek;
+                        row.PriceTypeName = selectedDostawa.TypCeny;
+                        row.HarmonogramLP = selectedDostawa.LP;
+                        row.PriceTypeID = zapytaniasql.ZnajdzIdCeny(selectedDostawa.TypCeny);
+                        count++;
+                    }
+                }
+            }
+
+            UpdateStatus($"Zastosowano cenę do {count} wierszy");
+        }
+
         private void LoadData()
         {
             try
@@ -142,10 +336,21 @@ namespace Kalendarz1
                                 Wyjazd,
                                 Zaladunek,
                                 Przyjazd,
-                                NotkaWozek
+                                NotkaWozek,
+                                ISNULL(Price, 0) AS Price,
+                                ISNULL(Loss, 0) AS Loss,
+                                ISNULL(PriceTypeID, -1) AS PriceTypeID,
+                                Number,
+                                YearNumber,
+                                CarLp,
+                                PoczatekUslugi,
+                                DojazdHodowca,
+                                ZaladunekKoniec,
+                                WyjazdHodowca,
+                                KoniecUslugi
                             FROM [LibraNet].[dbo].[FarmerCalc]
                             WHERE CalcDate = @SelectedDate
-                            ORDER BY LpDostawy";
+                            ORDER BY CarLp, LpDostawy";
 
                         SqlCommand command = new SqlCommand(query, connection);
                         command.Parameters.AddWithValue("@SelectedDate", selectedDate);
@@ -171,7 +376,10 @@ namespace Kalendarz1
                                 CAST(NULL AS DATETIME) AS Wyjazd,
                                 CAST(NULL AS DATETIME) AS Zaladunek,
                                 CAST(NULL AS DATETIME) AS Przyjazd,
-                                CAST(NULL AS VARCHAR(100)) AS NotkaWozek
+                                CAST(NULL AS VARCHAR(100)) AS NotkaWozek,
+                                ISNULL(Cena, 0) AS Price,
+                                ISNULL(Ubytek, 0) AS Loss,
+                                ISNULL(typCeny, '') AS TypCeny
                             FROM dbo.HarmonogramDostaw
                             WHERE DataOdbioru = @StartDate
                             AND Bufor = 'Potwierdzony'
@@ -281,6 +489,48 @@ namespace Kalendarz1
                                 IloscAutUHodowcy = iloscAut
                             };
 
+                            // Wczytaj dane cenowe
+                            if (isFarmerCalc)
+                            {
+                                matrycaRow.Price = table.Columns.Contains("Price") && row["Price"] != DBNull.Value
+                                    ? Convert.ToDecimal(row["Price"]) : 0;
+                                matrycaRow.Loss = table.Columns.Contains("Loss") && row["Loss"] != DBNull.Value
+                                    ? Convert.ToDecimal(row["Loss"]) : 0;
+                                matrycaRow.PriceTypeID = table.Columns.Contains("PriceTypeID") && row["PriceTypeID"] != DBNull.Value
+                                    ? Convert.ToInt32(row["PriceTypeID"]) : (int?)null;
+                                matrycaRow.Number = table.Columns.Contains("Number") && row["Number"] != DBNull.Value
+                                    ? Convert.ToInt32(row["Number"]) : (int?)null;
+
+                                // Wczytaj dodatkowe czasy
+                                matrycaRow.PoczatekUslugi = table.Columns.Contains("PoczatekUslugi") && row["PoczatekUslugi"] != DBNull.Value
+                                    ? Convert.ToDateTime(row["PoczatekUslugi"]) : (DateTime?)null;
+                                matrycaRow.DojazdHodowca = table.Columns.Contains("DojazdHodowca") && row["DojazdHodowca"] != DBNull.Value
+                                    ? Convert.ToDateTime(row["DojazdHodowca"]) : (DateTime?)null;
+                                matrycaRow.ZaladunekKoniec = table.Columns.Contains("ZaladunekKoniec") && row["ZaladunekKoniec"] != DBNull.Value
+                                    ? Convert.ToDateTime(row["ZaladunekKoniec"]) : (DateTime?)null;
+                                matrycaRow.WyjazdHodowca = table.Columns.Contains("WyjazdHodowca") && row["WyjazdHodowca"] != DBNull.Value
+                                    ? Convert.ToDateTime(row["WyjazdHodowca"]) : (DateTime?)null;
+                                matrycaRow.KoniecUslugi = table.Columns.Contains("KoniecUslugi") && row["KoniecUslugi"] != DBNull.Value
+                                    ? Convert.ToDateTime(row["KoniecUslugi"]) : (DateTime?)null;
+                            }
+                            else
+                            {
+                                // Dane z HarmonogramDostaw - wczytaj ceny i znajdź PriceTypeID
+                                matrycaRow.Price = table.Columns.Contains("Price") && row["Price"] != DBNull.Value
+                                    ? Convert.ToDecimal(row["Price"]) : 0;
+                                matrycaRow.Loss = table.Columns.Contains("Loss") && row["Loss"] != DBNull.Value
+                                    ? Convert.ToDecimal(row["Loss"]) : 0;
+
+                                // Znajdź PriceTypeID na podstawie nazwy typu ceny
+                                string typCeny = table.Columns.Contains("TypCeny") && row["TypCeny"] != DBNull.Value
+                                    ? row["TypCeny"].ToString().Trim() : "";
+                                if (!string.IsNullOrEmpty(typCeny))
+                                {
+                                    matrycaRow.PriceTypeName = typCeny;
+                                    matrycaRow.PriceTypeID = zapytaniasql.ZnajdzIdCeny(typCeny);
+                                }
+                            }
+
                             matrycaData.Add(matrycaRow);
                             lpCounter++;
                         }
@@ -312,6 +562,9 @@ namespace Kalendarz1
             {
                 // Tylko aktualizuj dzień tygodnia - dane wczytaj ręcznie przyciskiem
                 UpdateDayOfWeekLabel();
+
+                // Załaduj dostawy z harmonogramu dla nowej daty
+                LoadHarmonogramDostawy();
 
                 // Wyczyść matrycę i pokaż informację
                 if (matrycaData.Count > 0)
@@ -449,7 +702,7 @@ namespace Kalendarz1
                             CustomerGID = importRow.MappedHodowcaGID ?? "",
                             HodowcaNazwa = hodowcaNazwa,
                             WagaDek = importRow.WagaDek,
-                            SztPoj = importRow.Sztuki,
+                            SztPoj = importRow.Sztuki, // Dla PDF używamy całkowitej liczby sztuk
                             DriverGID = importRow.MappedKierowcaGID,
                             CarID = importRow.MappedCiagnikID ?? importRow.Ciagnik,
                             TrailerID = importRow.MappedNaczepaID ?? importRow.Naczepa,
@@ -572,7 +825,7 @@ namespace Kalendarz1
                             CustomerGID = importRow.MappedHodowcaGID ?? "",
                             HodowcaNazwa = hodowcaNazwa,
                             WagaDek = importRow.WagaDek,
-                            SztPoj = importRow.Sztuki,
+                            SztPoj = importRow.SztukiNaSkrzynke, // Liczba sztuk na skrzynkę (z "16 x 264" -> 16)
                             DriverGID = importRow.MappedKierowcaGID,
                             CarID = !string.IsNullOrEmpty(importRow.MappedCiagnikID) ? importRow.MappedCiagnikID : importRow.Ciagnik,
                             TrailerID = !string.IsNullOrEmpty(importRow.MappedNaczepaID) ? importRow.MappedNaczepaID : importRow.Naczepa,
@@ -1183,6 +1436,51 @@ namespace Kalendarz1
             UpdateInfoPanel();
         }
 
+        /// <summary>
+        /// Obsługa zakończenia edycji komórki - automatyczne nadawanie numerów specyfikacji
+        /// </summary>
+        private void DataGridMatryca_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        {
+            if (e.EditAction == DataGridEditAction.Commit)
+            {
+                // Sprawdź czy edytowano kolumnę "Nr Spec" (Number)
+                var column = e.Column as DataGridTextColumn;
+                if (column != null && column.Header?.ToString() == "Nr Spec")
+                {
+                    var editedRow = e.Row.Item as MatrycaRow;
+                    if (editedRow != null)
+                    {
+                        var textBox = e.EditingElement as System.Windows.Controls.TextBox;
+                        if (textBox != null && int.TryParse(textBox.Text, out int firstNumber))
+                        {
+                            // Jeśli edytowano pierwszy wiersz, zapytaj czy wypełnić wszystkie
+                            int rowIndex = matrycaData.IndexOf(editedRow);
+                            if (rowIndex == 0 && matrycaData.Count > 1)
+                            {
+                                var result = MessageBox.Show(
+                                    $"Czy chcesz automatycznie nadać numery specyfikacji dla wszystkich wierszy?\n\n" +
+                                    $"Pierwszy wiersz: {firstNumber}\n" +
+                                    $"Kolejne wiersze: {firstNumber + 1}, {firstNumber + 2}, ...",
+                                    "Automatyczne numerowanie",
+                                    MessageBoxButton.YesNo,
+                                    MessageBoxImage.Question);
+
+                                if (result == MessageBoxResult.Yes)
+                                {
+                                    // Wypełnij numery dla wszystkich wierszy
+                                    for (int i = 0; i < matrycaData.Count; i++)
+                                    {
+                                        matrycaData[i].Number = firstNumber + i;
+                                    }
+                                    dataGridMatryca.Items.Refresh();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         private void UpdateInfoPanel()
         {
             if (selectedMatrycaRow == null)
@@ -1572,6 +1870,25 @@ namespace Kalendarz1
 
         #endregion
 
+        #region Historia Zmian
+
+        private void BtnHistoriaZmian_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var historiaWindow = new HistoriaZmianWindow();
+                historiaWindow.Show();
+                UpdateStatus("Otwarto okno historii zmian");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas otwierania historii zmian:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        #endregion
+
         #region Save to Database
 
         private void BtnSaveToDatabase_Click(object sender, RoutedEventArgs e)
@@ -1594,13 +1911,15 @@ namespace Kalendarz1
                     conn.Open();
 
                     string sql = @"INSERT INTO dbo.FarmerCalc
-                        (ID, CalcDate, CustomerGID, CustomerRealGID, DriverGID, LpDostawy, SztPoj, WagaDek,
+                        (ID, CalcDate, CustomerGID, CustomerRealGID, DriverGID, LpDostawy, CarLp, SztPoj, WagaDek,
                          CarID, TrailerID, NotkaWozek, Wyjazd, Zaladunek, Przyjazd, Price,
-                         Loss, PriceTypeID)
+                         Loss, PriceTypeID, YearNumber, Number,
+                         PoczatekUslugi, DojazdHodowca, ZaladunekKoniec, WyjazdHodowca, KoniecUslugi)
                         VALUES
-                        (@ID, @Date, @Dostawca, @Dostawca, @Kierowca, @LpDostawy, @SztPoj, @WagaDek,
+                        (@ID, @Date, @Dostawca, @Dostawca, @Kierowca, @LpDostawy, @CarLp, @SztPoj, @WagaDek,
                          @Ciagnik, @Naczepa, @NotkaWozek, @Wyjazd, @Zaladunek,
-                         @Przyjazd, @Cena, @Ubytek, @TypCeny)";
+                         @Przyjazd, @Cena, @Ubytek, @TypCeny, @YearNumber, @Number,
+                         @PoczatekUslugi, @DojazdHodowca, @ZaladunekKoniec, @WyjazdHodowca, @KoniecUslugi)";
 
                     using (SqlTransaction transaction = conn.BeginTransaction())
                     {
@@ -1611,30 +1930,10 @@ namespace Kalendarz1
 
                             foreach (var row in matrycaData)
                             {
-                                double Ubytek = 0.0;
-                                double Cena = 0.0;
-                                int intTypCeny = -1;
-
-                                string lpDoZapytan = !string.IsNullOrEmpty(row.OryginalneLP) ? row.OryginalneLP : row.LpDostawy;
-
-                                if (!string.IsNullOrWhiteSpace(lpDoZapytan))
-                                {
-                                    try
-                                    {
-                                        double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(lpDoZapytan, "Ubytek"), out Ubytek);
-                                        double.TryParse(zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(lpDoZapytan, "Cena"), out Cena);
-                                        string typCeny = zapytaniasql.PobierzInformacjeZBazyDanychKonkretne(lpDoZapytan, "TypCeny");
-
-                                        if (!string.IsNullOrWhiteSpace(typCeny))
-                                        {
-                                            intTypCeny = zapytaniasql.ZnajdzIdCeny(typCeny);
-                                        }
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        System.Diagnostics.Debug.WriteLine($"Błąd pobierania danych dla LP {lpDoZapytan}: {ex.Message}");
-                                    }
-                                }
+                                // Użyj wartości z wiersza (ustawione przez "Zastosuj cenę" z harmonogramu)
+                                double Ubytek = (double)row.Loss;
+                                double Cena = (double)row.Price;
+                                int intTypCeny = row.PriceTypeID ?? -1;
 
                                 // Znajdź ID hodowcy
                                 string dostawcaId = "-1";
@@ -1666,7 +1965,9 @@ namespace Kalendarz1
                                     cmd.Parameters.AddWithValue("@ID", maxLP);
                                     cmd.Parameters.AddWithValue("@Dostawca", dostawcaId);
                                     cmd.Parameters.AddWithValue("@Kierowca", row.DriverGID ?? (object)DBNull.Value);
-                                    cmd.Parameters.AddWithValue("@LpDostawy", string.IsNullOrEmpty(row.LpDostawy) ? DBNull.Value : row.LpDostawy);
+                                    // LpDostawy = LP z harmonogramu, CarLp = kolejność auta (numer wiersza)
+                                    cmd.Parameters.AddWithValue("@LpDostawy", row.HarmonogramLP ?? (object)DBNull.Value);
+                                    cmd.Parameters.AddWithValue("@CarLp", savedCount + 1);
                                     cmd.Parameters.AddWithValue("@SztPoj", row.SztPoj);
                                     cmd.Parameters.AddWithValue("@WagaDek", row.WagaDek);
                                     cmd.Parameters.AddWithValue("@Date", selectedDate);
@@ -1682,6 +1983,18 @@ namespace Kalendarz1
                                     cmd.Parameters.AddWithValue("@Ciagnik", string.IsNullOrEmpty(row.CarID) ? DBNull.Value : row.CarID);
                                     cmd.Parameters.AddWithValue("@Naczepa", string.IsNullOrEmpty(row.TrailerID) ? DBNull.Value : row.TrailerID);
                                     cmd.Parameters.AddWithValue("@NotkaWozek", string.IsNullOrEmpty(row.NotkaWozek) ? DBNull.Value : row.NotkaWozek);
+
+                                    // YearNumber = rok z wybranej daty
+                                    cmd.Parameters.AddWithValue("@YearNumber", selectedDate.Year);
+                                    // Number = numer specyfikacji (jeśli ustawiony w wierszu)
+                                    cmd.Parameters.AddWithValue("@Number", row.Number ?? (object)DBNull.Value);
+
+                                    // Dodatkowe czasy usługi
+                                    cmd.Parameters.AddWithValue("@PoczatekUslugi", row.PoczatekUslugi ?? (object)DBNull.Value);
+                                    cmd.Parameters.AddWithValue("@DojazdHodowca", row.DojazdHodowca ?? (object)DBNull.Value);
+                                    cmd.Parameters.AddWithValue("@ZaladunekKoniec", row.ZaladunekKoniec ?? (object)DBNull.Value);
+                                    cmd.Parameters.AddWithValue("@WyjazdHodowca", row.WyjazdHodowca ?? (object)DBNull.Value);
+                                    cmd.Parameters.AddWithValue("@KoniecUslugi", row.KoniecUslugi ?? (object)DBNull.Value);
 
                                     cmd.ExecuteNonQuery();
                                     savedCount++;
@@ -2018,6 +2331,7 @@ namespace Kalendarz1
     {
         private long _id;
         private string _lpDostawy;
+        private int? _number; // Numer specyfikacji
         private string _customerGID;
         private string _hodowcaNazwa;
         private decimal _wagaDek;
@@ -2028,6 +2342,11 @@ namespace Kalendarz1
         private DateTime? _wyjazd;
         private DateTime? _zaladunek;
         private DateTime? _przyjazd;
+        private DateTime? _poczatekUslugi;
+        private DateTime? _dojazdHodowca;
+        private DateTime? _zaladunekKoniec;
+        private DateTime? _wyjazdHodowca;
+        private DateTime? _koniecUslugi;
         private string _notkaWozek;
         private string _adres;
         private string _miejscowosc;
@@ -2055,6 +2374,15 @@ namespace Kalendarz1
         {
             get => _lpDostawy;
             set { _lpDostawy = value; OnPropertyChanged(nameof(LpDostawy)); }
+        }
+
+        /// <summary>
+        /// Numer specyfikacji
+        /// </summary>
+        public int? Number
+        {
+            get => _number;
+            set { _number = value; OnPropertyChanged(nameof(Number)); }
         }
 
         public string CustomerGID
@@ -2114,7 +2442,131 @@ namespace Kalendarz1
         public DateTime? Przyjazd
         {
             get => _przyjazd;
-            set { _przyjazd = value; OnPropertyChanged(nameof(Przyjazd)); }
+            set { _przyjazd = value; OnPropertyChanged(nameof(Przyjazd)); OnPropertyChanged(nameof(CzasRozladunek)); OnPropertyChanged(nameof(CzasCalkowity)); }
+        }
+
+        public DateTime? PoczatekUslugi
+        {
+            get => _poczatekUslugi;
+            set { _poczatekUslugi = value; OnPropertyChanged(nameof(PoczatekUslugi)); OnPropertyChanged(nameof(CzasCalkowity)); }
+        }
+
+        public DateTime? DojazdHodowca
+        {
+            get => _dojazdHodowca;
+            set { _dojazdHodowca = value; OnPropertyChanged(nameof(DojazdHodowca)); OnPropertyChanged(nameof(CzasDojazd)); }
+        }
+
+        public DateTime? ZaladunekKoniec
+        {
+            get => _zaladunekKoniec;
+            set { _zaladunekKoniec = value; OnPropertyChanged(nameof(ZaladunekKoniec)); OnPropertyChanged(nameof(CzasZaladunek)); }
+        }
+
+        public DateTime? WyjazdHodowca
+        {
+            get => _wyjazdHodowca;
+            set { _wyjazdHodowca = value; OnPropertyChanged(nameof(WyjazdHodowca)); OnPropertyChanged(nameof(CzasPostoj)); }
+        }
+
+        public DateTime? KoniecUslugi
+        {
+            get => _koniecUslugi;
+            set { _koniecUslugi = value; OnPropertyChanged(nameof(KoniecUslugi)); OnPropertyChanged(nameof(CzasCalkowity)); }
+        }
+
+        // === Obliczone czasy trwania ===
+
+        /// <summary>
+        /// Czas dojazdu do hodowcy (Wyjazd -> DojazdHodowca)
+        /// </summary>
+        public string CzasDojazd
+        {
+            get
+            {
+                if (Wyjazd.HasValue && DojazdHodowca.HasValue)
+                {
+                    var diff = DojazdHodowca.Value - Wyjazd.Value;
+                    return FormatTimeSpan(diff);
+                }
+                return "";
+            }
+        }
+
+        /// <summary>
+        /// Czas załadunku (Zaladunek -> ZaladunekKoniec)
+        /// </summary>
+        public string CzasZaladunek
+        {
+            get
+            {
+                if (Zaladunek.HasValue && ZaladunekKoniec.HasValue)
+                {
+                    var diff = ZaladunekKoniec.Value - Zaladunek.Value;
+                    return FormatTimeSpan(diff);
+                }
+                return "";
+            }
+        }
+
+        /// <summary>
+        /// Czas postoju u hodowcy (DojazdHodowca -> WyjazdHodowca)
+        /// </summary>
+        public string CzasPostoj
+        {
+            get
+            {
+                if (DojazdHodowca.HasValue && WyjazdHodowca.HasValue)
+                {
+                    var diff = WyjazdHodowca.Value - DojazdHodowca.Value;
+                    return FormatTimeSpan(diff);
+                }
+                return "";
+            }
+        }
+
+        /// <summary>
+        /// Czas powrotu (WyjazdHodowca -> Przyjazd)
+        /// </summary>
+        public string CzasRozladunek
+        {
+            get
+            {
+                if (WyjazdHodowca.HasValue && Przyjazd.HasValue)
+                {
+                    var diff = Przyjazd.Value - WyjazdHodowca.Value;
+                    return FormatTimeSpan(diff);
+                }
+                return "";
+            }
+        }
+
+        /// <summary>
+        /// Całkowity czas usługi (PoczatekUslugi -> KoniecUslugi lub Wyjazd -> Przyjazd)
+        /// </summary>
+        public string CzasCalkowity
+        {
+            get
+            {
+                if (PoczatekUslugi.HasValue && KoniecUslugi.HasValue)
+                {
+                    var diff = KoniecUslugi.Value - PoczatekUslugi.Value;
+                    return FormatTimeSpan(diff);
+                }
+                if (Wyjazd.HasValue && Przyjazd.HasValue)
+                {
+                    var diff = Przyjazd.Value - Wyjazd.Value;
+                    return FormatTimeSpan(diff);
+                }
+                return "";
+            }
+        }
+
+        private string FormatTimeSpan(TimeSpan ts)
+        {
+            if (ts.TotalHours >= 24)
+                return $"{(int)ts.TotalHours}:{ts.Minutes:D2}";
+            return $"{(int)ts.TotalHours}:{ts.Minutes:D2}";
         }
 
         public string NotkaWozek
@@ -2217,6 +2669,44 @@ namespace Kalendarz1
             }
         }
 
+        // === DANE CENOWE Z HARMONOGRAMU ===
+        private decimal _price;
+        private decimal _loss;
+        private int? _priceTypeID;
+        private string _priceTypeName;
+
+        public decimal Price
+        {
+            get => _price;
+            set { _price = value; OnPropertyChanged(nameof(Price)); }
+        }
+
+        public decimal Loss
+        {
+            get => _loss;
+            set { _loss = value; OnPropertyChanged(nameof(Loss)); }
+        }
+
+        public int? PriceTypeID
+        {
+            get => _priceTypeID;
+            set { _priceTypeID = value; OnPropertyChanged(nameof(PriceTypeID)); }
+        }
+
+        public string PriceTypeName
+        {
+            get => _priceTypeName;
+            set { _priceTypeName = value; OnPropertyChanged(nameof(PriceTypeName)); }
+        }
+
+        // LP z harmonogramu dostaw (do zapisu w FarmerCalc.LpDostawy)
+        private int? _harmonogramLP;
+        public int? HarmonogramLP
+        {
+            get => _harmonogramLP;
+            set { _harmonogramLP = value; OnPropertyChanged(nameof(HarmonogramLP)); }
+        }
+
         public event PropertyChangedEventHandler PropertyChanged;
 
         protected void OnPropertyChanged(string propertyName)
@@ -2314,5 +2804,20 @@ namespace Kalendarz1
 
             return Binding.DoNothing;
         }
+    }
+
+    /// <summary>
+    /// Model danych dla dostawy z harmonogramu
+    /// </summary>
+    public class HarmonogramDostawaItem
+    {
+        public int LP { get; set; }
+        public string Dostawca { get; set; }
+        public int SztukiDek { get; set; }
+        public decimal WagaDek { get; set; }
+        public decimal Cena { get; set; }
+        public decimal Ubytek { get; set; }
+        public string TypCeny { get; set; }
+        public string DisplayText { get; set; }
     }
 }

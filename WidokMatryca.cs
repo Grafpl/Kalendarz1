@@ -1173,14 +1173,14 @@ namespace Kalendarz1
                 {
                     conn.Open();
 
-                    string sql = @"INSERT INTO dbo.FarmerCalc 
-                        (ID, CalcDate, CustomerGID, CustomerRealGID, DriverGID, LpDostawy, SztPoj, WagaDek, 
-                         CarID, TrailerID, NotkaWozek, Wyjazd, Zaladunek, Przyjazd, Price, 
-                         Loss, PriceTypeID) 
-                        VALUES 
-                        (@ID, @Date, @Dostawca, @Dostawca, @Kierowca, @LpDostawy, @SztPoj, @WagaDek, 
-                         @Ciagnik, @Naczepa, @NotkaWozek, @Wyjazd, @Zaladunek, 
-                         @Przyjazd, @Cena, @Ubytek, @TypCeny)";
+                    string sql = @"INSERT INTO dbo.FarmerCalc
+                        (ID, CalcDate, CustomerGID, CustomerRealGID, DriverGID, LpDostawy, SztPoj, WagaDek,
+                         CarID, TrailerID, NotkaWozek, Wyjazd, Zaladunek, Przyjazd, Price,
+                         Loss, PriceTypeID, YearNumber)
+                        VALUES
+                        (@ID, @Date, @Dostawca, @Dostawca, @Kierowca, @LpDostawy, @SztPoj, @WagaDek,
+                         @Ciagnik, @Naczepa, @NotkaWozek, @Wyjazd, @Zaladunek,
+                         @Przyjazd, @Cena, @Ubytek, @TypCeny, @YearNumber)";
 
                     using (SqlTransaction transaction = conn.BeginTransaction())
                     {
@@ -1261,6 +1261,7 @@ namespace Kalendarz1
                                         cmd.Parameters.AddWithValue("@Cena", Cena);
                                         cmd.Parameters.AddWithValue("@Ubytek", Ubytek);
                                         cmd.Parameters.AddWithValue("@TypCeny", intTypCeny);
+                                        cmd.Parameters.AddWithValue("@YearNumber", data.Year);
 
                                         cmd.Parameters.AddWithValue("@Ciagnik", string.IsNullOrEmpty(Ciagnik) ? DBNull.Value : Ciagnik);
                                         cmd.Parameters.AddWithValue("@Naczepa", string.IsNullOrEmpty(Naczepa) ? DBNull.Value : Naczepa);

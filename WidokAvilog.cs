@@ -22,6 +22,12 @@ namespace Kalendarz1
         static string idDostawcy, idrealDostawcy, idKurnika, idDostawcyZmienione;
         private static ZapytaniaSQL zapytaniasql = new ZapytaniaSQL();
         private RozwijanieComboBox RozwijanieComboBox = new RozwijanieComboBox();
+
+        // Przechowywanie oryginalnych wartości do logowania zmian
+        private Dictionary<string, string> _originalValues = new Dictionary<string, string>();
+        private string _dostawcaNazwa = "";
+        private int _nr = 0;
+        private string _carId = "";
         public WidokAvilog()
         {
             InitializeComponent();
@@ -48,10 +54,11 @@ namespace Kalendarz1
             UstawDostawce(idSpecyfikacji, Dostawca, RealDostawca);
             UstawgodzinyAviloga(idSpecyfikacji, poczatekUslugiData,  wyjazdZakladData,  dojazdHodowcaData,  poczatekZaladunekData,  koniecZaladunekData,  wyjazdHodowcaData,  powrotZakladData, koniecUslugiData);
             UstawKierowceAuta(idSpecyfikacji, Naczepa, Auto, Kierowca);
-            UstawRozliczenia(idSpecyfikacji, hBrutto, hTara, uBrutto, uTara, hLiczbaSztuk, uLiczbaSztuk, buforhLiczbaSztuk, hSrednia, buforhSrednia);
+            UstawRozliczenia(idSpecyfikacji, hBrutto, hTara, uBrutto, uTara, hLiczbaSztuk, uLiczbaSztuk, buforhLiczbaSztuk, hSrednia, buforhSrednia, hSumaSztuk, buforSumaSztuk, uSumaSztuk);
             UstawKilometry(idSpecyfikacji, kmWyjazd, kmPowrot);
-            UstawKilometry(idSpecyfikacji, kmWyjazd, kmPowrot);
-            //ZczytajDane(idSpecyfikacji, Dostawca, RealDostawca);
+
+            // Zapisz oryginalne wartości do logowania zmian
+            ZapiszOryginalne(idSpecyfikacji);
         }
         private static void UstawgodzinyAviloga(int id, DateTimePicker poczatekUslugiData, DateTimePicker wyjazdZakladData, DateTimePicker dojazdHodowcaData, DateTimePicker poczatekZaladunekData, DateTimePicker koniecZaladunekData, DateTimePicker wyjazdHodowcaData, DateTimePicker powrotZakladData, DateTimePicker koniecUslugiData)
         {
@@ -206,7 +213,7 @@ namespace Kalendarz1
                 Console.WriteLine("Wystąpił błąd podczas pobierania danych: " + ex.Message);
             }
         }
-        private static void UstawRozliczenia(int id, TextBox hBrutto, TextBox hTara, TextBox uBrutto, TextBox uTara, TextBox hLiczbaSztuk, TextBox uLiczbaSztuk, TextBox buforhLiczbaSztuk, TextBox hSrednia, TextBox buforhSrednia)
+        private static void UstawRozliczenia(int id, TextBox hBrutto, TextBox hTara, TextBox uBrutto, TextBox uTara, TextBox hLiczbaSztuk, TextBox uLiczbaSztuk, TextBox buforhLiczbaSztuk, TextBox hSrednia, TextBox buforhSrednia, TextBox hSumaSztuk, TextBox buforSumaSztuk, TextBox uSumaSztuk)
         {
             try
             {
@@ -254,20 +261,13 @@ namespace Kalendarz1
                             decimal waga = reader.GetDecimal(reader.GetOrdinal("WagaDek"));
                             buforhSrednia.Text = waga.ToString(); // Konwersja wartości decimal na string
                         }
+                        // SztPoj to całkowita liczba sztuk - wpisujemy do SumaSztuk, nie do LiczbaSztuk (per szuflada)
                         if (!reader.IsDBNull(reader.GetOrdinal("SztPoj")))
                         {
-                            decimal waga = reader.GetDecimal(reader.GetOrdinal("SztPoj"));
-                            hLiczbaSztuk.Text = waga.ToString(); // Konwersja wartości decimal na string
-                        }
-                        if (!reader.IsDBNull(reader.GetOrdinal("SztPoj")))
-                        {
-                            decimal waga = reader.GetDecimal(reader.GetOrdinal("SztPoj"));
-                            buforhLiczbaSztuk.Text = waga.ToString(); // Konwersja wartości decimal na string
-                        }
-                        if (!reader.IsDBNull(reader.GetOrdinal("SztPoj")))
-                        {
-                            decimal waga = reader.GetDecimal(reader.GetOrdinal("SztPoj"));
-                            uLiczbaSztuk.Text = waga.ToString(); // Konwersja wartości decimal na string
+                            int sztuki = (int)reader.GetDecimal(reader.GetOrdinal("SztPoj"));
+                            hSumaSztuk.Text = sztuki.ToString();
+                            buforSumaSztuk.Text = sztuki.ToString();
+                            uSumaSztuk.Text = sztuki.ToString();
                         }
                     }
                     else
@@ -450,12 +450,16 @@ namespace Kalendarz1
 
             if (Dostawca?.SelectedItem is KeyValuePair<string, string> DostawcaIdlista)
             {
-                dostawcaIdString = DostawcaIdlista.Key; 
+                dostawcaIdString = DostawcaIdlista.Key;
             }
             if (RealDostawca?.SelectedItem is KeyValuePair<string, string> RealDostawcaIdlista)
             {
                 realDostawcaIdString = RealDostawcaIdlista.Key;
             }
+
+            // Loguj zmiany przed zapisem
+            LogujZmianyPrzedZapisem();
+
             zapytaniasql.UpdateDaneHodowowAvilog(id2Specyfikacji, dostawcaIdString, realDostawcaIdString);
             zapytaniasql.UpdateDaneAdresoweDostawcy(dostawcaIdString, UlicaH, KodPocztowyH, MiejscH, KmH);
             zapytaniasql.UpdateDaneAdresoweDostawcy(realDostawcaIdString, UlicaR, KodPocztowyR, MiejscR, KmR);
@@ -465,11 +469,6 @@ namespace Kalendarz1
             zapytaniasql.UpdateDaneRozliczenioweAvilogUbojnia(id2Specyfikacji, uBrutto, uTara, uNetto, uSrednia, uSumaSztuk, uLiczbaSztuk);
             zapytaniasql.UpdateDaneAutKierowcy(id2Specyfikacji, Kierowca, Auto, Naczepa);
             zapytaniasql.UpdateDaneDystansu(id2Specyfikacji, kmWyjazd, kmPowrot, Dystans);
-
-
-            
-
-
 
             zapytaniasql.UpdateCzas(id2Specyfikacji, "PoczatekUslugi", poczatekUslugiData);
             zapytaniasql.UpdateCzas(id2Specyfikacji, "Wyjazd", wyjazdZakladData);
@@ -482,6 +481,186 @@ namespace Kalendarz1
 
             // Zamknij okno po zapisaniu
             this.Close();
+        }
+
+        /// <summary>
+        /// Zapisuje oryginalne wartości z bazy do późniejszego porównania
+        /// </summary>
+        private void ZapiszOryginalne(int id)
+        {
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    SqlCommand command = new SqlCommand(sqlDostawy, connection);
+                    command.Parameters.AddWithValue("@id", id);
+
+                    SqlDataReader reader = command.ExecuteReader();
+                    if (reader.Read())
+                    {
+                        // Wagi
+                        _originalValues["FullFarmWeight"] = reader.IsDBNull(reader.GetOrdinal("FullFarmWeight")) ? "" : reader.GetDecimal(reader.GetOrdinal("FullFarmWeight")).ToString();
+                        _originalValues["EmptyFarmWeight"] = reader.IsDBNull(reader.GetOrdinal("EmptyFarmWeight")) ? "" : reader.GetDecimal(reader.GetOrdinal("EmptyFarmWeight")).ToString();
+                        _originalValues["FullWeight"] = reader.IsDBNull(reader.GetOrdinal("FullWeight")) ? "" : reader.GetDecimal(reader.GetOrdinal("FullWeight")).ToString();
+                        _originalValues["EmptyWeight"] = reader.IsDBNull(reader.GetOrdinal("EmptyWeight")) ? "" : reader.GetDecimal(reader.GetOrdinal("EmptyWeight")).ToString();
+
+                        // Sztuki
+                        _originalValues["SztPoj"] = reader.IsDBNull(reader.GetOrdinal("SztPoj")) ? "" : reader.GetDecimal(reader.GetOrdinal("SztPoj")).ToString();
+                        _originalValues["WagaDek"] = reader.IsDBNull(reader.GetOrdinal("WagaDek")) ? "" : reader.GetDecimal(reader.GetOrdinal("WagaDek")).ToString();
+
+                        // Kilometry
+                        _originalValues["StartKM"] = reader.IsDBNull(reader.GetOrdinal("StartKM")) ? "" : reader.GetInt32(reader.GetOrdinal("StartKM")).ToString();
+                        _originalValues["StopKM"] = reader.IsDBNull(reader.GetOrdinal("StopKM")) ? "" : reader.GetInt32(reader.GetOrdinal("StopKM")).ToString();
+
+                        // Auto/Kierowca
+                        _originalValues["CarID"] = reader.IsDBNull(reader.GetOrdinal("CarID")) ? "" : reader.GetString(reader.GetOrdinal("CarID"));
+                        _originalValues["TrailerID"] = reader.IsDBNull(reader.GetOrdinal("TrailerID")) ? "" : reader.GetString(reader.GetOrdinal("TrailerID"));
+                        _originalValues["DriverGID"] = reader.IsDBNull(reader.GetOrdinal("DriverGID")) ? "" : reader.GetInt32(reader.GetOrdinal("DriverGID")).ToString();
+
+                        // Czasy
+                        _originalValues["PoczatekUslugi"] = reader.IsDBNull(reader.GetOrdinal("PoczatekUslugi")) ? "" : reader.GetDateTime(reader.GetOrdinal("PoczatekUslugi")).ToString("HH:mm");
+                        _originalValues["Wyjazd"] = reader.IsDBNull(reader.GetOrdinal("Wyjazd")) ? "" : reader.GetDateTime(reader.GetOrdinal("Wyjazd")).ToString("HH:mm");
+                        _originalValues["DojazdHodowca"] = reader.IsDBNull(reader.GetOrdinal("DojazdHodowca")) ? "" : reader.GetDateTime(reader.GetOrdinal("DojazdHodowca")).ToString("HH:mm");
+                        _originalValues["Zaladunek"] = reader.IsDBNull(reader.GetOrdinal("Zaladunek")) ? "" : reader.GetDateTime(reader.GetOrdinal("Zaladunek")).ToString("HH:mm");
+                        _originalValues["ZaladunekKoniec"] = reader.IsDBNull(reader.GetOrdinal("ZaladunekKoniec")) ? "" : reader.GetDateTime(reader.GetOrdinal("ZaladunekKoniec")).ToString("HH:mm");
+                        _originalValues["WyjazdHodowca"] = reader.IsDBNull(reader.GetOrdinal("WyjazdHodowca")) ? "" : reader.GetDateTime(reader.GetOrdinal("WyjazdHodowca")).ToString("HH:mm");
+                        _originalValues["Przyjazd"] = reader.IsDBNull(reader.GetOrdinal("Przyjazd")) ? "" : reader.GetDateTime(reader.GetOrdinal("Przyjazd")).ToString("HH:mm");
+                        _originalValues["KoniecUslugi"] = reader.IsDBNull(reader.GetOrdinal("KoniecUslugi")) ? "" : reader.GetDateTime(reader.GetOrdinal("KoniecUslugi")).ToString("HH:mm");
+
+                        // Nr i CarID do logowania
+                        _nr = reader.IsDBNull(reader.GetOrdinal("CarLp")) ? 0 : reader.GetInt32(reader.GetOrdinal("CarLp"));
+                        _carId = reader.IsDBNull(reader.GetOrdinal("CarID")) ? "" : reader.GetString(reader.GetOrdinal("CarID"));
+
+                        // Nazwa dostawcy
+                        if (!reader.IsDBNull(reader.GetOrdinal("CustomerRealGID")))
+                        {
+                            string dostawcaInfo = reader["CustomerRealGID"]?.ToString();
+                            _dostawcaNazwa = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(dostawcaInfo, "ShortName") ?? "";
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Błąd podczas zapisywania oryginalnych wartości: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Loguje zmiany przed zapisem
+        /// </summary>
+        private void LogujZmianyPrzedZapisem()
+        {
+            try
+            {
+                // Wagi hodowca
+                LogujZmianeJesliInna("FullFarmWeight", "Waga Brutto Hodowca", _originalValues.GetValueOrDefault("FullFarmWeight", ""), hBrutto.Text);
+                LogujZmianeJesliInna("EmptyFarmWeight", "Waga Tara Hodowca", _originalValues.GetValueOrDefault("EmptyFarmWeight", ""), hTara.Text);
+
+                // Wagi ubojnia
+                LogujZmianeJesliInna("FullWeight", "Waga Brutto Ubojnia", _originalValues.GetValueOrDefault("FullWeight", ""), uBrutto.Text);
+                LogujZmianeJesliInna("EmptyWeight", "Waga Tara Ubojnia", _originalValues.GetValueOrDefault("EmptyWeight", ""), uTara.Text);
+
+                // Kilometry
+                LogujZmianeJesliInna("StartKM", "KM Wyjazd", _originalValues.GetValueOrDefault("StartKM", ""), kmWyjazd.Text);
+                LogujZmianeJesliInna("StopKM", "KM Powrót", _originalValues.GetValueOrDefault("StopKM", ""), kmPowrot.Text);
+
+                // Auto/Naczepa
+                LogujZmianeJesliInna("CarID", "Auto", _originalValues.GetValueOrDefault("CarID", ""), Auto.Text);
+                LogujZmianeJesliInna("TrailerID", "Naczepa", _originalValues.GetValueOrDefault("TrailerID", ""), Naczepa.Text);
+
+                // Czasy
+                LogujZmianeJesliInna("PoczatekUslugi", "Początek Usługi", _originalValues.GetValueOrDefault("PoczatekUslugi", ""), poczatekUslugiData.Value.ToString("HH:mm"));
+                LogujZmianeJesliInna("Wyjazd", "Wyjazd Zakład", _originalValues.GetValueOrDefault("Wyjazd", ""), wyjazdZakladData.Value.ToString("HH:mm"));
+                LogujZmianeJesliInna("DojazdHodowca", "Dojazd Hodowca", _originalValues.GetValueOrDefault("DojazdHodowca", ""), dojazdHodowcaData.Value.ToString("HH:mm"));
+                LogujZmianeJesliInna("Zaladunek", "Początek Załadunku", _originalValues.GetValueOrDefault("Zaladunek", ""), poczatekZaladunekData.Value.ToString("HH:mm"));
+                LogujZmianeJesliInna("ZaladunekKoniec", "Koniec Załadunku", _originalValues.GetValueOrDefault("ZaladunekKoniec", ""), koniecZaladunekData.Value.ToString("HH:mm"));
+                LogujZmianeJesliInna("WyjazdHodowca", "Wyjazd Hodowca", _originalValues.GetValueOrDefault("WyjazdHodowca", ""), wyjazdHodowcaData.Value.ToString("HH:mm"));
+                LogujZmianeJesliInna("Przyjazd", "Powrót Zakład", _originalValues.GetValueOrDefault("Przyjazd", ""), powrotZakladData.Value.ToString("HH:mm"));
+                LogujZmianeJesliInna("KoniecUslugi", "Koniec Usługi", _originalValues.GetValueOrDefault("KoniecUslugi", ""), koniecUslugiData.Value.ToString("HH:mm"));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Błąd podczas logowania zmian: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Loguje zmianę jeśli wartość jest inna
+        /// </summary>
+        private void LogujZmianeJesliInna(string fieldName, string displayName, string oldValue, string newValue)
+        {
+            if (string.IsNullOrEmpty(oldValue) && string.IsNullOrEmpty(newValue)) return;
+            if (oldValue == newValue) return;
+
+            // Nie loguj początkowych wartości (gdy stare jest puste)
+            if (string.IsNullOrEmpty(oldValue) || oldValue == "0" || oldValue == "00:00") return;
+
+            LogChangeToDatabase(id2Specyfikacji, displayName, oldValue, newValue, _dostawcaNazwa, _nr, _carId);
+        }
+
+        /// <summary>
+        /// Zapisuje zmianę do bazy danych FarmerCalcChangeLog
+        /// </summary>
+        private void LogChangeToDatabase(int recordId, string fieldName, string oldValue, string newValue, string dostawca, int nr, string carId)
+        {
+            try
+            {
+                if (oldValue == newValue) return;
+
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Pobierz datę specyfikacji
+                    DateTime? calcDate = null;
+                    string getDateSql = "SELECT CalcDate FROM [dbo].[FarmerCalc] WHERE ID = @ID";
+                    using (SqlCommand dateCmd = new SqlCommand(getDateSql, conn))
+                    {
+                        dateCmd.Parameters.AddWithValue("@ID", recordId);
+                        var result = dateCmd.ExecuteScalar();
+                        if (result != null && result != DBNull.Value)
+                            calcDate = (DateTime)result;
+                    }
+
+                    // Pobierz nazwę użytkownika
+                    string userName = Environment.UserName;
+                    string userId = App.UserID ?? "";
+                    if (!string.IsNullOrEmpty(userId))
+                    {
+                        try
+                        {
+                            NazwaZiD nazwaZiD = new NazwaZiD();
+                            userName = nazwaZiD.GetNameById(userId) ?? userName;
+                        }
+                        catch { }
+                    }
+
+                    string sql = @"INSERT INTO [dbo].[FarmerCalcChangeLog]
+                        (FarmerCalcID, FieldName, OldValue, NewValue, Dostawca, ChangedBy, UserID, Nr, CarID, ChangeDate, CalcDate)
+                        VALUES (@FarmerCalcID, @FieldName, @OldValue, @NewValue, @Dostawca, @ChangedBy, @UserID, @Nr, @CarID, GETDATE(), @CalcDate)";
+
+                    using (SqlCommand cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@FarmerCalcID", recordId);
+                        cmd.Parameters.AddWithValue("@FieldName", fieldName ?? "");
+                        cmd.Parameters.AddWithValue("@OldValue", oldValue ?? "");
+                        cmd.Parameters.AddWithValue("@NewValue", newValue ?? "");
+                        cmd.Parameters.AddWithValue("@Dostawca", dostawca ?? "");
+                        cmd.Parameters.AddWithValue("@ChangedBy", userName ?? "system");
+                        cmd.Parameters.AddWithValue("@UserID", userId ?? "");
+                        cmd.Parameters.AddWithValue("@Nr", nr);
+                        cmd.Parameters.AddWithValue("@CarID", carId ?? "");
+                        cmd.Parameters.AddWithValue("@CalcDate", (object)calcDate ?? DBNull.Value);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Błąd logowania zmiany: " + ex.Message);
+            }
         }
     }
 }

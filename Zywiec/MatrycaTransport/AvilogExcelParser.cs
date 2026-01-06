@@ -262,11 +262,18 @@ namespace Kalendarz1
                     // Kolumna 5: GPS
                     result.HodowcaGPS = GetCellStringValue(row1.GetCell(5))?.Trim();
 
-                    // Kolumna 14: Wymiar skrzyń (np. " 21 x 264")
+                    // Kolumna 14: Wymiar skrzyń (np. " 16 x 264")
                     string wymiar = GetCellStringValue(row1.GetCell(14))?.Trim();
                     if (!string.IsNullOrEmpty(wymiar))
                     {
                         result.WymiarSkrzyn = wymiar.Trim();
+
+                        // Wyciągnij liczbę przed "x" (np. "16 x 264" -> 16)
+                        var wymiarMatch = Regex.Match(wymiar, @"(\d+)\s*[xX]");
+                        if (wymiarMatch.Success && int.TryParse(wymiarMatch.Groups[1].Value, out int sztNaSkrzynke))
+                        {
+                            result.SztukiNaSkrzynke = sztNaSkrzynke;
+                        }
                     }
 
                     // Kolumna 17: Godzina przyjazdu
@@ -516,6 +523,7 @@ namespace Kalendarz1
         private int _sztuki;
         private decimal _wagaDek;
         private string _wymiarSkrzyn;
+        private int _sztukiNaSkrzynke;
         private DateTime? _wyjazdZaklad;
         private TimeSpan? _godzinaZaladunku;
         private DateTime? _powrotZaklad;
@@ -609,6 +617,15 @@ namespace Kalendarz1
         {
             get => _wymiarSkrzyn;
             set { _wymiarSkrzyn = value; OnPropertyChanged(nameof(WymiarSkrzyn)); }
+        }
+
+        /// <summary>
+        /// Liczba sztuk na skrzynkę - wyciągnięta z WymiarSkrzyn (np. "16 x 264" -> 16)
+        /// </summary>
+        public int SztukiNaSkrzynke
+        {
+            get => _sztukiNaSkrzynke;
+            set { _sztukiNaSkrzynke = value; OnPropertyChanged(nameof(SztukiNaSkrzynke)); }
         }
 
         public DateTime? WyjazdZaklad
