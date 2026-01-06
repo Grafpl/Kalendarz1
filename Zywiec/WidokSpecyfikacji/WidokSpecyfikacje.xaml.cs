@@ -78,6 +78,9 @@ namespace Kalendarz1
         // === HIGHLIGHT: Aktualnie podświetlona grupa dostawcy ===
         private string _highlightedSupplier = null;
 
+        // === BLOKADA: Zapobiega logowaniu zmian podczas ładowania danych ===
+        private bool _isLoadingData = false;
+
         // === AUTOCOMPLETE DOSTAWCY: TextBox + Popup + ListBox ===
         public ObservableCollection<DostawcaItem> SupplierSuggestions { get; set; } = new ObservableCollection<DostawcaItem>();
         private DispatcherTimer _supplierFilterTimer;
@@ -514,6 +517,7 @@ namespace Kalendarz1
 
         private void LoadData(DateTime selectedDate)
         {
+            _isLoadingData = true; // Blokuj logowanie zmian podczas ładowania
             try
             {
                 UpdateStatus("Ładowanie danych...");
@@ -619,6 +623,10 @@ namespace Kalendarz1
             catch (Exception ex)
             {
                 UpdateStatus($"Błąd: {ex.Message}");
+            }
+            finally
+            {
+                _isLoadingData = false; // Odblokuj logowanie po załadowaniu
             }
         }
 
@@ -5355,6 +5363,9 @@ namespace Kalendarz1
         // Handler dla zmiany PiK (CheckBox) - zapisuje do bazy natychmiast
         private void PiK_Changed(object sender, RoutedEventArgs e)
         {
+            // BLOKADA: Ignoruj zmiany podczas ładowania danych (binding odpala Checked/Unchecked)
+            if (_isLoadingData) return;
+
             var checkBox = sender as CheckBox;
             if (checkBox == null) return;
 
