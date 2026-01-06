@@ -1101,6 +1101,24 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
 
+                                <DataGridTemplateColumn Header="Symf." Width="45" ToolTipService.ToolTip="Przeniesione do Symfonii">
+                                    <DataGridTemplateColumn.CellStyle>
+                                        <Style TargetType="DataGridCell">
+                                            <Setter Property="Background" Value="#E1BEE7"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                        </Style>
+                                    </DataGridTemplateColumn.CellStyle>
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding Symfonia, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"
+                                                      Checked="Symfonia_Changed"
+                                                      Unchecked="Symfonia_Changed"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
                             </DataGrid.Columns>
                         </DataGrid>
 
@@ -1629,6 +1647,158 @@
                                 </DataGridTextColumn>
                             </DataGrid.Columns>
                         </DataGrid>
+                    </Grid>
+                </Border>
+            </TabItem>
+
+            <!-- === KARTA ROZLICZENIA === -->
+            <TabItem Header="💰 Rozliczenia">
+                <Border Background="White" CornerRadius="10" Margin="10" Padding="15">
+                    <Border.Effect>
+                        <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="15"/>
+                    </Border.Effect>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Nagłówek i filtry -->
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                            <TextBlock Text="Rozliczenia dostaw" FontSize="18" FontWeight="Bold" Foreground="#2C3E50" VerticalAlignment="Center"/>
+                            <Border Width="1" Background="#E0E0E0" Margin="15,2"/>
+                            <TextBlock Text="Filtr daty:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <DatePicker x:Name="dpRozliczeniaOd" Width="120" Margin="0,0,10,0"/>
+                            <TextBlock Text="-" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <DatePicker x:Name="dpRozliczeniaDo" Width="120" Margin="0,0,10,0"/>
+                            <Button Content="Filtruj" Padding="15,5" Background="#3498DB" Foreground="White"
+                                    BorderThickness="0" Cursor="Hand" Click="BtnFilterRozliczenia_Click"/>
+                        </StackPanel>
+
+                        <!-- Toolbar zatwierdzania -->
+                        <Border Grid.Row="1" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="8,6" Margin="0,0,0,10">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Zatwierdzanie:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,10,0"/>
+                                <Button x:Name="btnZatwierdzDzien" Content="✓ Zatwierdź wybrany dzień"
+                                        Padding="10,4" Margin="0,0,10,0" Background="#27AE60" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand" Click="BtnZatwierdzDzien_Click"/>
+                                <Button x:Name="btnCofnijZatwierdzenie" Content="✗ Cofnij zatwierdzenie"
+                                        Padding="10,4" Margin="0,0,10,0" Background="#E74C3C" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand" Click="BtnCofnijZatwierdzenie_Click"/>
+                                <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
+                                <Button x:Name="btnExportSymfonia" Content="📤 Eksport do Symfonii"
+                                        Padding="10,4" Margin="5,0,0,0" Background="#9B59B6" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand" Click="BtnExportSymfonia_Click"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- DataGrid rozliczeń -->
+                        <DataGrid Grid.Row="2" x:Name="dataGridRozliczenia"
+                                  AutoGenerateColumns="False"
+                                  CanUserAddRows="False"
+                                  CanUserDeleteRows="False"
+                                  IsReadOnly="True"
+                                  SelectionMode="Extended"
+                                  SelectionUnit="FullRow"
+                                  RowHeight="28"
+                                  AlternatingRowBackground="#F8F9FA"
+                                  GridLinesVisibility="Horizontal"
+                                  HorizontalGridLinesBrush="#E0E0E0"
+                                  BorderThickness="1"
+                                  BorderBrush="#BDBDBD">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat=yyyy-MM-dd}" Width="90"/>
+                                <DataGridTextColumn Header="LP" Binding="{Binding Nr}" Width="40"/>
+                                <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="180"/>
+                                <DataGridTextColumn Header="Szt.Dek" Binding="{Binding SztukiDek, StringFormat={}{0:N0}}" Width="70">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Padding" Value="0,0,8,0"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Netto KG" Binding="{Binding NettoKg, StringFormat={}{0:N0}}" Width="80">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Padding" Value="0,0,8,0"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat={}{0:N2}}" Width="65">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Foreground" Value="#1565C0"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Typ ceny" Binding="{Binding TypCeny}" Width="90"/>
+                                <DataGridTextColumn Header="Wartość" Binding="{Binding Wartosc, StringFormat={}{0:N2}}" Width="100">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Foreground" Value="#2E7D32"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridCheckBoxColumn Header="Symfonia" Binding="{Binding Symfonia}" Width="70"/>
+                                <DataGridCheckBoxColumn Header="ARIMR" Binding="{Binding ARIMR}" Width="60"/>
+                                <DataGridTemplateColumn Header="Status" Width="100">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Padding="5,2" CornerRadius="3" HorizontalAlignment="Center">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="#FFF3E0"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Zatwierdzony}" Value="True">
+                                                                <Setter Property="Background" Value="#E8F5E9"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock HorizontalAlignment="Center">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Text" Value="Oczekuje"/>
+                                                            <Setter Property="Foreground" Value="#E65100"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Zatwierdzony}" Value="True">
+                                                                    <Setter Property="Text" Value="Zatwierdzony"/>
+                                                                    <Setter Property="Foreground" Value="#2E7D32"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Zatwierdził" Binding="{Binding ZatwierdzonePrzez}" Width="100"/>
+                                <DataGridTextColumn Header="Data zatw." Binding="{Binding DataZatwierdzenia, StringFormat=yyyy-MM-dd HH:mm}" Width="120"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <!-- Podsumowanie -->
+                        <Border Grid.Row="3" Background="#ECEFF1" Padding="10" Margin="0,10,0,0" CornerRadius="5">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Suma wierszy: " FontWeight="SemiBold"/>
+                                <TextBlock x:Name="lblRozliczeniaSumaWierszy" Text="0" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,20,0"/>
+                                <TextBlock Text="Suma sztuk: " FontWeight="SemiBold"/>
+                                <TextBlock x:Name="lblRozliczeniaSumaSztuk" Text="0" FontWeight="Bold" Foreground="#E65100" Margin="0,0,20,0"/>
+                                <TextBlock Text="Suma KG: " FontWeight="SemiBold"/>
+                                <TextBlock x:Name="lblRozliczeniaSumaKg" Text="0" FontWeight="Bold" Foreground="#1565C0" Margin="0,0,20,0"/>
+                                <TextBlock Text="Suma wartość: " FontWeight="SemiBold"/>
+                                <TextBlock x:Name="lblRozliczeniaSumaWartosc" Text="0,00" FontWeight="Bold" Foreground="#2E7D32"/>
+                            </StackPanel>
+                        </Border>
                     </Grid>
                 </Border>
             </TabItem>

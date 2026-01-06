@@ -602,7 +602,9 @@ namespace Kalendarz1
                                 Zaladunek = row["Zaladunek"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["Zaladunek"]) : null,
                                 ZaladunekKoniec = row["ZaladunekKoniec"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["ZaladunekKoniec"]) : null,
                                 WyjazdHodowca = row["WyjazdHodowca"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["WyjazdHodowca"]) : null,
-                                KoniecUslugi = row["KoniecUslugi"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["KoniecUslugi"]) : null
+                                KoniecUslugi = row["KoniecUslugi"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["KoniecUslugi"]) : null,
+                                // Pole Symfonia
+                                Symfonia = row["Symfonia"] != DBNull.Value && Convert.ToBoolean(row["Symfonia"])
                             };
 
                             specyfikacjeData.Add(specRow);
@@ -5398,6 +5400,22 @@ namespace Kalendarz1
             UpdateStatus($"Zapisano PiK: {(row.PiK ? "TAK" : "NIE")} dla LP {row.Nr}");
         }
 
+        // Handler dla zmiany Symfonia (CheckBox) - zapisuje do bazy natychmiast
+        private void Symfonia_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_isLoadingData) return;
+
+            var checkBox = sender as CheckBox;
+            if (checkBox == null) return;
+
+            var row = checkBox.DataContext as SpecyfikacjaRow;
+            if (row == null) return;
+
+            // Zapisz do bazy
+            SaveFieldToDatabase(row.ID, "Symfonia", row.Symfonia);
+            UpdateStatus($"Zapisano Symfonia: {(row.Symfonia ? "TAK" : "NIE")} dla LP {row.Nr}");
+        }
+
         // Zmienna do śledzenia starego typu ceny
         private string _oldTypCeny = "";
 
@@ -5771,6 +5789,43 @@ namespace Kalendarz1
         }
 
         #endregion
+
+        #region Rozliczenia Tab Handlers
+
+        private void BtnFilterRozliczenia_Click(object sender, RoutedEventArgs e)
+        {
+            LoadRozliczeniaData();
+        }
+
+        private void LoadRozliczeniaData()
+        {
+            // TODO: Implementacja ładowania danych rozliczeń
+            // Na razie placeholder - dane będą ładowane z tej samej tabeli FarmerCalc
+            UpdateStatus("Funkcja rozliczeń w przygotowaniu...");
+        }
+
+        private void BtnZatwierdzDzien_Click(object sender, RoutedEventArgs e)
+        {
+            // TODO: Implementacja zatwierdzania dnia
+            MessageBox.Show("Funkcja zatwierdzania dnia wymaga konfiguracji uprawnień.",
+                "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void BtnCofnijZatwierdzenie_Click(object sender, RoutedEventArgs e)
+        {
+            // TODO: Implementacja cofania zatwierdzenia (wymaga uprawnień przełożonego)
+            MessageBox.Show("Cofnięcie zatwierdzenia wymaga uprawnień przełożonego.",
+                "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void BtnExportSymfonia_Click(object sender, RoutedEventArgs e)
+        {
+            // TODO: Implementacja eksportu do Symfonii
+            MessageBox.Show("Funkcja eksportu do Symfonii w przygotowaniu.",
+                "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        #endregion
     }
 
     // === KLASY POMOCNICZE ===
@@ -5842,6 +5897,7 @@ namespace Kalendarz1
         private decimal _klasaB;
         private int _terminDni;
         private DateTime _dataUboju;
+        private bool _symfonia;
 
         // Pola transportowe
         private int? _driverGID;
@@ -6054,6 +6110,12 @@ namespace Kalendarz1
         {
             get => _terminDni;
             set { _terminDni = value; OnPropertyChanged(nameof(TerminDni)); OnPropertyChanged(nameof(TerminPlatnosci)); }
+        }
+
+        public bool Symfonia
+        {
+            get => _symfonia;
+            set { _symfonia = value; OnPropertyChanged(nameof(Symfonia)); }
         }
 
         public DateTime DataUboju
@@ -6753,6 +6815,52 @@ namespace Kalendarz1
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
             throw new NotImplementedException();
+        }
+    }
+
+    /// <summary>
+    /// Klasa modelu danych dla karty Rozliczenia
+    /// </summary>
+    public class RozliczenieRow : INotifyPropertyChanged
+    {
+        public int ID { get; set; }
+        public DateTime Data { get; set; }
+        public int Nr { get; set; }
+        public string Dostawca { get; set; }
+        public int SztukiDek { get; set; }
+        public decimal NettoKg { get; set; }
+        public decimal Cena { get; set; }
+        public string TypCeny { get; set; }
+        public decimal Wartosc { get; set; }
+
+        private bool _symfonia;
+        public bool Symfonia
+        {
+            get => _symfonia;
+            set { _symfonia = value; OnPropertyChanged(nameof(Symfonia)); }
+        }
+
+        private bool _arimr;
+        public bool ARIMR
+        {
+            get => _arimr;
+            set { _arimr = value; OnPropertyChanged(nameof(ARIMR)); }
+        }
+
+        private bool _zatwierdzony;
+        public bool Zatwierdzony
+        {
+            get => _zatwierdzony;
+            set { _zatwierdzony = value; OnPropertyChanged(nameof(Zatwierdzony)); }
+        }
+
+        public string ZatwierdzonePrzez { get; set; }
+        public DateTime? DataZatwierdzenia { get; set; }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 }
