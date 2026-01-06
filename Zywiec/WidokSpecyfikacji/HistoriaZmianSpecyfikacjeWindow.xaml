@@ -275,6 +275,8 @@
 
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Data zmiany" Binding="{Binding ChangeDate, StringFormat='{}{0:dd.MM.yyyy HH:mm:ss}'}" Width="145"/>
+                <DataGridTextColumn Header="LP" Binding="{Binding Nr}" Width="50"/>
+                <DataGridTextColumn Header="Nr auta" Binding="{Binding CarID}" Width="100"/>
                 <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="180"/>
                 <DataGridTextColumn Header="Pole" Binding="{Binding FieldDisplayName}" Width="120"/>
                 <DataGridTemplateColumn Header="Zmiana" Width="200">
@@ -289,6 +291,7 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
                 <DataGridTextColumn Header="Użytkownik" Binding="{Binding ChangedBy}" Width="100"/>
+                <DataGridTextColumn Header="UserID" Binding="{Binding UserID}" Width="70"/>
                 <DataGridTextColumn Header="Data specyfikacji" Binding="{Binding CalcDate, StringFormat='{}{0:dd.MM.yyyy}'}" Width="110"/>
                 <DataGridTextColumn Header="ID" Binding="{Binding FarmerCalcID}" Width="60"/>
             </DataGrid.Columns>

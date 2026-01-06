@@ -2139,7 +2139,7 @@ namespace Kalendarz1
         /// <summary>
         /// Zapisuje zmianę do bazy danych FarmerCalcChangeLog
         /// </summary>
-        private void LogChangeToDatabase(int recordId, string fieldName, string oldValue, string newValue, string dostawca = "")
+        private void LogChangeToDatabase(int recordId, string fieldName, string oldValue, string newValue, string dostawca = "", int nr = 0, string carId = "")
         {
             try
             {
@@ -2151,18 +2151,20 @@ namespace Kalendarz1
                     conn.Open();
 
                     // Upewnij się, że tabela istnieje z właściwą strukturą
-                    // Użyj prostszego podejścia - DROP i CREATE jeśli struktura jest zła
                     string createTableSql = @"
                         IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FarmerCalcChangeLog')
                         BEGIN
                             CREATE TABLE [dbo].[FarmerCalcChangeLog] (
                                 [ID] INT IDENTITY(1,1) PRIMARY KEY,
-                                [RecordID] INT NULL,
+                                [FarmerCalcID] INT NULL,
                                 [FieldName] NVARCHAR(100) NULL,
                                 [OldValue] NVARCHAR(500) NULL,
                                 [NewValue] NVARCHAR(500) NULL,
                                 [Dostawca] NVARCHAR(200) NULL,
-                                [UserName] NVARCHAR(100) NULL,
+                                [ChangedBy] NVARCHAR(100) NULL,
+                                [UserID] NVARCHAR(50) NULL,
+                                [Nr] INT NULL,
+                                [CarID] NVARCHAR(50) NULL,
                                 [ChangeDate] DATETIME DEFAULT GETDATE(),
                                 [CalcDate] DATE NULL
                             )
@@ -2176,12 +2178,15 @@ namespace Kalendarz1
                     // Dodaj brakujące kolumny pojedynczo (każda w osobnym bloku try)
                     string[] alterCommands = new string[]
                     {
-                        "IF COL_LENGTH('FarmerCalcChangeLog', 'RecordID') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [RecordID] INT NULL",
+                        "IF COL_LENGTH('FarmerCalcChangeLog', 'FarmerCalcID') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [FarmerCalcID] INT NULL",
                         "IF COL_LENGTH('FarmerCalcChangeLog', 'FieldName') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [FieldName] NVARCHAR(100) NULL",
                         "IF COL_LENGTH('FarmerCalcChangeLog', 'OldValue') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [OldValue] NVARCHAR(500) NULL",
                         "IF COL_LENGTH('FarmerCalcChangeLog', 'NewValue') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [NewValue] NVARCHAR(500) NULL",
                         "IF COL_LENGTH('FarmerCalcChangeLog', 'Dostawca') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [Dostawca] NVARCHAR(200) NULL",
-                        "IF COL_LENGTH('FarmerCalcChangeLog', 'UserName') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [UserName] NVARCHAR(100) NULL",
+                        "IF COL_LENGTH('FarmerCalcChangeLog', 'ChangedBy') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [ChangedBy] NVARCHAR(100) NULL",
+                        "IF COL_LENGTH('FarmerCalcChangeLog', 'UserID') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [UserID] NVARCHAR(50) NULL",
+                        "IF COL_LENGTH('FarmerCalcChangeLog', 'Nr') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [Nr] INT NULL",
+                        "IF COL_LENGTH('FarmerCalcChangeLog', 'CarID') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [CarID] NVARCHAR(50) NULL",
                         "IF COL_LENGTH('FarmerCalcChangeLog', 'ChangeDate') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [ChangeDate] DATETIME NULL",
                         "IF COL_LENGTH('FarmerCalcChangeLog', 'CalcDate') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [CalcDate] DATE NULL"
                     };
@@ -2198,10 +2203,23 @@ namespace Kalendarz1
                         catch { /* Ignoruj błędy ALTER - kolumna może już istnieć */ }
                     }
 
-                    // Zapisz zmianę - użyj nazw kolumn z istniejącej tabeli
+                    // Pobierz nazwę użytkownika z bazy na podstawie UserID
+                    string userName = Environment.UserName;
+                    string userId = App.UserID ?? "";
+                    if (!string.IsNullOrEmpty(userId))
+                    {
+                        try
+                        {
+                            NazwaZiD nazwaZiD = new NazwaZiD();
+                            userName = nazwaZiD.GetNameById(userId) ?? userName;
+                        }
+                        catch { }
+                    }
+
+                    // Zapisz zmianę z dodatkowymi polami
                     string sql = @"INSERT INTO [dbo].[FarmerCalcChangeLog]
-                        (FarmerCalcID, FieldName, OldValue, NewValue, Dostawca, ChangedBy, ChangeDate, CalcDate)
-                        VALUES (@FarmerCalcID, @FieldName, @OldValue, @NewValue, @Dostawca, @ChangedBy, GETDATE(), @CalcDate)";
+                        (FarmerCalcID, FieldName, OldValue, NewValue, Dostawca, ChangedBy, UserID, Nr, CarID, ChangeDate, CalcDate)
+                        VALUES (@FarmerCalcID, @FieldName, @OldValue, @NewValue, @Dostawca, @ChangedBy, @UserID, @Nr, @CarID, GETDATE(), @CalcDate)";
 
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
@@ -2210,7 +2228,10 @@ namespace Kalendarz1
                         cmd.Parameters.AddWithValue("@OldValue", oldValue ?? "");
                         cmd.Parameters.AddWithValue("@NewValue", newValue ?? "");
                         cmd.Parameters.AddWithValue("@Dostawca", dostawca ?? "");
-                        cmd.Parameters.AddWithValue("@ChangedBy", Environment.UserName ?? "system");
+                        cmd.Parameters.AddWithValue("@ChangedBy", userName ?? "system");
+                        cmd.Parameters.AddWithValue("@UserID", userId ?? "");
+                        cmd.Parameters.AddWithValue("@Nr", nr);
+                        cmd.Parameters.AddWithValue("@CarID", carId ?? "");
                         cmd.Parameters.AddWithValue("@CalcDate", dateTimePicker1.SelectedDate ?? DateTime.Today);
                         int rowsAffected = cmd.ExecuteNonQuery();
 
@@ -2229,7 +2250,7 @@ namespace Kalendarz1
                     PropertyName = fieldName,
                     OldValue = oldValue,
                     NewValue = newValue,
-                    UserName = Environment.UserName
+                    UserName = App.UserID ?? Environment.UserName
                 });
             }
             catch (Exception ex)
@@ -5226,7 +5247,7 @@ namespace Kalendarz1
             // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
             if (!string.IsNullOrEmpty(oldValue) && oldValue != "0.00" && oldValue != newValue)
             {
-                LogChangeToDatabase(row.ID, "Cena", oldValue, newValue, row.RealDostawca ?? row.Dostawca);
+                LogChangeToDatabase(row.ID, "Cena", oldValue, newValue, row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
             }
 
             SaveFieldToDatabase(row.ID, "Price", row.Cena);
@@ -5260,7 +5281,7 @@ namespace Kalendarz1
             // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
             if (!string.IsNullOrEmpty(oldValue) && oldValue != "0.00" && oldValue != newValue)
             {
-                LogChangeToDatabase(row.ID, "Dodatek", oldValue, newValue, row.RealDostawca ?? row.Dostawca);
+                LogChangeToDatabase(row.ID, "Dodatek", oldValue, newValue, row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
             }
 
             SaveFieldToDatabase(row.ID, "Addition", row.Dodatek);
@@ -5294,7 +5315,7 @@ namespace Kalendarz1
             // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
             if (!string.IsNullOrEmpty(oldValue) && oldValue != "0.00" && oldValue != newValue)
             {
-                LogChangeToDatabase(row.ID, "Ubytek", oldValue + "%", newValue + "%", row.RealDostawca ?? row.Dostawca);
+                LogChangeToDatabase(row.ID, "Ubytek", oldValue + "%", newValue + "%", row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
             }
 
             // W bazie Loss jest przechowywany jako ułamek (1.5% = 0.015)
@@ -5314,7 +5335,7 @@ namespace Kalendarz1
             // Loguj zmianę
             string oldValue = row.PiK ? "NIE" : "TAK"; // Wartość przed zmianą jest odwrotna
             string newValue = row.PiK ? "TAK" : "NIE";
-            LogChangeToDatabase(row.ID, "IncDeadConf", oldValue, newValue, row.RealDostawca ?? row.Dostawca);
+            LogChangeToDatabase(row.ID, "IncDeadConf", oldValue, newValue, row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
 
             // Binding już zaktualizował wartość
             SaveFieldToDatabase(row.ID, "IncDeadConf", row.PiK);
@@ -5350,7 +5371,7 @@ namespace Kalendarz1
                 // Loguj zmianę
                 if (!string.IsNullOrEmpty(oldValue) && oldValue != row.TypCeny)
                 {
-                    LogChangeToDatabase(row.ID, "PriceTypeID", oldValue, row.TypCeny, row.RealDostawca ?? row.Dostawca);
+                    LogChangeToDatabase(row.ID, "PriceTypeID", oldValue, row.TypCeny, row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
                 }
 
                 SaveFieldToDatabase(row.ID, "PriceTypeID", priceTypeId);
@@ -5385,7 +5406,7 @@ namespace Kalendarz1
             // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
             if (!string.IsNullOrEmpty(oldValue) && oldValue != "0.00" && oldValue != newValue)
             {
-                LogChangeToDatabase(row.ID, "Opasienie", oldValue + " kg", newValue + " kg", row.RealDostawca ?? row.Dostawca);
+                LogChangeToDatabase(row.ID, "Opasienie", oldValue + " kg", newValue + " kg", row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
             }
 
             SaveFieldToDatabase(row.ID, "Opasienie", row.Opasienie);
@@ -5419,7 +5440,7 @@ namespace Kalendarz1
             // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
             if (!string.IsNullOrEmpty(oldValue) && oldValue != "0.00" && oldValue != newValue)
             {
-                LogChangeToDatabase(row.ID, "KlasaB", oldValue + " kg", newValue + " kg", row.RealDostawca ?? row.Dostawca);
+                LogChangeToDatabase(row.ID, "KlasaB", oldValue + " kg", newValue + " kg", row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
             }
 
             SaveFieldToDatabase(row.ID, "KlasaB", row.KlasaB);
@@ -5452,7 +5473,7 @@ namespace Kalendarz1
             // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
             if (!string.IsNullOrEmpty(oldValue) && oldValue != "0" && oldValue != newValue)
             {
-                LogChangeToDatabase(row.ID, "LUMEL", oldValue, newValue, row.RealDostawca ?? row.Dostawca);
+                LogChangeToDatabase(row.ID, "LUMEL", oldValue, newValue, row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
             }
 
             SaveFieldToDatabase(row.ID, "LumQnt", row.LUMEL);
@@ -5485,7 +5506,7 @@ namespace Kalendarz1
             // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
             if (!string.IsNullOrEmpty(oldValue) && oldValue != "0" && oldValue != newValue)
             {
-                LogChangeToDatabase(row.ID, "Szt.Dek", oldValue, newValue, row.RealDostawca ?? row.Dostawca);
+                LogChangeToDatabase(row.ID, "Szt.Dek", oldValue, newValue, row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
             }
 
             SaveFieldToDatabase(row.ID, "DeclI1", row.SztukiDek);
@@ -5524,7 +5545,7 @@ namespace Kalendarz1
             // ZAWSZE loguj jeśli wartość się zmieniła (bez względu na starą wartość)
             if (oldValue != newValue)
             {
-                LogChangeToDatabase(row.ID, "Padłe", oldValue, newValue, row.RealDostawca ?? row.Dostawca);
+                LogChangeToDatabase(row.ID, "Padłe", oldValue, newValue, row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
             }
 
             SaveFieldToDatabase(row.ID, "DeclI2", row.Padle);
@@ -5557,7 +5578,7 @@ namespace Kalendarz1
             // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
             if (!string.IsNullOrEmpty(oldValue) && oldValue != "0" && oldValue != newValue)
             {
-                LogChangeToDatabase(row.ID, "CH", oldValue, newValue, row.RealDostawca ?? row.Dostawca);
+                LogChangeToDatabase(row.ID, "CH", oldValue, newValue, row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
             }
 
             SaveFieldToDatabase(row.ID, "DeclI3", row.CH);
@@ -5590,7 +5611,7 @@ namespace Kalendarz1
             // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
             if (!string.IsNullOrEmpty(oldValue) && oldValue != "0" && oldValue != newValue)
             {
-                LogChangeToDatabase(row.ID, "NW", oldValue, newValue, row.RealDostawca ?? row.Dostawca);
+                LogChangeToDatabase(row.ID, "NW", oldValue, newValue, row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
             }
 
             SaveFieldToDatabase(row.ID, "DeclI4", row.NW);
@@ -5623,7 +5644,7 @@ namespace Kalendarz1
             // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
             if (!string.IsNullOrEmpty(oldValue) && oldValue != "0" && oldValue != newValue)
             {
-                LogChangeToDatabase(row.ID, "ZM", oldValue, newValue, row.RealDostawca ?? row.Dostawca);
+                LogChangeToDatabase(row.ID, "ZM", oldValue, newValue, row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
             }
 
             SaveFieldToDatabase(row.ID, "DeclI5", row.ZM);

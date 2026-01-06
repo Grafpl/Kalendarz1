@@ -52,7 +52,7 @@ namespace Kalendarz1
                 {
                     conn.Open();
 
-                    string sql = @"SELECT FarmerCalcID, FieldName, OldValue, NewValue, Dostawca, ChangedBy, ChangeDate, CalcDate
+                    string sql = @"SELECT FarmerCalcID, FieldName, OldValue, NewValue, Dostawca, ChangedBy, ChangeDate, CalcDate, Nr, CarID, UserID
                                    FROM [dbo].[FarmerCalcChangeLog]
                                    ORDER BY ChangeDate DESC";
 
@@ -71,7 +71,10 @@ namespace Kalendarz1
                                     Dostawca = reader.IsDBNull(4) ? "" : reader.GetString(4),
                                     ChangedBy = reader.IsDBNull(5) ? "" : reader.GetString(5),
                                     ChangeDate = reader.IsDBNull(6) ? DateTime.MinValue : reader.GetDateTime(6),
-                                    CalcDate = reader.IsDBNull(7) ? (DateTime?)null : reader.GetDateTime(7)
+                                    CalcDate = reader.IsDBNull(7) ? (DateTime?)null : reader.GetDateTime(7),
+                                    Nr = reader.IsDBNull(8) ? 0 : reader.GetInt32(8),
+                                    CarID = reader.IsDBNull(9) ? "" : reader.GetString(9),
+                                    UserID = reader.IsDBNull(10) ? "" : reader.GetString(10)
                                 });
                             }
                         }
@@ -274,12 +277,12 @@ namespace Kalendarz1
                 if (dialog.ShowDialog() == true)
                 {
                     var sb = new StringBuilder();
-                    sb.AppendLine("Data zmiany;Dostawca;Pole;Stara wartość;Nowa wartość;Użytkownik;Data specyfikacji;ID");
+                    sb.AppendLine("Data zmiany;LP;Nr auta;Dostawca;Pole;Stara wartość;Nowa wartość;Użytkownik;UserID;Data specyfikacji;ID");
 
                     var items = _changesView.Cast<ChangeLogItem>().ToList();
                     foreach (var item in items)
                     {
-                        sb.AppendLine($"{item.ChangeDate:dd.MM.yyyy HH:mm:ss};{item.Dostawca};{item.FieldDisplayName};{item.OldValue};{item.NewValue};{item.ChangedBy};{item.CalcDate:dd.MM.yyyy};{item.FarmerCalcID}");
+                        sb.AppendLine($"{item.ChangeDate:dd.MM.yyyy HH:mm:ss};{item.Nr};{item.CarID};{item.Dostawca};{item.FieldDisplayName};{item.OldValue};{item.NewValue};{item.ChangedBy};{item.UserID};{item.CalcDate:dd.MM.yyyy};{item.FarmerCalcID}");
                     }
 
                     File.WriteAllText(dialog.FileName, sb.ToString(), Encoding.UTF8);
@@ -304,11 +307,11 @@ namespace Kalendarz1
                 }
 
                 var sb = new StringBuilder();
-                sb.AppendLine("Data zmiany\tDostawca\tPole\tStara wartość\tNowa wartość\tUżytkownik");
+                sb.AppendLine("Data zmiany\tLP\tNr auta\tDostawca\tPole\tStara wartość\tNowa wartość\tUżytkownik\tUserID");
 
                 foreach (var item in selectedItems)
                 {
-                    sb.AppendLine($"{item.ChangeDate:dd.MM.yyyy HH:mm:ss}\t{item.Dostawca}\t{item.FieldDisplayName}\t{item.OldValue}\t{item.NewValue}\t{item.ChangedBy}");
+                    sb.AppendLine($"{item.ChangeDate:dd.MM.yyyy HH:mm:ss}\t{item.Nr}\t{item.CarID}\t{item.Dostawca}\t{item.FieldDisplayName}\t{item.OldValue}\t{item.NewValue}\t{item.ChangedBy}\t{item.UserID}");
                 }
 
                 Clipboard.SetText(sb.ToString());
@@ -346,6 +349,9 @@ namespace Kalendarz1
         public string ChangedBy { get; set; }
         public DateTime ChangeDate { get; set; }
         public DateTime? CalcDate { get; set; }
+        public int Nr { get; set; }
+        public string CarID { get; set; }
+        public string UserID { get; set; }
 
         /// <summary>
         /// Czytelna nazwa pola
