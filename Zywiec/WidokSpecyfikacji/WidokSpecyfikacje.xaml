@@ -383,74 +383,6 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
-                    <Button x:Name="btnMoveUp"
-                            Click="BtnMoveUp_Click"
-                            Background="#27AE60"
-                            Foreground="White"
-                            Width="32"
-                            Height="28"
-                            Margin="0,0,2,0"
-                            FontSize="16"
-                            FontWeight="Bold"
-                            Content="▲"
-                            Cursor="Hand"
-                            BorderThickness="0"
-                            ToolTip="Przesuń wiersz w górę">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4" Padding="0">
-                                    <TextBlock Text="{TemplateBinding Content}"
-                                               Foreground="{TemplateBinding Foreground}"
-                                               FontSize="{TemplateBinding FontSize}"
-                                               FontWeight="{TemplateBinding FontWeight}"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"/>
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#2ECC71"/>
-                                    </Trigger>
-                                    <Trigger Property="IsPressed" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#1E8449"/>
-                                    </Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
-                    <Button x:Name="btnMoveDown"
-                            Click="BtnMoveDown_Click"
-                            Background="#E74C3C"
-                            Foreground="White"
-                            Width="32"
-                            Height="28"
-                            Margin="0,0,5,0"
-                            FontSize="16"
-                            FontWeight="Bold"
-                            Content="▼"
-                            Cursor="Hand"
-                            BorderThickness="0"
-                            ToolTip="Przesuń wiersz w dół">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4" Padding="0">
-                                    <TextBlock Text="{TemplateBinding Content}"
-                                               Foreground="{TemplateBinding Foreground}"
-                                               FontSize="{TemplateBinding FontSize}"
-                                               FontWeight="{TemplateBinding FontWeight}"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"/>
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#EC7063"/>
-                                    </Trigger>
-                                    <Trigger Property="IsPressed" Value="True">
-                                        <Setter TargetName="border" Property="Background" Value="#C0392B"/>
-                                    </Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
                     <Button Content="DRUKUJ PDF"
                             x:Name="button1"
                             Click="Button1_Click"
@@ -532,6 +464,17 @@
                         <Border Grid.Row="0" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="8,6">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Szybkie akcje:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,10,0"/>
+
+                                <Button x:Name="btnMoveUp" Click="BtnMoveUp_Click"
+                                        Content="▲" ToolTip="Przesuń wiersz w górę"
+                                        Padding="8,4" Margin="0,0,2,0" Background="#27AE60" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand" FontWeight="Bold"/>
+                                <Button x:Name="btnMoveDown" Click="BtnMoveDown_Click"
+                                        Content="▼" ToolTip="Przesuń wiersz w dół"
+                                        Padding="8,4" Margin="0,0,5,0" Background="#E74C3C" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand" FontWeight="Bold"/>
+
+                                <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
 
                                 <Button x:Name="btnApplyAllToSupplier" Click="ToolBar_ApplyAllToSupplier"
                                         Content="Zastosuj WSZYSTKO do dostawcy"
@@ -1002,9 +945,14 @@
                                     </DataGridTemplateColumn.CellStyle>
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <Border Padding="0" Margin="0">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
+                                            <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ListaTypowCen}"
+                                                      SelectedItem="{Binding TypCeny, UpdateSourceTrigger=PropertyChanged}"
+                                                      VerticalContentAlignment="Center"
+                                                      SelectionChanged="TypCeny_SelectionChanged"
+                                                      IsHitTestVisible="True"
+                                                      MaxDropDownHeight="200">
+                                                <ComboBox.Style>
+                                                    <Style TargetType="ComboBox">
                                                         <Setter Property="Background" Value="#BBDEFB"/>
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding TypCeny}" Value="wolnyrynek">
@@ -1020,23 +968,59 @@
                                                                 <Setter Property="Background" Value="#81C784"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="ComboBox">
+                                                                    <Grid>
+                                                                        <ToggleButton x:Name="ToggleButton"
+                                                                                      Focusable="false"
+                                                                                      IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                                                                      ClickMode="Press">
+                                                                            <ToggleButton.Template>
+                                                                                <ControlTemplate TargetType="ToggleButton">
+                                                                                    <Border x:Name="Border" Background="{Binding Background, RelativeSource={RelativeSource AncestorType=ComboBox}}" BorderBrush="#ABADB3" BorderThickness="1">
+                                                                                        <Grid>
+                                                                                            <Grid.ColumnDefinitions>
+                                                                                                <ColumnDefinition/>
+                                                                                                <ColumnDefinition Width="18"/>
+                                                                                            </Grid.ColumnDefinitions>
+                                                                                            <Path x:Name="Arrow" Grid.Column="1" Fill="#333" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                                                  Data="M 0 0 L 4 4 L 8 0 Z"/>
+                                                                                        </Grid>
+                                                                                    </Border>
+                                                                                </ControlTemplate>
+                                                                            </ToggleButton.Template>
+                                                                        </ToggleButton>
+                                                                        <ContentPresenter x:Name="ContentSite"
+                                                                                          IsHitTestVisible="False"
+                                                                                          Content="{TemplateBinding SelectionBoxItem}"
+                                                                                          ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                                                          ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                                                                          Margin="5,3,23,3"
+                                                                                          VerticalAlignment="Center"
+                                                                                          HorizontalAlignment="Left"/>
+                                                                        <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                                                               AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                                                            <Grid x:Name="DropDown" SnapsToDevicePixels="True"
+                                                                                  MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                                                                <Border x:Name="DropDownBorder" Background="White" BorderBrush="#888" BorderThickness="1"/>
+                                                                                <ScrollViewer Margin="2" SnapsToDevicePixels="True">
+                                                                                    <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                                                                </ScrollViewer>
+                                                                            </Grid>
+                                                                        </Popup>
+                                                                    </Grid>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="IsEnabled" Value="False">
+                                                                            <Setter Property="Foreground" Value="#888"/>
+                                                                        </Trigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
                                                     </Style>
-                                                </Border.Style>
-                                                <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ListaTypowCen}"
-                                                          SelectedItem="{Binding TypCeny, UpdateSourceTrigger=PropertyChanged}"
-                                                          Padding="5"
-                                                          VerticalContentAlignment="Center"
-                                                          SelectionChanged="TypCeny_SelectionChanged"
-                                                          IsHitTestVisible="True"
-                                                          Background="Transparent"
-                                                          MaxDropDownHeight="200">
-                                                    <ComboBox.ItemsPanel>
-                                                        <ItemsPanelTemplate>
-                                                            <VirtualizingStackPanel IsVirtualizing="True" VirtualizationMode="Recycling"/>
-                                                        </ItemsPanelTemplate>
-                                                    </ComboBox.ItemsPanel>
-                                                </ComboBox>
-                                            </Border>
+                                                </ComboBox.Style>
+                                            </ComboBox>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
