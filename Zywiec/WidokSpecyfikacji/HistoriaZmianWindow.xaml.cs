@@ -10,7 +10,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 
-namespace Zywiec.WidokSpecyfikacji
+namespace Kalendarz1
 {
     /// <summary>
     /// Okno historii zmian specyfikacji z filtrowaniem i eksportem
