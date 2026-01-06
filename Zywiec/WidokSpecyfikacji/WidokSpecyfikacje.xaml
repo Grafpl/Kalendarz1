@@ -682,6 +682,26 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
 
+                                <DataGridTextColumn Header="Nr" Binding="{Binding Number}" Width="45" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="FontSize" Value="12"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <DataGridTextColumn Header="Nr/Rok" Binding="{Binding YearNumber}" Width="55" IsReadOnly="True" ToolTipService.ToolTip="Numer w roku">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="FontSize" Value="12"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
                                 <DataGridTemplateColumn Header="Dostawca" Width="160" SortMemberPath="Dostawca">
                                     <DataGridTemplateColumn.CellStyle>
                                         <Style TargetType="DataGridCell">

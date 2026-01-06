@@ -526,7 +526,7 @@ namespace Kalendarz1
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
-                    string query = @"SELECT fc.ID, fc.CarLp, fc.CustomerGID, fc.CustomerRealGID, fc.DeclI1, fc.DeclI2, fc.DeclI3, fc.DeclI4, fc.DeclI5,
+                    string query = @"SELECT fc.ID, fc.CarLp, fc.Number, fc.YearNumber, fc.CustomerGID, fc.CustomerRealGID, fc.DeclI1, fc.DeclI2, fc.DeclI3, fc.DeclI4, fc.DeclI5,
                                     fc.LumQnt, fc.ProdQnt, fc.ProdWgt, fc.FullFarmWeight, fc.EmptyFarmWeight, fc.NettoFarmWeight,
                                     fc.FullWeight, fc.EmptyWeight, fc.NettoWeight, fc.Price, fc.Addition, fc.PriceTypeID, fc.IncDeadConf, fc.Loss,
                                     fc.Opasienie, fc.KlasaB, fc.TerminDni, fc.CalcDate,
@@ -557,6 +557,8 @@ namespace Kalendarz1
                             {
                                 ID = ZapytaniaSQL.GetValueOrDefault<int>(row, "ID", 0),
                                 Nr = ZapytaniaSQL.GetValueOrDefault<int>(row, "CarLp", 0),
+                                Number = ZapytaniaSQL.GetValueOrDefault<int>(row, "Number", 0),
+                                YearNumber = ZapytaniaSQL.GetValueOrDefault<int>(row, "YearNumber", 0),
                                 DostawcaGID = customerGID,
                                 Dostawca = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerGID, "ShortName"),
                                 RealDostawca = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(
@@ -5737,6 +5739,8 @@ namespace Kalendarz1
     {
         private int _id;
         private int _nr;
+        private int _number;        // Numer specyfikacji
+        private int _yearNumber;    // Numer w roku
         private string _dostawcaGID;
         private string _dostawca;
         private string _realDostawca;
@@ -5808,6 +5812,18 @@ namespace Kalendarz1
         {
             get => _nr;
             set { _nr = value; OnPropertyChanged(nameof(Nr)); }
+        }
+
+        public int Number
+        {
+            get => _number;
+            set { _number = value; OnPropertyChanged(nameof(Number)); }
+        }
+
+        public int YearNumber
+        {
+            get => _yearNumber;
+            set { _yearNumber = value; OnPropertyChanged(nameof(YearNumber)); }
         }
 
         public string DostawcaGID
