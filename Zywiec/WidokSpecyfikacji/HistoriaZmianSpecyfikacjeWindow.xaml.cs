@@ -15,7 +15,7 @@ namespace Kalendarz1
     /// <summary>
     /// Okno historii zmian specyfikacji z filtrowaniem i eksportem
     /// </summary>
-    public partial class HistoriaZmianWindow : Window
+    public partial class HistoriaZmianSpecyfikacjeWindow : Window
     {
         private readonly string _connectionString;
         private ObservableCollection<ChangeLogItem> _allChanges;

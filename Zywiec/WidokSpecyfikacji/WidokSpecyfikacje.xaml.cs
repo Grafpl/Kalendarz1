@@ -2276,7 +2276,7 @@ namespace Kalendarz1
         {
             try
             {
-                var historiaWindow = new HistoriaZmianWindow(connectionString);
+                var historiaWindow = new HistoriaZmianSpecyfikacjeWindow(connectionString);
                 historiaWindow.Owner = Window.GetWindow(this);
                 historiaWindow.ShowDialog();
             }
