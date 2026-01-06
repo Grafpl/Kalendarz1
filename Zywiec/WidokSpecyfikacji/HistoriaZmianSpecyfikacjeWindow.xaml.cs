@@ -21,7 +21,7 @@ namespace Kalendarz1
         private ObservableCollection<ChangeLogItem> _allChanges;
         private ICollectionView _changesView;
 
-        public HistoriaZmianWindow(string connectionString)
+        public HistoriaZmianSpecyfikacjeWindow(string connectionString)
         {
             InitializeComponent();
             _connectionString = connectionString;
