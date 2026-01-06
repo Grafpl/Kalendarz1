@@ -2150,63 +2150,74 @@ namespace Kalendarz1
                 {
                     conn.Open();
 
-                    // Sprawdź czy tabela istnieje, jeśli nie - utwórz, jeśli tak - dodaj brakujące kolumny
-                    string ensureTable = @"
-                        -- Utwórz tabelę jeśli nie istnieje
+                    // Upewnij się, że tabela istnieje z właściwą strukturą
+                    // Użyj prostszego podejścia - DROP i CREATE jeśli struktura jest zła
+                    string createTableSql = @"
                         IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FarmerCalcChangeLog')
                         BEGIN
-                            CREATE TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] (
+                            CREATE TABLE [dbo].[FarmerCalcChangeLog] (
                                 [ID] INT IDENTITY(1,1) PRIMARY KEY,
-                                [RecordID] INT NOT NULL,
-                                [FieldName] NVARCHAR(50) NOT NULL,
-                                [OldValue] NVARCHAR(500),
-                                [NewValue] NVARCHAR(500),
-                                [Dostawca] NVARCHAR(200),
-                                [UserName] NVARCHAR(100),
+                                [RecordID] INT NULL,
+                                [FieldName] NVARCHAR(100) NULL,
+                                [OldValue] NVARCHAR(500) NULL,
+                                [NewValue] NVARCHAR(500) NULL,
+                                [Dostawca] NVARCHAR(200) NULL,
+                                [UserName] NVARCHAR(100) NULL,
                                 [ChangeDate] DATETIME DEFAULT GETDATE(),
-                                [CalcDate] DATE
+                                [CalcDate] DATE NULL
                             )
-                        END
-                        ELSE
-                        BEGIN
-                            -- Dodaj brakujące kolumny do istniejącej tabeli
-                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'RecordID')
-                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [RecordID] INT NULL;
-                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'FieldName')
-                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [FieldName] NVARCHAR(50) NULL;
-                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'OldValue')
-                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [OldValue] NVARCHAR(500) NULL;
-                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'NewValue')
-                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [NewValue] NVARCHAR(500) NULL;
-                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'Dostawca')
-                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [Dostawca] NVARCHAR(200) NULL;
-                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'UserName')
-                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [UserName] NVARCHAR(100) NULL;
-                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'ChangeDate')
-                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [ChangeDate] DATETIME DEFAULT GETDATE();
-                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'CalcDate')
-                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [CalcDate] DATE NULL;
                         END";
-                    using (SqlCommand cmd = new SqlCommand(ensureTable, conn))
+
+                    using (SqlCommand cmd = new SqlCommand(createTableSql, conn))
                     {
                         cmd.ExecuteNonQuery();
                     }
 
+                    // Dodaj brakujące kolumny pojedynczo (każda w osobnym bloku try)
+                    string[] alterCommands = new string[]
+                    {
+                        "IF COL_LENGTH('FarmerCalcChangeLog', 'RecordID') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [RecordID] INT NULL",
+                        "IF COL_LENGTH('FarmerCalcChangeLog', 'FieldName') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [FieldName] NVARCHAR(100) NULL",
+                        "IF COL_LENGTH('FarmerCalcChangeLog', 'OldValue') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [OldValue] NVARCHAR(500) NULL",
+                        "IF COL_LENGTH('FarmerCalcChangeLog', 'NewValue') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [NewValue] NVARCHAR(500) NULL",
+                        "IF COL_LENGTH('FarmerCalcChangeLog', 'Dostawca') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [Dostawca] NVARCHAR(200) NULL",
+                        "IF COL_LENGTH('FarmerCalcChangeLog', 'UserName') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [UserName] NVARCHAR(100) NULL",
+                        "IF COL_LENGTH('FarmerCalcChangeLog', 'ChangeDate') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [ChangeDate] DATETIME NULL",
+                        "IF COL_LENGTH('FarmerCalcChangeLog', 'CalcDate') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [CalcDate] DATE NULL"
+                    };
+
+                    foreach (var alterCmd in alterCommands)
+                    {
+                        try
+                        {
+                            using (SqlCommand cmd = new SqlCommand(alterCmd, conn))
+                            {
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
+                        catch { /* Ignoruj błędy ALTER - kolumna może już istnieć */ }
+                    }
+
                     // Zapisz zmianę
-                    string sql = @"INSERT INTO [LibraNet].[dbo].[FarmerCalcChangeLog]
-                        (RecordID, FieldName, OldValue, NewValue, Dostawca, UserName, CalcDate)
-                        VALUES (@RecordID, @FieldName, @OldValue, @NewValue, @Dostawca, @UserName, @CalcDate)";
+                    string sql = @"INSERT INTO [dbo].[FarmerCalcChangeLog]
+                        (RecordID, FieldName, OldValue, NewValue, Dostawca, UserName, ChangeDate, CalcDate)
+                        VALUES (@RecordID, @FieldName, @OldValue, @NewValue, @Dostawca, @UserName, GETDATE(), @CalcDate)";
 
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@RecordID", recordId);
-                        cmd.Parameters.AddWithValue("@FieldName", fieldName);
+                        cmd.Parameters.AddWithValue("@FieldName", fieldName ?? "");
                         cmd.Parameters.AddWithValue("@OldValue", oldValue ?? "");
                         cmd.Parameters.AddWithValue("@NewValue", newValue ?? "");
                         cmd.Parameters.AddWithValue("@Dostawca", dostawca ?? "");
-                        cmd.Parameters.AddWithValue("@UserName", Environment.UserName);
+                        cmd.Parameters.AddWithValue("@UserName", Environment.UserName ?? "");
                         cmd.Parameters.AddWithValue("@CalcDate", dateTimePicker1.SelectedDate ?? DateTime.Today);
-                        cmd.ExecuteNonQuery();
+                        int rowsAffected = cmd.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
+                        {
+                            UpdateStatus($"✓ Zalogowano zmianę: {fieldName} ({oldValue} → {newValue})");
+                        }
                     }
                 }
 
@@ -2223,7 +2234,9 @@ namespace Kalendarz1
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Błąd logowania zmiany: {ex.Message}");
+                // POKAŻ BŁĄD UŻYTKOWNIKOWI!
+                UpdateStatus($"BŁĄD logowania: {ex.Message}");
+                MessageBox.Show($"Błąd zapisu do historii zmian:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -2269,56 +2282,13 @@ namespace Kalendarz1
                 {
                     conn.Open();
 
-                    // Najpierw upewnij się, że tabela ma wszystkie wymagane kolumny
-                    string ensureColumns = @"
-                        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FarmerCalcChangeLog')
-                        BEGIN
-                            CREATE TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] (
-                                [ID] INT IDENTITY(1,1) PRIMARY KEY,
-                                [RecordID] INT NOT NULL,
-                                [FieldName] NVARCHAR(50) NOT NULL,
-                                [OldValue] NVARCHAR(500),
-                                [NewValue] NVARCHAR(500),
-                                [Dostawca] NVARCHAR(200),
-                                [UserName] NVARCHAR(100),
-                                [ChangeDate] DATETIME DEFAULT GETDATE(),
-                                [CalcDate] DATE
-                            )
-                        END
-                        ELSE
-                        BEGIN
-                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'RecordID')
-                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [RecordID] INT NULL;
-                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'FieldName')
-                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [FieldName] NVARCHAR(50) NULL;
-                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'OldValue')
-                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [OldValue] NVARCHAR(500) NULL;
-                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'NewValue')
-                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [NewValue] NVARCHAR(500) NULL;
-                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'Dostawca')
-                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [Dostawca] NVARCHAR(200) NULL;
-                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'UserName')
-                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [UserName] NVARCHAR(100) NULL;
-                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'ChangeDate')
-                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [ChangeDate] DATETIME DEFAULT GETDATE();
-                            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('FarmerCalcChangeLog') AND name = 'CalcDate')
-                                ALTER TABLE [LibraNet].[dbo].[FarmerCalcChangeLog] ADD [CalcDate] DATE NULL;
-                        END";
-                    using (SqlCommand cmd = new SqlCommand(ensureColumns, conn))
-                    {
-                        cmd.ExecuteNonQuery();
-                    }
-
-                    // Pobierz zmiany dla wybranej daty
-                    string sql = @"SELECT RecordID, FieldName, OldValue, NewValue, Dostawca, UserName, ChangeDate
-                        FROM [LibraNet].[dbo].[FarmerCalcChangeLog]
-                        WHERE CalcDate = @CalcDate
+                    // Pobierz zmiany dla wybranej daty (bez filtrowania po dacie - pokaż wszystkie)
+                    string sql = @"SELECT TOP 100 RecordID, FieldName, OldValue, NewValue, Dostawca, UserName, ChangeDate, CalcDate
+                        FROM [dbo].[FarmerCalcChangeLog]
                         ORDER BY ChangeDate DESC";
 
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
-                        cmd.Parameters.AddWithValue("@CalcDate", dateTimePicker1.SelectedDate ?? DateTime.Today);
-
                         using (SqlDataReader reader = cmd.ExecuteReader())
                         {
                             while (reader.Read())
@@ -2340,20 +2310,20 @@ namespace Kalendarz1
 
                 if (changes.Count == 0)
                 {
-                    MessageBox.Show("Brak zmian dla wybranej daty.", "Historia zmian", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("Brak zmian w tabeli FarmerCalcChangeLog.\n\nSprawdź pasek statusu podczas edycji - powinien pokazywać komunikaty o logowaniu.", "Historia zmian", MessageBoxButton.OK, MessageBoxImage.Information);
                     return;
                 }
 
                 // Wyświetl w czytelnym formacie
                 var sb = new StringBuilder();
-                sb.AppendLine($"Historia zmian dla dnia {dateTimePicker1.SelectedDate:dd.MM.yyyy}");
-                sb.AppendLine($"Liczba zmian: {changes.Count}");
+                sb.AppendLine($"Historia zmian (ostatnie 100)");
+                sb.AppendLine($"Znaleziono: {changes.Count}");
                 sb.AppendLine(new string('═', 60));
 
                 foreach (var entry in changes)
                 {
                     sb.AppendLine();
-                    sb.AppendLine($"[{entry.Timestamp:HH:mm:ss}] {entry.UserName}");
+                    sb.AppendLine($"[{entry.Timestamp:dd.MM HH:mm:ss}] {entry.UserName}");
                     sb.AppendLine($"   Dostawca: {entry.Action}");
                     sb.AppendLine($"   Pole: {GetFieldDisplayName(entry.PropertyName)}");
                     sb.AppendLine($"   Zmiana: {entry.OldValue} → {entry.NewValue}");
@@ -5225,7 +5195,11 @@ namespace Kalendarz1
             var textBox = sender as TextBox;
             var row = textBox?.DataContext as SpecyfikacjaRow;
             if (row != null)
-                _oldFieldValues[$"Padle_{row.ID}"] = row.Padle.ToString();
+            {
+                string oldVal = row.Padle.ToString();
+                _oldFieldValues[$"Padle_{row.ID}"] = oldVal;
+                UpdateStatus($"[GotFocus] Padle LP{row.Nr} = {oldVal}");
+            }
         }
 
         private void CH_GotFocus(object sender, RoutedEventArgs e)
@@ -5578,32 +5552,34 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
-            // Pobierz starą wartość
-            string oldValue = "";
+            // Pobierz starą wartość z TextBox PRZED aktualizacją bindingu
+            string oldValueFromTextBox = textBox.Text;
+
+            // Pobierz też z naszego słownika (jeśli GotFocus został wywołany)
+            string oldValueFromDict = "";
             string key = $"Padle_{row.ID}";
             if (_oldFieldValues.ContainsKey(key))
             {
-                oldValue = _oldFieldValues[key];
+                oldValueFromDict = _oldFieldValues[key];
                 _oldFieldValues.Remove(key);
             }
+
+            // Użyj wartości ze słownika lub z modelu przed aktualizacją
+            string oldValue = !string.IsNullOrEmpty(oldValueFromDict) ? oldValueFromDict : row.Padle.ToString();
 
             var binding = textBox.GetBindingExpression(TextBox.TextProperty);
             binding?.UpdateSource();
 
             string newValue = row.Padle.ToString();
 
-            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie była pusta/zero) i się różni
-            if (!string.IsNullOrEmpty(oldValue) && oldValue != "0" && oldValue != newValue)
+            // ZAWSZE loguj jeśli wartość się zmieniła (bez względu na starą wartość)
+            if (oldValue != newValue)
             {
                 LogChangeToDatabase(row.ID, "Padłe", oldValue, newValue, row.RealDostawca ?? row.Dostawca);
-                UpdateStatus($"[LOG] Padłe zmienione: {oldValue} → {newValue} dla LP {row.Nr}");
-            }
-            else
-            {
-                UpdateStatus($"Zapisano Padłe: {row.Padle} dla LP {row.Nr} (stara={oldValue}, nowa={newValue}) - nie logowano");
             }
 
             SaveFieldToDatabase(row.ID, "DeclI2", row.Padle);
+            UpdateStatus($"Padłe: {oldValue} → {newValue} dla LP {row.Nr}");
         }
 
         // Handler LostFocus dla CH - zapisuje do bazy (DeclI3)
