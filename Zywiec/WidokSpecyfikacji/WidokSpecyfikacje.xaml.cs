@@ -274,6 +274,12 @@ namespace Kalendarz1
                     // Inna karta - ukryj LUMEL panel
                     lumelPanel.Visibility = Visibility.Collapsed;
                 }
+
+                // Załaduj dane rozliczeń gdy przełączono na kartę Rozliczenia
+                if (mainTabControl.SelectedIndex == 2)
+                {
+                    LoadRozliczeniaData();
+                }
             }
         }
 
@@ -5817,6 +5823,8 @@ namespace Kalendarz1
 
         #region Rozliczenia Tab Handlers
 
+        private ObservableCollection<RozliczenieRow> rozliczeniaData = new ObservableCollection<RozliczenieRow>();
+
         private void BtnFilterRozliczenia_Click(object sender, RoutedEventArgs e)
         {
             LoadRozliczeniaData();
@@ -5824,9 +5832,81 @@ namespace Kalendarz1
 
         private void LoadRozliczeniaData()
         {
-            // TODO: Implementacja ładowania danych rozliczeń
-            // Na razie placeholder - dane będą ładowane z tej samej tabeli FarmerCalc
-            UpdateStatus("Funkcja rozliczeń w przygotowaniu...");
+            try
+            {
+                // Użyj tej samej daty co w Specyfikacjach
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                // Ustaw daty w filtrach jeśli puste
+                if (dpRozliczeniaOd.SelectedDate == null)
+                    dpRozliczeniaOd.SelectedDate = selectedDate;
+                if (dpRozliczeniaDo.SelectedDate == null)
+                    dpRozliczeniaDo.SelectedDate = selectedDate;
+
+                rozliczeniaData.Clear();
+
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    string query = @"
+                        SELECT
+                            fc.ID,
+                            fc.CalcDate as Data,
+                            fc.CarLp as Nr,
+                            COALESCE(k.ShortName, 'Nieznany') as Dostawca,
+                            ISNULL(fc.DeclI1, 0) as SztukiDek,
+                            ISNULL(fc.NettoWeight, 0) as NettoKg,
+                            ISNULL(fc.Price, 0) as Cena,
+                            pt.Name as TypCeny,
+                            ISNULL(fc.NettoWeight, 0) * ISNULL(fc.Price, 0) as Wartosc,
+                            ISNULL(fc.Symfonia, 0) as Symfonia
+                        FROM dbo.FarmerCalc fc
+                        LEFT JOIN dbo.Kontrahent k ON fc.CustomerGID = k.GID
+                        LEFT JOIN dbo.PriceType pt ON fc.PriceTypeID = pt.ID
+                        WHERE fc.CalcDate = @CalcDate
+                        ORDER BY fc.CarLp";
+
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@CalcDate", selectedDate.Date);
+
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                rozliczeniaData.Add(new RozliczenieRow
+                                {
+                                    ID = reader.GetInt32(reader.GetOrdinal("ID")),
+                                    Data = reader.GetDateTime(reader.GetOrdinal("Data")),
+                                    Nr = reader.IsDBNull(reader.GetOrdinal("Nr")) ? 0 : reader.GetInt32(reader.GetOrdinal("Nr")),
+                                    Dostawca = reader.IsDBNull(reader.GetOrdinal("Dostawca")) ? "" : reader.GetString(reader.GetOrdinal("Dostawca")),
+                                    SztukiDek = reader.IsDBNull(reader.GetOrdinal("SztukiDek")) ? 0 : Convert.ToInt32(reader.GetDecimal(reader.GetOrdinal("SztukiDek"))),
+                                    NettoKg = reader.IsDBNull(reader.GetOrdinal("NettoKg")) ? 0 : reader.GetDecimal(reader.GetOrdinal("NettoKg")),
+                                    Cena = reader.IsDBNull(reader.GetOrdinal("Cena")) ? 0 : reader.GetDecimal(reader.GetOrdinal("Cena")),
+                                    TypCeny = reader.IsDBNull(reader.GetOrdinal("TypCeny")) ? "" : reader.GetString(reader.GetOrdinal("TypCeny")),
+                                    Wartosc = reader.IsDBNull(reader.GetOrdinal("Wartosc")) ? 0 : reader.GetDecimal(reader.GetOrdinal("Wartosc")),
+                                    Symfonia = !reader.IsDBNull(reader.GetOrdinal("Symfonia")) && reader.GetBoolean(reader.GetOrdinal("Symfonia"))
+                                });
+                            }
+                        }
+                    }
+                }
+
+                dataGridRozliczenia.ItemsSource = rozliczeniaData;
+
+                // Aktualizuj podsumowanie
+                lblRozliczeniaSumaWierszy.Text = rozliczeniaData.Count.ToString();
+                lblRozliczeniaSumaSztuk.Text = rozliczeniaData.Sum(r => r.SztukiDek).ToString("N0");
+                lblRozliczeniaSumaKg.Text = rozliczeniaData.Sum(r => r.NettoKg).ToString("N0");
+                lblRozliczeniaSumaWartosc.Text = rozliczeniaData.Sum(r => r.Wartosc).ToString("N2") + " zł";
+
+                UpdateStatus($"Rozliczenia: załadowano {rozliczeniaData.Count} rekordów dla {selectedDate:yyyy-MM-dd}");
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Błąd ładowania rozliczeń: {ex.Message}");
+            }
         }
 
         private void BtnZatwierdzDzien_Click(object sender, RoutedEventArgs e)
@@ -5855,16 +5935,21 @@ namespace Kalendarz1
         #region Admin Panel
 
         private int _dniBlokady = 3;
-        private List<string> _przelozeni = new List<string> { "admin", "kierownik" };
+        private List<string> _przelozeni = new List<string> { "11111" }; // Domyślny admin UserID
         private Dictionary<DateTime, bool> _odblokowaneDni = new Dictionary<DateTime, bool>();
+
+        private bool IsCurrentUserAdmin()
+        {
+            string currentUserId = App.UserID ?? "";
+            return _przelozeni.Any(p => p == currentUserId);
+        }
 
         private void BtnAdmin_Click(object sender, RoutedEventArgs e)
         {
-            // Sprawdź czy użytkownik ma uprawnienia
-            string currentUser = Environment.UserName.ToLower();
-            if (!_przelozeni.Any(p => p.ToLower() == currentUser))
+            // Sprawdź czy użytkownik ma uprawnienia (po UserID)
+            if (!IsCurrentUserAdmin())
             {
-                MessageBox.Show("Brak uprawnień do panelu administracyjnego.\nSkontaktuj się z przełożonym.",
+                MessageBox.Show($"Brak uprawnień do panelu administracyjnego.\nTwój UserID: {App.UserID ?? "nieznany"}\nSkontaktuj się z przełożonym.",
                     "Brak dostępu", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -5971,9 +6056,8 @@ namespace Kalendarz1
             int dniOdDostawy = (DateTime.Today - calcDate).Days;
             if (dniOdDostawy > _dniBlokady)
             {
-                // Sprawdź czy użytkownik jest przełożonym
-                string currentUser = Environment.UserName.ToLower();
-                return _przelozeni.Any(p => p.ToLower() == currentUser);
+                // Sprawdź czy użytkownik jest przełożonym (po UserID)
+                return IsCurrentUserAdmin();
             }
 
             return true;
