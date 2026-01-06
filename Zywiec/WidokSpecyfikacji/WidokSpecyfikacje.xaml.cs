@@ -5592,8 +5592,8 @@ namespace Kalendarz1
 
             string newValue = row.Number.ToString();
 
-            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA i się różni
-            if (!string.IsNullOrEmpty(oldValue) && oldValue != newValue)
+            // Loguj zmianę tylko jeśli stara wartość ISTNIAŁA (nie pusta i nie 0) i się różni
+            if (!string.IsNullOrEmpty(oldValue) && oldValue != "0" && oldValue != newValue)
             {
                 LogChangeToDatabase(row.ID, "Number", oldValue, newValue, row.RealDostawca ?? row.Dostawca, row.Nr, row.CarID ?? "");
             }
@@ -5612,9 +5612,9 @@ namespace Kalendarz1
                     currentNumber++;
                     var nextRow = specyfikacjeData[i];
 
-                    // Loguj zmianę dla każdego wiersza
+                    // Loguj zmianę tylko jeśli stara wartość nie była 0 (nowy rekord)
                     string nextOldValue = nextRow.Number.ToString();
-                    if (nextOldValue != currentNumber.ToString())
+                    if (nextOldValue != "0" && nextOldValue != currentNumber.ToString())
                     {
                         LogChangeToDatabase(nextRow.ID, "Number", nextOldValue, currentNumber.ToString(),
                             nextRow.RealDostawca ?? nextRow.Dostawca, nextRow.Nr, nextRow.CarID ?? "");
