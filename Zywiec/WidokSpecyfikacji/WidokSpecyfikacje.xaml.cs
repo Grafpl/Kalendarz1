@@ -5596,10 +5596,14 @@ namespace Kalendarz1
             if (!string.IsNullOrEmpty(oldValue) && oldValue != "0" && oldValue != newValue)
             {
                 LogChangeToDatabase(row.ID, "Padłe", oldValue, newValue, row.RealDostawca ?? row.Dostawca);
+                UpdateStatus($"[LOG] Padłe zmienione: {oldValue} → {newValue} dla LP {row.Nr}");
+            }
+            else
+            {
+                UpdateStatus($"Zapisano Padłe: {row.Padle} dla LP {row.Nr} (stara={oldValue}, nowa={newValue}) - nie logowano");
             }
 
             SaveFieldToDatabase(row.ID, "DeclI2", row.Padle);
-            UpdateStatus($"Zapisano Padłe: {row.Padle} dla LP {row.Nr}");
         }
 
         // Handler LostFocus dla CH - zapisuje do bazy (DeclI3)
