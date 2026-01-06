@@ -626,7 +626,12 @@ namespace Kalendarz1
             }
             finally
             {
-                _isLoadingData = false; // Odblokuj logowanie po załadowaniu
+                // WAŻNE: Resetuj flagę DOPIERO gdy WPF skończy binding checkboxów
+                // Użyj niskiego priorytetu aby poczekać na zakończenie wszystkich operacji UI
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    _isLoadingData = false;
+                }), System.Windows.Threading.DispatcherPriority.ContextIdle);
             }
         }
 
