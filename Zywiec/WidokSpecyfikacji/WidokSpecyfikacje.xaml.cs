@@ -5834,14 +5834,8 @@ namespace Kalendarz1
         {
             try
             {
-                // Użyj tej samej daty co w Specyfikacjach
+                // Użyj tej samej daty co w Specyfikacjach (główny DatePicker w lewym górnym rogu)
                 DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
-
-                // Ustaw daty w filtrach jeśli puste
-                if (dpRozliczeniaOd.SelectedDate == null)
-                    dpRozliczeniaOd.SelectedDate = selectedDate;
-                if (dpRozliczeniaDo.SelectedDate == null)
-                    dpRozliczeniaDo.SelectedDate = selectedDate;
 
                 rozliczeniaData.Clear();
 
