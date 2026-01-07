@@ -5946,25 +5946,25 @@ namespace Kalendarz1
                 {
                     conn.Open();
 
-                    // Pobierz dane z FarmerCalc wraz z danymi dostawcy
+                    // Pobierz dane z FarmerCalc - takie same kolumny jak Panel Lekarza
                     string query = @"
                         SELECT
                             fc.ID,
-                            fc.CarLp as Lp,
-                            COALESCE(d.ShortName, 'Nieznany') as Hodowca,
-                            COALESCE(d.Code, '') as NrGospodarstwa,
-                            COALESCE(d.Address + ', ' + d.PostalCode + ' ' + d.City, '') as Adres,
-                            COALESCE(fc.Tractor, '') as Ciagnik,
-                            COALESCE(fc.Trailer, '') as Naczepa,
-                            ISNULL(fc.DeadCount, 0) as Padle,
-                            ISNULL(fc.SickCount, 0) as Chore,
-                            ISNULL(fc.NWCount, 0) as NW,
-                            ISNULL(fc.ZMCount, 0) as ZM,
-                            fc.CustomerGID
+                            fc.CarLp,
+                            ISNULL(fc.CustomerGID, '') as CustomerGID,
+                            (SELECT TOP 1 ShortName FROM dbo.Dostawcy WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(fc.CustomerGID))) as HodowcaNazwa,
+                            (SELECT TOP 1 AnimNo FROM dbo.Dostawcy WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(fc.CustomerGID))) as NrGospodarstwa,
+                            (SELECT TOP 1 ISNULL(Address, '') + ', ' + ISNULL(PostalCode, '') + ' ' + ISNULL(City, '')
+                             FROM dbo.Dostawcy WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(fc.CustomerGID))) as Adres,
+                            ISNULL(fc.CarID, '') as Ciagnik,
+                            ISNULL(fc.TrailerID, '') as Naczepa,
+                            ISNULL(fc.DeclI2, 0) as Padle,
+                            ISNULL(fc.DeclI3, 0) as CH,
+                            ISNULL(fc.DeclI4, 0) as NW,
+                            ISNULL(fc.DeclI5, 0) as ZM
                         FROM dbo.FarmerCalc fc
-                        LEFT JOIN dbo.Dostawcy d ON fc.CustomerGID = d.ID
                         WHERE fc.CalcDate = @CalcDate
-                        ORDER BY fc.CarLp";
+                        ORDER BY fc.CarLp, fc.ID";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
@@ -5975,20 +5975,28 @@ namespace Kalendarz1
                             int lpCounter = 1;
                             while (reader.Read())
                             {
+                                string hodowca = reader["HodowcaNazwa"] != DBNull.Value ? reader["HodowcaNazwa"].ToString() : "";
+                                string customerGID = reader["CustomerGID"] != DBNull.Value ? reader["CustomerGID"].ToString() : "";
+
+                                if (string.IsNullOrEmpty(hodowca))
+                                {
+                                    hodowca = string.IsNullOrEmpty(customerGID) ? "Nieprzypisany" : $"ID: {customerGID}";
+                                }
+
                                 plachtaData.Add(new PlachtaRow
                                 {
-                                    ID = reader.GetInt32(reader.GetOrdinal("ID")),
+                                    ID = reader["ID"] != DBNull.Value ? Convert.ToInt32(reader["ID"]) : 0,
                                     Lp = lpCounter++,
-                                    Hodowca = reader.IsDBNull(reader.GetOrdinal("Hodowca")) ? "" : reader["Hodowca"].ToString(),
-                                    NrGospodarstwa = reader.IsDBNull(reader.GetOrdinal("NrGospodarstwa")) ? "" : reader["NrGospodarstwa"].ToString(),
-                                    Adres = reader.IsDBNull(reader.GetOrdinal("Adres")) ? "" : reader["Adres"].ToString(),
-                                    Ciagnik = reader.IsDBNull(reader.GetOrdinal("Ciagnik")) ? "" : reader["Ciagnik"].ToString(),
-                                    Naczepa = reader.IsDBNull(reader.GetOrdinal("Naczepa")) ? "" : reader["Naczepa"].ToString(),
-                                    Padle = reader.IsDBNull(reader.GetOrdinal("Padle")) ? 0 : Convert.ToInt32(reader["Padle"]),
-                                    Chore = reader.IsDBNull(reader.GetOrdinal("Chore")) ? 0 : Convert.ToInt32(reader["Chore"]),
-                                    NW = reader.IsDBNull(reader.GetOrdinal("NW")) ? 0 : Convert.ToInt32(reader["NW"]),
-                                    ZM = reader.IsDBNull(reader.GetOrdinal("ZM")) ? 0 : Convert.ToInt32(reader["ZM"]),
-                                    CustomerGID = reader.IsDBNull(reader.GetOrdinal("CustomerGID")) ? 0 : Convert.ToInt32(reader["CustomerGID"])
+                                    Hodowca = hodowca,
+                                    NrGospodarstwa = reader["NrGospodarstwa"] != DBNull.Value ? reader["NrGospodarstwa"].ToString() : "",
+                                    Adres = reader["Adres"] != DBNull.Value ? reader["Adres"].ToString().Trim() : "",
+                                    Ciagnik = reader["Ciagnik"] != DBNull.Value ? reader["Ciagnik"].ToString() : "",
+                                    Naczepa = reader["Naczepa"] != DBNull.Value ? reader["Naczepa"].ToString() : "",
+                                    Padle = reader["Padle"] != DBNull.Value ? Convert.ToInt32(reader["Padle"]) : 0,
+                                    Chore = reader["CH"] != DBNull.Value ? Convert.ToInt32(reader["CH"]) : 0,
+                                    NW = reader["NW"] != DBNull.Value ? Convert.ToInt32(reader["NW"]) : 0,
+                                    ZM = reader["ZM"] != DBNull.Value ? Convert.ToInt32(reader["ZM"]) : 0,
+                                    CustomerGID = 0
                                 });
                             }
                         }
@@ -6063,16 +6071,16 @@ namespace Kalendarz1
                 {
                     conn.Open();
 
-                    // Zapisz nową kolejność (CarLp) dla każdego wiersza
+                    // Zapisz nową kolejność (CarLp) i dane oceny dla każdego wiersza
                     foreach (var row in plachtaData)
                     {
                         string updateQuery = @"
                             UPDATE dbo.FarmerCalc
                             SET CarLp = @CarLp,
-                                DeadCount = @Padle,
-                                SickCount = @Chore,
-                                NWCount = @NW,
-                                ZMCount = @ZM
+                                DeclI2 = @Padle,
+                                DeclI3 = @Chore,
+                                DeclI4 = @NW,
+                                DeclI5 = @ZM
                             WHERE ID = @ID";
 
                         using (SqlCommand cmd = new SqlCommand(updateQuery, conn))
