@@ -280,6 +280,12 @@ namespace Kalendarz1
                 {
                     LoadRozliczeniaData();
                 }
+
+                // Załaduj dane płachty gdy przełączono na kartę Płachta
+                if (mainTabControl.SelectedIndex == 3)
+                {
+                    LoadPlachtaData();
+                }
             }
         }
 
@@ -5824,6 +5830,7 @@ namespace Kalendarz1
         #region Rozliczenia Tab Handlers
 
         private ObservableCollection<RozliczenieRow> rozliczeniaData = new ObservableCollection<RozliczenieRow>();
+        private ObservableCollection<PlachtaRow> plachtaData = new ObservableCollection<PlachtaRow>();
 
         private void BtnFilterRozliczenia_Click(object sender, RoutedEventArgs e)
         {
@@ -5922,6 +5929,182 @@ namespace Kalendarz1
             // TODO: Implementacja eksportu do Symfonii
             MessageBox.Show("Funkcja eksportu do Symfonii w przygotowaniu.",
                 "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        #endregion
+
+        #region Płachta Tab Handlers
+
+        private void LoadPlachtaData()
+        {
+            try
+            {
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+                plachtaData.Clear();
+
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Pobierz dane z FarmerCalc wraz z danymi dostawcy
+                    string query = @"
+                        SELECT
+                            fc.ID,
+                            fc.CarLp as Lp,
+                            COALESCE(d.ShortName, 'Nieznany') as Hodowca,
+                            COALESCE(d.Code, '') as NrGospodarstwa,
+                            COALESCE(d.Address + ', ' + d.PostalCode + ' ' + d.City, '') as Adres,
+                            COALESCE(fc.Tractor, '') as Ciagnik,
+                            COALESCE(fc.Trailer, '') as Naczepa,
+                            ISNULL(fc.DeadCount, 0) as Padle,
+                            ISNULL(fc.SickCount, 0) as Chore,
+                            ISNULL(fc.NWCount, 0) as NW,
+                            ISNULL(fc.ZMCount, 0) as ZM,
+                            fc.CustomerGID
+                        FROM dbo.FarmerCalc fc
+                        LEFT JOIN dbo.Dostawcy d ON fc.CustomerGID = d.ID
+                        WHERE fc.CalcDate = @CalcDate
+                        ORDER BY fc.CarLp";
+
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@CalcDate", selectedDate.Date);
+
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            int lpCounter = 1;
+                            while (reader.Read())
+                            {
+                                plachtaData.Add(new PlachtaRow
+                                {
+                                    ID = reader.GetInt32(reader.GetOrdinal("ID")),
+                                    Lp = lpCounter++,
+                                    Hodowca = reader.IsDBNull(reader.GetOrdinal("Hodowca")) ? "" : reader["Hodowca"].ToString(),
+                                    NrGospodarstwa = reader.IsDBNull(reader.GetOrdinal("NrGospodarstwa")) ? "" : reader["NrGospodarstwa"].ToString(),
+                                    Adres = reader.IsDBNull(reader.GetOrdinal("Adres")) ? "" : reader["Adres"].ToString(),
+                                    Ciagnik = reader.IsDBNull(reader.GetOrdinal("Ciagnik")) ? "" : reader["Ciagnik"].ToString(),
+                                    Naczepa = reader.IsDBNull(reader.GetOrdinal("Naczepa")) ? "" : reader["Naczepa"].ToString(),
+                                    Padle = reader.IsDBNull(reader.GetOrdinal("Padle")) ? 0 : Convert.ToInt32(reader["Padle"]),
+                                    Chore = reader.IsDBNull(reader.GetOrdinal("Chore")) ? 0 : Convert.ToInt32(reader["Chore"]),
+                                    NW = reader.IsDBNull(reader.GetOrdinal("NW")) ? 0 : Convert.ToInt32(reader["NW"]),
+                                    ZM = reader.IsDBNull(reader.GetOrdinal("ZM")) ? 0 : Convert.ToInt32(reader["ZM"]),
+                                    CustomerGID = reader.IsDBNull(reader.GetOrdinal("CustomerGID")) ? 0 : Convert.ToInt32(reader["CustomerGID"])
+                                });
+                            }
+                        }
+                    }
+                }
+
+                dataGridPlachta.ItemsSource = plachtaData;
+                UpdatePlachtaSummary();
+                UpdateStatus($"Płachta: załadowano {plachtaData.Count} rekordów dla {selectedDate:yyyy-MM-dd}");
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Błąd ładowania płachty: {ex.Message}");
+            }
+        }
+
+        private void UpdatePlachtaSummary()
+        {
+            lblPlachtaWierszy.Text = plachtaData.Count.ToString();
+            lblPlachtaSumaPadle.Text = plachtaData.Sum(r => r.Padle).ToString();
+            lblPlachtaSumaCH.Text = plachtaData.Sum(r => r.Chore).ToString();
+            lblPlachtaSumaNW.Text = plachtaData.Sum(r => r.NW).ToString();
+            lblPlachtaSumaZM.Text = plachtaData.Sum(r => r.ZM).ToString();
+        }
+
+        private void BtnPlachtaMoveUp_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridPlachta.SelectedItem is PlachtaRow selectedRow)
+            {
+                int index = plachtaData.IndexOf(selectedRow);
+                if (index > 0)
+                {
+                    plachtaData.Move(index, index - 1);
+                    UpdatePlachtaLpNumbers();
+                    dataGridPlachta.SelectedItem = selectedRow;
+                }
+            }
+        }
+
+        private void BtnPlachtaMoveDown_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridPlachta.SelectedItem is PlachtaRow selectedRow)
+            {
+                int index = plachtaData.IndexOf(selectedRow);
+                if (index < plachtaData.Count - 1)
+                {
+                    plachtaData.Move(index, index + 1);
+                    UpdatePlachtaLpNumbers();
+                    dataGridPlachta.SelectedItem = selectedRow;
+                }
+            }
+        }
+
+        private void UpdatePlachtaLpNumbers()
+        {
+            for (int i = 0; i < plachtaData.Count; i++)
+            {
+                plachtaData[i].Lp = i + 1;
+            }
+        }
+
+        private void BtnPlachtaRefresh_Click(object sender, RoutedEventArgs e)
+        {
+            LoadPlachtaData();
+        }
+
+        private void BtnPlachtaSaveOrder_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Zapisz nową kolejność (CarLp) dla każdego wiersza
+                    foreach (var row in plachtaData)
+                    {
+                        string updateQuery = @"
+                            UPDATE dbo.FarmerCalc
+                            SET CarLp = @CarLp,
+                                DeadCount = @Padle,
+                                SickCount = @Chore,
+                                NWCount = @NW,
+                                ZMCount = @ZM
+                            WHERE ID = @ID";
+
+                        using (SqlCommand cmd = new SqlCommand(updateQuery, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@CarLp", row.Lp);
+                            cmd.Parameters.AddWithValue("@Padle", row.Padle);
+                            cmd.Parameters.AddWithValue("@Chore", row.Chore);
+                            cmd.Parameters.AddWithValue("@NW", row.NW);
+                            cmd.Parameters.AddWithValue("@ZM", row.ZM);
+                            cmd.Parameters.AddWithValue("@ID", row.ID);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                }
+
+                UpdateStatus("Zapisano kolejność i dane płachty");
+                MessageBox.Show("Kolejność i dane zostały zapisane.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd zapisu: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnPlachtaStatus_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.DataContext is PlachtaRow row)
+            {
+                row.Status = !row.Status;
+                btn.Content = row.Status ? "✓" : "OK";
+                btn.Background = row.Status ? new SolidColorBrush(Color.FromRgb(46, 125, 50)) : new SolidColorBrush(Color.FromRgb(39, 174, 96));
+            }
         }
 
         #endregion
@@ -7312,6 +7495,61 @@ namespace Kalendarz1
 
         public string ZatwierdzonePrzez { get; set; }
         public DateTime? DataZatwierdzenia { get; set; }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+
+    public class PlachtaRow : INotifyPropertyChanged
+    {
+        public int ID { get; set; }
+
+        private int _lp;
+        public int Lp
+        {
+            get => _lp;
+            set { _lp = value; OnPropertyChanged(nameof(Lp)); }
+        }
+
+        public string Hodowca { get; set; }
+        public string NrGospodarstwa { get; set; }
+        public string Adres { get; set; }
+        public string Ciagnik { get; set; }
+        public string Naczepa { get; set; }
+
+        private int _padle;
+        public int Padle
+        {
+            get => _padle;
+            set { _padle = value; OnPropertyChanged(nameof(Padle)); }
+        }
+
+        private int _chore;
+        public int Chore
+        {
+            get => _chore;
+            set { _chore = value; OnPropertyChanged(nameof(Chore)); }
+        }
+
+        private int _nw;
+        public int NW
+        {
+            get => _nw;
+            set { _nw = value; OnPropertyChanged(nameof(NW)); }
+        }
+
+        private int _zm;
+        public int ZM
+        {
+            get => _zm;
+            set { _zm = value; OnPropertyChanged(nameof(ZM)); }
+        }
+
+        public bool Status { get; set; }
+        public int CustomerGID { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)
