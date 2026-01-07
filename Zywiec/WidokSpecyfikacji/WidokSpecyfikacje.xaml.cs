@@ -5862,7 +5862,7 @@ namespace Kalendarz1
                             ISNULL(fc.NettoWeight, 0) * ISNULL(fc.Price, 0) as Wartosc,
                             ISNULL(fc.Symfonia, 0) as Symfonia
                         FROM dbo.FarmerCalc fc
-                        LEFT JOIN dbo.Kontrahent k ON fc.CustomerGID = k.GID
+                        LEFT JOIN dbo.Dostawcy k ON fc.CustomerGID = k.ID
                         LEFT JOIN dbo.PriceType pt ON fc.PriceTypeID = pt.ID
                         WHERE fc.CalcDate = @CalcDate
                         ORDER BY fc.CarLp";

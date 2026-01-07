@@ -414,6 +414,12 @@
                             Style="{StaticResource MainButtonStyle}"
                             Background="#34495E"
                             ToolTip="Panel administracyjny - ustawienia blokady edycji"/>
+                    <Button Content="📜 Historia zmian"
+                            x:Name="btnHistoriaZmian"
+                            Click="ShowChangeLog_Click"
+                            Style="{StaticResource MainButtonStyle}"
+                            Background="#8E44AD"
+                            ToolTip="Pokaż historię zmian specyfikacji"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -1733,16 +1739,11 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <!-- Nagłówek i filtry -->
+                        <!-- Nagłówek -->
                         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
                             <TextBlock Text="Rozliczenia dostaw" FontSize="18" FontWeight="Bold" Foreground="#2C3E50" VerticalAlignment="Center"/>
                             <Border Width="1" Background="#E0E0E0" Margin="15,2"/>
-                            <TextBlock Text="Filtr daty:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                            <DatePicker x:Name="dpRozliczeniaOd" Width="120" Margin="0,0,10,0"/>
-                            <TextBlock Text="-" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <DatePicker x:Name="dpRozliczeniaDo" Width="120" Margin="0,0,10,0"/>
-                            <Button Content="Filtruj" Padding="15,5" Background="#3498DB" Foreground="White"
-                                    BorderThickness="0" Cursor="Hand" Click="BtnFilterRozliczenia_Click"/>
+                            <TextBlock Text="Data jest wybrana w lewym górnym rogu" VerticalAlignment="Center" Foreground="#7F8C8D" FontStyle="Italic"/>
                         </StackPanel>
 
                         <!-- Toolbar zatwierdzania -->
