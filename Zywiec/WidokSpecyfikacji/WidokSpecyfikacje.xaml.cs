@@ -6106,6 +6106,12 @@ namespace Kalendarz1
 
                 UpdateStatus("Zapisano kolejność i dane płachty");
                 MessageBox.Show("Kolejność i dane zostały zapisane.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Odśwież wszystkie karty
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+                LoadData(selectedDate);  // Odśwież Specyfikacje
+                LoadRozliczeniaData();   // Odśwież Rozliczenia
+                LoadPlachtaData();       // Odśwież Płachtę
             }
             catch (Exception ex)
             {
