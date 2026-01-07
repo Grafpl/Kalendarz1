@@ -5873,14 +5873,14 @@ namespace Kalendarz1
                                 {
                                     ID = reader.GetInt32(reader.GetOrdinal("ID")),
                                     Data = reader.GetDateTime(reader.GetOrdinal("Data")),
-                                    Nr = reader.IsDBNull(reader.GetOrdinal("Nr")) ? 0 : reader.GetInt32(reader.GetOrdinal("Nr")),
-                                    Dostawca = reader.IsDBNull(reader.GetOrdinal("Dostawca")) ? "" : reader.GetString(reader.GetOrdinal("Dostawca")),
-                                    SztukiDek = reader.IsDBNull(reader.GetOrdinal("SztukiDek")) ? 0 : Convert.ToInt32(reader.GetDecimal(reader.GetOrdinal("SztukiDek"))),
-                                    NettoKg = reader.IsDBNull(reader.GetOrdinal("NettoKg")) ? 0 : reader.GetDecimal(reader.GetOrdinal("NettoKg")),
-                                    Cena = reader.IsDBNull(reader.GetOrdinal("Cena")) ? 0 : reader.GetDecimal(reader.GetOrdinal("Cena")),
-                                    TypCeny = reader.IsDBNull(reader.GetOrdinal("TypCeny")) ? "" : reader.GetString(reader.GetOrdinal("TypCeny")),
-                                    Wartosc = reader.IsDBNull(reader.GetOrdinal("Wartosc")) ? 0 : reader.GetDecimal(reader.GetOrdinal("Wartosc")),
-                                    Symfonia = !reader.IsDBNull(reader.GetOrdinal("Symfonia")) && reader.GetBoolean(reader.GetOrdinal("Symfonia"))
+                                    Nr = reader.IsDBNull(reader.GetOrdinal("Nr")) ? 0 : Convert.ToInt32(reader["Nr"]),
+                                    Dostawca = reader.IsDBNull(reader.GetOrdinal("Dostawca")) ? "" : reader["Dostawca"].ToString(),
+                                    SztukiDek = reader.IsDBNull(reader.GetOrdinal("SztukiDek")) ? 0 : Convert.ToInt32(reader["SztukiDek"]),
+                                    NettoKg = reader.IsDBNull(reader.GetOrdinal("NettoKg")) ? 0 : Convert.ToDecimal(reader["NettoKg"]),
+                                    Cena = reader.IsDBNull(reader.GetOrdinal("Cena")) ? 0 : Convert.ToDecimal(reader["Cena"]),
+                                    TypCeny = reader.IsDBNull(reader.GetOrdinal("TypCeny")) ? "" : reader["TypCeny"].ToString(),
+                                    Wartosc = reader.IsDBNull(reader.GetOrdinal("Wartosc")) ? 0 : Convert.ToDecimal(reader["Wartosc"]),
+                                    Symfonia = !reader.IsDBNull(reader.GetOrdinal("Symfonia")) && Convert.ToBoolean(reader["Symfonia"])
                                 });
                             }
                         }
