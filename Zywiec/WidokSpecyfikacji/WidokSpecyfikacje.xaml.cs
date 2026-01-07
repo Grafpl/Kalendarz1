@@ -19,6 +19,8 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
+using System.Drawing.Printing;
+using System.Diagnostics;
 
 namespace Kalendarz1
 {
@@ -6130,6 +6132,308 @@ namespace Kalendarz1
             }
         }
 
+        private void BtnPlachtaPrint_Click(object sender, RoutedEventArgs e)
+        {
+            if (plachtaData.Count == 0)
+            {
+                MessageBox.Show("Brak danych do wydruku!", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                PrintDocument printDoc = new PrintDocument();
+                printDoc.PrintPage += PlachtaPrintDoc_PrintPage;
+
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+                printDoc.DocumentName = $"Plachta_{selectedDate:yyyy-MM-dd}";
+
+                // Ustawienie orientacji poziomej
+                printDoc.DefaultPageSettings.Landscape = true;
+
+                System.Windows.Controls.PrintDialog printDialog = new System.Windows.Controls.PrintDialog();
+                if (printDialog.ShowDialog() == true)
+                {
+                    printDoc.PrinterSettings.PrinterName = printDialog.PrintQueue.Name;
+                    printDoc.Print();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd drukowania:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void PlachtaPrintDoc_PrintPage(object sender, PrintPageEventArgs e)
+        {
+            System.Drawing.Graphics g = e.Graphics;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+            DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+            float pageWidth = e.PageBounds.Width;
+            float pageHeight = e.PageBounds.Height;
+            float leftMargin = 8;
+            float rightMargin = pageWidth - 8;
+            float tableWidth = rightMargin - leftMargin;
+            float y = 12;
+
+            // Czcionki
+            System.Drawing.Font fontTitle = new System.Drawing.Font("Arial", 16, System.Drawing.FontStyle.Bold);
+            System.Drawing.Font fontDate = new System.Drawing.Font("Arial", 14, System.Drawing.FontStyle.Bold);
+            System.Drawing.Font fontHeader = new System.Drawing.Font("Arial", 8, System.Drawing.FontStyle.Bold);
+            System.Drawing.Font fontKonfiskaty = new System.Drawing.Font("Arial", 7, System.Drawing.FontStyle.Bold);
+            System.Drawing.Font fontData = new System.Drawing.Font("Arial", 9);
+            System.Drawing.Font fontDataBold = new System.Drawing.Font("Arial", 9, System.Drawing.FontStyle.Bold);
+            System.Drawing.Font fontSummary = new System.Drawing.Font("Arial", 11, System.Drawing.FontStyle.Bold);
+
+            System.Drawing.SolidBrush brushBlack = new System.Drawing.SolidBrush(System.Drawing.Color.Black);
+            System.Drawing.SolidBrush brushGray = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(60, 60, 60));
+            System.Drawing.SolidBrush brushHeaderBg = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(200, 200, 200));
+            System.Drawing.SolidBrush brushAltRow = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(240, 240, 240));
+            System.Drawing.Pen penThick = new System.Drawing.Pen(System.Drawing.Color.Black, 2f);
+            System.Drawing.Pen penMedium = new System.Drawing.Pen(System.Drawing.Color.Black, 1f);
+            System.Drawing.Pen penThin = new System.Drawing.Pen(System.Drawing.Color.FromArgb(80, 80, 80), 0.5f);
+
+            // Nagłówek
+            string[] dniTygodnia = { "NIEDZIELA", "PONIEDZIAŁEK", "WTOREK", "ŚRODA", "CZWARTEK", "PIĄTEK", "SOBOTA" };
+            string dzienTygodnia = dniTygodnia[(int)selectedDate.DayOfWeek];
+
+            g.DrawString("PŁACHTA - OCENA DOBROSTANU", fontTitle, brushBlack, leftMargin, y);
+            g.DrawString($"{selectedDate:dd}. {selectedDate:MMMM} {selectedDate:yyyy} - {dzienTygodnia}", fontDate, brushBlack, leftMargin + 320, y + 3);
+
+            y += 34;
+
+            // Tabela - 15 kolumn
+            // LP, NR, HODOWCA, ADRES, SALMONELLA, NR.ŚW.ZDR, NR GOSP, SZT.DEK, CIĄGNIK, NACZEPA, PADŁE, KOD, CH, NW, ZM
+            float[] colPercent = { 2.5f, 3f, 13f, 14f, 7f, 6f, 7f, 5f, 7f, 7f, 5f, 5f, 4.5f, 4.5f, 4.5f };
+            float[] colWidths = new float[colPercent.Length];
+            for (int i = 0; i < colPercent.Length; i++)
+            {
+                colWidths[i] = tableWidth * colPercent[i] / 100f;
+            }
+
+            float[] colX = new float[colWidths.Length];
+            colX[0] = leftMargin;
+            for (int i = 1; i < colWidths.Length; i++)
+            {
+                colX[i] = colX[i - 1] + colWidths[i - 1];
+            }
+
+            // Nagłówki
+            string[] headers = { "LP", "NR", "HODOWCA", "ADRES", "SALMON.", "ŚW.ZDR", "NR GOSP", "SZT", "CIĄGNIK", "NACZEPA", "PADŁE", "KOD", "CH", "NW", "ZM" };
+
+            // Nagłówek tabeli
+            float headerHeight = 28;
+            g.FillRectangle(brushHeaderBg, leftMargin, y, tableWidth, headerHeight);
+            g.DrawRectangle(penThick, leftMargin, y, tableWidth, headerHeight);
+
+            float headerTextY = y + 8;
+
+            for (int i = 0; i < headers.Length; i++)
+            {
+                if (i > 0)
+                    g.DrawLine(penMedium, colX[i], y, colX[i], y + headerHeight);
+
+                System.Drawing.SizeF textSize = g.MeasureString(headers[i], fontHeader);
+                float textX = colX[i] + (colWidths[i] - textSize.Width) / 2;
+                g.DrawString(headers[i], fontHeader, brushBlack, textX, headerTextY);
+            }
+
+            y += headerHeight;
+
+            // Oblicz wysokość wiersza
+            float availableHeight = pageHeight - y - 60;
+            float rowHeight = availableHeight / plachtaData.Count;
+            if (rowHeight > 30) rowHeight = 30;
+            if (rowHeight < 18) rowHeight = 18;
+
+            // Dane wierszy
+            int sumaPadle = 0, sumaCH = 0, sumaNW = 0, sumaZM = 0;
+            int sumaIlosc = 0;
+            int rowIndex = 0;
+
+            foreach (var d in plachtaData)
+            {
+                if (y > pageHeight - 60)
+                    break;
+
+                // Naprzemienne tło
+                if (rowIndex % 2 == 1)
+                {
+                    g.FillRectangle(brushAltRow, leftMargin + 1, y + 1, tableWidth - 2, rowHeight - 1);
+                }
+
+                float textY = y + (rowHeight - 12) / 2;
+
+                // LP
+                DrawPlachtaCenteredText(g, d.Lp.ToString(), fontDataBold, brushBlack, colX[0], colWidths[0], textY);
+
+                // NR SPEC
+                DrawPlachtaCenteredText(g, d.NrSpec.ToString(), fontDataBold, brushBlack, colX[1], colWidths[1], textY);
+
+                // HODOWCA
+                string hodowca = d.Hodowca ?? "-";
+                if (hodowca.Length > 20) hodowca = hodowca.Substring(0, 18) + "..";
+                g.DrawString(hodowca, fontData, brushBlack, colX[2] + 3, textY);
+
+                // ADRES
+                string adres = d.Adres ?? "-";
+                if (adres.Length > 25) adres = adres.Substring(0, 23) + "..";
+                g.DrawString(adres, fontData, brushGray, colX[3] + 3, textY);
+
+                // SALMONELLA
+                string salmonella = d.BadaniaSalmonella ?? "";
+                if (salmonella.Length > 10) salmonella = salmonella.Substring(0, 8) + "..";
+                DrawPlachtaCenteredText(g, salmonella, fontData, brushGray, colX[4], colWidths[4], textY);
+
+                // NR ŚW. ZDROWIA
+                DrawPlachtaCenteredText(g, d.NrSwZdrowia ?? "", fontData, brushGray, colX[5], colWidths[5], textY);
+
+                // NR GOSPODARSTWA
+                DrawPlachtaCenteredText(g, d.NrGospodarstwa ?? "", fontDataBold, brushBlack, colX[6], colWidths[6], textY);
+
+                // SZT.DEK
+                DrawPlachtaCenteredText(g, d.IloscDek.ToString(), fontDataBold, brushBlack, colX[7], colWidths[7], textY);
+
+                // CIĄGNIK
+                DrawPlachtaCenteredText(g, d.Ciagnik ?? "", fontData, brushGray, colX[8], colWidths[8], textY);
+
+                // NACZEPA
+                DrawPlachtaCenteredText(g, d.Naczepa ?? "", fontData, brushGray, colX[9], colWidths[9], textY);
+
+                // PADŁE
+                string padleText = d.Padle > 0 ? d.Padle.ToString() : "-";
+                DrawPlachtaCenteredText(g, padleText, fontDataBold, brushBlack, colX[10], colWidths[10], textY);
+
+                // KOD HODOWCY
+                DrawPlachtaCenteredText(g, d.KodHodowcy ?? "", fontData, brushGray, colX[11], colWidths[11], textY);
+
+                // CH
+                string chText = d.Chore > 0 ? d.Chore.ToString() : "-";
+                DrawPlachtaCenteredText(g, chText, fontDataBold, brushBlack, colX[12], colWidths[12], textY);
+
+                // NW
+                string nwText = d.NW > 0 ? d.NW.ToString() : "-";
+                DrawPlachtaCenteredText(g, nwText, fontDataBold, brushBlack, colX[13], colWidths[13], textY);
+
+                // ZM
+                string zmText = d.ZM > 0 ? d.ZM.ToString() : "-";
+                DrawPlachtaCenteredText(g, zmText, fontDataBold, brushBlack, colX[14], colWidths[14], textY);
+
+                // Linie pionowe
+                for (int i = 1; i < colWidths.Length; i++)
+                {
+                    g.DrawLine(penThin, colX[i], y, colX[i], y + rowHeight);
+                }
+
+                // Linia pozioma dolna
+                g.DrawLine(penThin, leftMargin, y + rowHeight, rightMargin, y + rowHeight);
+
+                // Sumowanie
+                sumaPadle += d.Padle;
+                sumaCH += d.Chore;
+                sumaNW += d.NW;
+                sumaZM += d.ZM;
+                sumaIlosc += d.IloscDek;
+
+                y += rowHeight;
+                rowIndex++;
+            }
+
+            // Ramka zewnętrzna tabeli danych
+            float tableStartY = y - (rowIndex * rowHeight) - headerHeight;
+            g.DrawRectangle(penThick, leftMargin, tableStartY, tableWidth, (rowIndex * rowHeight) + headerHeight);
+
+            // Wiersz sumy
+            float sumRowHeight = 30;
+            g.FillRectangle(brushHeaderBg, leftMargin, y, tableWidth, sumRowHeight);
+            g.DrawRectangle(penThick, leftMargin, y, tableWidth, sumRowHeight);
+
+            float sumTextY = y + 8;
+
+            g.DrawString("SUMA:", fontSummary, brushBlack, colX[2] + 4, sumTextY);
+
+            DrawPlachtaCenteredText(g, sumaIlosc.ToString(), fontSummary, brushBlack, colX[7], colWidths[7], sumTextY);
+            DrawPlachtaCenteredText(g, sumaPadle.ToString(), fontSummary, brushBlack, colX[10], colWidths[10], sumTextY);
+            DrawPlachtaCenteredText(g, sumaCH.ToString(), fontSummary, brushBlack, colX[12], colWidths[12], sumTextY);
+            DrawPlachtaCenteredText(g, sumaNW.ToString(), fontSummary, brushBlack, colX[13], colWidths[13], sumTextY);
+            DrawPlachtaCenteredText(g, sumaZM.ToString(), fontSummary, brushBlack, colX[14], colWidths[14], sumTextY);
+
+            // Linie pionowe sumy
+            for (int i = 1; i < colWidths.Length; i++)
+            {
+                g.DrawLine(penMedium, colX[i], y, colX[i], y + sumRowHeight);
+            }
+
+            // Cleanup
+            fontTitle.Dispose();
+            fontDate.Dispose();
+            fontHeader.Dispose();
+            fontKonfiskaty.Dispose();
+            fontData.Dispose();
+            fontDataBold.Dispose();
+            fontSummary.Dispose();
+            brushBlack.Dispose();
+            brushGray.Dispose();
+            brushHeaderBg.Dispose();
+            brushAltRow.Dispose();
+            penThick.Dispose();
+            penMedium.Dispose();
+            penThin.Dispose();
+
+            e.HasMorePages = false;
+        }
+
+        private void DrawPlachtaCenteredText(System.Drawing.Graphics g, string text, System.Drawing.Font font, System.Drawing.SolidBrush brush, float x, float width, float y)
+        {
+            System.Drawing.SizeF size = g.MeasureString(text, font);
+            g.DrawString(text, font, brush, x + (width - size.Width) / 2, y);
+        }
+
+        private void BtnPlachtaOpenFolder_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                // Użyj domyślnej ścieżki zapisu specyfikacji
+                string basePath = defaultPdfPath;
+
+                // Utwórz ścieżkę dla dnia (rok/miesiąc/dzień)
+                string yearFolder = selectedDate.Year.ToString();
+                string monthFolder = selectedDate.Month.ToString("D2");
+                string dayFolder = selectedDate.Day.ToString("D2");
+
+                string folderPath = Path.Combine(basePath, yearFolder, monthFolder, dayFolder);
+
+                // Jeśli folder nie istnieje, spróbuj samą bazową ścieżkę
+                if (!Directory.Exists(folderPath))
+                {
+                    // Spróbuj bez dnia
+                    folderPath = Path.Combine(basePath, yearFolder, monthFolder);
+
+                    if (!Directory.Exists(folderPath))
+                    {
+                        // Spróbuj bazową ścieżkę
+                        folderPath = basePath;
+
+                        if (!Directory.Exists(folderPath))
+                        {
+                            MessageBox.Show($"Folder nie istnieje:\n{basePath}", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                            return;
+                        }
+                    }
+                }
+
+                Process.Start("explorer.exe", folderPath);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania folderu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         #endregion
 
         #region Admin Panel
@@ -6171,6 +6475,21 @@ namespace Kalendarz1
             adminPanel.Visibility = Visibility.Collapsed;
         }
 
+        private void BtnBrowsePdfPath_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new System.Windows.Forms.FolderBrowserDialog
+            {
+                Description = "Wybierz folder do zapisywania specyfikacji PDF",
+                ShowNewFolderButton = true,
+                SelectedPath = txtDefaultPdfPath.Text
+            };
+
+            if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                txtDefaultPdfPath.Text = dialog.SelectedPath;
+            }
+        }
+
         private void BtnSaveAdminSettings_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -6186,6 +6505,12 @@ namespace Kalendarz1
                     .Select(p => p.Trim())
                     .Where(p => !string.IsNullOrEmpty(p))
                     .ToList();
+
+                // Pobierz ścieżkę PDF
+                if (!string.IsNullOrWhiteSpace(txtDefaultPdfPath.Text))
+                {
+                    defaultPdfPath = txtDefaultPdfPath.Text.Trim();
+                }
 
                 // Zapisz do bazy
                 SaveAdminSettings();
@@ -6397,6 +6722,22 @@ namespace Kalendarz1
                             }
                         }
                     }
+
+                    // Wczytaj domyślną ścieżkę PDF
+                    string queryPdfPath = "SELECT SettingValue FROM FarmerCalcSettings WHERE SettingName = 'DefaultPdfPath'";
+                    using (SqlCommand cmd = new SqlCommand(queryPdfPath, conn))
+                    {
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && !string.IsNullOrEmpty(result.ToString()))
+                        {
+                            defaultPdfPath = result.ToString();
+                            txtDefaultPdfPath.Text = defaultPdfPath;
+                        }
+                        else
+                        {
+                            txtDefaultPdfPath.Text = defaultPdfPath;
+                        }
+                    }
                 }
             }
             catch (Exception ex)
@@ -6443,6 +6784,21 @@ namespace Kalendarz1
                     using (SqlCommand cmd = new SqlCommand(mergePrzel, conn))
                     {
                         cmd.Parameters.AddWithValue("@Value", przelozeniStr);
+                        cmd.Parameters.AddWithValue("@User", user);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Zapisz domyślną ścieżkę PDF
+                    string mergePdfPath = @"
+                        MERGE FarmerCalcSettings AS target
+                        USING (SELECT 'DefaultPdfPath' AS SettingName) AS source
+                        ON target.SettingName = source.SettingName
+                        WHEN MATCHED THEN UPDATE SET SettingValue = @Value, ModifiedDate = GETDATE(), ModifiedBy = @User
+                        WHEN NOT MATCHED THEN INSERT (SettingName, SettingValue, ModifiedBy) VALUES ('DefaultPdfPath', @Value, @User);";
+
+                    using (SqlCommand cmd = new SqlCommand(mergePdfPath, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Value", defaultPdfPath);
                         cmd.Parameters.AddWithValue("@User", user);
                         cmd.ExecuteNonQuery();
                     }

@@ -476,6 +476,25 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Domyślna ścieżka PDF -->
+                <Border Background="#E3F2FD" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="Domyślna ścieżka zapisu PDF" FontWeight="SemiBold" Foreground="#1565C0" Margin="0,0,0,5"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="txtDefaultPdfPath" Grid.Column="0" Height="28"
+                                     VerticalContentAlignment="Center" Margin="0,0,5,0"/>
+                            <Button Grid.Column="1" Content="📁" Padding="8,4"
+                                    Background="#1976D2" Foreground="White" BorderThickness="0"
+                                    Cursor="Hand" Click="BtnBrowsePdfPath_Click" ToolTip="Wybierz folder"/>
+                        </Grid>
+                        <TextBlock Text="Folder gdzie zapisywane są specyfikacje PDF" FontSize="11" Foreground="#7F8C8D" Margin="0,3,0,0"/>
+                    </StackPanel>
+                </Border>
+
                 <!-- Przyciski -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="Zapisz ustawienia" Padding="15,8" Background="#3498DB" Foreground="White"
@@ -1920,9 +1939,21 @@
                                                 Padding="12,4" Background="Transparent" Foreground="White"
                                                 BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
                                     </Border>
-                                    <Border Background="#E67E22" CornerRadius="4">
+                                    <Border Background="#E67E22" CornerRadius="4" Margin="0,0,5,0">
                                         <Button Content="💾 Zapisz"
                                                 Click="BtnPlachtaSaveOrder_Click"
+                                                Padding="12,4" Background="Transparent" Foreground="White"
+                                                BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+                                    </Border>
+                                    <Border Background="#8E44AD" CornerRadius="4" Margin="0,0,5,0">
+                                        <Button Content="🖨️ Drukuj"
+                                                Click="BtnPlachtaPrint_Click"
+                                                Padding="12,4" Background="Transparent" Foreground="White"
+                                                BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+                                    </Border>
+                                    <Border Background="#16A085" CornerRadius="4">
+                                        <Button Content="📁 Otwórz folder"
+                                                Click="BtnPlachtaOpenFolder_Click"
                                                 Padding="12,4" Background="Transparent" Foreground="White"
                                                 BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
                                     </Border>
