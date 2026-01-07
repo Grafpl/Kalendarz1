@@ -341,7 +341,7 @@ namespace Kalendarz1
                     GodzinaPrzyjazdu = spec.ArrivalTime,
                     Trasa = spec.Dostawca ?? spec.RealDostawca ?? "",
                     Sztuki = spec.SztukiDek,
-                    Kilogramy = spec.NettoUbojniValue,
+                    Kilogramy = spec.WagaNettoDoRozliczenia,
                     Status = spec.ArrivalTime.HasValue ? "Zakończony" : "Oczekuje",
                     // Godziny transportowe
                     PoczatekUslugi = spec.PoczatekUslugi,
@@ -573,6 +573,7 @@ namespace Kalendarz1
                             // WAŻNE: Trim() usuwa spacje z nchar(10) - bez tego ComboBox nie znajdzie dopasowania
                             string customerGID = ZapytaniaSQL.GetValueOrDefault<string>(row, "CustomerGID", "-1")?.Trim();
                             decimal nettoUbojniValue = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "NettoWeight", 0);
+                            decimal nettoHodowcyValue = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "NettoFarmWeight", 0);
 
                             var specRow = new SpecyfikacjaRow
                             {
@@ -592,6 +593,7 @@ namespace Kalendarz1
                                 BruttoHodowcy = FormatWeight(row, "FullFarmWeight"),
                                 TaraHodowcy = FormatWeight(row, "EmptyFarmWeight"),
                                 NettoHodowcy = FormatWeight(row, "NettoFarmWeight"),
+                                NettoHodowcyValue = nettoHodowcyValue,
                                 BruttoUbojni = FormatWeight(row, "FullWeight"),
                                 TaraUbojni = FormatWeight(row, "EmptyWeight"),
                                 NettoUbojni = FormatWeight(row, "NettoWeight"),
@@ -1868,8 +1870,8 @@ namespace Kalendarz1
 
             lblRecordCount.Text = specyfikacjeData.Count.ToString();
 
-            // Suma netto ubojni
-            decimal sumaNetto = specyfikacjeData.Sum(r => r.NettoUbojniValue);
+            // Suma netto do rozliczenia (preferuje wagę hodowcy jeśli jest)
+            decimal sumaNetto = specyfikacjeData.Sum(r => r.WagaNettoDoRozliczenia);
             lblSumaNetto.Text = $"{sumaNetto:N0} kg";
 
             // Suma sztuk LUMEL
@@ -3092,7 +3094,7 @@ namespace Kalendarz1
 
                 foreach (var row in rozliczeniaHodowcy)
                 {
-                    sumaNetto += row.NettoUbojniValue;
+                    sumaNetto += row.WagaNettoDoRozliczenia;  // Preferuje wagę hodowcy
                     // Wszystkie sztuki = LUMEL + Padłe (tak jak w PDF)
                     int sztWszystkie = row.LUMEL + row.Padle;
                     sumaSztWszystkie += sztWszystkie;
@@ -3395,7 +3397,7 @@ namespace Kalendarz1
 
                 foreach (var row in rozliczeniaHodowcy)
                 {
-                    sumaNetto += row.NettoUbojniValue;
+                    sumaNetto += row.WagaNettoDoRozliczenia;  // Preferuje wagę hodowcy
                     int sztWszystkie = row.LUMEL + row.Padle;
                     sumaSztWszystkie += sztWszystkie;
                     sumaWartosc += row.Wartosc;
@@ -3649,15 +3651,19 @@ namespace Kalendarz1
                     decimal? ubytekProc = zapytaniasql.PobierzInformacjeZBazyDanych<decimal?>(id, "[LibraNet].[dbo].[FarmerCalc]", "Loss");
                     decimal ubytek = ubytekProc ?? 0;
 
-                    decimal wagaBrutto = ubytek != 0
+                    // Pobierz wagę hodowcy i ubojni
+                    decimal nettoHodowcy = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoFarmWeight");
+                    decimal nettoUbojni = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoWeight");
+
+                    // Preferuj wagę hodowcy jeśli jest > 0, w przeciwnym razie wagę ubojni
+                    bool uzyjWagiHodowcy = nettoHodowcy > 0;
+                    decimal wagaBrutto = uzyjWagiHodowcy
                         ? zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "FullFarmWeight")
                         : zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "FullWeight");
-                    decimal wagaTara = ubytek != 0
+                    decimal wagaTara = uzyjWagiHodowcy
                         ? zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "EmptyFarmWeight")
                         : zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "EmptyWeight");
-                    decimal wagaNetto = ubytek != 0
-                        ? zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoFarmWeight")
-                        : zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoWeight");
+                    decimal wagaNetto = uzyjWagiHodowcy ? nettoHodowcy : nettoUbojni;
 
                     int padle = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI2");
                     int konfiskaty = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI3") +
@@ -4206,18 +4212,24 @@ namespace Kalendarz1
                     decimal? ubytekProc = zapytaniasql.PobierzInformacjeZBazyDanych<decimal?>(id, "[LibraNet].[dbo].[FarmerCalc]", "Loss");
                     decimal ubytek = ubytekProc ?? 0;
 
+                    // Pobierz wagę hodowcy i ubojni
+                    decimal nettoHodowcy = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoFarmWeight");
+                    decimal nettoUbojni = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoWeight");
+
+                    // Preferuj wagę hodowcy jeśli jest > 0, w przeciwnym razie wagę ubojni
+                    bool uzyjWagiHodowcy = nettoHodowcy > 0;
                     decimal wagaBrutto, wagaTara, wagaNetto;
-                    if (ubytek != 0)
+                    if (uzyjWagiHodowcy)
                     {
                         wagaBrutto = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "FullFarmWeight");
                         wagaTara = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "EmptyFarmWeight");
-                        wagaNetto = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoFarmWeight");
+                        wagaNetto = nettoHodowcy;
                     }
                     else
                     {
                         wagaBrutto = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "FullWeight");
                         wagaTara = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "EmptyWeight");
-                        wagaNetto = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoWeight");
+                        wagaNetto = nettoUbojni;
                     }
 
                     int padle = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI2");
@@ -7122,6 +7134,7 @@ namespace Kalendarz1
         private string _bruttoHodowcy;
         private string _taraHodowcy;
         private string _nettoHodowcy;
+        private decimal _nettoHodowcyValue;
         private string _bruttoUbojni;
         private string _taraUbojni;
         private string _nettoUbojni;
@@ -7263,6 +7276,17 @@ namespace Kalendarz1
             set { _nettoHodowcy = value; OnPropertyChanged(nameof(NettoHodowcy)); }
         }
 
+        public decimal NettoHodowcyValue
+        {
+            get => _nettoHodowcyValue;
+            set { _nettoHodowcyValue = value; OnPropertyChanged(nameof(NettoHodowcyValue)); OnPropertyChanged(nameof(WagaNettoDoRozliczenia)); RecalculateWartosc(); }
+        }
+
+        /// <summary>
+        /// Waga netto do rozliczenia: preferuje wagę hodowcy, jeśli jest > 0, w przeciwnym razie wagę ubojni
+        /// </summary>
+        public decimal WagaNettoDoRozliczenia => NettoHodowcyValue > 0 ? NettoHodowcyValue : NettoUbojniValue;
+
         public string BruttoUbojni
         {
             get => _bruttoUbojni;
@@ -7284,7 +7308,7 @@ namespace Kalendarz1
         public decimal NettoUbojniValue
         {
             get => _nettoUbojniValue;
-            set { _nettoUbojniValue = value; OnPropertyChanged(nameof(NettoUbojniValue)); RecalculateWartosc(); }
+            set { _nettoUbojniValue = value; OnPropertyChanged(nameof(NettoUbojniValue)); OnPropertyChanged(nameof(WagaNettoDoRozliczenia)); RecalculateWartosc(); }
         }
 
         public int LUMEL
@@ -7449,9 +7473,9 @@ namespace Kalendarz1
         public int Konfiskaty => CH + NW + ZM;
 
         /// <summary>
-        /// Średnia waga: Netto / SztukiDek [kg/szt]
+        /// Średnia waga: WagaNettoDoRozliczenia / SztukiDek [kg/szt]
         /// </summary>
-        public decimal SredniaWaga => SztukiDek > 0 ? Math.Round(NettoUbojniValue / SztukiDek, 2) : 0;
+        public decimal SredniaWaga => SztukiDek > 0 ? Math.Round(WagaNettoDoRozliczenia / SztukiDek, 2) : 0;
 
         /// <summary>
         /// Sztuki zdatne: SztukiDek - Padłe - Konfiskaty [szt]
@@ -7469,13 +7493,13 @@ namespace Kalendarz1
         public decimal KonfiskatyKg => Math.Round(Konfiskaty * SredniaWaga, 0);
 
         /// <summary>
-        /// Do zapłaty [kg]: Netto - Padłe[kg] - Konf[kg] - Opas - KlasaB (z uwzględnieniem PiK i ubytku)
+        /// Do zapłaty [kg]: WagaNettoDoRozliczenia - Padłe[kg] - Konf[kg] - Opas - KlasaB (z uwzględnieniem PiK i ubytku)
         /// </summary>
         public decimal DoZaplaty
         {
             get
             {
-                decimal bazaKg = NettoUbojniValue;
+                decimal bazaKg = WagaNettoDoRozliczenia;
 
                 // Jeśli PiK = false, odejmujemy padłe i konfiskaty
                 if (!PiK)
