@@ -1933,14 +1933,21 @@
                                   RowStyle="{StaticResource DataGridRowHoverStyle}">
                             <DataGrid.Columns>
                                 <!-- LP -->
-                                <DataGridTextColumn Header="LP" Binding="{Binding Lp}" Width="45" IsReadOnly="True">
+                                <DataGridTextColumn Header="LP" Binding="{Binding Lp}" Width="40" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CenterBoldStyle}"/>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
+                                <!-- NR SPEC -->
+                                <DataGridTextColumn Header="NR SPEC" Binding="{Binding NrSpec}" Width="65" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}"/>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
                                 <!-- Hodowca -->
-                                <DataGridTextColumn Header="HODOWCA" Binding="{Binding Hodowca}" Width="180" IsReadOnly="True">
+                                <DataGridTextColumn Header="HODOWCA" Binding="{Binding Hodowca}" Width="160" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource NormalStyle}">
                                             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -1948,8 +1955,29 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
+                                <!-- Adres -->
+                                <DataGridTextColumn Header="ADRES" Binding="{Binding Adres}" Width="200" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource NormalStyle}"/>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Badania Salmonelli -->
+                                <DataGridTextColumn Header="BADANIA SALM." Binding="{Binding BadaniaSalmonella}" Width="100" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}"/>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Nr Św. Zdrowia -->
+                                <DataGridTextColumn Header="NR ŚW. ZDR." Binding="{Binding NrSwZdrowia}" Width="90" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}"/>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
                                 <!-- Nr Gosp. -->
-                                <DataGridTextColumn Header="NR GOSP." Binding="{Binding NrGospodarstwa}" Width="100" IsReadOnly="True">
+                                <DataGridTextColumn Header="NR GOSP." Binding="{Binding NrGospodarstwa}" Width="90" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}">
                                             <Setter Property="Foreground" Value="#1565C0"/>
@@ -1957,29 +1985,31 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <!-- Adres -->
-                                <DataGridTextColumn Header="ADRES" Binding="{Binding Adres}" Width="220" IsReadOnly="True">
+                                <!-- Ilość Deklarowana -->
+                                <DataGridTextColumn Header="ILOŚĆ DEK" Binding="{Binding IloscDek}" Width="70" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource NormalStyle}"/>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}">
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
                                 <!-- Ciągnik -->
-                                <DataGridTextColumn Header="CIĄGNIK" Binding="{Binding Ciagnik}" Width="90" IsReadOnly="True">
+                                <DataGridTextColumn Header="CIĄGNIK" Binding="{Binding Ciagnik}" Width="85" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}"/>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
                                 <!-- Naczepa -->
-                                <DataGridTextColumn Header="NACZEPA" Binding="{Binding Naczepa}" Width="90" IsReadOnly="True">
+                                <DataGridTextColumn Header="NACZEPA" Binding="{Binding Naczepa}" Width="85" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}"/>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
                                 <!-- PADŁE - edytowalne -->
-                                <DataGridTextColumn Header="PADŁE" Binding="{Binding Padle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="70">
+                                <DataGridTextColumn Header="PADŁE" Binding="{Binding Padle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="60">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}">
                                             <Setter Property="Foreground" Value="#C62828"/>
@@ -1993,8 +2023,17 @@
                                     </DataGridTextColumn.EditingElementStyle>
                                 </DataGridTextColumn>
 
+                                <!-- Kod Hodowcy -->
+                                <DataGridTextColumn Header="KOD" Binding="{Binding KodHodowcy}" Width="70" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}">
+                                            <Setter Property="Foreground" Value="#5D4037"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
                                 <!-- CH (Chore) - edytowalne -->
-                                <DataGridTextColumn Header="CH" Binding="{Binding Chore, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="55">
+                                <DataGridTextColumn Header="CH" Binding="{Binding Chore, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="50">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}">
                                             <Setter Property="Foreground" Value="#EF6C00"/>
@@ -2009,7 +2048,7 @@
                                 </DataGridTextColumn>
 
                                 <!-- NW - edytowalne -->
-                                <DataGridTextColumn Header="NW" Binding="{Binding NW, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="55">
+                                <DataGridTextColumn Header="NW" Binding="{Binding NW, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="50">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}">
                                             <Setter Property="Foreground" Value="#6A1B9A"/>
@@ -2024,7 +2063,7 @@
                                 </DataGridTextColumn>
 
                                 <!-- ZM - edytowalne -->
-                                <DataGridTextColumn Header="ZM" Binding="{Binding ZM, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="55">
+                                <DataGridTextColumn Header="ZM" Binding="{Binding ZM, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="50">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}">
                                             <Setter Property="Foreground" Value="#00695C"/>
@@ -2039,7 +2078,7 @@
                                 </DataGridTextColumn>
 
                                 <!-- Status -->
-                                <DataGridTemplateColumn Header="STATUS" Width="70">
+                                <DataGridTemplateColumn Header="STATUS" Width="60">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Button Content="OK"

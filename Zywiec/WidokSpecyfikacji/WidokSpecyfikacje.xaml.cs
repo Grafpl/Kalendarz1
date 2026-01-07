@@ -5950,12 +5950,15 @@ namespace Kalendarz1
                     string query = @"
                         SELECT
                             fc.ID,
-                            fc.CarLp,
+                            ISNULL(fc.CarLp, 0) as CarLp,
                             ISNULL(fc.CustomerGID, '') as CustomerGID,
                             (SELECT TOP 1 ShortName FROM dbo.Dostawcy WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(fc.CustomerGID))) as HodowcaNazwa,
-                            (SELECT TOP 1 AnimNo FROM dbo.Dostawcy WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(fc.CustomerGID))) as NrGospodarstwa,
                             (SELECT TOP 1 ISNULL(Address, '') + ', ' + ISNULL(PostalCode, '') + ' ' + ISNULL(City, '')
                              FROM dbo.Dostawcy WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(fc.CustomerGID))) as Adres,
+                            ISNULL(fc.VetComment, '') as BadaniaSalmonella,
+                            ISNULL(fc.VetNo, '') as NrSwZdrowia,
+                            (SELECT TOP 1 AnimNo FROM dbo.Dostawcy WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(fc.CustomerGID))) as NrGospodarstwa,
+                            ISNULL(fc.DeclI1, 0) as IloscDek,
                             ISNULL(fc.CarID, '') as Ciagnik,
                             ISNULL(fc.TrailerID, '') as Naczepa,
                             ISNULL(fc.DeclI2, 0) as Padle,
@@ -5987,12 +5990,17 @@ namespace Kalendarz1
                                 {
                                     ID = reader["ID"] != DBNull.Value ? Convert.ToInt32(reader["ID"]) : 0,
                                     Lp = lpCounter++,
+                                    NrSpec = reader["CarLp"] != DBNull.Value ? Convert.ToInt32(reader["CarLp"]) : 0,
                                     Hodowca = hodowca,
-                                    NrGospodarstwa = reader["NrGospodarstwa"] != DBNull.Value ? reader["NrGospodarstwa"].ToString() : "",
                                     Adres = reader["Adres"] != DBNull.Value ? reader["Adres"].ToString().Trim() : "",
+                                    BadaniaSalmonella = reader["BadaniaSalmonella"] != DBNull.Value ? reader["BadaniaSalmonella"].ToString() : "",
+                                    NrSwZdrowia = reader["NrSwZdrowia"] != DBNull.Value ? reader["NrSwZdrowia"].ToString() : "",
+                                    NrGospodarstwa = reader["NrGospodarstwa"] != DBNull.Value ? reader["NrGospodarstwa"].ToString() : "",
+                                    IloscDek = reader["IloscDek"] != DBNull.Value ? Convert.ToInt32(reader["IloscDek"]) : 0,
                                     Ciagnik = reader["Ciagnik"] != DBNull.Value ? reader["Ciagnik"].ToString() : "",
                                     Naczepa = reader["Naczepa"] != DBNull.Value ? reader["Naczepa"].ToString() : "",
                                     Padle = reader["Padle"] != DBNull.Value ? Convert.ToInt32(reader["Padle"]) : 0,
+                                    KodHodowcy = customerGID,
                                     Chore = reader["CH"] != DBNull.Value ? Convert.ToInt32(reader["CH"]) : 0,
                                     NW = reader["NW"] != DBNull.Value ? Convert.ToInt32(reader["NW"]) : 0,
                                     ZM = reader["ZM"] != DBNull.Value ? Convert.ToInt32(reader["ZM"]) : 0,
@@ -7522,11 +7530,15 @@ namespace Kalendarz1
             set { _lp = value; OnPropertyChanged(nameof(Lp)); }
         }
 
+        public int NrSpec { get; set; }  // CarLp - numer specyfikacji
         public string Hodowca { get; set; }
-        public string NrGospodarstwa { get; set; }
         public string Adres { get; set; }
-        public string Ciagnik { get; set; }
-        public string Naczepa { get; set; }
+        public string BadaniaSalmonella { get; set; }  // VetComment
+        public string NrSwZdrowia { get; set; }  // VetNo
+        public string NrGospodarstwa { get; set; }  // AnimNo
+        public int IloscDek { get; set; }  // DeclI1
+        public string Ciagnik { get; set; }  // CarID
+        public string Naczepa { get; set; }  // TrailerID
 
         private int _padle;
         public int Padle
@@ -7534,6 +7546,8 @@ namespace Kalendarz1
             get => _padle;
             set { _padle = value; OnPropertyChanged(nameof(Padle)); }
         }
+
+        public string KodHodowcy { get; set; }  // CustomerGID
 
         private int _chore;
         public int Chore
