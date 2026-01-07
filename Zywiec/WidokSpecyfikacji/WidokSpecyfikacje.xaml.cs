@@ -41,6 +41,7 @@ namespace Kalendarz1
 
         // Ustawienia PDF
         private static string defaultPdfPath = @"\\192.168.0.170\Public\Przel\";
+        private static string defaultPlachtaPath = @"\\192.168.0.170\Public\Plachty\";
         private static bool useDefaultPath = true;
         private decimal sumaWartosc = 0;
         private decimal sumaKG = 0;
@@ -6397,8 +6398,8 @@ namespace Kalendarz1
             {
                 DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
 
-                // Użyj domyślnej ścieżki zapisu specyfikacji
-                string basePath = defaultPdfPath;
+                // Użyj domyślnej ścieżki zapisu płacht
+                string basePath = defaultPlachtaPath;
 
                 // Utwórz ścieżkę dla dnia (rok/miesiąc/dzień)
                 string yearFolder = selectedDate.Year.ToString();
@@ -6420,7 +6421,220 @@ namespace Kalendarz1
 
                         if (!Directory.Exists(folderPath))
                         {
-                            MessageBox.Show($"Folder nie istnieje:\n{basePath}", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                            MessageBox.Show($"Folder płacht nie istnieje:\n{basePath}\n\nUstaw folder w ustawieniach.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                            return;
+                        }
+                    }
+                }
+
+                Process.Start("explorer.exe", folderPath);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania folderu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnPlachtaSavePdf_Click(object sender, RoutedEventArgs e)
+        {
+            if (plachtaData.Count == 0)
+            {
+                MessageBox.Show("Brak danych do zapisania!", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                // Utwórz ścieżkę dla pliku
+                string yearFolder = selectedDate.Year.ToString();
+                string monthFolder = selectedDate.Month.ToString("D2");
+                string dayFolder = selectedDate.Day.ToString("D2");
+
+                string folderPath = Path.Combine(defaultPlachtaPath, yearFolder, monthFolder, dayFolder);
+
+                // Utwórz folder jeśli nie istnieje
+                if (!Directory.Exists(folderPath))
+                {
+                    Directory.CreateDirectory(folderPath);
+                }
+
+                string fileName = $"Plachta_{selectedDate:yyyy-MM-dd}_{DateTime.Now:HHmmss}.pdf";
+                string filePath = Path.Combine(folderPath, fileName);
+
+                // Utwórz PDF z iTextSharp
+                using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    Document doc = new Document(PageSize.A4.Rotate(), 20, 20, 20, 20);
+                    PdfWriter writer = PdfWriter.GetInstance(doc, fs);
+                    doc.Open();
+
+                    // Tytuł
+                    string[] dniTygodnia = { "NIEDZIELA", "PONIEDZIAŁEK", "WTOREK", "ŚRODA", "CZWARTEK", "PIĄTEK", "SOBOTA" };
+                    string dzienTygodnia = dniTygodnia[(int)selectedDate.DayOfWeek];
+
+                    BaseFont bf = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1250, BaseFont.NOT_EMBEDDED);
+                    iTextSharp.text.Font fontTitle = new iTextSharp.text.Font(bf, 16, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontHeader = new iTextSharp.text.Font(bf, 8, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontData = new iTextSharp.text.Font(bf, 8);
+                    iTextSharp.text.Font fontDataBold = new iTextSharp.text.Font(bf, 8, iTextSharp.text.Font.BOLD);
+
+                    Paragraph title = new Paragraph($"PŁACHTA - OCENA DOBROSTANU    {selectedDate:dd.MM.yyyy} - {dzienTygodnia}", fontTitle);
+                    title.SpacingAfter = 15;
+                    doc.Add(title);
+
+                    // Tabela
+                    PdfPTable table = new PdfPTable(15);
+                    table.WidthPercentage = 100;
+                    float[] widths = { 3f, 3f, 12f, 14f, 7f, 6f, 7f, 5f, 7f, 7f, 5f, 5f, 4.5f, 4.5f, 4.5f };
+                    table.SetWidths(widths);
+
+                    // Nagłówki
+                    string[] headers = { "LP", "NR", "HODOWCA", "ADRES", "SALMON.", "ŚW.ZDR", "NR GOSP", "SZT", "CIĄGNIK", "NACZEPA", "PADŁE", "KOD", "CH", "NW", "ZM" };
+                    foreach (var h in headers)
+                    {
+                        PdfPCell cell = new PdfPCell(new Phrase(h, fontHeader));
+                        cell.BackgroundColor = new BaseColor(200, 200, 200);
+                        cell.HorizontalAlignment = Element.ALIGN_CENTER;
+                        cell.Padding = 4;
+                        table.AddCell(cell);
+                    }
+
+                    // Dane
+                    int sumaPadle = 0, sumaCH = 0, sumaNW = 0, sumaZM = 0, sumaIlosc = 0;
+
+                    foreach (var d in plachtaData)
+                    {
+                        table.AddCell(new PdfPCell(new Phrase(d.Lp.ToString(), fontDataBold)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(d.NrSpec.ToString(), fontDataBold)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(d.Hodowca ?? "-", fontData)));
+                        table.AddCell(new PdfPCell(new Phrase(d.Adres ?? "-", fontData)));
+                        table.AddCell(new PdfPCell(new Phrase(d.BadaniaSalmonella ?? "", fontData)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(d.NrSwZdrowia ?? "", fontData)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(d.NrGospodarstwa ?? "", fontDataBold)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(d.IloscDek.ToString(), fontDataBold)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(d.Ciagnik ?? "", fontData)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(d.Naczepa ?? "", fontData)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(d.Padle > 0 ? d.Padle.ToString() : "-", fontDataBold)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(d.KodHodowcy ?? "", fontData)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(d.Chore > 0 ? d.Chore.ToString() : "-", fontDataBold)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(d.NW > 0 ? d.NW.ToString() : "-", fontDataBold)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(d.ZM > 0 ? d.ZM.ToString() : "-", fontDataBold)) { HorizontalAlignment = Element.ALIGN_CENTER });
+
+                        sumaPadle += d.Padle;
+                        sumaCH += d.Chore;
+                        sumaNW += d.NW;
+                        sumaZM += d.ZM;
+                        sumaIlosc += d.IloscDek;
+                    }
+
+                    // Wiersz sumy
+                    PdfPCell sumaCell = new PdfPCell(new Phrase("SUMA:", fontHeader));
+                    sumaCell.Colspan = 7;
+                    sumaCell.BackgroundColor = new BaseColor(200, 200, 200);
+                    sumaCell.HorizontalAlignment = Element.ALIGN_RIGHT;
+                    sumaCell.Padding = 4;
+                    table.AddCell(sumaCell);
+
+                    table.AddCell(new PdfPCell(new Phrase(sumaIlosc.ToString(), fontHeader)) { BackgroundColor = new BaseColor(200, 200, 200), HorizontalAlignment = Element.ALIGN_CENTER });
+                    table.AddCell(new PdfPCell(new Phrase("", fontHeader)) { BackgroundColor = new BaseColor(200, 200, 200) });
+                    table.AddCell(new PdfPCell(new Phrase("", fontHeader)) { BackgroundColor = new BaseColor(200, 200, 200) });
+                    table.AddCell(new PdfPCell(new Phrase(sumaPadle.ToString(), fontHeader)) { BackgroundColor = new BaseColor(200, 200, 200), HorizontalAlignment = Element.ALIGN_CENTER });
+                    table.AddCell(new PdfPCell(new Phrase("", fontHeader)) { BackgroundColor = new BaseColor(200, 200, 200) });
+                    table.AddCell(new PdfPCell(new Phrase(sumaCH.ToString(), fontHeader)) { BackgroundColor = new BaseColor(200, 200, 200), HorizontalAlignment = Element.ALIGN_CENTER });
+                    table.AddCell(new PdfPCell(new Phrase(sumaNW.ToString(), fontHeader)) { BackgroundColor = new BaseColor(200, 200, 200), HorizontalAlignment = Element.ALIGN_CENTER });
+                    table.AddCell(new PdfPCell(new Phrase(sumaZM.ToString(), fontHeader)) { BackgroundColor = new BaseColor(200, 200, 200), HorizontalAlignment = Element.ALIGN_CENTER });
+
+                    doc.Add(table);
+                    doc.Close();
+                }
+
+                UpdateStatus($"Zapisano PDF: {fileName}");
+                MessageBox.Show($"Płachta została zapisana:\n{filePath}", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd zapisywania PDF:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnPlachtaFolderSettings_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new System.Windows.Forms.FolderBrowserDialog
+            {
+                Description = "Wybierz folder do zapisywania płacht PDF",
+                ShowNewFolderButton = true,
+                SelectedPath = defaultPlachtaPath
+            };
+
+            if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                defaultPlachtaPath = dialog.SelectedPath;
+                SavePlachtaFolderSetting();
+                MessageBox.Show($"Folder płacht ustawiony na:\n{defaultPlachtaPath}", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void SavePlachtaFolderSetting()
+        {
+            EnsureSettingsTableExists();
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string user = Environment.UserName;
+
+                    string mergeSql = @"
+                        MERGE FarmerCalcSettings AS target
+                        USING (SELECT 'DefaultPlachtaPath' AS SettingName) AS source
+                        ON target.SettingName = source.SettingName
+                        WHEN MATCHED THEN UPDATE SET SettingValue = @Value, ModifiedDate = GETDATE(), ModifiedBy = @User
+                        WHEN NOT MATCHED THEN INSERT (SettingName, SettingValue, ModifiedBy) VALUES ('DefaultPlachtaPath', @Value, @User);";
+
+                    using (SqlCommand cmd = new SqlCommand(mergeSql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Value", defaultPlachtaPath);
+                        cmd.Parameters.AddWithValue("@User", user);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error saving plachta folder: {ex.Message}");
+            }
+        }
+
+        private void BtnOpenPdfFolder_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                // Użyj domyślnej ścieżki zapisu specyfikacji
+                string basePath = defaultPdfPath;
+
+                // Utwórz ścieżkę dla dnia (rok/miesiąc/dzień)
+                string yearFolder = selectedDate.Year.ToString();
+                string monthFolder = selectedDate.Month.ToString("D2");
+                string dayFolder = selectedDate.Day.ToString("D2");
+
+                string folderPath = Path.Combine(basePath, yearFolder, monthFolder, dayFolder);
+
+                // Jeśli folder nie istnieje, spróbuj samą bazową ścieżkę
+                if (!Directory.Exists(folderPath))
+                {
+                    folderPath = Path.Combine(basePath, yearFolder, monthFolder);
+
+                    if (!Directory.Exists(folderPath))
+                    {
+                        folderPath = basePath;
+
+                        if (!Directory.Exists(folderPath))
+                        {
+                            MessageBox.Show($"Folder specyfikacji nie istnieje:\n{basePath}", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
                             return;
                         }
                     }
@@ -6736,6 +6950,17 @@ namespace Kalendarz1
                         else
                         {
                             txtDefaultPdfPath.Text = defaultPdfPath;
+                        }
+                    }
+
+                    // Wczytaj domyślną ścieżkę płacht
+                    string queryPlachtaPath = "SELECT SettingValue FROM FarmerCalcSettings WHERE SettingName = 'DefaultPlachtaPath'";
+                    using (SqlCommand cmd = new SqlCommand(queryPlachtaPath, conn))
+                    {
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && !string.IsNullOrEmpty(result.ToString()))
+                        {
+                            defaultPlachtaPath = result.ToString();
                         }
                     }
                 }

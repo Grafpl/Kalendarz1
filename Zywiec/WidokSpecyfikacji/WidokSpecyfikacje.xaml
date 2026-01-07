@@ -389,7 +389,13 @@
                             Style="{StaticResource MainButtonStyle}"
                             Background="#E67E22"
                             ToolTip="Drukuj specyfikację dla wybranego dostawcy"/>
-                    <Button Content="📁"
+                    <Button Content="📂 Otwórz folder"
+                            x:Name="btnOpenPdfFolder"
+                            Click="BtnOpenPdfFolder_Click"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Padding="12,8"
+                            ToolTip="Otwórz folder ze specyfikacjami"/>
+                    <Button Content="⚙️"
                             x:Name="btnPdfSettings"
                             Click="BtnPdfSettings_Click"
                             Style="{StaticResource SecondaryButtonStyle}"
@@ -1909,14 +1915,61 @@
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
                                 <TextBlock Grid.Column="0" Text="🩺 Płachta - Ocena Dobrostanu"
-                                           FontSize="16" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                                           FontSize="16" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" Margin="0,0,20,0"/>
 
-                                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                <!-- Przyciski po LEWEJ stronie -->
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <Border Background="#E67E22" CornerRadius="4" Margin="0,0,5,0">
+                                        <Button Content="💾 Zapisz zmiany"
+                                                Click="BtnPlachtaSaveOrder_Click"
+                                                Padding="12,4" Background="Transparent" Foreground="White"
+                                                BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"
+                                                ToolTip="Zapisz kolejność i dane do bazy"/>
+                                    </Border>
+                                    <Border Background="#3498DB" CornerRadius="4" Margin="0,0,5,0">
+                                        <Button Content="📄 Zapisz PDF"
+                                                Click="BtnPlachtaSavePdf_Click"
+                                                Padding="12,4" Background="Transparent" Foreground="White"
+                                                BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"
+                                                ToolTip="Zapisz płachtę jako PDF"/>
+                                    </Border>
+                                    <Border Background="#8E44AD" CornerRadius="4" Margin="0,0,5,0">
+                                        <Button Content="🖨️ Drukuj PDF"
+                                                Click="BtnPlachtaPrint_Click"
+                                                Padding="12,4" Background="Transparent" Foreground="White"
+                                                BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"
+                                                ToolTip="Drukuj płachtę"/>
+                                    </Border>
+                                    <Border Background="#16A085" CornerRadius="4" Margin="0,0,5,0">
+                                        <Button Content="📁 Otwórz folder"
+                                                Click="BtnPlachtaOpenFolder_Click"
+                                                Padding="12,4" Background="Transparent" Foreground="White"
+                                                BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"
+                                                ToolTip="Otwórz folder z płachtami"/>
+                                    </Border>
+                                    <Border Background="#607D8B" CornerRadius="4">
+                                        <Button Content="⚙️"
+                                                Click="BtnPlachtaFolderSettings_Click"
+                                                Padding="8,4" Background="Transparent" Foreground="White"
+                                                BorderThickness="0" Cursor="Hand" FontSize="14"
+                                                ToolTip="Ustawienia folderu płacht"/>
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- Przyciski po PRAWEJ stronie -->
+                                <StackPanel Grid.Column="3" Orientation="Horizontal">
+                                    <Border Background="#27AE60" CornerRadius="4" Margin="0,0,10,0">
+                                        <Button Content="🔄 Odśwież"
+                                                Click="BtnPlachtaRefresh_Click"
+                                                Padding="12,4" Background="Transparent" Foreground="White"
+                                                BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+                                    </Border>
                                     <!-- Przyciski przesuwania -->
                                     <Border Background="#2980B9" CornerRadius="4" Margin="0,0,5,0">
                                         <Button x:Name="btnPlachtaMoveUp" Content="▲"
@@ -1925,37 +1978,12 @@
                                                 Background="Transparent" Foreground="White" BorderThickness="0" Cursor="Hand"
                                                 ToolTip="Przesuń w górę"/>
                                     </Border>
-                                    <Border Background="#2980B9" CornerRadius="4" Margin="0,0,15,0">
+                                    <Border Background="#2980B9" CornerRadius="4">
                                         <Button x:Name="btnPlachtaMoveDown" Content="▼"
                                                 Click="BtnPlachtaMoveDown_Click"
                                                 FontSize="14" Padding="10,4"
                                                 Background="Transparent" Foreground="White" BorderThickness="0" Cursor="Hand"
                                                 ToolTip="Przesuń w dół"/>
-                                    </Border>
-
-                                    <Border Background="#27AE60" CornerRadius="4" Margin="0,0,5,0">
-                                        <Button Content="🔄 Odśwież"
-                                                Click="BtnPlachtaRefresh_Click"
-                                                Padding="12,4" Background="Transparent" Foreground="White"
-                                                BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
-                                    </Border>
-                                    <Border Background="#E67E22" CornerRadius="4" Margin="0,0,5,0">
-                                        <Button Content="💾 Zapisz"
-                                                Click="BtnPlachtaSaveOrder_Click"
-                                                Padding="12,4" Background="Transparent" Foreground="White"
-                                                BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
-                                    </Border>
-                                    <Border Background="#8E44AD" CornerRadius="4" Margin="0,0,5,0">
-                                        <Button Content="🖨️ Drukuj"
-                                                Click="BtnPlachtaPrint_Click"
-                                                Padding="12,4" Background="Transparent" Foreground="White"
-                                                BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
-                                    </Border>
-                                    <Border Background="#16A085" CornerRadius="4">
-                                        <Button Content="📁 Otwórz folder"
-                                                Click="BtnPlachtaOpenFolder_Click"
-                                                Padding="12,4" Background="Transparent" Foreground="White"
-                                                BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
                                     </Border>
                                 </StackPanel>
                             </Grid>
