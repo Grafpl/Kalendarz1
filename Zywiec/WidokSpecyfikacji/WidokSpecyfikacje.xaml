@@ -1886,33 +1886,49 @@
                         </Grid.RowDefinitions>
 
                         <!-- Nagłówek i przyciski -->
-                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
-                            <TextBlock Text="Płachta - Ocena Dobrostanu" FontSize="18" FontWeight="Bold" Foreground="#2C3E50" VerticalAlignment="Center"/>
-                            <Border Width="1" Background="#E0E0E0" Margin="15,2"/>
+                        <Border Grid.Row="0" Background="#34495E" CornerRadius="8" Padding="12,8" Margin="0,0,0,10">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
 
-                            <!-- Przyciski przesuwania -->
-                            <Button x:Name="btnPlachtaMoveUp" Content="⬆"
-                                    Click="BtnPlachtaMoveUp_Click"
-                                    FontSize="16" Padding="12,5" Margin="5,0"
-                                    Background="#3498DB" Foreground="White" BorderThickness="0" Cursor="Hand"
-                                    ToolTip="Przesuń w górę"/>
-                            <Button x:Name="btnPlachtaMoveDown" Content="⬇"
-                                    Click="BtnPlachtaMoveDown_Click"
-                                    FontSize="16" Padding="12,5" Margin="5,0"
-                                    Background="#3498DB" Foreground="White" BorderThickness="0" Cursor="Hand"
-                                    ToolTip="Przesuń w dół"/>
+                                <TextBlock Grid.Column="0" Text="🩺 Płachta - Ocena Dobrostanu"
+                                           FontSize="16" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
 
-                            <Border Width="1" Background="#E0E0E0" Margin="15,2"/>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                    <!-- Przyciski przesuwania -->
+                                    <Border Background="#2980B9" CornerRadius="4" Margin="0,0,5,0">
+                                        <Button x:Name="btnPlachtaMoveUp" Content="▲"
+                                                Click="BtnPlachtaMoveUp_Click"
+                                                FontSize="14" Padding="10,4"
+                                                Background="Transparent" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                                ToolTip="Przesuń w górę"/>
+                                    </Border>
+                                    <Border Background="#2980B9" CornerRadius="4" Margin="0,0,15,0">
+                                        <Button x:Name="btnPlachtaMoveDown" Content="▼"
+                                                Click="BtnPlachtaMoveDown_Click"
+                                                FontSize="14" Padding="10,4"
+                                                Background="Transparent" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                                ToolTip="Przesuń w dół"/>
+                                    </Border>
 
-                            <Button Content="🔄 Odśwież"
-                                    Click="BtnPlachtaRefresh_Click"
-                                    Padding="15,5" Background="#27AE60" Foreground="White"
-                                    BorderThickness="0" Cursor="Hand" Margin="5,0"/>
-                            <Button Content="💾 Zapisz kolejność"
-                                    Click="BtnPlachtaSaveOrder_Click"
-                                    Padding="15,5" Background="#E67E22" Foreground="White"
-                                    BorderThickness="0" Cursor="Hand" Margin="5,0"/>
-                        </StackPanel>
+                                    <Border Background="#27AE60" CornerRadius="4" Margin="0,0,5,0">
+                                        <Button Content="🔄 Odśwież"
+                                                Click="BtnPlachtaRefresh_Click"
+                                                Padding="12,4" Background="Transparent" Foreground="White"
+                                                BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+                                    </Border>
+                                    <Border Background="#E67E22" CornerRadius="4">
+                                        <Button Content="💾 Zapisz"
+                                                Click="BtnPlachtaSaveOrder_Click"
+                                                Padding="12,4" Background="Transparent" Foreground="White"
+                                                BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
 
                         <!-- DataGrid Płachta -->
                         <DataGrid Grid.Row="1" x:Name="dataGridPlachta"
@@ -1922,32 +1938,36 @@
                                   IsReadOnly="False"
                                   SelectionMode="Single"
                                   SelectionUnit="FullRow"
-                                  FontSize="12"
-                                  RowHeight="32"
-                                  ColumnHeaderHeight="36"
+                                  FontSize="11"
+                                  RowHeight="28"
+                                  ColumnHeaderHeight="32"
                                   Background="White"
-                                  AlternatingRowBackground="#F8F9FA"
+                                  AlternatingRowBackground="#FAFAFA"
                                   GridLinesVisibility="Horizontal"
-                                  HorizontalGridLinesBrush="#E0E0E0"
+                                  HorizontalGridLinesBrush="#E8E8E8"
                                   ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
                                   RowStyle="{StaticResource DataGridRowHoverStyle}">
                             <DataGrid.Columns>
                                 <!-- LP -->
-                                <DataGridTextColumn Header="LP" Binding="{Binding Lp}" Width="40" IsReadOnly="True">
+                                <DataGridTextColumn Header="LP" Binding="{Binding Lp}" Width="35" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CenterBoldStyle}"/>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CenterBoldStyle}">
+                                            <Setter Property="Foreground" Value="#7F8C8D"/>
+                                        </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
                                 <!-- NR SPEC -->
-                                <DataGridTextColumn Header="NR SPEC" Binding="{Binding NrSpec}" Width="65" IsReadOnly="True">
+                                <DataGridTextColumn Header="NR" Binding="{Binding NrSpec}" Width="45" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}"/>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CenterBoldStyle}">
+                                            <Setter Property="Foreground" Value="#2C3E50"/>
+                                        </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
                                 <!-- Hodowca -->
-                                <DataGridTextColumn Header="HODOWCA" Binding="{Binding Hodowca}" Width="160" IsReadOnly="True">
+                                <DataGridTextColumn Header="HODOWCA" Binding="{Binding Hodowca}" Width="150" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource NormalStyle}">
                                             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -1956,60 +1976,73 @@
                                 </DataGridTextColumn>
 
                                 <!-- Adres -->
-                                <DataGridTextColumn Header="ADRES" Binding="{Binding Adres}" Width="200" IsReadOnly="True">
+                                <DataGridTextColumn Header="ADRES" Binding="{Binding Adres}" Width="180" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource NormalStyle}"/>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource NormalStyle}">
+                                            <Setter Property="Foreground" Value="#555"/>
+                                            <Setter Property="FontSize" Value="10"/>
+                                        </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
                                 <!-- Badania Salmonelli -->
-                                <DataGridTextColumn Header="BADANIA SALM." Binding="{Binding BadaniaSalmonella}" Width="100" IsReadOnly="True">
+                                <DataGridTextColumn Header="SALMONELLA" Binding="{Binding BadaniaSalmonella}" Width="85" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}"/>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}">
+                                            <Setter Property="FontSize" Value="10"/>
+                                        </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
                                 <!-- Nr Św. Zdrowia -->
-                                <DataGridTextColumn Header="NR ŚW. ZDR." Binding="{Binding NrSwZdrowia}" Width="90" IsReadOnly="True">
+                                <DataGridTextColumn Header="NR ŚW.ZDR" Binding="{Binding NrSwZdrowia}" Width="75" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}"/>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}">
+                                            <Setter Property="FontSize" Value="10"/>
+                                        </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
                                 <!-- Nr Gosp. -->
-                                <DataGridTextColumn Header="NR GOSP." Binding="{Binding NrGospodarstwa}" Width="90" IsReadOnly="True">
+                                <DataGridTextColumn Header="NR GOSP" Binding="{Binding NrGospodarstwa}" Width="80" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}">
                                             <Setter Property="Foreground" Value="#1565C0"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
                                 <!-- Ilość Deklarowana -->
-                                <DataGridTextColumn Header="ILOŚĆ DEK" Binding="{Binding IloscDek}" Width="70" IsReadOnly="True">
+                                <DataGridTextColumn Header="SZT.DEK" Binding="{Binding IloscDek}" Width="60" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}">
                                             <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Foreground" Value="#2E7D32"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
                                 <!-- Ciągnik -->
-                                <DataGridTextColumn Header="CIĄGNIK" Binding="{Binding Ciagnik}" Width="85" IsReadOnly="True">
+                                <DataGridTextColumn Header="CIĄGNIK" Binding="{Binding Ciagnik}" Width="80" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}"/>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}">
+                                            <Setter Property="FontSize" Value="10"/>
+                                        </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
                                 <!-- Naczepa -->
-                                <DataGridTextColumn Header="NACZEPA" Binding="{Binding Naczepa}" Width="85" IsReadOnly="True">
+                                <DataGridTextColumn Header="NACZEPA" Binding="{Binding Naczepa}" Width="80" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}"/>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}">
+                                            <Setter Property="FontSize" Value="10"/>
+                                        </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
                                 <!-- PADŁE - edytowalne -->
-                                <DataGridTextColumn Header="PADŁE" Binding="{Binding Padle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="60">
+                                <DataGridTextColumn Header="PADŁE" Binding="{Binding Padle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="55">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}">
                                             <Setter Property="Foreground" Value="#C62828"/>
@@ -2019,21 +2052,23 @@
                                     <DataGridTextColumn.EditingElementStyle>
                                         <Style TargetType="TextBox">
                                             <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                            <Setter Property="Background" Value="#FFEBEE"/>
                                         </Style>
                                     </DataGridTextColumn.EditingElementStyle>
                                 </DataGridTextColumn>
 
                                 <!-- Kod Hodowcy -->
-                                <DataGridTextColumn Header="KOD" Binding="{Binding KodHodowcy}" Width="70" IsReadOnly="True">
+                                <DataGridTextColumn Header="KOD" Binding="{Binding KodHodowcy}" Width="65" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}">
                                             <Setter Property="Foreground" Value="#5D4037"/>
+                                            <Setter Property="FontSize" Value="10"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
                                 <!-- CH (Chore) - edytowalne -->
-                                <DataGridTextColumn Header="CH" Binding="{Binding Chore, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="50">
+                                <DataGridTextColumn Header="CH" Binding="{Binding Chore, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="45">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}">
                                             <Setter Property="Foreground" Value="#EF6C00"/>
@@ -2043,12 +2078,13 @@
                                     <DataGridTextColumn.EditingElementStyle>
                                         <Style TargetType="TextBox">
                                             <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                            <Setter Property="Background" Value="#FFF3E0"/>
                                         </Style>
                                     </DataGridTextColumn.EditingElementStyle>
                                 </DataGridTextColumn>
 
                                 <!-- NW - edytowalne -->
-                                <DataGridTextColumn Header="NW" Binding="{Binding NW, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="50">
+                                <DataGridTextColumn Header="NW" Binding="{Binding NW, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="45">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}">
                                             <Setter Property="Foreground" Value="#6A1B9A"/>
@@ -2058,12 +2094,13 @@
                                     <DataGridTextColumn.EditingElementStyle>
                                         <Style TargetType="TextBox">
                                             <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                            <Setter Property="Background" Value="#F3E5F5"/>
                                         </Style>
                                     </DataGridTextColumn.EditingElementStyle>
                                 </DataGridTextColumn>
 
                                 <!-- ZM - edytowalne -->
-                                <DataGridTextColumn Header="ZM" Binding="{Binding ZM, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="50">
+                                <DataGridTextColumn Header="ZM" Binding="{Binding ZM, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="45">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}">
                                             <Setter Property="Foreground" Value="#00695C"/>
@@ -2073,19 +2110,18 @@
                                     <DataGridTextColumn.EditingElementStyle>
                                         <Style TargetType="TextBox">
                                             <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                            <Setter Property="Background" Value="#E0F2F1"/>
                                         </Style>
                                     </DataGridTextColumn.EditingElementStyle>
                                 </DataGridTextColumn>
 
                                 <!-- Status -->
-                                <DataGridTemplateColumn Header="STATUS" Width="60">
+                                <DataGridTemplateColumn Header="" Width="50">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <Button Content="OK"
-                                                    Background="#27AE60" Foreground="White"
-                                                    FontWeight="Bold" FontSize="11"
-                                                    Padding="8,3" BorderThickness="0" Cursor="Hand"
-                                                    Click="BtnPlachtaStatus_Click"/>
+                                            <Border Background="#27AE60" CornerRadius="3" Padding="6,2" HorizontalAlignment="Center">
+                                                <TextBlock Text="OK" Foreground="White" FontWeight="Bold" FontSize="10"/>
+                                            </Border>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -2093,22 +2129,42 @@
                         </DataGrid>
 
                         <!-- Podsumowanie -->
-                        <Border Grid.Row="2" Background="#ECEFF1" Padding="10" Margin="0,10,0,0" CornerRadius="5">
+                        <Border Grid.Row="2" Background="#34495E" Padding="12,10" Margin="0,10,0,0" CornerRadius="8">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Wierszy: " FontWeight="SemiBold"/>
-                                <TextBlock x:Name="lblPlachtaWierszy" Text="0" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,25,0"/>
+                                <Border Background="#2C3E50" CornerRadius="4" Padding="10,5" Margin="0,0,15,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Wierszy: " Foreground="#BDC3C7"/>
+                                        <TextBlock x:Name="lblPlachtaWierszy" Text="0" FontWeight="Bold" Foreground="White"/>
+                                    </StackPanel>
+                                </Border>
 
-                                <TextBlock Text="Suma PADŁE: " FontWeight="SemiBold"/>
-                                <TextBlock x:Name="lblPlachtaSumaPadle" Text="0" FontWeight="Bold" Foreground="#C62828" Margin="0,0,25,0"/>
+                                <Border Background="#C62828" CornerRadius="4" Padding="10,5" Margin="0,0,10,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="PADŁE: " Foreground="#FFCDD2"/>
+                                        <TextBlock x:Name="lblPlachtaSumaPadle" Text="0" FontWeight="Bold" Foreground="White"/>
+                                    </StackPanel>
+                                </Border>
 
-                                <TextBlock Text="Suma CH: " FontWeight="SemiBold"/>
-                                <TextBlock x:Name="lblPlachtaSumaCH" Text="0" FontWeight="Bold" Foreground="#EF6C00" Margin="0,0,25,0"/>
+                                <Border Background="#EF6C00" CornerRadius="4" Padding="10,5" Margin="0,0,10,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="CH: " Foreground="#FFE0B2"/>
+                                        <TextBlock x:Name="lblPlachtaSumaCH" Text="0" FontWeight="Bold" Foreground="White"/>
+                                    </StackPanel>
+                                </Border>
 
-                                <TextBlock Text="Suma NW: " FontWeight="SemiBold"/>
-                                <TextBlock x:Name="lblPlachtaSumaNW" Text="0" FontWeight="Bold" Foreground="#6A1B9A" Margin="0,0,25,0"/>
+                                <Border Background="#6A1B9A" CornerRadius="4" Padding="10,5" Margin="0,0,10,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="NW: " Foreground="#E1BEE7"/>
+                                        <TextBlock x:Name="lblPlachtaSumaNW" Text="0" FontWeight="Bold" Foreground="White"/>
+                                    </StackPanel>
+                                </Border>
 
-                                <TextBlock Text="Suma ZM: " FontWeight="SemiBold"/>
-                                <TextBlock x:Name="lblPlachtaSumaZM" Text="0" FontWeight="Bold" Foreground="#00695C"/>
+                                <Border Background="#00695C" CornerRadius="4" Padding="10,5">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="ZM: " Foreground="#B2DFDB"/>
+                                        <TextBlock x:Name="lblPlachtaSumaZM" Text="0" FontWeight="Bold" Foreground="White"/>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </Border>
                     </Grid>
