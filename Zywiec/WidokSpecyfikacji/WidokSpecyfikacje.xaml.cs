@@ -5951,6 +5951,7 @@ namespace Kalendarz1
                         SELECT
                             fc.ID,
                             ISNULL(fc.CarLp, 0) as CarLp,
+                            ISNULL(fc.Number, 0) as NrSpec,
                             ISNULL(fc.CustomerGID, '') as CustomerGID,
                             (SELECT TOP 1 ShortName FROM dbo.Dostawcy WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(fc.CustomerGID))) as HodowcaNazwa,
                             (SELECT TOP 1 ISNULL(Address, '') + ', ' + ISNULL(PostalCode, '') + ' ' + ISNULL(City, '')
@@ -5990,7 +5991,7 @@ namespace Kalendarz1
                                 {
                                     ID = reader["ID"] != DBNull.Value ? Convert.ToInt32(reader["ID"]) : 0,
                                     Lp = lpCounter++,
-                                    NrSpec = reader["CarLp"] != DBNull.Value ? Convert.ToInt32(reader["CarLp"]) : 0,
+                                    NrSpec = reader["NrSpec"] != DBNull.Value ? Convert.ToInt32(reader["NrSpec"]) : 0,
                                     Hodowca = hodowca,
                                     Adres = reader["Adres"] != DBNull.Value ? reader["Adres"].ToString().Trim() : "",
                                     BadaniaSalmonella = reader["BadaniaSalmonella"] != DBNull.Value ? reader["BadaniaSalmonella"].ToString() : "",
