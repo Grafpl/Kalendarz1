@@ -95,6 +95,9 @@ namespace Kalendarz1
         // === HIGHLIGHT: Aktualnie podświetlona grupa dostawcy ===
         private string _highlightedSupplier = null;
 
+        // === GRUPOWANIE: Czy wiersze są pogrupowane według dostawcy ===
+        private bool _isGroupingBySupplier = false;
+
         // === BLOKADA: Zapobiega logowaniu zmian podczas ładowania danych ===
         private bool _isLoadingData = false;
 
@@ -350,6 +353,15 @@ namespace Kalendarz1
 
             // Ostatnia aktualizacja UI
             EditTimerDisplay_Tick(null, null);
+
+            // Zatrzymaj timer po 3 sekundach (aby użytkownik zobaczył wynik)
+            var hideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            hideTimer.Tick += (s, e) =>
+            {
+                hideTimer.Stop();
+                _editTimerDisplay.Stop();
+            };
+            hideTimer.Start();
         }
 
         // === WYDAJNOŚĆ: Dodaj wiersz do kolejki zapisu (debounce) ===
@@ -621,6 +633,49 @@ namespace Kalendarz1
 
             // Oblicz szacowany czas dojazdu dla każdego transportu
             CalculateEstimatedArrivalTimes();
+
+            // Oblicz średnie czasy dla każdego dostawcy (do wykrywania anomalii)
+            CalculateAverageTimesPerDostawca();
+        }
+
+        /// <summary>
+        /// Oblicza średnie czasy dojazdu i powrotu dla każdego dostawcy na podstawie dzisiejszych danych
+        /// </summary>
+        private void CalculateAverageTimesPerDostawca()
+        {
+            if (transportData == null || transportData.Count == 0) return;
+
+            // Grupuj po dostawcy i oblicz średnie
+            var dostawcyGroup = transportData
+                .Where(t => !string.IsNullOrEmpty(t.Dostawca))
+                .GroupBy(t => t.Dostawca)
+                .ToList();
+
+            foreach (var group in dostawcyGroup)
+            {
+                // Średni czas dojazdu dla dostawcy
+                var czasyDojazdu = group
+                    .Where(t => t.CzasDojMin.HasValue && t.CzasDojMin > 0)
+                    .Select(t => t.CzasDojMin.Value)
+                    .ToList();
+
+                int avgDoj = czasyDojazdu.Count > 0 ? (int)czasyDojazdu.Average() : 0;
+
+                // Średni czas powrotu dla dostawcy
+                var czasyPowrotu = group
+                    .Where(t => t.CzasPowrotMin.HasValue && t.CzasPowrotMin > 0)
+                    .Select(t => t.CzasPowrotMin.Value)
+                    .ToList();
+
+                int avgPowrot = czasyPowrotu.Count > 0 ? (int)czasyPowrotu.Average() : 0;
+
+                // Ustaw średnie dla wszystkich wierszy tego dostawcy
+                foreach (var transport in group)
+                {
+                    transport.SredniaCzasDojMin = avgDoj;
+                    transport.SredniaCzasPowrotMin = avgPowrot;
+                }
+            }
         }
 
         /// <summary>
@@ -2268,10 +2323,12 @@ namespace Kalendarz1
 
         /// <summary>
         /// Aktualizuje mini wykres porównania wag hodowcy i ubojni
+        /// Pokazuje wykres TYLKO gdy obie wagi są > 0
         /// </summary>
         private void UpdateWeightComparisonChart()
         {
             // Znajdź elementy używając FindName (mogą być w innym TabItem)
+            var borderChart = FindName("borderWeightComparison") as Border;
             var barHodowcy = FindName("barWagaHodowcy") as Border;
             var barUbojni = FindName("barWagaUbojni") as Border;
             var lblHodowcy = FindName("lblBarWagaHodowcy") as TextBlock;
@@ -2279,33 +2336,33 @@ namespace Kalendarz1
 
             if (specyfikacjeData == null || specyfikacjeData.Count == 0)
             {
-                if (barHodowcy != null) barHodowcy.Width = 0;
-                if (barUbojni != null) barUbojni.Width = 0;
-                if (lblHodowcy != null) lblHodowcy.Text = "0 kg";
-                if (lblUbojni != null) lblUbojni.Text = "0 kg";
+                if (borderChart != null) borderChart.Visibility = Visibility.Collapsed;
                 return;
             }
 
             decimal sumaWagaHodowcy = specyfikacjeData.Sum(r => r.NettoHodowcyValue);
             decimal sumaWagaUbojni = specyfikacjeData.Sum(r => r.NettoUbojniValue);
+
+            // Pokaż wykres TYLKO gdy obie wagi są > 0
+            if (sumaWagaHodowcy <= 0 || sumaWagaUbojni <= 0)
+            {
+                if (borderChart != null) borderChart.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            // Obie wagi są > 0 - pokaż wykres
+            if (borderChart != null) borderChart.Visibility = Visibility.Visible;
+
             decimal maxWaga = Math.Max(sumaWagaHodowcy, sumaWagaUbojni);
 
             // Maksymalna szerokość paska (w pikselach)
             const double maxBarWidth = 200;
 
-            if (maxWaga > 0)
-            {
-                double hodowcyWidth = (double)(sumaWagaHodowcy / maxWaga) * maxBarWidth;
-                double ubojniWidth = (double)(sumaWagaUbojni / maxWaga) * maxBarWidth;
+            double hodowcyWidth = (double)(sumaWagaHodowcy / maxWaga) * maxBarWidth;
+            double ubojniWidth = (double)(sumaWagaUbojni / maxWaga) * maxBarWidth;
 
-                if (barHodowcy != null) barHodowcy.Width = Math.Max(3, hodowcyWidth);
-                if (barUbojni != null) barUbojni.Width = Math.Max(3, ubojniWidth);
-            }
-            else
-            {
-                if (barHodowcy != null) barHodowcy.Width = 0;
-                if (barUbojni != null) barUbojni.Width = 0;
-            }
+            if (barHodowcy != null) barHodowcy.Width = Math.Max(3, hodowcyWidth);
+            if (barUbojni != null) barUbojni.Width = Math.Max(3, ubojniWidth);
 
             if (lblHodowcy != null)
                 lblHodowcy.Text = $"{sumaWagaHodowcy:N0} kg";
@@ -3701,6 +3758,9 @@ namespace Kalendarz1
             var checkbox = sender as CheckBox;
             bool groupBySupplier = checkbox?.IsChecked == true;
 
+            // Zapisz stan grupowania
+            _isGroupingBySupplier = groupBySupplier;
+
             if (specyfikacjeData == null || specyfikacjeData.Count == 0) return;
 
             if (groupBySupplier)
@@ -3736,7 +3796,7 @@ namespace Kalendarz1
                     specyfikacjeData.Add(item);
                 }
 
-                // Przypisz kolory (bez grup)
+                // Przypisz kolory (bez grup separatorów)
                 AssignSupplierColorsAndGroups();
 
                 UpdateStatus("Wiersze posortowane według LP");
@@ -3775,25 +3835,34 @@ namespace Kalendarz1
                 row.SupplierColor = supplierColorMap[supplierKey];
             }
 
-            // Oznacz granice grup (dla ewentualnych separatorów)
+            // Oznacz granice grup (dla separatorów) - TYLKO gdy grupowanie jest włączone
             string previousSupplier = null;
             for (int i = 0; i < specyfikacjeData.Count; i++)
             {
                 var row = specyfikacjeData[i];
                 string currentSupplier = row.RealDostawca ?? "Nieznany";
 
-                // Pierwszy w grupie
-                row.IsFirstInGroup = (previousSupplier != currentSupplier);
-
-                // Ostatni w grupie
-                if (i < specyfikacjeData.Count - 1)
+                if (_isGroupingBySupplier)
                 {
-                    string nextSupplier = specyfikacjeData[i + 1].RealDostawca ?? "Nieznany";
-                    row.IsLastInGroup = (currentSupplier != nextSupplier);
+                    // Pierwszy w grupie - pokaż separator
+                    row.IsFirstInGroup = (previousSupplier != currentSupplier) && (i > 0);
+
+                    // Ostatni w grupie
+                    if (i < specyfikacjeData.Count - 1)
+                    {
+                        string nextSupplier = specyfikacjeData[i + 1].RealDostawca ?? "Nieznany";
+                        row.IsLastInGroup = (currentSupplier != nextSupplier);
+                    }
+                    else
+                    {
+                        row.IsLastInGroup = true;
+                    }
                 }
                 else
                 {
-                    row.IsLastInGroup = true; // Ostatni wiersz jest zawsze ostatni w grupie
+                    // Bez grupowania - nie pokazuj separatorów
+                    row.IsFirstInGroup = false;
+                    row.IsLastInGroup = false;
                 }
 
                 previousSupplier = currentSupplier;
@@ -9016,6 +9085,88 @@ namespace Kalendarz1
             if (ts.TotalHours < 0)
                 return $"-{(int)Math.Abs(ts.TotalHours)}:{Math.Abs(ts.Minutes):D2}";
             return $"{(int)ts.TotalHours}:{ts.Minutes:D2}";
+        }
+
+        // === CZASY W MINUTACH (dla nowych kolumn) ===
+
+        /// <summary>
+        /// Czas dojazdu w minutach (Wyj -> Doj)
+        /// </summary>
+        public int? CzasDojMin
+        {
+            get
+            {
+                if (GodzinaWyjazdu.HasValue && DojazdHodowca.HasValue)
+                {
+                    return (int)(DojazdHodowca.Value - GodzinaWyjazdu.Value).TotalMinutes;
+                }
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Czas powrotu w minutach (Wyj.H -> Przyj)
+        /// </summary>
+        public int? CzasPowrotMin
+        {
+            get
+            {
+                if (WyjazdHodowca.HasValue && GodzinaPrzyjazdu.HasValue)
+                {
+                    return (int)(GodzinaPrzyjazdu.Value - WyjazdHodowca.Value).TotalMinutes;
+                }
+                return null;
+            }
+        }
+
+        // Średnie czasy dla dostawcy (ustawiane zewnętrznie)
+        private int _sredniaCzasDojMin;
+        private int _sredniaCzasPowrotMin;
+
+        public int SredniaCzasDojMin
+        {
+            get => _sredniaCzasDojMin;
+            set
+            {
+                _sredniaCzasDojMin = value;
+                OnPropertyChanged(nameof(SredniaCzasDojMin));
+                OnPropertyChanged(nameof(IsCzasDojAbnormal));
+            }
+        }
+
+        public int SredniaCzasPowrotMin
+        {
+            get => _sredniaCzasPowrotMin;
+            set
+            {
+                _sredniaCzasPowrotMin = value;
+                OnPropertyChanged(nameof(SredniaCzasPowrotMin));
+                OnPropertyChanged(nameof(IsCzasPowrotAbnormal));
+            }
+        }
+
+        /// <summary>
+        /// Czy czas dojazdu jest nietypowo długi (>20min ponad średnią)
+        /// </summary>
+        public bool IsCzasDojAbnormal
+        {
+            get
+            {
+                if (!CzasDojMin.HasValue || SredniaCzasDojMin == 0) return false;
+                return CzasDojMin.Value > SredniaCzasDojMin + 20;
+            }
+        }
+
+        /// <summary>
+        /// Czy czas powrotu jest nietypowo długi (>20min ponad średnią)
+        /// </summary>
+        public bool IsCzasPowrotAbnormal
+        {
+            get
+            {
+                if (!CzasPowrotMin.HasValue || SredniaCzasPowrotMin == 0) return false;
+                return CzasPowrotMin.Value > SredniaCzasPowrotMin + 20;
+            }
         }
 
         // === WAGI I UBYTEK ===

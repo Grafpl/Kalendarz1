@@ -653,19 +653,6 @@
                                                    VerticalAlignment="Center" FontSize="11" Cursor="Hand" MouseLeftButtonDown="LblAlertCount_Click"/>
                                     </StackPanel>
                                 </Border>
-
-                                <!-- Szybkie raporty -->
-                                <Border Background="#E8EAF6" CornerRadius="4" Padding="2" Margin="15,0,0,0">
-                                    <StackPanel Orientation="Horizontal">
-                                        <Button x:Name="btnRaportDnia" Content="📊 Raport dnia" FontSize="10" Padding="6,2"
-                                                Background="Transparent" BorderThickness="0" Cursor="Hand" Foreground="#3949AB"
-                                                Click="BtnRaportDnia_Click" ToolTip="Generuj podsumowanie dnia"/>
-                                        <Border Width="1" Background="#C5CAE9" Margin="3,2"/>
-                                        <Button x:Name="btnRaportDostawcy" Content="📋 Raport dostawcy" FontSize="10" Padding="6,2"
-                                                Background="Transparent" BorderThickness="0" Cursor="Hand" Foreground="#3949AB"
-                                                Click="BtnRaportDostawcy_Click" ToolTip="Generuj raport dla wybranego dostawcy"/>
-                                    </StackPanel>
-                                </Border>
                             </StackPanel>
                         </Border>
 
@@ -1648,6 +1635,15 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
+                                <!-- === SEPARATOR GRUP 1-2 === -->
+                                <DataGridTemplateColumn Width="8" IsReadOnly="True" CanUserResize="False">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#E0E0E0" Width="2" Margin="3,0"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
                                 <!-- === GODZINY - kompaktowe === -->
                                 <DataGridTextColumn Header="Wyj" Binding="{Binding GodzinaWyjazdu, StringFormat=HH:mm}" Width="38" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
@@ -1668,6 +1664,24 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
+
+                                <!-- Czas dojazdu w minutach (Wyj -> Doj) -->
+                                <DataGridTemplateColumn Header="Czas Doj" Width="50" IsReadOnly="True"
+                                                        ToolTipService.ToolTip="Czas dojazdu w minutach (Wyj -> Doj). Czerwone = >20min ponad średnią dla dostawcy">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border x:Name="borderCzasDoj" CornerRadius="2" Margin="1">
+                                                <TextBlock Text="{Binding CzasDojMin, StringFormat={}{0} min}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10"/>
+                                            </Border>
+                                            <DataTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding IsCzasDojAbnormal}" Value="True">
+                                                    <Setter TargetName="borderCzasDoj" Property="Background" Value="#FFCDD2"/>
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
 
                                 <DataGridTextColumn Header="Zał" Binding="{Binding Zaladunek, StringFormat=HH:mm}" Width="38" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
@@ -1710,6 +1724,24 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
+                                <!-- Czas powrotu w minutach (Wyj.H -> Przyj) -->
+                                <DataGridTemplateColumn Header="Czas Pow" Width="52" IsReadOnly="True"
+                                                        ToolTipService.ToolTip="Czas powrotu w minutach (Wyj.H -> Przyj). Czerwone = >20min ponad średnią dla dostawcy">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border x:Name="borderCzasPow" CornerRadius="2" Margin="1">
+                                                <TextBlock Text="{Binding CzasPowrotMin, StringFormat={}{0} min}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10"/>
+                                            </Border>
+                                            <DataTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding IsCzasPowrotAbnormal}" Value="True">
+                                                    <Setter TargetName="borderCzasPow" Property="Background" Value="#FFCDD2"/>
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
                                 <DataGridTextColumn Header="Koniec" Binding="{Binding KoniecUslugi, StringFormat=HH:mm}" Width="42" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
@@ -1730,6 +1762,15 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
+
+                                <!-- === SEPARATOR GRUP 2-3 === -->
+                                <DataGridTemplateColumn Width="8" IsReadOnly="True" CanUserResize="False">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#E0E0E0" Width="2" Margin="3,0"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
 
                                 <!-- === DANE ILOŚCIOWE === -->
                                 <DataGridTextColumn Header="Skrz" Binding="{Binding Skrzynki}" Width="35" IsReadOnly="True">
@@ -1772,6 +1813,15 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
+
+                                <!-- === SEPARATOR GRUP 3-4 === -->
+                                <DataGridTemplateColumn Width="8" IsReadOnly="True" CanUserResize="False">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#E0E0E0" Width="2" Margin="3,0"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
 
                                 <!-- === WAGI I UBYTKI - kompaktowe === -->
                                 <DataGridTextColumn Header="Netto H" Binding="{Binding NettoHodowcy, StringFormat={}{0:N0}}" Width="55" IsReadOnly="True">
@@ -1838,103 +1888,8 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <!-- Szacowany czas dojazdu na podstawie historii -->
-                                <DataGridTextColumn Header="Szac. doj." Binding="{Binding SzacowanyCzasDojazdu}" Width="70" IsReadOnly="True"
-                                                    ToolTipService.ToolTip="Szacowany czas dojazdu na podstawie historycznych danych (liczba w nawiasie = ilość wyjazdów)">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                            <Setter Property="HorizontalAlignment" Value="Center"/>
-                                            <Setter Property="FontStyle" Value="Italic"/>
-                                            <Setter Property="Foreground" Value="#7986CB"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-
-                                <!-- Timeline - miniatura osi czasu -->
-                                <DataGridTemplateColumn Header="Timeline" Width="120" IsReadOnly="True"
-                                                        ToolTipService.ToolTip="Wizualizacja czasu transportu (4:00 - 20:00)">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <Grid Height="16" Background="#ECEFF1" Margin="2,4">
-                                                <!-- Znaczniki godzin -->
-                                                <Canvas>
-                                                    <Line X1="30" Y1="0" X2="30" Y2="16" Stroke="#CFD8DC" StrokeThickness="0.5"/>
-                                                    <Line X1="60" Y1="0" X2="60" Y2="16" Stroke="#CFD8DC" StrokeThickness="0.5"/>
-                                                    <Line X1="90" Y1="0" X2="90" Y2="16" Stroke="#CFD8DC" StrokeThickness="0.5"/>
-                                                </Canvas>
-                                                <!-- Pasek czasu transportu -->
-                                                <Border Background="{Binding TimelineColor}"
-                                                        HorizontalAlignment="Left"
-                                                        CornerRadius="2"
-                                                        Height="10"
-                                                        VerticalAlignment="Center"
-                                                        Margin="{Binding TimelineStartPercent, Converter={StaticResource PercentToMarginConverter}}"
-                                                        Width="{Binding TimelineWidthPercent, Converter={StaticResource PercentToWidthConverter}}"
-                                                        ToolTip="{Binding CzasCalkowity}"/>
-                                            </Grid>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
                             </DataGrid.Columns>
                         </DataGrid>
-
-                        <!-- === TIMELINE PANEL: Oś czasu dnia === -->
-                        <Border Grid.Row="2" Background="#FAFAFA" CornerRadius="0,0,8,8" Padding="10,8" Margin="0,5,0,0" BorderBrush="#E0E0E0" BorderThickness="1,0,1,1">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-
-                                <!-- Nagłówek timeline -->
-                                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
-                                    <TextBlock Text="📊 Oś czasu dostaw (4:00 - 20:00)" FontWeight="SemiBold" FontSize="11" Foreground="#455A64"/>
-                                    <TextBlock Text=" • Zielony = zakończony | Niebieski = w trakcie | Szary = nie rozpoczęty" FontSize="9" Foreground="#78909C" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                                </StackPanel>
-
-                                <!-- Wizualizacja osi czasu -->
-                                <Grid Grid.Row="1" Height="30">
-                                    <!-- Tło z oznaczeniami godzin -->
-                                    <Border Background="#ECEFF1" CornerRadius="4">
-                                        <Canvas>
-                                            <!-- Linie godzinowe i etykiety -->
-                                            <Line X1="0" Y1="0" X2="0" Y2="30" Stroke="#B0BEC5" StrokeThickness="1"/>
-                                            <TextBlock Text="4:00" FontSize="8" Foreground="#78909C" Canvas.Left="2" Canvas.Top="20"/>
-
-                                            <Line X1="62.5" Y1="0" X2="62.5" Y2="30" Stroke="#CFD8DC" StrokeThickness="0.5"/>
-                                            <TextBlock Text="6:00" FontSize="8" Foreground="#90A4AE" Canvas.Left="55" Canvas.Top="20"/>
-
-                                            <Line X1="125" Y1="0" X2="125" Y2="30" Stroke="#B0BEC5" StrokeThickness="1"/>
-                                            <TextBlock Text="8:00" FontSize="8" Foreground="#78909C" Canvas.Left="120" Canvas.Top="20"/>
-
-                                            <Line X1="187.5" Y1="0" X2="187.5" Y2="30" Stroke="#CFD8DC" StrokeThickness="0.5"/>
-                                            <TextBlock Text="10:00" FontSize="8" Foreground="#90A4AE" Canvas.Left="178" Canvas.Top="20"/>
-
-                                            <Line X1="250" Y1="0" X2="250" Y2="30" Stroke="#B0BEC5" StrokeThickness="1"/>
-                                            <TextBlock Text="12:00" FontSize="8" Foreground="#78909C" Canvas.Left="242" Canvas.Top="20"/>
-
-                                            <Line X1="312.5" Y1="0" X2="312.5" Y2="30" Stroke="#CFD8DC" StrokeThickness="0.5"/>
-                                            <TextBlock Text="14:00" FontSize="8" Foreground="#90A4AE" Canvas.Left="303" Canvas.Top="20"/>
-
-                                            <Line X1="375" Y1="0" X2="375" Y2="30" Stroke="#B0BEC5" StrokeThickness="1"/>
-                                            <TextBlock Text="16:00" FontSize="8" Foreground="#78909C" Canvas.Left="367" Canvas.Top="20"/>
-
-                                            <Line X1="437.5" Y1="0" X2="437.5" Y2="30" Stroke="#CFD8DC" StrokeThickness="0.5"/>
-                                            <TextBlock Text="18:00" FontSize="8" Foreground="#90A4AE" Canvas.Left="428" Canvas.Top="20"/>
-
-                                            <Line X1="500" Y1="0" X2="500" Y2="30" Stroke="#B0BEC5" StrokeThickness="1"/>
-                                            <TextBlock Text="20:00" FontSize="8" Foreground="#78909C" Canvas.Left="492" Canvas.Top="20"/>
-                                        </Canvas>
-                                    </Border>
-
-                                    <!-- Informacja o timeline -->
-                                    <TextBlock Text="↑ Timeline dostaw widoczny w tabeli powyżej (kolumna Timeline)"
-                                               FontSize="9" FontStyle="Italic" Foreground="#78909C"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,5,0,0"/>
-                                </Grid>
-                            </Grid>
-                        </Border>
                     </Grid>
                 </Border>
             </TabItem>
@@ -2198,8 +2153,8 @@
                                     <TextBlock x:Name="lblRozliczeniaSumaWartosc" Text="0,00" FontWeight="Bold" Foreground="#2E7D32"/>
                                 </StackPanel>
 
-                                <!-- Mini wykres porównania wag -->
-                                <Border Grid.Column="1" Background="White" CornerRadius="4" Padding="10,5" Margin="20,0,0,0" BorderBrush="#E0E0E0" BorderThickness="1">
+                                <!-- Mini wykres porównania wag (widoczny gdy obie wagi są > 0) -->
+                                <Border x:Name="borderWeightComparison" Grid.Column="1" Background="White" CornerRadius="4" Padding="10,5" Margin="20,0,0,0" BorderBrush="#E0E0E0" BorderThickness="1">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
