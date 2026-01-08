@@ -60,11 +60,13 @@ namespace Kalendarz1
         private HashSet<int> _pendingSaveIds = new HashSet<int>();
         private const int DebounceDelayMs = 500;
 
-        // === TIMER EDYCJI: Mierzy czas między edycjami pól produkcyjnych ===
+        // === TIMER EDYCJI: Mierzy czas od wprowadzenia wartości do zapisu w bazie ===
         private Stopwatch _editStopwatch = new Stopwatch();
         private DispatcherTimer _editTimerDisplay;
-        private DateTime? _lastEditTime = null;
+        private DateTime? _editStartTime = null;
         private string _lastEditedField = "";
+        private bool _isSavePending = false;
+        private int _lastSaveTimeMs = 0;
         private static readonly HashSet<string> TrackedEditColumns = new HashSet<string>
         {
             "Szt.Dek", "SztukiDek", "Padłe", "Padle", "CH", "NW", "ZM",
@@ -277,49 +279,77 @@ namespace Kalendarz1
             }
         }
 
-        // === TIMER EDYCJI: Aktualizacja wyświetlania czasu od ostatniej edycji pól produkcyjnych ===
+        // === TIMER EDYCJI: Aktualizacja wyświetlania czasu od wprowadzenia wartości do zapisu ===
         private void EditTimerDisplay_Tick(object sender, EventArgs e)
         {
-            if (_lastEditTime.HasValue)
+            if (_isSavePending && _editStartTime.HasValue)
             {
-                var elapsed = DateTime.Now - _lastEditTime.Value;
+                // Trwa oczekiwanie na zapis - pokaż aktualny czas
+                var elapsed = DateTime.Now - _editStartTime.Value;
                 var ms = (int)elapsed.TotalMilliseconds;
 
-                // Kolorowanie: zielony < 1s, pomarańczowy < 3s, czerwony > 3s
-                if (ms < 1000)
+                // Żółte tło gdy oczekuje na zapis
+                lblEditTimer.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E65100"));
+                borderEditTimer.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFF3E0"));
+                lblEditTimer.Text = $"⏳ {ms} ms";
+                lblEditField.Text = $"({_lastEditedField}) - zapisywanie...";
+            }
+            else if (!_isSavePending && _lastSaveTimeMs > 0)
+            {
+                // Zapis zakończony - pokaż ostatni czas zapisu
+                // Kolorowanie: zielony < 500ms, pomarańczowy < 1000ms, czerwony > 1000ms
+                if (_lastSaveTimeMs < 500)
                 {
-                    lblEditTimer.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2E7D32")); // zielony
+                    lblEditTimer.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2E7D32"));
                     borderEditTimer.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E8F5E9"));
                 }
-                else if (ms < 3000)
+                else if (_lastSaveTimeMs < 1000)
                 {
-                    lblEditTimer.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F57C00")); // pomarańczowy
+                    lblEditTimer.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F57C00"));
                     borderEditTimer.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFF3E0"));
                 }
                 else
                 {
-                    lblEditTimer.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C62828")); // czerwony
+                    lblEditTimer.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C62828"));
                     borderEditTimer.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFEBEE"));
                 }
 
-                lblEditTimer.Text = $"{ms} ms";
-                lblEditField.Text = $"({_lastEditedField})";
+                lblEditTimer.Text = $"✓ {_lastSaveTimeMs} ms";
+                lblEditField.Text = $"({_lastEditedField}) - zapisano";
             }
         }
 
-        // Wywołaj po edycji pola produkcyjnego aby oznaczyć czas edycji
+        // Wywołaj po edycji pola produkcyjnego aby rozpocząć pomiar czasu
         private void MarkProductionFieldEdit(string columnName)
         {
-            if (!_lastEditTime.HasValue)
+            // Pokaż timer jeśli ukryty
+            borderEditTimer.Visibility = Visibility.Visible;
+
+            // Rozpocznij pomiar czasu (lub kontynuuj jeśli już trwa)
+            if (!_isSavePending)
             {
-                // Pierwsza edycja - zacznij timer
-                borderEditTimer.Visibility = Visibility.Visible;
+                _editStartTime = DateTime.Now;
+                _editStopwatch.Restart();
             }
 
-            _lastEditTime = DateTime.Now;
             _lastEditedField = columnName;
-            _editStopwatch.Restart();
+            _isSavePending = true;
             _editTimerDisplay.Start();
+        }
+
+        // Wywołaj po zapisaniu w bazie danych aby zakończyć pomiar
+        private void MarkSaveCompleted()
+        {
+            if (_editStartTime.HasValue)
+            {
+                _lastSaveTimeMs = (int)(DateTime.Now - _editStartTime.Value).TotalMilliseconds;
+            }
+            _isSavePending = false;
+            _editStartTime = null;
+            _editStopwatch.Stop();
+
+            // Ostatnia aktualizacja UI
+            EditTimerDisplay_Tick(null, null);
         }
 
         // === WYDAJNOŚĆ: Dodaj wiersz do kolejki zapisu (debounce) ===
@@ -587,6 +617,84 @@ namespace Kalendarz1
                 };
 
                 transportData.Add(transportRow);
+            }
+
+            // Oblicz szacowany czas dojazdu dla każdego transportu
+            CalculateEstimatedArrivalTimes();
+        }
+
+        /// <summary>
+        /// Oblicza szacowany czas dojazdu na podstawie historycznych danych
+        /// </summary>
+        private void CalculateEstimatedArrivalTimes()
+        {
+            if (transportData == null || transportData.Count == 0) return;
+
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    foreach (var transport in transportData)
+                    {
+                        if (string.IsNullOrEmpty(transport.Dostawca)) continue;
+
+                        // Pobierz średni czas dojazdu do tego dostawcy z ostatnich 30 dni
+                        string query = @"SELECT
+                            AVG(DATEDIFF(MINUTE, Wyjazd, DojazdHodowca)) as AvgMinutes,
+                            COUNT(*) as Cnt
+                            FROM [LibraNet].[dbo].[FarmerCalc] fc
+                            INNER JOIN [LibraNet].[dbo].[Customer] c ON fc.CustomerRealGID = c.GID
+                            WHERE c.ShortName = @Dostawca
+                            AND fc.Wyjazd IS NOT NULL
+                            AND fc.DojazdHodowca IS NOT NULL
+                            AND fc.CalcDate >= DATEADD(DAY, -30, GETDATE())
+                            AND DATEDIFF(MINUTE, fc.Wyjazd, fc.DojazdHodowca) > 0
+                            AND DATEDIFF(MINUTE, fc.Wyjazd, fc.DojazdHodowca) < 300"; // Max 5 godzin
+
+                        using (SqlCommand cmd = new SqlCommand(query, connection))
+                        {
+                            cmd.Parameters.AddWithValue("@Dostawca", transport.Dostawca);
+
+                            using (var reader = cmd.ExecuteReader())
+                            {
+                                if (reader.Read() && reader["AvgMinutes"] != DBNull.Value)
+                                {
+                                    int avgMinutes = Convert.ToInt32(reader["AvgMinutes"]);
+                                    int count = Convert.ToInt32(reader["Cnt"]);
+
+                                    if (avgMinutes > 0 && count >= 2) // Minimum 2 historyczne rekordy
+                                    {
+                                        transport.SredniaMinutDojazdu = avgMinutes;
+                                        int hours = avgMinutes / 60;
+                                        int mins = avgMinutes % 60;
+                                        transport.SzacowanyCzasDojazdu = hours > 0
+                                            ? $"~{hours}h {mins}m ({count})"
+                                            : $"~{mins}m ({count})";
+                                    }
+                                    else
+                                    {
+                                        transport.SzacowanyCzasDojazdu = "-";
+                                    }
+                                }
+                                else
+                                {
+                                    transport.SzacowanyCzasDojazdu = "-";
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // W przypadku błędu - ustaw domyślne wartości
+                foreach (var transport in transportData)
+                {
+                    transport.SzacowanyCzasDojazdu = "?";
+                }
+                System.Diagnostics.Debug.WriteLine($"Błąd obliczania szacowanego czasu: {ex.Message}");
             }
         }
 
@@ -874,6 +982,7 @@ namespace Kalendarz1
                         LoadTransportData(); // Załaduj dane transportowe
                         LoadHarmonogramData(); // Załaduj harmonogram dostaw
                         LoadPdfStatusForAllRows(); // Załaduj status PDF dla wszystkich wierszy
+                        AssignSupplierColorsAndGroups(); // Przypisz kolory dostawcom
                         UpdateStatus($"Załadowano {dataTable.Rows.Count} rekordów");
                     }
                     else
@@ -2152,6 +2261,299 @@ namespace Kalendarz1
             // Suma wartości
             decimal sumaWartosc = specyfikacjeData.Sum(r => r.Wartosc);
             lblSumaWartosc.Text = $"{sumaWartosc:N0} zł";
+
+            // Aktualizuj wykres słupkowy porównania wag (hodowca vs ubojnia)
+            UpdateWeightComparisonChart();
+        }
+
+        /// <summary>
+        /// Aktualizuje mini wykres porównania wag hodowcy i ubojni
+        /// </summary>
+        private void UpdateWeightComparisonChart()
+        {
+            if (specyfikacjeData == null || specyfikacjeData.Count == 0)
+            {
+                if (barWagaHodowcy != null) barWagaHodowcy.Width = 0;
+                if (barWagaUbojni != null) barWagaUbojni.Width = 0;
+                if (lblBarWagaHodowcy != null) lblBarWagaHodowcy.Text = "0 kg";
+                if (lblBarWagaUbojni != null) lblBarWagaUbojni.Text = "0 kg";
+                return;
+            }
+
+            decimal sumaWagaHodowcy = specyfikacjeData.Sum(r => r.NettoHodowcyValue);
+            decimal sumaWagaUbojni = specyfikacjeData.Sum(r => r.NettoUbojniValue);
+            decimal maxWaga = Math.Max(sumaWagaHodowcy, sumaWagaUbojni);
+
+            // Maksymalna szerokość paska (w pikselach)
+            const double maxBarWidth = 200;
+
+            if (maxWaga > 0)
+            {
+                double hodowcyWidth = (double)(sumaWagaHodowcy / maxWaga) * maxBarWidth;
+                double ubojniWidth = (double)(sumaWagaUbojni / maxWaga) * maxBarWidth;
+
+                if (barWagaHodowcy != null) barWagaHodowcy.Width = Math.Max(3, hodowcyWidth);
+                if (barWagaUbojni != null) barWagaUbojni.Width = Math.Max(3, ubojniWidth);
+            }
+            else
+            {
+                if (barWagaHodowcy != null) barWagaHodowcy.Width = 0;
+                if (barWagaUbojni != null) barWagaUbojni.Width = 0;
+            }
+
+            if (lblBarWagaHodowcy != null)
+                lblBarWagaHodowcy.Text = $"{sumaWagaHodowcy:N0} kg";
+            if (lblBarWagaUbojni != null)
+                lblBarWagaUbojni.Text = $"{sumaWagaUbojni:N0} kg";
+
+            // Sprawdź niezwykłe wartości i pokaż alerty
+            CheckForUnusualValues();
+        }
+
+        /// <summary>
+        /// Lista problemów wykrytych w danych
+        /// </summary>
+        private List<string> _currentProblems = new List<string>();
+
+        /// <summary>
+        /// Sprawdza dane pod kątem niezwykłych wartości (ubytek, padłe, brakujące dane)
+        /// </summary>
+        private void CheckForUnusualValues()
+        {
+            _currentProblems.Clear();
+
+            if (specyfikacjeData == null || specyfikacjeData.Count == 0)
+            {
+                if (borderAlerts != null) borderAlerts.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            foreach (var row in specyfikacjeData)
+            {
+                // Sprawdź wysoki ubytek (> 5%)
+                if (row.Ubytek > 5)
+                {
+                    _currentProblems.Add($"⚠️ LP {row.Nr}: Wysoki ubytek {row.Ubytek:F2}% (>{">"}5%) - {row.RealDostawca}");
+                }
+
+                // Sprawdź bardzo niski ubytek (< -1%)
+                if (row.Ubytek < -1)
+                {
+                    _currentProblems.Add($"❓ LP {row.Nr}: Ujemny ubytek {row.Ubytek:F2}% - sprawdź wagi - {row.RealDostawca}");
+                }
+
+                // Sprawdź dużą ilość padłych (> 2% sztuk)
+                if (row.SztukiDek > 0 && row.Padle > 0)
+                {
+                    decimal procentPadlych = (decimal)row.Padle / row.SztukiDek * 100;
+                    if (procentPadlych > 2)
+                    {
+                        _currentProblems.Add($"☠️ LP {row.Nr}: Dużo padłych {row.Padle} ({procentPadlych:F1}%) - {row.RealDostawca}");
+                    }
+                }
+
+                // Sprawdź brakującą wagę hodowcy
+                if (row.NettoHodowcyValue == 0 && row.SztukiDek > 0)
+                {
+                    _currentProblems.Add($"📝 LP {row.Nr}: Brak wagi hodowcy - {row.RealDostawca}");
+                }
+
+                // Sprawdź brakującą wagę ubojni
+                if (row.NettoUbojniValue == 0 && row.LUMEL > 0)
+                {
+                    _currentProblems.Add($"📝 LP {row.Nr}: Brak wagi ubojni - {row.RealDostawca}");
+                }
+
+                // Sprawdź brakującą cenę
+                if (row.Cena == 0 && row.SztukiDek > 0)
+                {
+                    _currentProblems.Add($"💰 LP {row.Nr}: Brak ceny - {row.RealDostawca}");
+                }
+
+                // Sprawdź duże różnice wag (> 10%)
+                if (row.NettoHodowcyValue > 0 && row.NettoUbojniValue > 0)
+                {
+                    decimal roznicaProcent = Math.Abs((row.NettoHodowcyValue - row.NettoUbojniValue) / row.NettoHodowcyValue * 100);
+                    if (roznicaProcent > 10)
+                    {
+                        _currentProblems.Add($"⚖️ LP {row.Nr}: Duża różnica wag {roznicaProcent:F1}% - {row.RealDostawca}");
+                    }
+                }
+            }
+
+            // Aktualizuj panel alertów
+            if (borderAlerts != null)
+            {
+                if (_currentProblems.Count > 0)
+                {
+                    borderAlerts.Visibility = Visibility.Visible;
+                    lblAlertCount.Text = $"{_currentProblems.Count} problem{(_currentProblems.Count == 1 ? "" : _currentProblems.Count < 5 ? "y" : "ów")}";
+
+                    // Zmień kolor w zależności od ilości problemów
+                    if (_currentProblems.Count >= 5)
+                    {
+                        borderAlerts.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFEBEE")); // czerwone
+                        lblAlertCount.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C62828"));
+                    }
+                    else
+                    {
+                        borderAlerts.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFF3E0")); // pomarańczowe
+                        lblAlertCount.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E65100"));
+                    }
+                }
+                else
+                {
+                    borderAlerts.Visibility = Visibility.Collapsed;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Kliknięcie na licznik alertów - pokazuje szczegóły problemów
+        /// </summary>
+        private void LblAlertCount_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (_currentProblems.Count == 0)
+            {
+                MessageBox.Show("Brak wykrytych problemów.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            string message = "Wykryte problemy:\n\n" + string.Join("\n", _currentProblems.Take(20));
+            if (_currentProblems.Count > 20)
+            {
+                message += $"\n\n... i {_currentProblems.Count - 20} więcej problemów";
+            }
+
+            message += "\n\n💡 Wskazówki:\n";
+            message += "• Wysoki ubytek może oznaczać błędne wagi lub problemy jakościowe\n";
+            message += "• Ujemny ubytek sugeruje błąd w ważeniu\n";
+            message += "• Duża ilość padłych wymaga weryfikacji jakości partii";
+
+            MessageBox.Show(message, $"Panel problemów ({_currentProblems.Count})", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+
+        /// <summary>
+        /// Generuje raport podsumowania dnia
+        /// </summary>
+        private void BtnRaportDnia_Click(object sender, RoutedEventArgs e)
+        {
+            if (specyfikacjeData == null || specyfikacjeData.Count == 0)
+            {
+                MessageBox.Show("Brak danych do raportu.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("═══════════════════════════════════════════");
+            sb.AppendLine("        RAPORT PODSUMOWANIA DNIA");
+            sb.AppendLine($"        {dateTimePicker1.SelectedDate:yyyy-MM-dd}");
+            sb.AppendLine("═══════════════════════════════════════════\n");
+
+            sb.AppendLine($"📦 Liczba specyfikacji: {specyfikacjeData.Count}");
+            sb.AppendLine($"🐓 Suma sztuk (LUMEL): {specyfikacjeData.Sum(r => r.LUMEL):N0}");
+            sb.AppendLine($"⚖️ Suma wagi hodowców: {specyfikacjeData.Sum(r => r.NettoHodowcyValue):N0} kg");
+            sb.AppendLine($"⚖️ Suma wagi ubojni: {specyfikacjeData.Sum(r => r.NettoUbojniValue):N0} kg");
+            sb.AppendLine($"💰 Suma wartość: {specyfikacjeData.Sum(r => r.Wartosc):N2} zł\n");
+
+            // Statystyki per dostawca
+            var perDostawca = specyfikacjeData
+                .GroupBy(r => r.RealDostawca ?? r.Dostawca)
+                .OrderByDescending(g => g.Sum(r => r.LUMEL))
+                .Take(10);
+
+            sb.AppendLine("─────────────────────────────────────────");
+            sb.AppendLine("TOP 10 DOSTAWCÓW:");
+            sb.AppendLine("─────────────────────────────────────────");
+
+            foreach (var g in perDostawca)
+            {
+                sb.AppendLine($"  {g.Key}: {g.Sum(r => r.LUMEL):N0} szt, {g.Sum(r => r.NettoUbojniValue):N0} kg");
+            }
+
+            if (_currentProblems.Count > 0)
+            {
+                sb.AppendLine($"\n⚠️ UWAGA: Wykryto {_currentProblems.Count} problemów do sprawdzenia!");
+            }
+
+            MessageBox.Show(sb.ToString(), "Raport dnia", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        /// <summary>
+        /// Generuje raport dla wybranego dostawcy
+        /// </summary>
+        private void BtnRaportDostawcy_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridView1.SelectedCells.Count == 0)
+            {
+                MessageBox.Show("Wybierz wiersz dostawcy w tabeli.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var selectedRow = dataGridView1.SelectedCells[0].Item as SpecyfikacjaRow;
+            if (selectedRow == null) return;
+
+            string dostawca = selectedRow.RealDostawca ?? selectedRow.Dostawca;
+            var wiersze = specyfikacjeData.Where(r => (r.RealDostawca ?? r.Dostawca) == dostawca).ToList();
+
+            if (wiersze.Count == 0)
+            {
+                MessageBox.Show($"Brak danych dla dostawcy: {dostawca}", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("═══════════════════════════════════════════");
+            sb.AppendLine("        RAPORT DOSTAWCY");
+            sb.AppendLine($"        {dostawca}");
+            sb.AppendLine($"        Data: {dateTimePicker1.SelectedDate:yyyy-MM-dd}");
+            sb.AppendLine("═══════════════════════════════════════════\n");
+
+            sb.AppendLine($"📦 Liczba specyfikacji: {wiersze.Count}");
+            sb.AppendLine($"🐓 Suma sztuk (deklaracja): {wiersze.Sum(r => r.SztukiDek):N0}");
+            sb.AppendLine($"🐓 Suma sztuk (LUMEL): {wiersze.Sum(r => r.LUMEL):N0}");
+            sb.AppendLine($"☠️ Suma padłych: {wiersze.Sum(r => r.Padle)}");
+            sb.AppendLine($"⚖️ Waga hodowcy: {wiersze.Sum(r => r.NettoHodowcyValue):N0} kg");
+            sb.AppendLine($"⚖️ Waga ubojni: {wiersze.Sum(r => r.NettoUbojniValue):N0} kg");
+            sb.AppendLine($"📉 Średni ubytek: {wiersze.Average(r => r.Ubytek):F2}%");
+            sb.AppendLine($"💰 Średnia cena: {wiersze.Average(r => r.Cena):N2} zł/kg");
+            sb.AppendLine($"💰 Suma wartość: {wiersze.Sum(r => r.Wartosc):N2} zł\n");
+
+            sb.AppendLine("─────────────────────────────────────────");
+            sb.AppendLine("SZCZEGÓŁY SPECYFIKACJI:");
+            sb.AppendLine("─────────────────────────────────────────");
+
+            foreach (var r in wiersze)
+            {
+                sb.AppendLine($"  LP {r.Nr}: {r.LUMEL} szt, {r.NettoUbojniValue:N0} kg, {r.Cena:N2} zł/kg, ubytek {r.Ubytek:F2}%");
+            }
+
+            MessageBox.Show(sb.ToString(), $"Raport: {dostawca}", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        /// <summary>
+        /// Zwijanie/rozwijanie harmonogramu dostaw
+        /// </summary>
+        private bool _isHarmonogramCollapsed = false;
+
+        private void BtnToggleHarmonogram_Click(object sender, RoutedEventArgs e)
+        {
+            _isHarmonogramCollapsed = !_isHarmonogramCollapsed;
+
+            if (_isHarmonogramCollapsed)
+            {
+                // Zwiń harmonogram
+                gridHarmonogramContent.Visibility = Visibility.Collapsed;
+                btnToggleHarmonogram.Content = "▲";
+                btnToggleHarmonogram.ToolTip = "Rozwiń harmonogram";
+            }
+            else
+            {
+                // Rozwiń harmonogram
+                gridHarmonogramContent.Visibility = Visibility.Visible;
+                btnToggleHarmonogram.Content = "▼";
+                btnToggleHarmonogram.ToolTip = "Zwiń harmonogram";
+            }
         }
 
         private void BtnSaveAll_Click(object sender, RoutedEventArgs e)
@@ -2324,6 +2726,9 @@ namespace Kalendarz1
 
                             transaction.Commit();
                             UpdateStatus($"Zapisano {rowIds.Count} zmian");
+
+                            // Oznacz zakończenie zapisu dla timera
+                            MarkSaveCompleted();
                         }
                         catch
                         {
@@ -2336,6 +2741,8 @@ namespace Kalendarz1
             catch (Exception ex)
             {
                 UpdateStatus($"Błąd batch zapisu: {ex.Message}");
+                // Oznacz zakończenie nawet przy błędzie
+                MarkSaveCompleted();
             }
         }
 
@@ -3262,6 +3669,110 @@ namespace Kalendarz1
                 colKlasaB.Visibility = isChecked
                     ? Visibility.Visible
                     : Visibility.Collapsed;
+            }
+        }
+
+        // === Checkbox: Grupuj wiersze według dostawcy ===
+        private void ChkGroupBySupplier_Changed(object sender, RoutedEventArgs e)
+        {
+            bool groupBySupplier = chkGroupBySupplier?.IsChecked == true;
+
+            if (specyfikacjeData == null || specyfikacjeData.Count == 0) return;
+
+            if (groupBySupplier)
+            {
+                // Grupuj według dostawcy, zachowując kolejność LP w grupie
+                var grouped = specyfikacjeData
+                    .OrderBy(x => x.RealDostawca)
+                    .ThenBy(x => x.Nr)
+                    .ToList();
+
+                // Wyczyść i dodaj ponownie w nowej kolejności
+                specyfikacjeData.Clear();
+                foreach (var item in grouped)
+                {
+                    specyfikacjeData.Add(item);
+                }
+
+                // Przypisz kolory i oznacz granice grup
+                AssignSupplierColorsAndGroups();
+
+                UpdateStatus("Wiersze pogrupowane według dostawcy");
+            }
+            else
+            {
+                // Sortuj według LP
+                var sorted = specyfikacjeData
+                    .OrderBy(x => x.Nr)
+                    .ToList();
+
+                specyfikacjeData.Clear();
+                foreach (var item in sorted)
+                {
+                    specyfikacjeData.Add(item);
+                }
+
+                // Przypisz kolory (bez grup)
+                AssignSupplierColorsAndGroups();
+
+                UpdateStatus("Wiersze posortowane według LP");
+            }
+        }
+
+        // === Przypisz kolory dostawcom i oznacz granice grup ===
+        private void AssignSupplierColorsAndGroups()
+        {
+            if (specyfikacjeData == null || specyfikacjeData.Count == 0) return;
+
+            // Paleta kolorów dla dostawców (łatwo rozróżnialne)
+            var supplierColors = new List<string>
+            {
+                "#4CAF50", "#2196F3", "#FF9800", "#9C27B0", "#00BCD4",
+                "#E91E63", "#8BC34A", "#673AB7", "#03A9F4", "#FF5722",
+                "#009688", "#3F51B5", "#CDDC39", "#FFC107", "#795548",
+                "#607D8B", "#F44336", "#FFEB3B", "#00E676", "#7C4DFF"
+            };
+
+            // Mapowanie dostawca -> kolor
+            var supplierColorMap = new Dictionary<string, string>();
+            int colorIndex = 0;
+
+            // Przypisz kolory unikalne dla każdego dostawcy
+            foreach (var row in specyfikacjeData)
+            {
+                string supplierKey = row.RealDostawca ?? "Nieznany";
+
+                if (!supplierColorMap.ContainsKey(supplierKey))
+                {
+                    supplierColorMap[supplierKey] = supplierColors[colorIndex % supplierColors.Count];
+                    colorIndex++;
+                }
+
+                row.SupplierColor = supplierColorMap[supplierKey];
+            }
+
+            // Oznacz granice grup (dla ewentualnych separatorów)
+            string previousSupplier = null;
+            for (int i = 0; i < specyfikacjeData.Count; i++)
+            {
+                var row = specyfikacjeData[i];
+                string currentSupplier = row.RealDostawca ?? "Nieznany";
+
+                // Pierwszy w grupie
+                row.IsFirstInGroup = (previousSupplier != currentSupplier);
+
+                // Ostatni w grupie
+                if (i < specyfikacjeData.Count - 1)
+                {
+                    string nextSupplier = specyfikacjeData[i + 1].RealDostawca ?? "Nieznany";
+                    row.IsLastInGroup = (currentSupplier != nextSupplier);
+                }
+                else
+                {
+                    row.IsLastInGroup = true; // Ostatni wiersz jest zawsze ostatni w grupie
+                }
+
+                previousSupplier = currentSupplier;
             }
         }
 
@@ -7732,11 +8243,35 @@ namespace Kalendarz1
 
         // Podświetlenie grupy dostawcy
         private bool _isHighlighted;
+        private string _supplierColor = "#CCCCCC";
+        private bool _isFirstInGroup;
+        private bool _isLastInGroup;
 
         public bool IsHighlighted
         {
             get => _isHighlighted;
             set { _isHighlighted = value; OnPropertyChanged(nameof(IsHighlighted)); }
+        }
+
+        // Kolor paska bocznego dostawcy
+        public string SupplierColor
+        {
+            get => _supplierColor;
+            set { _supplierColor = value; OnPropertyChanged(nameof(SupplierColor)); }
+        }
+
+        // Czy pierwszy wiersz w grupie dostawcy (do separatora wizualnego)
+        public bool IsFirstInGroup
+        {
+            get => _isFirstInGroup;
+            set { _isFirstInGroup = value; OnPropertyChanged(nameof(IsFirstInGroup)); }
+        }
+
+        // Czy ostatni wiersz w grupie dostawcy
+        public bool IsLastInGroup
+        {
+            get => _isLastInGroup;
+            set { _isLastInGroup = value; OnPropertyChanged(nameof(IsLastInGroup)); }
         }
 
         public bool Wydrukowano
@@ -8547,6 +9082,73 @@ namespace Kalendarz1
         public bool IsKoniec0000 => KoniecUslugi.HasValue &&
             KoniecUslugi.Value.Hour == 0 && KoniecUslugi.Value.Minute == 0;
 
+        // === SZACOWANY CZAS DOJAZDU (na podstawie historii) ===
+        private string _szacowanyCzasDojazdu;
+        private int _sredniaMinutDojazdu;
+
+        /// <summary>
+        /// Szacowany czas dojazdu na podstawie historycznych danych
+        /// </summary>
+        public string SzacowanyCzasDojazdu
+        {
+            get => _szacowanyCzasDojazdu;
+            set { _szacowanyCzasDojazdu = value; OnPropertyChanged(nameof(SzacowanyCzasDojazdu)); }
+        }
+
+        /// <summary>
+        /// Średnia minut dojazdu do tego dostawcy (z historii)
+        /// </summary>
+        public int SredniaMinutDojazdu
+        {
+            get => _sredniaMinutDojazdu;
+            set { _sredniaMinutDojazdu = value; OnPropertyChanged(nameof(SredniaMinutDojazdu)); }
+        }
+
+        // === TIMELINE: Pozycje na osi czasu dnia ===
+
+        /// <summary>
+        /// Pozycja startu na osi czasu (0-100%)
+        /// </summary>
+        public double TimelineStartPercent
+        {
+            get
+            {
+                var start = PoczatekUslugi ?? GodzinaWyjazdu;
+                if (!start.HasValue) return 0;
+                // Dzień roboczy 4:00 - 20:00 (16 godzin)
+                var minutesFromStart = (start.Value.Hour - 4) * 60 + start.Value.Minute;
+                return Math.Max(0, Math.Min(100, minutesFromStart / 960.0 * 100)); // 960 = 16 * 60
+            }
+        }
+
+        /// <summary>
+        /// Szerokość na osi czasu (różnica końca od startu w %)
+        /// </summary>
+        public double TimelineWidthPercent
+        {
+            get
+            {
+                var start = PoczatekUslugi ?? GodzinaWyjazdu;
+                var end = KoniecUslugi ?? GodzinaPrzyjazdu;
+                if (!start.HasValue || !end.HasValue) return 5; // Minimalna szerokość
+                var durationMinutes = (end.Value - start.Value).TotalMinutes;
+                return Math.Max(2, Math.Min(100 - TimelineStartPercent, durationMinutes / 960.0 * 100));
+            }
+        }
+
+        /// <summary>
+        /// Kolor paska na timeline (zielony gdy zakończone, niebieski gdy w trakcie, szary gdy nie rozpoczęte)
+        /// </summary>
+        public string TimelineColor
+        {
+            get
+            {
+                if (KoniecUslugi.HasValue && KoniecUslugi.Value.Hour > 0) return "#4CAF50"; // Zakończone
+                if (PoczatekUslugi.HasValue || GodzinaWyjazdu.HasValue) return "#2196F3"; // W trakcie
+                return "#BDBDBD"; // Nie rozpoczęte
+            }
+        }
+
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)
         {
@@ -8739,6 +9341,85 @@ namespace Kalendarz1
             if (value is int intValue && intValue == 0) return System.Windows.FontWeights.Bold;
 
             return System.Windows.FontWeights.Normal;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    /// <summary>
+    /// Konwerter procentu na piksele dla Timeline (0-100% -> 0-szerokość)
+    /// </summary>
+    public class PercentToPixelConverter : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value == null) return 0.0;
+
+            double percent = 0;
+            if (value is double d) percent = d;
+            else if (value is decimal dec) percent = (double)dec;
+            else if (double.TryParse(value.ToString(), out double parsed)) percent = parsed;
+
+            double maxWidth = 500; // Domyślna szerokość timeline
+            if (parameter != null && double.TryParse(parameter.ToString(), out double paramWidth))
+                maxWidth = paramWidth;
+
+            return Math.Max(0, Math.Min(maxWidth, percent / 100.0 * maxWidth));
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    /// <summary>
+    /// Konwerter procentu na Margin dla pozycji na Timeline
+    /// </summary>
+    public class PercentToMarginConverter : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value == null) return new System.Windows.Thickness(0);
+
+            double percent = 0;
+            if (value is double d) percent = d;
+            else if (value is decimal dec) percent = (double)dec;
+            else if (double.TryParse(value.ToString(), out double parsed)) percent = parsed;
+
+            // Konwertuj procent na piksele (zakładając szerokość 120px dla mini timeline)
+            double pixels = percent / 100.0 * 116; // 116px - margines
+
+            return new System.Windows.Thickness(Math.Max(0, pixels), 0, 0, 0);
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    /// <summary>
+    /// Konwerter procentu na Width dla paska Timeline
+    /// </summary>
+    public class PercentToWidthConverter : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value == null) return 5.0;
+
+            double percent = 0;
+            if (value is double d) percent = d;
+            else if (value is decimal dec) percent = (double)dec;
+            else if (double.TryParse(value.ToString(), out double parsed)) percent = parsed;
+
+            // Konwertuj procent na piksele (zakładając szerokość 120px dla mini timeline)
+            double pixels = percent / 100.0 * 116;
+
+            return Math.Max(3, Math.Min(116, pixels)); // Minimum 3px, max 116px
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
