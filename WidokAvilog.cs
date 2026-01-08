@@ -46,23 +46,94 @@ namespace Kalendarz1
             RozwijanieComboBox.RozwijanieKontrPoKatalogu(comboBoxSymfonia, "Dostawcy Drobiu");
 
             // === NAWIGACJA TAB ===
-            // Ustaw kolejność TabIndex dla DateTimePickers i kolejnych kontrolek
-            // Kolejność: poczatekUslugi -> wyjazd -> dojazd -> poczatekZaładunek -> koniecZaładunek
-            // -> wyjazdHodowca -> powrotZaklad -> koniecUslugi -> kmPowrot -> kmWyjazd -> hBrutto -> hTara
-            int tabIndex = 1;
-            poczatekUslugiData.TabIndex = tabIndex++;
-            wyjazdZakladData.TabIndex = tabIndex++;
-            dojazdHodowcaData.TabIndex = tabIndex++;
-            poczatekZaladunekData.TabIndex = tabIndex++;
-            koniecZaladunekData.TabIndex = tabIndex++;
-            wyjazdHodowcaData.TabIndex = tabIndex++;
-            powrotZakladData.TabIndex = tabIndex++;
-            koniecUslugiData.TabIndex = tabIndex++;
-            kmPowrot.TabIndex = tabIndex++;
-            kmWyjazd.TabIndex = tabIndex++;
-            hBrutto.TabIndex = tabIndex++;
-            hTara.TabIndex = tabIndex++;
+            // Ustaw kolejność TabIndex dla kontrolek po DateTimePickers
+            kmPowrot.TabIndex = 100;
+            kmWyjazd.TabIndex = 101;
+            hBrutto.TabIndex = 102;
+            hTara.TabIndex = 103;
 
+            // Ustaw własną nawigację Tab dla DateTimePickers (HH -> MM -> następny HH)
+            SetupDateTimePickerTabNavigation();
+        }
+
+        // Słownik do śledzenia czy jesteśmy na minutach
+        private Dictionary<DateTimePicker, bool> _isOnMinutes = new Dictionary<DateTimePicker, bool>();
+
+        private void SetupDateTimePickerTabNavigation()
+        {
+            // Lista DateTimePickers w kolejności nawigacji
+            var pickers = new DateTimePicker[] {
+                poczatekUslugiData, wyjazdZakladData, dojazdHodowcaData,
+                poczatekZaladunekData, koniecZaladunekData, wyjazdHodowcaData,
+                powrotZakladData, koniecUslugiData
+            };
+
+            for (int i = 0; i < pickers.Length; i++)
+            {
+                var picker = pickers[i];
+                int index = i; // Capture for closure
+                var nextPicker = (i < pickers.Length - 1) ? pickers[i + 1] : null;
+                var prevPicker = (i > 0) ? pickers[i - 1] : null;
+
+                _isOnMinutes[picker] = false;
+
+                // Obsługa Enter - reset stanu minut
+                picker.Enter += (s, e) => { _isOnMinutes[picker] = false; };
+
+                // Obsługa KeyDown dla Tab
+                picker.KeyDown += (s, e) =>
+                {
+                    if (e.KeyCode == Keys.Tab && !e.Shift)
+                    {
+                        e.SuppressKeyPress = true;
+                        e.Handled = true;
+
+                        if (!_isOnMinutes[picker])
+                        {
+                            // Jesteśmy na godzinach - przejdź na minuty
+                            _isOnMinutes[picker] = true;
+                            SendKeys.Send("{RIGHT}");
+                        }
+                        else
+                        {
+                            // Jesteśmy na minutach - przejdź do następnej kontrolki
+                            _isOnMinutes[picker] = false;
+
+                            if (nextPicker != null)
+                            {
+                                nextPicker.Focus();
+                            }
+                            else
+                            {
+                                // Ostatni picker - przejdź do kmPowrot
+                                kmPowrot.Focus();
+                            }
+                        }
+                    }
+                    else if (e.KeyCode == Keys.Tab && e.Shift)
+                    {
+                        e.SuppressKeyPress = true;
+                        e.Handled = true;
+
+                        if (_isOnMinutes[picker])
+                        {
+                            // Z minut na godziny
+                            _isOnMinutes[picker] = false;
+                            SendKeys.Send("{LEFT}");
+                        }
+                        else
+                        {
+                            // Z godzin - cofnij do poprzedniego pickera (na minuty)
+                            if (prevPicker != null)
+                            {
+                                _isOnMinutes[prevPicker] = true;
+                                prevPicker.Focus();
+                                SendKeys.Send("{RIGHT}"); // Przejdź na minuty
+                            }
+                        }
+                    }
+                };
+            }
         }
         public WidokAvilog(int idSpecyfikacji) : this()
         {
