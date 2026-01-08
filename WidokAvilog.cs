@@ -141,104 +141,106 @@ namespace Kalendarz1
         // Słownik do śledzenia czy jesteśmy na minutach (Tab toggle)
         private Dictionary<DateTimePicker, bool> _isOnMinutes = new Dictionary<DateTimePicker, bool>();
 
+        // Lista DateTimePickers w kolejności nawigacji
+        private DateTimePicker[] _dateTimePickers;
+
         private void SetupDateTimePickerTabNavigation()
         {
             // Lista DateTimePickers w kolejności nawigacji
-            var pickers = new DateTimePicker[] {
+            _dateTimePickers = new DateTimePicker[] {
                 poczatekUslugiData, wyjazdZakladData, dojazdHodowcaData,
                 poczatekZaladunekData, koniecZaladunekData, wyjazdHodowcaData,
                 powrotZakladData, koniecUslugiData
             };
 
-            for (int i = 0; i < pickers.Length; i++)
+            foreach (var picker in _dateTimePickers)
             {
-                var picker = pickers[i];
-                int idx = i;
-                DateTimePicker nextPicker = (i < pickers.Length - 1) ? pickers[i + 1] : null;
-                DateTimePicker prevPicker = (i > 0) ? pickers[i - 1] : null;
-
                 _isOnMinutes[picker] = false;
+                picker.TabStop = false; // Wyłącz domyślną nawigację Tab
 
                 // Gdy picker dostaje focus z zewnątrz - zawsze zacznij od godzin
                 picker.Enter += (s, e) => {
-                    _isOnMinutes[picker] = false;
-                };
-
-                // Obsługa PreviewKeyDown aby przechwycić Tab przed domyślną obsługą
-                picker.PreviewKeyDown += (s, e) =>
-                {
-                    if (e.KeyCode == Keys.Tab)
-                    {
-                        e.IsInputKey = true; // Pozwól KeyDown obsłużyć Tab
-                    }
-                };
-
-                // Obsługa KeyDown dla Tab
-                picker.KeyDown += (s, e) =>
-                {
-                    if (e.KeyCode == Keys.Tab && !e.Shift)
-                    {
-                        e.SuppressKeyPress = true;
-                        e.Handled = true;
-
-                        if (!_isOnMinutes[picker])
-                        {
-                            // Jesteśmy na HH - przejdź na MM
-                            _isOnMinutes[picker] = true;
-                            // Użyj BeginInvoke aby wykonać po bieżącym evencie
-                            this.BeginInvoke(new Action(() => {
-                                SendKeys.SendWait("{RIGHT}");
-                            }));
-                        }
-                        else
-                        {
-                            // Jesteśmy na MM - przejdź do następnego pickera (HH)
-                            _isOnMinutes[picker] = false;
-
-                            if (nextPicker != null)
-                            {
-                                _isOnMinutes[nextPicker] = false; // Reset dla następnego
-                                this.BeginInvoke(new Action(() => {
-                                    nextPicker.Focus();
-                                }));
-                            }
-                            else
-                            {
-                                // Ostatni picker - przejdź do kmPowrot
-                                this.BeginInvoke(new Action(() => {
-                                    kmPowrot.Focus();
-                                }));
-                            }
-                        }
-                    }
-                    else if (e.KeyCode == Keys.Tab && e.Shift)
-                    {
-                        e.SuppressKeyPress = true;
-                        e.Handled = true;
-
-                        if (_isOnMinutes[picker])
-                        {
-                            // Z MM na HH (ten sam picker)
-                            _isOnMinutes[picker] = false;
-                            this.BeginInvoke(new Action(() => {
-                                SendKeys.SendWait("{LEFT}");
-                            }));
-                        }
-                        else
-                        {
-                            // Z HH - cofnij do poprzedniego pickera na MM
-                            if (prevPicker != null)
-                            {
-                                _isOnMinutes[prevPicker] = true;
-                                this.BeginInvoke(new Action(() => {
-                                    prevPicker.Focus();
-                                    SendKeys.SendWait("{RIGHT}");
-                                }));
-                            }
-                        }
-                    }
+                    _isOnMinutes[(DateTimePicker)s] = false;
                 };
             }
+        }
+
+        /// <summary>
+        /// Przechwytuje Tab przed domyślną obsługą Windows Forms
+        /// </summary>
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (_dateTimePickers == null) return base.ProcessCmdKey(ref msg, keyData);
+
+            // Znajdź aktywny DateTimePicker
+            var activePicker = _dateTimePickers.FirstOrDefault(p => p.Focused);
+            if (activePicker == null) return base.ProcessCmdKey(ref msg, keyData);
+
+            int idx = Array.IndexOf(_dateTimePickers, activePicker);
+
+            // Tab (bez Shift)
+            if (keyData == Keys.Tab)
+            {
+                if (!_isOnMinutes[activePicker])
+                {
+                    // Jesteśmy na HH - przejdź na MM
+                    _isOnMinutes[activePicker] = true;
+                    this.BeginInvoke(new Action(() => {
+                        SendKeys.SendWait("{RIGHT}");
+                    }));
+                }
+                else
+                {
+                    // Jesteśmy na MM - przejdź do następnego pickera (HH)
+                    _isOnMinutes[activePicker] = false;
+
+                    if (idx < _dateTimePickers.Length - 1)
+                    {
+                        var nextPicker = _dateTimePickers[idx + 1];
+                        _isOnMinutes[nextPicker] = false;
+                        this.BeginInvoke(new Action(() => {
+                            nextPicker.Focus();
+                        }));
+                    }
+                    else
+                    {
+                        // Ostatni picker - przejdź do kmPowrot
+                        this.BeginInvoke(new Action(() => {
+                            kmPowrot.Focus();
+                        }));
+                    }
+                }
+                return true; // Przechwycono - nie propaguj dalej
+            }
+
+            // Shift+Tab
+            if (keyData == (Keys.Tab | Keys.Shift))
+            {
+                if (_isOnMinutes[activePicker])
+                {
+                    // Z MM na HH (ten sam picker)
+                    _isOnMinutes[activePicker] = false;
+                    this.BeginInvoke(new Action(() => {
+                        SendKeys.SendWait("{LEFT}");
+                    }));
+                }
+                else
+                {
+                    // Z HH - cofnij do poprzedniego pickera na MM
+                    if (idx > 0)
+                    {
+                        var prevPicker = _dateTimePickers[idx - 1];
+                        _isOnMinutes[prevPicker] = true;
+                        this.BeginInvoke(new Action(() => {
+                            prevPicker.Focus();
+                            SendKeys.SendWait("{RIGHT}");
+                        }));
+                    }
+                }
+                return true; // Przechwycono - nie propaguj dalej
+            }
+
+            return base.ProcessCmdKey(ref msg, keyData);
         }
         public WidokAvilog(int idSpecyfikacji) : this()
         {
