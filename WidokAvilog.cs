@@ -138,7 +138,7 @@ namespace Kalendarz1
             catch { }
         }
 
-        // Słownik do śledzenia czy jesteśmy na minutach
+        // Słownik do śledzenia czy jesteśmy na minutach (Tab toggle)
         private Dictionary<DateTimePicker, bool> _isOnMinutes = new Dictionary<DateTimePicker, bool>();
 
         private void SetupDateTimePickerTabNavigation()
@@ -153,14 +153,25 @@ namespace Kalendarz1
             for (int i = 0; i < pickers.Length; i++)
             {
                 var picker = pickers[i];
-                int index = i; // Capture for closure
-                var nextPicker = (i < pickers.Length - 1) ? pickers[i + 1] : null;
-                var prevPicker = (i > 0) ? pickers[i - 1] : null;
+                int idx = i;
+                DateTimePicker nextPicker = (i < pickers.Length - 1) ? pickers[i + 1] : null;
+                DateTimePicker prevPicker = (i > 0) ? pickers[i - 1] : null;
 
                 _isOnMinutes[picker] = false;
 
-                // Obsługa Enter - reset stanu minut
-                picker.Enter += (s, e) => { _isOnMinutes[picker] = false; };
+                // Gdy picker dostaje focus z zewnątrz - zawsze zacznij od godzin
+                picker.Enter += (s, e) => {
+                    _isOnMinutes[picker] = false;
+                };
+
+                // Obsługa PreviewKeyDown aby przechwycić Tab przed domyślną obsługą
+                picker.PreviewKeyDown += (s, e) =>
+                {
+                    if (e.KeyCode == Keys.Tab)
+                    {
+                        e.IsInputKey = true; // Pozwól KeyDown obsłużyć Tab
+                    }
+                };
 
                 // Obsługa KeyDown dla Tab
                 picker.KeyDown += (s, e) =>
@@ -172,23 +183,31 @@ namespace Kalendarz1
 
                         if (!_isOnMinutes[picker])
                         {
-                            // Jesteśmy na godzinach - przejdź na minuty
+                            // Jesteśmy na HH - przejdź na MM
                             _isOnMinutes[picker] = true;
-                            SendKeys.Send("{RIGHT}");
+                            // Użyj BeginInvoke aby wykonać po bieżącym evencie
+                            this.BeginInvoke(new Action(() => {
+                                SendKeys.SendWait("{RIGHT}");
+                            }));
                         }
                         else
                         {
-                            // Jesteśmy na minutach - przejdź do następnej kontrolki
+                            // Jesteśmy na MM - przejdź do następnego pickera (HH)
                             _isOnMinutes[picker] = false;
 
                             if (nextPicker != null)
                             {
-                                nextPicker.Focus();
+                                _isOnMinutes[nextPicker] = false; // Reset dla następnego
+                                this.BeginInvoke(new Action(() => {
+                                    nextPicker.Focus();
+                                }));
                             }
                             else
                             {
                                 // Ostatni picker - przejdź do kmPowrot
-                                kmPowrot.Focus();
+                                this.BeginInvoke(new Action(() => {
+                                    kmPowrot.Focus();
+                                }));
                             }
                         }
                     }
@@ -199,18 +218,22 @@ namespace Kalendarz1
 
                         if (_isOnMinutes[picker])
                         {
-                            // Z minut na godziny
+                            // Z MM na HH (ten sam picker)
                             _isOnMinutes[picker] = false;
-                            SendKeys.Send("{LEFT}");
+                            this.BeginInvoke(new Action(() => {
+                                SendKeys.SendWait("{LEFT}");
+                            }));
                         }
                         else
                         {
-                            // Z godzin - cofnij do poprzedniego pickera (na minuty)
+                            // Z HH - cofnij do poprzedniego pickera na MM
                             if (prevPicker != null)
                             {
                                 _isOnMinutes[prevPicker] = true;
-                                prevPicker.Focus();
-                                SendKeys.Send("{RIGHT}"); // Przejdź na minuty
+                                this.BeginInvoke(new Action(() => {
+                                    prevPicker.Focus();
+                                    SendKeys.SendWait("{RIGHT}");
+                                }));
                             }
                         }
                     }
