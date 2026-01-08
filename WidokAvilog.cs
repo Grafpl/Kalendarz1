@@ -47,6 +47,7 @@ namespace Kalendarz1
 
             // === NAWIGACJA TAB ===
             // Ustaw kolejność TabIndex dla kontrolek po DateTimePickers
+            // Kolejność: kmPowrot -> kmWyjazd -> hBrutto -> hTara
             kmPowrot.TabIndex = 100;
             kmWyjazd.TabIndex = 101;
             hBrutto.TabIndex = 102;
@@ -54,6 +55,87 @@ namespace Kalendarz1
 
             // Ustaw własną nawigację Tab dla DateTimePickers (HH -> MM -> następny HH)
             SetupDateTimePickerTabNavigation();
+
+            // Stylizacja przycisków
+            StyleButtons();
+
+            // Dodaj event handler dla Anuluj
+            button2.Click += (s, e) => this.Close();
+
+            // Auto-focus na pierwszy DateTimePicker po załadowaniu okna
+            this.Shown += (s, e) => {
+                poczatekUslugiData.Focus();
+                SendKeys.Send("{HOME}"); // Upewnij się że zaznaczamy godziny
+            };
+
+            // Obsługa zmiany netto - pokaż różnicę
+            hNetto.TextChanged += UpdateNettoDifference;
+            uNetto.TextChanged += UpdateNettoDifference;
+        }
+
+        private void StyleButtons()
+        {
+            // Przycisk Zapisz - zielony
+            button1.BackColor = System.Drawing.Color.FromArgb(39, 174, 96);
+            button1.ForeColor = System.Drawing.Color.White;
+            button1.FlatStyle = FlatStyle.Flat;
+            button1.FlatAppearance.BorderSize = 0;
+            button1.Font = new System.Drawing.Font("Segoe UI", 11, System.Drawing.FontStyle.Bold);
+            button1.Cursor = Cursors.Hand;
+
+            // Przycisk Anuluj - czerwony
+            button2.BackColor = System.Drawing.Color.FromArgb(231, 76, 60);
+            button2.ForeColor = System.Drawing.Color.White;
+            button2.FlatStyle = FlatStyle.Flat;
+            button2.FlatAppearance.BorderSize = 0;
+            button2.Font = new System.Drawing.Font("Segoe UI", 10, System.Drawing.FontStyle.Bold);
+            button2.Cursor = Cursors.Hand;
+        }
+
+        // ToolTip dla różnicy netto
+        private ToolTip _nettoToolTip = new ToolTip();
+
+        private void UpdateNettoDifference(object sender, EventArgs e)
+        {
+            try
+            {
+                decimal hNettoVal = 0, uNettoVal = 0;
+                string hText = hNetto.Text.Replace(" ", "").Replace(",", ".");
+                string uText = uNetto.Text.Replace(" ", "").Replace(",", ".");
+
+                if (!string.IsNullOrEmpty(hText) && !string.IsNullOrEmpty(uText) &&
+                    decimal.TryParse(hText, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out hNettoVal) &&
+                    decimal.TryParse(uText, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out uNettoVal))
+                {
+                    decimal roznica = hNettoVal - uNettoVal;
+                    string roznicaText = roznica >= 0 ? $"+{roznica:N0}" : $"{roznica:N0}";
+                    string tooltipText = $"Różnica H-U: {roznicaText} kg";
+
+                    _nettoToolTip.SetToolTip(hNetto, tooltipText);
+                    _nettoToolTip.SetToolTip(uNetto, tooltipText);
+
+                    // Ustaw kolor tła w zależności od różnicy
+                    if (roznica > 0)
+                    {
+                        // Hodowca ma więcej - zielone tło
+                        hNetto.BackColor = System.Drawing.Color.FromArgb(200, 255, 200);
+                        uNetto.BackColor = System.Drawing.Color.FromArgb(255, 200, 200);
+                    }
+                    else if (roznica < 0)
+                    {
+                        // Ubojnia ma więcej - czerwone tło
+                        hNetto.BackColor = System.Drawing.Color.FromArgb(255, 200, 200);
+                        uNetto.BackColor = System.Drawing.Color.FromArgb(200, 255, 200);
+                    }
+                    else
+                    {
+                        // Równe - neutralne
+                        hNetto.BackColor = System.Drawing.SystemColors.Window;
+                        uNetto.BackColor = System.Drawing.SystemColors.Window;
+                    }
+                }
+            }
+            catch { }
         }
 
         // Słownik do śledzenia czy jesteśmy na minutach
@@ -350,13 +432,13 @@ namespace Kalendarz1
                             decimal waga = reader.GetDecimal(reader.GetOrdinal("WagaDek"));
                             buforhSrednia.Text = waga.ToString(); // Konwersja wartości decimal na string
                         }
-                        // SztPoj to całkowita liczba sztuk - wpisujemy do SumaSztuk, nie do LiczbaSztuk (per szuflada)
+                        // SztPoj - wpisujemy do LiczbaSztuk (liczba sztuk/szuflad)
                         if (!reader.IsDBNull(reader.GetOrdinal("SztPoj")))
                         {
                             int sztuki = (int)reader.GetDecimal(reader.GetOrdinal("SztPoj"));
-                            hSumaSztuk.Text = sztuki.ToString();
-                            buforSumaSztuk.Text = sztuki.ToString();
-                            uSumaSztuk.Text = sztuki.ToString();
+                            hLiczbaSztuk.Text = sztuki.ToString();
+                            buforhLiczbaSztuk.Text = sztuki.ToString();
+                            uLiczbaSztuk.Text = sztuki.ToString();
                         }
                     }
                     else
