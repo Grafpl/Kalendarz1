@@ -782,40 +782,40 @@
             Dystans.Name = "Dystans";
             Dystans.Size = new System.Drawing.Size(67, 23);
             Dystans.TabIndex = 39;
-            // 
-            // kmWyjazd
-            // 
-            kmWyjazd.Location = new System.Drawing.Point(146, 20);
-            kmWyjazd.Name = "kmWyjazd";
-            kmWyjazd.Size = new System.Drawing.Size(67, 23);
-            kmWyjazd.TabIndex = 37;
-            kmWyjazd.TextChanged += kmWyjazd_TextChanged;
-            // 
-            // label10
-            // 
-            label10.Location = new System.Drawing.Point(36, 19);
-            label10.Name = "label10";
-            label10.Size = new System.Drawing.Size(104, 23);
-            label10.TabIndex = 38;
-            label10.Text = "KM Wyjazd";
-            label10.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-            // 
-            // kmPowrot
-            // 
-            kmPowrot.Location = new System.Drawing.Point(146, 51);
+            //
+            // kmPowrot - PIERWSZY (góra)
+            //
+            kmPowrot.Location = new System.Drawing.Point(146, 20);
             kmPowrot.Name = "kmPowrot";
             kmPowrot.Size = new System.Drawing.Size(67, 23);
             kmPowrot.TabIndex = 9;
             kmPowrot.TextChanged += kmPowrot_TextChanged;
-            // 
-            // label9
-            // 
-            label9.Location = new System.Drawing.Point(36, 50);
+            //
+            // label9 - etykieta KM Powrót (góra)
+            //
+            label9.Location = new System.Drawing.Point(36, 19);
             label9.Name = "label9";
             label9.Size = new System.Drawing.Size(104, 23);
             label9.TabIndex = 36;
             label9.Text = "KM Powrót";
             label9.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            //
+            // kmWyjazd - DRUGI (dół)
+            //
+            kmWyjazd.Location = new System.Drawing.Point(146, 51);
+            kmWyjazd.Name = "kmWyjazd";
+            kmWyjazd.Size = new System.Drawing.Size(67, 23);
+            kmWyjazd.TabIndex = 37;
+            kmWyjazd.TextChanged += kmWyjazd_TextChanged;
+            //
+            // label10 - etykieta KM Wyjazd (dół)
+            //
+            label10.Location = new System.Drawing.Point(36, 50);
+            label10.Name = "label10";
+            label10.Size = new System.Drawing.Size(104, 23);
+            label10.TabIndex = 38;
+            label10.Text = "KM Wyjazd";
+            label10.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // groupBox1
             // 

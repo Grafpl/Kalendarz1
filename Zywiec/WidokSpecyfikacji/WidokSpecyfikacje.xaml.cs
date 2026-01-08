@@ -19,6 +19,8 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
+using System.Drawing.Printing;
+using System.Diagnostics;
 
 namespace Kalendarz1
 {
@@ -39,7 +41,9 @@ namespace Kalendarz1
 
         // Ustawienia PDF
         private static string defaultPdfPath = @"\\192.168.0.170\Public\Przel\";
+        private static string defaultPlachtaPath = @"\\192.168.0.170\Public\Plachty\";
         private static bool useDefaultPath = true;
+        private static bool _pdfCzarnoBialy = false; // Tryb czarno-biały PDF (logo kolorowe)
         private decimal sumaWartosc = 0;
         private decimal sumaKG = 0;
 
@@ -55,6 +59,19 @@ namespace Kalendarz1
         private DispatcherTimer _debounceTimer;
         private HashSet<int> _pendingSaveIds = new HashSet<int>();
         private const int DebounceDelayMs = 500;
+
+        // === TIMER EDYCJI: Mierzy czas od wprowadzenia wartości do zapisu w bazie ===
+        private Stopwatch _editStopwatch = new Stopwatch();
+        private DispatcherTimer _editTimerDisplay;
+        private DateTime? _editStartTime = null;
+        private string _lastEditedField = "";
+        private bool _isSavePending = false;
+        private int _lastSaveTimeMs = 0;
+        private static readonly HashSet<string> TrackedEditColumns = new HashSet<string>
+        {
+            "Szt.Dek", "SztukiDek", "Padłe", "Padle", "CH", "NW", "ZM",
+            "LUMEL", "Szt.Wyb", "SztukiWybijak", "KG Wyb", "KilogramyWybijak"
+        };
 
         // === UNDO: Stos zmian do cofnięcia ===
         private Stack<UndoAction> _undoStack = new Stack<UndoAction>();
@@ -78,6 +95,12 @@ namespace Kalendarz1
         // === HIGHLIGHT: Aktualnie podświetlona grupa dostawcy ===
         private string _highlightedSupplier = null;
 
+        // === GRUPOWANIE: Czy wiersze są pogrupowane według dostawcy ===
+        private bool _isGroupingBySupplier = false;
+
+        // === MINI KALENDARZ: Podgląd dni z danymi ===
+        private ObservableCollection<CalendarDayItem> _calendarDays = new ObservableCollection<CalendarDayItem>();
+
         // === BLOKADA: Zapobiega logowaniu zmian podczas ładowania danych ===
         private bool _isLoadingData = false;
 
@@ -91,6 +114,9 @@ namespace Kalendarz1
         {
             InitializeComponent();
 
+            // Przenieś kartę Rozliczenia na koniec (po Płachta)
+            ReorderTabs();
+
             // Inicjalizuj timer debounce dla auto-zapisu
             _debounceTimer = new DispatcherTimer();
             _debounceTimer.Interval = TimeSpan.FromMilliseconds(DebounceDelayMs);
@@ -100,6 +126,11 @@ namespace Kalendarz1
             _supplierFilterTimer = new DispatcherTimer();
             _supplierFilterTimer.Interval = TimeSpan.FromMilliseconds(SupplierFilterDelayMs);
             _supplierFilterTimer.Tick += SupplierFilterTimer_Tick;
+
+            // Inicjalizuj timer wyświetlania czasu edycji
+            _editTimerDisplay = new DispatcherTimer();
+            _editTimerDisplay.Interval = TimeSpan.FromMilliseconds(50); // Aktualizacja co 50ms
+            _editTimerDisplay.Tick += EditTimerDisplay_Tick;
 
             // WAŻNE: Załaduj listy PRZED ustawieniem DataContext
             // aby binding do ListaDostawcow i ListaTypowCen działał poprawnie
@@ -128,6 +159,26 @@ namespace Kalendarz1
 
             // Dodaj obsługę skrótów klawiszowych
             this.KeyDown += Window_KeyDown;
+        }
+
+        /// <summary>
+        /// Przesuwa kartę Rozliczenia na koniec (za Płachtę)
+        /// Obecna kolejność: Specyfikacje (0), Transport (1), Rozliczenia (2), Płachta (3)
+        /// Docelowa kolejność: Specyfikacje (0), Transport (1), Płachta (2), Rozliczenia (3)
+        /// </summary>
+        private void ReorderTabs()
+        {
+            try
+            {
+                if (mainTabControl.Items.Count >= 4)
+                {
+                    // Rozliczenia jest na pozycji 2, przenosimy na koniec
+                    var rozliczeniaTab = mainTabControl.Items[2];
+                    mainTabControl.Items.RemoveAt(2);
+                    mainTabControl.Items.Add(rozliczeniaTab);
+                }
+            }
+            catch { }
         }
 
         // === WYDAJNOŚĆ: Ładowanie dostawców z cache ===
@@ -234,6 +285,88 @@ namespace Kalendarz1
             }
         }
 
+        // === TIMER EDYCJI: Aktualizacja wyświetlania czasu od wprowadzenia wartości do zapisu ===
+        private void EditTimerDisplay_Tick(object sender, EventArgs e)
+        {
+            if (_isSavePending && _editStartTime.HasValue)
+            {
+                // Trwa oczekiwanie na zapis - pokaż aktualny czas
+                var elapsed = DateTime.Now - _editStartTime.Value;
+                var ms = (int)elapsed.TotalMilliseconds;
+
+                // Żółte tło gdy oczekuje na zapis
+                lblEditTimer.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E65100"));
+                borderEditTimer.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFF3E0"));
+                lblEditTimer.Text = $"⏳ {ms} ms";
+                lblEditField.Text = $"({_lastEditedField}) - zapisywanie...";
+            }
+            else if (!_isSavePending && _lastSaveTimeMs > 0)
+            {
+                // Zapis zakończony - pokaż ostatni czas zapisu
+                // Kolorowanie: zielony < 500ms, pomarańczowy < 1000ms, czerwony > 1000ms
+                if (_lastSaveTimeMs < 500)
+                {
+                    lblEditTimer.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2E7D32"));
+                    borderEditTimer.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E8F5E9"));
+                }
+                else if (_lastSaveTimeMs < 1000)
+                {
+                    lblEditTimer.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F57C00"));
+                    borderEditTimer.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFF3E0"));
+                }
+                else
+                {
+                    lblEditTimer.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C62828"));
+                    borderEditTimer.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFEBEE"));
+                }
+
+                lblEditTimer.Text = $"✓ {_lastSaveTimeMs} ms";
+                lblEditField.Text = $"({_lastEditedField}) - zapisano";
+            }
+        }
+
+        // Wywołaj po edycji pola produkcyjnego aby rozpocząć pomiar czasu
+        private void MarkProductionFieldEdit(string columnName)
+        {
+            // Pokaż timer jeśli ukryty
+            borderEditTimer.Visibility = Visibility.Visible;
+
+            // Rozpocznij pomiar czasu (lub kontynuuj jeśli już trwa)
+            if (!_isSavePending)
+            {
+                _editStartTime = DateTime.Now;
+                _editStopwatch.Restart();
+            }
+
+            _lastEditedField = columnName;
+            _isSavePending = true;
+            _editTimerDisplay.Start();
+        }
+
+        // Wywołaj po zapisaniu w bazie danych aby zakończyć pomiar
+        private void MarkSaveCompleted()
+        {
+            if (_editStartTime.HasValue)
+            {
+                _lastSaveTimeMs = (int)(DateTime.Now - _editStartTime.Value).TotalMilliseconds;
+            }
+            _isSavePending = false;
+            _editStartTime = null;
+            _editStopwatch.Stop();
+
+            // Ostatnia aktualizacja UI
+            EditTimerDisplay_Tick(null, null);
+
+            // Zatrzymaj timer po 3 sekundach (aby użytkownik zobaczył wynik)
+            var hideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            hideTimer.Tick += (s, e) =>
+            {
+                hideTimer.Stop();
+                _editTimerDisplay.Stop();
+            };
+            hideTimer.Start();
+        }
+
         // === WYDAJNOŚĆ: Dodaj wiersz do kolejki zapisu (debounce) ===
         private void QueueRowForSave(int rowId)
         {
@@ -257,7 +390,127 @@ namespace Kalendarz1
 
             // Odśwież cache dostawców w tle (async)
             _ = LoadDostawcyAsync();
+
+            // Inicjalizuj mini kalendarz
+            InitializeMiniCalendar();
         }
+
+        #region Mini Kalendarz
+
+        /// <summary>
+        /// Inicjalizuje mini kalendarz z 7 dniami (3 dni wstecz, dzisiaj, 3 dni wprzód)
+        /// </summary>
+        private void InitializeMiniCalendar()
+        {
+            if (miniCalendarDays != null)
+            {
+                miniCalendarDays.ItemsSource = _calendarDays;
+                RefreshMiniCalendar();
+            }
+        }
+
+        /// <summary>
+        /// Odświeża mini kalendarz dla aktualnie wybranej daty
+        /// </summary>
+        private async void RefreshMiniCalendar()
+        {
+            var selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+            _calendarDays.Clear();
+
+            // Generuj 7 dni (3 wstecz, dzisiaj, 3 wprzód)
+            for (int i = -3; i <= 3; i++)
+            {
+                var date = selectedDate.AddDays(i);
+                _calendarDays.Add(new CalendarDayItem
+                {
+                    Date = date,
+                    IsSelected = (i == 0),
+                    HasData = false
+                });
+            }
+
+            // Sprawdź które dni mają dane (async)
+            await CheckDaysWithData();
+        }
+
+        /// <summary>
+        /// Sprawdza które dni mają dane w bazie (async)
+        /// </summary>
+        private async Task CheckDaysWithData()
+        {
+            try
+            {
+                var dates = _calendarDays.Select(d => d.Date).ToList();
+                var minDate = dates.Min();
+                var maxDate = dates.Max();
+
+                await Task.Run(() =>
+                {
+                    using (var conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+                        string query = @"
+                            SELECT CAST(CalcDate AS DATE) as DataDnia, COUNT(*) as Ilosc
+                            FROM [LibraNet].[dbo].[FarmerCalc]
+                            WHERE CalcDate >= @MinDate AND CalcDate <= @MaxDate
+                            GROUP BY CAST(CalcDate AS DATE)";
+
+                        using (var cmd = new SqlCommand(query, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@MinDate", minDate);
+                            cmd.Parameters.AddWithValue("@MaxDate", maxDate);
+
+                            using (var reader = cmd.ExecuteReader())
+                            {
+                                var results = new Dictionary<DateTime, int>();
+                                while (reader.Read())
+                                {
+                                    var date = reader.GetDateTime(0);
+                                    var count = reader.GetInt32(1);
+                                    results[date] = count;
+                                }
+
+                                // Aktualizuj UI w głównym wątku
+                                Dispatcher.Invoke(() =>
+                                {
+                                    foreach (var day in _calendarDays)
+                                    {
+                                        if (results.TryGetValue(day.Date.Date, out int count))
+                                        {
+                                            day.HasData = count > 0;
+                                            day.RecordCount = count;
+                                        }
+                                        else
+                                        {
+                                            day.HasData = false;
+                                            day.RecordCount = 0;
+                                        }
+                                    }
+                                });
+                            }
+                        }
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Błąd sprawdzania dni z danymi: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handler kliknięcia na dzień w mini kalendarzu
+        /// </summary>
+        private void MiniCalendarDay_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is Border border && border.DataContext is CalendarDayItem dayItem)
+            {
+                // Zmień wybraną datę
+                dateTimePicker1.SelectedDate = dayItem.Date;
+            }
+        }
+
+        #endregion
 
         // === TRANSPORT: Handlery dla karty Transport ===
         private void MainTabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -273,6 +526,18 @@ namespace Kalendarz1
                 {
                     // Inna karta - ukryj LUMEL panel
                     lumelPanel.Visibility = Visibility.Collapsed;
+                }
+
+                // Załaduj dane płachty gdy przełączono na kartę Płachta (teraz index 2 po ReorderTabs)
+                if (mainTabControl.SelectedIndex == 2)
+                {
+                    LoadPlachtaData();
+                }
+
+                // Załaduj dane rozliczeń gdy przełączono na kartę Rozliczenia (teraz index 3 po ReorderTabs)
+                if (mainTabControl.SelectedIndex == 3)
+                {
+                    LoadRozliczeniaData();
                 }
             }
         }
@@ -305,6 +570,148 @@ namespace Kalendarz1
             UpdateStatus("Dane transportowe odświeżone");
         }
 
+        private void BtnTransportMoveUp_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridTransport.SelectedItem is TransportRow selectedTransportRow)
+            {
+                int index = transportData.IndexOf(selectedTransportRow);
+                if (index > 0)
+                {
+                    // Przesuń w Transport
+                    transportData.Move(index, index - 1);
+                    UpdateTransportNrNumbers();
+                    dataGridTransport.SelectedItem = selectedTransportRow;
+
+                    // Synchronizuj z specyfikacjeData
+                    SyncSpecyfikacjeOrderFromTransport();
+                    // Odśwież Płachtę
+                    RefreshPlachtaFromSpecyfikacje();
+                }
+            }
+        }
+
+        private void BtnTransportMoveDown_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridTransport.SelectedItem is TransportRow selectedTransportRow)
+            {
+                int index = transportData.IndexOf(selectedTransportRow);
+                if (index < transportData.Count - 1)
+                {
+                    // Przesuń w Transport
+                    transportData.Move(index, index + 1);
+                    UpdateTransportNrNumbers();
+                    dataGridTransport.SelectedItem = selectedTransportRow;
+
+                    // Synchronizuj z specyfikacjeData
+                    SyncSpecyfikacjeOrderFromTransport();
+                    // Odśwież Płachtę
+                    RefreshPlachtaFromSpecyfikacje();
+                }
+            }
+        }
+
+        private void UpdateTransportNrNumbers()
+        {
+            for (int i = 0; i < transportData.Count; i++)
+            {
+                transportData[i].Nr = i + 1;
+            }
+        }
+
+        /// <summary>
+        /// Synchronizuje kolejność specyfikacjeData na podstawie kolejności transportData
+        /// </summary>
+        private void SyncSpecyfikacjeOrderFromTransport()
+        {
+            if (specyfikacjeData == null || transportData == null)
+                return;
+
+            // Stwórz mapę ID -> pozycja z transportData
+            var newOrder = transportData.Select((t, idx) => new { t.SpecyfikacjaID, Index = idx }).ToList();
+
+            // Posortuj specyfikacjeData według nowej kolejności
+            var orderedSpecs = specyfikacjeData
+                .OrderBy(s => newOrder.FirstOrDefault(o => o.SpecyfikacjaID == s.ID)?.Index ?? int.MaxValue)
+                .ToList();
+
+            // Zastąp kolekcję
+            specyfikacjeData.Clear();
+            foreach (var spec in orderedSpecs)
+            {
+                specyfikacjeData.Add(spec);
+            }
+            UpdateRowNumbers();
+        }
+
+        /// <summary>
+        /// Odświeża Płachtę na podstawie aktualnej kolejności specyfikacjeData (bez ponownego ładowania z bazy)
+        /// </summary>
+        private void RefreshPlachtaFromSpecyfikacje()
+        {
+            if (plachtaData == null || specyfikacjeData == null)
+                return;
+
+            // Stwórz mapę ID -> pozycja z specyfikacjeData
+            var specOrder = specyfikacjeData.Select((s, idx) => new { s.ID, Index = idx }).ToDictionary(x => x.ID, x => x.Index);
+
+            // Posortuj plachtaData według kolejności specyfikacjeData
+            var orderedPlachta = plachtaData
+                .OrderBy(p => specOrder.ContainsKey(p.ID) ? specOrder[p.ID] : int.MaxValue)
+                .ToList();
+
+            plachtaData.Clear();
+            foreach (var row in orderedPlachta)
+            {
+                plachtaData.Add(row);
+            }
+            UpdatePlachtaLpNumbers();
+        }
+
+        private void BtnTransportSaveOrder_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (specyfikacjeData == null || specyfikacjeData.Count == 0) return;
+
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Zapisz nową kolejność (CarLp) dla każdego wiersza na podstawie kolejności w transportData
+                    for (int i = 0; i < transportData.Count; i++)
+                    {
+                        var transport = transportData[i];
+                        // Znajdź odpowiednią specyfikację na podstawie danych transportu
+                        var spec = specyfikacjeData.FirstOrDefault(s =>
+                            s.CarID == transport.Samochod &&
+                            s.KierowcaNazwa == transport.Kierowca &&
+                            (s.Dostawca == transport.Trasa || s.RealDostawca == transport.Trasa));
+
+                        if (spec != null)
+                        {
+                            string updateQuery = "UPDATE dbo.FarmerCalc SET CarLp = @CarLp WHERE ID = @ID";
+                            using (SqlCommand cmd = new SqlCommand(updateQuery, conn))
+                            {
+                                cmd.Parameters.AddWithValue("@CarLp", i + 1);
+                                cmd.Parameters.AddWithValue("@ID", spec.ID);
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
+                    }
+                }
+
+                // Odśwież dane
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+                LoadData(selectedDate);
+                LoadTransportData();
+                MessageBox.Show("Kolejność transportu została zapisana.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd zapisu: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private void LoadTransportData()
         {
             transportData.Clear();
@@ -318,26 +725,154 @@ namespace Kalendarz1
             {
                 var transportRow = new TransportRow
                 {
+                    SpecyfikacjaID = spec.ID,
                     Nr = nr++,
+                    Dostawca = spec.Dostawca ?? spec.RealDostawca ?? "",
                     Kierowca = spec.KierowcaNazwa ?? "",
                     Samochod = spec.CarID ?? "",
                     NrRejestracyjny = spec.TrailerID ?? "",
                     GodzinaWyjazdu = spec.Wyjazd,
                     GodzinaPrzyjazdu = spec.ArrivalTime,
-                    Trasa = spec.Dostawca ?? spec.RealDostawca ?? "",
                     Sztuki = spec.SztukiDek,
-                    Kilogramy = spec.NettoUbojniValue,
-                    Status = spec.ArrivalTime.HasValue ? "Zakończony" : "Oczekuje",
+                    Kilogramy = spec.WagaNettoDoRozliczenia,
+                    // Skrzynki i pojemniki
+                    Skrzynki = spec.LUMEL,  // Ilość skrzynek z FarmerCalc
+                    SztPoj = spec.Padle,    // Sztuki pojemników (Padłe = Padle)
                     // Godziny transportowe
                     PoczatekUslugi = spec.PoczatekUslugi,
                     DojazdHodowca = spec.DojazdHodowca,
                     Zaladunek = spec.Zaladunek,
                     ZaladunekKoniec = spec.ZaladunekKoniec,
                     WyjazdHodowca = spec.WyjazdHodowca,
-                    KoniecUslugi = spec.KoniecUslugi
+                    KoniecUslugi = spec.KoniecUslugi,
+                    // Wagi i ubytek
+                    NettoHodowcy = spec.NettoHodowcyValue,
+                    NettoUbojni = spec.NettoUbojniValue,
+                    UbytekUmowny = spec.Ubytek
                 };
 
                 transportData.Add(transportRow);
+            }
+
+            // Oblicz szacowany czas dojazdu dla każdego transportu
+            CalculateEstimatedArrivalTimes();
+
+            // Oblicz średnie czasy dla każdego dostawcy (do wykrywania anomalii)
+            CalculateAverageTimesPerDostawca();
+        }
+
+        /// <summary>
+        /// Oblicza średnie czasy dojazdu i powrotu dla każdego dostawcy na podstawie dzisiejszych danych
+        /// </summary>
+        private void CalculateAverageTimesPerDostawca()
+        {
+            if (transportData == null || transportData.Count == 0) return;
+
+            // Grupuj po dostawcy i oblicz średnie
+            var dostawcyGroup = transportData
+                .Where(t => !string.IsNullOrEmpty(t.Dostawca))
+                .GroupBy(t => t.Dostawca)
+                .ToList();
+
+            foreach (var group in dostawcyGroup)
+            {
+                // Średni czas dojazdu dla dostawcy
+                var czasyDojazdu = group
+                    .Where(t => t.CzasDojMin.HasValue && t.CzasDojMin > 0)
+                    .Select(t => t.CzasDojMin.Value)
+                    .ToList();
+
+                int avgDoj = czasyDojazdu.Count > 0 ? (int)czasyDojazdu.Average() : 0;
+
+                // Średni czas powrotu dla dostawcy
+                var czasyPowrotu = group
+                    .Where(t => t.CzasPowrotMin.HasValue && t.CzasPowrotMin > 0)
+                    .Select(t => t.CzasPowrotMin.Value)
+                    .ToList();
+
+                int avgPowrot = czasyPowrotu.Count > 0 ? (int)czasyPowrotu.Average() : 0;
+
+                // Ustaw średnie dla wszystkich wierszy tego dostawcy
+                foreach (var transport in group)
+                {
+                    transport.SredniaCzasDojMin = avgDoj;
+                    transport.SredniaCzasPowrotMin = avgPowrot;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Oblicza szacowany czas dojazdu na podstawie historycznych danych
+        /// </summary>
+        private void CalculateEstimatedArrivalTimes()
+        {
+            if (transportData == null || transportData.Count == 0) return;
+
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    foreach (var transport in transportData)
+                    {
+                        if (string.IsNullOrEmpty(transport.Dostawca)) continue;
+
+                        // Pobierz średni czas dojazdu do tego dostawcy z ostatnich 30 dni
+                        string query = @"SELECT
+                            AVG(DATEDIFF(MINUTE, Wyjazd, DojazdHodowca)) as AvgMinutes,
+                            COUNT(*) as Cnt
+                            FROM [LibraNet].[dbo].[FarmerCalc] fc
+                            INNER JOIN [LibraNet].[dbo].[Customer] c ON fc.CustomerRealGID = c.GID
+                            WHERE c.ShortName = @Dostawca
+                            AND fc.Wyjazd IS NOT NULL
+                            AND fc.DojazdHodowca IS NOT NULL
+                            AND fc.CalcDate >= DATEADD(DAY, -30, GETDATE())
+                            AND DATEDIFF(MINUTE, fc.Wyjazd, fc.DojazdHodowca) > 0
+                            AND DATEDIFF(MINUTE, fc.Wyjazd, fc.DojazdHodowca) < 300"; // Max 5 godzin
+
+                        using (SqlCommand cmd = new SqlCommand(query, connection))
+                        {
+                            cmd.Parameters.AddWithValue("@Dostawca", transport.Dostawca);
+
+                            using (var reader = cmd.ExecuteReader())
+                            {
+                                if (reader.Read() && reader["AvgMinutes"] != DBNull.Value)
+                                {
+                                    int avgMinutes = Convert.ToInt32(reader["AvgMinutes"]);
+                                    int count = Convert.ToInt32(reader["Cnt"]);
+
+                                    if (avgMinutes > 0 && count >= 2) // Minimum 2 historyczne rekordy
+                                    {
+                                        transport.SredniaMinutDojazdu = avgMinutes;
+                                        int hours = avgMinutes / 60;
+                                        int mins = avgMinutes % 60;
+                                        transport.SzacowanyCzasDojazdu = hours > 0
+                                            ? $"~{hours}h {mins}m ({count})"
+                                            : $"~{mins}m ({count})";
+                                    }
+                                    else
+                                    {
+                                        transport.SzacowanyCzasDojazdu = "-";
+                                    }
+                                }
+                                else
+                                {
+                                    transport.SzacowanyCzasDojazdu = "-";
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // W przypadku błędu - ustaw domyślne wartości
+                foreach (var transport in transportData)
+                {
+                    transport.SzacowanyCzasDojazdu = "?";
+                }
+                System.Diagnostics.Debug.WriteLine($"Błąd obliczania szacowanego czasu: {ex.Message}");
             }
         }
 
@@ -518,6 +1053,13 @@ namespace Kalendarz1
                 LoadData(dateTimePicker1.SelectedDate.Value);
                 UpdateFullDateLabel();
                 UpdateTransportDateLabel();
+
+                // Odśwież wszystkie karty przy zmianie daty
+                LoadRozliczeniaData();
+                LoadPlachtaData();
+
+                // Odśwież mini kalendarz
+                RefreshMiniCalendar();
             }
         }
 
@@ -558,6 +1100,7 @@ namespace Kalendarz1
                             // WAŻNE: Trim() usuwa spacje z nchar(10) - bez tego ComboBox nie znajdzie dopasowania
                             string customerGID = ZapytaniaSQL.GetValueOrDefault<string>(row, "CustomerGID", "-1")?.Trim();
                             decimal nettoUbojniValue = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "NettoWeight", 0);
+                            decimal nettoHodowcyValue = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "NettoFarmWeight", 0);
 
                             var specRow = new SpecyfikacjaRow
                             {
@@ -577,6 +1120,7 @@ namespace Kalendarz1
                                 BruttoHodowcy = FormatWeight(row, "FullFarmWeight"),
                                 TaraHodowcy = FormatWeight(row, "EmptyFarmWeight"),
                                 NettoHodowcy = FormatWeight(row, "NettoFarmWeight"),
+                                NettoHodowcyValue = nettoHodowcyValue,
                                 BruttoUbojni = FormatWeight(row, "FullWeight"),
                                 TaraUbojni = FormatWeight(row, "EmptyWeight"),
                                 NettoUbojni = FormatWeight(row, "NettoWeight"),
@@ -619,6 +1163,7 @@ namespace Kalendarz1
                         LoadTransportData(); // Załaduj dane transportowe
                         LoadHarmonogramData(); // Załaduj harmonogram dostaw
                         LoadPdfStatusForAllRows(); // Załaduj status PDF dla wszystkich wierszy
+                        AssignSupplierColorsAndGroups(); // Przypisz kolory dostawcom
                         UpdateStatus($"Załadowano {dataTable.Rows.Count} rekordów");
                     }
                     else
@@ -736,6 +1281,11 @@ namespace Kalendarz1
             dataGridView1.SelectedItem = selected;
             selectedRow = selected;
             SaveAllRowPositions();
+
+            // Synchronizuj Transport i Płachtę
+            RefreshTransportFromSpecyfikacje();
+            RefreshPlachtaFromSpecyfikacje();
+
             UpdateStatus($"Przesunięto wiersz LP {selected.Nr} w górę");
         }
 
@@ -763,7 +1313,20 @@ namespace Kalendarz1
             dataGridView1.SelectedItem = selected;
             selectedRow = selected;
             SaveAllRowPositions();
+
+            // Synchronizuj Transport i Płachtę
+            RefreshTransportFromSpecyfikacje();
+            RefreshPlachtaFromSpecyfikacje();
+
             UpdateStatus($"Przesunięto wiersz LP {selected.Nr} w dół");
+        }
+
+        /// <summary>
+        /// Odświeża Transport na podstawie aktualnej kolejności specyfikacjeData
+        /// </summary>
+        private void RefreshTransportFromSpecyfikacje()
+        {
+            LoadTransportData();
         }
 
         // === WYDAJNOŚĆ: Auto-zapis pozycji - używa async batch update ===
@@ -1735,18 +2298,29 @@ namespace Kalendarz1
                 var row = e.Row.Item as SpecyfikacjaRow;
                 if (row != null)
                 {
+                    // Pobierz nazwę kolumny
+                    var columnHeader = e.Column.Header?.ToString() ?? "";
+                    var columnBinding = (e.Column as DataGridBoundColumn)?.Binding as System.Windows.Data.Binding;
+                    var bindingPath = columnBinding?.Path?.Path ?? columnHeader;
+
+                    // Sprawdź czy to pole produkcyjne i oznacz czas edycji
+                    if (TrackedEditColumns.Contains(columnHeader) || TrackedEditColumns.Contains(bindingPath))
+                    {
+                        MarkProductionFieldEdit(columnHeader);
+                    }
+
                     // Używamy Dispatchera, aby obliczenia wykonały się po zaktualizowaniu wartości w modelu
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
                         // Tutaj wywołaj swoją logikę przeliczania wiersza
-                        // Zakładam, że masz metodę RecalculateWartosc() w klasie SpecyfikacjaRow 
+                        // Zakładam, że masz metodę RecalculateWartosc() w klasie SpecyfikacjaRow
                         // lub logikę w setterach właściwości.
 
                         // Jeśli logika jest w setterach, to wystarczy odświeżyć podsumowania:
                         UpdateStatistics();
 
                         // Opcjonalnie: Kolejkuj auto-zapis (jeśli używasz)
-                        // QueueRowForSave(row.ID); 
+                        // QueueRowForSave(row.ID);
                     }), System.Windows.Threading.DispatcherPriority.Background);
                 }
             }
@@ -1853,8 +2427,8 @@ namespace Kalendarz1
 
             lblRecordCount.Text = specyfikacjeData.Count.ToString();
 
-            // Suma netto ubojni
-            decimal sumaNetto = specyfikacjeData.Sum(r => r.NettoUbojniValue);
+            // Suma netto do rozliczenia (preferuje wagę hodowcy jeśli jest)
+            decimal sumaNetto = specyfikacjeData.Sum(r => r.WagaNettoDoRozliczenia);
             lblSumaNetto.Text = $"{sumaNetto:N0} kg";
 
             // Suma sztuk LUMEL
@@ -1868,6 +2442,324 @@ namespace Kalendarz1
             // Suma wartości
             decimal sumaWartosc = specyfikacjeData.Sum(r => r.Wartosc);
             lblSumaWartosc.Text = $"{sumaWartosc:N0} zł";
+
+            // Aktualizuj wykres słupkowy porównania wag (hodowca vs ubojnia)
+            UpdateWeightComparisonChart();
+        }
+
+        /// <summary>
+        /// Aktualizuje mini wykres porównania wag hodowcy i ubojni
+        /// Pokazuje wykres TYLKO gdy obie wagi są > 0
+        /// </summary>
+        private void UpdateWeightComparisonChart()
+        {
+            // Znajdź elementy używając FindName (mogą być w innym TabItem)
+            var borderChart = FindName("borderWeightComparison") as Border;
+            var barHodowcy = FindName("barWagaHodowcy") as Border;
+            var barUbojni = FindName("barWagaUbojni") as Border;
+            var lblHodowcy = FindName("lblBarWagaHodowcy") as TextBlock;
+            var lblUbojni = FindName("lblBarWagaUbojni") as TextBlock;
+
+            if (specyfikacjeData == null || specyfikacjeData.Count == 0)
+            {
+                if (borderChart != null) borderChart.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            decimal sumaWagaHodowcy = specyfikacjeData.Sum(r => r.NettoHodowcyValue);
+            decimal sumaWagaUbojni = specyfikacjeData.Sum(r => r.NettoUbojniValue);
+
+            // Pokaż wykres TYLKO gdy obie wagi są > 0
+            if (sumaWagaHodowcy <= 0 || sumaWagaUbojni <= 0)
+            {
+                if (borderChart != null) borderChart.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            // Obie wagi są > 0 - pokaż wykres
+            if (borderChart != null) borderChart.Visibility = Visibility.Visible;
+
+            decimal maxWaga = Math.Max(sumaWagaHodowcy, sumaWagaUbojni);
+
+            // Maksymalna szerokość paska (w pikselach)
+            const double maxBarWidth = 200;
+
+            double hodowcyWidth = (double)(sumaWagaHodowcy / maxWaga) * maxBarWidth;
+            double ubojniWidth = (double)(sumaWagaUbojni / maxWaga) * maxBarWidth;
+
+            if (barHodowcy != null) barHodowcy.Width = Math.Max(3, hodowcyWidth);
+            if (barUbojni != null) barUbojni.Width = Math.Max(3, ubojniWidth);
+
+            if (lblHodowcy != null)
+                lblHodowcy.Text = $"{sumaWagaHodowcy:N0} kg";
+            if (lblUbojni != null)
+                lblUbojni.Text = $"{sumaWagaUbojni:N0} kg";
+
+            // Sprawdź niezwykłe wartości i pokaż alerty
+            CheckForUnusualValues();
+        }
+
+        /// <summary>
+        /// Lista problemów wykrytych w danych
+        /// </summary>
+        private List<string> _currentProblems = new List<string>();
+
+        /// <summary>
+        /// Sprawdza dane pod kątem niezwykłych wartości (ubytek, padłe, brakujące dane)
+        /// </summary>
+        private void CheckForUnusualValues()
+        {
+            _currentProblems.Clear();
+
+            // Znajdź elementy używając FindName
+            var alertsBorder = FindName("borderAlerts") as Border;
+            var alertsLabel = FindName("lblAlertCount") as TextBlock;
+
+            if (specyfikacjeData == null || specyfikacjeData.Count == 0)
+            {
+                if (alertsBorder != null) alertsBorder.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            foreach (var row in specyfikacjeData)
+            {
+                // Sprawdź wysoki ubytek (> 5%)
+                if (row.Ubytek > 5)
+                {
+                    _currentProblems.Add($"⚠️ LP {row.Nr}: Wysoki ubytek {row.Ubytek:F2}% (>5%) - {row.RealDostawca}");
+                }
+
+                // Sprawdź bardzo niski ubytek (< -1%)
+                if (row.Ubytek < -1)
+                {
+                    _currentProblems.Add($"❓ LP {row.Nr}: Ujemny ubytek {row.Ubytek:F2}% - sprawdź wagi - {row.RealDostawca}");
+                }
+
+                // Sprawdź dużą ilość padłych (> 2% sztuk)
+                if (row.SztukiDek > 0 && row.Padle > 0)
+                {
+                    decimal procentPadlych = (decimal)row.Padle / row.SztukiDek * 100;
+                    if (procentPadlych > 2)
+                    {
+                        _currentProblems.Add($"☠️ LP {row.Nr}: Dużo padłych {row.Padle} ({procentPadlych:F1}%) - {row.RealDostawca}");
+                    }
+                }
+
+                // Sprawdź brakującą wagę hodowcy
+                if (row.NettoHodowcyValue == 0 && row.SztukiDek > 0)
+                {
+                    _currentProblems.Add($"📝 LP {row.Nr}: Brak wagi hodowcy - {row.RealDostawca}");
+                }
+
+                // Sprawdź brakującą wagę ubojni
+                if (row.NettoUbojniValue == 0 && row.LUMEL > 0)
+                {
+                    _currentProblems.Add($"📝 LP {row.Nr}: Brak wagi ubojni - {row.RealDostawca}");
+                }
+
+                // Sprawdź brakującą cenę
+                if (row.Cena == 0 && row.SztukiDek > 0)
+                {
+                    _currentProblems.Add($"💰 LP {row.Nr}: Brak ceny - {row.RealDostawca}");
+                }
+
+                // Sprawdź duże różnice wag (> 10%)
+                if (row.NettoHodowcyValue > 0 && row.NettoUbojniValue > 0)
+                {
+                    decimal roznicaProcent = Math.Abs((row.NettoHodowcyValue - row.NettoUbojniValue) / row.NettoHodowcyValue * 100);
+                    if (roznicaProcent > 10)
+                    {
+                        _currentProblems.Add($"⚖️ LP {row.Nr}: Duża różnica wag {roznicaProcent:F1}% - {row.RealDostawca}");
+                    }
+                }
+            }
+
+            // Aktualizuj panel alertów
+            if (alertsBorder != null)
+            {
+                if (_currentProblems.Count > 0)
+                {
+                    alertsBorder.Visibility = Visibility.Visible;
+                    if (alertsLabel != null)
+                        alertsLabel.Text = $"{_currentProblems.Count} problem{(_currentProblems.Count == 1 ? "" : _currentProblems.Count < 5 ? "y" : "ów")}";
+
+                    // Zmień kolor w zależności od ilości problemów
+                    if (_currentProblems.Count >= 5)
+                    {
+                        alertsBorder.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFEBEE")); // czerwone
+                        if (alertsLabel != null)
+                            alertsLabel.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C62828"));
+                    }
+                    else
+                    {
+                        alertsBorder.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFF3E0")); // pomarańczowe
+                        if (alertsLabel != null)
+                            alertsLabel.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E65100"));
+                    }
+                }
+                else
+                {
+                    alertsBorder.Visibility = Visibility.Collapsed;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Kliknięcie na licznik alertów - pokazuje szczegóły problemów
+        /// </summary>
+        private void LblAlertCount_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (_currentProblems.Count == 0)
+            {
+                MessageBox.Show("Brak wykrytych problemów.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            string message = "Wykryte problemy:\n\n" + string.Join("\n", _currentProblems.Take(20));
+            if (_currentProblems.Count > 20)
+            {
+                message += $"\n\n... i {_currentProblems.Count - 20} więcej problemów";
+            }
+
+            message += "\n\n💡 Wskazówki:\n";
+            message += "• Wysoki ubytek może oznaczać błędne wagi lub problemy jakościowe\n";
+            message += "• Ujemny ubytek sugeruje błąd w ważeniu\n";
+            message += "• Duża ilość padłych wymaga weryfikacji jakości partii";
+
+            MessageBox.Show(message, $"Panel problemów ({_currentProblems.Count})", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+
+        /// <summary>
+        /// Generuje raport podsumowania dnia
+        /// </summary>
+        private void BtnRaportDnia_Click(object sender, RoutedEventArgs e)
+        {
+            if (specyfikacjeData == null || specyfikacjeData.Count == 0)
+            {
+                MessageBox.Show("Brak danych do raportu.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("═══════════════════════════════════════════");
+            sb.AppendLine("        RAPORT PODSUMOWANIA DNIA");
+            sb.AppendLine($"        {dateTimePicker1.SelectedDate:yyyy-MM-dd}");
+            sb.AppendLine("═══════════════════════════════════════════\n");
+
+            sb.AppendLine($"📦 Liczba specyfikacji: {specyfikacjeData.Count}");
+            sb.AppendLine($"🐓 Suma sztuk (LUMEL): {specyfikacjeData.Sum(r => r.LUMEL):N0}");
+            sb.AppendLine($"⚖️ Suma wagi hodowców: {specyfikacjeData.Sum(r => r.NettoHodowcyValue):N0} kg");
+            sb.AppendLine($"⚖️ Suma wagi ubojni: {specyfikacjeData.Sum(r => r.NettoUbojniValue):N0} kg");
+            sb.AppendLine($"💰 Suma wartość: {specyfikacjeData.Sum(r => r.Wartosc):N2} zł\n");
+
+            // Statystyki per dostawca
+            var perDostawca = specyfikacjeData
+                .GroupBy(r => r.RealDostawca ?? r.Dostawca)
+                .OrderByDescending(g => g.Sum(r => r.LUMEL))
+                .Take(10);
+
+            sb.AppendLine("─────────────────────────────────────────");
+            sb.AppendLine("TOP 10 DOSTAWCÓW:");
+            sb.AppendLine("─────────────────────────────────────────");
+
+            foreach (var g in perDostawca)
+            {
+                sb.AppendLine($"  {g.Key}: {g.Sum(r => r.LUMEL):N0} szt, {g.Sum(r => r.NettoUbojniValue):N0} kg");
+            }
+
+            if (_currentProblems.Count > 0)
+            {
+                sb.AppendLine($"\n⚠️ UWAGA: Wykryto {_currentProblems.Count} problemów do sprawdzenia!");
+            }
+
+            MessageBox.Show(sb.ToString(), "Raport dnia", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        /// <summary>
+        /// Generuje raport dla wybranego dostawcy
+        /// </summary>
+        private void BtnRaportDostawcy_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridView1.SelectedCells.Count == 0)
+            {
+                MessageBox.Show("Wybierz wiersz dostawcy w tabeli.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var selectedRow = dataGridView1.SelectedCells[0].Item as SpecyfikacjaRow;
+            if (selectedRow == null) return;
+
+            string dostawca = selectedRow.RealDostawca ?? selectedRow.Dostawca;
+            var wiersze = specyfikacjeData.Where(r => (r.RealDostawca ?? r.Dostawca) == dostawca).ToList();
+
+            if (wiersze.Count == 0)
+            {
+                MessageBox.Show($"Brak danych dla dostawcy: {dostawca}", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("═══════════════════════════════════════════");
+            sb.AppendLine("        RAPORT DOSTAWCY");
+            sb.AppendLine($"        {dostawca}");
+            sb.AppendLine($"        Data: {dateTimePicker1.SelectedDate:yyyy-MM-dd}");
+            sb.AppendLine("═══════════════════════════════════════════\n");
+
+            sb.AppendLine($"📦 Liczba specyfikacji: {wiersze.Count}");
+            sb.AppendLine($"🐓 Suma sztuk (deklaracja): {wiersze.Sum(r => r.SztukiDek):N0}");
+            sb.AppendLine($"🐓 Suma sztuk (LUMEL): {wiersze.Sum(r => r.LUMEL):N0}");
+            sb.AppendLine($"☠️ Suma padłych: {wiersze.Sum(r => r.Padle)}");
+            sb.AppendLine($"⚖️ Waga hodowcy: {wiersze.Sum(r => r.NettoHodowcyValue):N0} kg");
+            sb.AppendLine($"⚖️ Waga ubojni: {wiersze.Sum(r => r.NettoUbojniValue):N0} kg");
+            sb.AppendLine($"📉 Średni ubytek: {wiersze.Average(r => r.Ubytek):F2}%");
+            sb.AppendLine($"💰 Średnia cena: {wiersze.Average(r => r.Cena):N2} zł/kg");
+            sb.AppendLine($"💰 Suma wartość: {wiersze.Sum(r => r.Wartosc):N2} zł\n");
+
+            sb.AppendLine("─────────────────────────────────────────");
+            sb.AppendLine("SZCZEGÓŁY SPECYFIKACJI:");
+            sb.AppendLine("─────────────────────────────────────────");
+
+            foreach (var r in wiersze)
+            {
+                sb.AppendLine($"  LP {r.Nr}: {r.LUMEL} szt, {r.NettoUbojniValue:N0} kg, {r.Cena:N2} zł/kg, ubytek {r.Ubytek:F2}%");
+            }
+
+            MessageBox.Show(sb.ToString(), $"Raport: {dostawca}", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        /// <summary>
+        /// Zwijanie/rozwijanie harmonogramu dostaw
+        /// </summary>
+        private bool _isHarmonogramCollapsed = false;
+
+        private void BtnToggleHarmonogram_Click(object sender, RoutedEventArgs e)
+        {
+            _isHarmonogramCollapsed = !_isHarmonogramCollapsed;
+
+            // Znajdź elementy używając FindName
+            var harmonogramGrid = FindName("gridHarmonogramContent") as Grid;
+            var toggleBtn = sender as Button;
+
+            if (_isHarmonogramCollapsed)
+            {
+                // Zwiń harmonogram
+                if (harmonogramGrid != null) harmonogramGrid.Visibility = Visibility.Collapsed;
+                if (toggleBtn != null)
+                {
+                    toggleBtn.Content = "▲";
+                    toggleBtn.ToolTip = "Rozwiń harmonogram";
+                }
+            }
+            else
+            {
+                // Rozwiń harmonogram
+                if (harmonogramGrid != null) harmonogramGrid.Visibility = Visibility.Visible;
+                if (toggleBtn != null)
+                {
+                    toggleBtn.Content = "▼";
+                    toggleBtn.ToolTip = "Zwiń harmonogram";
+                }
+            }
         }
 
         private void BtnSaveAll_Click(object sender, RoutedEventArgs e)
@@ -2040,6 +2932,9 @@ namespace Kalendarz1
 
                             transaction.Commit();
                             UpdateStatus($"Zapisano {rowIds.Count} zmian");
+
+                            // Oznacz zakończenie zapisu dla timera
+                            MarkSaveCompleted();
                         }
                         catch
                         {
@@ -2052,6 +2947,8 @@ namespace Kalendarz1
             catch (Exception ex)
             {
                 UpdateStatus($"Błąd batch zapisu: {ex.Message}");
+                // Oznacz zakończenie nawet przy błędzie
+                MarkSaveCompleted();
             }
         }
 
@@ -2066,7 +2963,7 @@ namespace Kalendarz1
             if (fields.HasFlag(SupplierFieldMask.Cena)) setClauses.Add("Price = @Cena");
             if (fields.HasFlag(SupplierFieldMask.Dodatek)) setClauses.Add("Addition = @Dodatek");
             if (fields.HasFlag(SupplierFieldMask.Ubytek)) setClauses.Add("Loss = @Ubytek");
-            if (fields.HasFlag(SupplierFieldMask.TypCeny)) setClauses.Add("PriceType = @TypCeny");
+            if (fields.HasFlag(SupplierFieldMask.TypCeny)) setClauses.Add("PriceTypeID = @PriceTypeID");
             if (fields.HasFlag(SupplierFieldMask.TerminDni)) setClauses.Add("TerminDni = @TerminDni");
             if (fields.HasFlag(SupplierFieldMask.PiK)) setClauses.Add("IncDeadConf = @PiK");
 
@@ -2091,14 +2988,22 @@ namespace Kalendarz1
                         if (fields.HasFlag(SupplierFieldMask.Ubytek))
                             cmd.Parameters.AddWithValue("@Ubytek", (ubytek ?? 0m) / 100m);
                         if (fields.HasFlag(SupplierFieldMask.TypCeny))
-                            cmd.Parameters.AddWithValue("@TypCeny", (object)typCeny ?? DBNull.Value);
+                        {
+                            // Konwertuj nazwę typu ceny na ID
+                            int priceTypeId = -1;
+                            if (!string.IsNullOrEmpty(typCeny))
+                            {
+                                priceTypeId = zapytaniasql.ZnajdzIdCeny(typCeny);
+                            }
+                            cmd.Parameters.AddWithValue("@PriceTypeID", priceTypeId > 0 ? priceTypeId : (object)DBNull.Value);
+                        }
                         if (fields.HasFlag(SupplierFieldMask.TerminDni))
                             cmd.Parameters.AddWithValue("@TerminDni", terminDni ?? 0);
                         if (fields.HasFlag(SupplierFieldMask.PiK))
                             cmd.Parameters.AddWithValue("@PiK", piK ?? false);
 
                         int affected = cmd.ExecuteNonQuery();
-                        UpdateStatus($"Batch: Zaktualizowano {affected} wierszy");
+                        UpdateStatus($"Batch: Zaktualizowano {affected} wierszy w bazie danych");
                     }
                 }
             }
@@ -2950,9 +3855,11 @@ namespace Kalendarz1
         // === Checkbox: Pokaż/ukryj kolumnę Opasienie ===
         private void ChkShowOpasienie_Changed(object sender, RoutedEventArgs e)
         {
+            bool isChecked = (sender as CheckBox)?.IsChecked == true;
+
             if (colOpasienie != null)
             {
-                colOpasienie.Visibility = chkShowOpasienie.IsChecked == true
+                colOpasienie.Visibility = isChecked
                     ? Visibility.Visible
                     : Visibility.Collapsed;
             }
@@ -2961,11 +3868,212 @@ namespace Kalendarz1
         // === Checkbox: Pokaż/ukryj kolumnę Klasa B ===
         private void ChkShowKlasaB_Changed(object sender, RoutedEventArgs e)
         {
+            bool isChecked = (sender as CheckBox)?.IsChecked == true;
+
             if (colKlasaB != null)
             {
-                colKlasaB.Visibility = chkShowKlasaB.IsChecked == true
+                colKlasaB.Visibility = isChecked
                     ? Visibility.Visible
                     : Visibility.Collapsed;
+            }
+        }
+
+        // === Checkbox: Grupuj wiersze według dostawcy ===
+        private void ChkGroupBySupplier_Changed(object sender, RoutedEventArgs e)
+        {
+            var checkbox = sender as CheckBox;
+            bool groupBySupplier = checkbox?.IsChecked == true;
+
+            // Zapisz stan grupowania
+            _isGroupingBySupplier = groupBySupplier;
+
+            if (specyfikacjeData == null || specyfikacjeData.Count == 0) return;
+
+            if (groupBySupplier)
+            {
+                // Grupuj według dostawcy, zachowując kolejność LP w grupie
+                var grouped = specyfikacjeData
+                    .OrderBy(x => x.RealDostawca)
+                    .ThenBy(x => x.Nr)
+                    .ToList();
+
+                // Wyczyść i dodaj ponownie w nowej kolejności
+                specyfikacjeData.Clear();
+                foreach (var item in grouped)
+                {
+                    specyfikacjeData.Add(item);
+                }
+
+                // Przypisz kolory i oznacz granice grup
+                AssignSupplierColorsAndGroups();
+
+                UpdateStatus("Wiersze pogrupowane według dostawcy");
+            }
+            else
+            {
+                // Sortuj według LP
+                var sorted = specyfikacjeData
+                    .OrderBy(x => x.Nr)
+                    .ToList();
+
+                specyfikacjeData.Clear();
+                foreach (var item in sorted)
+                {
+                    specyfikacjeData.Add(item);
+                }
+
+                // Przypisz kolory (bez grup separatorów)
+                AssignSupplierColorsAndGroups();
+
+                UpdateStatus("Wiersze posortowane według LP");
+            }
+        }
+
+        // === Przypisz kolory dostawcom i oznacz granice grup ===
+        private void AssignSupplierColorsAndGroups()
+        {
+            if (specyfikacjeData == null || specyfikacjeData.Count == 0) return;
+
+            // Paleta kolorów dla dostawców (łatwo rozróżnialne)
+            var supplierColors = new List<string>
+            {
+                "#4CAF50", "#2196F3", "#FF9800", "#9C27B0", "#00BCD4",
+                "#E91E63", "#8BC34A", "#673AB7", "#03A9F4", "#FF5722",
+                "#009688", "#3F51B5", "#CDDC39", "#FFC107", "#795548",
+                "#607D8B", "#F44336", "#FFEB3B", "#00E676", "#7C4DFF"
+            };
+
+            // Mapowanie dostawca -> kolor
+            var supplierColorMap = new Dictionary<string, string>();
+            int colorIndex = 0;
+
+            // Przypisz kolory unikalne dla każdego dostawcy
+            foreach (var row in specyfikacjeData)
+            {
+                string supplierKey = row.RealDostawca ?? "Nieznany";
+
+                if (!supplierColorMap.ContainsKey(supplierKey))
+                {
+                    supplierColorMap[supplierKey] = supplierColors[colorIndex % supplierColors.Count];
+                    colorIndex++;
+                }
+
+                row.SupplierColor = supplierColorMap[supplierKey];
+            }
+
+            // Oznacz granice grup (dla separatorów) - TYLKO gdy grupowanie jest włączone
+            string previousSupplier = null;
+            for (int i = 0; i < specyfikacjeData.Count; i++)
+            {
+                var row = specyfikacjeData[i];
+                string currentSupplier = row.RealDostawca ?? "Nieznany";
+
+                if (_isGroupingBySupplier)
+                {
+                    // Pierwszy w grupie - pokaż separator
+                    row.IsFirstInGroup = (previousSupplier != currentSupplier) && (i > 0);
+
+                    // Ostatni w grupie
+                    if (i < specyfikacjeData.Count - 1)
+                    {
+                        string nextSupplier = specyfikacjeData[i + 1].RealDostawca ?? "Nieznany";
+                        row.IsLastInGroup = (currentSupplier != nextSupplier);
+                    }
+                    else
+                    {
+                        row.IsLastInGroup = true;
+                    }
+                }
+                else
+                {
+                    // Bez grupowania - nie pokazuj separatorów
+                    row.IsFirstInGroup = false;
+                    row.IsLastInGroup = false;
+                }
+
+                previousSupplier = currentSupplier;
+            }
+        }
+
+        // === Checkbox: Grupuj wiersze według dostawcy (Rozliczenia) ===
+        private void ChkGroupBySupplierRozliczenia_Changed(object sender, RoutedEventArgs e)
+        {
+            var checkbox = sender as CheckBox;
+            bool groupBySupplier = checkbox?.IsChecked == true;
+
+            if (rozliczeniaData == null || rozliczeniaData.Count == 0) return;
+
+            if (groupBySupplier)
+            {
+                // Grupuj według dostawcy
+                var grouped = rozliczeniaData
+                    .OrderBy(x => x.Dostawca)
+                    .ThenBy(x => x.Nr)
+                    .ToList();
+
+                rozliczeniaData.Clear();
+                foreach (var item in grouped)
+                {
+                    rozliczeniaData.Add(item);
+                }
+
+                UpdateStatus("Rozliczenia pogrupowane według dostawcy");
+            }
+            else
+            {
+                // Sortuj według LP
+                var sorted = rozliczeniaData
+                    .OrderBy(x => x.Nr)
+                    .ToList();
+
+                rozliczeniaData.Clear();
+                foreach (var item in sorted)
+                {
+                    rozliczeniaData.Add(item);
+                }
+
+                UpdateStatus("Rozliczenia posortowane według LP");
+            }
+        }
+
+        // === Checkbox: Grupuj wiersze według dostawcy (Płachta) ===
+        private void ChkGroupBySupplierPlachta_Changed(object sender, RoutedEventArgs e)
+        {
+            var checkbox = sender as CheckBox;
+            bool groupBySupplier = checkbox?.IsChecked == true;
+
+            if (plachtaData == null || plachtaData.Count == 0) return;
+
+            if (groupBySupplier)
+            {
+                // Grupuj według dostawcy (Hodowca)
+                var grouped = plachtaData
+                    .OrderBy(x => x.Hodowca)
+                    .ThenBy(x => x.Lp)
+                    .ToList();
+
+                plachtaData.Clear();
+                foreach (var item in grouped)
+                {
+                    plachtaData.Add(item);
+                }
+
+                UpdateStatus("Płachta pogrupowana według hodowcy");
+            }
+            else
+            {
+                // Sortuj według LP
+                var sorted = plachtaData
+                    .OrderBy(x => x.Lp)
+                    .ToList();
+
+                plachtaData.Clear();
+                foreach (var item in sorted)
+                {
+                    plachtaData.Add(item);
+                }
+
+                UpdateStatus("Płachta posortowana według LP");
             }
         }
 
@@ -3077,7 +4185,7 @@ namespace Kalendarz1
 
                 foreach (var row in rozliczeniaHodowcy)
                 {
-                    sumaNetto += row.NettoUbojniValue;
+                    sumaNetto += row.WagaNettoDoRozliczenia;  // Preferuje wagę hodowcy
                     // Wszystkie sztuki = LUMEL + Padłe (tak jak w PDF)
                     int sztWszystkie = row.LUMEL + row.Padle;
                     sumaSztWszystkie += sztWszystkie;
@@ -3380,7 +4488,7 @@ namespace Kalendarz1
 
                 foreach (var row in rozliczeniaHodowcy)
                 {
-                    sumaNetto += row.NettoUbojniValue;
+                    sumaNetto += row.WagaNettoDoRozliczenia;  // Preferuje wagę hodowcy
                     int sztWszystkie = row.LUMEL + row.Padle;
                     sumaSztWszystkie += sztWszystkie;
                     sumaWartosc += row.Wartosc;
@@ -3634,15 +4742,19 @@ namespace Kalendarz1
                     decimal? ubytekProc = zapytaniasql.PobierzInformacjeZBazyDanych<decimal?>(id, "[LibraNet].[dbo].[FarmerCalc]", "Loss");
                     decimal ubytek = ubytekProc ?? 0;
 
-                    decimal wagaBrutto = ubytek != 0
+                    // Pobierz wagę hodowcy i ubojni
+                    decimal nettoHodowcy = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoFarmWeight");
+                    decimal nettoUbojni = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoWeight");
+
+                    // Preferuj wagę hodowcy jeśli jest > 0, w przeciwnym razie wagę ubojni
+                    bool uzyjWagiHodowcy = nettoHodowcy > 0;
+                    decimal wagaBrutto = uzyjWagiHodowcy
                         ? zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "FullFarmWeight")
                         : zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "FullWeight");
-                    decimal wagaTara = ubytek != 0
+                    decimal wagaTara = uzyjWagiHodowcy
                         ? zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "EmptyFarmWeight")
                         : zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "EmptyWeight");
-                    decimal wagaNetto = ubytek != 0
-                        ? zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoFarmWeight")
-                        : zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoWeight");
+                    decimal wagaNetto = uzyjWagiHodowcy ? nettoHodowcy : nettoUbojni;
 
                     int padle = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI2");
                     int konfiskaty = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI3") +
@@ -3761,23 +4873,23 @@ namespace Kalendarz1
 
                 doc.Add(detailsTable);
 
-                // === PODPISY ===
+                // === PODPISY (kompaktowe) ===
                 PdfPTable sigTable = new PdfPTable(2);
                 sigTable.WidthPercentage = 100;
-                sigTable.SpacingBefore = 30f;
+                sigTable.SpacingBefore = 15f; // Mniejszy odstęp
 
-                PdfPCell sig1 = CreateRoundedCell(new BaseColor(200, 200, 200), new BaseColor(252, 252, 252), 12);
-                sig1.AddElement(new Paragraph("PODPIS DOSTAWCY", new Font(polishFont, 9, Font.BOLD, orangeColor)) { Alignment = Element.ALIGN_CENTER });
-                sig1.AddElement(new Paragraph(" \n \n", textFont));
+                PdfPCell sig1 = CreateRoundedCell(new BaseColor(200, 200, 200), new BaseColor(252, 252, 252), 8);
+                sig1.AddElement(new Paragraph("PODPIS DOSTAWCY", new Font(polishFont, 8, Font.BOLD, orangeColor)) { Alignment = Element.ALIGN_CENTER });
+                sig1.AddElement(new Paragraph(" \n", textFont));
                 sig1.AddElement(new Paragraph("........................................", textFont) { Alignment = Element.ALIGN_CENTER });
                 sigTable.AddCell(sig1);
 
                 NazwaZiD nazwaZiD = new NazwaZiD();
                 string wystawiajacyNazwa = nazwaZiD.GetNameById(App.UserID) ?? "---";
 
-                PdfPCell sig2 = CreateRoundedCell(new BaseColor(200, 200, 200), new BaseColor(252, 252, 252), 12);
-                sig2.AddElement(new Paragraph("PODPIS PRACOWNIKA", new Font(polishFont, 9, Font.BOLD, greenColor)) { Alignment = Element.ALIGN_CENTER });
-                sig2.AddElement(new Paragraph(" \n \n", textFont));
+                PdfPCell sig2 = CreateRoundedCell(new BaseColor(200, 200, 200), new BaseColor(252, 252, 252), 8);
+                sig2.AddElement(new Paragraph("PODPIS PRACOWNIKA", new Font(polishFont, 8, Font.BOLD, greenColor)) { Alignment = Element.ALIGN_CENTER });
+                sig2.AddElement(new Paragraph(" \n", textFont));
                 sig2.AddElement(new Paragraph("........................................", textFont) { Alignment = Element.ALIGN_CENTER });
                 sigTable.AddCell(sig2);
 
@@ -4142,7 +5254,8 @@ namespace Kalendarz1
 
                 // === GŁÓWNA TABELA ROZLICZENIA === (dostosowana do A4 pionowego)
                 // 18 kolumn: Lp, Brutto, Tara, Netto | Dostarcz, Padłe, Konf, Zdatne | kg/szt | Netto, Padłe, Konf, Ubytek, Opas, KlB, DoZapł, Cena, Wartość
-                PdfPTable dataTable = new PdfPTable(new float[] { 0.3F, 0.5F, 0.5F, 0.55F, 0.5F, 0.4F, 0.45F, 0.45F, 0.55F, 0.55F, 0.5F, 0.5F, 0.5F, 0.5F, 0.45F, 0.55F, 0.5F, 0.65F });
+                // Brutto/Tara/Netto szersze, Kl.B/Cena/Śr.Waga węższe
+                PdfPTable dataTable = new PdfPTable(new float[] { 0.3F, 0.6F, 0.6F, 0.65F, 0.5F, 0.4F, 0.45F, 0.45F, 0.45F, 0.55F, 0.5F, 0.5F, 0.5F, 0.5F, 0.35F, 0.55F, 0.4F, 0.65F });
                 dataTable.WidthPercentage = 100;
 
                 // Nagłówki grupowe z kolorami
@@ -4158,7 +5271,7 @@ namespace Kalendarz1
                 AddColoredTableHeader(dataTable, "Tara", smallTextFontBold, darkGreenColor);
                 AddColoredTableHeader(dataTable, "Netto", smallTextFontBold, darkGreenColor);
                 // Nagłówki kolumn - SZTUKI
-                AddColoredTableHeader(dataTable, "Dostarcz.", smallTextFontBold, new BaseColor(230, 126, 34));
+                AddDostarczoneHeader(dataTable, smallTextFontBold, new BaseColor(230, 126, 34));
                 AddColoredTableHeader(dataTable, "Padłe", smallTextFontBold, new BaseColor(230, 126, 34));
                 AddColoredTableHeader(dataTable, "Konf.", smallTextFontBold, new BaseColor(230, 126, 34));
                 AddColoredTableHeader(dataTable, "Zdatne", smallTextFontBold, new BaseColor(230, 126, 34));
@@ -4191,18 +5304,24 @@ namespace Kalendarz1
                     decimal? ubytekProc = zapytaniasql.PobierzInformacjeZBazyDanych<decimal?>(id, "[LibraNet].[dbo].[FarmerCalc]", "Loss");
                     decimal ubytek = ubytekProc ?? 0;
 
+                    // Pobierz wagę hodowcy i ubojni
+                    decimal nettoHodowcy = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoFarmWeight");
+                    decimal nettoUbojni = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoWeight");
+
+                    // Preferuj wagę hodowcy jeśli jest > 0, w przeciwnym razie wagę ubojni
+                    bool uzyjWagiHodowcy = nettoHodowcy > 0;
                     decimal wagaBrutto, wagaTara, wagaNetto;
-                    if (ubytek != 0)
+                    if (uzyjWagiHodowcy)
                     {
                         wagaBrutto = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "FullFarmWeight");
                         wagaTara = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "EmptyFarmWeight");
-                        wagaNetto = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoFarmWeight");
+                        wagaNetto = nettoHodowcy;
                     }
                     else
                     {
                         wagaBrutto = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "FullWeight");
                         wagaTara = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "EmptyWeight");
-                        wagaNetto = zapytaniasql.PobierzInformacjeZBazyDanych<decimal>(id, "[LibraNet].[dbo].[FarmerCalc]", "NettoWeight");
+                        wagaNetto = nettoUbojni;
                     }
 
                     int padle = zapytaniasql.PobierzInformacjeZBazyDanych<int>(id, "[LibraNet].[dbo].[FarmerCalc]", "DeclI2");
@@ -4421,34 +5540,30 @@ namespace Kalendarz1
                 summaryTable.AddCell(sumCell);
                 doc.Add(summaryTable);
 
-                // === PODPISY ===
+                // === PODPISY (kompaktowe) ===
                 // Pobierz nazwę wystawiającego z App.UserID
                 NazwaZiD nazwaZiD = new NazwaZiD();
                 string wystawiajacyNazwa = nazwaZiD.GetNameById(App.UserID) ?? App.UserID ?? "---";
 
                 PdfPTable footerTable = new PdfPTable(2);
                 footerTable.WidthPercentage = 100;
-                footerTable.SpacingBefore = 25f;
+                footerTable.SpacingBefore = 12f; // Mniejszy odstęp
                 footerTable.SetWidths(new float[] { 1f, 1f });
 
-                // Podpis Dostawcy (lewa strona)
-                PdfPCell signatureLeft = new PdfPCell { Border = PdfPCell.BOX, BorderColor = new BaseColor(200, 200, 200), Padding = 15, BackgroundColor = new BaseColor(252, 252, 252) };
-                signatureLeft.AddElement(new Paragraph("PODPIS DOSTAWCY", new Font(polishFont, 9, Font.BOLD, orangeColor)) { Alignment = Element.ALIGN_CENTER });
-                signatureLeft.AddElement(new Paragraph(" ", new Font(polishFont, 12, Font.NORMAL)));
-                signatureLeft.AddElement(new Paragraph(" ", new Font(polishFont, 12, Font.NORMAL)));
-                signatureLeft.AddElement(new Paragraph(" ", new Font(polishFont, 12, Font.NORMAL)));
-                signatureLeft.AddElement(new Paragraph("............................................................", new Font(polishFont, 10, Font.NORMAL)) { Alignment = Element.ALIGN_CENTER });
-                signatureLeft.AddElement(new Paragraph("data i czytelny podpis", new Font(polishFont, 7, Font.ITALIC, grayColor)) { Alignment = Element.ALIGN_CENTER });
+                // Podpis Dostawcy (lewa strona) - kompaktowy
+                PdfPCell signatureLeft = new PdfPCell { Border = PdfPCell.BOX, BorderColor = new BaseColor(200, 200, 200), Padding = 8, BackgroundColor = new BaseColor(252, 252, 252) };
+                signatureLeft.AddElement(new Paragraph("PODPIS DOSTAWCY", new Font(polishFont, 8, Font.BOLD, orangeColor)) { Alignment = Element.ALIGN_CENTER });
+                signatureLeft.AddElement(new Paragraph(" ", new Font(polishFont, 8, Font.NORMAL)));
+                signatureLeft.AddElement(new Paragraph("............................................................", new Font(polishFont, 9, Font.NORMAL)) { Alignment = Element.ALIGN_CENTER });
+                signatureLeft.AddElement(new Paragraph("data i czytelny podpis", new Font(polishFont, 6, Font.ITALIC, grayColor)) { Alignment = Element.ALIGN_CENTER });
                 footerTable.AddCell(signatureLeft);
 
-                // Podpis Pracownika/Wystawiającego (prawa strona)
-                PdfPCell signatureRight = new PdfPCell { Border = PdfPCell.BOX, BorderColor = new BaseColor(200, 200, 200), Padding = 15, BackgroundColor = new BaseColor(252, 252, 252) };
-                signatureRight.AddElement(new Paragraph("PODPIS PRACOWNIKA", new Font(polishFont, 9, Font.BOLD, greenColor)) { Alignment = Element.ALIGN_CENTER });
-                signatureRight.AddElement(new Paragraph($"({wystawiajacyNazwa})", new Font(polishFont, 8, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_CENTER });
-                signatureRight.AddElement(new Paragraph(" ", new Font(polishFont, 12, Font.NORMAL)));
-                signatureRight.AddElement(new Paragraph(" ", new Font(polishFont, 12, Font.NORMAL)));
-                signatureRight.AddElement(new Paragraph("............................................................", new Font(polishFont, 10, Font.NORMAL)) { Alignment = Element.ALIGN_CENTER });
-                signatureRight.AddElement(new Paragraph("data i czytelny podpis", new Font(polishFont, 7, Font.ITALIC, grayColor)) { Alignment = Element.ALIGN_CENTER });
+                // Podpis Pracownika/Wystawiającego (prawa strona) - kompaktowy
+                PdfPCell signatureRight = new PdfPCell { Border = PdfPCell.BOX, BorderColor = new BaseColor(200, 200, 200), Padding = 8, BackgroundColor = new BaseColor(252, 252, 252) };
+                signatureRight.AddElement(new Paragraph("PODPIS PRACOWNIKA", new Font(polishFont, 8, Font.BOLD, greenColor)) { Alignment = Element.ALIGN_CENTER });
+                signatureRight.AddElement(new Paragraph($"({wystawiajacyNazwa})", new Font(polishFont, 7, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_CENTER });
+                signatureRight.AddElement(new Paragraph("............................................................", new Font(polishFont, 9, Font.NORMAL)) { Alignment = Element.ALIGN_CENTER });
+                signatureRight.AddElement(new Paragraph("data i czytelny podpis", new Font(polishFont, 6, Font.ITALIC, grayColor)) { Alignment = Element.ALIGN_CENTER });
                 footerTable.AddCell(signatureRight);
 
                 doc.Add(footerTable);
@@ -4493,8 +5608,37 @@ namespace Kalendarz1
                 BackgroundColor = bgColor,
                 HorizontalAlignment = Element.ALIGN_CENTER,
                 VerticalAlignment = Element.ALIGN_MIDDLE,
-                Padding = 4
+                Padding = 4,
+                MinimumHeight = 22 // Wyższe nagłówki
             };
+            table.AddCell(cell);
+        }
+
+        /// <summary>
+        /// Dodaje specjalny dwuliniowy nagłówek "Dostarczone" z "(ARIMR)" pogrubionym poniżej
+        /// </summary>
+        private void AddDostarczoneHeader(PdfPTable table, Font font, BaseColor bgColor)
+        {
+            // Utwórz komórkę z dwoma liniami tekstu
+            PdfPCell cell = new PdfPCell()
+            {
+                BackgroundColor = bgColor,
+                HorizontalAlignment = Element.ALIGN_CENTER,
+                VerticalAlignment = Element.ALIGN_MIDDLE,
+                Padding = 2,
+                MinimumHeight = 22
+            };
+
+            // Linia 1: "Dostarczone" (normalna czcionka)
+            Paragraph line1 = new Paragraph("Dostarcz.", new Font(font.BaseFont, 6, Font.NORMAL, BaseColor.WHITE));
+            line1.Alignment = Element.ALIGN_CENTER;
+            cell.AddElement(line1);
+
+            // Linia 2: "(ARIMR)" (pogrubiona)
+            Paragraph line2 = new Paragraph("(ARIMR)", new Font(font.BaseFont, 6, Font.BOLD, BaseColor.WHITE));
+            line2.Alignment = Element.ALIGN_CENTER;
+            cell.AddElement(line2);
+
             table.AddCell(cell);
         }
 
@@ -5817,6 +6961,9 @@ namespace Kalendarz1
 
         #region Rozliczenia Tab Handlers
 
+        private ObservableCollection<RozliczenieRow> rozliczeniaData = new ObservableCollection<RozliczenieRow>();
+        private ObservableCollection<PlachtaRow> plachtaData = new ObservableCollection<PlachtaRow>();
+
         private void BtnFilterRozliczenia_Click(object sender, RoutedEventArgs e)
         {
             LoadRozliczeniaData();
@@ -5824,23 +6971,261 @@ namespace Kalendarz1
 
         private void LoadRozliczeniaData()
         {
-            // TODO: Implementacja ładowania danych rozliczeń
-            // Na razie placeholder - dane będą ładowane z tej samej tabeli FarmerCalc
-            UpdateStatus("Funkcja rozliczeń w przygotowaniu...");
+            try
+            {
+                // Użyj tej samej daty co w Specyfikacjach (główny DatePicker w lewym górnym rogu)
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                rozliczeniaData.Clear();
+
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    string query = @"
+                        SELECT
+                            fc.ID,
+                            fc.CalcDate as Data,
+                            fc.CarLp as Nr,
+                            COALESCE(k.ShortName, 'Nieznany') as Dostawca,
+                            ISNULL(fc.DeclI1, 0) as SztukiDek,
+                            ISNULL(fc.NettoWeight, 0) as NettoKg,
+                            ISNULL(fc.Price, 0) as Cena,
+                            pt.Name as TypCeny,
+                            ISNULL(fc.NettoWeight, 0) * ISNULL(fc.Price, 0) as Wartosc,
+                            ISNULL(fc.Symfonia, 0) as Symfonia
+                        FROM dbo.FarmerCalc fc
+                        LEFT JOIN dbo.Dostawcy k ON fc.CustomerGID = k.ID
+                        LEFT JOIN dbo.PriceType pt ON fc.PriceTypeID = pt.ID
+                        WHERE fc.CalcDate = @CalcDate
+                        ORDER BY fc.CarLp";
+
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@CalcDate", selectedDate.Date);
+
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                rozliczeniaData.Add(new RozliczenieRow
+                                {
+                                    ID = reader.GetInt32(reader.GetOrdinal("ID")),
+                                    Data = reader.GetDateTime(reader.GetOrdinal("Data")),
+                                    Nr = reader.IsDBNull(reader.GetOrdinal("Nr")) ? 0 : Convert.ToInt32(reader["Nr"]),
+                                    Dostawca = reader.IsDBNull(reader.GetOrdinal("Dostawca")) ? "" : reader["Dostawca"].ToString(),
+                                    SztukiDek = reader.IsDBNull(reader.GetOrdinal("SztukiDek")) ? 0 : Convert.ToInt32(reader["SztukiDek"]),
+                                    NettoKg = reader.IsDBNull(reader.GetOrdinal("NettoKg")) ? 0 : Convert.ToDecimal(reader["NettoKg"]),
+                                    Cena = reader.IsDBNull(reader.GetOrdinal("Cena")) ? 0 : Convert.ToDecimal(reader["Cena"]),
+                                    TypCeny = reader.IsDBNull(reader.GetOrdinal("TypCeny")) ? "" : reader["TypCeny"].ToString(),
+                                    Wartosc = reader.IsDBNull(reader.GetOrdinal("Wartosc")) ? 0 : Convert.ToDecimal(reader["Wartosc"]),
+                                    Symfonia = !reader.IsDBNull(reader.GetOrdinal("Symfonia")) && Convert.ToBoolean(reader["Symfonia"])
+                                });
+                            }
+                        }
+                    }
+                }
+
+                dataGridRozliczenia.ItemsSource = rozliczeniaData;
+
+                // Aktualizuj podsumowanie
+                lblRozliczeniaSumaWierszy.Text = rozliczeniaData.Count.ToString();
+                lblRozliczeniaSumaSztuk.Text = rozliczeniaData.Sum(r => r.SztukiDek).ToString("N0");
+                lblRozliczeniaSumaKg.Text = rozliczeniaData.Sum(r => r.NettoKg).ToString("N0");
+                lblRozliczeniaSumaWartosc.Text = rozliczeniaData.Sum(r => r.Wartosc).ToString("N2") + " zł";
+
+                UpdateStatus($"Rozliczenia: załadowano {rozliczeniaData.Count} rekordów dla {selectedDate:yyyy-MM-dd}");
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Błąd ładowania rozliczeń: {ex.Message}");
+            }
         }
 
         private void BtnZatwierdzDzien_Click(object sender, RoutedEventArgs e)
         {
-            // TODO: Implementacja zatwierdzania dnia
-            MessageBox.Show("Funkcja zatwierdzania dnia wymaga konfiguracji uprawnień.",
-                "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            // Pierwsza kontrola - wprowadzenie WYBRANYCH wierszy
+            var selectedRows = dataGridRozliczenia.SelectedItems.Cast<RozliczenieRow>()
+                .Where(r => !r.Zatwierdzony).ToList();
+
+            if (selectedRows.Count == 0)
+            {
+                MessageBox.Show("Zaznacz wiersze do wprowadzenia (niezatwierdzone).",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            string userName = Environment.UserName;
+            foreach (var row in selectedRows)
+            {
+                row.Zatwierdzony = true;
+                row.ZatwierdzonePrzez = userName;
+                row.DataZatwierdzenia = DateTime.Now;
+            }
+
+            UpdateStatus($"Zatwierdzono wprowadzenie {selectedRows.Count} wierszy przez {userName}");
+        }
+
+        private void BtnZatwierdzWszystko_Click(object sender, RoutedEventArgs e)
+        {
+            // Pierwsza kontrola - wprowadzenie WSZYSTKICH niezatwierdzonych wierszy
+            string userName = Environment.UserName;
+            int zatwierdzone = 0;
+
+            foreach (var row in rozliczeniaData.Where(r => !r.Zatwierdzony))
+            {
+                row.Zatwierdzony = true;
+                row.ZatwierdzonePrzez = userName;
+                row.DataZatwierdzenia = DateTime.Now;
+                zatwierdzone++;
+            }
+
+            if (zatwierdzone > 0)
+            {
+                UpdateStatus($"Zatwierdzono wprowadzenie {zatwierdzone} wierszy przez {userName}");
+            }
+            else
+            {
+                MessageBox.Show("Wszystkie wiersze są już zatwierdzone.",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
         }
 
         private void BtnCofnijZatwierdzenie_Click(object sender, RoutedEventArgs e)
         {
-            // TODO: Implementacja cofania zatwierdzenia (wymaga uprawnień przełożonego)
-            MessageBox.Show("Cofnięcie zatwierdzenia wymaga uprawnień przełożonego.",
-                "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            // Cofnięcie pierwszej kontroli (wprowadzenie) - tylko dla niezweryfikowanych
+            int cofniete = 0;
+            foreach (var row in rozliczeniaData.Where(r => r.Zatwierdzony && !r.Zweryfikowany))
+            {
+                row.Zatwierdzony = false;
+                row.ZatwierdzonePrzez = null;
+                row.DataZatwierdzenia = null;
+                cofniete++;
+            }
+
+            if (cofniete > 0)
+            {
+                UpdateStatus($"Cofnięto zatwierdzenie wprowadzenia dla {cofniete} wierszy");
+            }
+            else
+            {
+                MessageBox.Show("Brak wierszy do cofnięcia (tylko niezweryfikowane można cofnąć).",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        // === PODWÓJNA KONTROLA: Weryfikacja przez drugiego pracownika ===
+        private void BtnWeryfikujDzien_Click(object sender, RoutedEventArgs e)
+        {
+            // Weryfikacja WYBRANYCH wierszy - wymaga najpierw zatwierdzenia wprowadzenia
+            var selectedRows = dataGridRozliczenia.SelectedItems.Cast<RozliczenieRow>()
+                .Where(r => r.Zatwierdzony && !r.Zweryfikowany).ToList();
+
+            if (selectedRows.Count == 0)
+            {
+                MessageBox.Show("Zaznacz wiersze do weryfikacji (zatwierdzone, ale niezweryfikowane).",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            string userName = Environment.UserName;
+            int weryfikowane = 0;
+            int pominieteSameOsoba = 0;
+
+            foreach (var row in selectedRows)
+            {
+                // Sprawdź czy to nie ta sama osoba co wprowadzający
+                if (row.ZatwierdzonePrzez == userName)
+                {
+                    pominieteSameOsoba++;
+                    continue;
+                }
+
+                row.Zweryfikowany = true;
+                row.ZweryfikowanePrzez = userName;
+                row.DataWeryfikacji = DateTime.Now;
+                weryfikowane++;
+            }
+
+            if (weryfikowane > 0)
+            {
+                string msg = $"Zweryfikowano {weryfikowane} wierszy przez {userName}";
+                if (pominieteSameOsoba > 0)
+                    msg += $"\nPominięto {pominieteSameOsoba} wierszy (ta sama osoba)";
+                UpdateStatus(msg);
+            }
+            else if (pominieteSameOsoba > 0)
+            {
+                MessageBox.Show($"Nie można weryfikować własnych wpisów!\n{pominieteSameOsoba} wierszy wymaga weryfikacji przez innego pracownika.",
+                    "Podwójna kontrola", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private void BtnWeryfikujWszystko_Click(object sender, RoutedEventArgs e)
+        {
+            // Weryfikacja WSZYSTKICH zatwierdzonych wierszy
+            string userName = Environment.UserName;
+            int weryfikowane = 0;
+            int pominieteSameOsoba = 0;
+
+            foreach (var row in rozliczeniaData.Where(r => r.Zatwierdzony && !r.Zweryfikowany))
+            {
+                // Sprawdź czy to nie ta sama osoba co wprowadzający
+                if (row.ZatwierdzonePrzez == userName)
+                {
+                    pominieteSameOsoba++;
+                    continue;
+                }
+
+                row.Zweryfikowany = true;
+                row.ZweryfikowanePrzez = userName;
+                row.DataWeryfikacji = DateTime.Now;
+                weryfikowane++;
+            }
+
+            if (weryfikowane > 0)
+            {
+                string msg = $"Zweryfikowano {weryfikowane} wierszy przez {userName}";
+                if (pominieteSameOsoba > 0)
+                    msg += $"\nPominięto {pominieteSameOsoba} wierszy (ta sama osoba)";
+                UpdateStatus(msg);
+            }
+            else if (pominieteSameOsoba > 0)
+            {
+                MessageBox.Show($"Nie można weryfikować własnych wpisów!\n{pominieteSameOsoba} wierszy wymaga weryfikacji przez innego pracownika.",
+                    "Podwójna kontrola", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+            {
+                MessageBox.Show("Brak wierszy do weryfikacji.\nWiersze muszą być najpierw zatwierdzone (wprowadzone).",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void BtnCofnijWeryfikacje_Click(object sender, RoutedEventArgs e)
+        {
+            // Cofnięcie weryfikacji (wymaga uprawnień)
+            var zweryfikowane = rozliczeniaData.Where(r => r.Zweryfikowany).ToList();
+            if (zweryfikowane.Count == 0)
+            {
+                MessageBox.Show("Brak zweryfikowanych wierszy do cofnięcia.",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var result = MessageBox.Show($"Czy na pewno chcesz cofnąć weryfikację dla {zweryfikowane.Count} wierszy?\nOperacja wymaga uprawnień przełożonego.",
+                "Cofnięcie weryfikacji", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                foreach (var row in zweryfikowane)
+                {
+                    row.Zweryfikowany = false;
+                    row.ZweryfikowanePrzez = null;
+                    row.DataWeryfikacji = null;
+                }
+                UpdateStatus($"Cofnięto weryfikację dla {zweryfikowane.Count} wierszy");
+            }
         }
 
         private void BtnExportSymfonia_Click(object sender, RoutedEventArgs e)
@@ -5852,19 +7237,854 @@ namespace Kalendarz1
 
         #endregion
 
+        #region Płachta Tab Handlers
+
+        private void LoadPlachtaData()
+        {
+            try
+            {
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+                plachtaData.Clear();
+
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Pobierz dane z FarmerCalc - takie same kolumny jak Panel Lekarza
+                    string query = @"
+                        SELECT
+                            fc.ID,
+                            ISNULL(fc.CarLp, 0) as CarLp,
+                            ISNULL(fc.Number, 0) as NrSpec,
+                            ISNULL(fc.CustomerGID, '') as CustomerGID,
+                            (SELECT TOP 1 ShortName FROM dbo.Dostawcy WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(fc.CustomerGID))) as HodowcaNazwa,
+                            (SELECT TOP 1 ISNULL(Address, '') + ', ' + ISNULL(PostalCode, '') + ' ' + ISNULL(City, '')
+                             FROM dbo.Dostawcy WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(fc.CustomerGID))) as Adres,
+                            ISNULL(fc.VetComment, '') as BadaniaSalmonella,
+                            ISNULL(fc.VetNo, '') as NrSwZdrowia,
+                            (SELECT TOP 1 AnimNo FROM dbo.Dostawcy WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(fc.CustomerGID))) as NrGospodarstwa,
+                            ISNULL(fc.DeclI1, 0) as IloscDek,
+                            ISNULL(fc.CarID, '') as Ciagnik,
+                            ISNULL(fc.TrailerID, '') as Naczepa,
+                            ISNULL(fc.DeclI2, 0) as Padle,
+                            ISNULL(fc.DeclI3, 0) as CH,
+                            ISNULL(fc.DeclI4, 0) as NW,
+                            ISNULL(fc.DeclI5, 0) as ZM
+                        FROM dbo.FarmerCalc fc
+                        WHERE fc.CalcDate = @CalcDate
+                        ORDER BY fc.CarLp, fc.ID";
+
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@CalcDate", selectedDate.Date);
+
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            int lpCounter = 1;
+                            while (reader.Read())
+                            {
+                                string hodowca = reader["HodowcaNazwa"] != DBNull.Value ? reader["HodowcaNazwa"].ToString() : "";
+                                string customerGID = reader["CustomerGID"] != DBNull.Value ? reader["CustomerGID"].ToString() : "";
+
+                                if (string.IsNullOrEmpty(hodowca))
+                                {
+                                    hodowca = string.IsNullOrEmpty(customerGID) ? "Nieprzypisany" : $"ID: {customerGID}";
+                                }
+
+                                plachtaData.Add(new PlachtaRow
+                                {
+                                    ID = reader["ID"] != DBNull.Value ? Convert.ToInt32(reader["ID"]) : 0,
+                                    Lp = lpCounter++,
+                                    NrSpec = reader["NrSpec"] != DBNull.Value ? Convert.ToInt32(reader["NrSpec"]) : 0,
+                                    Hodowca = hodowca,
+                                    Adres = reader["Adres"] != DBNull.Value ? reader["Adres"].ToString().Trim() : "",
+                                    BadaniaSalmonella = reader["BadaniaSalmonella"] != DBNull.Value ? reader["BadaniaSalmonella"].ToString() : "",
+                                    NrSwZdrowia = reader["NrSwZdrowia"] != DBNull.Value ? reader["NrSwZdrowia"].ToString() : "",
+                                    NrGospodarstwa = reader["NrGospodarstwa"] != DBNull.Value ? reader["NrGospodarstwa"].ToString() : "",
+                                    IloscDek = reader["IloscDek"] != DBNull.Value ? Convert.ToInt32(reader["IloscDek"]) : 0,
+                                    Ciagnik = reader["Ciagnik"] != DBNull.Value ? reader["Ciagnik"].ToString() : "",
+                                    Naczepa = reader["Naczepa"] != DBNull.Value ? reader["Naczepa"].ToString() : "",
+                                    Padle = reader["Padle"] != DBNull.Value ? Convert.ToInt32(reader["Padle"]) : 0,
+                                    KodHodowcy = customerGID,
+                                    Chore = reader["CH"] != DBNull.Value ? Convert.ToInt32(reader["CH"]) : 0,
+                                    NW = reader["NW"] != DBNull.Value ? Convert.ToInt32(reader["NW"]) : 0,
+                                    ZM = reader["ZM"] != DBNull.Value ? Convert.ToInt32(reader["ZM"]) : 0,
+                                    CustomerGID = 0
+                                });
+                            }
+                        }
+                    }
+                }
+
+                dataGridPlachta.ItemsSource = plachtaData;
+                UpdatePlachtaSummary();
+                UpdateStatus($"Płachta: załadowano {plachtaData.Count} rekordów dla {selectedDate:yyyy-MM-dd}");
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Błąd ładowania płachty: {ex.Message}");
+            }
+        }
+
+        private void UpdatePlachtaSummary()
+        {
+            lblPlachtaWierszy.Text = plachtaData.Count.ToString();
+            lblPlachtaSumaPadle.Text = plachtaData.Sum(r => r.Padle).ToString();
+            lblPlachtaSumaCH.Text = plachtaData.Sum(r => r.Chore).ToString();
+            lblPlachtaSumaNW.Text = plachtaData.Sum(r => r.NW).ToString();
+            lblPlachtaSumaZM.Text = plachtaData.Sum(r => r.ZM).ToString();
+        }
+
+        private void BtnPlachtaMoveUp_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridPlachta.SelectedItem is PlachtaRow selectedPlachtaRow)
+            {
+                int index = plachtaData.IndexOf(selectedPlachtaRow);
+                if (index > 0)
+                {
+                    plachtaData.Move(index, index - 1);
+                    UpdatePlachtaLpNumbers();
+                    dataGridPlachta.SelectedItem = selectedPlachtaRow;
+
+                    // Synchronizuj z specyfikacjeData i Transport
+                    SyncSpecyfikacjeOrderFromPlachta();
+                    RefreshTransportFromSpecyfikacje();
+                }
+            }
+        }
+
+        private void BtnPlachtaMoveDown_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridPlachta.SelectedItem is PlachtaRow selectedPlachtaRow)
+            {
+                int index = plachtaData.IndexOf(selectedPlachtaRow);
+                if (index < plachtaData.Count - 1)
+                {
+                    plachtaData.Move(index, index + 1);
+                    UpdatePlachtaLpNumbers();
+                    dataGridPlachta.SelectedItem = selectedPlachtaRow;
+
+                    // Synchronizuj z specyfikacjeData i Transport
+                    SyncSpecyfikacjeOrderFromPlachta();
+                    RefreshTransportFromSpecyfikacje();
+                }
+            }
+        }
+
+        private void UpdatePlachtaLpNumbers()
+        {
+            for (int i = 0; i < plachtaData.Count; i++)
+            {
+                plachtaData[i].Lp = i + 1;
+            }
+        }
+
+        /// <summary>
+        /// Synchronizuje kolejność specyfikacjeData na podstawie kolejności plachtaData
+        /// </summary>
+        private void SyncSpecyfikacjeOrderFromPlachta()
+        {
+            if (specyfikacjeData == null || plachtaData == null)
+                return;
+
+            // Stwórz mapę ID -> pozycja z plachtaData
+            var newOrder = plachtaData.Select((p, idx) => new { p.ID, Index = idx }).ToList();
+
+            // Posortuj specyfikacjeData według nowej kolejności
+            var orderedSpecs = specyfikacjeData
+                .OrderBy(s => newOrder.FirstOrDefault(o => o.ID == s.ID)?.Index ?? int.MaxValue)
+                .ToList();
+
+            // Zastąp kolekcję
+            specyfikacjeData.Clear();
+            foreach (var spec in orderedSpecs)
+            {
+                specyfikacjeData.Add(spec);
+            }
+            UpdateRowNumbers();
+        }
+
+        private void BtnPlachtaRefresh_Click(object sender, RoutedEventArgs e)
+        {
+            LoadPlachtaData();
+        }
+
+        private void BtnPlachtaSaveOrder_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Zapisz nową kolejność (CarLp) i dane oceny dla każdego wiersza
+                    foreach (var row in plachtaData)
+                    {
+                        string updateQuery = @"
+                            UPDATE dbo.FarmerCalc
+                            SET CarLp = @CarLp,
+                                DeclI2 = @Padle,
+                                DeclI3 = @Chore,
+                                DeclI4 = @NW,
+                                DeclI5 = @ZM
+                            WHERE ID = @ID";
+
+                        using (SqlCommand cmd = new SqlCommand(updateQuery, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@CarLp", row.Lp);
+                            cmd.Parameters.AddWithValue("@Padle", row.Padle);
+                            cmd.Parameters.AddWithValue("@Chore", row.Chore);
+                            cmd.Parameters.AddWithValue("@NW", row.NW);
+                            cmd.Parameters.AddWithValue("@ZM", row.ZM);
+                            cmd.Parameters.AddWithValue("@ID", row.ID);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                }
+
+                UpdateStatus("Zapisano kolejność i dane płachty");
+                MessageBox.Show("Kolejność i dane zostały zapisane.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Odśwież wszystkie karty
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+                LoadData(selectedDate);  // Odśwież Specyfikacje
+                LoadRozliczeniaData();   // Odśwież Rozliczenia
+                LoadPlachtaData();       // Odśwież Płachtę
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd zapisu: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnPlachtaStatus_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.DataContext is PlachtaRow row)
+            {
+                row.Status = !row.Status;
+                btn.Content = row.Status ? "✓" : "OK";
+                btn.Background = row.Status ? new SolidColorBrush(Color.FromRgb(46, 125, 50)) : new SolidColorBrush(Color.FromRgb(39, 174, 96));
+            }
+        }
+
+        private void BtnPlachtaPasteNrGosp_Click(object sender, RoutedEventArgs e)
+        {
+            var selectedRow = dataGridPlachta.SelectedItem as PlachtaRow;
+            if (selectedRow == null)
+            {
+                MessageBox.Show("Najpierw zaznacz wiersz z którego chcesz skopiować NR GOSP.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(selectedRow.NrGospodarstwa))
+            {
+                MessageBox.Show("Zaznaczony wiersz nie ma wypełnionego NR GOSP.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            string hodowcaNazwa = selectedRow.Hodowca;
+            string nrGosp = selectedRow.NrGospodarstwa;
+            string customerGID = selectedRow.KodHodowcy;
+
+            // Znajdź wszystkie wiersze z tym samym hodowcą
+            var wierszeTegSamegoHodowcy = plachtaData.Where(r => r.Hodowca == hodowcaNazwa && r.ID != selectedRow.ID).ToList();
+
+            if (wierszeTegSamegoHodowcy.Count == 0)
+            {
+                MessageBox.Show($"Nie znaleziono innych wierszy z hodowcą: {hodowcaNazwa}", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var result = MessageBox.Show(
+                $"Czy chcesz wkleić NR GOSP '{nrGosp}' do {wierszeTegSamegoHodowcy.Count} innych wierszy hodowcy '{hodowcaNazwa}'?\n\n" +
+                $"Dodatkowo zapisać ten numer na stałe do bazy danych hodowcy?",
+                "Potwierdzenie",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Cancel)
+                return;
+
+            // Wklej do wszystkich wierszy
+            foreach (var row in wierszeTegSamegoHodowcy)
+            {
+                row.NrGospodarstwa = nrGosp;
+            }
+
+            UpdateStatus($"Wklejono NR GOSP do {wierszeTegSamegoHodowcy.Count} wierszy");
+
+            // Jeśli użytkownik chce zapisać na stałe do bazy dostawców
+            if (result == MessageBoxResult.Yes && !string.IsNullOrWhiteSpace(customerGID))
+            {
+                try
+                {
+                    using (SqlConnection conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+                        string updateQuery = "UPDATE dbo.Dostawcy SET AnimNo = @AnimNo WHERE LTRIM(RTRIM(ID)) = @CustomerGID";
+                        using (SqlCommand cmd = new SqlCommand(updateQuery, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@AnimNo", nrGosp);
+                            cmd.Parameters.AddWithValue("@CustomerGID", customerGID.Trim());
+                            int affected = cmd.ExecuteNonQuery();
+
+                            if (affected > 0)
+                            {
+                                MessageBox.Show($"NR GOSP '{nrGosp}' został zapisany do bazy danych hodowcy '{hodowcaNazwa}'.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                            }
+                            else
+                            {
+                                MessageBox.Show($"Nie udało się zapisać do bazy dostawców (CustomerGID: {customerGID}).", "Ostrzeżenie", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd zapisu do bazy dostawców:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            else
+            {
+                MessageBox.Show($"NR GOSP został wklejony do {wierszeTegSamegoHodowcy.Count} wierszy.\nAby zapisać na stałe, kliknij 'Zapisz zmiany'.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void BtnPlachtaPrint_Click(object sender, RoutedEventArgs e)
+        {
+            if (plachtaData.Count == 0)
+            {
+                MessageBox.Show("Brak danych do wydruku!", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                PrintDocument printDoc = new PrintDocument();
+                printDoc.PrintPage += PlachtaPrintDoc_PrintPage;
+
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+                printDoc.DocumentName = $"Plachta_{selectedDate:yyyy-MM-dd}";
+
+                // Ustawienie orientacji poziomej
+                printDoc.DefaultPageSettings.Landscape = true;
+
+                System.Windows.Controls.PrintDialog printDialog = new System.Windows.Controls.PrintDialog();
+                if (printDialog.ShowDialog() == true)
+                {
+                    printDoc.PrinterSettings.PrinterName = printDialog.PrintQueue.Name;
+                    printDoc.Print();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd drukowania:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void PlachtaPrintDoc_PrintPage(object sender, PrintPageEventArgs e)
+        {
+            System.Drawing.Graphics g = e.Graphics;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+            DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+            float pageWidth = e.PageBounds.Width;
+            float pageHeight = e.PageBounds.Height;
+            float leftMargin = 8;
+            float rightMargin = pageWidth - 8;
+            float tableWidth = rightMargin - leftMargin;
+            float y = 12;
+
+            // Czcionki
+            System.Drawing.Font fontTitle = new System.Drawing.Font("Arial", 16, System.Drawing.FontStyle.Bold);
+            System.Drawing.Font fontDate = new System.Drawing.Font("Arial", 14, System.Drawing.FontStyle.Bold);
+            System.Drawing.Font fontHeader = new System.Drawing.Font("Arial", 8, System.Drawing.FontStyle.Bold);
+            System.Drawing.Font fontKonfiskaty = new System.Drawing.Font("Arial", 7, System.Drawing.FontStyle.Bold);
+            System.Drawing.Font fontData = new System.Drawing.Font("Arial", 9);
+            System.Drawing.Font fontDataBold = new System.Drawing.Font("Arial", 9, System.Drawing.FontStyle.Bold);
+            System.Drawing.Font fontSummary = new System.Drawing.Font("Arial", 11, System.Drawing.FontStyle.Bold);
+
+            System.Drawing.SolidBrush brushBlack = new System.Drawing.SolidBrush(System.Drawing.Color.Black);
+            System.Drawing.SolidBrush brushGray = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(60, 60, 60));
+            System.Drawing.SolidBrush brushHeaderBg = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(200, 200, 200));
+            System.Drawing.SolidBrush brushAltRow = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(240, 240, 240));
+            System.Drawing.Pen penThick = new System.Drawing.Pen(System.Drawing.Color.Black, 2f);
+            System.Drawing.Pen penMedium = new System.Drawing.Pen(System.Drawing.Color.Black, 1f);
+            System.Drawing.Pen penThin = new System.Drawing.Pen(System.Drawing.Color.FromArgb(80, 80, 80), 0.5f);
+
+            // Nagłówek
+            string[] dniTygodnia = { "NIEDZIELA", "PONIEDZIAŁEK", "WTOREK", "ŚRODA", "CZWARTEK", "PIĄTEK", "SOBOTA" };
+            string dzienTygodnia = dniTygodnia[(int)selectedDate.DayOfWeek];
+
+            g.DrawString("PŁACHTA - OCENA DOBROSTANU", fontTitle, brushBlack, leftMargin, y);
+            g.DrawString($"{selectedDate:dd}. {selectedDate:MMMM} {selectedDate:yyyy} - {dzienTygodnia}", fontDate, brushBlack, leftMargin + 320, y + 3);
+
+            y += 34;
+
+            // Tabela - 15 kolumn
+            // LP, NR, HODOWCA, ADRES, SALMONELLA, NR.ŚW.ZDR, NR GOSP, SZT.DEK, CIĄGNIK, NACZEPA, PADŁE, KOD, CH, NW, ZM
+            float[] colPercent = { 2.5f, 3f, 13f, 14f, 7f, 6f, 7f, 5f, 7f, 7f, 5f, 5f, 4.5f, 4.5f, 4.5f };
+            float[] colWidths = new float[colPercent.Length];
+            for (int i = 0; i < colPercent.Length; i++)
+            {
+                colWidths[i] = tableWidth * colPercent[i] / 100f;
+            }
+
+            float[] colX = new float[colWidths.Length];
+            colX[0] = leftMargin;
+            for (int i = 1; i < colWidths.Length; i++)
+            {
+                colX[i] = colX[i - 1] + colWidths[i - 1];
+            }
+
+            // Nagłówki
+            string[] headers = { "LP", "NR", "HODOWCA", "ADRES", "SALMON.", "ŚW.ZDR", "NR GOSP", "SZT", "CIĄGNIK", "NACZEPA", "PADŁE", "KOD", "CH", "NW", "ZM" };
+
+            // Nagłówek tabeli
+            float headerHeight = 28;
+            g.FillRectangle(brushHeaderBg, leftMargin, y, tableWidth, headerHeight);
+            g.DrawRectangle(penThick, leftMargin, y, tableWidth, headerHeight);
+
+            float headerTextY = y + 8;
+
+            for (int i = 0; i < headers.Length; i++)
+            {
+                if (i > 0)
+                    g.DrawLine(penMedium, colX[i], y, colX[i], y + headerHeight);
+
+                System.Drawing.SizeF textSize = g.MeasureString(headers[i], fontHeader);
+                float textX = colX[i] + (colWidths[i] - textSize.Width) / 2;
+                g.DrawString(headers[i], fontHeader, brushBlack, textX, headerTextY);
+            }
+
+            y += headerHeight;
+
+            // Oblicz wysokość wiersza
+            float availableHeight = pageHeight - y - 60;
+            float rowHeight = availableHeight / plachtaData.Count;
+            if (rowHeight > 30) rowHeight = 30;
+            if (rowHeight < 18) rowHeight = 18;
+
+            // Dane wierszy
+            int sumaPadle = 0, sumaCH = 0, sumaNW = 0, sumaZM = 0;
+            int sumaIlosc = 0;
+            int rowIndex = 0;
+
+            foreach (var d in plachtaData)
+            {
+                if (y > pageHeight - 60)
+                    break;
+
+                // Naprzemienne tło
+                if (rowIndex % 2 == 1)
+                {
+                    g.FillRectangle(brushAltRow, leftMargin + 1, y + 1, tableWidth - 2, rowHeight - 1);
+                }
+
+                float textY = y + (rowHeight - 12) / 2;
+
+                // LP
+                DrawPlachtaCenteredText(g, d.Lp.ToString(), fontDataBold, brushBlack, colX[0], colWidths[0], textY);
+
+                // NR SPEC
+                DrawPlachtaCenteredText(g, d.NrSpec.ToString(), fontDataBold, brushBlack, colX[1], colWidths[1], textY);
+
+                // HODOWCA
+                string hodowca = d.Hodowca ?? "-";
+                if (hodowca.Length > 20) hodowca = hodowca.Substring(0, 18) + "..";
+                g.DrawString(hodowca, fontData, brushBlack, colX[2] + 3, textY);
+
+                // ADRES
+                string adres = d.Adres ?? "-";
+                if (adres.Length > 25) adres = adres.Substring(0, 23) + "..";
+                g.DrawString(adres, fontData, brushGray, colX[3] + 3, textY);
+
+                // SALMONELLA
+                string salmonella = d.BadaniaSalmonella ?? "";
+                if (salmonella.Length > 10) salmonella = salmonella.Substring(0, 8) + "..";
+                DrawPlachtaCenteredText(g, salmonella, fontData, brushGray, colX[4], colWidths[4], textY);
+
+                // NR ŚW. ZDROWIA
+                DrawPlachtaCenteredText(g, d.NrSwZdrowia ?? "", fontData, brushGray, colX[5], colWidths[5], textY);
+
+                // NR GOSPODARSTWA
+                DrawPlachtaCenteredText(g, d.NrGospodarstwa ?? "", fontDataBold, brushBlack, colX[6], colWidths[6], textY);
+
+                // SZT.DEK
+                DrawPlachtaCenteredText(g, d.IloscDek.ToString(), fontDataBold, brushBlack, colX[7], colWidths[7], textY);
+
+                // CIĄGNIK
+                DrawPlachtaCenteredText(g, d.Ciagnik ?? "", fontData, brushGray, colX[8], colWidths[8], textY);
+
+                // NACZEPA
+                DrawPlachtaCenteredText(g, d.Naczepa ?? "", fontData, brushGray, colX[9], colWidths[9], textY);
+
+                // PADŁE
+                string padleText = d.Padle > 0 ? d.Padle.ToString() : "-";
+                DrawPlachtaCenteredText(g, padleText, fontDataBold, brushBlack, colX[10], colWidths[10], textY);
+
+                // KOD HODOWCY
+                DrawPlachtaCenteredText(g, d.KodHodowcy ?? "", fontData, brushGray, colX[11], colWidths[11], textY);
+
+                // CH
+                string chText = d.Chore > 0 ? d.Chore.ToString() : "-";
+                DrawPlachtaCenteredText(g, chText, fontDataBold, brushBlack, colX[12], colWidths[12], textY);
+
+                // NW
+                string nwText = d.NW > 0 ? d.NW.ToString() : "-";
+                DrawPlachtaCenteredText(g, nwText, fontDataBold, brushBlack, colX[13], colWidths[13], textY);
+
+                // ZM
+                string zmText = d.ZM > 0 ? d.ZM.ToString() : "-";
+                DrawPlachtaCenteredText(g, zmText, fontDataBold, brushBlack, colX[14], colWidths[14], textY);
+
+                // Linie pionowe
+                for (int i = 1; i < colWidths.Length; i++)
+                {
+                    g.DrawLine(penThin, colX[i], y, colX[i], y + rowHeight);
+                }
+
+                // Linia pozioma dolna
+                g.DrawLine(penThin, leftMargin, y + rowHeight, rightMargin, y + rowHeight);
+
+                // Sumowanie
+                sumaPadle += d.Padle;
+                sumaCH += d.Chore;
+                sumaNW += d.NW;
+                sumaZM += d.ZM;
+                sumaIlosc += d.IloscDek;
+
+                y += rowHeight;
+                rowIndex++;
+            }
+
+            // Ramka zewnętrzna tabeli danych
+            float tableStartY = y - (rowIndex * rowHeight) - headerHeight;
+            g.DrawRectangle(penThick, leftMargin, tableStartY, tableWidth, (rowIndex * rowHeight) + headerHeight);
+
+            // Wiersz sumy
+            float sumRowHeight = 30;
+            g.FillRectangle(brushHeaderBg, leftMargin, y, tableWidth, sumRowHeight);
+            g.DrawRectangle(penThick, leftMargin, y, tableWidth, sumRowHeight);
+
+            float sumTextY = y + 8;
+
+            g.DrawString("SUMA:", fontSummary, brushBlack, colX[2] + 4, sumTextY);
+
+            DrawPlachtaCenteredText(g, sumaIlosc.ToString(), fontSummary, brushBlack, colX[7], colWidths[7], sumTextY);
+            DrawPlachtaCenteredText(g, sumaPadle.ToString(), fontSummary, brushBlack, colX[10], colWidths[10], sumTextY);
+            DrawPlachtaCenteredText(g, sumaCH.ToString(), fontSummary, brushBlack, colX[12], colWidths[12], sumTextY);
+            DrawPlachtaCenteredText(g, sumaNW.ToString(), fontSummary, brushBlack, colX[13], colWidths[13], sumTextY);
+            DrawPlachtaCenteredText(g, sumaZM.ToString(), fontSummary, brushBlack, colX[14], colWidths[14], sumTextY);
+
+            // Linie pionowe sumy
+            for (int i = 1; i < colWidths.Length; i++)
+            {
+                g.DrawLine(penMedium, colX[i], y, colX[i], y + sumRowHeight);
+            }
+
+            // Cleanup
+            fontTitle.Dispose();
+            fontDate.Dispose();
+            fontHeader.Dispose();
+            fontKonfiskaty.Dispose();
+            fontData.Dispose();
+            fontDataBold.Dispose();
+            fontSummary.Dispose();
+            brushBlack.Dispose();
+            brushGray.Dispose();
+            brushHeaderBg.Dispose();
+            brushAltRow.Dispose();
+            penThick.Dispose();
+            penMedium.Dispose();
+            penThin.Dispose();
+
+            e.HasMorePages = false;
+        }
+
+        private void DrawPlachtaCenteredText(System.Drawing.Graphics g, string text, System.Drawing.Font font, System.Drawing.SolidBrush brush, float x, float width, float y)
+        {
+            System.Drawing.SizeF size = g.MeasureString(text, font);
+            g.DrawString(text, font, brush, x + (width - size.Width) / 2, y);
+        }
+
+        private void BtnPlachtaOpenFolder_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                // Użyj domyślnej ścieżki zapisu płacht
+                string basePath = defaultPlachtaPath;
+
+                // Utwórz ścieżkę dla dnia (rok/miesiąc/dzień)
+                string yearFolder = selectedDate.Year.ToString();
+                string monthFolder = selectedDate.Month.ToString("D2");
+                string dayFolder = selectedDate.Day.ToString("D2");
+
+                string folderPath = Path.Combine(basePath, yearFolder, monthFolder, dayFolder);
+
+                // Jeśli folder nie istnieje, spróbuj samą bazową ścieżkę
+                if (!Directory.Exists(folderPath))
+                {
+                    // Spróbuj bez dnia
+                    folderPath = Path.Combine(basePath, yearFolder, monthFolder);
+
+                    if (!Directory.Exists(folderPath))
+                    {
+                        // Spróbuj bazową ścieżkę
+                        folderPath = basePath;
+
+                        if (!Directory.Exists(folderPath))
+                        {
+                            MessageBox.Show($"Folder płacht nie istnieje:\n{basePath}\n\nUstaw folder w ustawieniach.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                            return;
+                        }
+                    }
+                }
+
+                Process.Start("explorer.exe", folderPath);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania folderu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnPlachtaSavePdf_Click(object sender, RoutedEventArgs e)
+        {
+            if (plachtaData.Count == 0)
+            {
+                MessageBox.Show("Brak danych do zapisania!", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                // Utwórz ścieżkę dla pliku
+                string yearFolder = selectedDate.Year.ToString();
+                string monthFolder = selectedDate.Month.ToString("D2");
+                string dayFolder = selectedDate.Day.ToString("D2");
+
+                string folderPath = Path.Combine(defaultPlachtaPath, yearFolder, monthFolder, dayFolder);
+
+                // Utwórz folder jeśli nie istnieje
+                if (!Directory.Exists(folderPath))
+                {
+                    Directory.CreateDirectory(folderPath);
+                }
+
+                string fileName = $"Plachta_{selectedDate:yyyy-MM-dd}_{DateTime.Now:HHmmss}.pdf";
+                string filePath = Path.Combine(folderPath, fileName);
+
+                // Utwórz PDF z iTextSharp
+                using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    Document doc = new Document(PageSize.A4.Rotate(), 20, 20, 20, 20);
+                    PdfWriter writer = PdfWriter.GetInstance(doc, fs);
+                    doc.Open();
+
+                    // Tytuł
+                    string[] dniTygodnia = { "NIEDZIELA", "PONIEDZIAŁEK", "WTOREK", "ŚRODA", "CZWARTEK", "PIĄTEK", "SOBOTA" };
+                    string dzienTygodnia = dniTygodnia[(int)selectedDate.DayOfWeek];
+
+                    BaseFont bf = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1250, BaseFont.NOT_EMBEDDED);
+                    iTextSharp.text.Font fontTitle = new iTextSharp.text.Font(bf, 16, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontHeader = new iTextSharp.text.Font(bf, 8, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontData = new iTextSharp.text.Font(bf, 8);
+                    iTextSharp.text.Font fontDataBold = new iTextSharp.text.Font(bf, 8, iTextSharp.text.Font.BOLD);
+
+                    Paragraph title = new Paragraph($"PŁACHTA - OCENA DOBROSTANU    {selectedDate:dd.MM.yyyy} - {dzienTygodnia}", fontTitle);
+                    title.SpacingAfter = 15;
+                    doc.Add(title);
+
+                    // Tabela
+                    PdfPTable table = new PdfPTable(15);
+                    table.WidthPercentage = 100;
+                    float[] widths = { 3f, 3f, 12f, 14f, 7f, 6f, 7f, 5f, 7f, 7f, 5f, 5f, 4.5f, 4.5f, 4.5f };
+                    table.SetWidths(widths);
+
+                    // Nagłówki
+                    string[] headers = { "LP", "NR", "HODOWCA", "ADRES", "SALMON.", "ŚW.ZDR", "NR GOSP", "SZT", "CIĄGNIK", "NACZEPA", "PADŁE", "KOD", "CH", "NW", "ZM" };
+                    foreach (var h in headers)
+                    {
+                        PdfPCell cell = new PdfPCell(new Phrase(h, fontHeader));
+                        cell.BackgroundColor = new BaseColor(200, 200, 200);
+                        cell.HorizontalAlignment = Element.ALIGN_CENTER;
+                        cell.Padding = 4;
+                        table.AddCell(cell);
+                    }
+
+                    // Dane
+                    int sumaPadle = 0, sumaCH = 0, sumaNW = 0, sumaZM = 0, sumaIlosc = 0;
+
+                    foreach (var d in plachtaData)
+                    {
+                        table.AddCell(new PdfPCell(new Phrase(d.Lp.ToString(), fontDataBold)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(d.NrSpec.ToString(), fontDataBold)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(d.Hodowca ?? "-", fontData)));
+                        table.AddCell(new PdfPCell(new Phrase(d.Adres ?? "-", fontData)));
+                        table.AddCell(new PdfPCell(new Phrase(d.BadaniaSalmonella ?? "", fontData)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(d.NrSwZdrowia ?? "", fontData)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(d.NrGospodarstwa ?? "", fontDataBold)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(d.IloscDek.ToString(), fontDataBold)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(d.Ciagnik ?? "", fontData)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(d.Naczepa ?? "", fontData)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(d.Padle > 0 ? d.Padle.ToString() : "-", fontDataBold)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(d.KodHodowcy ?? "", fontData)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(d.Chore > 0 ? d.Chore.ToString() : "-", fontDataBold)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(d.NW > 0 ? d.NW.ToString() : "-", fontDataBold)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(d.ZM > 0 ? d.ZM.ToString() : "-", fontDataBold)) { HorizontalAlignment = Element.ALIGN_CENTER });
+
+                        sumaPadle += d.Padle;
+                        sumaCH += d.Chore;
+                        sumaNW += d.NW;
+                        sumaZM += d.ZM;
+                        sumaIlosc += d.IloscDek;
+                    }
+
+                    // Wiersz sumy
+                    PdfPCell sumaCell = new PdfPCell(new Phrase("SUMA:", fontHeader));
+                    sumaCell.Colspan = 7;
+                    sumaCell.BackgroundColor = new BaseColor(200, 200, 200);
+                    sumaCell.HorizontalAlignment = Element.ALIGN_RIGHT;
+                    sumaCell.Padding = 4;
+                    table.AddCell(sumaCell);
+
+                    table.AddCell(new PdfPCell(new Phrase(sumaIlosc.ToString(), fontHeader)) { BackgroundColor = new BaseColor(200, 200, 200), HorizontalAlignment = Element.ALIGN_CENTER });
+                    table.AddCell(new PdfPCell(new Phrase("", fontHeader)) { BackgroundColor = new BaseColor(200, 200, 200) });
+                    table.AddCell(new PdfPCell(new Phrase("", fontHeader)) { BackgroundColor = new BaseColor(200, 200, 200) });
+                    table.AddCell(new PdfPCell(new Phrase(sumaPadle.ToString(), fontHeader)) { BackgroundColor = new BaseColor(200, 200, 200), HorizontalAlignment = Element.ALIGN_CENTER });
+                    table.AddCell(new PdfPCell(new Phrase("", fontHeader)) { BackgroundColor = new BaseColor(200, 200, 200) });
+                    table.AddCell(new PdfPCell(new Phrase(sumaCH.ToString(), fontHeader)) { BackgroundColor = new BaseColor(200, 200, 200), HorizontalAlignment = Element.ALIGN_CENTER });
+                    table.AddCell(new PdfPCell(new Phrase(sumaNW.ToString(), fontHeader)) { BackgroundColor = new BaseColor(200, 200, 200), HorizontalAlignment = Element.ALIGN_CENTER });
+                    table.AddCell(new PdfPCell(new Phrase(sumaZM.ToString(), fontHeader)) { BackgroundColor = new BaseColor(200, 200, 200), HorizontalAlignment = Element.ALIGN_CENTER });
+
+                    doc.Add(table);
+                    doc.Close();
+                }
+
+                UpdateStatus($"Zapisano PDF: {fileName}");
+                MessageBox.Show($"Płachta została zapisana:\n{filePath}", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd zapisywania PDF:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnPlachtaFolderSettings_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new System.Windows.Forms.FolderBrowserDialog
+            {
+                Description = "Wybierz folder do zapisywania płacht PDF",
+                ShowNewFolderButton = true,
+                SelectedPath = defaultPlachtaPath
+            };
+
+            if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                defaultPlachtaPath = dialog.SelectedPath;
+                SavePlachtaFolderSetting();
+                MessageBox.Show($"Folder płacht ustawiony na:\n{defaultPlachtaPath}", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void SavePlachtaFolderSetting()
+        {
+            EnsureSettingsTableExists();
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string user = Environment.UserName;
+
+                    string mergeSql = @"
+                        MERGE FarmerCalcSettings AS target
+                        USING (SELECT 'DefaultPlachtaPath' AS SettingName) AS source
+                        ON target.SettingName = source.SettingName
+                        WHEN MATCHED THEN UPDATE SET SettingValue = @Value, ModifiedDate = GETDATE(), ModifiedBy = @User
+                        WHEN NOT MATCHED THEN INSERT (SettingName, SettingValue, ModifiedBy) VALUES ('DefaultPlachtaPath', @Value, @User);";
+
+                    using (SqlCommand cmd = new SqlCommand(mergeSql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Value", defaultPlachtaPath);
+                        cmd.Parameters.AddWithValue("@User", user);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error saving plachta folder: {ex.Message}");
+            }
+        }
+
+        private void BtnOpenPdfFolder_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                // Użyj domyślnej ścieżki zapisu specyfikacji
+                string basePath = defaultPdfPath;
+
+                // Utwórz ścieżkę dla dnia (rok/miesiąc/dzień)
+                string yearFolder = selectedDate.Year.ToString();
+                string monthFolder = selectedDate.Month.ToString("D2");
+                string dayFolder = selectedDate.Day.ToString("D2");
+
+                string folderPath = Path.Combine(basePath, yearFolder, monthFolder, dayFolder);
+
+                // Jeśli folder nie istnieje, spróbuj samą bazową ścieżkę
+                if (!Directory.Exists(folderPath))
+                {
+                    folderPath = Path.Combine(basePath, yearFolder, monthFolder);
+
+                    if (!Directory.Exists(folderPath))
+                    {
+                        folderPath = basePath;
+
+                        if (!Directory.Exists(folderPath))
+                        {
+                            MessageBox.Show($"Folder specyfikacji nie istnieje:\n{basePath}", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                            return;
+                        }
+                    }
+                }
+
+                Process.Start("explorer.exe", folderPath);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania folderu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        #endregion
+
         #region Admin Panel
 
         private int _dniBlokady = 3;
-        private List<string> _przelozeni = new List<string> { "admin", "kierownik" };
+        private List<string> _przelozeni = new List<string> { "11111" }; // Domyślny admin UserID
         private Dictionary<DateTime, bool> _odblokowaneDni = new Dictionary<DateTime, bool>();
+
+        private bool IsCurrentUserAdmin()
+        {
+            string currentUserId = App.UserID ?? "";
+            return _przelozeni.Any(p => p == currentUserId);
+        }
 
         private void BtnAdmin_Click(object sender, RoutedEventArgs e)
         {
-            // Sprawdź czy użytkownik ma uprawnienia
-            string currentUser = Environment.UserName.ToLower();
-            if (!_przelozeni.Any(p => p.ToLower() == currentUser))
+            // Sprawdź czy użytkownik ma uprawnienia (po UserID)
+            if (!IsCurrentUserAdmin())
             {
-                MessageBox.Show("Brak uprawnień do panelu administracyjnego.\nSkontaktuj się z przełożonym.",
+                MessageBox.Show($"Brak uprawnień do panelu administracyjnego.\nTwój UserID: {App.UserID ?? "nieznany"}\nSkontaktuj się z przełożonym.",
                     "Brak dostępu", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -5886,6 +8106,21 @@ namespace Kalendarz1
             adminPanel.Visibility = Visibility.Collapsed;
         }
 
+        private void BtnBrowsePdfPath_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new System.Windows.Forms.FolderBrowserDialog
+            {
+                Description = "Wybierz folder do zapisywania specyfikacji PDF",
+                ShowNewFolderButton = true,
+                SelectedPath = txtDefaultPdfPath.Text
+            };
+
+            if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                txtDefaultPdfPath.Text = dialog.SelectedPath;
+            }
+        }
+
         private void BtnSaveAdminSettings_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -5901,6 +8136,15 @@ namespace Kalendarz1
                     .Select(p => p.Trim())
                     .Where(p => !string.IsNullOrEmpty(p))
                     .ToList();
+
+                // Pobierz ścieżkę PDF
+                if (!string.IsNullOrWhiteSpace(txtDefaultPdfPath.Text))
+                {
+                    defaultPdfPath = txtDefaultPdfPath.Text.Trim();
+                }
+
+                // Pobierz tryb kolorów PDF
+                _pdfCzarnoBialy = rbPdfCzarnoBialy.IsChecked == true;
 
                 // Zapisz do bazy
                 SaveAdminSettings();
@@ -5971,9 +8215,8 @@ namespace Kalendarz1
             int dniOdDostawy = (DateTime.Today - calcDate).Days;
             if (dniOdDostawy > _dniBlokady)
             {
-                // Sprawdź czy użytkownik jest przełożonym
-                string currentUser = Environment.UserName.ToLower();
-                return _przelozeni.Any(p => p.ToLower() == currentUser);
+                // Sprawdź czy użytkownik jest przełożonym (po UserID)
+                return IsCurrentUserAdmin();
             }
 
             return true;
@@ -6113,6 +8356,51 @@ namespace Kalendarz1
                             }
                         }
                     }
+
+                    // Wczytaj domyślną ścieżkę PDF
+                    string queryPdfPath = "SELECT SettingValue FROM FarmerCalcSettings WHERE SettingName = 'DefaultPdfPath'";
+                    using (SqlCommand cmd = new SqlCommand(queryPdfPath, conn))
+                    {
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && !string.IsNullOrEmpty(result.ToString()))
+                        {
+                            defaultPdfPath = result.ToString();
+                            txtDefaultPdfPath.Text = defaultPdfPath;
+                        }
+                        else
+                        {
+                            txtDefaultPdfPath.Text = defaultPdfPath;
+                        }
+                    }
+
+                    // Wczytaj domyślną ścieżkę płacht
+                    string queryPlachtaPath = "SELECT SettingValue FROM FarmerCalcSettings WHERE SettingName = 'DefaultPlachtaPath'";
+                    using (SqlCommand cmd = new SqlCommand(queryPlachtaPath, conn))
+                    {
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && !string.IsNullOrEmpty(result.ToString()))
+                        {
+                            defaultPlachtaPath = result.ToString();
+                        }
+                    }
+
+                    // Wczytaj tryb kolorów PDF
+                    string queryPdfColorMode = "SELECT SettingValue FROM FarmerCalcSettings WHERE SettingName = 'PdfCzarnoBialy'";
+                    using (SqlCommand cmd = new SqlCommand(queryPdfColorMode, conn))
+                    {
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && bool.TryParse(result.ToString(), out bool czarnoBialy))
+                        {
+                            _pdfCzarnoBialy = czarnoBialy;
+                            rbPdfCzarnoBialy.IsChecked = czarnoBialy;
+                            rbPdfKolorowy.IsChecked = !czarnoBialy;
+                        }
+                        else
+                        {
+                            rbPdfKolorowy.IsChecked = true;
+                            rbPdfCzarnoBialy.IsChecked = false;
+                        }
+                    }
                 }
             }
             catch (Exception ex)
@@ -6159,6 +8447,36 @@ namespace Kalendarz1
                     using (SqlCommand cmd = new SqlCommand(mergePrzel, conn))
                     {
                         cmd.Parameters.AddWithValue("@Value", przelozeniStr);
+                        cmd.Parameters.AddWithValue("@User", user);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Zapisz domyślną ścieżkę PDF
+                    string mergePdfPath = @"
+                        MERGE FarmerCalcSettings AS target
+                        USING (SELECT 'DefaultPdfPath' AS SettingName) AS source
+                        ON target.SettingName = source.SettingName
+                        WHEN MATCHED THEN UPDATE SET SettingValue = @Value, ModifiedDate = GETDATE(), ModifiedBy = @User
+                        WHEN NOT MATCHED THEN INSERT (SettingName, SettingValue, ModifiedBy) VALUES ('DefaultPdfPath', @Value, @User);";
+
+                    using (SqlCommand cmd = new SqlCommand(mergePdfPath, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Value", defaultPdfPath);
+                        cmd.Parameters.AddWithValue("@User", user);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Zapisz tryb kolorów PDF
+                    string mergePdfColorMode = @"
+                        MERGE FarmerCalcSettings AS target
+                        USING (SELECT 'PdfCzarnoBialy' AS SettingName) AS source
+                        ON target.SettingName = source.SettingName
+                        WHEN MATCHED THEN UPDATE SET SettingValue = @Value, ModifiedDate = GETDATE(), ModifiedBy = @User
+                        WHEN NOT MATCHED THEN INSERT (SettingName, SettingValue, ModifiedBy) VALUES ('PdfCzarnoBialy', @Value, @User);";
+
+                    using (SqlCommand cmd = new SqlCommand(mergePdfColorMode, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Value", _pdfCzarnoBialy.ToString());
                         cmd.Parameters.AddWithValue("@User", user);
                         cmd.ExecuteNonQuery();
                     }
@@ -6257,6 +8575,7 @@ namespace Kalendarz1
         private string _bruttoHodowcy;
         private string _taraHodowcy;
         private string _nettoHodowcy;
+        private decimal _nettoHodowcyValue;
         private string _bruttoUbojni;
         private string _taraUbojni;
         private string _nettoUbojni;
@@ -6295,11 +8614,35 @@ namespace Kalendarz1
 
         // Podświetlenie grupy dostawcy
         private bool _isHighlighted;
+        private string _supplierColor = "#CCCCCC";
+        private bool _isFirstInGroup;
+        private bool _isLastInGroup;
 
         public bool IsHighlighted
         {
             get => _isHighlighted;
             set { _isHighlighted = value; OnPropertyChanged(nameof(IsHighlighted)); }
+        }
+
+        // Kolor paska bocznego dostawcy
+        public string SupplierColor
+        {
+            get => _supplierColor;
+            set { _supplierColor = value; OnPropertyChanged(nameof(SupplierColor)); }
+        }
+
+        // Czy pierwszy wiersz w grupie dostawcy (do separatora wizualnego)
+        public bool IsFirstInGroup
+        {
+            get => _isFirstInGroup;
+            set { _isFirstInGroup = value; OnPropertyChanged(nameof(IsFirstInGroup)); }
+        }
+
+        // Czy ostatni wiersz w grupie dostawcy
+        public bool IsLastInGroup
+        {
+            get => _isLastInGroup;
+            set { _isLastInGroup = value; OnPropertyChanged(nameof(IsLastInGroup)); }
         }
 
         public bool Wydrukowano
@@ -6398,6 +8741,17 @@ namespace Kalendarz1
             set { _nettoHodowcy = value; OnPropertyChanged(nameof(NettoHodowcy)); }
         }
 
+        public decimal NettoHodowcyValue
+        {
+            get => _nettoHodowcyValue;
+            set { _nettoHodowcyValue = value; OnPropertyChanged(nameof(NettoHodowcyValue)); OnPropertyChanged(nameof(WagaNettoDoRozliczenia)); RecalculateWartosc(); }
+        }
+
+        /// <summary>
+        /// Waga netto do rozliczenia: preferuje wagę hodowcy, jeśli jest > 0, w przeciwnym razie wagę ubojni
+        /// </summary>
+        public decimal WagaNettoDoRozliczenia => NettoHodowcyValue > 0 ? NettoHodowcyValue : NettoUbojniValue;
+
         public string BruttoUbojni
         {
             get => _bruttoUbojni;
@@ -6419,7 +8773,7 @@ namespace Kalendarz1
         public decimal NettoUbojniValue
         {
             get => _nettoUbojniValue;
-            set { _nettoUbojniValue = value; OnPropertyChanged(nameof(NettoUbojniValue)); RecalculateWartosc(); }
+            set { _nettoUbojniValue = value; OnPropertyChanged(nameof(NettoUbojniValue)); OnPropertyChanged(nameof(WagaNettoDoRozliczenia)); RecalculateWartosc(); }
         }
 
         public int LUMEL
@@ -6584,9 +8938,9 @@ namespace Kalendarz1
         public int Konfiskaty => CH + NW + ZM;
 
         /// <summary>
-        /// Średnia waga: Netto / SztukiDek [kg/szt]
+        /// Średnia waga: WagaNettoDoRozliczenia / SztukiDek [kg/szt]
         /// </summary>
-        public decimal SredniaWaga => SztukiDek > 0 ? Math.Round(NettoUbojniValue / SztukiDek, 2) : 0;
+        public decimal SredniaWaga => SztukiDek > 0 ? Math.Round(WagaNettoDoRozliczenia / SztukiDek, 2) : 0;
 
         /// <summary>
         /// Sztuki zdatne: SztukiDek - Padłe - Konfiskaty [szt]
@@ -6604,13 +8958,13 @@ namespace Kalendarz1
         public decimal KonfiskatyKg => Math.Round(Konfiskaty * SredniaWaga, 0);
 
         /// <summary>
-        /// Do zapłaty [kg]: Netto - Padłe[kg] - Konf[kg] - Opas - KlasaB (z uwzględnieniem PiK i ubytku)
+        /// Do zapłaty [kg]: WagaNettoDoRozliczenia - Padłe[kg] - Konf[kg] - Opas - KlasaB (z uwzględnieniem PiK i ubytku)
         /// </summary>
         public decimal DoZaplaty
         {
             get
             {
-                decimal bazaKg = NettoUbojniValue;
+                decimal bazaKg = WagaNettoDoRozliczenia;
 
                 // Jeśli PiK = false, odejmujemy padłe i konfiskaty
                 if (!PiK)
@@ -6772,7 +9126,9 @@ namespace Kalendarz1
     /// </summary>
     public class TransportRow : INotifyPropertyChanged
     {
+        private int _specyfikacjaID;
         private int _nr;
+        private string _dostawca;
         private string _kierowca;
         private string _samochod;
         private string _nrRejestracyjny;
@@ -6784,6 +9140,13 @@ namespace Kalendarz1
         private decimal _kilogramy;
         private string _status;
         private string _uwagi;
+
+        // ID powiązane ze SpecyfikacjaRow.ID (FarmerCalc.ID)
+        public int SpecyfikacjaID
+        {
+            get => _specyfikacjaID;
+            set { _specyfikacjaID = value; OnPropertyChanged(nameof(SpecyfikacjaID)); }
+        }
 
         // Godziny transportowe
         private DateTime? _poczatekUslugi;
@@ -6797,6 +9160,12 @@ namespace Kalendarz1
         {
             get => _nr;
             set { _nr = value; OnPropertyChanged(nameof(Nr)); }
+        }
+
+        public string Dostawca
+        {
+            get => _dostawca;
+            set { _dostawca = value; OnPropertyChanged(nameof(Dostawca)); }
         }
 
         public string Kierowca
@@ -6899,7 +9268,7 @@ namespace Kalendarz1
         public DateTime? KoniecUslugi
         {
             get => _koniecUslugi;
-            set { _koniecUslugi = value; OnPropertyChanged(nameof(KoniecUslugi)); OnPropertyChanged(nameof(CzasCalkowity)); }
+            set { _koniecUslugi = value; OnPropertyChanged(nameof(KoniecUslugi)); OnPropertyChanged(nameof(CzasCalkowity)); OnPropertyChanged(nameof(IsKoniec0000)); }
         }
 
         // === OBLICZONE CZASY TRWANIA ===
@@ -6994,6 +9363,243 @@ namespace Kalendarz1
             if (ts.TotalHours < 0)
                 return $"-{(int)Math.Abs(ts.TotalHours)}:{Math.Abs(ts.Minutes):D2}";
             return $"{(int)ts.TotalHours}:{ts.Minutes:D2}";
+        }
+
+        // === CZASY W MINUTACH (dla nowych kolumn) ===
+
+        /// <summary>
+        /// Czas dojazdu w minutach (Wyj -> Doj)
+        /// </summary>
+        public int? CzasDojMin
+        {
+            get
+            {
+                if (GodzinaWyjazdu.HasValue && DojazdHodowca.HasValue)
+                {
+                    return (int)(DojazdHodowca.Value - GodzinaWyjazdu.Value).TotalMinutes;
+                }
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Czas powrotu w minutach (Wyj.H -> Przyj)
+        /// </summary>
+        public int? CzasPowrotMin
+        {
+            get
+            {
+                if (WyjazdHodowca.HasValue && GodzinaPrzyjazdu.HasValue)
+                {
+                    return (int)(GodzinaPrzyjazdu.Value - WyjazdHodowca.Value).TotalMinutes;
+                }
+                return null;
+            }
+        }
+
+        // Średnie czasy dla dostawcy (ustawiane zewnętrznie)
+        private int _sredniaCzasDojMin;
+        private int _sredniaCzasPowrotMin;
+
+        public int SredniaCzasDojMin
+        {
+            get => _sredniaCzasDojMin;
+            set
+            {
+                _sredniaCzasDojMin = value;
+                OnPropertyChanged(nameof(SredniaCzasDojMin));
+                OnPropertyChanged(nameof(IsCzasDojAbnormal));
+            }
+        }
+
+        public int SredniaCzasPowrotMin
+        {
+            get => _sredniaCzasPowrotMin;
+            set
+            {
+                _sredniaCzasPowrotMin = value;
+                OnPropertyChanged(nameof(SredniaCzasPowrotMin));
+                OnPropertyChanged(nameof(IsCzasPowrotAbnormal));
+            }
+        }
+
+        /// <summary>
+        /// Czy czas dojazdu jest nietypowo długi (>20min ponad średnią)
+        /// </summary>
+        public bool IsCzasDojAbnormal
+        {
+            get
+            {
+                if (!CzasDojMin.HasValue || SredniaCzasDojMin == 0) return false;
+                return CzasDojMin.Value > SredniaCzasDojMin + 20;
+            }
+        }
+
+        /// <summary>
+        /// Czy czas powrotu jest nietypowo długi (>20min ponad średnią)
+        /// </summary>
+        public bool IsCzasPowrotAbnormal
+        {
+            get
+            {
+                if (!CzasPowrotMin.HasValue || SredniaCzasPowrotMin == 0) return false;
+                return CzasPowrotMin.Value > SredniaCzasPowrotMin + 20;
+            }
+        }
+
+        // === WAGI I UBYTEK ===
+        private decimal _nettoHodowcy;
+        private decimal _nettoUbojni;
+        private decimal _ubytekUmowny;
+
+        public decimal NettoHodowcy
+        {
+            get => _nettoHodowcy;
+            set
+            {
+                _nettoHodowcy = value;
+                OnPropertyChanged(nameof(NettoHodowcy));
+                OnPropertyChanged(nameof(RoznicaWag));
+                OnPropertyChanged(nameof(ProcentRoznicy));
+            }
+        }
+
+        public decimal NettoUbojni
+        {
+            get => _nettoUbojni;
+            set
+            {
+                _nettoUbojni = value;
+                OnPropertyChanged(nameof(NettoUbojni));
+                OnPropertyChanged(nameof(RoznicaWag));
+                OnPropertyChanged(nameof(ProcentRoznicy));
+            }
+        }
+
+        /// <summary>
+        /// Różnica wag: Netto Hodowcy - Netto Ubojni
+        /// </summary>
+        public decimal RoznicaWag => NettoHodowcy - NettoUbojni;
+
+        /// <summary>
+        /// Procent różnicy od wagi hodowcy: (RoznicaWag / NettoHodowcy) * 100
+        /// </summary>
+        public decimal ProcentRoznicy
+        {
+            get
+            {
+                if (NettoHodowcy > 0)
+                    return (RoznicaWag / NettoHodowcy) * 100;
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Ubytek umowny z karty Specyfikacje (Loss)
+        /// </summary>
+        public decimal UbytekUmowny
+        {
+            get => _ubytekUmowny;
+            set
+            {
+                _ubytekUmowny = value;
+                OnPropertyChanged(nameof(UbytekUmowny));
+                OnPropertyChanged(nameof(RoznicaProcentow));
+            }
+        }
+
+        /// <summary>
+        /// Różnica między % wyliczonym a ubytkiem umownym
+        /// </summary>
+        public decimal RoznicaProcentow => ProcentRoznicy - UbytekUmowny;
+
+        // Liczba skrzynek (z FarmerCalc)
+        private int _skrzynki;
+        public int Skrzynki
+        {
+            get => _skrzynki;
+            set { _skrzynki = value; OnPropertyChanged(nameof(Skrzynki)); }
+        }
+
+        // Sztuki pojemników (Padle)
+        private int _sztPoj;
+        public int SztPoj
+        {
+            get => _sztPoj;
+            set { _sztPoj = value; OnPropertyChanged(nameof(SztPoj)); }
+        }
+
+        /// <summary>
+        /// Czy KoniecUslugi jest równy 00:00 (do kolorowania wiersza na czerwono)
+        /// </summary>
+        public bool IsKoniec0000 => KoniecUslugi.HasValue &&
+            KoniecUslugi.Value.Hour == 0 && KoniecUslugi.Value.Minute == 0;
+
+        // === SZACOWANY CZAS DOJAZDU (na podstawie historii) ===
+        private string _szacowanyCzasDojazdu;
+        private int _sredniaMinutDojazdu;
+
+        /// <summary>
+        /// Szacowany czas dojazdu na podstawie historycznych danych
+        /// </summary>
+        public string SzacowanyCzasDojazdu
+        {
+            get => _szacowanyCzasDojazdu;
+            set { _szacowanyCzasDojazdu = value; OnPropertyChanged(nameof(SzacowanyCzasDojazdu)); }
+        }
+
+        /// <summary>
+        /// Średnia minut dojazdu do tego dostawcy (z historii)
+        /// </summary>
+        public int SredniaMinutDojazdu
+        {
+            get => _sredniaMinutDojazdu;
+            set { _sredniaMinutDojazdu = value; OnPropertyChanged(nameof(SredniaMinutDojazdu)); }
+        }
+
+        // === TIMELINE: Pozycje na osi czasu dnia ===
+
+        /// <summary>
+        /// Pozycja startu na osi czasu (0-100%)
+        /// </summary>
+        public double TimelineStartPercent
+        {
+            get
+            {
+                var start = PoczatekUslugi ?? GodzinaWyjazdu;
+                if (!start.HasValue) return 0;
+                // Dzień roboczy 4:00 - 20:00 (16 godzin)
+                var minutesFromStart = (start.Value.Hour - 4) * 60 + start.Value.Minute;
+                return Math.Max(0, Math.Min(100, minutesFromStart / 960.0 * 100)); // 960 = 16 * 60
+            }
+        }
+
+        /// <summary>
+        /// Szerokość na osi czasu (różnica końca od startu w %)
+        /// </summary>
+        public double TimelineWidthPercent
+        {
+            get
+            {
+                var start = PoczatekUslugi ?? GodzinaWyjazdu;
+                var end = KoniecUslugi ?? GodzinaPrzyjazdu;
+                if (!start.HasValue || !end.HasValue) return 5; // Minimalna szerokość
+                var durationMinutes = (end.Value - start.Value).TotalMinutes;
+                return Math.Max(2, Math.Min(100 - TimelineStartPercent, durationMinutes / 960.0 * 100));
+            }
+        }
+
+        /// <summary>
+        /// Kolor paska na timeline (zielony gdy zakończone, niebieski gdy w trakcie, szary gdy nie rozpoczęte)
+        /// </summary>
+        public string TimelineColor
+        {
+            get
+            {
+                if (KoniecUslugi.HasValue && KoniecUslugi.Value.Hour > 0) return "#4CAF50"; // Zakończone
+                if (PoczatekUslugi.HasValue || GodzinaWyjazdu.HasValue) return "#2196F3"; // W trakcie
+                return "#BDBDBD"; // Nie rozpoczęte
+            }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -7197,6 +9803,85 @@ namespace Kalendarz1
     }
 
     /// <summary>
+    /// Konwerter procentu na piksele dla Timeline (0-100% -> 0-szerokość)
+    /// </summary>
+    public class PercentToPixelConverter : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value == null) return 0.0;
+
+            double percent = 0;
+            if (value is double d) percent = d;
+            else if (value is decimal dec) percent = (double)dec;
+            else if (double.TryParse(value.ToString(), out double parsed)) percent = parsed;
+
+            double maxWidth = 500; // Domyślna szerokość timeline
+            if (parameter != null && double.TryParse(parameter.ToString(), out double paramWidth))
+                maxWidth = paramWidth;
+
+            return Math.Max(0, Math.Min(maxWidth, percent / 100.0 * maxWidth));
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    /// <summary>
+    /// Konwerter procentu na Margin dla pozycji na Timeline
+    /// </summary>
+    public class PercentToMarginConverter : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value == null) return new System.Windows.Thickness(0);
+
+            double percent = 0;
+            if (value is double d) percent = d;
+            else if (value is decimal dec) percent = (double)dec;
+            else if (double.TryParse(value.ToString(), out double parsed)) percent = parsed;
+
+            // Konwertuj procent na piksele (zakładając szerokość 120px dla mini timeline)
+            double pixels = percent / 100.0 * 116; // 116px - margines
+
+            return new System.Windows.Thickness(Math.Max(0, pixels), 0, 0, 0);
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    /// <summary>
+    /// Konwerter procentu na Width dla paska Timeline
+    /// </summary>
+    public class PercentToWidthConverter : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value == null) return 5.0;
+
+            double percent = 0;
+            if (value is double d) percent = d;
+            else if (value is decimal dec) percent = (double)dec;
+            else if (double.TryParse(value.ToString(), out double parsed)) percent = parsed;
+
+            // Konwertuj procent na piksele (zakładając szerokość 120px dla mini timeline)
+            double pixels = percent / 100.0 * 116;
+
+            return Math.Max(3, Math.Min(116, pixels)); // Minimum 3px, max 116px
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    /// <summary>
     /// Klasa modelu danych dla karty Rozliczenia
     /// </summary>
     public class RozliczenieRow : INotifyPropertyChanged
@@ -7229,11 +9914,138 @@ namespace Kalendarz1
         public bool Zatwierdzony
         {
             get => _zatwierdzony;
-            set { _zatwierdzony = value; OnPropertyChanged(nameof(Zatwierdzony)); }
+            set { _zatwierdzony = value; OnPropertyChanged(nameof(Zatwierdzony)); OnPropertyChanged(nameof(JestZablokowany)); }
         }
 
         public string ZatwierdzonePrzez { get; set; }
         public DateTime? DataZatwierdzenia { get; set; }
+
+        // === PODWÓJNA KONTROLA: Weryfikacja przez drugiego pracownika ===
+        private bool _zweryfikowany;
+        public bool Zweryfikowany
+        {
+            get => _zweryfikowany;
+            set { _zweryfikowany = value; OnPropertyChanged(nameof(Zweryfikowany)); OnPropertyChanged(nameof(JestZablokowany)); }
+        }
+
+        public string ZweryfikowanePrzez { get; set; }
+        public DateTime? DataWeryfikacji { get; set; }
+
+        /// <summary>
+        /// Wiersz jest zablokowany gdy zarówno Zatwierdzony jak i Zweryfikowany są true
+        /// </summary>
+        public bool JestZablokowany => Zatwierdzony && Zweryfikowany;
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+
+    public class PlachtaRow : INotifyPropertyChanged
+    {
+        public int ID { get; set; }
+
+        private int _lp;
+        public int Lp
+        {
+            get => _lp;
+            set { _lp = value; OnPropertyChanged(nameof(Lp)); }
+        }
+
+        public int NrSpec { get; set; }  // CarLp - numer specyfikacji
+        public string Hodowca { get; set; }
+        public string Adres { get; set; }
+        public string BadaniaSalmonella { get; set; }  // VetComment
+        public string NrSwZdrowia { get; set; }  // VetNo
+
+        private string _nrGospodarstwa;
+        public string NrGospodarstwa
+        {
+            get => _nrGospodarstwa;
+            set { _nrGospodarstwa = value; OnPropertyChanged(nameof(NrGospodarstwa)); }
+        }
+
+        public int IloscDek { get; set; }  // DeclI1
+        public string Ciagnik { get; set; }  // CarID
+        public string Naczepa { get; set; }  // TrailerID
+
+        private int _padle;
+        public int Padle
+        {
+            get => _padle;
+            set { _padle = value; OnPropertyChanged(nameof(Padle)); }
+        }
+
+        public string KodHodowcy { get; set; }  // CustomerGID
+
+        private int _chore;
+        public int Chore
+        {
+            get => _chore;
+            set { _chore = value; OnPropertyChanged(nameof(Chore)); }
+        }
+
+        private int _nw;
+        public int NW
+        {
+            get => _nw;
+            set { _nw = value; OnPropertyChanged(nameof(NW)); }
+        }
+
+        private int _zm;
+        public int ZM
+        {
+            get => _zm;
+            set { _zm = value; OnPropertyChanged(nameof(ZM)); }
+        }
+
+        public bool Status { get; set; }
+        public int CustomerGID { get; set; }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+
+    /// <summary>
+    /// Model dla mini kalendarza - reprezentuje jeden dzień
+    /// </summary>
+    public class CalendarDayItem : INotifyPropertyChanged
+    {
+        public DateTime Date { get; set; }
+        public string DayNumber => Date.Day.ToString();
+        public string DayName => Date.ToString("ddd", System.Globalization.CultureInfo.GetCultureInfo("pl-PL"));
+
+        private bool _hasData;
+        public bool HasData
+        {
+            get => _hasData;
+            set { _hasData = value; OnPropertyChanged(nameof(HasData)); }
+        }
+
+        private bool _isSelected;
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set { _isSelected = value; OnPropertyChanged(nameof(IsSelected)); }
+        }
+
+        public bool IsToday => Date.Date == DateTime.Today;
+
+        private int _recordCount;
+        public int RecordCount
+        {
+            get => _recordCount;
+            set { _recordCount = value; OnPropertyChanged(nameof(RecordCount)); OnPropertyChanged(nameof(ToolTipText)); }
+        }
+
+        public string ToolTipText => HasData
+            ? $"{Date:dd.MM.yyyy} ({DayName})\n{RecordCount} rekordów"
+            : $"{Date:dd.MM.yyyy} ({DayName})\nBrak danych";
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)

@@ -298,11 +298,10 @@
         <Grid Grid.Row="1" Margin="15">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="320"/>
             </Grid.ColumnDefinitions>
 
-            <!-- LEWA STRONA - MATRYCA -->
-            <Border Grid.Column="0" Background="White" CornerRadius="10" Margin="0,0,10,0">
+            <!-- MATRYCA -->
+            <Border Grid.Column="0" Background="White" CornerRadius="10">
                 <Border.Effect>
                     <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="10"/>
                 </Border.Effect>
@@ -475,11 +474,51 @@
                                         Click="BtnMoveDown_Click"
                                         Style="{StaticResource ActionButtonStyle}"
                                         FontSize="11"/>
-                                <Button Content="Sugeruj kolejność"
-                                        Click="BtnSuggestOrder_Click"
+                            </StackPanel>
+
+                            <!-- Przyciski SMS i Akcje -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
+                                <Button x:Name="btnSmsZaladunekAll"
+                                        Content="SMS WSZYSTKIE"
+                                        Click="BtnSmsZaladunekAll_Click"
+                                        Style="{StaticResource ActionButtonStyle}"
+                                        Background="#3498DB"
+                                        FontSize="11"
+                                        ToolTip="SMS zbiorczy - wszystkie auta dla tego hodowcy"/>
+                                <Button x:Name="btnSmsZaladunekOne"
+                                        Content="SMS TO AUTO"
+                                        Click="BtnSmsZaladunekOne_Click"
+                                        Style="{StaticResource ActionButtonStyle}"
+                                        Background="#2980B9"
+                                        FontSize="11"
+                                        ToolTip="SMS tylko dla wybranego auta"/>
+                                <Border Width="1" Background="#E0E0E0" Margin="8,5"/>
+                                <Button x:Name="btnEdytujHodowce"
+                                        Content="EDYTUJ HODOWCĘ"
+                                        Click="BtnEdytujHodowce_Click"
                                         Style="{StaticResource SecondaryButtonStyle}"
                                         FontSize="11"
-                                        ToolTip="Sortuj wg odległości - najbliższe rano"/>
+                                        ToolTip="Otwórz formularz edycji danych hodowcy"/>
+                                <Button x:Name="btnStatystyki"
+                                        Content="STATYSTYKI"
+                                        Click="BtnStatystyki_Click"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        Background="#E67E22"
+                                        FontSize="11"
+                                        ToolTip="Zobacz kto wysyła najwięcej SMS"/>
+                                <Button x:Name="btnHistoriaZmian"
+                                        Content="HISTORIA"
+                                        Click="BtnHistoriaZmian_Click"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        FontSize="11"
+                                        ToolTip="Zobacz historię zmian w specyfikacji"/>
+                                <Button x:Name="btnShowSpecyfikacja"
+                                        Content="SPECYFIKACJA"
+                                        Click="BtnShowFullSpecyfikacja_Click"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        Background="#9B59B6"
+                                        FontSize="11"
+                                        ToolTip="Otwórz pełną specyfikację dostaw"/>
                             </StackPanel>
 
                             <!-- Przyciski edycji -->
@@ -936,252 +975,6 @@
                             <TextBlock FontSize="10" Foreground="#5D4037" TextWrapping="Wrap" Margin="0,3,0,0">
                                 <Run FontWeight="SemiBold">Zapis dnia:</Run> godz. 00:00-17:00 = wybrany dzień | godz. 17:01-23:59 = poprzedni dzień
                             </TextBlock>
-                        </StackPanel>
-                    </Border>
-                </Grid>
-            </Border>
-
-            <!-- PRAWA STRONA - PANEL INFORMACYJNY -->
-            <Border Grid.Column="1" Background="White" CornerRadius="10">
-                <Border.Effect>
-                    <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="10"/>
-                </Border.Effect>
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-
-                    <!-- Nagłówek panelu -->
-                    <Border Grid.Row="0" Background="#34495E" Padding="15,12" CornerRadius="10,10,0,0">
-                        <TextBlock Text="INFORMACJE O DOSTAWIE"
-                                   FontSize="14"
-                                   FontWeight="Bold"
-                                   Foreground="White"/>
-                    </Border>
-
-                    <!-- Zawartość panelu -->
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="15">
-                        <StackPanel>
-                            <!-- Dane Hodowcy -->
-                            <GroupBox Header="Dane Hodowcy" Style="{StaticResource ModernGroupBox}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="80"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="28"/>
-                                        <RowDefinition Height="28"/>
-                                        <RowDefinition Height="28"/>
-                                        <RowDefinition Height="28"/>
-                                        <RowDefinition Height="28"/>
-                                        <RowDefinition Height="28"/>
-                                    </Grid.RowDefinitions>
-
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Nazwa:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Row="0" Grid.Column="1" x:Name="lblHodowcaNazwa" Text="-"
-                                               FontWeight="Bold" Foreground="#F57C00" VerticalAlignment="Center"/>
-
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Adres:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="lblHodowcaAdres" Text="-"
-                                               TextWrapping="Wrap" VerticalAlignment="Center"/>
-
-                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Miasto:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="lblHodowcaMiejscowosc" Text="-" VerticalAlignment="Center"/>
-
-                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Odległość:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Row="3" Grid.Column="1" x:Name="lblHodowcaOdleglosc" Text="-"
-                                               FontWeight="Bold" Foreground="#1976D2" VerticalAlignment="Center"/>
-
-                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Telefon:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Row="4" Grid.Column="1" x:Name="lblHodowcaTelefon" Text="-"
-                                               Foreground="#388E3C" FontWeight="SemiBold" VerticalAlignment="Center"/>
-
-                                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Email:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Row="5" Grid.Column="1" x:Name="lblHodowcaEmail" Text="-"
-                                               Foreground="#1976D2" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                                </Grid>
-                            </GroupBox>
-
-                            <!-- Dane Transportowe -->
-                            <GroupBox Header="Dane Transportowe" Style="{StaticResource ModernGroupBox}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="80"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="28"/>
-                                        <RowDefinition Height="28"/>
-                                        <RowDefinition Height="28"/>
-                                        <RowDefinition Height="28"/>
-                                        <RowDefinition Height="28"/>
-                                    </Grid.RowDefinitions>
-
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Kierowca:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Row="0" Grid.Column="1" x:Name="lblKierowca" Text="-"
-                                               FontWeight="Bold" Foreground="#1976D2" VerticalAlignment="Center"/>
-
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Tel. kier.:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="lblKierowcaTelefon" Text="-"
-                                               Foreground="#388E3C" VerticalAlignment="Center"/>
-
-                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Ciągnik:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="lblCiagnik" Text="-"
-                                               FontWeight="Bold" VerticalAlignment="Center"/>
-
-                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Naczepa:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Row="3" Grid.Column="1" x:Name="lblNaczepa" Text="-" VerticalAlignment="Center"/>
-
-                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Wózek:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Row="4" Grid.Column="1" x:Name="lblWozek" Text="-" VerticalAlignment="Center"/>
-                                </Grid>
-                            </GroupBox>
-
-                            <!-- Dane Ilościowe -->
-                            <GroupBox Header="Dane Ilościowe" Style="{StaticResource ModernGroupBox}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="100"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="28"/>
-                                        <RowDefinition Height="28"/>
-                                        <RowDefinition Height="28"/>
-                                    </Grid.RowDefinitions>
-
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Sztuki:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Row="0" Grid.Column="1" x:Name="lblSztukiDek" Text="-"
-                                               FontWeight="Bold" FontSize="16" Foreground="#7B1FA2" VerticalAlignment="Center"/>
-
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Waga dek.:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="lblWagaDek" Text="-"
-                                               FontWeight="Bold" FontSize="14" Foreground="#388E3C" VerticalAlignment="Center"/>
-
-                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Waga całk.:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="lblWagaCalkowita" Text="-"
-                                               FontWeight="Bold" FontSize="16" Foreground="#E74C3C" VerticalAlignment="Center"/>
-                                </Grid>
-                            </GroupBox>
-
-                            <!-- Harmonogram -->
-                            <GroupBox Header="Harmonogram" Style="{StaticResource ModernGroupBox}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="80"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="28"/>
-                                        <RowDefinition Height="28"/>
-                                        <RowDefinition Height="28"/>
-                                    </Grid.RowDefinitions>
-
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Wyjazd:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Row="0" Grid.Column="1" x:Name="lblWyjazd" Text="-"
-                                               FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
-
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Załadunek:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="lblZaladunek" Text="-"
-                                               FontWeight="Bold" FontSize="16" Foreground="#7B1FA2" VerticalAlignment="Center"/>
-
-                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Przyjazd:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="lblPrzyjazd" Text="-"
-                                               FontWeight="Bold" FontSize="14" Foreground="#E74C3C" VerticalAlignment="Center"/>
-                                </Grid>
-                            </GroupBox>
-
-                            <!-- Status SMS -->
-                            <GroupBox Header="Status SMS" Style="{StaticResource ModernGroupBox}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="80"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="28"/>
-                                        <RowDefinition Height="28"/>
-                                        <RowDefinition Height="28"/>
-                                    </Grid.RowDefinitions>
-
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Status:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Row="0" Grid.Column="1" x:Name="lblSmsStatus" Text="Nie wysłano"
-                                               FontWeight="Bold" VerticalAlignment="Center"/>
-
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Wysłał:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="lblSmsUser" Text="-"
-                                               Foreground="#1976D2" VerticalAlignment="Center"/>
-
-                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Kiedy:" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="lblSmsData" Text="-"
-                                               Foreground="#7B1FA2" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                </Grid>
-                            </GroupBox>
-                        </StackPanel>
-                    </ScrollViewer>
-
-                    <!-- Przyciski akcji w panelu -->
-                    <Border Grid.Row="2" Background="#F8F9FA" Padding="10" CornerRadius="0,0,10,10">
-                        <StackPanel>
-                            <TextBlock Text="Akcje SMS" FontWeight="Bold" FontSize="12" Margin="0,0,0,8" Foreground="#34495E"/>
-
-                            <Button x:Name="btnSmsZaladunekAll"
-                                    Content="🚛 SMS WSZYSTKIE AUTA"
-                                    Click="BtnSmsZaladunekAll_Click"
-                                    Style="{StaticResource MainButtonStyle}"
-                                    Background="#3498DB"
-                                    FontSize="12"
-                                    HorizontalAlignment="Stretch"
-                                    ToolTip="SMS zbiorczy - wszystkie auta dla tego hodowcy"/>
-
-                            <Button x:Name="btnSmsZaladunekOne"
-                                    Content="🚚 SMS TO AUTO"
-                                    Click="BtnSmsZaladunekOne_Click"
-                                    Style="{StaticResource MainButtonStyle}"
-                                    Background="#2980B9"
-                                    FontSize="12"
-                                    HorizontalAlignment="Stretch"
-                                    ToolTip="SMS tylko dla wybranego auta"/>
-
-                            <Button x:Name="btnEdytujHodowce"
-                                    Content="✏️ EDYTUJ HODOWCĘ"
-                                    Click="BtnEdytujHodowce_Click"
-                                    Style="{StaticResource SecondaryButtonStyle}"
-                                    FontSize="12"
-                                    HorizontalAlignment="Stretch"
-                                    ToolTip="Otwórz formularz edycji danych hodowcy"/>
-
-                            <Separator Margin="0,8"/>
-
-                            <Button x:Name="btnStatystyki"
-                                    Content="📊 STATYSTYKI PRACOWNIKÓW"
-                                    Click="BtnStatystyki_Click"
-                                    Style="{StaticResource MainButtonStyle}"
-                                    Background="#E67E22"
-                                    FontSize="12"
-                                    HorizontalAlignment="Stretch"
-                                    ToolTip="Zobacz kto wysyła najwięcej SMS"/>
-
-                            <Button x:Name="btnHistoriaZmian"
-                                    Content="📜 HISTORIA ZMIAN"
-                                    Click="BtnHistoriaZmian_Click"
-                                    Style="{StaticResource MainButtonStyle}"
-                                    Background="#607D8B"
-                                    FontSize="12"
-                                    HorizontalAlignment="Stretch"
-                                    ToolTip="Zobacz historię zmian w specyfikacji (audit log)"/>
-
-                            <Button x:Name="btnShowSpecyfikacja"
-                                    Content="📋 OTWÓRZ SPECYFIKACJĘ"
-                                    Click="BtnShowFullSpecyfikacja_Click"
-                                    Style="{StaticResource MainButtonStyle}"
-                                    Background="#9B59B6"
-                                    FontSize="12"
-                                    HorizontalAlignment="Stretch"
-                                    ToolTip="Otwórz pełną specyfikację dostaw"/>
                         </StackPanel>
                     </Border>
                 </Grid>

@@ -987,54 +987,7 @@ namespace Kalendarz1
             }
         }
 
-        private void BtnSuggestOrder_Click(object sender, RoutedEventArgs e)
-        {
-            if (matrycaData.Count == 0)
-            {
-                MessageBox.Show("Brak danych do sortowania.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            // Sprawdź czy są wysłane SMSy - wymagaj potwierdzenia dla wszystkich
-            if (!CheckAndWarnAboutSmsChangeForAll())
-                return;
-
-            var result = MessageBox.Show(
-                "Funkcja sugerowania kolejności posortuje dostawy według zasad:\n\n" +
-                "1. Najbliższe fermy (< 30 km) - na rano\n" +
-                "2. Średnia odległość (30-60 km) - w środku dnia\n" +
-                "3. Dalsze fermy (> 60 km) - później\n\n" +
-                "Czy chcesz zastosować sugerowaną kolejność?",
-                "Sugerowanie kolejności",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
-
-            if (result == MessageBoxResult.Yes)
-            {
-                SortByDistance();
-                RefreshNumeration();
-                UpdateStatus("Zastosowano sugerowaną kolejność");
-            }
-        }
-
-        private void SortByDistance()
-        {
-            var sortedList = matrycaData
-                .OrderBy(r =>
-                {
-                    if (decimal.TryParse(r.Odleglosc?.Replace(" km", "").Replace(",", "."),
-                        NumberStyles.Any, CultureInfo.InvariantCulture, out decimal dist))
-                        return dist;
-                    return decimal.MaxValue;
-                })
-                .ToList();
-
-            matrycaData.Clear();
-            foreach (var item in sortedList)
-            {
-                matrycaData.Add(item);
-            }
-        }
+        // Metody BtnSuggestOrder_Click i SortByDistance zostały usunięte - przycisk usunięto z interfejsu
 
         private void RefreshNumeration()
         {
@@ -1433,7 +1386,6 @@ namespace Kalendarz1
         private void DataGridMatryca_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             selectedMatrycaRow = dataGridMatryca.SelectedItem as MatrycaRow;
-            UpdateInfoPanel();
         }
 
         /// <summary>
@@ -1481,88 +1433,7 @@ namespace Kalendarz1
             }
         }
 
-        private void UpdateInfoPanel()
-        {
-            if (selectedMatrycaRow == null)
-            {
-                ClearInfoPanel();
-                return;
-            }
-
-            // Dane hodowcy
-            lblHodowcaNazwa.Text = selectedMatrycaRow.HodowcaNazwa ?? "-";
-            lblHodowcaAdres.Text = selectedMatrycaRow.Adres ?? "-";
-            lblHodowcaMiejscowosc.Text = selectedMatrycaRow.Miejscowosc ?? "-";
-            lblHodowcaOdleglosc.Text = !string.IsNullOrEmpty(selectedMatrycaRow.Odleglosc)
-                ? $"{selectedMatrycaRow.Odleglosc} km"
-                : "-";
-            lblHodowcaTelefon.Text = !string.IsNullOrEmpty(selectedMatrycaRow.Telefon)
-                ? selectedMatrycaRow.Telefon
-                : "Brak telefonu";
-            lblHodowcaEmail.Text = !string.IsNullOrEmpty(selectedMatrycaRow.Email)
-                ? selectedMatrycaRow.Email
-                : "Brak email";
-
-            // Dane transportowe
-            lblKierowca.Text = GetKierowcaNazwa(selectedMatrycaRow.DriverGID);
-            lblKierowcaTelefon.Text = GetKierowcaTelefon(selectedMatrycaRow.DriverGID);
-            lblCiagnik.Text = selectedMatrycaRow.CarID ?? "-";
-            lblNaczepa.Text = selectedMatrycaRow.TrailerID ?? "-";
-            lblWozek.Text = selectedMatrycaRow.NotkaWozek ?? "-";
-
-            // Dane ilościowe
-            lblSztukiDek.Text = $"{selectedMatrycaRow.SztPoj:N0} szt";
-            lblWagaDek.Text = $"{selectedMatrycaRow.WagaDek:N2} kg";
-            decimal wagaCalkowita = selectedMatrycaRow.WagaDek * selectedMatrycaRow.SztPoj;
-            lblWagaCalkowita.Text = $"{wagaCalkowita:N0} kg";
-
-            // Godziny
-            lblWyjazd.Text = selectedMatrycaRow.Wyjazd?.ToString("HH:mm") ?? "-";
-            lblZaladunek.Text = selectedMatrycaRow.Zaladunek?.ToString("HH:mm") ?? "-";
-            lblPrzyjazd.Text = selectedMatrycaRow.Przyjazd?.ToString("HH:mm") ?? "-";
-
-            // Status SMS
-            if (selectedMatrycaRow.SmsSent)
-            {
-                string smsTyp = selectedMatrycaRow.SmsTyp == "ALL" ? "Zbiorczy" : "Pojedynczy";
-                lblSmsStatus.Text = $"✅ Wysłano ({smsTyp})";
-                lblSmsStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2E7D32"));
-                lblSmsUser.Text = selectedMatrycaRow.SmsUserId ?? "-";
-                lblSmsData.Text = selectedMatrycaRow.SmsDataWyslania?.ToString("dd.MM.yyyy HH:mm") ?? "-";
-            }
-            else
-            {
-                lblSmsStatus.Text = "❌ Nie wysłano";
-                lblSmsStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C62828"));
-                lblSmsUser.Text = "-";
-                lblSmsData.Text = "-";
-            }
-        }
-
-        private void ClearInfoPanel()
-        {
-            lblHodowcaNazwa.Text = "-";
-            lblHodowcaAdres.Text = "-";
-            lblHodowcaMiejscowosc.Text = "-";
-            lblHodowcaOdleglosc.Text = "-";
-            lblHodowcaTelefon.Text = "-";
-            lblHodowcaEmail.Text = "-";
-            lblKierowca.Text = "-";
-            lblKierowcaTelefon.Text = "-";
-            lblCiagnik.Text = "-";
-            lblNaczepa.Text = "-";
-            lblWozek.Text = "-";
-            lblSztukiDek.Text = "-";
-            lblWagaDek.Text = "-";
-            lblWagaCalkowita.Text = "-";
-            lblWyjazd.Text = "-";
-            lblZaladunek.Text = "-";
-            lblPrzyjazd.Text = "-";
-            lblSmsStatus.Text = "-";
-            lblSmsStatus.Foreground = new SolidColorBrush(Colors.Gray);
-            lblSmsUser.Text = "-";
-            lblSmsData.Text = "-";
-        }
+        // Panel informacyjny został usunięty - metody UpdateInfoPanel i ClearInfoPanel nie są już potrzebne
 
         private string GetKierowcaNazwa(int? driverGID)
         {

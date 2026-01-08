@@ -45,6 +45,268 @@ namespace Kalendarz1
             }
             RozwijanieComboBox.RozwijanieKontrPoKatalogu(comboBoxSymfonia, "Dostawcy Drobiu");
 
+            // === NAWIGACJA TAB ===
+            // Ustaw kolejność TabIndex dla kontrolek po DateTimePickers
+            // Kolejność: kmPowrot -> kmWyjazd -> hBrutto -> hTara
+            kmPowrot.TabIndex = 100;
+            kmWyjazd.TabIndex = 101;
+            hBrutto.TabIndex = 102;
+            hTara.TabIndex = 103;
+
+            // Ustaw własną nawigację Tab dla DateTimePickers (HH -> MM -> następny HH)
+            SetupDateTimePickerTabNavigation();
+
+            // Ustaw nawigację Tab dla TextBoxów po DateTimePickers
+            SetupTextBoxTabNavigation();
+
+            // Stylizacja przycisków
+            StyleButtons();
+
+            // Dodaj event handler dla Anuluj
+            button2.Click += (s, e) => this.Close();
+
+            // Auto-focus na pierwszy DateTimePicker po załadowaniu okna
+            this.Shown += (s, e) => {
+                poczatekUslugiData.Focus();
+                SendKeys.Send("{HOME}"); // Upewnij się że zaznaczamy godziny
+            };
+
+            // Obsługa zmiany netto - pokaż różnicę
+            hNetto.TextChanged += UpdateNettoDifference;
+            uNetto.TextChanged += UpdateNettoDifference;
+        }
+
+        private void StyleButtons()
+        {
+            // Przycisk Zapisz - zielony
+            button1.BackColor = System.Drawing.Color.FromArgb(39, 174, 96);
+            button1.ForeColor = System.Drawing.Color.White;
+            button1.FlatStyle = FlatStyle.Flat;
+            button1.FlatAppearance.BorderSize = 0;
+            button1.Font = new System.Drawing.Font("Segoe UI", 11, System.Drawing.FontStyle.Bold);
+            button1.Cursor = Cursors.Hand;
+
+            // Przycisk Anuluj - czerwony
+            button2.BackColor = System.Drawing.Color.FromArgb(231, 76, 60);
+            button2.ForeColor = System.Drawing.Color.White;
+            button2.FlatStyle = FlatStyle.Flat;
+            button2.FlatAppearance.BorderSize = 0;
+            button2.Font = new System.Drawing.Font("Segoe UI", 10, System.Drawing.FontStyle.Bold);
+            button2.Cursor = Cursors.Hand;
+        }
+
+        // ToolTip dla różnicy netto
+        private ToolTip _nettoToolTip = new ToolTip();
+
+        private void UpdateNettoDifference(object sender, EventArgs e)
+        {
+            try
+            {
+                decimal hNettoVal = 0, uNettoVal = 0;
+                string hText = hNetto.Text.Replace(" ", "").Replace(",", ".");
+                string uText = uNetto.Text.Replace(" ", "").Replace(",", ".");
+
+                if (!string.IsNullOrEmpty(hText) && !string.IsNullOrEmpty(uText) &&
+                    decimal.TryParse(hText, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out hNettoVal) &&
+                    decimal.TryParse(uText, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out uNettoVal))
+                {
+                    decimal roznica = hNettoVal - uNettoVal;
+                    string roznicaText = roznica >= 0 ? $"+{roznica:N0}" : $"{roznica:N0}";
+                    string tooltipText = $"Różnica H-U: {roznicaText} kg";
+
+                    _nettoToolTip.SetToolTip(hNetto, tooltipText);
+                    _nettoToolTip.SetToolTip(uNetto, tooltipText);
+
+                    // Ustaw kolor tła w zależności od różnicy
+                    if (roznica > 0)
+                    {
+                        // Hodowca ma więcej - zielone tło
+                        hNetto.BackColor = System.Drawing.Color.FromArgb(200, 255, 200);
+                        uNetto.BackColor = System.Drawing.Color.FromArgb(255, 200, 200);
+                    }
+                    else if (roznica < 0)
+                    {
+                        // Ubojnia ma więcej - czerwone tło
+                        hNetto.BackColor = System.Drawing.Color.FromArgb(255, 200, 200);
+                        uNetto.BackColor = System.Drawing.Color.FromArgb(200, 255, 200);
+                    }
+                    else
+                    {
+                        // Równe - neutralne
+                        hNetto.BackColor = System.Drawing.SystemColors.Window;
+                        uNetto.BackColor = System.Drawing.SystemColors.Window;
+                    }
+                }
+            }
+            catch { }
+        }
+
+        // Słownik do śledzenia czy jesteśmy na minutach (Tab toggle)
+        private Dictionary<DateTimePicker, bool> _isOnMinutes = new Dictionary<DateTimePicker, bool>();
+
+        // Lista DateTimePickers w kolejności nawigacji
+        private DateTimePicker[] _dateTimePickers;
+
+        private void SetupDateTimePickerTabNavigation()
+        {
+            // Lista DateTimePickers w kolejności nawigacji
+            _dateTimePickers = new DateTimePicker[] {
+                poczatekUslugiData, wyjazdZakladData, dojazdHodowcaData,
+                poczatekZaladunekData, koniecZaladunekData, wyjazdHodowcaData,
+                powrotZakladData, koniecUslugiData
+            };
+
+            foreach (var picker in _dateTimePickers)
+            {
+                _isOnMinutes[picker] = false;
+                picker.TabStop = false; // Wyłącz domyślną nawigację Tab
+
+                // Gdy picker dostaje focus z zewnątrz - zawsze zacznij od godzin
+                picker.Enter += (s, e) => {
+                    _isOnMinutes[(DateTimePicker)s] = false;
+                };
+            }
+        }
+
+        // Lista TextBoxów w kolejności nawigacji (po DateTimePickers)
+        private Control[] _tabSequenceAfterPickers;
+
+        private void SetupTextBoxTabNavigation()
+        {
+            // Kolejność: kmPowrot -> kmWyjazd -> hBrutto -> hTara -> uBrutto -> uTara -> button1
+            _tabSequenceAfterPickers = new Control[] {
+                kmPowrot, kmWyjazd, hBrutto, hTara, uBrutto, uTara, button1
+            };
+
+            // Wyłącz domyślną nawigację Tab dla tych kontrolek
+            foreach (var ctrl in _tabSequenceAfterPickers)
+            {
+                ctrl.TabStop = false;
+            }
+        }
+
+        /// <summary>
+        /// Przechwytuje Tab przed domyślną obsługą Windows Forms
+        /// </summary>
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (_dateTimePickers == null) return base.ProcessCmdKey(ref msg, keyData);
+
+            // Sprawdź czy aktywna jest kontrolka z sekwencji po pickerach
+            if (_tabSequenceAfterPickers != null)
+            {
+                var activeTextBox = _tabSequenceAfterPickers.FirstOrDefault(c => c.Focused);
+                if (activeTextBox != null)
+                {
+                    int tbIdx = Array.IndexOf(_tabSequenceAfterPickers, activeTextBox);
+
+                    // Tab (bez Shift)
+                    if (keyData == Keys.Tab)
+                    {
+                        if (tbIdx < _tabSequenceAfterPickers.Length - 1)
+                        {
+                            var next = _tabSequenceAfterPickers[tbIdx + 1];
+                            this.BeginInvoke(new Action(() => {
+                                next.Focus();
+                            }));
+                        }
+                        return true;
+                    }
+
+                    // Shift+Tab
+                    if (keyData == (Keys.Tab | Keys.Shift))
+                    {
+                        if (tbIdx > 0)
+                        {
+                            var prev = _tabSequenceAfterPickers[tbIdx - 1];
+                            this.BeginInvoke(new Action(() => {
+                                prev.Focus();
+                            }));
+                        }
+                        else
+                        {
+                            // Pierwszy TextBox (kmPowrot) - wróć do ostatniego pickera na MM
+                            var lastPicker = _dateTimePickers[_dateTimePickers.Length - 1];
+                            _isOnMinutes[lastPicker] = true;
+                            this.BeginInvoke(new Action(() => {
+                                lastPicker.Focus();
+                                SendKeys.SendWait("{RIGHT}");
+                            }));
+                        }
+                        return true;
+                    }
+                }
+            }
+
+            // Znajdź aktywny DateTimePicker
+            var activePicker = _dateTimePickers.FirstOrDefault(p => p.Focused);
+            if (activePicker == null) return base.ProcessCmdKey(ref msg, keyData);
+
+            int idx = Array.IndexOf(_dateTimePickers, activePicker);
+
+            // Tab (bez Shift)
+            if (keyData == Keys.Tab)
+            {
+                if (!_isOnMinutes[activePicker])
+                {
+                    // Jesteśmy na HH - przejdź na MM
+                    _isOnMinutes[activePicker] = true;
+                    this.BeginInvoke(new Action(() => {
+                        SendKeys.SendWait("{RIGHT}");
+                    }));
+                }
+                else
+                {
+                    // Jesteśmy na MM - przejdź do następnego pickera (HH)
+                    _isOnMinutes[activePicker] = false;
+
+                    if (idx < _dateTimePickers.Length - 1)
+                    {
+                        var nextPicker = _dateTimePickers[idx + 1];
+                        _isOnMinutes[nextPicker] = false;
+                        this.BeginInvoke(new Action(() => {
+                            nextPicker.Focus();
+                        }));
+                    }
+                    else
+                    {
+                        // Ostatni picker - przejdź do kmPowrot (pierwszy w sekwencji TextBoxów)
+                        this.BeginInvoke(new Action(() => {
+                            kmPowrot.Focus();
+                        }));
+                    }
+                }
+                return true; // Przechwycono - nie propaguj dalej
+            }
+
+            // Shift+Tab
+            if (keyData == (Keys.Tab | Keys.Shift))
+            {
+                if (_isOnMinutes[activePicker])
+                {
+                    // Z MM na HH (ten sam picker)
+                    _isOnMinutes[activePicker] = false;
+                    this.BeginInvoke(new Action(() => {
+                        SendKeys.SendWait("{LEFT}");
+                    }));
+                }
+                else
+                {
+                    // Z HH - cofnij do poprzedniego pickera na MM
+                    if (idx > 0)
+                    {
+                        var prevPicker = _dateTimePickers[idx - 1];
+                        _isOnMinutes[prevPicker] = true;
+                        this.BeginInvoke(new Action(() => {
+                            prevPicker.Focus();
+                            SendKeys.SendWait("{RIGHT}");
+                        }));
+                    }
+                }
+                return true; // Przechwycono - nie propaguj dalej
+            }
+
+            return base.ProcessCmdKey(ref msg, keyData);
         }
         public WidokAvilog(int idSpecyfikacji) : this()
         {
@@ -261,13 +523,13 @@ namespace Kalendarz1
                             decimal waga = reader.GetDecimal(reader.GetOrdinal("WagaDek"));
                             buforhSrednia.Text = waga.ToString(); // Konwersja wartości decimal na string
                         }
-                        // SztPoj to całkowita liczba sztuk - wpisujemy do SumaSztuk, nie do LiczbaSztuk (per szuflada)
+                        // SztPoj - wpisujemy do LiczbaSztuk (liczba sztuk/szuflad)
                         if (!reader.IsDBNull(reader.GetOrdinal("SztPoj")))
                         {
                             int sztuki = (int)reader.GetDecimal(reader.GetOrdinal("SztPoj"));
-                            hSumaSztuk.Text = sztuki.ToString();
-                            buforSumaSztuk.Text = sztuki.ToString();
-                            uSumaSztuk.Text = sztuki.ToString();
+                            hLiczbaSztuk.Text = sztuki.ToString();
+                            buforhLiczbaSztuk.Text = sztuki.ToString();
+                            uLiczbaSztuk.Text = sztuki.ToString();
                         }
                     }
                     else
