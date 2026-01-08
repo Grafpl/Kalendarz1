@@ -79,9 +79,10 @@
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="#E3F2FD"/>
                 </Trigger>
-                <!-- 2. Zaznaczenie -->
+                <!-- 2. Zaznaczenie - pogrubienie czcionki, bez zmiany tła -->
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#BBDEFB"/>
+                    <Setter Property="FontWeight" Value="Bold"/>
+                    <Setter Property="Background" Value="Transparent"/>
                 </Trigger>
                 <!-- 3. Hover + Zaznaczenie -->
                 <MultiTrigger>
@@ -89,7 +90,8 @@
                         <Condition Property="IsMouseOver" Value="True"/>
                         <Condition Property="IsSelected" Value="True"/>
                     </MultiTrigger.Conditions>
-                    <Setter Property="Background" Value="#90CAF9"/>
+                    <Setter Property="Background" Value="#E3F2FD"/>
+                    <Setter Property="FontWeight" Value="Bold"/>
                 </MultiTrigger>
                 <!-- 4. PODŚWIETLENIE GRUPY - subtelne, bez zmiany układu -->
                 <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
@@ -109,7 +111,8 @@
                         <Condition Binding="{Binding IsHighlighted}" Value="True"/>
                         <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsSelected}" Value="True"/>
                     </MultiDataTrigger.Conditions>
-                    <Setter Property="Background" Value="#FFE082"/>
+                    <Setter Property="Background" Value="#FFF8E1"/>
+                    <Setter Property="FontWeight" Value="Bold"/>
                 </MultiDataTrigger>
             </Style.Triggers>
         </Style>
@@ -1468,6 +1471,15 @@
                                             <Setter Property="HorizontalAlignment" Value="Center"/>
                                             <Setter Property="VerticalAlignment" Value="Center"/>
                                             <Setter Property="FontWeight" Value="Bold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="150" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="5,0"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>

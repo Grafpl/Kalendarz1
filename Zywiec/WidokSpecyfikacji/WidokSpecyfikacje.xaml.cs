@@ -346,28 +346,40 @@ namespace Kalendarz1
 
         private void BtnTransportMoveUp_Click(object sender, RoutedEventArgs e)
         {
-            if (dataGridTransport.SelectedItem is TransportRow selectedRow)
+            if (dataGridTransport.SelectedItem is TransportRow selectedTransportRow)
             {
-                int index = transportData.IndexOf(selectedRow);
+                int index = transportData.IndexOf(selectedTransportRow);
                 if (index > 0)
                 {
+                    // Przesuń w Transport
                     transportData.Move(index, index - 1);
                     UpdateTransportNrNumbers();
-                    dataGridTransport.SelectedItem = selectedRow;
+                    dataGridTransport.SelectedItem = selectedTransportRow;
+
+                    // Synchronizuj z specyfikacjeData
+                    SyncSpecyfikacjeOrderFromTransport();
+                    // Odśwież Płachtę
+                    RefreshPlachtaFromSpecyfikacje();
                 }
             }
         }
 
         private void BtnTransportMoveDown_Click(object sender, RoutedEventArgs e)
         {
-            if (dataGridTransport.SelectedItem is TransportRow selectedRow)
+            if (dataGridTransport.SelectedItem is TransportRow selectedTransportRow)
             {
-                int index = transportData.IndexOf(selectedRow);
+                int index = transportData.IndexOf(selectedTransportRow);
                 if (index < transportData.Count - 1)
                 {
+                    // Przesuń w Transport
                     transportData.Move(index, index + 1);
                     UpdateTransportNrNumbers();
-                    dataGridTransport.SelectedItem = selectedRow;
+                    dataGridTransport.SelectedItem = selectedTransportRow;
+
+                    // Synchronizuj z specyfikacjeData
+                    SyncSpecyfikacjeOrderFromTransport();
+                    // Odśwież Płachtę
+                    RefreshPlachtaFromSpecyfikacje();
                 }
             }
         }
@@ -378,6 +390,55 @@ namespace Kalendarz1
             {
                 transportData[i].Nr = i + 1;
             }
+        }
+
+        /// <summary>
+        /// Synchronizuje kolejność specyfikacjeData na podstawie kolejności transportData
+        /// </summary>
+        private void SyncSpecyfikacjeOrderFromTransport()
+        {
+            if (specyfikacjeData == null || transportData == null)
+                return;
+
+            // Stwórz mapę ID -> pozycja z transportData
+            var newOrder = transportData.Select((t, idx) => new { t.SpecyfikacjaID, Index = idx }).ToList();
+
+            // Posortuj specyfikacjeData według nowej kolejności
+            var orderedSpecs = specyfikacjeData
+                .OrderBy(s => newOrder.FirstOrDefault(o => o.SpecyfikacjaID == s.ID)?.Index ?? int.MaxValue)
+                .ToList();
+
+            // Zastąp kolekcję
+            specyfikacjeData.Clear();
+            foreach (var spec in orderedSpecs)
+            {
+                specyfikacjeData.Add(spec);
+            }
+            UpdateRowNumbers();
+        }
+
+        /// <summary>
+        /// Odświeża Płachtę na podstawie aktualnej kolejności specyfikacjeData (bez ponownego ładowania z bazy)
+        /// </summary>
+        private void RefreshPlachtaFromSpecyfikacje()
+        {
+            if (plachtaData == null || specyfikacjeData == null)
+                return;
+
+            // Stwórz mapę ID -> pozycja z specyfikacjeData
+            var specOrder = specyfikacjeData.Select((s, idx) => new { s.ID, Index = idx }).ToDictionary(x => x.ID, x => x.Index);
+
+            // Posortuj plachtaData według kolejności specyfikacjeData
+            var orderedPlachta = plachtaData
+                .OrderBy(p => specOrder.ContainsKey(p.ID) ? specOrder[p.ID] : int.MaxValue)
+                .ToList();
+
+            plachtaData.Clear();
+            foreach (var row in orderedPlachta)
+            {
+                plachtaData.Add(row);
+            }
+            UpdatePlachtaLpNumbers();
         }
 
         private void BtnTransportSaveOrder_Click(object sender, RoutedEventArgs e)
@@ -438,7 +499,9 @@ namespace Kalendarz1
             {
                 var transportRow = new TransportRow
                 {
+                    SpecyfikacjaID = spec.ID,
                     Nr = nr++,
+                    Dostawca = spec.Dostawca ?? spec.RealDostawca ?? "",
                     Kierowca = spec.KierowcaNazwa ?? "",
                     Samochod = spec.CarID ?? "",
                     NrRejestracyjny = spec.TrailerID ?? "",
@@ -865,6 +928,11 @@ namespace Kalendarz1
             dataGridView1.SelectedItem = selected;
             selectedRow = selected;
             SaveAllRowPositions();
+
+            // Synchronizuj Transport i Płachtę
+            RefreshTransportFromSpecyfikacje();
+            RefreshPlachtaFromSpecyfikacje();
+
             UpdateStatus($"Przesunięto wiersz LP {selected.Nr} w górę");
         }
 
@@ -892,7 +960,20 @@ namespace Kalendarz1
             dataGridView1.SelectedItem = selected;
             selectedRow = selected;
             SaveAllRowPositions();
+
+            // Synchronizuj Transport i Płachtę
+            RefreshTransportFromSpecyfikacje();
+            RefreshPlachtaFromSpecyfikacje();
+
             UpdateStatus($"Przesunięto wiersz LP {selected.Nr} w dół");
+        }
+
+        /// <summary>
+        /// Odświeża Transport na podstawie aktualnej kolejności specyfikacjeData
+        /// </summary>
+        private void RefreshTransportFromSpecyfikacje()
+        {
+            LoadTransportData();
         }
 
         // === WYDAJNOŚĆ: Auto-zapis pozycji - używa async batch update ===
@@ -4275,7 +4356,8 @@ namespace Kalendarz1
 
                 // === GŁÓWNA TABELA ROZLICZENIA === (dostosowana do A4 pionowego)
                 // 18 kolumn: Lp, Brutto, Tara, Netto | Dostarcz, Padłe, Konf, Zdatne | kg/szt | Netto, Padłe, Konf, Ubytek, Opas, KlB, DoZapł, Cena, Wartość
-                PdfPTable dataTable = new PdfPTable(new float[] { 0.3F, 0.5F, 0.5F, 0.55F, 0.5F, 0.4F, 0.45F, 0.45F, 0.55F, 0.55F, 0.5F, 0.5F, 0.5F, 0.5F, 0.45F, 0.55F, 0.5F, 0.65F });
+                // Brutto/Tara/Netto szersze, Kl.B/Cena/Śr.Waga węższe
+                PdfPTable dataTable = new PdfPTable(new float[] { 0.3F, 0.6F, 0.6F, 0.65F, 0.5F, 0.4F, 0.45F, 0.45F, 0.45F, 0.55F, 0.5F, 0.5F, 0.5F, 0.5F, 0.35F, 0.55F, 0.4F, 0.65F });
                 dataTable.WidthPercentage = 100;
 
                 // Nagłówki grupowe z kolorami
@@ -6185,28 +6267,36 @@ namespace Kalendarz1
 
         private void BtnPlachtaMoveUp_Click(object sender, RoutedEventArgs e)
         {
-            if (dataGridPlachta.SelectedItem is PlachtaRow selectedRow)
+            if (dataGridPlachta.SelectedItem is PlachtaRow selectedPlachtaRow)
             {
-                int index = plachtaData.IndexOf(selectedRow);
+                int index = plachtaData.IndexOf(selectedPlachtaRow);
                 if (index > 0)
                 {
                     plachtaData.Move(index, index - 1);
                     UpdatePlachtaLpNumbers();
-                    dataGridPlachta.SelectedItem = selectedRow;
+                    dataGridPlachta.SelectedItem = selectedPlachtaRow;
+
+                    // Synchronizuj z specyfikacjeData i Transport
+                    SyncSpecyfikacjeOrderFromPlachta();
+                    RefreshTransportFromSpecyfikacje();
                 }
             }
         }
 
         private void BtnPlachtaMoveDown_Click(object sender, RoutedEventArgs e)
         {
-            if (dataGridPlachta.SelectedItem is PlachtaRow selectedRow)
+            if (dataGridPlachta.SelectedItem is PlachtaRow selectedPlachtaRow)
             {
-                int index = plachtaData.IndexOf(selectedRow);
+                int index = plachtaData.IndexOf(selectedPlachtaRow);
                 if (index < plachtaData.Count - 1)
                 {
                     plachtaData.Move(index, index + 1);
                     UpdatePlachtaLpNumbers();
-                    dataGridPlachta.SelectedItem = selectedRow;
+                    dataGridPlachta.SelectedItem = selectedPlachtaRow;
+
+                    // Synchronizuj z specyfikacjeData i Transport
+                    SyncSpecyfikacjeOrderFromPlachta();
+                    RefreshTransportFromSpecyfikacje();
                 }
             }
         }
@@ -6217,6 +6307,31 @@ namespace Kalendarz1
             {
                 plachtaData[i].Lp = i + 1;
             }
+        }
+
+        /// <summary>
+        /// Synchronizuje kolejność specyfikacjeData na podstawie kolejności plachtaData
+        /// </summary>
+        private void SyncSpecyfikacjeOrderFromPlachta()
+        {
+            if (specyfikacjeData == null || plachtaData == null)
+                return;
+
+            // Stwórz mapę ID -> pozycja z plachtaData
+            var newOrder = plachtaData.Select((p, idx) => new { p.ID, Index = idx }).ToList();
+
+            // Posortuj specyfikacjeData według nowej kolejności
+            var orderedSpecs = specyfikacjeData
+                .OrderBy(s => newOrder.FirstOrDefault(o => o.ID == s.ID)?.Index ?? int.MaxValue)
+                .ToList();
+
+            // Zastąp kolekcję
+            specyfikacjeData.Clear();
+            foreach (var spec in orderedSpecs)
+            {
+                specyfikacjeData.Add(spec);
+            }
+            UpdateRowNumbers();
         }
 
         private void BtnPlachtaRefresh_Click(object sender, RoutedEventArgs e)
@@ -7917,7 +8032,9 @@ namespace Kalendarz1
     /// </summary>
     public class TransportRow : INotifyPropertyChanged
     {
+        private int _specyfikacjaID;
         private int _nr;
+        private string _dostawca;
         private string _kierowca;
         private string _samochod;
         private string _nrRejestracyjny;
@@ -7929,6 +8046,13 @@ namespace Kalendarz1
         private decimal _kilogramy;
         private string _status;
         private string _uwagi;
+
+        // ID powiązane ze SpecyfikacjaRow.ID (FarmerCalc.ID)
+        public int SpecyfikacjaID
+        {
+            get => _specyfikacjaID;
+            set { _specyfikacjaID = value; OnPropertyChanged(nameof(SpecyfikacjaID)); }
+        }
 
         // Godziny transportowe
         private DateTime? _poczatekUslugi;
@@ -7942,6 +8066,12 @@ namespace Kalendarz1
         {
             get => _nr;
             set { _nr = value; OnPropertyChanged(nameof(Nr)); }
+        }
+
+        public string Dostawca
+        {
+            get => _dostawca;
+            set { _dostawca = value; OnPropertyChanged(nameof(Dostawca)); }
         }
 
         public string Kierowca
