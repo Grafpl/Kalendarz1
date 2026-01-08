@@ -364,25 +364,6 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Width="1" Background="#4B732F" Margin="15,5"/>
-
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
-                        <CheckBox x:Name="chkShowOpasienie"
-                                  Content="Opasienie"
-                                  Foreground="White"
-                                  FontSize="12"
-                                  VerticalAlignment="Center"
-                                  Checked="ChkShowOpasienie_Changed"
-                                  Unchecked="ChkShowOpasienie_Changed"
-                                  Margin="0,0,15,0"/>
-                        <CheckBox x:Name="chkShowKlasaB"
-                                  Content="Klasa B"
-                                  Foreground="White"
-                                  FontSize="12"
-                                  VerticalAlignment="Center"
-                                  Checked="ChkShowKlasaB_Changed"
-                                  Unchecked="ChkShowKlasaB_Changed"/>
-                    </StackPanel>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
@@ -630,16 +611,6 @@
 
                                 <TextBlock x:Name="lblClipboardInfo" Text="" VerticalAlignment="Center"
                                            FontStyle="Italic" Foreground="#757575" Margin="10,0,0,0"/>
-
-                                <!-- Wskaźnik czasu od ostatniego zapisu -->
-                                <Border Background="#ECEFF1" CornerRadius="4" Padding="8,3" Margin="10,0,0,0" VerticalAlignment="Center">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="⏱" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                        <TextBlock x:Name="lblSaveTimer" Text="--" FontSize="10" Foreground="#546E7A" VerticalAlignment="Center"
-                                                   ToolTip="Czas od ostatniej edycji wartości"/>
-                                        <TextBlock Text=" ms" FontSize="9" Foreground="#90A4AE" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Border>
                             </StackPanel>
                         </Border>
 
@@ -1555,7 +1526,7 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="Kierowca" Binding="{Binding Kierowca, Mode=TwoWay}" Width="80">
+                                <DataGridTextColumn Header="Kierowca" Binding="{Binding Kierowca, Mode=TwoWay}" Width="100">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -1565,7 +1536,7 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="Auto" Binding="{Binding Samochod, Mode=TwoWay}" Width="55">
+                                <DataGridTextColumn Header="Auto" Binding="{Binding Samochod, Mode=TwoWay}" Width="70">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -1575,7 +1546,7 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="Nr rej." Binding="{Binding NrRejestracyjny, Mode=TwoWay}" Width="65">
+                                <DataGridTextColumn Header="Nr rej." Binding="{Binding NrRejestracyjny, Mode=TwoWay}" Width="80">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -2037,7 +2008,7 @@
             </TabItem>
 
             <!-- === KARTA PŁACHTA (Panel Lekarza) === -->
-            <TabItem Header="⚕ Płachta">
+            <TabItem Header="👨‍⚕️ Płachta">
                 <Border Background="White" CornerRadius="10" Margin="10" Padding="15">
                     <Border.Effect>
                         <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="15"/>

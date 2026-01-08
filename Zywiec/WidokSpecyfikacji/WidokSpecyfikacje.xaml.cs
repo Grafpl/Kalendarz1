@@ -91,11 +91,6 @@ namespace Kalendarz1
         private TextBox _currentSupplierTextBox;
         private const int SupplierFilterDelayMs = 200;
 
-        // === TIMER ZAPISU: Mierzy czas od ostatniej edycji ===
-        private System.Diagnostics.Stopwatch _saveStopwatch = new System.Diagnostics.Stopwatch();
-        private DispatcherTimer _saveTimerDisplay;
-        private DateTime _lastEditTime = DateTime.MinValue;
-
         public WidokSpecyfikacje()
         {
             InitializeComponent();
@@ -107,12 +102,6 @@ namespace Kalendarz1
             _debounceTimer = new DispatcherTimer();
             _debounceTimer.Interval = TimeSpan.FromMilliseconds(DebounceDelayMs);
             _debounceTimer.Tick += DebounceTimer_Tick;
-
-            // Inicjalizuj timer wyświetlania czasu zapisu
-            _saveTimerDisplay = new DispatcherTimer();
-            _saveTimerDisplay.Interval = TimeSpan.FromMilliseconds(100);
-            _saveTimerDisplay.Tick += SaveTimerDisplay_Tick;
-            _saveTimerDisplay.Start();
 
             // Inicjalizuj timer debounce dla autocomplete dostawcy
             _supplierFilterTimer = new DispatcherTimer();
@@ -273,47 +262,12 @@ namespace Kalendarz1
         }
 
         // === TIMER ZAPISU: Aktualizacja wyświetlania czasu od ostatniej edycji ===
-        private void SaveTimerDisplay_Tick(object sender, EventArgs e)
-        {
-            if (_lastEditTime != DateTime.MinValue && lblSaveTimer != null)
-            {
-                var elapsed = DateTime.Now - _lastEditTime;
-                if (elapsed.TotalSeconds < 10)
-                {
-                    lblSaveTimer.Text = $"{(int)elapsed.TotalMilliseconds}";
-                    lblSaveTimer.Foreground = new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32)); // Green
-                }
-                else if (elapsed.TotalSeconds < 60)
-                {
-                    lblSaveTimer.Text = $"{elapsed.TotalSeconds:F1}s";
-                    lblSaveTimer.Foreground = new SolidColorBrush(Color.FromRgb(0x54, 0x6E, 0x7A)); // Gray
-                }
-                else
-                {
-                    lblSaveTimer.Text = "--";
-                    lblSaveTimer.Foreground = new SolidColorBrush(Color.FromRgb(0x90, 0xA4, 0xAE)); // Light gray
-                }
-            }
-        }
-
-        /// <summary>
-        /// Oznacza moment edycji wartości - resetuje timer
-        /// </summary>
-        private void MarkEditTime()
-        {
-            _lastEditTime = DateTime.Now;
-            _saveStopwatch.Restart();
-        }
-
         // === WYDAJNOŚĆ: Dodaj wiersz do kolejki zapisu (debounce) ===
         private void QueueRowForSave(int rowId)
         {
             _pendingSaveIds.Add(rowId);
             _debounceTimer.Stop();
             _debounceTimer.Start();
-
-            // Aktualizuj timer wyświetlania czasu od edycji
-            MarkEditTime();
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -3217,10 +3171,7 @@ namespace Kalendarz1
         // === Checkbox: Pokaż/ukryj kolumnę Opasienie ===
         private void ChkShowOpasienie_Changed(object sender, RoutedEventArgs e)
         {
-            // Synchronizuj oba checkboxy
             bool isChecked = (sender as CheckBox)?.IsChecked == true;
-            if (chkShowOpasienie != null && chkShowOpasienie != sender) chkShowOpasienie.IsChecked = isChecked;
-            if (chkShowOpasienie2 != null && chkShowOpasienie2 != sender) chkShowOpasienie2.IsChecked = isChecked;
 
             if (colOpasienie != null)
             {
@@ -3233,10 +3184,7 @@ namespace Kalendarz1
         // === Checkbox: Pokaż/ukryj kolumnę Klasa B ===
         private void ChkShowKlasaB_Changed(object sender, RoutedEventArgs e)
         {
-            // Synchronizuj oba checkboxy
             bool isChecked = (sender as CheckBox)?.IsChecked == true;
-            if (chkShowKlasaB != null && chkShowKlasaB != sender) chkShowKlasaB.IsChecked = isChecked;
-            if (chkShowKlasaB2 != null && chkShowKlasaB2 != sender) chkShowKlasaB2.IsChecked = isChecked;
 
             if (colKlasaB != null)
             {
