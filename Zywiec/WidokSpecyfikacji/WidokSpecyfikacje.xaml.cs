@@ -43,6 +43,7 @@ namespace Kalendarz1
         private static string defaultPdfPath = @"\\192.168.0.170\Public\Przel\";
         private static string defaultPlachtaPath = @"\\192.168.0.170\Public\Plachty\";
         private static bool useDefaultPath = true;
+        private static bool _pdfCzarnoBialy = false; // Tryb czarno-biały PDF (logo kolorowe)
         private decimal sumaWartosc = 0;
         private decimal sumaKG = 0;
 
@@ -94,6 +95,9 @@ namespace Kalendarz1
         {
             InitializeComponent();
 
+            // Przenieś kartę Rozliczenia na koniec (po Płachta)
+            ReorderTabs();
+
             // Inicjalizuj timer debounce dla auto-zapisu
             _debounceTimer = new DispatcherTimer();
             _debounceTimer.Interval = TimeSpan.FromMilliseconds(DebounceDelayMs);
@@ -131,6 +135,26 @@ namespace Kalendarz1
 
             // Dodaj obsługę skrótów klawiszowych
             this.KeyDown += Window_KeyDown;
+        }
+
+        /// <summary>
+        /// Przesuwa kartę Rozliczenia na koniec (za Płachtę)
+        /// Obecna kolejność: Specyfikacje (0), Transport (1), Rozliczenia (2), Płachta (3)
+        /// Docelowa kolejność: Specyfikacje (0), Transport (1), Płachta (2), Rozliczenia (3)
+        /// </summary>
+        private void ReorderTabs()
+        {
+            try
+            {
+                if (mainTabControl.Items.Count >= 4)
+                {
+                    // Rozliczenia jest na pozycji 2, przenosimy na koniec
+                    var rozliczeniaTab = mainTabControl.Items[2];
+                    mainTabControl.Items.RemoveAt(2);
+                    mainTabControl.Items.Add(rozliczeniaTab);
+                }
+            }
+            catch { }
         }
 
         // === WYDAJNOŚĆ: Ładowanie dostawców z cache ===
@@ -278,16 +302,16 @@ namespace Kalendarz1
                     lumelPanel.Visibility = Visibility.Collapsed;
                 }
 
-                // Załaduj dane rozliczeń gdy przełączono na kartę Rozliczenia
+                // Załaduj dane płachty gdy przełączono na kartę Płachta (teraz index 2 po ReorderTabs)
                 if (mainTabControl.SelectedIndex == 2)
                 {
-                    LoadRozliczeniaData();
+                    LoadPlachtaData();
                 }
 
-                // Załaduj dane płachty gdy przełączono na kartę Płachta
+                // Załaduj dane rozliczeń gdy przełączono na kartę Rozliczenia (teraz index 3 po ReorderTabs)
                 if (mainTabControl.SelectedIndex == 3)
                 {
-                    LoadPlachtaData();
+                    LoadRozliczeniaData();
                 }
             }
         }
@@ -320,6 +344,87 @@ namespace Kalendarz1
             UpdateStatus("Dane transportowe odświeżone");
         }
 
+        private void BtnTransportMoveUp_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridTransport.SelectedItem is TransportRow selectedRow)
+            {
+                int index = transportData.IndexOf(selectedRow);
+                if (index > 0)
+                {
+                    transportData.Move(index, index - 1);
+                    UpdateTransportNrNumbers();
+                    dataGridTransport.SelectedItem = selectedRow;
+                }
+            }
+        }
+
+        private void BtnTransportMoveDown_Click(object sender, RoutedEventArgs e)
+        {
+            if (dataGridTransport.SelectedItem is TransportRow selectedRow)
+            {
+                int index = transportData.IndexOf(selectedRow);
+                if (index < transportData.Count - 1)
+                {
+                    transportData.Move(index, index + 1);
+                    UpdateTransportNrNumbers();
+                    dataGridTransport.SelectedItem = selectedRow;
+                }
+            }
+        }
+
+        private void UpdateTransportNrNumbers()
+        {
+            for (int i = 0; i < transportData.Count; i++)
+            {
+                transportData[i].Nr = i + 1;
+            }
+        }
+
+        private void BtnTransportSaveOrder_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (specyfikacjeData == null || specyfikacjeData.Count == 0) return;
+
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Zapisz nową kolejność (CarLp) dla każdego wiersza na podstawie kolejności w transportData
+                    for (int i = 0; i < transportData.Count; i++)
+                    {
+                        var transport = transportData[i];
+                        // Znajdź odpowiednią specyfikację na podstawie danych transportu
+                        var spec = specyfikacjeData.FirstOrDefault(s =>
+                            s.CarID == transport.Samochod &&
+                            s.KierowcaNazwa == transport.Kierowca &&
+                            (s.Dostawca == transport.Trasa || s.RealDostawca == transport.Trasa));
+
+                        if (spec != null)
+                        {
+                            string updateQuery = "UPDATE dbo.FarmerCalc SET CarLp = @CarLp WHERE ID = @ID";
+                            using (SqlCommand cmd = new SqlCommand(updateQuery, conn))
+                            {
+                                cmd.Parameters.AddWithValue("@CarLp", i + 1);
+                                cmd.Parameters.AddWithValue("@ID", spec.ID);
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
+                    }
+                }
+
+                // Odśwież dane
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+                LoadData(selectedDate);
+                LoadTransportData();
+                MessageBox.Show("Kolejność transportu została zapisana.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd zapisu: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private void LoadTransportData()
         {
             transportData.Clear();
@@ -342,14 +447,17 @@ namespace Kalendarz1
                     Trasa = spec.Dostawca ?? spec.RealDostawca ?? "",
                     Sztuki = spec.SztukiDek,
                     Kilogramy = spec.WagaNettoDoRozliczenia,
-                    Status = spec.ArrivalTime.HasValue ? "Zakończony" : "Oczekuje",
                     // Godziny transportowe
                     PoczatekUslugi = spec.PoczatekUslugi,
                     DojazdHodowca = spec.DojazdHodowca,
                     Zaladunek = spec.Zaladunek,
                     ZaladunekKoniec = spec.ZaladunekKoniec,
                     WyjazdHodowca = spec.WyjazdHodowca,
-                    KoniecUslugi = spec.KoniecUslugi
+                    KoniecUslugi = spec.KoniecUslugi,
+                    // Wagi i ubytek
+                    NettoHodowcy = spec.NettoHodowcyValue,
+                    NettoUbojni = spec.NettoUbojniValue,
+                    UbytekUmowny = spec.Ubytek
                 };
 
                 transportData.Add(transportRow);
@@ -533,6 +641,10 @@ namespace Kalendarz1
                 LoadData(dateTimePicker1.SelectedDate.Value);
                 UpdateFullDateLabel();
                 UpdateTransportDateLabel();
+
+                // Odśwież wszystkie karty przy zmianie daty
+                LoadRozliczeniaData();
+                LoadPlachtaData();
             }
         }
 
@@ -3782,23 +3894,23 @@ namespace Kalendarz1
 
                 doc.Add(detailsTable);
 
-                // === PODPISY ===
+                // === PODPISY (kompaktowe) ===
                 PdfPTable sigTable = new PdfPTable(2);
                 sigTable.WidthPercentage = 100;
-                sigTable.SpacingBefore = 30f;
+                sigTable.SpacingBefore = 15f; // Mniejszy odstęp
 
-                PdfPCell sig1 = CreateRoundedCell(new BaseColor(200, 200, 200), new BaseColor(252, 252, 252), 12);
-                sig1.AddElement(new Paragraph("PODPIS DOSTAWCY", new Font(polishFont, 9, Font.BOLD, orangeColor)) { Alignment = Element.ALIGN_CENTER });
-                sig1.AddElement(new Paragraph(" \n \n", textFont));
+                PdfPCell sig1 = CreateRoundedCell(new BaseColor(200, 200, 200), new BaseColor(252, 252, 252), 8);
+                sig1.AddElement(new Paragraph("PODPIS DOSTAWCY", new Font(polishFont, 8, Font.BOLD, orangeColor)) { Alignment = Element.ALIGN_CENTER });
+                sig1.AddElement(new Paragraph(" \n", textFont));
                 sig1.AddElement(new Paragraph("........................................", textFont) { Alignment = Element.ALIGN_CENTER });
                 sigTable.AddCell(sig1);
 
                 NazwaZiD nazwaZiD = new NazwaZiD();
                 string wystawiajacyNazwa = nazwaZiD.GetNameById(App.UserID) ?? "---";
 
-                PdfPCell sig2 = CreateRoundedCell(new BaseColor(200, 200, 200), new BaseColor(252, 252, 252), 12);
-                sig2.AddElement(new Paragraph("PODPIS PRACOWNIKA", new Font(polishFont, 9, Font.BOLD, greenColor)) { Alignment = Element.ALIGN_CENTER });
-                sig2.AddElement(new Paragraph(" \n \n", textFont));
+                PdfPCell sig2 = CreateRoundedCell(new BaseColor(200, 200, 200), new BaseColor(252, 252, 252), 8);
+                sig2.AddElement(new Paragraph("PODPIS PRACOWNIKA", new Font(polishFont, 8, Font.BOLD, greenColor)) { Alignment = Element.ALIGN_CENTER });
+                sig2.AddElement(new Paragraph(" \n", textFont));
                 sig2.AddElement(new Paragraph("........................................", textFont) { Alignment = Element.ALIGN_CENTER });
                 sigTable.AddCell(sig2);
 
@@ -4179,7 +4291,7 @@ namespace Kalendarz1
                 AddColoredTableHeader(dataTable, "Tara", smallTextFontBold, darkGreenColor);
                 AddColoredTableHeader(dataTable, "Netto", smallTextFontBold, darkGreenColor);
                 // Nagłówki kolumn - SZTUKI
-                AddColoredTableHeader(dataTable, "Dostarcz.", smallTextFontBold, new BaseColor(230, 126, 34));
+                AddDostarczoneHeader(dataTable, smallTextFontBold, new BaseColor(230, 126, 34));
                 AddColoredTableHeader(dataTable, "Padłe", smallTextFontBold, new BaseColor(230, 126, 34));
                 AddColoredTableHeader(dataTable, "Konf.", smallTextFontBold, new BaseColor(230, 126, 34));
                 AddColoredTableHeader(dataTable, "Zdatne", smallTextFontBold, new BaseColor(230, 126, 34));
@@ -4448,34 +4560,30 @@ namespace Kalendarz1
                 summaryTable.AddCell(sumCell);
                 doc.Add(summaryTable);
 
-                // === PODPISY ===
+                // === PODPISY (kompaktowe) ===
                 // Pobierz nazwę wystawiającego z App.UserID
                 NazwaZiD nazwaZiD = new NazwaZiD();
                 string wystawiajacyNazwa = nazwaZiD.GetNameById(App.UserID) ?? App.UserID ?? "---";
 
                 PdfPTable footerTable = new PdfPTable(2);
                 footerTable.WidthPercentage = 100;
-                footerTable.SpacingBefore = 25f;
+                footerTable.SpacingBefore = 12f; // Mniejszy odstęp
                 footerTable.SetWidths(new float[] { 1f, 1f });
 
-                // Podpis Dostawcy (lewa strona)
-                PdfPCell signatureLeft = new PdfPCell { Border = PdfPCell.BOX, BorderColor = new BaseColor(200, 200, 200), Padding = 15, BackgroundColor = new BaseColor(252, 252, 252) };
-                signatureLeft.AddElement(new Paragraph("PODPIS DOSTAWCY", new Font(polishFont, 9, Font.BOLD, orangeColor)) { Alignment = Element.ALIGN_CENTER });
-                signatureLeft.AddElement(new Paragraph(" ", new Font(polishFont, 12, Font.NORMAL)));
-                signatureLeft.AddElement(new Paragraph(" ", new Font(polishFont, 12, Font.NORMAL)));
-                signatureLeft.AddElement(new Paragraph(" ", new Font(polishFont, 12, Font.NORMAL)));
-                signatureLeft.AddElement(new Paragraph("............................................................", new Font(polishFont, 10, Font.NORMAL)) { Alignment = Element.ALIGN_CENTER });
-                signatureLeft.AddElement(new Paragraph("data i czytelny podpis", new Font(polishFont, 7, Font.ITALIC, grayColor)) { Alignment = Element.ALIGN_CENTER });
+                // Podpis Dostawcy (lewa strona) - kompaktowy
+                PdfPCell signatureLeft = new PdfPCell { Border = PdfPCell.BOX, BorderColor = new BaseColor(200, 200, 200), Padding = 8, BackgroundColor = new BaseColor(252, 252, 252) };
+                signatureLeft.AddElement(new Paragraph("PODPIS DOSTAWCY", new Font(polishFont, 8, Font.BOLD, orangeColor)) { Alignment = Element.ALIGN_CENTER });
+                signatureLeft.AddElement(new Paragraph(" ", new Font(polishFont, 8, Font.NORMAL)));
+                signatureLeft.AddElement(new Paragraph("............................................................", new Font(polishFont, 9, Font.NORMAL)) { Alignment = Element.ALIGN_CENTER });
+                signatureLeft.AddElement(new Paragraph("data i czytelny podpis", new Font(polishFont, 6, Font.ITALIC, grayColor)) { Alignment = Element.ALIGN_CENTER });
                 footerTable.AddCell(signatureLeft);
 
-                // Podpis Pracownika/Wystawiającego (prawa strona)
-                PdfPCell signatureRight = new PdfPCell { Border = PdfPCell.BOX, BorderColor = new BaseColor(200, 200, 200), Padding = 15, BackgroundColor = new BaseColor(252, 252, 252) };
-                signatureRight.AddElement(new Paragraph("PODPIS PRACOWNIKA", new Font(polishFont, 9, Font.BOLD, greenColor)) { Alignment = Element.ALIGN_CENTER });
-                signatureRight.AddElement(new Paragraph($"({wystawiajacyNazwa})", new Font(polishFont, 8, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_CENTER });
-                signatureRight.AddElement(new Paragraph(" ", new Font(polishFont, 12, Font.NORMAL)));
-                signatureRight.AddElement(new Paragraph(" ", new Font(polishFont, 12, Font.NORMAL)));
-                signatureRight.AddElement(new Paragraph("............................................................", new Font(polishFont, 10, Font.NORMAL)) { Alignment = Element.ALIGN_CENTER });
-                signatureRight.AddElement(new Paragraph("data i czytelny podpis", new Font(polishFont, 7, Font.ITALIC, grayColor)) { Alignment = Element.ALIGN_CENTER });
+                // Podpis Pracownika/Wystawiającego (prawa strona) - kompaktowy
+                PdfPCell signatureRight = new PdfPCell { Border = PdfPCell.BOX, BorderColor = new BaseColor(200, 200, 200), Padding = 8, BackgroundColor = new BaseColor(252, 252, 252) };
+                signatureRight.AddElement(new Paragraph("PODPIS PRACOWNIKA", new Font(polishFont, 8, Font.BOLD, greenColor)) { Alignment = Element.ALIGN_CENTER });
+                signatureRight.AddElement(new Paragraph($"({wystawiajacyNazwa})", new Font(polishFont, 7, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_CENTER });
+                signatureRight.AddElement(new Paragraph("............................................................", new Font(polishFont, 9, Font.NORMAL)) { Alignment = Element.ALIGN_CENTER });
+                signatureRight.AddElement(new Paragraph("data i czytelny podpis", new Font(polishFont, 6, Font.ITALIC, grayColor)) { Alignment = Element.ALIGN_CENTER });
                 footerTable.AddCell(signatureRight);
 
                 doc.Add(footerTable);
@@ -4520,8 +4628,37 @@ namespace Kalendarz1
                 BackgroundColor = bgColor,
                 HorizontalAlignment = Element.ALIGN_CENTER,
                 VerticalAlignment = Element.ALIGN_MIDDLE,
-                Padding = 4
+                Padding = 4,
+                MinimumHeight = 22 // Wyższe nagłówki
             };
+            table.AddCell(cell);
+        }
+
+        /// <summary>
+        /// Dodaje specjalny dwuliniowy nagłówek "Dostarczone" z "(ARIMR)" pogrubionym poniżej
+        /// </summary>
+        private void AddDostarczoneHeader(PdfPTable table, Font font, BaseColor bgColor)
+        {
+            // Utwórz komórkę z dwoma liniami tekstu
+            PdfPCell cell = new PdfPCell()
+            {
+                BackgroundColor = bgColor,
+                HorizontalAlignment = Element.ALIGN_CENTER,
+                VerticalAlignment = Element.ALIGN_MIDDLE,
+                Padding = 2,
+                MinimumHeight = 22
+            };
+
+            // Linia 1: "Dostarczone" (normalna czcionka)
+            Paragraph line1 = new Paragraph("Dostarcz.", new Font(font.BaseFont, 6, Font.NORMAL, BaseColor.WHITE));
+            line1.Alignment = Element.ALIGN_CENTER;
+            cell.AddElement(line1);
+
+            // Linia 2: "(ARIMR)" (pogrubiona)
+            Paragraph line2 = new Paragraph("(ARIMR)", new Font(font.BaseFont, 6, Font.BOLD, BaseColor.WHITE));
+            line2.Alignment = Element.ALIGN_CENTER;
+            cell.AddElement(line2);
+
             table.AddCell(cell);
         }
 
@@ -6821,6 +6958,9 @@ namespace Kalendarz1
                     defaultPdfPath = txtDefaultPdfPath.Text.Trim();
                 }
 
+                // Pobierz tryb kolorów PDF
+                _pdfCzarnoBialy = rbPdfCzarnoBialy.IsChecked == true;
+
                 // Zapisz do bazy
                 SaveAdminSettings();
 
@@ -7058,6 +7198,24 @@ namespace Kalendarz1
                             defaultPlachtaPath = result.ToString();
                         }
                     }
+
+                    // Wczytaj tryb kolorów PDF
+                    string queryPdfColorMode = "SELECT SettingValue FROM FarmerCalcSettings WHERE SettingName = 'PdfCzarnoBialy'";
+                    using (SqlCommand cmd = new SqlCommand(queryPdfColorMode, conn))
+                    {
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && bool.TryParse(result.ToString(), out bool czarnoBialy))
+                        {
+                            _pdfCzarnoBialy = czarnoBialy;
+                            rbPdfCzarnoBialy.IsChecked = czarnoBialy;
+                            rbPdfKolorowy.IsChecked = !czarnoBialy;
+                        }
+                        else
+                        {
+                            rbPdfKolorowy.IsChecked = true;
+                            rbPdfCzarnoBialy.IsChecked = false;
+                        }
+                    }
                 }
             }
             catch (Exception ex)
@@ -7119,6 +7277,21 @@ namespace Kalendarz1
                     using (SqlCommand cmd = new SqlCommand(mergePdfPath, conn))
                     {
                         cmd.Parameters.AddWithValue("@Value", defaultPdfPath);
+                        cmd.Parameters.AddWithValue("@User", user);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Zapisz tryb kolorów PDF
+                    string mergePdfColorMode = @"
+                        MERGE FarmerCalcSettings AS target
+                        USING (SELECT 'PdfCzarnoBialy' AS SettingName) AS source
+                        ON target.SettingName = source.SettingName
+                        WHEN MATCHED THEN UPDATE SET SettingValue = @Value, ModifiedDate = GETDATE(), ModifiedBy = @User
+                        WHEN NOT MATCHED THEN INSERT (SettingName, SettingValue, ModifiedBy) VALUES ('PdfCzarnoBialy', @Value, @User);";
+
+                    using (SqlCommand cmd = new SqlCommand(mergePdfColorMode, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Value", _pdfCzarnoBialy.ToString());
                         cmd.Parameters.AddWithValue("@User", user);
                         cmd.ExecuteNonQuery();
                     }
@@ -7966,6 +8139,62 @@ namespace Kalendarz1
             if (ts.TotalHours < 0)
                 return $"-{(int)Math.Abs(ts.TotalHours)}:{Math.Abs(ts.Minutes):D2}";
             return $"{(int)ts.TotalHours}:{ts.Minutes:D2}";
+        }
+
+        // === WAGI I UBYTEK ===
+        private decimal _nettoHodowcy;
+        private decimal _nettoUbojni;
+        private decimal _ubytekUmowny;
+
+        public decimal NettoHodowcy
+        {
+            get => _nettoHodowcy;
+            set
+            {
+                _nettoHodowcy = value;
+                OnPropertyChanged(nameof(NettoHodowcy));
+                OnPropertyChanged(nameof(RoznicaWag));
+                OnPropertyChanged(nameof(ProcentRoznicy));
+            }
+        }
+
+        public decimal NettoUbojni
+        {
+            get => _nettoUbojni;
+            set
+            {
+                _nettoUbojni = value;
+                OnPropertyChanged(nameof(NettoUbojni));
+                OnPropertyChanged(nameof(RoznicaWag));
+                OnPropertyChanged(nameof(ProcentRoznicy));
+            }
+        }
+
+        /// <summary>
+        /// Różnica wag: Netto Hodowcy - Netto Ubojni
+        /// </summary>
+        public decimal RoznicaWag => NettoHodowcy - NettoUbojni;
+
+        /// <summary>
+        /// Procent różnicy od wagi hodowcy: (RoznicaWag / NettoHodowcy) * 100
+        /// </summary>
+        public decimal ProcentRoznicy
+        {
+            get
+            {
+                if (NettoHodowcy > 0)
+                    return (RoznicaWag / NettoHodowcy) * 100;
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Ubytek umowny z karty Specyfikacje (Loss)
+        /// </summary>
+        public decimal UbytekUmowny
+        {
+            get => _ubytekUmowny;
+            set { _ubytekUmowny = value; OnPropertyChanged(nameof(UbytekUmowny)); }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

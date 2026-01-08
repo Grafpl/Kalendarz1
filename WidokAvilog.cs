@@ -56,6 +56,9 @@ namespace Kalendarz1
             // Ustaw własną nawigację Tab dla DateTimePickers (HH -> MM -> następny HH)
             SetupDateTimePickerTabNavigation();
 
+            // Ustaw nawigację Tab dla TextBoxów po DateTimePickers
+            SetupTextBoxTabNavigation();
+
             // Stylizacja przycisków
             StyleButtons();
 
@@ -165,12 +168,75 @@ namespace Kalendarz1
             }
         }
 
+        // Lista TextBoxów w kolejności nawigacji (po DateTimePickers)
+        private Control[] _tabSequenceAfterPickers;
+
+        private void SetupTextBoxTabNavigation()
+        {
+            // Kolejność: kmPowrot -> kmWyjazd -> hBrutto -> hTara -> uBrutto -> uTara -> button1
+            _tabSequenceAfterPickers = new Control[] {
+                kmPowrot, kmWyjazd, hBrutto, hTara, uBrutto, uTara, button1
+            };
+
+            // Wyłącz domyślną nawigację Tab dla tych kontrolek
+            foreach (var ctrl in _tabSequenceAfterPickers)
+            {
+                ctrl.TabStop = false;
+            }
+        }
+
         /// <summary>
         /// Przechwytuje Tab przed domyślną obsługą Windows Forms
         /// </summary>
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
             if (_dateTimePickers == null) return base.ProcessCmdKey(ref msg, keyData);
+
+            // Sprawdź czy aktywna jest kontrolka z sekwencji po pickerach
+            if (_tabSequenceAfterPickers != null)
+            {
+                var activeTextBox = _tabSequenceAfterPickers.FirstOrDefault(c => c.Focused);
+                if (activeTextBox != null)
+                {
+                    int tbIdx = Array.IndexOf(_tabSequenceAfterPickers, activeTextBox);
+
+                    // Tab (bez Shift)
+                    if (keyData == Keys.Tab)
+                    {
+                        if (tbIdx < _tabSequenceAfterPickers.Length - 1)
+                        {
+                            var next = _tabSequenceAfterPickers[tbIdx + 1];
+                            this.BeginInvoke(new Action(() => {
+                                next.Focus();
+                            }));
+                        }
+                        return true;
+                    }
+
+                    // Shift+Tab
+                    if (keyData == (Keys.Tab | Keys.Shift))
+                    {
+                        if (tbIdx > 0)
+                        {
+                            var prev = _tabSequenceAfterPickers[tbIdx - 1];
+                            this.BeginInvoke(new Action(() => {
+                                prev.Focus();
+                            }));
+                        }
+                        else
+                        {
+                            // Pierwszy TextBox (kmPowrot) - wróć do ostatniego pickera na MM
+                            var lastPicker = _dateTimePickers[_dateTimePickers.Length - 1];
+                            _isOnMinutes[lastPicker] = true;
+                            this.BeginInvoke(new Action(() => {
+                                lastPicker.Focus();
+                                SendKeys.SendWait("{RIGHT}");
+                            }));
+                        }
+                        return true;
+                    }
+                }
+            }
 
             // Znajdź aktywny DateTimePicker
             var activePicker = _dateTimePickers.FirstOrDefault(p => p.Focused);
@@ -204,7 +270,7 @@ namespace Kalendarz1
                     }
                     else
                     {
-                        // Ostatni picker - przejdź do kmPowrot
+                        // Ostatni picker - przejdź do kmPowrot (pierwszy w sekwencji TextBoxów)
                         this.BeginInvoke(new Action(() => {
                             kmPowrot.Focus();
                         }));
