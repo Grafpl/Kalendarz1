@@ -218,7 +218,7 @@
                                 Padding="{TemplateBinding Padding}"
                                 ClipToBounds="True">
                             <Border.Effect>
-                                <DropShadowEffect x:Name="shadow" ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="8"/>
+                                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="8"/>
                             </Border.Effect>
                             <Grid>
                                 <!-- Ripple effect overlay -->
@@ -237,8 +237,6 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="border" Property="Background" Value="#4B732F"/>
-                                <Setter TargetName="shadow" Property="ShadowDepth" Value="4"/>
-                                <Setter TargetName="shadow" Property="BlurRadius" Value="12"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="border" Property="Background" Value="#3A5C24"/>
