@@ -1920,17 +1920,48 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Column="0" Text="🩺 Płachta - Ocena Dobrostanu"
+                                <!-- Strzałki i Odśwież po LEWEJ -->
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,15,0">
+                                    <Border Background="#2980B9" CornerRadius="4" Margin="0,0,5,0">
+                                        <Button x:Name="btnPlachtaMoveUp" Content="▲"
+                                                Click="BtnPlachtaMoveUp_Click"
+                                                FontSize="14" Padding="10,4"
+                                                Background="Transparent" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                                ToolTip="Przesuń w górę"/>
+                                    </Border>
+                                    <Border Background="#2980B9" CornerRadius="4" Margin="0,0,10,0">
+                                        <Button x:Name="btnPlachtaMoveDown" Content="▼"
+                                                Click="BtnPlachtaMoveDown_Click"
+                                                FontSize="14" Padding="10,4"
+                                                Background="Transparent" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                                ToolTip="Przesuń w dół"/>
+                                    </Border>
+                                    <Border Background="#27AE60" CornerRadius="4">
+                                        <Button Content="🔄 Odśwież"
+                                                Click="BtnPlachtaRefresh_Click"
+                                                Padding="12,4" Background="Transparent" Foreground="White"
+                                                BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+                                    </Border>
+                                </StackPanel>
+
+                                <TextBlock Grid.Column="1" Text="🩺 Płachta - Ocena Dobrostanu"
                                            FontSize="16" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" Margin="0,0,20,0"/>
 
-                                <!-- Przyciski po LEWEJ stronie -->
-                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <!-- Przyciski po PRAWEJ stronie -->
+                                <StackPanel Grid.Column="3" Orientation="Horizontal">
                                     <Border Background="#E67E22" CornerRadius="4" Margin="0,0,5,0">
                                         <Button Content="💾 Zapisz zmiany"
                                                 Click="BtnPlachtaSaveOrder_Click"
                                                 Padding="12,4" Background="Transparent" Foreground="White"
                                                 BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"
                                                 ToolTip="Zapisz kolejność i dane do bazy"/>
+                                    </Border>
+                                    <Border Background="#9B59B6" CornerRadius="4" Margin="0,0,5,0">
+                                        <Button Content="📋 Wklej NR GOSP"
+                                                Click="BtnPlachtaPasteNrGosp_Click"
+                                                Padding="12,4" Background="Transparent" Foreground="White"
+                                                BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"
+                                                ToolTip="Wklej NR GOSP do wszystkich wierszy z tym samym hodowcą"/>
                                     </Border>
                                     <Border Background="#3498DB" CornerRadius="4" Margin="0,0,5,0">
                                         <Button Content="📄 Zapisz PDF"
@@ -1959,31 +1990,6 @@
                                                 Padding="8,4" Background="Transparent" Foreground="White"
                                                 BorderThickness="0" Cursor="Hand" FontSize="14"
                                                 ToolTip="Ustawienia folderu płacht"/>
-                                    </Border>
-                                </StackPanel>
-
-                                <!-- Przyciski po PRAWEJ stronie -->
-                                <StackPanel Grid.Column="3" Orientation="Horizontal">
-                                    <Border Background="#27AE60" CornerRadius="4" Margin="0,0,10,0">
-                                        <Button Content="🔄 Odśwież"
-                                                Click="BtnPlachtaRefresh_Click"
-                                                Padding="12,4" Background="Transparent" Foreground="White"
-                                                BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
-                                    </Border>
-                                    <!-- Przyciski przesuwania -->
-                                    <Border Background="#2980B9" CornerRadius="4" Margin="0,0,5,0">
-                                        <Button x:Name="btnPlachtaMoveUp" Content="▲"
-                                                Click="BtnPlachtaMoveUp_Click"
-                                                FontSize="14" Padding="10,4"
-                                                Background="Transparent" Foreground="White" BorderThickness="0" Cursor="Hand"
-                                                ToolTip="Przesuń w górę"/>
-                                    </Border>
-                                    <Border Background="#2980B9" CornerRadius="4">
-                                        <Button x:Name="btnPlachtaMoveDown" Content="▼"
-                                                Click="BtnPlachtaMoveDown_Click"
-                                                FontSize="14" Padding="10,4"
-                                                Background="Transparent" Foreground="White" BorderThickness="0" Cursor="Hand"
-                                                ToolTip="Przesuń w dół"/>
                                     </Border>
                                 </StackPanel>
                             </Grid>
@@ -2062,15 +2068,22 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <!-- Nr Gosp. -->
-                                <DataGridTextColumn Header="NR GOSP" Binding="{Binding NrGospodarstwa}" Width="80" IsReadOnly="True">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}">
-                                            <Setter Property="Foreground" Value="#1565C0"/>
-                                            <Setter Property="FontWeight" Value="SemiBold"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                <!-- Nr Gosp. - EDYTOWALNY -->
+                                <DataGridTemplateColumn Header="NR GOSP" Width="100">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding NrGospodarstwa}" TextAlignment="Center"
+                                                       Foreground="#1565C0" FontWeight="SemiBold"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                    <DataGridTemplateColumn.CellEditingTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding NrGospodarstwa, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                     Background="#E3F2FD" BorderThickness="1" BorderBrush="#1565C0"
+                                                     TextAlignment="Center" FontWeight="SemiBold"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellEditingTemplate>
+                                </DataGridTemplateColumn>
 
                                 <!-- Ilość Deklarowana -->
                                 <DataGridTextColumn Header="SZT.DEK" Binding="{Binding IloscDek}" Width="60" IsReadOnly="True">

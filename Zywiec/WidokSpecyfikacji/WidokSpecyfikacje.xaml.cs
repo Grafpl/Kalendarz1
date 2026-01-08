@@ -6145,6 +6145,89 @@ namespace Kalendarz1
             }
         }
 
+        private void BtnPlachtaPasteNrGosp_Click(object sender, RoutedEventArgs e)
+        {
+            var selectedRow = dataGridPlachta.SelectedItem as PlachtaRow;
+            if (selectedRow == null)
+            {
+                MessageBox.Show("Najpierw zaznacz wiersz z którego chcesz skopiować NR GOSP.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(selectedRow.NrGospodarstwa))
+            {
+                MessageBox.Show("Zaznaczony wiersz nie ma wypełnionego NR GOSP.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            string hodowcaNazwa = selectedRow.Hodowca;
+            string nrGosp = selectedRow.NrGospodarstwa;
+            string customerGID = selectedRow.KodHodowcy;
+
+            // Znajdź wszystkie wiersze z tym samym hodowcą
+            var wierszeTegSamegoHodowcy = plachtaData.Where(r => r.Hodowca == hodowcaNazwa && r.ID != selectedRow.ID).ToList();
+
+            if (wierszeTegSamegoHodowcy.Count == 0)
+            {
+                MessageBox.Show($"Nie znaleziono innych wierszy z hodowcą: {hodowcaNazwa}", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var result = MessageBox.Show(
+                $"Czy chcesz wkleić NR GOSP '{nrGosp}' do {wierszeTegSamegoHodowcy.Count} innych wierszy hodowcy '{hodowcaNazwa}'?\n\n" +
+                $"Dodatkowo zapisać ten numer na stałe do bazy danych hodowcy?",
+                "Potwierdzenie",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Cancel)
+                return;
+
+            // Wklej do wszystkich wierszy
+            foreach (var row in wierszeTegSamegoHodowcy)
+            {
+                row.NrGospodarstwa = nrGosp;
+            }
+
+            UpdateStatus($"Wklejono NR GOSP do {wierszeTegSamegoHodowcy.Count} wierszy");
+
+            // Jeśli użytkownik chce zapisać na stałe do bazy dostawców
+            if (result == MessageBoxResult.Yes && !string.IsNullOrWhiteSpace(customerGID))
+            {
+                try
+                {
+                    using (SqlConnection conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+                        string updateQuery = "UPDATE dbo.Dostawcy SET AnimNo = @AnimNo WHERE LTRIM(RTRIM(ID)) = @CustomerGID";
+                        using (SqlCommand cmd = new SqlCommand(updateQuery, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@AnimNo", nrGosp);
+                            cmd.Parameters.AddWithValue("@CustomerGID", customerGID.Trim());
+                            int affected = cmd.ExecuteNonQuery();
+
+                            if (affected > 0)
+                            {
+                                MessageBox.Show($"NR GOSP '{nrGosp}' został zapisany do bazy danych hodowcy '{hodowcaNazwa}'.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                            }
+                            else
+                            {
+                                MessageBox.Show($"Nie udało się zapisać do bazy dostawców (CustomerGID: {customerGID}).", "Ostrzeżenie", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd zapisu do bazy dostawców:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            else
+            {
+                MessageBox.Show($"NR GOSP został wklejony do {wierszeTegSamegoHodowcy.Count} wierszy.\nAby zapisać na stałe, kliknij 'Zapisz zmiany'.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
         private void BtnPlachtaPrint_Click(object sender, RoutedEventArgs e)
         {
             if (plachtaData.Count == 0)
@@ -8147,7 +8230,14 @@ namespace Kalendarz1
         public string Adres { get; set; }
         public string BadaniaSalmonella { get; set; }  // VetComment
         public string NrSwZdrowia { get; set; }  // VetNo
-        public string NrGospodarstwa { get; set; }  // AnimNo
+
+        private string _nrGospodarstwa;
+        public string NrGospodarstwa
+        {
+            get => _nrGospodarstwa;
+            set { _nrGospodarstwa = value; OnPropertyChanged(nameof(NrGospodarstwa)); }
+        }
+
         public int IloscDek { get; set; }  // DeclI1
         public string Ciagnik { get; set; }  // CarID
         public string Naczepa { get; set; }  // TrailerID

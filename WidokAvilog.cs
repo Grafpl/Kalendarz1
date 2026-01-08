@@ -45,6 +45,24 @@ namespace Kalendarz1
             }
             RozwijanieComboBox.RozwijanieKontrPoKatalogu(comboBoxSymfonia, "Dostawcy Drobiu");
 
+            // === NAWIGACJA TAB ===
+            // Ustaw kolejność TabIndex dla DateTimePickers i kolejnych kontrolek
+            // Kolejność: poczatekUslugi -> wyjazd -> dojazd -> poczatekZaładunek -> koniecZaładunek
+            // -> wyjazdHodowca -> powrotZaklad -> koniecUslugi -> kmPowrot -> kmWyjazd -> hBrutto -> hTara
+            int tabIndex = 1;
+            poczatekUslugiData.TabIndex = tabIndex++;
+            wyjazdZakladData.TabIndex = tabIndex++;
+            dojazdHodowcaData.TabIndex = tabIndex++;
+            poczatekZaladunekData.TabIndex = tabIndex++;
+            koniecZaladunekData.TabIndex = tabIndex++;
+            wyjazdHodowcaData.TabIndex = tabIndex++;
+            powrotZakladData.TabIndex = tabIndex++;
+            koniecUslugiData.TabIndex = tabIndex++;
+            kmPowrot.TabIndex = tabIndex++;
+            kmWyjazd.TabIndex = tabIndex++;
+            hBrutto.TabIndex = tabIndex++;
+            hTara.TabIndex = tabIndex++;
+
         }
         public WidokAvilog(int idSpecyfikacji) : this()
         {
