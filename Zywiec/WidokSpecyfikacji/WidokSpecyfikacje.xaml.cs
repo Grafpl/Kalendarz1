@@ -91,6 +91,11 @@ namespace Kalendarz1
         private TextBox _currentSupplierTextBox;
         private const int SupplierFilterDelayMs = 200;
 
+        // === TIMER ZAPISU: Mierzy czas od ostatniej edycji ===
+        private System.Diagnostics.Stopwatch _saveStopwatch = new System.Diagnostics.Stopwatch();
+        private DispatcherTimer _saveTimerDisplay;
+        private DateTime _lastEditTime = DateTime.MinValue;
+
         public WidokSpecyfikacje()
         {
             InitializeComponent();
@@ -102,6 +107,12 @@ namespace Kalendarz1
             _debounceTimer = new DispatcherTimer();
             _debounceTimer.Interval = TimeSpan.FromMilliseconds(DebounceDelayMs);
             _debounceTimer.Tick += DebounceTimer_Tick;
+
+            // Inicjalizuj timer wyświetlania czasu zapisu
+            _saveTimerDisplay = new DispatcherTimer();
+            _saveTimerDisplay.Interval = TimeSpan.FromMilliseconds(100);
+            _saveTimerDisplay.Tick += SaveTimerDisplay_Tick;
+            _saveTimerDisplay.Start();
 
             // Inicjalizuj timer debounce dla autocomplete dostawcy
             _supplierFilterTimer = new DispatcherTimer();
@@ -261,12 +272,48 @@ namespace Kalendarz1
             }
         }
 
+        // === TIMER ZAPISU: Aktualizacja wyświetlania czasu od ostatniej edycji ===
+        private void SaveTimerDisplay_Tick(object sender, EventArgs e)
+        {
+            if (_lastEditTime != DateTime.MinValue && lblSaveTimer != null)
+            {
+                var elapsed = DateTime.Now - _lastEditTime;
+                if (elapsed.TotalSeconds < 10)
+                {
+                    lblSaveTimer.Text = $"{(int)elapsed.TotalMilliseconds}";
+                    lblSaveTimer.Foreground = new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32)); // Green
+                }
+                else if (elapsed.TotalSeconds < 60)
+                {
+                    lblSaveTimer.Text = $"{elapsed.TotalSeconds:F1}s";
+                    lblSaveTimer.Foreground = new SolidColorBrush(Color.FromRgb(0x54, 0x6E, 0x7A)); // Gray
+                }
+                else
+                {
+                    lblSaveTimer.Text = "--";
+                    lblSaveTimer.Foreground = new SolidColorBrush(Color.FromRgb(0x90, 0xA4, 0xAE)); // Light gray
+                }
+            }
+        }
+
+        /// <summary>
+        /// Oznacza moment edycji wartości - resetuje timer
+        /// </summary>
+        private void MarkEditTime()
+        {
+            _lastEditTime = DateTime.Now;
+            _saveStopwatch.Restart();
+        }
+
         // === WYDAJNOŚĆ: Dodaj wiersz do kolejki zapisu (debounce) ===
         private void QueueRowForSave(int rowId)
         {
             _pendingSaveIds.Add(rowId);
             _debounceTimer.Stop();
             _debounceTimer.Start();
+
+            // Aktualizuj timer wyświetlania czasu od edycji
+            MarkEditTime();
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -507,9 +554,11 @@ namespace Kalendarz1
                     NrRejestracyjny = spec.TrailerID ?? "",
                     GodzinaWyjazdu = spec.Wyjazd,
                     GodzinaPrzyjazdu = spec.ArrivalTime,
-                    Trasa = spec.Dostawca ?? spec.RealDostawca ?? "",
                     Sztuki = spec.SztukiDek,
                     Kilogramy = spec.WagaNettoDoRozliczenia,
+                    // Skrzynki i pojemniki
+                    Skrzynki = spec.LUMEL,  // Ilość skrzynek z FarmerCalc
+                    SztPoj = spec.Padle,    // Sztuki pojemników (Padłe = Padle)
                     // Godziny transportowe
                     PoczatekUslugi = spec.PoczatekUslugi,
                     DojazdHodowca = spec.DojazdHodowca,
@@ -2276,7 +2325,7 @@ namespace Kalendarz1
             if (fields.HasFlag(SupplierFieldMask.Cena)) setClauses.Add("Price = @Cena");
             if (fields.HasFlag(SupplierFieldMask.Dodatek)) setClauses.Add("Addition = @Dodatek");
             if (fields.HasFlag(SupplierFieldMask.Ubytek)) setClauses.Add("Loss = @Ubytek");
-            if (fields.HasFlag(SupplierFieldMask.TypCeny)) setClauses.Add("PriceType = @TypCeny");
+            if (fields.HasFlag(SupplierFieldMask.TypCeny)) setClauses.Add("PriceTypeID = @PriceTypeID");
             if (fields.HasFlag(SupplierFieldMask.TerminDni)) setClauses.Add("TerminDni = @TerminDni");
             if (fields.HasFlag(SupplierFieldMask.PiK)) setClauses.Add("IncDeadConf = @PiK");
 
@@ -2301,14 +2350,22 @@ namespace Kalendarz1
                         if (fields.HasFlag(SupplierFieldMask.Ubytek))
                             cmd.Parameters.AddWithValue("@Ubytek", (ubytek ?? 0m) / 100m);
                         if (fields.HasFlag(SupplierFieldMask.TypCeny))
-                            cmd.Parameters.AddWithValue("@TypCeny", (object)typCeny ?? DBNull.Value);
+                        {
+                            // Konwertuj nazwę typu ceny na ID
+                            int priceTypeId = -1;
+                            if (!string.IsNullOrEmpty(typCeny))
+                            {
+                                priceTypeId = zapytaniasql.ZnajdzIdCeny(typCeny);
+                            }
+                            cmd.Parameters.AddWithValue("@PriceTypeID", priceTypeId > 0 ? priceTypeId : (object)DBNull.Value);
+                        }
                         if (fields.HasFlag(SupplierFieldMask.TerminDni))
                             cmd.Parameters.AddWithValue("@TerminDni", terminDni ?? 0);
                         if (fields.HasFlag(SupplierFieldMask.PiK))
                             cmd.Parameters.AddWithValue("@PiK", piK ?? false);
 
                         int affected = cmd.ExecuteNonQuery();
-                        UpdateStatus($"Batch: Zaktualizowano {affected} wierszy");
+                        UpdateStatus($"Batch: Zaktualizowano {affected} wierszy w bazie danych");
                     }
                 }
             }
@@ -3160,9 +3217,14 @@ namespace Kalendarz1
         // === Checkbox: Pokaż/ukryj kolumnę Opasienie ===
         private void ChkShowOpasienie_Changed(object sender, RoutedEventArgs e)
         {
+            // Synchronizuj oba checkboxy
+            bool isChecked = (sender as CheckBox)?.IsChecked == true;
+            if (chkShowOpasienie != null && chkShowOpasienie != sender) chkShowOpasienie.IsChecked = isChecked;
+            if (chkShowOpasienie2 != null && chkShowOpasienie2 != sender) chkShowOpasienie2.IsChecked = isChecked;
+
             if (colOpasienie != null)
             {
-                colOpasienie.Visibility = chkShowOpasienie.IsChecked == true
+                colOpasienie.Visibility = isChecked
                     ? Visibility.Visible
                     : Visibility.Collapsed;
             }
@@ -3171,9 +3233,14 @@ namespace Kalendarz1
         // === Checkbox: Pokaż/ukryj kolumnę Klasa B ===
         private void ChkShowKlasaB_Changed(object sender, RoutedEventArgs e)
         {
+            // Synchronizuj oba checkboxy
+            bool isChecked = (sender as CheckBox)?.IsChecked == true;
+            if (chkShowKlasaB != null && chkShowKlasaB != sender) chkShowKlasaB.IsChecked = isChecked;
+            if (chkShowKlasaB2 != null && chkShowKlasaB2 != sender) chkShowKlasaB2.IsChecked = isChecked;
+
             if (colKlasaB != null)
             {
-                colKlasaB.Visibility = chkShowKlasaB.IsChecked == true
+                colKlasaB.Visibility = isChecked
                     ? Visibility.Visible
                     : Visibility.Collapsed;
             }
@@ -6146,16 +6213,118 @@ namespace Kalendarz1
 
         private void BtnZatwierdzDzien_Click(object sender, RoutedEventArgs e)
         {
-            // TODO: Implementacja zatwierdzania dnia
-            MessageBox.Show("Funkcja zatwierdzania dnia wymaga konfiguracji uprawnień.",
-                "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            // Pierwsza kontrola - wprowadzenie (zatwierdzenie)
+            string userName = Environment.UserName;
+            int zatwierdzone = 0;
+
+            foreach (var row in rozliczeniaData.Where(r => !r.Zatwierdzony))
+            {
+                row.Zatwierdzony = true;
+                row.ZatwierdzonePrzez = userName;
+                row.DataZatwierdzenia = DateTime.Now;
+                zatwierdzone++;
+            }
+
+            if (zatwierdzone > 0)
+            {
+                UpdateStatus($"Zatwierdzono wprowadzenie {zatwierdzone} wierszy przez {userName}");
+            }
+            else
+            {
+                MessageBox.Show("Wszystkie wiersze są już zatwierdzone.",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
         }
 
         private void BtnCofnijZatwierdzenie_Click(object sender, RoutedEventArgs e)
         {
-            // TODO: Implementacja cofania zatwierdzenia (wymaga uprawnień przełożonego)
-            MessageBox.Show("Cofnięcie zatwierdzenia wymaga uprawnień przełożonego.",
-                "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            // Cofnięcie pierwszej kontroli (wprowadzenie) - tylko dla niezweryfikowanych
+            int cofniete = 0;
+            foreach (var row in rozliczeniaData.Where(r => r.Zatwierdzony && !r.Zweryfikowany))
+            {
+                row.Zatwierdzony = false;
+                row.ZatwierdzonePrzez = null;
+                row.DataZatwierdzenia = null;
+                cofniete++;
+            }
+
+            if (cofniete > 0)
+            {
+                UpdateStatus($"Cofnięto zatwierdzenie wprowadzenia dla {cofniete} wierszy");
+            }
+            else
+            {
+                MessageBox.Show("Brak wierszy do cofnięcia (tylko niezweryfikowane można cofnąć).",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        // === PODWÓJNA KONTROLA: Weryfikacja przez drugiego pracownika ===
+        private void BtnWeryfikujDzien_Click(object sender, RoutedEventArgs e)
+        {
+            // Weryfikacja - wymaga najpierw zatwierdzenia wprowadzenia
+            string userName = Environment.UserName;
+            int weryfikowane = 0;
+            int pominieteSameOsoba = 0;
+
+            foreach (var row in rozliczeniaData.Where(r => r.Zatwierdzony && !r.Zweryfikowany))
+            {
+                // Sprawdź czy to nie ta sama osoba co wprowadzający
+                if (row.ZatwierdzonePrzez == userName)
+                {
+                    pominieteSameOsoba++;
+                    continue;
+                }
+
+                row.Zweryfikowany = true;
+                row.ZweryfikowanePrzez = userName;
+                row.DataWeryfikacji = DateTime.Now;
+                weryfikowane++;
+            }
+
+            if (weryfikowane > 0)
+            {
+                string msg = $"Zweryfikowano {weryfikowane} wierszy przez {userName}";
+                if (pominieteSameOsoba > 0)
+                    msg += $"\nPominięto {pominieteSameOsoba} wierszy (ta sama osoba)";
+                UpdateStatus(msg);
+            }
+            else if (pominieteSameOsoba > 0)
+            {
+                MessageBox.Show($"Nie można weryfikować własnych wpisów!\n{pominieteSameOsoba} wierszy wymaga weryfikacji przez innego pracownika.",
+                    "Podwójna kontrola", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+            {
+                MessageBox.Show("Brak wierszy do weryfikacji.\nWiersze muszą być najpierw zatwierdzone (wprowadzone).",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void BtnCofnijWeryfikacje_Click(object sender, RoutedEventArgs e)
+        {
+            // Cofnięcie weryfikacji (wymaga uprawnień)
+            var zweryfikowane = rozliczeniaData.Where(r => r.Zweryfikowany).ToList();
+            if (zweryfikowane.Count == 0)
+            {
+                MessageBox.Show("Brak zweryfikowanych wierszy do cofnięcia.",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var result = MessageBox.Show($"Czy na pewno chcesz cofnąć weryfikację dla {zweryfikowane.Count} wierszy?\nOperacja wymaga uprawnień przełożonego.",
+                "Cofnięcie weryfikacji", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                foreach (var row in zweryfikowane)
+                {
+                    row.Zweryfikowany = false;
+                    row.ZweryfikowanePrzez = null;
+                    row.DataWeryfikacji = null;
+                }
+                UpdateStatus($"Cofnięto weryfikację dla {zweryfikowane.Count} wierszy");
+            }
         }
 
         private void BtnExportSymfonia_Click(object sender, RoutedEventArgs e)
@@ -8174,7 +8343,7 @@ namespace Kalendarz1
         public DateTime? KoniecUslugi
         {
             get => _koniecUslugi;
-            set { _koniecUslugi = value; OnPropertyChanged(nameof(KoniecUslugi)); OnPropertyChanged(nameof(CzasCalkowity)); }
+            set { _koniecUslugi = value; OnPropertyChanged(nameof(KoniecUslugi)); OnPropertyChanged(nameof(CzasCalkowity)); OnPropertyChanged(nameof(IsKoniec0000)); }
         }
 
         // === OBLICZONE CZASY TRWANIA ===
@@ -8324,8 +8493,40 @@ namespace Kalendarz1
         public decimal UbytekUmowny
         {
             get => _ubytekUmowny;
-            set { _ubytekUmowny = value; OnPropertyChanged(nameof(UbytekUmowny)); }
+            set
+            {
+                _ubytekUmowny = value;
+                OnPropertyChanged(nameof(UbytekUmowny));
+                OnPropertyChanged(nameof(RoznicaProcentow));
+            }
         }
+
+        /// <summary>
+        /// Różnica między % wyliczonym a ubytkiem umownym
+        /// </summary>
+        public decimal RoznicaProcentow => ProcentRoznicy - UbytekUmowny;
+
+        // Liczba skrzynek (z FarmerCalc)
+        private int _skrzynki;
+        public int Skrzynki
+        {
+            get => _skrzynki;
+            set { _skrzynki = value; OnPropertyChanged(nameof(Skrzynki)); }
+        }
+
+        // Sztuki pojemników (Padle)
+        private int _sztPoj;
+        public int SztPoj
+        {
+            get => _sztPoj;
+            set { _sztPoj = value; OnPropertyChanged(nameof(SztPoj)); }
+        }
+
+        /// <summary>
+        /// Czy KoniecUslugi jest równy 00:00 (do kolorowania wiersza na czerwono)
+        /// </summary>
+        public bool IsKoniec0000 => KoniecUslugi.HasValue &&
+            KoniecUslugi.Value.Hour == 0 && KoniecUslugi.Value.Minute == 0;
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)
@@ -8560,11 +8761,27 @@ namespace Kalendarz1
         public bool Zatwierdzony
         {
             get => _zatwierdzony;
-            set { _zatwierdzony = value; OnPropertyChanged(nameof(Zatwierdzony)); }
+            set { _zatwierdzony = value; OnPropertyChanged(nameof(Zatwierdzony)); OnPropertyChanged(nameof(JestZablokowany)); }
         }
 
         public string ZatwierdzonePrzez { get; set; }
         public DateTime? DataZatwierdzenia { get; set; }
+
+        // === PODWÓJNA KONTROLA: Weryfikacja przez drugiego pracownika ===
+        private bool _zweryfikowany;
+        public bool Zweryfikowany
+        {
+            get => _zweryfikowany;
+            set { _zweryfikowany = value; OnPropertyChanged(nameof(Zweryfikowany)); OnPropertyChanged(nameof(JestZablokowany)); }
+        }
+
+        public string ZweryfikowanePrzez { get; set; }
+        public DateTime? DataWeryfikacji { get; set; }
+
+        /// <summary>
+        /// Wiersz jest zablokowany gdy zarówno Zatwierdzony jak i Zweryfikowany są true
+        /// </summary>
+        public bool JestZablokowany => Zatwierdzony && Zweryfikowany;
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)
