@@ -450,10 +450,10 @@ namespace Kalendarz1
                     {
                         conn.Open();
                         string query = @"
-                            SELECT CAST(Data AS DATE) as DataDnia, COUNT(*) as Ilosc
-                            FROM dbo.Specyfikacje
-                            WHERE Data >= @MinDate AND Data <= @MaxDate
-                            GROUP BY CAST(Data AS DATE)";
+                            SELECT CAST(CalcDate AS DATE) as DataDnia, COUNT(*) as Ilosc
+                            FROM [LibraNet].[dbo].[FarmerCalc]
+                            WHERE CalcDate >= @MinDate AND CalcDate <= @MaxDate
+                            GROUP BY CAST(CalcDate AS DATE)";
 
                         using (var cmd = new SqlCommand(query, conn))
                         {
