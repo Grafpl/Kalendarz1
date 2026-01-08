@@ -3869,6 +3869,88 @@ namespace Kalendarz1
             }
         }
 
+        // === Checkbox: Grupuj wiersze według dostawcy (Rozliczenia) ===
+        private void ChkGroupBySupplierRozliczenia_Changed(object sender, RoutedEventArgs e)
+        {
+            var checkbox = sender as CheckBox;
+            bool groupBySupplier = checkbox?.IsChecked == true;
+
+            if (rozliczeniaData == null || rozliczeniaData.Count == 0) return;
+
+            if (groupBySupplier)
+            {
+                // Grupuj według dostawcy
+                var grouped = rozliczeniaData
+                    .OrderBy(x => x.Dostawca)
+                    .ThenBy(x => x.Nr)
+                    .ToList();
+
+                rozliczeniaData.Clear();
+                foreach (var item in grouped)
+                {
+                    rozliczeniaData.Add(item);
+                }
+
+                UpdateStatus("Rozliczenia pogrupowane według dostawcy");
+            }
+            else
+            {
+                // Sortuj według LP
+                var sorted = rozliczeniaData
+                    .OrderBy(x => x.Nr)
+                    .ToList();
+
+                rozliczeniaData.Clear();
+                foreach (var item in sorted)
+                {
+                    rozliczeniaData.Add(item);
+                }
+
+                UpdateStatus("Rozliczenia posortowane według LP");
+            }
+        }
+
+        // === Checkbox: Grupuj wiersze według dostawcy (Płachta) ===
+        private void ChkGroupBySupplierPlachta_Changed(object sender, RoutedEventArgs e)
+        {
+            var checkbox = sender as CheckBox;
+            bool groupBySupplier = checkbox?.IsChecked == true;
+
+            if (plachtaData == null || plachtaData.Count == 0) return;
+
+            if (groupBySupplier)
+            {
+                // Grupuj według dostawcy (Hodowca)
+                var grouped = plachtaData
+                    .OrderBy(x => x.Hodowca)
+                    .ThenBy(x => x.Nr)
+                    .ToList();
+
+                plachtaData.Clear();
+                foreach (var item in grouped)
+                {
+                    plachtaData.Add(item);
+                }
+
+                UpdateStatus("Płachta pogrupowana według hodowcy");
+            }
+            else
+            {
+                // Sortuj według LP
+                var sorted = plachtaData
+                    .OrderBy(x => x.Nr)
+                    .ToList();
+
+                plachtaData.Clear();
+                foreach (var item in sorted)
+                {
+                    plachtaData.Add(item);
+                }
+
+                UpdateStatus("Płachta posortowana według LP");
+            }
+        }
+
         // === NOWY: Przycisk skróconego PDF (ukryty, ale metoda pozostaje dla email) ===
         private void BtnShortPdf_Click(object sender, RoutedEventArgs e)
         {
@@ -6836,7 +6918,31 @@ namespace Kalendarz1
 
         private void BtnZatwierdzDzien_Click(object sender, RoutedEventArgs e)
         {
-            // Pierwsza kontrola - wprowadzenie (zatwierdzenie)
+            // Pierwsza kontrola - wprowadzenie WYBRANYCH wierszy
+            var selectedRows = dataGridRozliczenia.SelectedItems.Cast<RozliczenieRow>()
+                .Where(r => !r.Zatwierdzony).ToList();
+
+            if (selectedRows.Count == 0)
+            {
+                MessageBox.Show("Zaznacz wiersze do wprowadzenia (niezatwierdzone).",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            string userName = Environment.UserName;
+            foreach (var row in selectedRows)
+            {
+                row.Zatwierdzony = true;
+                row.ZatwierdzonePrzez = userName;
+                row.DataZatwierdzenia = DateTime.Now;
+            }
+
+            UpdateStatus($"Zatwierdzono wprowadzenie {selectedRows.Count} wierszy przez {userName}");
+        }
+
+        private void BtnZatwierdzWszystko_Click(object sender, RoutedEventArgs e)
+        {
+            // Pierwsza kontrola - wprowadzenie WSZYSTKICH niezatwierdzonych wierszy
             string userName = Environment.UserName;
             int zatwierdzone = 0;
 
@@ -6885,7 +6991,53 @@ namespace Kalendarz1
         // === PODWÓJNA KONTROLA: Weryfikacja przez drugiego pracownika ===
         private void BtnWeryfikujDzien_Click(object sender, RoutedEventArgs e)
         {
-            // Weryfikacja - wymaga najpierw zatwierdzenia wprowadzenia
+            // Weryfikacja WYBRANYCH wierszy - wymaga najpierw zatwierdzenia wprowadzenia
+            var selectedRows = dataGridRozliczenia.SelectedItems.Cast<RozliczenieRow>()
+                .Where(r => r.Zatwierdzony && !r.Zweryfikowany).ToList();
+
+            if (selectedRows.Count == 0)
+            {
+                MessageBox.Show("Zaznacz wiersze do weryfikacji (zatwierdzone, ale niezweryfikowane).",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            string userName = Environment.UserName;
+            int weryfikowane = 0;
+            int pominieteSameOsoba = 0;
+
+            foreach (var row in selectedRows)
+            {
+                // Sprawdź czy to nie ta sama osoba co wprowadzający
+                if (row.ZatwierdzonePrzez == userName)
+                {
+                    pominieteSameOsoba++;
+                    continue;
+                }
+
+                row.Zweryfikowany = true;
+                row.ZweryfikowanePrzez = userName;
+                row.DataWeryfikacji = DateTime.Now;
+                weryfikowane++;
+            }
+
+            if (weryfikowane > 0)
+            {
+                string msg = $"Zweryfikowano {weryfikowane} wierszy przez {userName}";
+                if (pominieteSameOsoba > 0)
+                    msg += $"\nPominięto {pominieteSameOsoba} wierszy (ta sama osoba)";
+                UpdateStatus(msg);
+            }
+            else if (pominieteSameOsoba > 0)
+            {
+                MessageBox.Show($"Nie można weryfikować własnych wpisów!\n{pominieteSameOsoba} wierszy wymaga weryfikacji przez innego pracownika.",
+                    "Podwójna kontrola", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private void BtnWeryfikujWszystko_Click(object sender, RoutedEventArgs e)
+        {
+            // Weryfikacja WSZYSTKICH zatwierdzonych wierszy
             string userName = Environment.UserName;
             int weryfikowane = 0;
             int pominieteSameOsoba = 0;

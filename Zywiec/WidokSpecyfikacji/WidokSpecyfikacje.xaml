@@ -1562,7 +1562,7 @@
                                 </Style>
                             </DataGrid.ColumnHeaderStyle>
 
-                            <!-- Styl wiersza z czerwonym tłem dla Koniec=00:00 -->
+                            <!-- Styl wiersza (bez czerwonego tła - tylko komórka Koniec jest czerwona) -->
                             <DataGrid.RowStyle>
                                 <Style TargetType="DataGridRow">
                                     <Setter Property="Background" Value="White"/>
@@ -1574,9 +1574,6 @@
                                         <Trigger Property="IsSelected" Value="True">
                                             <Setter Property="FontWeight" Value="Bold"/>
                                         </Trigger>
-                                        <DataTrigger Binding="{Binding IsKoniec0000}" Value="True">
-                                            <Setter Property="Background" Value="#FFEBEE"/>
-                                        </DataTrigger>
                                         <Trigger Property="AlternationIndex" Value="1">
                                             <Setter Property="Background" Value="#FAFAFA"/>
                                         </Trigger>
@@ -1655,16 +1652,6 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="Doj" Binding="{Binding DojazdHodowca, StringFormat=HH:mm}" Width="38" IsReadOnly="True">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                            <Setter Property="HorizontalAlignment" Value="Center"/>
-                                            <Setter Property="Foreground" Value="#455A64"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-
                                 <!-- Czas dojazdu w minutach (Wyj -> Doj) -->
                                 <DataGridTemplateColumn Header="Czas Doj" Width="50" IsReadOnly="True"
                                                         ToolTipService.ToolTip="Czas dojazdu w minutach (Wyj -> Doj). Czerwone = >20min ponad średnią dla dostawcy">
@@ -1682,6 +1669,16 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
+
+                                <DataGridTextColumn Header="Doj" Binding="{Binding DojazdHodowca, StringFormat=HH:mm}" Width="38" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="Foreground" Value="#455A64"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
 
                                 <DataGridTextColumn Header="Zał" Binding="{Binding Zaladunek, StringFormat=HH:mm}" Width="38" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
@@ -1713,17 +1710,6 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="Przyj" Binding="{Binding GodzinaPrzyjazdu, StringFormat=HH:mm}" Width="38" IsReadOnly="True">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                            <Setter Property="HorizontalAlignment" Value="Center"/>
-                                            <Setter Property="FontWeight" Value="Bold"/>
-                                            <Setter Property="Foreground" Value="#455A64"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-
                                 <!-- Czas powrotu w minutach (Wyj.H -> Przyj) -->
                                 <DataGridTemplateColumn Header="Czas Pow" Width="52" IsReadOnly="True"
                                                         ToolTipService.ToolTip="Czas powrotu w minutach (Wyj.H -> Przyj). Czerwone = >20min ponad średnią dla dostawcy">
@@ -1742,15 +1728,33 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
 
-                                <DataGridTextColumn Header="Koniec" Binding="{Binding KoniecUslugi, StringFormat=HH:mm}" Width="42" IsReadOnly="True">
+                                <DataGridTextColumn Header="Przyj" Binding="{Binding GodzinaPrzyjazdu, StringFormat=HH:mm}" Width="38" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="VerticalAlignment" Value="Center"/>
                                             <Setter Property="HorizontalAlignment" Value="Center"/>
                                             <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Foreground" Value="#455A64"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
+
+                                <!-- Kolumna Koniec z czerwoną komórką gdy 00:00 -->
+                                <DataGridTemplateColumn Header="Koniec" Width="42" IsReadOnly="True">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border x:Name="borderKoniec" CornerRadius="2" Margin="1">
+                                                <TextBlock Text="{Binding KoniecUslugi, StringFormat=HH:mm}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold"/>
+                                            </Border>
+                                            <DataTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding IsKoniec0000}" Value="True">
+                                                    <Setter TargetName="borderKoniec" Property="Background" Value="#FFCDD2"/>
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
 
                                 <DataGridTextColumn Header="Czas" Binding="{Binding CzasCalkowity}" Width="42" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
@@ -1913,12 +1917,18 @@
                             <TextBlock Text="Rozliczenia dostaw" FontSize="18" FontWeight="Bold" Foreground="#2C3E50" VerticalAlignment="Center"/>
                             <Border Width="1" Background="#E0E0E0" Margin="15,2"/>
                             <TextBlock Text="Data jest wybrana w lewym górnym rogu" VerticalAlignment="Center" Foreground="#7F8C8D" FontStyle="Italic"/>
+                            <Border Width="1" Background="#E0E0E0" Margin="15,2"/>
+                            <!-- Checkbox grupowania -->
+                            <CheckBox x:Name="chkGroupBySupplierRozliczenia" Content="Grupuj wg dostawcy"
+                                      VerticalAlignment="Center" FontSize="11" Foreground="#455A64"
+                                      Checked="ChkGroupBySupplierRozliczenia_Changed" Unchecked="ChkGroupBySupplierRozliczenia_Changed"/>
                         </StackPanel>
 
                         <!-- Toolbar zatwierdzania z podwójną kontrolą -->
                         <Border Grid.Row="1" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="8,6" Margin="0,0,0,10">
                             <Grid>
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
@@ -1929,9 +1939,14 @@
                                 <Border Grid.Column="0" Background="#E3F2FD" CornerRadius="5" Padding="10,5" Margin="0,0,10,0">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="1. Wprowadzenie:" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#1565C0" Margin="0,0,8,0"/>
-                                        <Button x:Name="btnZatwierdzDzien" Content="✓ Zatwierdź"
+                                        <Button x:Name="btnZatwierdzDzien" Content="✓ Wybrane"
                                                 Padding="8,3" Margin="0,0,5,0" Background="#27AE60" Foreground="White"
-                                                BorderThickness="0" Cursor="Hand" Click="BtnZatwierdzDzien_Click" FontSize="11"/>
+                                                BorderThickness="0" Cursor="Hand" Click="BtnZatwierdzDzien_Click" FontSize="11"
+                                                ToolTip="Wprowadź wybrany wiersz"/>
+                                        <Button x:Name="btnZatwierdzWszystko" Content="✓✓ Wszystko"
+                                                Padding="8,3" Margin="0,0,5,0" Background="#1B5E20" Foreground="White"
+                                                BorderThickness="0" Cursor="Hand" Click="BtnZatwierdzWszystko_Click" FontSize="11"
+                                                ToolTip="Wprowadź wszystkie niezatwierdzone wiersze"/>
                                         <Button x:Name="btnCofnijZatwierdzenie" Content="✗"
                                                 Padding="8,3" Background="#E74C3C" Foreground="White"
                                                 BorderThickness="0" Cursor="Hand" Click="BtnCofnijZatwierdzenie_Click" FontSize="11"
@@ -1943,10 +1958,14 @@
                                 <Border Grid.Column="1" Background="#FFF3E0" CornerRadius="5" Padding="10,5" Margin="0,0,10,0">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="2. Weryfikacja:" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#E65100" Margin="0,0,8,0"/>
-                                        <Button x:Name="btnWeryfikujDzien" Content="✓ Weryfikuj"
+                                        <Button x:Name="btnWeryfikujDzien" Content="✓ Wybrane"
                                                 Padding="8,3" Margin="0,0,5,0" Background="#FF9800" Foreground="White"
                                                 BorderThickness="0" Cursor="Hand" Click="BtnWeryfikujDzien_Click" FontSize="11"
-                                                ToolTip="Weryfikacja przez drugiego pracownika"/>
+                                                ToolTip="Weryfikuj wybrany wiersz"/>
+                                        <Button x:Name="btnWeryfikujWszystko" Content="✓✓ Wszystko"
+                                                Padding="8,3" Margin="0,0,5,0" Background="#E65100" Foreground="White"
+                                                BorderThickness="0" Cursor="Hand" Click="BtnWeryfikujWszystko_Click" FontSize="11"
+                                                ToolTip="Weryfikuj wszystkie wprowadzone wiersze"/>
                                         <Button x:Name="btnCofnijWeryfikacje" Content="✗"
                                                 Padding="8,3" Background="#F57C00" Foreground="White"
                                                 BorderThickness="0" Cursor="Hand" Click="BtnCofnijWeryfikacje_Click" FontSize="11"
@@ -1955,7 +1974,7 @@
                                 </Border>
 
                                 <!-- Status blokady -->
-                                <Border Grid.Column="2" Background="#ECEFF1" CornerRadius="5" Padding="8,5">
+                                <Border Grid.Column="3" Background="#ECEFF1" CornerRadius="5" Padding="8,5">
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                         <TextBlock Text="🔒" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
                                         <TextBlock x:Name="lblStatusBlokadyRozliczenia" Text="Wiersze zweryfikowane są zablokowane do edycji"
@@ -1964,7 +1983,7 @@
                                 </Border>
 
                                 <!-- Eksport -->
-                                <Button Grid.Column="3" x:Name="btnExportSymfonia" Content="📤 Eksport do Symfonii"
+                                <Button Grid.Column="4" x:Name="btnExportSymfonia" Content="📤 Eksport do Symfonii"
                                         Padding="10,4" Margin="10,0,0,0" Background="#9B59B6" Foreground="White"
                                         BorderThickness="0" Cursor="Hand" Click="BtnExportSymfonia_Click"/>
                             </Grid>
@@ -2239,6 +2258,13 @@
 
                                 <TextBlock Grid.Column="1" Text="🩺 Płachta - Ocena Dobrostanu"
                                            FontSize="16" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" Margin="0,0,20,0"/>
+
+                                <!-- Checkbox grupowania -->
+                                <Border Grid.Column="2" Background="Transparent" Margin="0,0,10,0" VerticalAlignment="Center">
+                                    <CheckBox x:Name="chkGroupBySupplierPlachta" Content="Grupuj wg dostawcy"
+                                              VerticalAlignment="Center" FontSize="11" Foreground="White"
+                                              Checked="ChkGroupBySupplierPlachta_Changed" Unchecked="ChkGroupBySupplierPlachta_Changed"/>
+                                </Border>
 
                                 <!-- Przyciski po PRAWEJ stronie -->
                                 <StackPanel Grid.Column="3" Orientation="Horizontal">
