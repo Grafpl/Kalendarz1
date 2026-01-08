@@ -2271,12 +2271,18 @@ namespace Kalendarz1
         /// </summary>
         private void UpdateWeightComparisonChart()
         {
+            // Znajdź elementy używając FindName (mogą być w innym TabItem)
+            var barHodowcy = FindName("barWagaHodowcy") as Border;
+            var barUbojni = FindName("barWagaUbojni") as Border;
+            var lblHodowcy = FindName("lblBarWagaHodowcy") as TextBlock;
+            var lblUbojni = FindName("lblBarWagaUbojni") as TextBlock;
+
             if (specyfikacjeData == null || specyfikacjeData.Count == 0)
             {
-                if (barWagaHodowcy != null) barWagaHodowcy.Width = 0;
-                if (barWagaUbojni != null) barWagaUbojni.Width = 0;
-                if (lblBarWagaHodowcy != null) lblBarWagaHodowcy.Text = "0 kg";
-                if (lblBarWagaUbojni != null) lblBarWagaUbojni.Text = "0 kg";
+                if (barHodowcy != null) barHodowcy.Width = 0;
+                if (barUbojni != null) barUbojni.Width = 0;
+                if (lblHodowcy != null) lblHodowcy.Text = "0 kg";
+                if (lblUbojni != null) lblUbojni.Text = "0 kg";
                 return;
             }
 
@@ -2292,19 +2298,19 @@ namespace Kalendarz1
                 double hodowcyWidth = (double)(sumaWagaHodowcy / maxWaga) * maxBarWidth;
                 double ubojniWidth = (double)(sumaWagaUbojni / maxWaga) * maxBarWidth;
 
-                if (barWagaHodowcy != null) barWagaHodowcy.Width = Math.Max(3, hodowcyWidth);
-                if (barWagaUbojni != null) barWagaUbojni.Width = Math.Max(3, ubojniWidth);
+                if (barHodowcy != null) barHodowcy.Width = Math.Max(3, hodowcyWidth);
+                if (barUbojni != null) barUbojni.Width = Math.Max(3, ubojniWidth);
             }
             else
             {
-                if (barWagaHodowcy != null) barWagaHodowcy.Width = 0;
-                if (barWagaUbojni != null) barWagaUbojni.Width = 0;
+                if (barHodowcy != null) barHodowcy.Width = 0;
+                if (barUbojni != null) barUbojni.Width = 0;
             }
 
-            if (lblBarWagaHodowcy != null)
-                lblBarWagaHodowcy.Text = $"{sumaWagaHodowcy:N0} kg";
-            if (lblBarWagaUbojni != null)
-                lblBarWagaUbojni.Text = $"{sumaWagaUbojni:N0} kg";
+            if (lblHodowcy != null)
+                lblHodowcy.Text = $"{sumaWagaHodowcy:N0} kg";
+            if (lblUbojni != null)
+                lblUbojni.Text = $"{sumaWagaUbojni:N0} kg";
 
             // Sprawdź niezwykłe wartości i pokaż alerty
             CheckForUnusualValues();
@@ -2322,9 +2328,13 @@ namespace Kalendarz1
         {
             _currentProblems.Clear();
 
+            // Znajdź elementy używając FindName
+            var alertsBorder = FindName("borderAlerts") as Border;
+            var alertsLabel = FindName("lblAlertCount") as TextBlock;
+
             if (specyfikacjeData == null || specyfikacjeData.Count == 0)
             {
-                if (borderAlerts != null) borderAlerts.Visibility = Visibility.Collapsed;
+                if (alertsBorder != null) alertsBorder.Visibility = Visibility.Collapsed;
                 return;
             }
 
@@ -2333,7 +2343,7 @@ namespace Kalendarz1
                 // Sprawdź wysoki ubytek (> 5%)
                 if (row.Ubytek > 5)
                 {
-                    _currentProblems.Add($"⚠️ LP {row.Nr}: Wysoki ubytek {row.Ubytek:F2}% (>{">"}5%) - {row.RealDostawca}");
+                    _currentProblems.Add($"⚠️ LP {row.Nr}: Wysoki ubytek {row.Ubytek:F2}% (>5%) - {row.RealDostawca}");
                 }
 
                 // Sprawdź bardzo niski ubytek (< -1%)
@@ -2382,28 +2392,31 @@ namespace Kalendarz1
             }
 
             // Aktualizuj panel alertów
-            if (borderAlerts != null)
+            if (alertsBorder != null)
             {
                 if (_currentProblems.Count > 0)
                 {
-                    borderAlerts.Visibility = Visibility.Visible;
-                    lblAlertCount.Text = $"{_currentProblems.Count} problem{(_currentProblems.Count == 1 ? "" : _currentProblems.Count < 5 ? "y" : "ów")}";
+                    alertsBorder.Visibility = Visibility.Visible;
+                    if (alertsLabel != null)
+                        alertsLabel.Text = $"{_currentProblems.Count} problem{(_currentProblems.Count == 1 ? "" : _currentProblems.Count < 5 ? "y" : "ów")}";
 
                     // Zmień kolor w zależności od ilości problemów
                     if (_currentProblems.Count >= 5)
                     {
-                        borderAlerts.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFEBEE")); // czerwone
-                        lblAlertCount.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C62828"));
+                        alertsBorder.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFEBEE")); // czerwone
+                        if (alertsLabel != null)
+                            alertsLabel.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C62828"));
                     }
                     else
                     {
-                        borderAlerts.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFF3E0")); // pomarańczowe
-                        lblAlertCount.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E65100"));
+                        alertsBorder.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFF3E0")); // pomarańczowe
+                        if (alertsLabel != null)
+                            alertsLabel.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E65100"));
                     }
                 }
                 else
                 {
-                    borderAlerts.Visibility = Visibility.Collapsed;
+                    alertsBorder.Visibility = Visibility.Collapsed;
                 }
             }
         }
@@ -2540,19 +2553,29 @@ namespace Kalendarz1
         {
             _isHarmonogramCollapsed = !_isHarmonogramCollapsed;
 
+            // Znajdź elementy używając FindName
+            var harmonogramGrid = FindName("gridHarmonogramContent") as Grid;
+            var toggleBtn = sender as Button;
+
             if (_isHarmonogramCollapsed)
             {
                 // Zwiń harmonogram
-                gridHarmonogramContent.Visibility = Visibility.Collapsed;
-                btnToggleHarmonogram.Content = "▲";
-                btnToggleHarmonogram.ToolTip = "Rozwiń harmonogram";
+                if (harmonogramGrid != null) harmonogramGrid.Visibility = Visibility.Collapsed;
+                if (toggleBtn != null)
+                {
+                    toggleBtn.Content = "▲";
+                    toggleBtn.ToolTip = "Rozwiń harmonogram";
+                }
             }
             else
             {
                 // Rozwiń harmonogram
-                gridHarmonogramContent.Visibility = Visibility.Visible;
-                btnToggleHarmonogram.Content = "▼";
-                btnToggleHarmonogram.ToolTip = "Zwiń harmonogram";
+                if (harmonogramGrid != null) harmonogramGrid.Visibility = Visibility.Visible;
+                if (toggleBtn != null)
+                {
+                    toggleBtn.Content = "▼";
+                    toggleBtn.ToolTip = "Zwiń harmonogram";
+                }
             }
         }
 
@@ -3675,7 +3698,8 @@ namespace Kalendarz1
         // === Checkbox: Grupuj wiersze według dostawcy ===
         private void ChkGroupBySupplier_Changed(object sender, RoutedEventArgs e)
         {
-            bool groupBySupplier = chkGroupBySupplier?.IsChecked == true;
+            var checkbox = sender as CheckBox;
+            bool groupBySupplier = checkbox?.IsChecked == true;
 
             if (specyfikacjeData == null || specyfikacjeData.Count == 0) return;
 

@@ -1869,8 +1869,8 @@
                                                         CornerRadius="2"
                                                         Height="10"
                                                         VerticalAlignment="Center"
-                                                        Margin="{Binding TimelineStartPercent, StringFormat={}{0},0,0,0, Converter={StaticResource PercentToMarginConverter}, FallbackValue=0,0,0,0}"
-                                                        Width="{Binding TimelineWidthPercent, StringFormat={}{0}, Converter={StaticResource PercentToWidthConverter}, FallbackValue=10}"
+                                                        Margin="{Binding TimelineStartPercent, Converter={StaticResource PercentToMarginConverter}}"
+                                                        Width="{Binding TimelineWidthPercent, Converter={StaticResource PercentToWidthConverter}}"
                                                         ToolTip="{Binding CzasCalkowity}"/>
                                             </Grid>
                                         </DataTemplate>
@@ -1928,30 +1928,10 @@
                                         </Canvas>
                                     </Border>
 
-                                    <!-- Paski transportów (nakładane) -->
-                                    <ItemsControl ItemsSource="{Binding ElementName=dataGridTransport, Path=ItemsSource}" Margin="0,2,0,12">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <Canvas/>
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Border Background="{Binding TimelineColor}"
-                                                        Height="8"
-                                                        CornerRadius="2"
-                                                        Opacity="0.7"
-                                                        ToolTip="{Binding Dostawca}">
-                                                    <Border.RenderTransform>
-                                                        <TranslateTransform X="{Binding TimelineStartPercent, Converter={StaticResource PercentToPixelConverter}, ConverterParameter=500}"/>
-                                                    </Border.RenderTransform>
-                                                    <Border.Width>
-                                                        <Binding Path="TimelineWidthPercent" Converter="{StaticResource PercentToPixelConverter}" ConverterParameter="500"/>
-                                                    </Border.Width>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
+                                    <!-- Informacja o timeline -->
+                                    <TextBlock Text="↑ Timeline dostaw widoczny w tabeli powyżej (kolumna Timeline)"
+                                               FontSize="9" FontStyle="Italic" Foreground="#78909C"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,5,0,0"/>
                                 </Grid>
                             </Grid>
                         </Border>
