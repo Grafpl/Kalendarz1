@@ -36,6 +36,44 @@
             </DoubleAnimationUsingKeyFrames>
         </Storyboard>
 
+        <!-- Animacja pulsowania dla wartości wymagających uwagi -->
+        <Storyboard x:Key="PulseAnimation" RepeatBehavior="Forever">
+            <DoubleAnimation
+                Storyboard.TargetProperty="Opacity"
+                From="1.0" To="0.4" Duration="0:0:0.8"
+                AutoReverse="True">
+                <DoubleAnimation.EasingFunction>
+                    <SineEase EasingMode="EaseInOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+
+        <!-- Animacja płynnego przejścia dla wierszy -->
+        <Storyboard x:Key="FadeInAnimation">
+            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                             From="0" To="1" Duration="0:0:0.3">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+
+        <!-- Animacja slidowania dla grupowania -->
+        <Storyboard x:Key="SlideInAnimation">
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                             From="-20" To="0" Duration="0:0:0.25">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                             From="0" To="1" Duration="0:0:0.25"/>
+        </Storyboard>
+
+        <!-- Styl dla DropShadow paneli -->
+        <DropShadowEffect x:Key="CardShadow" ShadowDepth="4" Color="#000000" Opacity="0.15" BlurRadius="12" Direction="270"/>
+        <DropShadowEffect x:Key="CardShadowHover" ShadowDepth="6" Color="#000000" Opacity="0.22" BlurRadius="16" Direction="270"/>
+
         <Style x:Key="CenterBoldStyle" TargetType="TextBlock">
             <Setter Property="HorizontalAlignment" Value="Center"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -177,18 +215,56 @@
                         <Border x:Name="border"
                                 Background="{TemplateBinding Background}"
                                 CornerRadius="6"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                Padding="{TemplateBinding Padding}"
+                                ClipToBounds="True">
                             <Border.Effect>
-                                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="8"/>
+                                <DropShadowEffect x:Name="shadow" ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="8"/>
                             </Border.Effect>
+                            <Grid>
+                                <!-- Ripple effect overlay -->
+                                <Ellipse x:Name="ripple"
+                                         Fill="White"
+                                         Opacity="0"
+                                         RenderTransformOrigin="0.5,0.5"
+                                         IsHitTestVisible="False">
+                                    <Ellipse.RenderTransform>
+                                        <ScaleTransform ScaleX="0" ScaleY="0"/>
+                                    </Ellipse.RenderTransform>
+                                </Ellipse>
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="border" Property="Background" Value="#4B732F"/>
+                                <Setter TargetName="shadow" Property="ShadowDepth" Value="4"/>
+                                <Setter TargetName="shadow" Property="BlurRadius" Value="12"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="border" Property="Background" Value="#3A5C24"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="ripple"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             From="0.3" To="0" Duration="0:0:0.4"/>
+                                            <DoubleAnimation Storyboard.TargetName="ripple"
+                                                             Storyboard.TargetProperty="(Ellipse.RenderTransform).(ScaleTransform.ScaleX)"
+                                                             From="0" To="3" Duration="0:0:0.4">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="ripple"
+                                                             Storyboard.TargetProperty="(Ellipse.RenderTransform).(ScaleTransform.ScaleY)"
+                                                             From="0" To="3" Duration="0:0:0.4">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -198,6 +274,98 @@
 
         <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource MainButtonStyle}">
             <Setter Property="Background" Value="#607D8B"/>
+        </Style>
+
+        <!-- Styl pulsującej komórki dla wartości wymagających uwagi -->
+        <Style x:Key="PulsingCellStyle" TargetType="Border">
+            <Setter Property="Background" Value="#FFCDD2"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding RequiresAttention}" Value="True">
+                    <DataTrigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard RepeatBehavior="Forever">
+                                <ColorAnimation Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                                From="#FFCDD2" To="#EF9A9A" Duration="0:0:0.8"
+                                                AutoReverse="True">
+                                    <ColorAnimation.EasingFunction>
+                                        <SineEase EasingMode="EaseInOut"/>
+                                    </ColorAnimation.EasingFunction>
+                                </ColorAnimation>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </DataTrigger.EnterActions>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Loading Skeleton styl dla animacji ładowania -->
+        <Style x:Key="SkeletonStyle" TargetType="Border">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#EEEEEE" Offset="0"/>
+                        <GradientStop Color="#E0E0E0" Offset="0.5"/>
+                        <GradientStop Color="#EEEEEE" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Style.Triggers>
+                <EventTrigger RoutedEvent="Loaded">
+                    <BeginStoryboard>
+                        <Storyboard RepeatBehavior="Forever">
+                            <DoubleAnimation Storyboard.TargetProperty="(Border.Background).(LinearGradientBrush.GradientStops)[0].Offset"
+                                             From="-1" To="2" Duration="0:0:1.5"/>
+                            <DoubleAnimation Storyboard.TargetProperty="(Border.Background).(LinearGradientBrush.GradientStops)[1].Offset"
+                                             From="-0.5" To="2.5" Duration="0:0:1.5"/>
+                            <DoubleAnimation Storyboard.TargetProperty="(Border.Background).(LinearGradientBrush.GradientStops)[2].Offset"
+                                             From="0" To="3" Duration="0:0:1.5"/>
+                        </Storyboard>
+                    </BeginStoryboard>
+                </EventTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Styl karty z cieniem i hover efektem -->
+        <Style x:Key="CardStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect ShadowDepth="3" Color="#000000" Opacity="0.12" BlurRadius="10" Direction="270"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(Border.Effect).(DropShadowEffect.ShadowDepth)"
+                                                 To="6" Duration="0:0:0.2"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(Border.Effect).(DropShadowEffect.BlurRadius)"
+                                                 To="15" Duration="0:0:0.2"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(Border.Effect).(DropShadowEffect.Opacity)"
+                                                 To="0.18" Duration="0:0:0.2"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                    <Trigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(Border.Effect).(DropShadowEffect.ShadowDepth)"
+                                                 To="3" Duration="0:0:0.2"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(Border.Effect).(DropShadowEffect.BlurRadius)"
+                                                 To="10" Duration="0:0:0.2"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(Border.Effect).(DropShadowEffect.Opacity)"
+                                                 To="0.12" Duration="0:0:0.2"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.ExitActions>
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
         <Style x:Key="DataGridHeaderStyle" TargetType="DataGridColumnHeader">
@@ -369,6 +537,65 @@
                                        FontWeight="SemiBold"
                                        VerticalAlignment="Center"
                                        Margin="15,0,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Mini kalendarz z podglądem dni -->
+                    <Border Background="#4B732F" CornerRadius="6" Padding="10,6" Margin="15,0,0,0" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Tydzień:" Foreground="White" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <ItemsControl x:Name="miniCalendarDays">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border x:Name="dayBorder"
+                                                Width="28" Height="28"
+                                                CornerRadius="4"
+                                                Margin="2,0"
+                                                Cursor="Hand"
+                                                MouseLeftButtonDown="MiniCalendarDay_Click"
+                                                ToolTip="{Binding ToolTipText}">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding HasData}" Value="True">
+                                                            <Setter Property="Background" Value="#81C784"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                            <Setter Property="Background" Value="White"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsToday}" Value="True">
+                                                            <Setter Property="BorderBrush" Value="#FFC107"/>
+                                                            <Setter Property="BorderThickness" Value="2"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock Text="{Binding DayNumber}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="11"
+                                                       FontWeight="SemiBold">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="White"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                <Setter Property="Foreground" Value="#5C8A3A"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </StackPanel>
                     </Border>
 

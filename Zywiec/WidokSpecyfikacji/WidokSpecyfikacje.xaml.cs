@@ -98,6 +98,9 @@ namespace Kalendarz1
         // === GRUPOWANIE: Czy wiersze są pogrupowane według dostawcy ===
         private bool _isGroupingBySupplier = false;
 
+        // === MINI KALENDARZ: Podgląd dni z danymi ===
+        private ObservableCollection<CalendarDayItem> _calendarDays = new ObservableCollection<CalendarDayItem>();
+
         // === BLOKADA: Zapobiega logowaniu zmian podczas ładowania danych ===
         private bool _isLoadingData = false;
 
@@ -387,7 +390,124 @@ namespace Kalendarz1
 
             // Odśwież cache dostawców w tle (async)
             _ = LoadDostawcyAsync();
+
+            // Inicjalizuj mini kalendarz
+            InitializeMiniCalendar();
         }
+
+        #region Mini Kalendarz
+
+        /// <summary>
+        /// Inicjalizuje mini kalendarz z 7 dniami (3 dni wstecz, dzisiaj, 3 dni wprzód)
+        /// </summary>
+        private void InitializeMiniCalendar()
+        {
+            miniCalendarDays.ItemsSource = _calendarDays;
+            RefreshMiniCalendar();
+        }
+
+        /// <summary>
+        /// Odświeża mini kalendarz dla aktualnie wybranej daty
+        /// </summary>
+        private async void RefreshMiniCalendar()
+        {
+            var selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+            _calendarDays.Clear();
+
+            // Generuj 7 dni (3 wstecz, dzisiaj, 3 wprzód)
+            for (int i = -3; i <= 3; i++)
+            {
+                var date = selectedDate.AddDays(i);
+                _calendarDays.Add(new CalendarDayItem
+                {
+                    Date = date,
+                    IsSelected = (i == 0),
+                    HasData = false
+                });
+            }
+
+            // Sprawdź które dni mają dane (async)
+            await CheckDaysWithData();
+        }
+
+        /// <summary>
+        /// Sprawdza które dni mają dane w bazie (async)
+        /// </summary>
+        private async Task CheckDaysWithData()
+        {
+            try
+            {
+                var dates = _calendarDays.Select(d => d.Date).ToList();
+                var minDate = dates.Min();
+                var maxDate = dates.Max();
+
+                await Task.Run(() =>
+                {
+                    using (var conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+                        string query = @"
+                            SELECT CAST(Data AS DATE) as DataDnia, COUNT(*) as Ilosc
+                            FROM dbo.Specyfikacje
+                            WHERE Data >= @MinDate AND Data <= @MaxDate
+                            GROUP BY CAST(Data AS DATE)";
+
+                        using (var cmd = new SqlCommand(query, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@MinDate", minDate);
+                            cmd.Parameters.AddWithValue("@MaxDate", maxDate);
+
+                            using (var reader = cmd.ExecuteReader())
+                            {
+                                var results = new Dictionary<DateTime, int>();
+                                while (reader.Read())
+                                {
+                                    var date = reader.GetDateTime(0);
+                                    var count = reader.GetInt32(1);
+                                    results[date] = count;
+                                }
+
+                                // Aktualizuj UI w głównym wątku
+                                Dispatcher.Invoke(() =>
+                                {
+                                    foreach (var day in _calendarDays)
+                                    {
+                                        if (results.TryGetValue(day.Date.Date, out int count))
+                                        {
+                                            day.HasData = count > 0;
+                                            day.RecordCount = count;
+                                        }
+                                        else
+                                        {
+                                            day.HasData = false;
+                                            day.RecordCount = 0;
+                                        }
+                                    }
+                                });
+                            }
+                        }
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Błąd sprawdzania dni z danymi: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Handler kliknięcia na dzień w mini kalendarzu
+        /// </summary>
+        private void MiniCalendarDay_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is Border border && border.DataContext is CalendarDayItem dayItem)
+            {
+                // Zmień wybraną datę
+                dateTimePicker1.SelectedDate = dayItem.Date;
+            }
+        }
+
+        #endregion
 
         // === TRANSPORT: Handlery dla karty Transport ===
         private void MainTabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -934,6 +1054,9 @@ namespace Kalendarz1
                 // Odśwież wszystkie karty przy zmianie daty
                 LoadRozliczeniaData();
                 LoadPlachtaData();
+
+                // Odśwież mini kalendarz
+                RefreshMiniCalendar();
             }
         }
 
@@ -9877,6 +10000,49 @@ namespace Kalendarz1
 
         public bool Status { get; set; }
         public int CustomerGID { get; set; }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+
+    /// <summary>
+    /// Model dla mini kalendarza - reprezentuje jeden dzień
+    /// </summary>
+    public class CalendarDayItem : INotifyPropertyChanged
+    {
+        public DateTime Date { get; set; }
+        public string DayNumber => Date.Day.ToString();
+        public string DayName => Date.ToString("ddd", System.Globalization.CultureInfo.GetCultureInfo("pl-PL"));
+
+        private bool _hasData;
+        public bool HasData
+        {
+            get => _hasData;
+            set { _hasData = value; OnPropertyChanged(nameof(HasData)); }
+        }
+
+        private bool _isSelected;
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set { _isSelected = value; OnPropertyChanged(nameof(IsSelected)); }
+        }
+
+        public bool IsToday => Date.Date == DateTime.Today;
+
+        private int _recordCount;
+        public int RecordCount
+        {
+            get => _recordCount;
+            set { _recordCount = value; OnPropertyChanged(nameof(RecordCount)); OnPropertyChanged(nameof(ToolTipText)); }
+        }
+
+        public string ToolTipText => HasData
+            ? $"{Date:dd.MM.yyyy} ({DayName})\n{RecordCount} rekordów"
+            : $"{Date:dd.MM.yyyy} ({DayName})\nBrak danych";
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)
