@@ -402,8 +402,11 @@ namespace Kalendarz1
         /// </summary>
         private void InitializeMiniCalendar()
         {
-            miniCalendarDays.ItemsSource = _calendarDays;
-            RefreshMiniCalendar();
+            if (miniCalendarDays != null)
+            {
+                miniCalendarDays.ItemsSource = _calendarDays;
+                RefreshMiniCalendar();
+            }
         }
 
         /// <summary>
@@ -4046,7 +4049,7 @@ namespace Kalendarz1
                 // Grupuj według dostawcy (Hodowca)
                 var grouped = plachtaData
                     .OrderBy(x => x.Hodowca)
-                    .ThenBy(x => x.Nr)
+                    .ThenBy(x => x.Lp)
                     .ToList();
 
                 plachtaData.Clear();
@@ -4061,7 +4064,7 @@ namespace Kalendarz1
             {
                 // Sortuj według LP
                 var sorted = plachtaData
-                    .OrderBy(x => x.Nr)
+                    .OrderBy(x => x.Lp)
                     .ToList();
 
                 plachtaData.Clear();
