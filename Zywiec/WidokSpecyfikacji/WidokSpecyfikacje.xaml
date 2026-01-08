@@ -1844,7 +1844,7 @@
                                 <Border Grid.Column="2" Background="#ECEFF1" CornerRadius="5" Padding="8,5">
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                         <TextBlock Text="🔒" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                        <TextBlock x:Name="lblStatusBlokady" Text="Wiersze zweryfikowane są zablokowane do edycji"
+                                        <TextBlock x:Name="lblStatusBlokadyRozliczenia" Text="Wiersze zweryfikowane są zablokowane do edycji"
                                                    VerticalAlignment="Center" FontStyle="Italic" Foreground="#546E7A" FontSize="11"/>
                                     </StackPanel>
                                 </Border>
