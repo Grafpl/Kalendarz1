@@ -611,6 +611,17 @@
 
                                 <TextBlock x:Name="lblClipboardInfo" Text="" VerticalAlignment="Center"
                                            FontStyle="Italic" Foreground="#757575" Margin="10,0,0,0"/>
+
+                                <!-- Timer prędkości edycji -->
+                                <Border x:Name="borderEditTimer" Background="#E8F5E9" CornerRadius="4" Padding="8,3" Margin="15,0,0,0" Visibility="Collapsed">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="⏱" FontSize="12" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <TextBlock x:Name="lblEditTimer" Text="0 ms" FontWeight="SemiBold" Foreground="#2E7D32"
+                                                   VerticalAlignment="Center" FontSize="11"/>
+                                        <TextBlock x:Name="lblEditField" Text="" FontStyle="Italic" Foreground="#558B2F"
+                                                   VerticalAlignment="Center" FontSize="10" Margin="8,0,0,0"/>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </Border>
 

@@ -60,6 +60,17 @@ namespace Kalendarz1
         private HashSet<int> _pendingSaveIds = new HashSet<int>();
         private const int DebounceDelayMs = 500;
 
+        // === TIMER EDYCJI: Mierzy czas między edycjami pól produkcyjnych ===
+        private Stopwatch _editStopwatch = new Stopwatch();
+        private DispatcherTimer _editTimerDisplay;
+        private DateTime? _lastEditTime = null;
+        private string _lastEditedField = "";
+        private static readonly HashSet<string> TrackedEditColumns = new HashSet<string>
+        {
+            "Szt.Dek", "SztukiDek", "Padłe", "Padle", "CH", "NW", "ZM",
+            "LUMEL", "Szt.Wyb", "SztukiWybijak", "KG Wyb", "KilogramyWybijak"
+        };
+
         // === UNDO: Stos zmian do cofnięcia ===
         private Stack<UndoAction> _undoStack = new Stack<UndoAction>();
         private const int MaxUndoHistory = 50;
@@ -107,6 +118,11 @@ namespace Kalendarz1
             _supplierFilterTimer = new DispatcherTimer();
             _supplierFilterTimer.Interval = TimeSpan.FromMilliseconds(SupplierFilterDelayMs);
             _supplierFilterTimer.Tick += SupplierFilterTimer_Tick;
+
+            // Inicjalizuj timer wyświetlania czasu edycji
+            _editTimerDisplay = new DispatcherTimer();
+            _editTimerDisplay.Interval = TimeSpan.FromMilliseconds(50); // Aktualizacja co 50ms
+            _editTimerDisplay.Tick += EditTimerDisplay_Tick;
 
             // WAŻNE: Załaduj listy PRZED ustawieniem DataContext
             // aby binding do ListaDostawcow i ListaTypowCen działał poprawnie
@@ -261,7 +277,51 @@ namespace Kalendarz1
             }
         }
 
-        // === TIMER ZAPISU: Aktualizacja wyświetlania czasu od ostatniej edycji ===
+        // === TIMER EDYCJI: Aktualizacja wyświetlania czasu od ostatniej edycji pól produkcyjnych ===
+        private void EditTimerDisplay_Tick(object sender, EventArgs e)
+        {
+            if (_lastEditTime.HasValue)
+            {
+                var elapsed = DateTime.Now - _lastEditTime.Value;
+                var ms = (int)elapsed.TotalMilliseconds;
+
+                // Kolorowanie: zielony < 1s, pomarańczowy < 3s, czerwony > 3s
+                if (ms < 1000)
+                {
+                    lblEditTimer.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2E7D32")); // zielony
+                    borderEditTimer.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E8F5E9"));
+                }
+                else if (ms < 3000)
+                {
+                    lblEditTimer.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F57C00")); // pomarańczowy
+                    borderEditTimer.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFF3E0"));
+                }
+                else
+                {
+                    lblEditTimer.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C62828")); // czerwony
+                    borderEditTimer.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFEBEE"));
+                }
+
+                lblEditTimer.Text = $"{ms} ms";
+                lblEditField.Text = $"({_lastEditedField})";
+            }
+        }
+
+        // Wywołaj po edycji pola produkcyjnego aby oznaczyć czas edycji
+        private void MarkProductionFieldEdit(string columnName)
+        {
+            if (!_lastEditTime.HasValue)
+            {
+                // Pierwsza edycja - zacznij timer
+                borderEditTimer.Visibility = Visibility.Visible;
+            }
+
+            _lastEditTime = DateTime.Now;
+            _lastEditedField = columnName;
+            _editStopwatch.Restart();
+            _editTimerDisplay.Start();
+        }
+
         // === WYDAJNOŚĆ: Dodaj wiersz do kolejki zapisu (debounce) ===
         private void QueueRowForSave(int rowId)
         {
@@ -1948,18 +2008,29 @@ namespace Kalendarz1
                 var row = e.Row.Item as SpecyfikacjaRow;
                 if (row != null)
                 {
+                    // Pobierz nazwę kolumny
+                    var columnHeader = e.Column.Header?.ToString() ?? "";
+                    var columnBinding = (e.Column as DataGridBoundColumn)?.Binding as System.Windows.Data.Binding;
+                    var bindingPath = columnBinding?.Path?.Path ?? columnHeader;
+
+                    // Sprawdź czy to pole produkcyjne i oznacz czas edycji
+                    if (TrackedEditColumns.Contains(columnHeader) || TrackedEditColumns.Contains(bindingPath))
+                    {
+                        MarkProductionFieldEdit(columnHeader);
+                    }
+
                     // Używamy Dispatchera, aby obliczenia wykonały się po zaktualizowaniu wartości w modelu
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
                         // Tutaj wywołaj swoją logikę przeliczania wiersza
-                        // Zakładam, że masz metodę RecalculateWartosc() w klasie SpecyfikacjaRow 
+                        // Zakładam, że masz metodę RecalculateWartosc() w klasie SpecyfikacjaRow
                         // lub logikę w setterach właściwości.
 
                         // Jeśli logika jest w setterach, to wystarczy odświeżyć podsumowania:
                         UpdateStatistics();
 
                         // Opcjonalnie: Kolejkuj auto-zapis (jeśli używasz)
-                        // QueueRowForSave(row.ID); 
+                        // QueueRowForSave(row.ID);
                     }), System.Windows.Threading.DispatcherPriority.Background);
                 }
             }
