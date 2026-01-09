@@ -35,6 +35,12 @@ namespace Kalendarz1
         public List<DostawcaItem> ListaDostawcow { get; set; }
         public List<string> ListaTypowCen { get; set; } = new List<string> { "wolnyrynek", "rolnicza", "łączona", "ministerialna" };
 
+        // Lista pośredników dla ComboBox (na razie pusta - użytkownik dostarczy dane później)
+        public ObservableCollection<PosrednikItem> ListaPosrednikow { get; set; } = new ObservableCollection<PosrednikItem>();
+
+        // Dane dla karty Podsumowanie
+        private ObservableCollection<PodsumowanieRow> podsumowanieData = new ObservableCollection<PodsumowanieRow>();
+
         // Backwards compatibility
         private List<DostawcaItem> listaDostawcow { get => ListaDostawcow; set => ListaDostawcow = value; }
         private List<string> listaTypowCen { get => ListaTypowCen; set => ListaTypowCen = value; }
@@ -270,8 +276,8 @@ namespace Kalendarz1
             }
         }
 
-        // === WYDAJNOŚĆ: Debounce Timer - zapisuje zmiany po 500ms nieaktywności ===
-        private void DebounceTimer_Tick(object sender, EventArgs e)
+        // === WYDAJNOŚĆ: Debounce Timer - zapisuje zmiany po 500ms nieaktywności ASYNCHRONICZNIE ===
+        private async void DebounceTimer_Tick(object sender, EventArgs e)
         {
             _debounceTimer.Stop();
 
@@ -280,8 +286,8 @@ namespace Kalendarz1
                 var idsToSave = _pendingSaveIds.ToList();
                 _pendingSaveIds.Clear();
 
-                // Zapisz wszystkie oczekujące zmiany w jednym batch
-                SaveRowsBatch(idsToSave);
+                // Zapisz wszystkie oczekujące zmiany w jednym batch - ASYNCHRONICZNIE w tle
+                await SaveRowsBatchAsync(idsToSave);
             }
         }
 
@@ -379,6 +385,9 @@ namespace Kalendarz1
         {
             // Upewnij się że kolumna Symfonia istnieje w bazie
             EnsureSymfoniaColumnExists();
+
+            // Upewnij się że kolumna IdPosrednik istnieje w bazie
+            EnsureIdPosrednikColumnExists();
 
             // Wczytaj ustawienia administracyjne
             LoadAdminSettings();
@@ -538,6 +547,12 @@ namespace Kalendarz1
                 if (mainTabControl.SelectedIndex == 3)
                 {
                     LoadRozliczeniaData();
+                }
+
+                // Załaduj dane podsumowania gdy przełączono na kartę Podsumowanie (index 4)
+                if (mainTabControl.SelectedIndex == 4)
+                {
+                    LoadPodsumowanieData();
                 }
             }
         }
@@ -2312,15 +2327,12 @@ namespace Kalendarz1
                     // Używamy Dispatchera, aby obliczenia wykonały się po zaktualizowaniu wartości w modelu
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        // Tutaj wywołaj swoją logikę przeliczania wiersza
-                        // Zakładam, że masz metodę RecalculateWartosc() w klasie SpecyfikacjaRow
-                        // lub logikę w setterach właściwości.
-
-                        // Jeśli logika jest w setterach, to wystarczy odświeżyć podsumowania:
+                        // Odśwież podsumowania
                         UpdateStatistics();
 
-                        // Opcjonalnie: Kolejkuj auto-zapis (jeśli używasz)
-                        // QueueRowForSave(row.ID);
+                        // ASYNCHRONICZNY ZAPIS W TLE - użytkownik może od razu kontynuować wprowadzanie
+                        // Zapis wykonuje się po 500ms nieaktywności (debounce)
+                        QueueRowForSave(row.ID);
                     }), System.Windows.Threading.DispatcherPriority.Background);
                 }
             }
@@ -2949,6 +2961,155 @@ namespace Kalendarz1
                 UpdateStatus($"Błąd batch zapisu: {ex.Message}");
                 // Oznacz zakończenie nawet przy błędzie
                 MarkSaveCompleted();
+            }
+        }
+
+        // === WYDAJNOŚĆ: ASYNCHRONICZNY Batch zapis wielu wierszy - NIE BLOKUJE UI ===
+        // Użytkownik może od razu kontynuować wprowadzanie danych, zapis wykonuje się w tle
+        private async Task SaveRowsBatchAsync(List<int> rowIds)
+        {
+            if (rowIds == null || rowIds.Count == 0) return;
+
+            // Skopiuj dane przed uruchomieniem w tle (thread safety)
+            var rowsToSave = new List<(int ID, int Nr, string DostawcaGID, int SztukiDek, int Padle, int CH, int NW, int ZM,
+                int LUMEL, int SztukiWybijak, decimal KilogramyWybijak, decimal Cena, decimal Dodatek, string TypCeny,
+                decimal Ubytek, bool PiK, decimal Opasienie, decimal KlasaB, int TerminDni, decimal SredniaWaga,
+                decimal DoZaplaty, decimal Wartosc, int? IdPosrednik)>();
+
+            foreach (var id in rowIds)
+            {
+                var row = specyfikacjeData.FirstOrDefault(r => r.ID == id);
+                if (row != null)
+                {
+                    rowsToSave.Add((row.ID, row.Nr, row.DostawcaGID, row.SztukiDek, row.Padle, row.CH, row.NW, row.ZM,
+                        row.LUMEL, row.SztukiWybijak, row.KilogramyWybijak, row.Cena, row.Dodatek, row.TypCeny,
+                        row.Ubytek, row.PiK, row.Opasienie, row.KlasaB, row.TerminDni, row.SredniaWaga,
+                        row.DoZaplaty, row.Wartosc, row.IdPosrednik));
+                }
+            }
+
+            if (rowsToSave.Count == 0) return;
+
+            try
+            {
+                // Uruchom zapis w tle - NIE BLOKUJE UI
+                await Task.Run(() =>
+                {
+                    using (SqlConnection connection = new SqlConnection(connectionString))
+                    {
+                        connection.Open();
+                        using (var transaction = connection.BeginTransaction())
+                        {
+                            try
+                            {
+                                foreach (var row in rowsToSave)
+                                {
+                                    // Znajdź ID typu ceny
+                                    int priceTypeId = -1;
+                                    if (!string.IsNullOrEmpty(row.TypCeny))
+                                    {
+                                        priceTypeId = zapytaniasql.ZnajdzIdCeny(row.TypCeny);
+                                    }
+
+                                    string query = @"UPDATE dbo.FarmerCalc SET
+                                        CarLp = @Nr,
+                                        CustomerGID = @DostawcaGID,
+                                        DeclI1 = @SztukiDek,
+                                        DeclI2 = @Padle,
+                                        DeclI3 = @CH,
+                                        DeclI4 = @NW,
+                                        DeclI5 = @ZM,
+                                        LumQnt = @LUMEL,
+                                        ProdQnt = @SztukiWybijak,
+                                        ProdWgt = @KgWybijak,
+                                        Price = @Cena,
+                                        Addition = @Dodatek,
+                                        PriceTypeID = @PriceTypeID,
+                                        Loss = @Ubytek,
+                                        IncDeadConf = @PiK,
+                                        Opasienie = @Opasienie,
+                                        KlasaB = @KlasaB,
+                                        TerminDni = @TerminDni,
+                                        AvgWgt = @AvgWgt,
+                                        PayWgt = @PayWgt,
+                                        PayNet = @PayNet,
+                                        IdPosrednik = @IdPosrednik
+                                        WHERE ID = @ID";
+
+                                    using (SqlCommand cmd = new SqlCommand(query, connection, transaction))
+                                    {
+                                        cmd.Parameters.AddWithValue("@ID", row.ID);
+                                        cmd.Parameters.AddWithValue("@Nr", row.Nr);
+                                        cmd.Parameters.AddWithValue("@DostawcaGID", (object)row.DostawcaGID ?? DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@SztukiDek", row.SztukiDek);
+                                        cmd.Parameters.AddWithValue("@Padle", row.Padle);
+                                        cmd.Parameters.AddWithValue("@CH", row.CH);
+                                        cmd.Parameters.AddWithValue("@NW", row.NW);
+                                        cmd.Parameters.AddWithValue("@ZM", row.ZM);
+                                        cmd.Parameters.AddWithValue("@LUMEL", row.LUMEL);
+                                        cmd.Parameters.AddWithValue("@SztukiWybijak", row.SztukiWybijak);
+                                        cmd.Parameters.AddWithValue("@KgWybijak", row.KilogramyWybijak);
+                                        cmd.Parameters.AddWithValue("@Cena", row.Cena);
+                                        cmd.Parameters.AddWithValue("@Dodatek", row.Dodatek);
+                                        cmd.Parameters.AddWithValue("@PriceTypeID", priceTypeId > 0 ? priceTypeId : (object)DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@Ubytek", row.Ubytek / 100);
+                                        cmd.Parameters.AddWithValue("@PiK", row.PiK);
+                                        cmd.Parameters.AddWithValue("@Opasienie", row.Opasienie);
+                                        cmd.Parameters.AddWithValue("@KlasaB", row.KlasaB);
+                                        cmd.Parameters.AddWithValue("@TerminDni", row.TerminDni);
+                                        cmd.Parameters.AddWithValue("@AvgWgt", row.SredniaWaga);
+                                        cmd.Parameters.AddWithValue("@PayWgt", row.DoZaplaty);
+                                        cmd.Parameters.AddWithValue("@PayNet", row.Wartosc);
+                                        cmd.Parameters.AddWithValue("@IdPosrednik", (object)row.IdPosrednik ?? DBNull.Value);
+                                        cmd.ExecuteNonQuery();
+                                    }
+                                }
+
+                                transaction.Commit();
+                            }
+                            catch
+                            {
+                                transaction.Rollback();
+                                throw;
+                            }
+                        }
+                    }
+                });
+
+                // Aktualizuj UI po zakończeniu zapisu (z powrotem w głównym wątku)
+                UpdateStatus($"✓ Zapisano {rowsToSave.Count} zmian w tle");
+                MarkSaveCompleted();
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Błąd async batch zapisu: {ex.Message}");
+                MarkSaveCompleted();
+            }
+        }
+
+        // === ASYNCHRONICZNY zapis pojedynczego pola - NIE BLOKUJE UI ===
+        private async Task SaveFieldToDatabaseAsync(int id, string columnName, object value)
+        {
+            try
+            {
+                await Task.Run(() =>
+                {
+                    using (SqlConnection connection = new SqlConnection(connectionString))
+                    {
+                        connection.Open();
+                        string query = $"UPDATE dbo.FarmerCalc SET {columnName} = @Value WHERE ID = @ID";
+                        using (SqlCommand cmd = new SqlCommand(query, connection))
+                        {
+                            cmd.Parameters.AddWithValue("@ID", id);
+                            cmd.Parameters.AddWithValue("@Value", value ?? DBNull.Value);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Dispatcher.Invoke(() => UpdateStatus($"Błąd async zapisu: {ex.Message}"));
             }
         }
 
@@ -7976,6 +8137,294 @@ namespace Kalendarz1
             }
         }
 
+        /// <summary>
+        /// Generuje PDF dla lekarzy weterynarii z danymi specyfikacji
+        /// Format: LP, Zestaw, Nazwa hodowcy, Nr specyfikacji, Liczba zdatnych sztuk (LUMEL - sztuki konfiskaty)
+        /// </summary>
+        private void BtnPlachtaDlaLekarzy_Click(object sender, RoutedEventArgs e)
+        {
+            if (plachtaData.Count == 0)
+            {
+                MessageBox.Show("Brak danych do wygenerowania raportu dla lekarzy!", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                // Utwórz ścieżkę dla pliku
+                string yearFolder = selectedDate.Year.ToString();
+                string monthFolder = selectedDate.Month.ToString("D2");
+                string dayFolder = selectedDate.Day.ToString("D2");
+
+                string folderPath = Path.Combine(defaultPlachtaPath, yearFolder, monthFolder, dayFolder);
+
+                // Utwórz folder jeśli nie istnieje
+                if (!Directory.Exists(folderPath))
+                {
+                    Directory.CreateDirectory(folderPath);
+                }
+
+                string fileName = $"DlaLekarzy_{selectedDate:yyyy-MM-dd}_{DateTime.Now:HHmmss}.pdf";
+                string filePath = Path.Combine(folderPath, fileName);
+
+                // Pobierz dane specyfikacji dla obliczenia liczby zdatnych sztuk
+                var specyfikacjeDict = specyfikacjeData?.ToDictionary(s => s.Nr, s => s) ?? new Dictionary<int, SpecyfikacjaRow>();
+
+                // Utwórz PDF z iTextSharp - format pionowy A4 na całą stronę
+                using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    Document doc = new Document(PageSize.A4, 30, 30, 40, 60);
+                    PdfWriter writer = PdfWriter.GetInstance(doc, fs);
+                    doc.Open();
+
+                    // Czcionki
+                    string arialPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "arial.ttf");
+                    BaseFont bfArial;
+                    if (File.Exists(arialPath))
+                    {
+                        bfArial = BaseFont.CreateFont(arialPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+                    }
+                    else
+                    {
+                        bfArial = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1250, BaseFont.NOT_EMBEDDED);
+                    }
+
+                    iTextSharp.text.Font fontTitle = new iTextSharp.text.Font(bfArial, 20, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontSubtitle = new iTextSharp.text.Font(bfArial, 14, iTextSharp.text.Font.NORMAL);
+                    iTextSharp.text.Font fontHeader = new iTextSharp.text.Font(bfArial, 11, iTextSharp.text.Font.BOLD, BaseColor.WHITE);
+                    iTextSharp.text.Font fontData = new iTextSharp.text.Font(bfArial, 11);
+                    iTextSharp.text.Font fontDataBold = new iTextSharp.text.Font(bfArial, 11, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontSum = new iTextSharp.text.Font(bfArial, 12, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontFooter = new iTextSharp.text.Font(bfArial, 10);
+                    iTextSharp.text.Font fontSignature = new iTextSharp.text.Font(bfArial, 10, iTextSharp.text.Font.ITALIC);
+
+                    // Nazwa dnia tygodnia
+                    string[] dniTygodnia = { "NIEDZIELA", "PONIEDZIAŁEK", "WTOREK", "ŚRODA", "CZWARTEK", "PIĄTEK", "SOBOTA" };
+                    string dzienTygodnia = dniTygodnia[(int)selectedDate.DayOfWeek];
+
+                    // === NAGŁÓWEK ===
+                    // Logo firmy (jeśli istnieje)
+                    string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logo.png");
+                    if (File.Exists(logoPath))
+                    {
+                        try
+                        {
+                            iTextSharp.text.Image logo = iTextSharp.text.Image.GetInstance(logoPath);
+                            logo.ScaleToFit(120, 60);
+                            logo.Alignment = Element.ALIGN_CENTER;
+                            doc.Add(logo);
+                            doc.Add(new Paragraph(" "));
+                        }
+                        catch { }
+                    }
+
+                    // Tytuł główny
+                    Paragraph title = new Paragraph("SPECYFIKACJA DLA WETERYNARII", fontTitle);
+                    title.Alignment = Element.ALIGN_CENTER;
+                    title.SpacingAfter = 5;
+                    doc.Add(title);
+
+                    // Podtytuł z datą
+                    Paragraph subtitle = new Paragraph($"Data: {selectedDate:dd.MM.yyyy} ({dzienTygodnia})", fontSubtitle);
+                    subtitle.Alignment = Element.ALIGN_CENTER;
+                    subtitle.SpacingAfter = 20;
+                    doc.Add(subtitle);
+
+                    // === TABELA GŁÓWNA ===
+                    PdfPTable table = new PdfPTable(5);
+                    table.WidthPercentage = 100;
+                    float[] widths = { 8f, 12f, 35f, 15f, 20f };
+                    table.SetWidths(widths);
+                    table.SpacingBefore = 10;
+
+                    // Nagłówki tabeli z ciemnym tłem
+                    BaseColor headerColor = new BaseColor(52, 73, 94); // #34495E
+
+                    string[] headers = { "LP", "ZESTAW", "NAZWA HODOWCY", "NR SPEC.", "SZTUKI ZDATNE" };
+                    foreach (var h in headers)
+                    {
+                        PdfPCell cell = new PdfPCell(new Phrase(h, fontHeader));
+                        cell.BackgroundColor = headerColor;
+                        cell.HorizontalAlignment = Element.ALIGN_CENTER;
+                        cell.VerticalAlignment = Element.ALIGN_MIDDLE;
+                        cell.Padding = 8;
+                        cell.BorderColor = BaseColor.WHITE;
+                        table.AddCell(cell);
+                    }
+
+                    // Dane
+                    int sumaSztukZdatnych = 0;
+                    int lp = 1;
+                    BaseColor altColor = new BaseColor(245, 245, 245);
+
+                    foreach (var d in plachtaData)
+                    {
+                        // Oblicz sztuki zdatne: LUMEL - sztuki konfiskaty (Padle + CH + NW + ZM)
+                        int sztukiKonfiskaty = d.Padle + d.Chore + d.NW + d.ZM;
+
+                        // Pobierz LUMEL z danych specyfikacji
+                        int lumel = 0;
+                        if (specyfikacjeDict.TryGetValue(d.NrSpec, out var spec))
+                        {
+                            lumel = spec.LUMEL;
+                        }
+                        else
+                        {
+                            // Jeśli nie ma w specyfikacji, użyj ilości deklarowanej minus konfiskaty
+                            lumel = d.IloscDek - sztukiKonfiskaty;
+                        }
+
+                        int sztukiZdatne = lumel - sztukiKonfiskaty;
+                        if (sztukiZdatne < 0) sztukiZdatne = 0;
+
+                        sumaSztukZdatnych += sztukiZdatne;
+
+                        BaseColor rowColor = lp % 2 == 0 ? altColor : BaseColor.WHITE;
+
+                        // LP
+                        PdfPCell cellLp = new PdfPCell(new Phrase(lp.ToString(), fontDataBold));
+                        cellLp.BackgroundColor = rowColor;
+                        cellLp.HorizontalAlignment = Element.ALIGN_CENTER;
+                        cellLp.VerticalAlignment = Element.ALIGN_MIDDLE;
+                        cellLp.Padding = 6;
+                        table.AddCell(cellLp);
+
+                        // Zestaw (NR)
+                        PdfPCell cellZestaw = new PdfPCell(new Phrase($"{d.NrSpec} zestaw", fontData));
+                        cellZestaw.BackgroundColor = rowColor;
+                        cellZestaw.HorizontalAlignment = Element.ALIGN_CENTER;
+                        cellZestaw.VerticalAlignment = Element.ALIGN_MIDDLE;
+                        cellZestaw.Padding = 6;
+                        table.AddCell(cellZestaw);
+
+                        // Nazwa hodowcy
+                        PdfPCell cellHodowca = new PdfPCell(new Phrase(d.Hodowca ?? "-", fontData));
+                        cellHodowca.BackgroundColor = rowColor;
+                        cellHodowca.HorizontalAlignment = Element.ALIGN_LEFT;
+                        cellHodowca.VerticalAlignment = Element.ALIGN_MIDDLE;
+                        cellHodowca.Padding = 6;
+                        cellHodowca.PaddingLeft = 10;
+                        table.AddCell(cellHodowca);
+
+                        // Nr specyfikacji
+                        PdfPCell cellNrSpec = new PdfPCell(new Phrase(d.NrSpec.ToString(), fontDataBold));
+                        cellNrSpec.BackgroundColor = rowColor;
+                        cellNrSpec.HorizontalAlignment = Element.ALIGN_CENTER;
+                        cellNrSpec.VerticalAlignment = Element.ALIGN_MIDDLE;
+                        cellNrSpec.Padding = 6;
+                        table.AddCell(cellNrSpec);
+
+                        // Sztuki zdatne
+                        PdfPCell cellSztuki = new PdfPCell(new Phrase(sztukiZdatne.ToString("N0"), fontDataBold));
+                        cellSztuki.BackgroundColor = rowColor;
+                        cellSztuki.HorizontalAlignment = Element.ALIGN_CENTER;
+                        cellSztuki.VerticalAlignment = Element.ALIGN_MIDDLE;
+                        cellSztuki.Padding = 6;
+                        table.AddCell(cellSztuki);
+
+                        lp++;
+                    }
+
+                    // Wiersz sumy
+                    BaseColor sumColor = new BaseColor(39, 174, 96); // #27AE60
+
+                    PdfPCell sumaLabelCell = new PdfPCell(new Phrase("SUMA SZTUK ZDATNYCH:", fontSum));
+                    sumaLabelCell.Colspan = 4;
+                    sumaLabelCell.BackgroundColor = sumColor;
+                    sumaLabelCell.HorizontalAlignment = Element.ALIGN_RIGHT;
+                    sumaLabelCell.VerticalAlignment = Element.ALIGN_MIDDLE;
+                    sumaLabelCell.Padding = 10;
+                    sumaLabelCell.BorderColor = BaseColor.WHITE;
+                    iTextSharp.text.Font fontSumWhite = new iTextSharp.text.Font(bfArial, 12, iTextSharp.text.Font.BOLD, BaseColor.WHITE);
+                    sumaLabelCell.Phrase = new Phrase("SUMA SZTUK ZDATNYCH:", fontSumWhite);
+                    table.AddCell(sumaLabelCell);
+
+                    PdfPCell sumaValueCell = new PdfPCell(new Phrase(sumaSztukZdatnych.ToString("N0"), fontSumWhite));
+                    sumaValueCell.BackgroundColor = sumColor;
+                    sumaValueCell.HorizontalAlignment = Element.ALIGN_CENTER;
+                    sumaValueCell.VerticalAlignment = Element.ALIGN_MIDDLE;
+                    sumaValueCell.Padding = 10;
+                    sumaValueCell.BorderColor = BaseColor.WHITE;
+                    table.AddCell(sumaValueCell);
+
+                    doc.Add(table);
+
+                    // === SEKCJA PODPISU ===
+                    doc.Add(new Paragraph(" "));
+                    doc.Add(new Paragraph(" "));
+                    doc.Add(new Paragraph(" "));
+
+                    // Tabela z podpisami
+                    PdfPTable signatureTable = new PdfPTable(2);
+                    signatureTable.WidthPercentage = 100;
+                    signatureTable.SetWidths(new float[] { 50f, 50f });
+
+                    // Lewa kolumna - wygenerowano przez
+                    PdfPCell leftCell = new PdfPCell();
+                    leftCell.Border = Rectangle.NO_BORDER;
+                    leftCell.Padding = 10;
+
+                    Paragraph genBy = new Paragraph($"Wygenerowano przez: {Environment.UserName}", fontFooter);
+                    Paragraph genDate = new Paragraph($"Data wydruku: {DateTime.Now:dd.MM.yyyy HH:mm}", fontFooter);
+                    leftCell.AddElement(genBy);
+                    leftCell.AddElement(genDate);
+                    signatureTable.AddCell(leftCell);
+
+                    // Prawa kolumna - podpis
+                    PdfPCell rightCell = new PdfPCell();
+                    rightCell.Border = Rectangle.NO_BORDER;
+                    rightCell.Padding = 10;
+                    rightCell.HorizontalAlignment = Element.ALIGN_RIGHT;
+
+                    Paragraph signLine = new Paragraph("_______________________________", fontFooter);
+                    signLine.Alignment = Element.ALIGN_CENTER;
+                    Paragraph signLabel = new Paragraph("Podpis lekarza weterynarii", fontSignature);
+                    signLabel.Alignment = Element.ALIGN_CENTER;
+                    signLabel.SpacingBefore = 5;
+
+                    rightCell.AddElement(signLine);
+                    rightCell.AddElement(signLabel);
+                    signatureTable.AddCell(rightCell);
+
+                    doc.Add(signatureTable);
+
+                    // Stopka informacyjna
+                    doc.Add(new Paragraph(" "));
+                    Paragraph footer = new Paragraph(
+                        "UBOJNIA DROBIU \"PIÓRKOWSCY\" JERZY PIÓRKOWSKI\n" +
+                        "Dokument wygenerowany automatycznie z systemu specyfikacji.",
+                        fontSignature);
+                    footer.Alignment = Element.ALIGN_CENTER;
+                    footer.SpacingBefore = 20;
+                    doc.Add(footer);
+
+                    doc.Close();
+                }
+
+                UpdateStatus($"Zapisano PDF dla lekarzy: {fileName}");
+
+                // Pytaj czy otworzyć plik
+                var result = MessageBox.Show(
+                    $"Raport dla lekarzy został zapisany:\n{filePath}\n\nCzy chcesz otworzyć plik?",
+                    "Sukces", MessageBoxButton.YesNo, MessageBoxImage.Information);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = filePath,
+                        UseShellExecute = true
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd generowania PDF dla lekarzy:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private void BtnPlachtaFolderSettings_Click(object sender, RoutedEventArgs e)
         {
             var dialog = new System.Windows.Forms.FolderBrowserDialog
@@ -8063,6 +8512,151 @@ namespace Kalendarz1
             {
                 MessageBox.Show($"Błąd otwierania folderu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        #endregion
+
+        #region Dodawanie specyfikacji
+
+        /// <summary>
+        /// Dodaje nową specyfikację do karty Specyfikacje
+        /// </summary>
+        private void BtnDodajSpecyfikacje_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                // Sprawdź czy edycja jest dozwolona
+                if (!CheckEditingAllowed(selectedDate))
+                {
+                    return;
+                }
+
+                // Znajdź następny numer LP
+                int nextNr = 1;
+                if (specyfikacjeData != null && specyfikacjeData.Count > 0)
+                {
+                    nextNr = specyfikacjeData.Max(s => s.Nr) + 1;
+                }
+
+                // Utwórz nowy wiersz w bazie danych
+                int newId = CreateNewSpecyfikacjaInDatabase(selectedDate, nextNr);
+
+                if (newId > 0)
+                {
+                    // Utwórz nowy wiersz w lokalnej kolekcji
+                    var newRow = new SpecyfikacjaRow
+                    {
+                        ID = newId,
+                        Nr = nextNr,
+                        Number = 0,
+                        YearNumber = 0,
+                        Dostawca = "",
+                        RealDostawca = "",
+                        SztukiDek = 0,
+                        Padle = 0,
+                        CH = 0,
+                        NW = 0,
+                        ZM = 0,
+                        LUMEL = 0,
+                        SztukiWybijak = 0,
+                        KilogramyWybijak = 0,
+                        Cena = 0,
+                        Dodatek = 0,
+                        TypCeny = "wolnyrynek",
+                        Ubytek = 0,
+                        PiK = false,
+                        SredniaWaga = 0,
+                        SupplierColor = GenerateColorForSupplier("")
+                    };
+
+                    specyfikacjeData.Add(newRow);
+
+                    // Odśwież DataGrid i zaznacz nowy wiersz
+                    dataGridView1.ItemsSource = null;
+                    dataGridView1.ItemsSource = specyfikacjeData;
+                    dataGridView1.SelectedItem = newRow;
+                    dataGridView1.ScrollIntoView(newRow);
+
+                    // Rozpocznij edycję komórki Dostawca
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        dataGridView1.CurrentCell = new DataGridCellInfo(newRow, dataGridView1.Columns[5]); // Kolumna Dostawca
+                        dataGridView1.BeginEdit();
+                    }), System.Windows.Threading.DispatcherPriority.Background);
+
+                    UpdateStatistics();
+                    UpdateStatus($"Dodano nową specyfikację LP: {nextNr}");
+                }
+                else
+                {
+                    MessageBox.Show("Nie udało się utworzyć nowej specyfikacji w bazie danych.", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd dodawania specyfikacji:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Tworzy nowy wiersz specyfikacji w bazie danych i zwraca jego ID
+        /// </summary>
+        private int CreateNewSpecyfikacjaInDatabase(DateTime calcDate, int carLp)
+        {
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    string query = @"
+                        INSERT INTO dbo.FarmerCalc (CalcDate, CarLp, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5, LumQnt, ProdQnt, ProdWgt, Price, Addition, Loss, IncDeadConf)
+                        OUTPUT INSERTED.ID
+                        VALUES (@CalcDate, @CarLp, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)";
+
+                    using (SqlCommand cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@CalcDate", calcDate.Date);
+                        cmd.Parameters.AddWithValue("@CarLp", carLp);
+
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && int.TryParse(result.ToString(), out int newId))
+                        {
+                            return newId;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error creating new specyfikacja: {ex.Message}");
+            }
+
+            return 0;
+        }
+
+        /// <summary>
+        /// Generuje kolor dla dostawcy (do paska bocznego)
+        /// </summary>
+        private string GenerateColorForSupplier(string supplierName)
+        {
+            if (string.IsNullOrEmpty(supplierName))
+                return "#CCCCCC";
+
+            // Użyj hash stringa do generowania koloru
+            int hash = supplierName.GetHashCode();
+            var r = (hash & 0xFF0000) >> 16;
+            var g = (hash & 0x00FF00) >> 8;
+            var b = hash & 0x0000FF;
+
+            // Rozjaśnij kolor, żeby był czytelny
+            r = Math.Min(255, r + 100);
+            g = Math.Min(255, g + 100);
+            b = Math.Min(255, b + 100);
+
+            return $"#{r:X2}{g:X2}{b:X2}";
         }
 
         #endregion
@@ -8259,6 +8853,33 @@ namespace Kalendarz1
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error adding Symfonia column: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Upewnia się, że kolumna IdPosrednik istnieje w tabeli FarmerCalc
+        /// </summary>
+        private void EnsureIdPosrednikColumnExists()
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string addColumnSql = @"
+                        IF COL_LENGTH('FarmerCalc', 'IdPosrednik') IS NULL
+                        BEGIN
+                            ALTER TABLE dbo.FarmerCalc ADD IdPosrednik INT NULL
+                        END";
+                    using (SqlCommand cmd = new SqlCommand(addColumnSql, conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error adding IdPosrednik column: {ex.Message}");
             }
         }
 
@@ -8522,6 +9143,281 @@ namespace Kalendarz1
         }
 
         #endregion
+
+        #region Karta Podsumowanie
+
+        /// <summary>
+        /// Odświeża dane na karcie Podsumowanie
+        /// </summary>
+        private void BtnPodsumowanieRefresh_Click(object sender, RoutedEventArgs e)
+        {
+            LoadPodsumowanieData();
+        }
+
+        /// <summary>
+        /// Ładuje dane do karty Podsumowanie na podstawie aktualnych specyfikacji
+        /// </summary>
+        private void LoadPodsumowanieData()
+        {
+            if (specyfikacjeData == null || specyfikacjeData.Count == 0)
+            {
+                podsumowanieData.Clear();
+                dataGridPodsumowanie.ItemsSource = podsumowanieData;
+                UpdatePodsumowanieLabels();
+                return;
+            }
+
+            DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+            lblPodsumowanieData.Text = selectedDate.ToString("dd.MM.yyyy");
+
+            podsumowanieData.Clear();
+            int lp = 1;
+
+            foreach (var spec in specyfikacjeData.OrderBy(s => s.Nr))
+            {
+                var row = new PodsumowanieRow
+                {
+                    LP = lp++,
+                    HodowcaDrobiu = spec.RealDostawca ?? spec.Dostawca,
+                    SztukiZadeklarowane = spec.SztukiDek,
+                    SztukiPadle = spec.Padle,
+                    SztukiKonfi = spec.CH + spec.NW + spec.ZM,
+                    KgKonf = (int)(spec.CH * spec.SredniaWaga + spec.NW * spec.SredniaWaga + spec.ZM * spec.SredniaWaga),
+                    KgPadle = (int)(spec.Padle * spec.SredniaWaga),
+                    Lumel = spec.LUMEL,
+                    SztukiKonfiskataT = spec.CH + spec.NW + spec.ZM,
+                    SztukiZdatne = spec.LUMEL - (spec.Padle + spec.CH + spec.NW + spec.ZM),
+                    IloscKgZywiec = spec.NettoUbojniValue > 0 ? spec.NettoUbojniValue : spec.KilogramyWybijak,
+                    SredniaWagaPrzedUbojem = spec.SredniaWaga,
+                    SztukiProdukcjaTuszka = spec.SztukiWybijak,
+                    WagaProdukcjaTuszka = spec.KilogramyWybijak
+                };
+
+                // Oblicz wydajność %: (LUMEL - konfiskaty) / SztukiDek * 100
+                if (spec.SztukiDek > 0)
+                {
+                    row.WydajnoscProcent = ((decimal)(spec.LUMEL - (spec.Padle + spec.CH + spec.NW + spec.ZM)) / spec.SztukiDek) * 100;
+                }
+
+                podsumowanieData.Add(row);
+            }
+
+            dataGridPodsumowanie.ItemsSource = podsumowanieData;
+            UpdatePodsumowanieLabels();
+        }
+
+        /// <summary>
+        /// Aktualizuje etykiety podsumowania w stopce karty
+        /// </summary>
+        private void UpdatePodsumowanieLabels()
+        {
+            lblPodsumowanieSumaWierszy.Text = podsumowanieData.Count.ToString();
+            lblPodsumowanieSumaZadekl.Text = podsumowanieData.Sum(r => r.SztukiZadeklarowane).ToString("N0");
+            lblPodsumowanieSumaZdatnych.Text = podsumowanieData.Sum(r => r.SztukiZdatne).ToString("N0");
+            lblPodsumowanieSumaKgZywiec.Text = podsumowanieData.Sum(r => r.IloscKgZywiec).ToString("N0");
+
+            if (podsumowanieData.Count > 0)
+            {
+                decimal srWydajnosc = podsumowanieData.Average(r => r.WydajnoscProcent);
+                lblPodsumowanieSrWydajnosc.Text = $"{srWydajnosc:F2}%";
+            }
+            else
+            {
+                lblPodsumowanieSrWydajnosc.Text = "0%";
+            }
+        }
+
+        /// <summary>
+        /// Eksportuje dane z karty Podsumowanie do PDF
+        /// </summary>
+        private void BtnPodsumowanieExportPdf_Click(object sender, RoutedEventArgs e)
+        {
+            if (podsumowanieData.Count == 0)
+            {
+                MessageBox.Show("Brak danych do eksportu!", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+                string yearFolder = selectedDate.Year.ToString();
+                string monthFolder = selectedDate.Month.ToString("D2");
+                string dayFolder = selectedDate.Day.ToString("D2");
+
+                string folderPath = Path.Combine(defaultPdfPath, yearFolder, monthFolder, dayFolder);
+                if (!Directory.Exists(folderPath))
+                {
+                    Directory.CreateDirectory(folderPath);
+                }
+
+                string fileName = $"Podsumowanie_{selectedDate:yyyy-MM-dd}_{DateTime.Now:HHmmss}.pdf";
+                string filePath = Path.Combine(folderPath, fileName);
+
+                using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    Document doc = new Document(PageSize.A4.Rotate(), 20, 20, 30, 30);
+                    PdfWriter writer = PdfWriter.GetInstance(doc, fs);
+                    doc.Open();
+
+                    // Czcionki
+                    string arialPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "arial.ttf");
+                    BaseFont bfArial;
+                    if (File.Exists(arialPath))
+                    {
+                        bfArial = BaseFont.CreateFont(arialPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+                    }
+                    else
+                    {
+                        bfArial = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1250, BaseFont.NOT_EMBEDDED);
+                    }
+
+                    iTextSharp.text.Font fontTitle = new iTextSharp.text.Font(bfArial, 16, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontSubtitle = new iTextSharp.text.Font(bfArial, 12);
+                    iTextSharp.text.Font fontHeader = new iTextSharp.text.Font(bfArial, 7, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontData = new iTextSharp.text.Font(bfArial, 7);
+                    iTextSharp.text.Font fontSum = new iTextSharp.text.Font(bfArial, 8, iTextSharp.text.Font.BOLD);
+
+                    // Tytuł
+                    Paragraph title = new Paragraph("RAPORT Z PRZYJĘCIA ŻYWCA DO UBOJU", fontTitle);
+                    title.Alignment = Element.ALIGN_CENTER;
+                    doc.Add(title);
+
+                    Paragraph subtitle = new Paragraph($"Podsumowanie Specyfikacja Przyjętego Drobiu do Uboju    Data: {selectedDate:dd.MM.yyyy}", fontSubtitle);
+                    subtitle.Alignment = Element.ALIGN_CENTER;
+                    subtitle.SpacingAfter = 15;
+                    doc.Add(subtitle);
+
+                    // Tabela
+                    PdfPTable table = new PdfPTable(19);
+                    table.WidthPercentage = 100;
+                    float[] widths = { 3f, 10f, 5f, 4f, 4f, 4f, 4f, 4f, 4f, 5f, 4f, 4f, 5f, 5f, 5f, 5f, 5f, 5f, 5f };
+                    table.SetWidths(widths);
+
+                    // Nagłówki
+                    string[] headers = { "L.P", "Hodowca Drobiu", "Szt.Zad.", "Padłe", "Konfi", "Suma", "KgKonf", "KgPad", "KgSuma", "Wydaj.%", "Lumel", "KonT", "Zdatne", "KgŻyw", "ŚrWaga", "Szt.Pr", "WgProd", "Róż1", "Róż2" };
+                    BaseColor headerColor = new BaseColor(44, 62, 80);
+
+                    foreach (var h in headers)
+                    {
+                        PdfPCell cell = new PdfPCell(new Phrase(h, fontHeader));
+                        cell.BackgroundColor = headerColor;
+                        cell.HorizontalAlignment = Element.ALIGN_CENTER;
+                        cell.Padding = 4;
+                        cell.Phrase.Font.Color = BaseColor.WHITE;
+                        table.AddCell(cell);
+                    }
+
+                    // Dane
+                    foreach (var row in podsumowanieData)
+                    {
+                        table.AddCell(new PdfPCell(new Phrase(row.LP.ToString(), fontData)) { HorizontalAlignment = Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(row.HodowcaDrobiu ?? "-", fontData)));
+                        table.AddCell(new PdfPCell(new Phrase(row.SztukiZadeklarowane.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, BackgroundColor = new BaseColor(255, 224, 178) });
+                        table.AddCell(new PdfPCell(new Phrase(row.SztukiPadle.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                        table.AddCell(new PdfPCell(new Phrase(row.SztukiKonfi.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                        table.AddCell(new PdfPCell(new Phrase(row.SztukiSuma.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                        table.AddCell(new PdfPCell(new Phrase(row.KgKonf.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                        table.AddCell(new PdfPCell(new Phrase(row.KgPadle.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                        table.AddCell(new PdfPCell(new Phrase(row.KgSuma.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+
+                        // Wydajność z kolorem
+                        BaseColor wydColor = row.WydajnoscNiska ? new BaseColor(255, 205, 210) : new BaseColor(200, 230, 201);
+                        table.AddCell(new PdfPCell(new Phrase($"{row.WydajnoscProcent:F2}%", fontData)) { HorizontalAlignment = Element.ALIGN_CENTER, BackgroundColor = wydColor });
+
+                        table.AddCell(new PdfPCell(new Phrase(row.Lumel.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                        table.AddCell(new PdfPCell(new Phrase(row.SztukiKonfiskataT.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                        table.AddCell(new PdfPCell(new Phrase(row.SztukiZdatne.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, BackgroundColor = new BaseColor(200, 230, 201) });
+                        table.AddCell(new PdfPCell(new Phrase(row.IloscKgZywiec.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                        table.AddCell(new PdfPCell(new Phrase(row.SredniaWagaPrzedUbojem.ToString("F2"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                        table.AddCell(new PdfPCell(new Phrase(row.SztukiProdukcjaTuszka.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                        table.AddCell(new PdfPCell(new Phrase(row.WagaProdukcjaTuszka.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                        table.AddCell(new PdfPCell(new Phrase(row.RoznicaSztukZdatneProd.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                        table.AddCell(new PdfPCell(new Phrase(row.RoznicaSztukZdatneZadekl.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                    }
+
+                    // Wiersz sumy
+                    BaseColor sumColor = new BaseColor(200, 200, 200);
+                    PdfPCell sumaCell = new PdfPCell(new Phrase("SUMA:", fontSum));
+                    sumaCell.Colspan = 2;
+                    sumaCell.BackgroundColor = sumColor;
+                    sumaCell.HorizontalAlignment = Element.ALIGN_RIGHT;
+                    sumaCell.Padding = 4;
+                    table.AddCell(sumaCell);
+
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiZadeklarowane).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiPadle).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiKonfi).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiSuma).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.KgKonf).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.KgPadle).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.KgSuma).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
+                    table.AddCell(new PdfPCell(new Phrase($"{podsumowanieData.Average(r => r.WydajnoscProcent):F2}%", fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_CENTER });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.Lumel).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiKonfiskataT).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiZdatne).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.IloscKgZywiec).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
+                    table.AddCell(new PdfPCell(new Phrase($"{podsumowanieData.Average(r => r.SredniaWagaPrzedUbojem):F2}", fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiProdukcjaTuszka).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.WagaProdukcjaTuszka).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.RoznicaSztukZdatneProd).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.RoznicaSztukZdatneZadekl).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
+
+                    doc.Add(table);
+                    doc.Close();
+                }
+
+                UpdateStatus($"Eksportowano PDF: {fileName}");
+                var result = MessageBox.Show($"Podsumowanie zostało wyeksportowane:\n{filePath}\n\nCzy otworzyć plik?", "Sukces", MessageBoxButton.YesNo, MessageBoxImage.Information);
+                if (result == MessageBoxResult.Yes)
+                {
+                    Process.Start(new ProcessStartInfo { FileName = filePath, UseShellExecute = true });
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd eksportu PDF:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Kopiuje dane z karty Podsumowanie do schowka (format dla Excel)
+        /// </summary>
+        private void BtnPodsumowanieCopy_Click(object sender, RoutedEventArgs e)
+        {
+            if (podsumowanieData.Count == 0)
+            {
+                MessageBox.Show("Brak danych do skopiowania!", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                var sb = new StringBuilder();
+
+                // Nagłówki
+                sb.AppendLine("L.P\tHodowca Drobiu\tSzt.Zadeklarowane\tSzt.Padłe\tSzt.Konfi\tSzt.Suma\tKgKonf\tKgPadłe\tKgSuma\tWydajność%\tLumel\tSzt.KonT\tSzt.Zdatne\tKgŻywiec\tŚr.Waga\tSzt.ProdTuszka\tWagaProdTuszka\tRóżn.Zdat-Prod\tRóżn.Zdat-Zadekl");
+
+                // Dane
+                foreach (var row in podsumowanieData)
+                {
+                    sb.AppendLine($"{row.LP}\t{row.HodowcaDrobiu}\t{row.SztukiZadeklarowane}\t{row.SztukiPadle}\t{row.SztukiKonfi}\t{row.SztukiSuma}\t{row.KgKonf}\t{row.KgPadle}\t{row.KgSuma}\t{row.WydajnoscProcent:F2}\t{row.Lumel}\t{row.SztukiKonfiskataT}\t{row.SztukiZdatne}\t{row.IloscKgZywiec:F0}\t{row.SredniaWagaPrzedUbojem:F2}\t{row.SztukiProdukcjaTuszka}\t{row.WagaProdukcjaTuszka:F0}\t{row.RoznicaSztukZdatneProd}\t{row.RoznicaSztukZdatneZadekl}");
+                }
+
+                // Suma
+                sb.AppendLine($"SUMA\t\t{podsumowanieData.Sum(r => r.SztukiZadeklarowane)}\t{podsumowanieData.Sum(r => r.SztukiPadle)}\t{podsumowanieData.Sum(r => r.SztukiKonfi)}\t{podsumowanieData.Sum(r => r.SztukiSuma)}\t{podsumowanieData.Sum(r => r.KgKonf)}\t{podsumowanieData.Sum(r => r.KgPadle)}\t{podsumowanieData.Sum(r => r.KgSuma)}\t{podsumowanieData.Average(r => r.WydajnoscProcent):F2}\t{podsumowanieData.Sum(r => r.Lumel)}\t{podsumowanieData.Sum(r => r.SztukiKonfiskataT)}\t{podsumowanieData.Sum(r => r.SztukiZdatne)}\t{podsumowanieData.Sum(r => r.IloscKgZywiec):F0}\t{podsumowanieData.Average(r => r.SredniaWagaPrzedUbojem):F2}\t{podsumowanieData.Sum(r => r.SztukiProdukcjaTuszka)}\t{podsumowanieData.Sum(r => r.WagaProdukcjaTuszka):F0}\t{podsumowanieData.Sum(r => r.RoznicaSztukZdatneProd)}\t{podsumowanieData.Sum(r => r.RoznicaSztukZdatneZadekl)}");
+
+                Clipboard.SetText(sb.ToString());
+                UpdateStatus("Dane skopiowane do schowka");
+                MessageBox.Show("Dane zostały skopiowane do schowka.\nMożesz wkleić je do Excela (Ctrl+V).", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd kopiowania:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        #endregion
     }
 
     // === KLASY POMOCNICZE ===
@@ -8618,6 +9514,10 @@ namespace Kalendarz1
         private bool _isFirstInGroup;
         private bool _isLastInGroup;
 
+        // Pośrednik
+        private int? _idPosrednik;
+        private string _posrednikNazwa;
+
         public bool IsHighlighted
         {
             get => _isHighlighted;
@@ -8691,6 +9591,19 @@ namespace Kalendarz1
         {
             get => _realDostawca;
             set { _realDostawca = value; OnPropertyChanged(nameof(RealDostawca)); }
+        }
+
+        // Pośrednik - ID i nazwa
+        public int? IdPosrednik
+        {
+            get => _idPosrednik;
+            set { _idPosrednik = value; OnPropertyChanged(nameof(IdPosrednik)); OnPropertyChanged(nameof(PosrednikNazwa)); }
+        }
+
+        public string PosrednikNazwa
+        {
+            get => _posrednikNazwa;
+            set { _posrednikNazwa = value; OnPropertyChanged(nameof(PosrednikNazwa)); }
         }
 
         public int SztukiDek
@@ -10046,6 +10959,53 @@ namespace Kalendarz1
         public string ToolTipText => HasData
             ? $"{Date:dd.MM.yyyy} ({DayName})\n{RecordCount} rekordów"
             : $"{Date:dd.MM.yyyy} ({DayName})\nBrak danych";
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+
+    /// <summary>
+    /// Model dla pośrednika - używany w ComboBox kolumny Pośrednik
+    /// Użytkownik dostarczy tabelę z danymi pośredników później
+    /// </summary>
+    public class PosrednikItem
+    {
+        public int ID { get; set; }
+        public string Nazwa { get; set; }
+        public string Kod { get; set; }
+    }
+
+    /// <summary>
+    /// Model dla karty Podsumowanie - Raport z przyjęcia żywca do uboju
+    /// Agreguje dane specyfikacji dla każdego hodowcy
+    /// </summary>
+    public class PodsumowanieRow : INotifyPropertyChanged
+    {
+        public int LP { get; set; }
+        public string HodowcaDrobiu { get; set; }
+        public int SztukiZadeklarowane { get; set; }
+        public int SztukiPadle { get; set; }
+        public int SztukiKonfi { get; set; }
+        public int SztukiSuma => SztukiPadle + SztukiKonfi;
+        public int KgKonf { get; set; }
+        public int KgPadle { get; set; }
+        public int KgSuma => KgKonf + KgPadle;
+        public decimal WydajnoscProcent { get; set; }
+        public bool WydajnoscNiska => WydajnoscProcent < 77;
+        public int Lumel { get; set; }
+        public int SztukiKonfiskataT { get; set; }
+        public int SztukiZdatne { get; set; }
+        public decimal IloscKgZywiec { get; set; }
+        public decimal SredniaWagaPrzedUbojem { get; set; }
+        public int SztukiProdukcjaTuszka { get; set; }
+        public decimal WagaProdukcjaTuszka { get; set; }
+        public int RoznicaSztukZdatneProd => SztukiZdatne - SztukiProdukcjaTuszka;
+        public bool RoznicaSztukUjemna => RoznicaSztukZdatneProd < 0;
+        public int RoznicaSztukZdatneZadekl => SztukiZdatne - SztukiZadeklarowane;
+        public bool RoznicaSztukZadeklUjemna => RoznicaSztukZdatneZadekl < 0;
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)
