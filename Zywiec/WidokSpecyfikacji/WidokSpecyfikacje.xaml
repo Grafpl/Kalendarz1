@@ -730,11 +730,71 @@
                             </Grid.ColumnDefinitions>
                             <TextBox x:Name="txtDefaultPdfPath" Grid.Column="0" Height="28"
                                      VerticalContentAlignment="Center" Margin="0,0,5,0"/>
-                            <Button Grid.Column="1" Content="📁" Padding="8,4"
+                            <Button Grid.Column="1" Content="..." Padding="8,4"
                                     Background="#1976D2" Foreground="White" BorderThickness="0"
                                     Cursor="Hand" Click="BtnBrowsePdfPath_Click" ToolTip="Wybierz folder"/>
                         </Grid>
                         <TextBlock Text="Folder gdzie zapisywane są specyfikacje PDF" FontSize="11" Foreground="#7F8C8D" Margin="0,3,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Skróty klawiszowe - podpowiedzi -->
+                <Border Background="#ECEFF1" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="Skróty klawiszowe" FontWeight="SemiBold" Foreground="#455A64" Margin="0,0,0,8"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="F5" FontWeight="Bold" Foreground="#1565C0" Margin="0,2"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text=" - Odśwież dane" Margin="5,2"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Ctrl+Z" FontWeight="Bold" Foreground="#1565C0" Margin="0,2"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text=" - Cofnij ostatnią zmianę" Margin="5,2"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Ctrl+Shift+C" FontWeight="Bold" Foreground="#1565C0" Margin="0,2"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text=" - Kopiuj ustawienia cenowe" Margin="5,2"/>
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Ctrl+Shift+V" FontWeight="Bold" Foreground="#1565C0" Margin="0,2"/>
+                            <TextBlock Grid.Row="3" Grid.Column="1" Text=" - Wklej ustawienia cenowe" Margin="5,2"/>
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Delete" FontWeight="Bold" Foreground="#C0392B" Margin="0,2"/>
+                            <TextBlock Grid.Row="4" Grid.Column="1" Text=" - Usuń zaznaczony wiersz" Margin="5,2"/>
+                            <TextBlock Grid.Row="5" Grid.Column="0" Text="Enter" FontWeight="Bold" Foreground="#1565C0" Margin="0,2"/>
+                            <TextBlock Grid.Row="5" Grid.Column="1" Text=" - Przejdź do następnego pola" Margin="5,2"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Szybkie statystyki dnia -->
+                <Border Background="#E8F5E9" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="Szybkie statystyki dnia" FontWeight="SemiBold" Foreground="#2E7D32" Margin="0,0,0,8"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Specyfikacji:" Margin="0,2"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="lblQuickStatSpec" Text="0" FontWeight="Bold" Foreground="#2E7D32" HorizontalAlignment="Right"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Z ceną:" Margin="0,2"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="lblQuickStatCena" Text="0" FontWeight="Bold" Foreground="#1565C0" HorizontalAlignment="Right"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Bez ceny:" Margin="0,2"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="lblQuickStatBezCeny" Text="0" FontWeight="Bold" Foreground="#C0392B" HorizontalAlignment="Right"/>
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Suma sztuk:" Margin="0,2"/>
+                            <TextBlock Grid.Row="3" Grid.Column="1" x:Name="lblQuickStatSztuki" Text="0" FontWeight="Bold" Foreground="#E65100" HorizontalAlignment="Right"/>
+                        </Grid>
                     </StackPanel>
                 </Border>
 
@@ -893,6 +953,16 @@
                                               VerticalAlignment="Center"
                                               IsChecked="False"
                                               ToolTip="Zaznacz aby wyświetlić kolumnę Pośrednik. Dane pośredników będą dostępne po skonfigurowaniu tabeli."/>
+                                </Border>
+
+                                <!-- Checkbox pokazywania kolumny Dodatek -->
+                                <Border Background="#E8F5E9" CornerRadius="4" Padding="5,2" Margin="5,0">
+                                    <CheckBox x:Name="chkShowDodatek"
+                                              Content="💰 Pokaż Dodatek"
+                                              FontSize="11"
+                                              VerticalAlignment="Center"
+                                              IsChecked="False"
+                                              ToolTip="Zaznacz aby wyświetlić kolumnę Dodatek do ceny."/>
                                 </Border>
 
                                 <TextBlock x:Name="lblClipboardInfo" Text="" VerticalAlignment="Center"
@@ -1392,9 +1462,11 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
 
-                                <DataGridTemplateColumn Header="Dodatek" Width="70"
+                                <!-- Kolumna Dodatek - domyślnie ukryta, widoczność kontrolowana przez checkbox -->
+                                <DataGridTemplateColumn x:Name="colDodatek" Header="Dodatek" Width="70"
                                             HeaderStyle="{StaticResource CenaHeaderStyle}"
-                                            CellStyle="{StaticResource CellStyleBlue}">
+                                            CellStyle="{StaticResource CellStyleBlue}"
+                                            Visibility="{Binding ElementName=chkShowDodatek, Path=IsChecked, Converter={StaticResource BoolToVis}}">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBox Text="{Binding Dodatek, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
@@ -1565,7 +1637,9 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
 
-                                <DataGridTemplateColumn Header="Termin" Width="55" HeaderStyle="{StaticResource CenaHeaderStyle}" CellStyle="{StaticResource CellStyleBlue}">
+                                <!-- Kolumny Termin i Symfonia przeniesione do karty Rozliczenia -->
+                                <DataGridTemplateColumn x:Name="colTermin" Header="Termin" Width="55" HeaderStyle="{StaticResource CenaHeaderStyle}" CellStyle="{StaticResource CellStyleBlue}"
+                                                        Visibility="Collapsed">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBox Text="{Binding TerminDni, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -1575,7 +1649,8 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
 
-                                <DataGridTemplateColumn Header="Symf." Width="45" ToolTipService.ToolTip="Przeniesione do Symfonii">
+                                <DataGridTemplateColumn x:Name="colSymfonia" Header="Symf." Width="45" ToolTipService.ToolTip="Przeniesione do Symfonii"
+                                                        Visibility="Collapsed">
                                     <DataGridTemplateColumn.CellStyle>
                                         <Style TargetType="DataGridCell">
                                             <Setter Property="Background" Value="#E1BEE7"/>
@@ -1836,12 +1911,20 @@
                                                 BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"
                                                 ToolTip="Zapisz kolejność aut"/>
                                     </Border>
-                                    <Border Background="#27AE60" CornerRadius="4">
+                                    <Border Background="#27AE60" CornerRadius="4" Margin="0,0,5,0">
                                         <Button Content="➕ Dodaj transport"
                                                 x:Name="btnAddTransport"
                                                 Click="BtnAddTransport_Click"
                                                 Padding="12,4" Background="Transparent" Foreground="White"
                                                 BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+                                    </Border>
+                                    <Border Background="#C0392B" CornerRadius="4">
+                                        <Button Content="🔍 Diagnostyka"
+                                                x:Name="btnTransportDiagnostyka"
+                                                Click="BtnTransportDiagnostyka_Click"
+                                                Padding="12,4" Background="Transparent" Foreground="White"
+                                                BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"
+                                                ToolTip="Sprawdź problemy z transportem"/>
                                     </Border>
                                 </StackPanel>
                             </Grid>
@@ -2370,46 +2453,126 @@
                                 </Style>
                             </DataGrid.RowStyle>
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat=yyyy-MM-dd}" Width="90"/>
-                                <DataGridTextColumn Header="LP" Binding="{Binding Nr}" Width="40"/>
-                                <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="180"/>
-                                <DataGridTextColumn Header="Szt.Dek" Binding="{Binding SztukiDek, StringFormat={}{0:N0}}" Width="70">
+                                <!-- Dane podstawowe -->
+                                <DataGridTextColumn Header="LP" Binding="{Binding Nr}" Width="35">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="160"/>
+
+                                <!-- Ilości -->
+                                <DataGridTextColumn Header="Szt.Dek" Binding="{Binding SztukiDek, StringFormat={}{0:N0}}" Width="65">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="HorizontalAlignment" Value="Right"/>
                                             <Setter Property="Padding" Value="0,0,8,0"/>
+                                            <Setter Property="Foreground" Value="#E65100"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Netto KG" Binding="{Binding NettoKg, StringFormat={}{0:N0}}" Width="80">
+                                <DataGridTextColumn Header="KG Netto" Binding="{Binding NettoKg, StringFormat={}{0:N0}}" Width="70">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="HorizontalAlignment" Value="Right"/>
                                             <Setter Property="Padding" Value="0,0,8,0"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat={}{0:N2}}" Width="65">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Right"/>
                                             <Setter Property="Foreground" Value="#1565C0"/>
                                             <Setter Property="FontWeight" Value="SemiBold"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Typ ceny" Binding="{Binding TypCeny}" Width="90"/>
-                                <DataGridTextColumn Header="Wartość" Binding="{Binding Wartosc, StringFormat={}{0:N2}}" Width="100">
+
+                                <!-- Separator wizualny - Ceny -->
+                                <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat={}{0:N2}}" Width="60">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader">
+                                            <Setter Property="Background" Value="#BBDEFB"/>
+                                            <Setter Property="Foreground" Value="#1565C0"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="5,3"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Foreground" Value="#1565C0"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Padding" Value="0,0,5,0"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Dod." Binding="{Binding Dodatek, StringFormat={}{0:N2}}" Width="50" ToolTipService.ToolTip="Dodatek do ceny">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader">
+                                            <Setter Property="Background" Value="#C8E6C9"/>
+                                            <Setter Property="Foreground" Value="#2E7D32"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="5,3"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Foreground" Value="#2E7D32"/>
+                                            <Setter Property="Padding" Value="0,0,5,0"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Typ" Binding="{Binding TypCeny}" Width="75">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="FontSize" Value="10"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Termin" Binding="{Binding TerminDni}" Width="50" ToolTipService.ToolTip="Termin płatności (dni)">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader">
+                                            <Setter Property="Background" Value="#FFF3E0"/>
+                                            <Setter Property="Foreground" Value="#E65100"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="5,3"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Wartość końcowa -->
+                                <DataGridTextColumn Header="WARTOŚĆ" Binding="{Binding Wartosc, StringFormat={}{0:N2}}" Width="95">
+                                    <DataGridTextColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader">
+                                            <Setter Property="Background" Value="#2E7D32"/>
+                                            <Setter Property="Foreground" Value="White"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="5,3"/>
+                                        </Style>
+                                    </DataGridTextColumn.HeaderStyle>
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="HorizontalAlignment" Value="Right"/>
                                             <Setter Property="Foreground" Value="#2E7D32"/>
                                             <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Padding" Value="0,0,8,0"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridCheckBoxColumn Header="Symfonia" Binding="{Binding Symfonia}" Width="70"/>
-                                <DataGridCheckBoxColumn Header="ARIMR" Binding="{Binding ARIMR}" Width="60"/>
+
+                                <!-- Checkboxy statusów -->
+                                <DataGridCheckBoxColumn Header="Symf" Binding="{Binding Symfonia}" Width="45" ToolTipService.ToolTip="Przeniesione do Symfonii"/>
+                                <DataGridCheckBoxColumn Header="ARiMR" Binding="{Binding ARIMR}" Width="50"/>
                                 <!-- Status wprowadzenia (1. kontrola) -->
                                 <DataGridTemplateColumn Header="Wprowadzenie" Width="90">
                                     <DataGridTemplateColumn.CellTemplate>

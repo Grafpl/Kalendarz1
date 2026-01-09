@@ -606,6 +606,228 @@ namespace Kalendarz1
             dataGridTransport.ScrollIntoView(newTransport);
         }
 
+        /// <summary>
+        /// Diagnostyka transportu - sprawdza problemy i pokazuje szczegółowy raport
+        /// </summary>
+        private void BtnTransportDiagnostyka_Click(object sender, RoutedEventArgs e)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("═══════════════════════════════════════════════════════");
+            sb.AppendLine("       DIAGNOSTYKA TRANSPORTU - RAPORT PROBLEMÓW");
+            sb.AppendLine("═══════════════════════════════════════════════════════");
+            sb.AppendLine();
+
+            DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+            sb.AppendLine($"Data: {selectedDate:dd.MM.yyyy} ({selectedDate.ToString("dddd", new System.Globalization.CultureInfo("pl-PL"))})");
+            sb.AppendLine();
+
+            int problemCount = 0;
+            var problemy = new List<string>();
+
+            // 1. Sprawdź spójność między specyfikacjami a transportem
+            sb.AppendLine(">>> SPÓJNOŚĆ SPECYFIKACJI I TRANSPORTU:");
+            int specCount = specyfikacjeData?.Count ?? 0;
+            int transportCount = transportData?.Count ?? 0;
+
+            if (specCount != transportCount)
+            {
+                problemy.Add($"[!] Liczba specyfikacji ({specCount}) != liczba transportów ({transportCount})");
+                problemCount++;
+            }
+            else
+            {
+                sb.AppendLine($"   [OK] Liczba rekordów zgodna: {specCount} specyfikacji = {transportCount} transportów");
+            }
+            sb.AppendLine();
+
+            // 2. Sprawdź braki w danych transportowych
+            sb.AppendLine(">>> BRAKI W DANYCH TRANSPORTOWYCH:");
+            if (transportData != null)
+            {
+                var brakCiagnika = transportData.Where(t => string.IsNullOrEmpty(t.RejestrCiagnika)).ToList();
+                var brakNaczepy = transportData.Where(t => string.IsNullOrEmpty(t.RejestrNaczepy)).ToList();
+                var brakKierowcy = transportData.Where(t => string.IsNullOrEmpty(t.Kierowca)).ToList();
+
+                if (brakCiagnika.Any())
+                {
+                    problemy.Add($"[!] Brak nr rejestracyjnego ciągnika: LP {string.Join(", ", brakCiagnika.Select(t => t.Nr))}");
+                    problemCount++;
+                }
+                if (brakNaczepy.Any())
+                {
+                    problemy.Add($"[!] Brak nr rejestracyjnego naczepy: LP {string.Join(", ", brakNaczepy.Select(t => t.Nr))}");
+                    problemCount++;
+                }
+                if (brakKierowcy.Any())
+                {
+                    problemy.Add($"[!] Brak kierowcy: LP {string.Join(", ", brakKierowcy.Select(t => t.Nr))}");
+                    problemCount++;
+                }
+
+                if (!brakCiagnika.Any() && !brakNaczepy.Any() && !brakKierowcy.Any())
+                {
+                    sb.AppendLine("   [OK] Wszystkie transporty mają kompletne dane");
+                }
+            }
+            sb.AppendLine();
+
+            // 3. Sprawdź braki w specyfikacjach
+            sb.AppendLine(">>> BRAKI W SPECYFIKACJACH:");
+            if (specyfikacjeData != null)
+            {
+                var brakDostawcy = specyfikacjeData.Where(s => string.IsNullOrEmpty(s.Dostawca) || s.Dostawca == "Nieznany").ToList();
+                var brakSztuk = specyfikacjeData.Where(s => s.SztukiDek == 0).ToList();
+                var brakCeny = specyfikacjeData.Where(s => s.Cena == 0).ToList();
+
+                if (brakDostawcy.Any())
+                {
+                    problemy.Add($"[!] Brak dostawcy: LP {string.Join(", ", brakDostawcy.Select(s => s.Nr))}");
+                    problemCount++;
+                }
+                if (brakSztuk.Any())
+                {
+                    problemy.Add($"[!] Brak deklaracji sztuk: LP {string.Join(", ", brakSztuk.Select(s => s.Nr))}");
+                    problemCount++;
+                }
+                if (brakCeny.Any())
+                {
+                    problemy.Add($"[!] Brak ceny: LP {string.Join(", ", brakCeny.Select(s => s.Nr))}");
+                    problemCount++;
+                }
+
+                if (!brakDostawcy.Any() && !brakSztuk.Any() && !brakCeny.Any())
+                {
+                    sb.AppendLine("   [OK] Wszystkie specyfikacje mają kompletne dane podstawowe");
+                }
+            }
+            sb.AppendLine();
+
+            // 4. Sprawdź anomalie - duże odchylenia
+            sb.AppendLine(">>> ANOMALIE (duże odchylenia):");
+            if (specyfikacjeData != null && specyfikacjeData.Count > 0)
+            {
+                var avgSztuki = specyfikacjeData.Average(s => s.SztukiDek);
+                var anomalieSztuki = specyfikacjeData.Where(s => s.SztukiDek > 0 && (s.SztukiDek > avgSztuki * 3 || s.SztukiDek < avgSztuki * 0.3)).ToList();
+
+                if (anomalieSztuki.Any())
+                {
+                    foreach (var anom in anomalieSztuki)
+                    {
+                        problemy.Add($"[!] LP {anom.Nr}: Nietypowa liczba sztuk ({anom.SztukiDek}) - średnia: {avgSztuki:N0}");
+                        problemCount++;
+                    }
+                }
+                else
+                {
+                    sb.AppendLine("   [OK] Brak znaczących anomalii w ilościach");
+                }
+
+                // Sprawdź duplikaty dostawców
+                var duplikaty = specyfikacjeData.GroupBy(s => s.Dostawca)
+                    .Where(g => g.Count() > 1 && !string.IsNullOrEmpty(g.Key) && g.Key != "Nieznany")
+                    .ToList();
+
+                if (duplikaty.Any())
+                {
+                    foreach (var dup in duplikaty)
+                    {
+                        sb.AppendLine($"   [i] Dostawca '{dup.Key}' pojawia się {dup.Count()} razy (LP: {string.Join(", ", dup.Select(s => s.Nr))})");
+                    }
+                }
+            }
+            sb.AppendLine();
+
+            // 5. Podsumowanie
+            sb.AppendLine("═══════════════════════════════════════════════════════");
+            sb.AppendLine($"PODSUMOWANIE: Znaleziono {problemCount} problemów");
+            sb.AppendLine("═══════════════════════════════════════════════════════");
+            sb.AppendLine();
+
+            if (problemy.Any())
+            {
+                sb.AppendLine("LISTA PROBLEMÓW:");
+                foreach (var problem in problemy)
+                {
+                    sb.AppendLine($"   {problem}");
+                }
+            }
+            else
+            {
+                sb.AppendLine("Brak wykrytych problemów - wszystko wygląda poprawnie!");
+            }
+
+            // Pokaż okno dialogowe z raportem
+            var diagWindow = new Window
+            {
+                Title = $"Diagnostyka Transportu - {selectedDate:dd.MM.yyyy}",
+                Width = 700,
+                Height = 600,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush(Color.FromRgb(245, 245, 245))
+            };
+
+            var scrollViewer = new ScrollViewer { Margin = new Thickness(15) };
+            var textBlock = new TextBlock
+            {
+                Text = sb.ToString(),
+                FontFamily = new System.Windows.Media.FontFamily("Consolas"),
+                FontSize = 12,
+                TextWrapping = TextWrapping.Wrap
+            };
+            scrollViewer.Content = textBlock;
+
+            var grid = new Grid();
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            Grid.SetRow(scrollViewer, 0);
+            grid.Children.Add(scrollViewer);
+
+            var buttonPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(15, 5, 15, 15)
+            };
+
+            var copyButton = new Button
+            {
+                Content = "Kopiuj do schowka",
+                Padding = new Thickness(15, 8, 15, 8),
+                Margin = new Thickness(0, 0, 10, 0),
+                Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                Foreground = new SolidColorBrush(Colors.White),
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand
+            };
+            copyButton.Click += (s, args) =>
+            {
+                Clipboard.SetText(sb.ToString());
+                MessageBox.Show("Raport skopiowany do schowka!", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            };
+
+            var closeButton = new Button
+            {
+                Content = "Zamknij",
+                Padding = new Thickness(20, 8, 20, 8),
+                Background = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
+                Foreground = new SolidColorBrush(Colors.White),
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand
+            };
+            closeButton.Click += (s, args) => diagWindow.Close();
+
+            buttonPanel.Children.Add(copyButton);
+            buttonPanel.Children.Add(closeButton);
+
+            Grid.SetRow(buttonPanel, 1);
+            grid.Children.Add(buttonPanel);
+
+            diagWindow.Content = grid;
+            diagWindow.ShowDialog();
+        }
+
         private void BtnRefreshTransport_Click(object sender, RoutedEventArgs e)
         {
             LoadTransportData();
@@ -2589,8 +2811,38 @@ namespace Kalendarz1
             decimal sumaWartosc = specyfikacjeData.Sum(r => r.Wartosc);
             lblSumaWartosc.Text = $"{sumaWartosc:N0} zł";
 
+            // Aktualizuj szybkie statystyki w panelu admina (jeśli istnieją)
+            UpdateQuickStats();
+
             // Aktualizuj wykres słupkowy porównania wag (hodowca vs ubojnia)
             UpdateWeightComparisonChart();
+        }
+
+        /// <summary>
+        /// Aktualizuje szybkie statystyki w panelu administracyjnym
+        /// </summary>
+        private void UpdateQuickStats()
+        {
+            try
+            {
+                var lblSpec = FindName("lblQuickStatSpec") as TextBlock;
+                var lblCena = FindName("lblQuickStatCena") as TextBlock;
+                var lblBezCeny = FindName("lblQuickStatBezCeny") as TextBlock;
+                var lblSztuki = FindName("lblQuickStatSztuki") as TextBlock;
+
+                if (lblSpec == null) return;
+
+                int total = specyfikacjeData?.Count ?? 0;
+                int zCena = specyfikacjeData?.Count(s => s.Cena > 0) ?? 0;
+                int bezCeny = total - zCena;
+                int sumaSzt = specyfikacjeData?.Sum(s => s.SztukiDek) ?? 0;
+
+                lblSpec.Text = total.ToString();
+                lblCena.Text = zCena.ToString();
+                lblBezCeny.Text = bezCeny.ToString();
+                lblSztuki.Text = sumaSzt.ToString("N0");
+            }
+            catch { /* Elementy mogą nie istnieć */ }
         }
 
         /// <summary>
@@ -7452,8 +7704,10 @@ namespace Kalendarz1
                             ISNULL(fc.DeclI1, 0) as SztukiDek,
                             ISNULL(fc.NettoWeight, 0) as NettoKg,
                             ISNULL(fc.Price, 0) as Cena,
+                            ISNULL(fc.Addition, 0) as Dodatek,
                             pt.Name as TypCeny,
-                            ISNULL(fc.NettoWeight, 0) * ISNULL(fc.Price, 0) as Wartosc,
+                            ISNULL(fc.TerminDni, 0) as TerminDni,
+                            ISNULL(fc.NettoWeight, 0) * (ISNULL(fc.Price, 0) + ISNULL(fc.Addition, 0)) as Wartosc,
                             ISNULL(fc.Symfonia, 0) as Symfonia
                         FROM dbo.FarmerCalc fc
                         LEFT JOIN dbo.Dostawcy k ON fc.CustomerGID = k.ID
@@ -7478,7 +7732,9 @@ namespace Kalendarz1
                                     SztukiDek = reader.IsDBNull(reader.GetOrdinal("SztukiDek")) ? 0 : Convert.ToInt32(reader["SztukiDek"]),
                                     NettoKg = reader.IsDBNull(reader.GetOrdinal("NettoKg")) ? 0 : Convert.ToDecimal(reader["NettoKg"]),
                                     Cena = reader.IsDBNull(reader.GetOrdinal("Cena")) ? 0 : Convert.ToDecimal(reader["Cena"]),
+                                    Dodatek = reader.IsDBNull(reader.GetOrdinal("Dodatek")) ? 0 : Convert.ToDecimal(reader["Dodatek"]),
                                     TypCeny = reader.IsDBNull(reader.GetOrdinal("TypCeny")) ? "" : reader["TypCeny"].ToString(),
+                                    TerminDni = reader.IsDBNull(reader.GetOrdinal("TerminDni")) ? 0 : Convert.ToInt32(reader["TerminDni"]),
                                     Wartosc = reader.IsDBNull(reader.GetOrdinal("Wartosc")) ? 0 : Convert.ToDecimal(reader["Wartosc"]),
                                     Symfonia = !reader.IsDBNull(reader.GetOrdinal("Symfonia")) && Convert.ToBoolean(reader["Symfonia"])
                                 });
@@ -7503,6 +7759,24 @@ namespace Kalendarz1
             }
         }
 
+        /// <summary>
+        /// Pobiera pełną nazwę użytkownika na podstawie UserID
+        /// </summary>
+        private string GetCurrentUserDisplayName()
+        {
+            string userId = App.UserID ?? Environment.UserName;
+            try
+            {
+                NazwaZiD nazwaZiD = new NazwaZiD();
+                string fullName = nazwaZiD.GetNameById(userId);
+                return !string.IsNullOrEmpty(fullName) ? fullName : userId;
+            }
+            catch
+            {
+                return userId;
+            }
+        }
+
         private void BtnZatwierdzDzien_Click(object sender, RoutedEventArgs e)
         {
             // Pierwsza kontrola - wprowadzenie WYBRANYCH wierszy
@@ -7516,7 +7790,7 @@ namespace Kalendarz1
                 return;
             }
 
-            string userName = Environment.UserName;
+            string userName = GetCurrentUserDisplayName();
             foreach (var row in selectedRows)
             {
                 row.Zatwierdzony = true;
@@ -7530,7 +7804,7 @@ namespace Kalendarz1
         private void BtnZatwierdzWszystko_Click(object sender, RoutedEventArgs e)
         {
             // Pierwsza kontrola - wprowadzenie WSZYSTKICH niezatwierdzonych wierszy
-            string userName = Environment.UserName;
+            string userName = GetCurrentUserDisplayName();
             int zatwierdzone = 0;
 
             foreach (var row in rozliczeniaData.Where(r => !r.Zatwierdzony))
@@ -7589,7 +7863,7 @@ namespace Kalendarz1
                 return;
             }
 
-            string userName = Environment.UserName;
+            string userName = GetCurrentUserDisplayName();
             int weryfikowane = 0;
             int pominieteSameOsoba = 0;
 
@@ -7625,7 +7899,7 @@ namespace Kalendarz1
         private void BtnWeryfikujWszystko_Click(object sender, RoutedEventArgs e)
         {
             // Weryfikacja WSZYSTKICH zatwierdzonych wierszy
-            string userName = Environment.UserName;
+            string userName = GetCurrentUserDisplayName();
             int weryfikowane = 0;
             int pominieteSameOsoba = 0;
 
@@ -8425,6 +8699,17 @@ namespace Kalendarz1
                     table.AddCell(new PdfPCell(new Phrase(sumaZM.ToString(), fontHeader)) { BackgroundColor = new BaseColor(200, 200, 200), HorizontalAlignment = Element.ALIGN_CENTER });
 
                     doc.Add(table);
+
+                    // Dodaj sekcję podpisów z rozwinięciem userId
+                    doc.Add(new Paragraph(" "));
+
+                    string wystawiajacyNazwa = GetCurrentUserDisplayName();
+                    iTextSharp.text.Font fontFooterPlachta = new iTextSharp.text.Font(bf, 9);
+
+                    Paragraph footerPara = new Paragraph($"Wystawił: {wystawiajacyNazwa}    |    Data wydruku: {DateTime.Now:dd.MM.yyyy HH:mm}", fontFooterPlachta);
+                    footerPara.Alignment = Element.ALIGN_RIGHT;
+                    doc.Add(footerPara);
+
                     doc.Close();
                 }
 
@@ -8923,6 +9208,41 @@ namespace Kalendarz1
                 {
                     connection.Open();
 
+                    // Sprawdź czy tabela FarmerCalc istnieje i ma odpowiednie kolumny
+                    string checkQuery = @"
+                        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FarmerCalc')
+                        BEGIN
+                            CREATE TABLE dbo.FarmerCalc (
+                                ID INT IDENTITY(1,1) PRIMARY KEY,
+                                CalcDate DATE NOT NULL,
+                                CarLp INT NOT NULL,
+                                CustomerGID NVARCHAR(50) NULL,
+                                CustomerRealGID NVARCHAR(50) NULL,
+                                DeclI1 INT DEFAULT 0,
+                                DeclI2 INT DEFAULT 0,
+                                DeclI3 INT DEFAULT 0,
+                                DeclI4 INT DEFAULT 0,
+                                DeclI5 INT DEFAULT 0,
+                                LumQnt INT DEFAULT 0,
+                                ProdQnt INT DEFAULT 0,
+                                ProdWgt DECIMAL(18,2) DEFAULT 0,
+                                Price DECIMAL(18,2) DEFAULT 0,
+                                Addition DECIMAL(18,2) DEFAULT 0,
+                                Loss DECIMAL(18,2) DEFAULT 0,
+                                IncDeadConf BIT DEFAULT 0,
+                                NettoWeight DECIMAL(18,2) DEFAULT 0,
+                                Symfonia BIT DEFAULT 0,
+                                PriceTypeID INT NULL,
+                                TerminDni INT DEFAULT 0,
+                                IncPiK BIT DEFAULT 0
+                            )
+                        END";
+
+                    using (SqlCommand checkCmd = new SqlCommand(checkQuery, connection))
+                    {
+                        checkCmd.ExecuteNonQuery();
+                    }
+
                     string query = @"
                         INSERT INTO dbo.FarmerCalc (CalcDate, CarLp, CustomerGID, CustomerRealGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5, LumQnt, ProdQnt, ProdWgt, Price, Addition, Loss, IncDeadConf)
                         OUTPUT INSERTED.ID
@@ -8944,6 +9264,8 @@ namespace Kalendarz1
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error creating new specyfikacja: {ex.Message}");
+                MessageBox.Show($"Szczegóły błędu tworzenia specyfikacji:\n{ex.Message}\n\nStack trace:\n{ex.StackTrace}",
+                    "Błąd bazy danych", MessageBoxButton.OK, MessageBoxImage.Error);
             }
 
             return 0;
@@ -9639,13 +9961,13 @@ namespace Kalendarz1
                         bfArial = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1250, BaseFont.NOT_EMBEDDED);
                     }
 
-                    // WIĘKSZE CZCIONKI dla lepszej czytelności
-                    iTextSharp.text.Font fontTitle = new iTextSharp.text.Font(bfArial, 18, iTextSharp.text.Font.BOLD);
-                    iTextSharp.text.Font fontSubtitle = new iTextSharp.text.Font(bfArial, 12);
-                    iTextSharp.text.Font fontHeader = new iTextSharp.text.Font(bfArial, 9, iTextSharp.text.Font.BOLD);
-                    iTextSharp.text.Font fontData = new iTextSharp.text.Font(bfArial, 9);
-                    iTextSharp.text.Font fontSum = new iTextSharp.text.Font(bfArial, 10, iTextSharp.text.Font.BOLD);
-                    iTextSharp.text.Font fontFooter = new iTextSharp.text.Font(bfArial, 10);
+                    // Mniejsze czcionki dla lepszego dopasowania na stronie
+                    iTextSharp.text.Font fontTitle = new iTextSharp.text.Font(bfArial, 14, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontSubtitle = new iTextSharp.text.Font(bfArial, 10);
+                    iTextSharp.text.Font fontHeader = new iTextSharp.text.Font(bfArial, 7, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontData = new iTextSharp.text.Font(bfArial, 7);
+                    iTextSharp.text.Font fontSum = new iTextSharp.text.Font(bfArial, 8, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontFooter = new iTextSharp.text.Font(bfArial, 9);
 
                     // Tytuł
                     Paragraph title = new Paragraph("RAPORT Z PRZYJĘCIA ŻYWCA DO UBOJU", fontTitle);
@@ -9673,13 +9995,13 @@ namespace Kalendarz1
                         cell.BackgroundColor = headerColor;
                         cell.HorizontalAlignment = Element.ALIGN_CENTER;
                         cell.VerticalAlignment = Element.ALIGN_MIDDLE;
-                        cell.Padding = 8; // Większy padding dla wyższych wierszy
+                        cell.Padding = 4; // Mniejszy padding dla kompaktowych wierszy
                         cell.Phrase.Font.Color = BaseColor.WHITE;
                         table.AddCell(cell);
                     }
 
-                    // Dane - z większym paddingiem dla wyższych wierszy
-                    float cellPadding = 6f; // Większy padding
+                    // Dane - z mniejszym paddingiem dla kompaktowych wierszy
+                    float cellPadding = 3f; // Mniejszy padding
                     foreach (var row in podsumowanieData)
                     {
                         table.AddCell(new PdfPCell(new Phrase(row.LP.ToString(), fontData)) { HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
@@ -9707,8 +10029,8 @@ namespace Kalendarz1
                         table.AddCell(new PdfPCell(new Phrase(row.RoznicaSztukZdatneZadekl.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
                     }
 
-                    // Wiersz sumy - z większym paddingiem
-                    float sumPadding = 8f;
+                    // Wiersz sumy - z mniejszym paddingiem
+                    float sumPadding = 4f;
                     BaseColor sumColor = new BaseColor(200, 200, 200);
                     PdfPCell sumaCell = new PdfPCell(new Phrase("SUMA:", fontSum));
                     sumaCell.Colspan = 2;
@@ -11233,7 +11555,9 @@ namespace Kalendarz1
         public int SztukiDek { get; set; }
         public decimal NettoKg { get; set; }
         public decimal Cena { get; set; }
+        public decimal Dodatek { get; set; }
         public string TypCeny { get; set; }
+        public int TerminDni { get; set; }
         public decimal Wartosc { get; set; }
 
         private bool _symfonia;
