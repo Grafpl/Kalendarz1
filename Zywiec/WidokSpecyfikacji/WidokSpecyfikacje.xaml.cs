@@ -3257,126 +3257,128 @@ namespace Kalendarz1
         /// <summary>
         /// Zapisuje zmianę do bazy danych FarmerCalcChangeLog
         /// </summary>
+        // WERSJA NIEBLOKUJĄCA - logowanie zmian w tle
         private void LogChangeToDatabase(int recordId, string fieldName, string oldValue, string newValue, string dostawca = "", int nr = 0, string carId = "")
         {
-            try
+            // Nie loguj jeśli wartości są takie same
+            if (oldValue == newValue) return;
+
+            // Pobierz wartości UI PRZED uruchomieniem w tle
+            DateTime calcDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+            string userId = App.UserID ?? "";
+            string connStr = connectionString;
+
+            // Dodaj do lokalnej listy natychmiast (UI thread)
+            _changeLog.Add(new ChangeLogEntry
             {
-                // Nie loguj jeśli wartości są takie same
-                if (oldValue == newValue) return;
+                Timestamp = DateTime.Now,
+                RowId = recordId,
+                PropertyName = fieldName,
+                OldValue = oldValue,
+                NewValue = newValue,
+                UserName = userId ?? Environment.UserName
+            });
 
-                using (SqlConnection conn = new SqlConnection(connectionString))
+            // Fire-and-forget: zapis do bazy w tle
+            _ = Task.Run(() =>
+            {
+                try
                 {
-                    conn.Open();
-
-                    // Upewnij się, że tabela istnieje z właściwą strukturą
-                    string createTableSql = @"
-                        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FarmerCalcChangeLog')
-                        BEGIN
-                            CREATE TABLE [dbo].[FarmerCalcChangeLog] (
-                                [ID] INT IDENTITY(1,1) PRIMARY KEY,
-                                [FarmerCalcID] INT NULL,
-                                [FieldName] NVARCHAR(100) NULL,
-                                [OldValue] NVARCHAR(500) NULL,
-                                [NewValue] NVARCHAR(500) NULL,
-                                [Dostawca] NVARCHAR(200) NULL,
-                                [ChangedBy] NVARCHAR(100) NULL,
-                                [UserID] NVARCHAR(50) NULL,
-                                [Nr] INT NULL,
-                                [CarID] NVARCHAR(50) NULL,
-                                [ChangeDate] DATETIME DEFAULT GETDATE(),
-                                [CalcDate] DATE NULL
-                            )
-                        END";
-
-                    using (SqlCommand cmd = new SqlCommand(createTableSql, conn))
+                    using (SqlConnection conn = new SqlConnection(connStr))
                     {
-                        cmd.ExecuteNonQuery();
-                    }
+                        conn.Open();
 
-                    // Dodaj brakujące kolumny pojedynczo (każda w osobnym bloku try)
-                    string[] alterCommands = new string[]
-                    {
-                        "IF COL_LENGTH('FarmerCalcChangeLog', 'FarmerCalcID') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [FarmerCalcID] INT NULL",
-                        "IF COL_LENGTH('FarmerCalcChangeLog', 'FieldName') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [FieldName] NVARCHAR(100) NULL",
-                        "IF COL_LENGTH('FarmerCalcChangeLog', 'OldValue') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [OldValue] NVARCHAR(500) NULL",
-                        "IF COL_LENGTH('FarmerCalcChangeLog', 'NewValue') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [NewValue] NVARCHAR(500) NULL",
-                        "IF COL_LENGTH('FarmerCalcChangeLog', 'Dostawca') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [Dostawca] NVARCHAR(200) NULL",
-                        "IF COL_LENGTH('FarmerCalcChangeLog', 'ChangedBy') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [ChangedBy] NVARCHAR(100) NULL",
-                        "IF COL_LENGTH('FarmerCalcChangeLog', 'UserID') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [UserID] NVARCHAR(50) NULL",
-                        "IF COL_LENGTH('FarmerCalcChangeLog', 'Nr') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [Nr] INT NULL",
-                        "IF COL_LENGTH('FarmerCalcChangeLog', 'CarID') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [CarID] NVARCHAR(50) NULL",
-                        "IF COL_LENGTH('FarmerCalcChangeLog', 'ChangeDate') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [ChangeDate] DATETIME NULL",
-                        "IF COL_LENGTH('FarmerCalcChangeLog', 'CalcDate') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [CalcDate] DATE NULL"
-                    };
+                        // Upewnij się, że tabela istnieje z właściwą strukturą
+                        string createTableSql = @"
+                            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FarmerCalcChangeLog')
+                            BEGIN
+                                CREATE TABLE [dbo].[FarmerCalcChangeLog] (
+                                    [ID] INT IDENTITY(1,1) PRIMARY KEY,
+                                    [FarmerCalcID] INT NULL,
+                                    [FieldName] NVARCHAR(100) NULL,
+                                    [OldValue] NVARCHAR(500) NULL,
+                                    [NewValue] NVARCHAR(500) NULL,
+                                    [Dostawca] NVARCHAR(200) NULL,
+                                    [ChangedBy] NVARCHAR(100) NULL,
+                                    [UserID] NVARCHAR(50) NULL,
+                                    [Nr] INT NULL,
+                                    [CarID] NVARCHAR(50) NULL,
+                                    [ChangeDate] DATETIME DEFAULT GETDATE(),
+                                    [CalcDate] DATE NULL
+                                )
+                            END";
 
-                    foreach (var alterCmd in alterCommands)
-                    {
-                        try
+                        using (SqlCommand cmd = new SqlCommand(createTableSql, conn))
                         {
-                            using (SqlCommand cmd = new SqlCommand(alterCmd, conn))
+                            cmd.ExecuteNonQuery();
+                        }
+
+                        // Dodaj brakujące kolumny pojedynczo
+                        string[] alterCommands = new string[]
+                        {
+                            "IF COL_LENGTH('FarmerCalcChangeLog', 'FarmerCalcID') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [FarmerCalcID] INT NULL",
+                            "IF COL_LENGTH('FarmerCalcChangeLog', 'FieldName') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [FieldName] NVARCHAR(100) NULL",
+                            "IF COL_LENGTH('FarmerCalcChangeLog', 'OldValue') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [OldValue] NVARCHAR(500) NULL",
+                            "IF COL_LENGTH('FarmerCalcChangeLog', 'NewValue') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [NewValue] NVARCHAR(500) NULL",
+                            "IF COL_LENGTH('FarmerCalcChangeLog', 'Dostawca') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [Dostawca] NVARCHAR(200) NULL",
+                            "IF COL_LENGTH('FarmerCalcChangeLog', 'ChangedBy') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [ChangedBy] NVARCHAR(100) NULL",
+                            "IF COL_LENGTH('FarmerCalcChangeLog', 'UserID') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [UserID] NVARCHAR(50) NULL",
+                            "IF COL_LENGTH('FarmerCalcChangeLog', 'Nr') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [Nr] INT NULL",
+                            "IF COL_LENGTH('FarmerCalcChangeLog', 'CarID') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [CarID] NVARCHAR(50) NULL",
+                            "IF COL_LENGTH('FarmerCalcChangeLog', 'ChangeDate') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [ChangeDate] DATETIME NULL",
+                            "IF COL_LENGTH('FarmerCalcChangeLog', 'CalcDate') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [CalcDate] DATE NULL"
+                        };
+
+                        foreach (var alterCmd in alterCommands)
+                        {
+                            try
                             {
-                                cmd.ExecuteNonQuery();
+                                using (SqlCommand cmd = new SqlCommand(alterCmd, conn))
+                                {
+                                    cmd.ExecuteNonQuery();
+                                }
                             }
+                            catch { /* Ignoruj błędy ALTER */ }
                         }
-                        catch { /* Ignoruj błędy ALTER - kolumna może już istnieć */ }
-                    }
 
-                    // Pobierz nazwę użytkownika z bazy na podstawie UserID
-                    string userName = Environment.UserName;
-                    string userId = App.UserID ?? "";
-                    if (!string.IsNullOrEmpty(userId))
-                    {
-                        try
+                        // Pobierz nazwę użytkownika
+                        string userName = Environment.UserName;
+                        if (!string.IsNullOrEmpty(userId))
                         {
-                            NazwaZiD nazwaZiD = new NazwaZiD();
-                            userName = nazwaZiD.GetNameById(userId) ?? userName;
+                            try
+                            {
+                                NazwaZiD nazwaZiD = new NazwaZiD();
+                                userName = nazwaZiD.GetNameById(userId) ?? userName;
+                            }
+                            catch { }
                         }
-                        catch { }
-                    }
 
-                    // Zapisz zmianę z dodatkowymi polami
-                    string sql = @"INSERT INTO [dbo].[FarmerCalcChangeLog]
-                        (FarmerCalcID, FieldName, OldValue, NewValue, Dostawca, ChangedBy, UserID, Nr, CarID, ChangeDate, CalcDate)
-                        VALUES (@FarmerCalcID, @FieldName, @OldValue, @NewValue, @Dostawca, @ChangedBy, @UserID, @Nr, @CarID, GETDATE(), @CalcDate)";
+                        // Zapisz zmianę
+                        string sql = @"INSERT INTO [dbo].[FarmerCalcChangeLog]
+                            (FarmerCalcID, FieldName, OldValue, NewValue, Dostawca, ChangedBy, UserID, Nr, CarID, ChangeDate, CalcDate)
+                            VALUES (@FarmerCalcID, @FieldName, @OldValue, @NewValue, @Dostawca, @ChangedBy, @UserID, @Nr, @CarID, GETDATE(), @CalcDate)";
 
-                    using (SqlCommand cmd = new SqlCommand(sql, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@FarmerCalcID", recordId);
-                        cmd.Parameters.AddWithValue("@FieldName", fieldName ?? "");
-                        cmd.Parameters.AddWithValue("@OldValue", oldValue ?? "");
-                        cmd.Parameters.AddWithValue("@NewValue", newValue ?? "");
-                        cmd.Parameters.AddWithValue("@Dostawca", dostawca ?? "");
-                        cmd.Parameters.AddWithValue("@ChangedBy", userName ?? "system");
-                        cmd.Parameters.AddWithValue("@UserID", userId ?? "");
-                        cmd.Parameters.AddWithValue("@Nr", nr);
-                        cmd.Parameters.AddWithValue("@CarID", carId ?? "");
-                        cmd.Parameters.AddWithValue("@CalcDate", dateTimePicker1.SelectedDate ?? DateTime.Today);
-                        int rowsAffected = cmd.ExecuteNonQuery();
-
-                        if (rowsAffected > 0)
+                        using (SqlCommand cmd = new SqlCommand(sql, conn))
                         {
-                            UpdateStatus($"✓ Zalogowano zmianę: {fieldName} ({oldValue} → {newValue})");
+                            cmd.Parameters.AddWithValue("@FarmerCalcID", recordId);
+                            cmd.Parameters.AddWithValue("@FieldName", fieldName ?? "");
+                            cmd.Parameters.AddWithValue("@OldValue", oldValue ?? "");
+                            cmd.Parameters.AddWithValue("@NewValue", newValue ?? "");
+                            cmd.Parameters.AddWithValue("@Dostawca", dostawca ?? "");
+                            cmd.Parameters.AddWithValue("@ChangedBy", userName ?? "system");
+                            cmd.Parameters.AddWithValue("@UserID", userId ?? "");
+                            cmd.Parameters.AddWithValue("@Nr", nr);
+                            cmd.Parameters.AddWithValue("@CarID", carId ?? "");
+                            cmd.Parameters.AddWithValue("@CalcDate", calcDate);
+                            cmd.ExecuteNonQuery();
                         }
                     }
                 }
-
-                // Dodaj też do lokalnej listy
-                _changeLog.Add(new ChangeLogEntry
+                catch (Exception ex)
                 {
-                    Timestamp = DateTime.Now,
-                    RowId = recordId,
-                    PropertyName = fieldName,
-                    OldValue = oldValue,
-                    NewValue = newValue,
-                    UserName = App.UserID ?? Environment.UserName
-                });
-            }
-            catch (Exception ex)
-            {
-                // POKAŻ BŁĄD UŻYTKOWNIKOWI!
-                UpdateStatus($"BŁĄD logowania: {ex.Message}");
-                MessageBox.Show($"Błąd zapisu do historii zmian:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+                    Dispatcher.BeginInvoke(new Action(() => UpdateStatus($"Błąd logowania: {ex.Message}")));
+                }
+            });
         }
 
         /// <summary>
@@ -6197,26 +6199,31 @@ namespace Kalendarz1
         #region === ENTER - ZASTOSUJ DO WSZYSTKICH DOSTAW OD DOSTAWCY ===
 
         // Metoda pomocnicza do zapisu pojedynczej wartości do bazy
+        // WERSJA NIEBLOKUJĄCA - zapis w tle, natychmiastowa nawigacja klawiszowa
         private void SaveFieldToDatabase(int id, string columnName, object value)
         {
-            try
+            // Fire-and-forget: zapis wykonywany w tle, NIE BLOKUJE UI
+            _ = Task.Run(() =>
             {
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                try
                 {
-                    connection.Open();
-                    string query = $"UPDATE dbo.FarmerCalc SET {columnName} = @Value WHERE ID = @ID";
-                    using (SqlCommand cmd = new SqlCommand(query, connection))
+                    using (SqlConnection connection = new SqlConnection(connectionString))
                     {
-                        cmd.Parameters.AddWithValue("@ID", id);
-                        cmd.Parameters.AddWithValue("@Value", value ?? DBNull.Value);
-                        cmd.ExecuteNonQuery();
+                        connection.Open();
+                        string query = $"UPDATE dbo.FarmerCalc SET {columnName} = @Value WHERE ID = @ID";
+                        using (SqlCommand cmd = new SqlCommand(query, connection))
+                        {
+                            cmd.Parameters.AddWithValue("@ID", id);
+                            cmd.Parameters.AddWithValue("@Value", value ?? DBNull.Value);
+                            cmd.ExecuteNonQuery();
+                        }
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                UpdateStatus($"Błąd zapisu: {ex.Message}");
-            }
+                catch (Exception ex)
+                {
+                    Dispatcher.BeginInvoke(new Action(() => UpdateStatus($"Błąd zapisu: {ex.Message}")));
+                }
+            });
         }
 
         #region === PDF HISTORY ===

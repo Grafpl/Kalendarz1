@@ -2868,309 +2868,564 @@
 
             <!-- === KARTA PODSUMOWANIE (Raport z przyjęcia żywca do uboju) === -->
             <TabItem Header="📊 Podsumowanie">
-                <Border Background="White" CornerRadius="10" Margin="10" Padding="15">
-                    <Border.Effect>
-                        <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="15"/>
-                    </Border.Effect>
-                    <Grid>
+                <Border Margin="5" CornerRadius="12">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#F8FAFC" Offset="0"/>
+                            <GradientStop Color="#EEF2F7" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Grid Margin="15">
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <!-- Nagłówek -->
-                        <Border Grid.Row="0" Background="#2C3E50" CornerRadius="8" Padding="12,8" Margin="0,0,0,10">
-                            <Grid>
+                        <!-- NAGŁÓWEK PREMIUM -->
+                        <Border Grid.Row="0" CornerRadius="12" Margin="0,0,0,15">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Color="#1A237E" Offset="0"/>
+                                    <GradientStop Color="#283593" Offset="0.5"/>
+                                    <GradientStop Color="#3949AB" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="4" Color="#1A237E" Opacity="0.3" BlurRadius="20"/>
+                            </Border.Effect>
+                            <Grid Margin="25,18">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Column="0" Text="📊 RAPORT Z PRZYJĘCIA ŻYWCA DO UBOJU"
-                                           FontSize="18" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
-
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="20,0">
-                                    <TextBlock Text="Data: " FontWeight="SemiBold" Foreground="#BDC3C7" FontSize="14"/>
-                                    <TextBlock x:Name="lblPodsumowanieData" Text="-" FontWeight="Bold" Foreground="#F1C40F" FontSize="16"/>
+                                <!-- Tytuł -->
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="📊" FontSize="32" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                                    <StackPanel>
+                                        <TextBlock Text="RAPORT Z PRZYJĘCIA ŻYWCA DO UBOJU"
+                                                   FontSize="22" FontWeight="Bold" Foreground="White"/>
+                                        <TextBlock Text="Podsumowanie specyfikacji przyjętego drobiu"
+                                                   FontSize="12" Foreground="#B3C5E8" Margin="0,3,0,0"/>
+                                    </StackPanel>
                                 </StackPanel>
 
-                                <StackPanel Grid.Column="2" Orientation="Horizontal">
-                                    <Border Background="#27AE60" CornerRadius="4" Margin="0,0,5,0">
-                                        <Button Content="🔄 Odśwież"
-                                                Click="BtnPodsumowanieRefresh_Click"
-                                                Padding="12,4" Background="Transparent" Foreground="White"
-                                                BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
-                                    </Border>
-                                    <Border Background="#3498DB" CornerRadius="4" Margin="0,0,5,0">
-                                        <Button Content="📄 Eksport PDF"
-                                                Click="BtnPodsumowanieExportPdf_Click"
-                                                Padding="12,4" Background="Transparent" Foreground="White"
-                                                BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"
-                                                ToolTip="Eksportuj podsumowanie do PDF"/>
-                                    </Border>
-                                    <Border Background="#9B59B6" CornerRadius="4">
-                                        <Button Content="📋 Kopiuj"
-                                                Click="BtnPodsumowanieCopy_Click"
-                                                Padding="12,4" Background="Transparent" Foreground="White"
-                                                BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"
-                                                ToolTip="Kopiuj dane do schowka"/>
-                                    </Border>
+                                <!-- Data w centrum -->
+                                <Border Grid.Column="1" HorizontalAlignment="Center" Background="#FFFFFF15"
+                                        CornerRadius="8" Padding="20,10" Margin="20,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="📅" FontSize="18" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                        <StackPanel>
+                                            <TextBlock Text="DATA RAPORTU" FontSize="10" Foreground="#B3C5E8" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="lblPodsumowanieData" Text="-" FontWeight="Bold"
+                                                       Foreground="#FFD54F" FontSize="20"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Przyciski akcji -->
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Click="BtnPodsumowanieRefresh_Click" Cursor="Hand" Margin="0,0,10,0"
+                                            ToolTip="Odśwież dane">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="border" Background="#4CAF50" CornerRadius="8" Padding="16,10">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="🔄" FontSize="16" VerticalAlignment="Center"/>
+                                                        <TextBlock Text=" Odśwież" Foreground="White" FontWeight="SemiBold"
+                                                                   FontSize="13" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#66BB6A"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                    <Button Click="BtnPodsumowanieExportPdf_Click" Cursor="Hand" Margin="0,0,10,0"
+                                            ToolTip="Eksportuj do PDF">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="border" Background="#2196F3" CornerRadius="8" Padding="16,10">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="📄" FontSize="16" VerticalAlignment="Center"/>
+                                                        <TextBlock Text=" Eksport PDF" Foreground="White" FontWeight="SemiBold"
+                                                                   FontSize="13" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#42A5F5"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                    <Button Click="BtnPodsumowanieCopy_Click" Cursor="Hand"
+                                            ToolTip="Kopiuj do schowka">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="border" Background="#9C27B0" CornerRadius="8" Padding="16,10">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="📋" FontSize="16" VerticalAlignment="Center"/>
+                                                        <TextBlock Text=" Kopiuj" Foreground="White" FontWeight="SemiBold"
+                                                                   FontSize="13" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#AB47BC"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
                                 </StackPanel>
                             </Grid>
                         </Border>
 
-                        <!-- DataGrid Podsumowanie -->
-                        <DataGrid Grid.Row="1" x:Name="dataGridPodsumowanie"
-                                  AutoGenerateColumns="False"
-                                  CanUserAddRows="False"
-                                  CanUserDeleteRows="False"
-                                  IsReadOnly="True"
-                                  SelectionMode="Single"
-                                  SelectionUnit="FullRow"
-                                  FontSize="10"
-                                  RowHeight="26"
-                                  ColumnHeaderHeight="40"
-                                  Background="White"
-                                  AlternatingRowBackground="#F8F9FA"
-                                  GridLinesVisibility="All"
-                                  HorizontalGridLinesBrush="#E0E0E0"
-                                  VerticalGridLinesBrush="#EEEEEE"
-                                  ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
-                                  RowStyle="{StaticResource DataGridRowHoverStyle}"
-                                  EnableRowVirtualization="True">
-                            <DataGrid.Columns>
-                                <!-- L.P -->
-                                <DataGridTextColumn Header="L.P" Binding="{Binding LP}" Width="35">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CenterBoldStyle}">
-                                            <Setter Property="Foreground" Value="#7F8C8D"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                        <!-- KARTY STATYSTYK -->
+                        <Grid Grid.Row="1" Margin="0,0,0,15">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
 
-                                <!-- Hodowca Drobiu -->
-                                <DataGridTextColumn Header="Hodowca Drobiu" Binding="{Binding HodowcaDrobiu}" Width="150">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource NormalStyle}">
-                                            <Setter Property="FontWeight" Value="SemiBold"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                            <!-- Karta: Wierszy -->
+                            <Border Grid.Column="0" Margin="0,0,8,0" CornerRadius="10" Background="White">
+                                <Border.Effect>
+                                    <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.08" BlurRadius="10"/>
+                                </Border.Effect>
+                                <Grid Margin="15,12">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Background="#E3F2FD" CornerRadius="6" Padding="8,6" Margin="0,0,10,0">
+                                            <TextBlock Text="📋" FontSize="18"/>
+                                        </Border>
+                                        <TextBlock Text="WIERSZY" FontSize="11" Foreground="#78909C" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Row="1" x:Name="lblPodsumowanieSumaWierszy" Text="0"
+                                               FontSize="28" FontWeight="Bold" Foreground="#1976D2" Margin="0,8,0,0"/>
+                                </Grid>
+                            </Border>
 
-                                <!-- Sztuki Zadeklarowane -->
-                                <DataGridTextColumn Header="Szt. Zadekl.&#x0a;przez hodowcę" Binding="{Binding SztukiZadeklarowane, StringFormat={}{0:N0}}" Width="70">
-                                    <DataGridTextColumn.HeaderStyle>
-                                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
-                                            <Setter Property="Background" Value="#FFE0B2"/>
-                                        </Style>
-                                    </DataGridTextColumn.HeaderStyle>
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource RightOrangeStyle}"/>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                            <!-- Karta: Zadeklarowane -->
+                            <Border Grid.Column="1" Margin="4,0" CornerRadius="10" Background="White">
+                                <Border.Effect>
+                                    <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.08" BlurRadius="10"/>
+                                </Border.Effect>
+                                <Grid Margin="15,12">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Background="#FFF3E0" CornerRadius="6" Padding="8,6" Margin="0,0,10,0">
+                                            <TextBlock Text="📝" FontSize="18"/>
+                                        </Border>
+                                        <TextBlock Text="ZADEKLAROWANE" FontSize="11" Foreground="#78909C" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Row="1" x:Name="lblPodsumowanieSumaZadekl" Text="0"
+                                               FontSize="28" FontWeight="Bold" Foreground="#E65100" Margin="0,8,0,0"/>
+                                </Grid>
+                            </Border>
 
-                                <!-- Sztuki Padłe -->
-                                <DataGridTextColumn Header="Sztuki&#x0a;Padłe" Binding="{Binding SztukiPadle, StringFormat={}{0:N0}}" Width="50">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource RightStyle}"/>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                            <!-- Karta: Zdatne -->
+                            <Border Grid.Column="2" Margin="4,0" CornerRadius="10" Background="White">
+                                <Border.Effect>
+                                    <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.08" BlurRadius="10"/>
+                                </Border.Effect>
+                                <Grid Margin="15,12">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Background="#E8F5E9" CornerRadius="6" Padding="8,6" Margin="0,0,10,0">
+                                            <TextBlock Text="✅" FontSize="18"/>
+                                        </Border>
+                                        <TextBlock Text="ZDATNE" FontSize="11" Foreground="#78909C" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Row="1" x:Name="lblPodsumowanieSumaZdatnych" Text="0"
+                                               FontSize="28" FontWeight="Bold" Foreground="#2E7D32" Margin="0,8,0,0"/>
+                                </Grid>
+                            </Border>
 
-                                <!-- Sztuki Konfi -->
-                                <DataGridTextColumn Header="Sztuki&#x0a;Konfi" Binding="{Binding SztukiKonfi, StringFormat={}{0:N0}}" Width="50">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource RightStyle}"/>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                            <!-- Karta: KG Żywiec -->
+                            <Border Grid.Column="3" Margin="4,0" CornerRadius="10" Background="White">
+                                <Border.Effect>
+                                    <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.08" BlurRadius="10"/>
+                                </Border.Effect>
+                                <Grid Margin="15,12">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Background="#E3F2FD" CornerRadius="6" Padding="8,6" Margin="0,0,10,0">
+                                            <TextBlock Text="⚖️" FontSize="18"/>
+                                        </Border>
+                                        <TextBlock Text="KG ŻYWIEC" FontSize="11" Foreground="#78909C" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Row="1" x:Name="lblPodsumowanieSumaKgZywiec" Text="0"
+                                               FontSize="28" FontWeight="Bold" Foreground="#1565C0" Margin="0,8,0,0"/>
+                                </Grid>
+                            </Border>
 
-                                <!-- Sztuki Suma -->
-                                <DataGridTextColumn Header="Sztuki&#x0a;Suma" Binding="{Binding SztukiSuma, StringFormat={}{0:N0}}" Width="50">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource RightStyle}">
-                                            <Setter Property="FontWeight" Value="Bold"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                            <!-- Karta: Wydajność -->
+                            <Border Grid.Column="4" Margin="8,0,0,0" CornerRadius="10" Background="White">
+                                <Border.Effect>
+                                    <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.08" BlurRadius="10"/>
+                                </Border.Effect>
+                                <Grid Margin="15,12">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Background="#F3E5F5" CornerRadius="6" Padding="8,6" Margin="0,0,10,0">
+                                            <TextBlock Text="📈" FontSize="18"/>
+                                        </Border>
+                                        <TextBlock Text="ŚR. WYDAJNOŚĆ" FontSize="11" Foreground="#78909C" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Row="1" x:Name="lblPodsumowanieSrWydajnosc" Text="0%"
+                                               FontSize="28" FontWeight="Bold" Foreground="#7B1FA2" Margin="0,8,0,0"/>
+                                </Grid>
+                            </Border>
+                        </Grid>
 
-                                <!-- Kg Konf -->
-                                <DataGridTextColumn Header="Kg&#x0a;Konf" Binding="{Binding KgKonf, StringFormat={}{0:N0}}" Width="50">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource RightStyle}"/>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                        <!-- TABELA DANYCH -->
+                        <Border Grid.Row="2" Background="White" CornerRadius="10">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.08" BlurRadius="12"/>
+                            </Border.Effect>
+                            <DataGrid x:Name="dataGridPodsumowanie"
+                                      AutoGenerateColumns="False"
+                                      CanUserAddRows="False"
+                                      CanUserDeleteRows="False"
+                                      IsReadOnly="True"
+                                      SelectionMode="Single"
+                                      SelectionUnit="FullRow"
+                                      FontSize="12"
+                                      RowHeight="32"
+                                      ColumnHeaderHeight="50"
+                                      Background="White"
+                                      AlternatingRowBackground="#FAFBFC"
+                                      GridLinesVisibility="Horizontal"
+                                      HorizontalGridLinesBrush="#E8ECF0"
+                                      VerticalGridLinesBrush="Transparent"
+                                      BorderThickness="0"
+                                      EnableRowVirtualization="True"
+                                      Margin="5">
+                                <DataGrid.ColumnHeaderStyle>
+                                    <Style TargetType="DataGridColumnHeader">
+                                        <Setter Property="Background" Value="#F1F5F9"/>
+                                        <Setter Property="Foreground" Value="#334155"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="FontSize" Value="11"/>
+                                        <Setter Property="Padding" Value="10,8"/>
+                                        <Setter Property="BorderThickness" Value="0,0,0,2"/>
+                                        <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                    </Style>
+                                </DataGrid.ColumnHeaderStyle>
+                                <DataGrid.RowStyle>
+                                    <Style TargetType="DataGridRow">
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#EFF6FF"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter Property="Background" Value="#DBEAFE"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGrid.RowStyle>
+                                <DataGrid.Columns>
+                                    <!-- L.P -->
+                                    <DataGridTextColumn Header="L.P" Binding="{Binding LP}" Width="40">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Foreground" Value="#94A3B8"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
 
-                                <!-- Kg Padłe -->
-                                <DataGridTextColumn Header="Kg&#x0a;Padłe" Binding="{Binding KgPadle, StringFormat={}{0:N0}}" Width="50">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource RightStyle}"/>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                    <!-- Hodowca Drobiu -->
+                                    <DataGridTextColumn Header="Hodowca Drobiu" Binding="{Binding HodowcaDrobiu}" Width="180">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                <Setter Property="Foreground" Value="#1E293B"/>
+                                                <Setter Property="Padding" Value="8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
 
-                                <!-- KG Suma -->
-                                <DataGridTextColumn Header="KG&#x0a;Suma" Binding="{Binding KgSuma, StringFormat={}{0:N0}}" Width="55">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource RightStyle}">
-                                            <Setter Property="FontWeight" Value="Bold"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                    <!-- Sztuki Zadeklarowane -->
+                                    <DataGridTextColumn Header="Szt. Zadekl." Binding="{Binding SztukiZadeklarowane, StringFormat={}{0:N0}}" Width="80">
+                                        <DataGridTextColumn.HeaderStyle>
+                                            <Style TargetType="DataGridColumnHeader">
+                                                <Setter Property="Background" Value="#FEF3C7"/>
+                                                <Setter Property="Foreground" Value="#92400E"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="FontSize" Value="11"/>
+                                                <Setter Property="Padding" Value="10,8"/>
+                                                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                            </Style>
+                                        </DataGridTextColumn.HeaderStyle>
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,10,0"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                <Setter Property="Foreground" Value="#B45309"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
 
-                                <!-- Wydajność % -->
-                                <DataGridTemplateColumn Header="Wydajność&#x0a;%" Width="70">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <Border Padding="2" CornerRadius="3" HorizontalAlignment="Center">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="Background" Value="#C8E6C9"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding WydajnoscNiska}" Value="True">
-                                                                <Setter Property="Background" Value="#FFCDD2"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
-                                                <TextBlock Text="{Binding WydajnoscProcent, StringFormat={}{0:F2}%}"
-                                                           HorizontalAlignment="Center" FontWeight="Bold" FontSize="10"/>
-                                            </Border>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
+                                    <!-- Sztuki Padłe -->
+                                    <DataGridTextColumn Header="Padłe" Binding="{Binding SztukiPadle, StringFormat={}{0:N0}}" Width="60">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
 
-                                <!-- Lumel -->
-                                <DataGridTextColumn Header="Lumel" Binding="{Binding Lumel, StringFormat={}{0:N0}}" Width="55">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource RightStyle}"/>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                    <!-- Sztuki Konfi -->
+                                    <DataGridTextColumn Header="Konfi" Binding="{Binding SztukiKonfi, StringFormat={}{0:N0}}" Width="60">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
 
-                                <!-- Sztuki Konfiskata t -->
-                                <DataGridTextColumn Header="Szt.&#x0a;Konf.t" Binding="{Binding SztukiKonfiskataT, StringFormat={}{0:N0}}" Width="50">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource RightStyle}"/>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                    <!-- Sztuki Suma -->
+                                    <DataGridTextColumn Header="Suma Szt." Binding="{Binding SztukiSuma, StringFormat={}{0:N0}}" Width="70">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
 
-                                <!-- Sztuki Zdatne -->
-                                <DataGridTextColumn Header="Sztuki&#x0a;Zdatne" Binding="{Binding SztukiZdatne, StringFormat={}{0:N0}}" Width="60">
-                                    <DataGridTextColumn.HeaderStyle>
-                                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
-                                            <Setter Property="Background" Value="#C8E6C9"/>
-                                        </Style>
-                                    </DataGridTextColumn.HeaderStyle>
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource RightGreenStyle}">
-                                            <Setter Property="FontWeight" Value="Bold"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                    <!-- Kg Konf -->
+                                    <DataGridTextColumn Header="Kg Konf" Binding="{Binding KgKonf, StringFormat={}{0:N0}}" Width="65">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
 
-                                <!-- Ilość Kg Żywiec -->
-                                <DataGridTextColumn Header="Ilość&#x0a;Kg Żywiec" Binding="{Binding IloscKgZywiec, StringFormat={}{0:N0}}" Width="70">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource RightStyle}"/>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                    <!-- Kg Padłe -->
+                                    <DataGridTextColumn Header="Kg Padłe" Binding="{Binding KgPadle, StringFormat={}{0:N0}}" Width="65">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
 
-                                <!-- Średnia Waga Żywca Przed Ubojem -->
-                                <DataGridTextColumn Header="Śr. Waga&#x0a;Przed Ubojem" Binding="{Binding SredniaWagaPrzedUbojem, StringFormat={}{0:F2}}" Width="70">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource RightStyle}"/>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                    <!-- KG Suma -->
+                                    <DataGridTextColumn Header="Kg Suma" Binding="{Binding KgSuma, StringFormat={}{0:N0}}" Width="70">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
 
-                                <!-- Sztuki Produkcja Tuszka -->
-                                <DataGridTextColumn Header="Szt. Prod.&#x0a;Tuszka" Binding="{Binding SztukiProdukcjaTuszka, StringFormat={}{0:N0}}" Width="65">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource RightStyle}"/>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                    <!-- Wydajność % -->
+                                    <DataGridTemplateColumn Header="Wydajność %" Width="85">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Border Padding="6,4" CornerRadius="6" HorizontalAlignment="Center" Margin="4,2">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="#D1FAE5"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding WydajnoscNiska}" Value="True">
+                                                                    <Setter Property="Background" Value="#FEE2E2"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock Text="{Binding WydajnoscProcent, StringFormat={}{0:F2}%}"
+                                                               HorizontalAlignment="Center" FontWeight="Bold" FontSize="11">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Foreground" Value="#065F46"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding WydajnoscNiska}" Value="True">
+                                                                        <Setter Property="Foreground" Value="#DC2626"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Border>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
 
-                                <!-- Waga Produkcja Tuszka [KG] -->
-                                <DataGridTextColumn Header="Waga Prod.&#x0a;Tuszka [KG]" Binding="{Binding WagaProdukcjaTuszka, StringFormat={}{0:N0}}" Width="75">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource RightStyle}"/>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                    <!-- Lumel -->
+                                    <DataGridTextColumn Header="Lumel" Binding="{Binding Lumel, StringFormat={}{0:N0}}" Width="70">
+                                        <DataGridTextColumn.HeaderStyle>
+                                            <Style TargetType="DataGridColumnHeader">
+                                                <Setter Property="Background" Value="#E0E7FF"/>
+                                                <Setter Property="Foreground" Value="#3730A3"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="FontSize" Value="11"/>
+                                                <Setter Property="Padding" Value="10,8"/>
+                                                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                            </Style>
+                                        </DataGridTextColumn.HeaderStyle>
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                <Setter Property="Foreground" Value="#4338CA"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
 
-                                <!-- Różnica sztuk między Zdatnymi a Produkcją -->
-                                <DataGridTextColumn Header="Różn. szt.&#x0a;Zdat.-Prod." Binding="{Binding RoznicaSztukZdatneProd, StringFormat={}{0:N0}}" Width="65">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Right"/>
-                                            <Setter Property="Padding" Value="0,0,5,0"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding RoznicaSztukUjemna}" Value="True">
-                                                    <Setter Property="Foreground" Value="#C62828"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                    <!-- Sztuki Konfiskata t -->
+                                    <DataGridTextColumn Header="Konf.T" Binding="{Binding SztukiKonfiskataT, StringFormat={}{0:N0}}" Width="60">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
 
-                                <!-- Różnica sztuk między Zdatnymi a Zadeklarowanymi -->
-                                <DataGridTextColumn Header="Różn. szt.&#x0a;Zdat.-Zadekl." Binding="{Binding RoznicaSztukZdatneZadekl, StringFormat={}{0:N0}}" Width="70">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Right"/>
-                                            <Setter Property="Padding" Value="0,0,5,0"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding RoznicaSztukZadeklUjemna}" Value="True">
-                                                    <Setter Property="Foreground" Value="#C62828"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                            </DataGrid.Columns>
-                        </DataGrid>
+                                    <!-- Sztuki Zdatne -->
+                                    <DataGridTextColumn Header="Zdatne" Binding="{Binding SztukiZdatne, StringFormat={}{0:N0}}" Width="75">
+                                        <DataGridTextColumn.HeaderStyle>
+                                            <Style TargetType="DataGridColumnHeader">
+                                                <Setter Property="Background" Value="#D1FAE5"/>
+                                                <Setter Property="Foreground" Value="#065F46"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="FontSize" Value="11"/>
+                                                <Setter Property="Padding" Value="10,8"/>
+                                                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                            </Style>
+                                        </DataGridTextColumn.HeaderStyle>
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Foreground" Value="#059669"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
 
-                        <!-- Podsumowanie (stopka) -->
-                        <Border Grid.Row="2" Background="#ECEFF1" CornerRadius="0,0,8,8" Padding="10,8" Margin="0,10,0,0">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
+                                    <!-- Ilość Kg Żywiec -->
+                                    <DataGridTextColumn Header="Kg Żywiec" Binding="{Binding IloscKgZywiec, StringFormat={}{0:N0}}" Width="80">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
 
-                                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                    <Border Background="#2C3E50" CornerRadius="4" Padding="10,5" Margin="0,0,15,0">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="Suma wierszy: " Foreground="#BDC3C7"/>
-                                            <TextBlock x:Name="lblPodsumowanieSumaWierszy" Text="0" FontWeight="Bold" Foreground="White"/>
-                                        </StackPanel>
-                                    </Border>
-                                    <Border Background="#E65100" CornerRadius="4" Padding="10,5" Margin="0,0,15,0">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="Suma zadeklarowanych: " Foreground="White"/>
-                                            <TextBlock x:Name="lblPodsumowanieSumaZadekl" Text="0" FontWeight="Bold" Foreground="White"/>
-                                        </StackPanel>
-                                    </Border>
-                                    <Border Background="#2E7D32" CornerRadius="4" Padding="10,5" Margin="0,0,15,0">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="Suma zdatnych: " Foreground="White"/>
-                                            <TextBlock x:Name="lblPodsumowanieSumaZdatnych" Text="0" FontWeight="Bold" Foreground="White"/>
-                                        </StackPanel>
-                                    </Border>
-                                    <Border Background="#1565C0" CornerRadius="4" Padding="10,5" Margin="0,0,15,0">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="Suma KG żywiec: " Foreground="White"/>
-                                            <TextBlock x:Name="lblPodsumowanieSumaKgZywiec" Text="0" FontWeight="Bold" Foreground="White"/>
-                                        </StackPanel>
-                                    </Border>
-                                    <Border Background="#7B1FA2" CornerRadius="4" Padding="10,5">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="Śr. wydajność: " Foreground="White"/>
-                                            <TextBlock x:Name="lblPodsumowanieSrWydajnosc" Text="0%" FontWeight="Bold" Foreground="White"/>
-                                        </StackPanel>
-                                    </Border>
-                                </StackPanel>
+                                    <!-- Średnia Waga -->
+                                    <DataGridTextColumn Header="Śr. Waga" Binding="{Binding SredniaWagaPrzedUbojem, StringFormat={}{0:F2}}" Width="70">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
 
-                                <TextBlock Grid.Column="1" x:Name="lblPodsumowanieInfo" Text="Podsumowanie Specyfikacja Przyjętego Drobiu do Uboju"
-                                           FontStyle="Italic" Foreground="#7F8C8D" VerticalAlignment="Center"/>
-                            </Grid>
+                                    <!-- Szt. Prod. Tuszka -->
+                                    <DataGridTextColumn Header="Szt. Prod." Binding="{Binding SztukiProdukcjaTuszka, StringFormat={}{0:N0}}" Width="70">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+
+                                    <!-- Waga Prod. Tuszka -->
+                                    <DataGridTextColumn Header="Waga Prod." Binding="{Binding WagaProdukcjaTuszka, StringFormat={}{0:N0}}" Width="80">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+
+                                    <!-- Różn. szt. Zdat.-Prod. -->
+                                    <DataGridTextColumn Header="Różn. Prod." Binding="{Binding RoznicaSztukZdatneProd, StringFormat={}{0:N0}}" Width="75">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding RoznicaSztukUjemna}" Value="True">
+                                                        <Setter Property="Foreground" Value="#DC2626"/>
+                                                        <Setter Property="FontWeight" Value="Bold"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+
+                                    <!-- Różn. szt. Zdat.-Zadekl. -->
+                                    <DataGridTextColumn Header="Różn. Zadekl." Binding="{Binding RoznicaSztukZdatneZadekl, StringFormat={}{0:N0}}" Width="80">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding RoznicaSztukZadeklUjemna}" Value="True">
+                                                        <Setter Property="Foreground" Value="#DC2626"/>
+                                                        <Setter Property="FontWeight" Value="Bold"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+
+                        <!-- STOPKA -->
+                        <Border Grid.Row="3" Margin="0,15,0,0">
+                            <TextBlock x:Name="lblPodsumowanieInfo"
+                                       Text="Podsumowanie Specyfikacja Przyjętego Drobiu do Uboju"
+                                       FontStyle="Italic" Foreground="#94A3B8" FontSize="11" HorizontalAlignment="Center"/>
                         </Border>
                     </Grid>
                 </Border>
