@@ -418,22 +418,29 @@ namespace Kalendarz1
             }
         }
 
+        // Przechowuje aktualny tydzień dla mini kalendarza
+        private DateTime _currentWeekStart;
+
         /// <summary>
-        /// Odświeża mini kalendarz dla aktualnie wybranej daty
+        /// Odświeża mini kalendarz dla aktualnie wybranej daty (Pon-Pt)
         /// </summary>
         private async void RefreshMiniCalendar()
         {
             var selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
             _calendarDays.Clear();
 
-            // Generuj 7 dni (3 wstecz, dzisiaj, 3 wprzód)
-            for (int i = -3; i <= 3; i++)
+            // Znajdź poniedziałek tygodnia zawierającego wybraną datę
+            int daysFromMonday = ((int)selectedDate.DayOfWeek - 1 + 7) % 7;
+            _currentWeekStart = selectedDate.AddDays(-daysFromMonday);
+
+            // Generuj 5 dni (Pon-Pt)
+            for (int i = 0; i < 5; i++)
             {
-                var date = selectedDate.AddDays(i);
+                var date = _currentWeekStart.AddDays(i);
                 _calendarDays.Add(new CalendarDayItem
                 {
                     Date = date,
-                    IsSelected = (i == 0),
+                    IsSelected = (date.Date == selectedDate.Date),
                     HasData = false
                 });
             }
@@ -517,6 +524,26 @@ namespace Kalendarz1
                 // Zmień wybraną datę
                 dateTimePicker1.SelectedDate = dayItem.Date;
             }
+        }
+
+        /// <summary>
+        /// Przejdź do poprzedniego tygodnia
+        /// </summary>
+        private void BtnPrevWeek_Click(object sender, RoutedEventArgs e)
+        {
+            // Przesuń o tydzień wstecz
+            var newDate = _currentWeekStart.AddDays(-7);
+            dateTimePicker1.SelectedDate = newDate;
+        }
+
+        /// <summary>
+        /// Przejdź do następnego tygodnia
+        /// </summary>
+        private void BtnNextWeek_Click(object sender, RoutedEventArgs e)
+        {
+            // Przesuń o tydzień wprzód
+            var newDate = _currentWeekStart.AddDays(7);
+            dateTimePicker1.SelectedDate = newDate;
         }
 
         #endregion
@@ -4287,6 +4314,16 @@ namespace Kalendarz1
                     rozliczeniaData.Add(item);
                 }
 
+                // Ustaw IsFirstInGroup dla separatorów
+                string previousSupplier = null;
+                for (int i = 0; i < rozliczeniaData.Count; i++)
+                {
+                    var row = rozliczeniaData[i];
+                    string currentSupplier = row.Dostawca ?? "Nieznany";
+                    row.IsFirstInGroup = (previousSupplier != currentSupplier) && (i > 0);
+                    previousSupplier = currentSupplier;
+                }
+
                 UpdateStatus("Rozliczenia pogrupowane według dostawcy");
             }
             else
@@ -4300,6 +4337,12 @@ namespace Kalendarz1
                 foreach (var item in sorted)
                 {
                     rozliczeniaData.Add(item);
+                }
+
+                // Wyłącz separatory
+                foreach (var row in rozliczeniaData)
+                {
+                    row.IsFirstInGroup = false;
                 }
 
                 UpdateStatus("Rozliczenia posortowane według LP");
@@ -4328,6 +4371,16 @@ namespace Kalendarz1
                     transportData.Add(item);
                 }
 
+                // Ustaw IsFirstInGroup dla separatorów
+                string previousSupplier = null;
+                for (int i = 0; i < transportData.Count; i++)
+                {
+                    var row = transportData[i];
+                    string currentSupplier = row.Dostawca ?? "Nieznany";
+                    row.IsFirstInGroup = (previousSupplier != currentSupplier) && (i > 0);
+                    previousSupplier = currentSupplier;
+                }
+
                 UpdateStatus("Transport pogrupowany według dostawcy");
             }
             else
@@ -4341,6 +4394,12 @@ namespace Kalendarz1
                 foreach (var item in sorted)
                 {
                     transportData.Add(item);
+                }
+
+                // Wyłącz separatory
+                foreach (var row in transportData)
+                {
+                    row.IsFirstInGroup = false;
                 }
 
                 UpdateStatus("Transport posortowany według LP");
@@ -4369,6 +4428,16 @@ namespace Kalendarz1
                     plachtaData.Add(item);
                 }
 
+                // Ustaw IsFirstInGroup dla separatorów
+                string previousHodowca = null;
+                for (int i = 0; i < plachtaData.Count; i++)
+                {
+                    var row = plachtaData[i];
+                    string currentHodowca = row.Hodowca ?? "Nieznany";
+                    row.IsFirstInGroup = (previousHodowca != currentHodowca) && (i > 0);
+                    previousHodowca = currentHodowca;
+                }
+
                 UpdateStatus("Płachta pogrupowana według hodowcy");
             }
             else
@@ -4382,6 +4451,12 @@ namespace Kalendarz1
                 foreach (var item in sorted)
                 {
                     plachtaData.Add(item);
+                }
+
+                // Wyłącz separatory
+                foreach (var row in plachtaData)
+                {
+                    row.IsFirstInGroup = false;
                 }
 
                 UpdateStatus("Płachta posortowana według LP");
@@ -8458,17 +8533,17 @@ namespace Kalendarz1
                     doc.Add(subtitle);
 
                     // === TABELA GŁÓWNA ===
-                    PdfPTable table = new PdfPTable(4);
+                    PdfPTable table = new PdfPTable(5);
                     table.WidthPercentage = 100;
-                    float[] widths = { 15f, 15f, 45f, 25f };
+                    float[] widths = { 12f, 12f, 38f, 13f, 25f };
                     table.SetWidths(widths);
                     table.SpacingBefore = 10;
 
-                    // Nagłówki tabeli - czarno-białe
-                    BaseColor headerColor = BaseColor.BLACK;
-                    iTextSharp.text.Font fontHeaderBW = new iTextSharp.text.Font(bfArial, 11, iTextSharp.text.Font.BOLD, BaseColor.WHITE);
+                    // Nagłówki tabeli - szare
+                    BaseColor headerColor = new BaseColor(100, 100, 100); // Szary
+                    iTextSharp.text.Font fontHeaderBW = new iTextSharp.text.Font(bfArial, 10, iTextSharp.text.Font.BOLD, BaseColor.WHITE);
 
-                    string[] headers = { "LP (ZESTAW)", "NR SPECYFIKACJI", "NAZWA HODOWCY", "SZTUKI ZDATNE" };
+                    string[] headers = { "LP (ZESTAW)", "NR SPEC.", "NAZWA HODOWCY", "KOD", "SZTUKI ZDATNE" };
                     foreach (var h in headers)
                     {
                         PdfPCell cell = new PdfPCell(new Phrase(h, fontHeaderBW));
@@ -8538,6 +8613,16 @@ namespace Kalendarz1
                         cellHodowca.BorderWidth = 0.5f;
                         table.AddCell(cellHodowca);
 
+                        // Kod hodowcy (ID)
+                        PdfPCell cellKod = new PdfPCell(new Phrase(d.KodHodowcy ?? "-", fontData));
+                        cellKod.BackgroundColor = BaseColor.WHITE;
+                        cellKod.HorizontalAlignment = Element.ALIGN_CENTER;
+                        cellKod.VerticalAlignment = Element.ALIGN_MIDDLE;
+                        cellKod.Padding = 6;
+                        cellKod.BorderColor = BaseColor.BLACK;
+                        cellKod.BorderWidth = 0.5f;
+                        table.AddCell(cellKod);
+
                         // Sztuki zdatne
                         PdfPCell cellSztuki = new PdfPCell(new Phrase(sztukiZdatne.ToString("N0"), fontDataBold));
                         cellSztuki.BackgroundColor = BaseColor.WHITE;
@@ -8551,11 +8636,11 @@ namespace Kalendarz1
                         lp++;
                     }
 
-                    // Wiersz sumy - czarno-biały
+                    // Wiersz sumy - szary
                     BaseColor sumColor = new BaseColor(128, 128, 128); // szary
 
                     PdfPCell sumaLabelCell = new PdfPCell(new Phrase("SUMA SZTUK ZDATNYCH:", fontSum));
-                    sumaLabelCell.Colspan = 3;
+                    sumaLabelCell.Colspan = 4;
                     sumaLabelCell.BackgroundColor = sumColor;
                     sumaLabelCell.HorizontalAlignment = Element.ALIGN_RIGHT;
                     sumaLabelCell.VerticalAlignment = Element.ALIGN_MIDDLE;
@@ -8587,18 +8672,16 @@ namespace Kalendarz1
                     signatureTable.WidthPercentage = 100;
                     signatureTable.SetWidths(new float[] { 50f, 50f });
 
-                    // Lewa kolumna - USER ID do wpisania
+                    // Lewa kolumna - USER ID ze zmiennej
                     PdfPCell leftCell = new PdfPCell();
                     leftCell.Border = Rectangle.NO_BORDER;
                     leftCell.Padding = 10;
 
-                    Paragraph userIdLabel = new Paragraph("USER ID (imię i nazwisko):", fontFooter);
-                    Paragraph userIdLine = new Paragraph("_________________________________", fontFooter);
-                    userIdLine.SpacingBefore = 10;
+                    string userId = App.UserID ?? "---";
+                    Paragraph userIdLabel = new Paragraph($"USER ID: {userId}", fontFooter);
                     Paragraph genDate = new Paragraph($"Data wydruku: {DateTime.Now:dd.MM.yyyy HH:mm}", fontFooter);
                     genDate.SpacingBefore = 10;
                     leftCell.AddElement(userIdLabel);
-                    leftCell.AddElement(userIdLine);
                     leftCell.AddElement(genDate);
                     signatureTable.AddCell(leftCell);
 
@@ -9539,7 +9622,8 @@ namespace Kalendarz1
 
                 using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
                 {
-                    Document doc = new Document(PageSize.A4.Rotate(), 20, 20, 30, 30);
+                    // A4 poziomo z minimalnymi marginesami (na całą kartkę)
+                    Document doc = new Document(PageSize.A4.Rotate(), 10, 10, 15, 15);
                     PdfWriter writer = PdfWriter.GetInstance(doc, fs);
                     doc.Open();
 
@@ -9555,11 +9639,12 @@ namespace Kalendarz1
                         bfArial = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1250, BaseFont.NOT_EMBEDDED);
                     }
 
-                    iTextSharp.text.Font fontTitle = new iTextSharp.text.Font(bfArial, 16, iTextSharp.text.Font.BOLD);
-                    iTextSharp.text.Font fontSubtitle = new iTextSharp.text.Font(bfArial, 12);
-                    iTextSharp.text.Font fontHeader = new iTextSharp.text.Font(bfArial, 7, iTextSharp.text.Font.BOLD);
-                    iTextSharp.text.Font fontData = new iTextSharp.text.Font(bfArial, 7);
-                    iTextSharp.text.Font fontSum = new iTextSharp.text.Font(bfArial, 8, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontTitle = new iTextSharp.text.Font(bfArial, 14, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontSubtitle = new iTextSharp.text.Font(bfArial, 10);
+                    iTextSharp.text.Font fontHeader = new iTextSharp.text.Font(bfArial, 6, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontData = new iTextSharp.text.Font(bfArial, 6);
+                    iTextSharp.text.Font fontSum = new iTextSharp.text.Font(bfArial, 7, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontFooter = new iTextSharp.text.Font(bfArial, 9);
 
                     // Tytuł
                     Paragraph title = new Paragraph("RAPORT Z PRZYJĘCIA ŻYWCA DO UBOJU", fontTitle);
@@ -9647,6 +9732,52 @@ namespace Kalendarz1
                     table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.RoznicaSztukZdatneZadekl).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
 
                     doc.Add(table);
+
+                    // === SEKCJA PODPISÓW ===
+                    doc.Add(new Paragraph(" "));
+
+                    PdfPTable signatureTable = new PdfPTable(3);
+                    signatureTable.WidthPercentage = 100;
+                    signatureTable.SetWidths(new float[] { 33f, 34f, 33f });
+
+                    // Wprowadził
+                    PdfPCell cellWprowadzil = new PdfPCell();
+                    cellWprowadzil.Border = Rectangle.NO_BORDER;
+                    cellWprowadzil.Padding = 10;
+                    Paragraph wpLabel = new Paragraph("Wprowadził:", fontFooter);
+                    Paragraph wpLine = new Paragraph("_______________________________", fontFooter);
+                    wpLine.SpacingBefore = 15;
+                    cellWprowadzil.AddElement(wpLabel);
+                    cellWprowadzil.AddElement(wpLine);
+                    signatureTable.AddCell(cellWprowadzil);
+
+                    // Data wydruku (środkowa kolumna)
+                    PdfPCell cellData = new PdfPCell();
+                    cellData.Border = Rectangle.NO_BORDER;
+                    cellData.Padding = 10;
+                    cellData.HorizontalAlignment = Element.ALIGN_CENTER;
+                    Paragraph dataLabel = new Paragraph($"Data wydruku: {DateTime.Now:dd.MM.yyyy HH:mm}", fontFooter);
+                    dataLabel.Alignment = Element.ALIGN_CENTER;
+                    dataLabel.SpacingBefore = 25;
+                    cellData.AddElement(dataLabel);
+                    signatureTable.AddCell(cellData);
+
+                    // Zatwierdził
+                    PdfPCell cellZatwierdzil = new PdfPCell();
+                    cellZatwierdzil.Border = Rectangle.NO_BORDER;
+                    cellZatwierdzil.Padding = 10;
+                    cellZatwierdzil.HorizontalAlignment = Element.ALIGN_RIGHT;
+                    Paragraph ztLabel = new Paragraph("Zatwierdził:", fontFooter);
+                    ztLabel.Alignment = Element.ALIGN_RIGHT;
+                    Paragraph ztLine = new Paragraph("_______________________________", fontFooter);
+                    ztLine.Alignment = Element.ALIGN_RIGHT;
+                    ztLine.SpacingBefore = 15;
+                    cellZatwierdzil.AddElement(ztLabel);
+                    cellZatwierdzil.AddElement(ztLine);
+                    signatureTable.AddCell(cellZatwierdzil);
+
+                    doc.Add(signatureTable);
+
                     doc.Close();
                 }
 
@@ -10798,6 +10929,14 @@ namespace Kalendarz1
             }
         }
 
+        // === GRUPOWANIE: Właściwość dla separatora grupy ===
+        private bool _isFirstInGroup;
+        public bool IsFirstInGroup
+        {
+            get => _isFirstInGroup;
+            set { _isFirstInGroup = value; OnPropertyChanged(nameof(IsFirstInGroup)); }
+        }
+
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)
         {
@@ -11132,6 +11271,14 @@ namespace Kalendarz1
         /// </summary>
         public bool JestZablokowany => Zatwierdzony && Zweryfikowany;
 
+        // === GRUPOWANIE: Właściwość dla separatora grupy ===
+        private bool _isFirstInGroup;
+        public bool IsFirstInGroup
+        {
+            get => _isFirstInGroup;
+            set { _isFirstInGroup = value; OnPropertyChanged(nameof(IsFirstInGroup)); }
+        }
+
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)
         {
@@ -11199,6 +11346,14 @@ namespace Kalendarz1
 
         public bool Status { get; set; }
         public int CustomerGID { get; set; }
+
+        // === GRUPOWANIE: Właściwość dla separatora grupy ===
+        private bool _isFirstInGroup;
+        public bool IsFirstInGroup
+        {
+            get => _isFirstInGroup;
+            set { _isFirstInGroup = value; OnPropertyChanged(nameof(IsFirstInGroup)); }
+        }
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)
