@@ -9639,12 +9639,13 @@ namespace Kalendarz1
                         bfArial = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1250, BaseFont.NOT_EMBEDDED);
                     }
 
-                    iTextSharp.text.Font fontTitle = new iTextSharp.text.Font(bfArial, 14, iTextSharp.text.Font.BOLD);
-                    iTextSharp.text.Font fontSubtitle = new iTextSharp.text.Font(bfArial, 10);
-                    iTextSharp.text.Font fontHeader = new iTextSharp.text.Font(bfArial, 6, iTextSharp.text.Font.BOLD);
-                    iTextSharp.text.Font fontData = new iTextSharp.text.Font(bfArial, 6);
-                    iTextSharp.text.Font fontSum = new iTextSharp.text.Font(bfArial, 7, iTextSharp.text.Font.BOLD);
-                    iTextSharp.text.Font fontFooter = new iTextSharp.text.Font(bfArial, 9);
+                    // WIĘKSZE CZCIONKI dla lepszej czytelności
+                    iTextSharp.text.Font fontTitle = new iTextSharp.text.Font(bfArial, 18, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontSubtitle = new iTextSharp.text.Font(bfArial, 12);
+                    iTextSharp.text.Font fontHeader = new iTextSharp.text.Font(bfArial, 9, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontData = new iTextSharp.text.Font(bfArial, 9);
+                    iTextSharp.text.Font fontSum = new iTextSharp.text.Font(bfArial, 10, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontFooter = new iTextSharp.text.Font(bfArial, 10);
 
                     // Tytuł
                     Paragraph title = new Paragraph("RAPORT Z PRZYJĘCIA ŻYWCA DO UBOJU", fontTitle);
@@ -9671,65 +9672,69 @@ namespace Kalendarz1
                         PdfPCell cell = new PdfPCell(new Phrase(h, fontHeader));
                         cell.BackgroundColor = headerColor;
                         cell.HorizontalAlignment = Element.ALIGN_CENTER;
-                        cell.Padding = 4;
+                        cell.VerticalAlignment = Element.ALIGN_MIDDLE;
+                        cell.Padding = 8; // Większy padding dla wyższych wierszy
                         cell.Phrase.Font.Color = BaseColor.WHITE;
                         table.AddCell(cell);
                     }
 
-                    // Dane
+                    // Dane - z większym paddingiem dla wyższych wierszy
+                    float cellPadding = 6f; // Większy padding
                     foreach (var row in podsumowanieData)
                     {
-                        table.AddCell(new PdfPCell(new Phrase(row.LP.ToString(), fontData)) { HorizontalAlignment = Element.ALIGN_CENTER });
-                        table.AddCell(new PdfPCell(new Phrase(row.HodowcaDrobiu ?? "-", fontData)));
-                        table.AddCell(new PdfPCell(new Phrase(row.SztukiZadeklarowane.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, BackgroundColor = new BaseColor(255, 224, 178) });
-                        table.AddCell(new PdfPCell(new Phrase(row.SztukiPadle.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
-                        table.AddCell(new PdfPCell(new Phrase(row.SztukiKonfi.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
-                        table.AddCell(new PdfPCell(new Phrase(row.SztukiSuma.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
-                        table.AddCell(new PdfPCell(new Phrase(row.KgKonf.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
-                        table.AddCell(new PdfPCell(new Phrase(row.KgPadle.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
-                        table.AddCell(new PdfPCell(new Phrase(row.KgSuma.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                        table.AddCell(new PdfPCell(new Phrase(row.LP.ToString(), fontData)) { HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.HodowcaDrobiu ?? "-", fontData)) { VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.SztukiZadeklarowane.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding, BackgroundColor = new BaseColor(255, 224, 178) });
+                        table.AddCell(new PdfPCell(new Phrase(row.SztukiPadle.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.SztukiKonfi.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.SztukiSuma.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.KgKonf.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.KgPadle.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.KgSuma.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
 
                         // Wydajność z kolorem
                         BaseColor wydColor = row.WydajnoscNiska ? new BaseColor(255, 205, 210) : new BaseColor(200, 230, 201);
-                        table.AddCell(new PdfPCell(new Phrase($"{row.WydajnoscProcent:F2}%", fontData)) { HorizontalAlignment = Element.ALIGN_CENTER, BackgroundColor = wydColor });
+                        table.AddCell(new PdfPCell(new Phrase($"{row.WydajnoscProcent:F2}%", fontData)) { HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding, BackgroundColor = wydColor });
 
-                        table.AddCell(new PdfPCell(new Phrase(row.Lumel.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
-                        table.AddCell(new PdfPCell(new Phrase(row.SztukiKonfiskataT.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
-                        table.AddCell(new PdfPCell(new Phrase(row.SztukiZdatne.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, BackgroundColor = new BaseColor(200, 230, 201) });
-                        table.AddCell(new PdfPCell(new Phrase(row.IloscKgZywiec.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
-                        table.AddCell(new PdfPCell(new Phrase(row.SredniaWagaPrzedUbojem.ToString("F2"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
-                        table.AddCell(new PdfPCell(new Phrase(row.SztukiProdukcjaTuszka.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
-                        table.AddCell(new PdfPCell(new Phrase(row.WagaProdukcjaTuszka.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
-                        table.AddCell(new PdfPCell(new Phrase(row.RoznicaSztukZdatneProd.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
-                        table.AddCell(new PdfPCell(new Phrase(row.RoznicaSztukZdatneZadekl.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT });
+                        table.AddCell(new PdfPCell(new Phrase(row.Lumel.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.SztukiKonfiskataT.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.SztukiZdatne.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding, BackgroundColor = new BaseColor(200, 230, 201) });
+                        table.AddCell(new PdfPCell(new Phrase(row.IloscKgZywiec.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.SredniaWagaPrzedUbojem.ToString("F2"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.SztukiProdukcjaTuszka.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.WagaProdukcjaTuszka.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.RoznicaSztukZdatneProd.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.RoznicaSztukZdatneZadekl.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
                     }
 
-                    // Wiersz sumy
+                    // Wiersz sumy - z większym paddingiem
+                    float sumPadding = 8f;
                     BaseColor sumColor = new BaseColor(200, 200, 200);
                     PdfPCell sumaCell = new PdfPCell(new Phrase("SUMA:", fontSum));
                     sumaCell.Colspan = 2;
                     sumaCell.BackgroundColor = sumColor;
                     sumaCell.HorizontalAlignment = Element.ALIGN_RIGHT;
-                    sumaCell.Padding = 4;
+                    sumaCell.VerticalAlignment = Element.ALIGN_MIDDLE;
+                    sumaCell.Padding = sumPadding;
                     table.AddCell(sumaCell);
 
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiZadeklarowane).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiPadle).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiKonfi).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiSuma).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.KgKonf).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.KgPadle).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.KgSuma).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
-                    table.AddCell(new PdfPCell(new Phrase($"{podsumowanieData.Average(r => r.WydajnoscProcent):F2}%", fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_CENTER });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.Lumel).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiKonfiskataT).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiZdatne).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.IloscKgZywiec).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
-                    table.AddCell(new PdfPCell(new Phrase($"{podsumowanieData.Average(r => r.SredniaWagaPrzedUbojem):F2}", fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiProdukcjaTuszka).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.WagaProdukcjaTuszka).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.RoznicaSztukZdatneProd).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.RoznicaSztukZdatneZadekl).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiZadeklarowane).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiPadle).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiKonfi).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiSuma).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.KgKonf).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.KgPadle).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.KgSuma).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase($"{podsumowanieData.Average(r => r.WydajnoscProcent):F2}%", fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.Lumel).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiKonfiskataT).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiZdatne).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.IloscKgZywiec).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase($"{podsumowanieData.Average(r => r.SredniaWagaPrzedUbojem):F2}", fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiProdukcjaTuszka).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.WagaProdukcjaTuszka).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.RoznicaSztukZdatneProd).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.RoznicaSztukZdatneZadekl).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
 
                     doc.Add(table);
 

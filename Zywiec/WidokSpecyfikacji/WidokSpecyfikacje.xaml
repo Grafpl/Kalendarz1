@@ -2342,6 +2342,33 @@
                                   HorizontalGridLinesBrush="#E0E0E0"
                                   BorderThickness="1"
                                   BorderBrush="#BDBDBD">
+                            <!-- Styl wiersza z obsługą separatora grupy dostawcy -->
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow">
+                                    <Setter Property="Background" Value="White"/>
+                                    <Style.Triggers>
+                                        <!-- Alternating rows -->
+                                        <Trigger Property="AlternationIndex" Value="1">
+                                            <Setter Property="Background" Value="#F8F9FA"/>
+                                        </Trigger>
+                                        <!-- Separator grupy dostawcy - grubsza górna linia -->
+                                        <DataTrigger Binding="{Binding IsFirstInGroup}" Value="True">
+                                            <Setter Property="BorderThickness" Value="0,3,0,0"/>
+                                            <Setter Property="BorderBrush" Value="#4CAF50"/>
+                                            <Setter Property="Background" Value="#E8F5E9"/>
+                                        </DataTrigger>
+                                        <!-- Hover -->
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#E3F2FD"/>
+                                        </Trigger>
+                                        <!-- Selection -->
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" Value="#BBDEFB"/>
+                                            <Setter Property="Foreground" Value="#1A237E"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.RowStyle>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat=yyyy-MM-dd}" Width="90"/>
                                 <DataGridTextColumn Header="LP" Binding="{Binding Nr}" Width="40"/>
