@@ -2196,9 +2196,9 @@
 
             <!-- === KARTA ROZLICZENIA === -->
             <TabItem Header="💰 Rozliczenia">
-                <Border Background="White" CornerRadius="10" Margin="10" Padding="15">
+                <Border Background="White" CornerRadius="8" Margin="5" Padding="10">
                     <Border.Effect>
-                        <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="15"/>
+                        <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.08" BlurRadius="10"/>
                     </Border.Effect>
                     <Grid>
                         <Grid.RowDefinitions>
@@ -2212,12 +2212,23 @@
                         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
                             <TextBlock Text="Rozliczenia dostaw" FontSize="18" FontWeight="Bold" Foreground="#2C3E50" VerticalAlignment="Center"/>
                             <Border Width="1" Background="#E0E0E0" Margin="15,2"/>
-                            <TextBlock Text="Data jest wybrana w lewym górnym rogu" VerticalAlignment="Center" Foreground="#7F8C8D" FontStyle="Italic"/>
-                            <Border Width="1" Background="#E0E0E0" Margin="15,2"/>
                             <!-- Checkbox grupowania -->
                             <CheckBox x:Name="chkGroupBySupplierRozliczenia" Content="Grupuj wg dostawcy"
                                       VerticalAlignment="Center" FontSize="11" Foreground="#455A64"
                                       Checked="ChkGroupBySupplierRozliczenia_Changed" Unchecked="ChkGroupBySupplierRozliczenia_Changed"/>
+                            <Border Width="1" Background="#E0E0E0" Margin="10,2"/>
+                            <!-- Checkbox Płachta -->
+                            <Border Background="#E8F5E9" CornerRadius="4" Padding="5,2" Margin="5,0">
+                                <CheckBox x:Name="chkRozliczeniaPlachta" Content="📋 Płachta"
+                                          VerticalAlignment="Center" FontSize="11" Foreground="#2E7D32"
+                                          ToolTip="Zaznacz dla płachty"/>
+                            </Border>
+                            <!-- Checkbox Transport -->
+                            <Border Background="#E3F2FD" CornerRadius="4" Padding="5,2" Margin="5,0">
+                                <CheckBox x:Name="chkRozliczeniaTransport" Content="🚛 Transport"
+                                          VerticalAlignment="Center" FontSize="11" Foreground="#1565C0"
+                                          ToolTip="Zaznacz dla transportu"/>
+                            </Border>
                         </StackPanel>
 
                         <!-- Toolbar zatwierdzania z podwójną kontrolą -->
@@ -2883,8 +2894,8 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <!-- NAGŁÓWEK PREMIUM -->
-                        <Border Grid.Row="0" CornerRadius="12" Margin="0,0,0,15">
+                        <!-- NAGŁÓWEK (kompaktowy) -->
+                        <Border Grid.Row="0" CornerRadius="8" Margin="0,0,0,8">
                             <Border.Background>
                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
                                     <GradientStop Color="#1A237E" Offset="0"/>
@@ -2893,69 +2904,42 @@
                                 </LinearGradientBrush>
                             </Border.Background>
                             <Border.Effect>
-                                <DropShadowEffect ShadowDepth="4" Color="#1A237E" Opacity="0.3" BlurRadius="20"/>
+                                <DropShadowEffect ShadowDepth="2" Color="#1A237E" Opacity="0.2" BlurRadius="10"/>
                             </Border.Effect>
-                            <Grid Margin="25,18">
+                            <Grid Margin="15,10">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Tytuł -->
+                                <!-- Tytuł (zmniejszony) -->
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="📊" FontSize="32" VerticalAlignment="Center" Margin="0,0,15,0"/>
-                                    <StackPanel>
-                                        <TextBlock Text="RAPORT Z PRZYJĘCIA ŻYWCA DO UBOJU"
-                                                   FontSize="22" FontWeight="Bold" Foreground="White"/>
-                                        <TextBlock Text="Podsumowanie specyfikacji przyjętego drobiu"
-                                                   FontSize="12" Foreground="#B3C5E8" Margin="0,3,0,0"/>
-                                    </StackPanel>
+                                    <TextBlock Text="📊" FontSize="20" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                    <TextBlock Text="PODSUMOWANIE" FontSize="14" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
                                 </StackPanel>
 
-                                <!-- Data w centrum -->
+                                <!-- Data w centrum (kompaktowa) -->
                                 <Border Grid.Column="1" HorizontalAlignment="Center" Background="#FFFFFF15"
-                                        CornerRadius="8" Padding="20,10" Margin="20,0">
+                                        CornerRadius="6" Padding="12,6" Margin="15,0">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="📅" FontSize="18" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                        <StackPanel>
-                                            <TextBlock Text="DATA RAPORTU" FontSize="10" Foreground="#B3C5E8" FontWeight="SemiBold"/>
-                                            <TextBlock x:Name="lblPodsumowanieData" Text="-" FontWeight="Bold"
-                                                       Foreground="#FFD54F" FontSize="20"/>
-                                        </StackPanel>
+                                        <TextBlock Text="📅" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <TextBlock x:Name="lblPodsumowanieData" Text="-" FontWeight="Bold"
+                                                   Foreground="#FFD54F" FontSize="14" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Border>
 
-                                <!-- Przyciski akcji -->
+                                <!-- Przyciski akcji (kompaktowe) -->
                                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Button Click="BtnPodsumowanieRefresh_Click" Cursor="Hand" Margin="0,0,10,0"
-                                            ToolTip="Odśwież dane">
-                                        <Button.Template>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border x:Name="border" Background="#4CAF50" CornerRadius="8" Padding="16,10">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="🔄" FontSize="16" VerticalAlignment="Center"/>
-                                                        <TextBlock Text=" Odśwież" Foreground="White" FontWeight="SemiBold"
-                                                                   FontSize="13" VerticalAlignment="Center"/>
-                                                    </StackPanel>
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="border" Property="Background" Value="#66BB6A"/>
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Button.Template>
-                                    </Button>
-                                    <Button Click="BtnPodsumowanieExportPdf_Click" Cursor="Hand" Margin="0,0,10,0"
+                                    <Button Click="BtnPodsumowanieExportPdf_Click" Cursor="Hand" Margin="0,0,6,0"
                                             ToolTip="Eksportuj do PDF">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
-                                                <Border x:Name="border" Background="#2196F3" CornerRadius="8" Padding="16,10">
+                                                <Border x:Name="border" Background="#2196F3" CornerRadius="6" Padding="10,6">
                                                     <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="📄" FontSize="16" VerticalAlignment="Center"/>
-                                                        <TextBlock Text=" Eksport PDF" Foreground="White" FontWeight="SemiBold"
-                                                                   FontSize="13" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="📄" FontSize="12" VerticalAlignment="Center"/>
+                                                        <TextBlock Text=" PDF" Foreground="White" FontWeight="SemiBold"
+                                                                   FontSize="11" VerticalAlignment="Center"/>
                                                     </StackPanel>
                                                 </Border>
                                                 <ControlTemplate.Triggers>
@@ -2970,11 +2954,11 @@
                                             ToolTip="Kopiuj do schowka">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
-                                                <Border x:Name="border" Background="#9C27B0" CornerRadius="8" Padding="16,10">
+                                                <Border x:Name="border" Background="#9C27B0" CornerRadius="6" Padding="10,6">
                                                     <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="📋" FontSize="16" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="📋" FontSize="12" VerticalAlignment="Center"/>
                                                         <TextBlock Text=" Kopiuj" Foreground="White" FontWeight="SemiBold"
-                                                                   FontSize="13" VerticalAlignment="Center"/>
+                                                                   FontSize="11" VerticalAlignment="Center"/>
                                                     </StackPanel>
                                                 </Border>
                                                 <ControlTemplate.Triggers>
@@ -2989,8 +2973,8 @@
                             </Grid>
                         </Border>
 
-                        <!-- KARTY STATYSTYK -->
-                        <Grid Grid.Row="1" Margin="0,0,0,15">
+                        <!-- KARTY STATYSTYK (kompaktowe) -->
+                        <Grid Grid.Row="1" Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
@@ -3000,115 +2984,106 @@
                             </Grid.ColumnDefinitions>
 
                             <!-- Karta: Wierszy -->
-                            <Border Grid.Column="0" Margin="0,0,8,0" CornerRadius="10" Background="White">
+                            <Border Grid.Column="0" Margin="0,0,4,0" CornerRadius="6" Background="White">
                                 <Border.Effect>
-                                    <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.08" BlurRadius="10"/>
+                                    <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.06" BlurRadius="6"/>
                                 </Border.Effect>
-                                <Grid Margin="15,12">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <StackPanel Orientation="Horizontal">
-                                        <Border Background="#E3F2FD" CornerRadius="6" Padding="8,6" Margin="0,0,10,0">
-                                            <TextBlock Text="📋" FontSize="18"/>
-                                        </Border>
-                                        <TextBlock Text="WIERSZY" FontSize="11" Foreground="#78909C" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" Margin="8,6">
+                                    <Border Background="#E3F2FD" CornerRadius="4" Padding="4" Margin="0,0,6,0">
+                                        <TextBlock Text="📋" FontSize="12"/>
+                                    </Border>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Wierszy" FontSize="9" Foreground="#78909C"/>
+                                        <TextBlock x:Name="lblPodsumowanieSumaWierszy" Text="0"
+                                                   FontSize="16" FontWeight="Bold" Foreground="#1976D2"/>
                                     </StackPanel>
-                                    <TextBlock Grid.Row="1" x:Name="lblPodsumowanieSumaWierszy" Text="0"
-                                               FontSize="28" FontWeight="Bold" Foreground="#1976D2" Margin="0,8,0,0"/>
-                                </Grid>
+                                </StackPanel>
                             </Border>
 
                             <!-- Karta: Zadeklarowane -->
-                            <Border Grid.Column="1" Margin="4,0" CornerRadius="10" Background="White">
+                            <Border Grid.Column="1" Margin="2,0" CornerRadius="6" Background="White">
                                 <Border.Effect>
-                                    <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.08" BlurRadius="10"/>
+                                    <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.06" BlurRadius="6"/>
                                 </Border.Effect>
-                                <Grid Margin="15,12">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <StackPanel Orientation="Horizontal">
-                                        <Border Background="#FFF3E0" CornerRadius="6" Padding="8,6" Margin="0,0,10,0">
-                                            <TextBlock Text="📝" FontSize="18"/>
-                                        </Border>
-                                        <TextBlock Text="ZADEKLAROWANE" FontSize="11" Foreground="#78909C" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" Margin="8,6">
+                                    <Border Background="#FFF3E0" CornerRadius="4" Padding="4" Margin="0,0,6,0">
+                                        <TextBlock Text="📝" FontSize="12"/>
+                                    </Border>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Zadekl." FontSize="9" Foreground="#78909C"/>
+                                        <TextBlock x:Name="lblPodsumowanieSumaZadekl" Text="0"
+                                                   FontSize="16" FontWeight="Bold" Foreground="#E65100"/>
                                     </StackPanel>
-                                    <TextBlock Grid.Row="1" x:Name="lblPodsumowanieSumaZadekl" Text="0"
-                                               FontSize="28" FontWeight="Bold" Foreground="#E65100" Margin="0,8,0,0"/>
-                                </Grid>
+                                </StackPanel>
                             </Border>
 
                             <!-- Karta: Zdatne -->
-                            <Border Grid.Column="2" Margin="4,0" CornerRadius="10" Background="White">
+                            <Border Grid.Column="2" Margin="2,0" CornerRadius="6" Background="White">
                                 <Border.Effect>
-                                    <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.08" BlurRadius="10"/>
+                                    <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.06" BlurRadius="6"/>
                                 </Border.Effect>
-                                <Grid Margin="15,12">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <StackPanel Orientation="Horizontal">
-                                        <Border Background="#E8F5E9" CornerRadius="6" Padding="8,6" Margin="0,0,10,0">
-                                            <TextBlock Text="✅" FontSize="18"/>
-                                        </Border>
-                                        <TextBlock Text="ZDATNE" FontSize="11" Foreground="#78909C" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" Margin="8,6">
+                                    <Border Background="#E8F5E9" CornerRadius="4" Padding="4" Margin="0,0,6,0">
+                                        <TextBlock Text="✅" FontSize="12"/>
+                                    </Border>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Zdatne" FontSize="9" Foreground="#78909C"/>
+                                        <TextBlock x:Name="lblPodsumowanieSumaZdatnych" Text="0"
+                                                   FontSize="16" FontWeight="Bold" Foreground="#2E7D32"/>
                                     </StackPanel>
-                                    <TextBlock Grid.Row="1" x:Name="lblPodsumowanieSumaZdatnych" Text="0"
-                                               FontSize="28" FontWeight="Bold" Foreground="#2E7D32" Margin="0,8,0,0"/>
-                                </Grid>
+                                </StackPanel>
                             </Border>
 
                             <!-- Karta: KG Żywiec -->
-                            <Border Grid.Column="3" Margin="4,0" CornerRadius="10" Background="White">
+                            <Border Grid.Column="3" Margin="2,0" CornerRadius="6" Background="White">
                                 <Border.Effect>
-                                    <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.08" BlurRadius="10"/>
+                                    <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.06" BlurRadius="6"/>
                                 </Border.Effect>
-                                <Grid Margin="15,12">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <StackPanel Orientation="Horizontal">
-                                        <Border Background="#E3F2FD" CornerRadius="6" Padding="8,6" Margin="0,0,10,0">
-                                            <TextBlock Text="⚖️" FontSize="18"/>
-                                        </Border>
-                                        <TextBlock Text="KG ŻYWIEC" FontSize="11" Foreground="#78909C" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" Margin="8,6">
+                                    <Border Background="#E3F2FD" CornerRadius="4" Padding="4" Margin="0,0,6,0">
+                                        <TextBlock Text="⚖️" FontSize="12"/>
+                                    </Border>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="KG Żywiec" FontSize="9" Foreground="#78909C"/>
+                                        <TextBlock x:Name="lblPodsumowanieSumaKgZywiec" Text="0"
+                                                   FontSize="16" FontWeight="Bold" Foreground="#1565C0"/>
                                     </StackPanel>
-                                    <TextBlock Grid.Row="1" x:Name="lblPodsumowanieSumaKgZywiec" Text="0"
-                                               FontSize="28" FontWeight="Bold" Foreground="#1565C0" Margin="0,8,0,0"/>
-                                </Grid>
+                                </StackPanel>
                             </Border>
 
                             <!-- Karta: Wydajność -->
-                            <Border Grid.Column="4" Margin="8,0,0,0" CornerRadius="10" Background="White">
+                            <Border Grid.Column="4" Margin="4,0,0,0" CornerRadius="6" Background="White">
                                 <Border.Effect>
-                                    <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.08" BlurRadius="10"/>
+                                    <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.06" BlurRadius="6"/>
                                 </Border.Effect>
-                                <Grid Margin="15,12">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <StackPanel Orientation="Horizontal">
-                                        <Border Background="#F3E5F5" CornerRadius="6" Padding="8,6" Margin="0,0,10,0">
-                                            <TextBlock Text="📈" FontSize="18"/>
-                                        </Border>
-                                        <TextBlock Text="ŚR. WYDAJNOŚĆ" FontSize="11" Foreground="#78909C" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" Margin="8,6">
+                                    <Border Background="#F3E5F5" CornerRadius="4" Padding="4" Margin="0,0,6,0">
+                                        <TextBlock Text="📈" FontSize="12"/>
+                                    </Border>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Wydajność" FontSize="9" Foreground="#78909C"/>
+                                        <TextBlock x:Name="lblPodsumowanieSrWydajnosc" Text="0%"
+                                                   FontSize="16" FontWeight="Bold" Foreground="#7B1FA2"/>
                                     </StackPanel>
-                                    <TextBlock Grid.Row="1" x:Name="lblPodsumowanieSrWydajnosc" Text="0%"
-                                               FontSize="28" FontWeight="Bold" Foreground="#7B1FA2" Margin="0,8,0,0"/>
-                                </Grid>
+                                </StackPanel>
                             </Border>
                         </Grid>
 
+                        <!-- Opcja grupowania -->
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,5" HorizontalAlignment="Right">
+                            <Border Background="#E8F5E9" CornerRadius="4" Padding="6,3" Margin="5,0">
+                                <CheckBox x:Name="chkGroupByOdbiorcaPodsumowanie" Content="📊 Grupuj wg odbiorcy"
+                                          VerticalAlignment="Center" FontSize="10" Foreground="#2E7D32"
+                                          Checked="ChkGroupByOdbiorcaPodsumowanie_Changed"
+                                          Unchecked="ChkGroupByOdbiorcaPodsumowanie_Changed"
+                                          ToolTip="Grupuj dane według odbiorcy z separatorami"/>
+                            </Border>
+                        </StackPanel>
+
                         <!-- TABELA DANYCH -->
-                        <Border Grid.Row="2" Background="White" CornerRadius="10">
+                        <Border Grid.Row="2" Background="White" CornerRadius="8">
                             <Border.Effect>
-                                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.08" BlurRadius="12"/>
+                                <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.06" BlurRadius="8"/>
                             </Border.Effect>
                             <DataGrid x:Name="dataGridPodsumowanie"
                                       AutoGenerateColumns="False"
@@ -3117,9 +3092,9 @@
                                       IsReadOnly="True"
                                       SelectionMode="Single"
                                       SelectionUnit="FullRow"
-                                      FontSize="12"
-                                      RowHeight="32"
-                                      ColumnHeaderHeight="50"
+                                      FontSize="11"
+                                      RowHeight="28"
+                                      ColumnHeaderHeight="40"
                                       Background="White"
                                       AlternatingRowBackground="#FAFBFC"
                                       GridLinesVisibility="Horizontal"
@@ -3127,7 +3102,7 @@
                                       VerticalGridLinesBrush="Transparent"
                                       BorderThickness="0"
                                       EnableRowVirtualization="True"
-                                      Margin="5">
+                                      Margin="3">
                                 <DataGrid.ColumnHeaderStyle>
                                     <Style TargetType="DataGridColumnHeader">
                                         <Setter Property="Background" Value="#F1F5F9"/>
@@ -3149,6 +3124,12 @@
                                             <Trigger Property="IsSelected" Value="True">
                                                 <Setter Property="Background" Value="#DBEAFE"/>
                                             </Trigger>
+                                            <!-- Obramowanie na początku nowej grupy -->
+                                            <DataTrigger Binding="{Binding IsGroupStart}" Value="True">
+                                                <Setter Property="BorderThickness" Value="0,3,0,0"/>
+                                                <Setter Property="BorderBrush" Value="#2E7D32"/>
+                                                <Setter Property="Background" Value="#E8F5E9"/>
+                                            </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
                                 </DataGrid.RowStyle>

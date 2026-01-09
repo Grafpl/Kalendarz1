@@ -1072,6 +1072,7 @@ namespace Kalendarz1
                 // Odśwież wszystkie karty przy zmianie daty
                 LoadRozliczeniaData();
                 LoadPlachtaData();
+                LoadPodsumowanieData(); // Auto-odświeżanie karty Podsumowanie
 
                 // Odśwież mini kalendarz
                 RefreshMiniCalendar();
@@ -5205,8 +5206,8 @@ namespace Kalendarz1
             sumaWartosc = 0;
             sumaKG = 0;
 
-            // A4 pionowa
-            Document doc = new Document(PageSize.A4, 25, 25, 20, 20);
+            // A4 pionowa - mniejsze marginesy dla lepszego wykorzystania strony
+            Document doc = new Document(PageSize.A4, 15, 15, 15, 15);
 
             string sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(
                 zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"),
@@ -5837,11 +5838,38 @@ namespace Kalendarz1
 
                 doc.Add(footerTable);
 
-                // Informacja o wygenerowaniu dokumentu
-                Paragraph generatedBy = new Paragraph($"Wygenerowano przez: {wystawiajacyNazwa}", new Font(polishFont, 7, Font.ITALIC, grayColor));
-                generatedBy.Alignment = Element.ALIGN_RIGHT;
-                generatedBy.SpacingBefore = 10f;
-                doc.Add(generatedBy);
+                // Pobierz informacje o autorach z rozliczeń (ChangeLog)
+                string wprowadzilNazwa = GetWprowadzilNazwa(ids[0]);
+                string zaakceptowalNazwa = wystawiajacyNazwa; // Osoba generująca PDF jako akceptująca
+
+                // Tabela z informacjami o autorach
+                PdfPTable authorsTable = new PdfPTable(3);
+                authorsTable.WidthPercentage = 100;
+                authorsTable.SpacingBefore = 10f;
+                authorsTable.SetWidths(new float[] { 1f, 1f, 1f });
+
+                Font authorLabelFont = new Font(polishFont, 7, Font.BOLD, grayColor);
+                Font authorValueFont = new Font(polishFont, 7, Font.ITALIC, grayColor);
+
+                // Wygenerował
+                PdfPCell genCell = new PdfPCell { Border = PdfPCell.NO_BORDER, Padding = 2 };
+                genCell.AddElement(new Paragraph("Wygenerował:", authorLabelFont) { Alignment = Element.ALIGN_CENTER });
+                genCell.AddElement(new Paragraph(wystawiajacyNazwa, authorValueFont) { Alignment = Element.ALIGN_CENTER });
+                authorsTable.AddCell(genCell);
+
+                // Wprowadził
+                PdfPCell enteredCell = new PdfPCell { Border = PdfPCell.NO_BORDER, Padding = 2 };
+                enteredCell.AddElement(new Paragraph("Wprowadził (rozl.):", authorLabelFont) { Alignment = Element.ALIGN_CENTER });
+                enteredCell.AddElement(new Paragraph(wprowadzilNazwa, authorValueFont) { Alignment = Element.ALIGN_CENTER });
+                authorsTable.AddCell(enteredCell);
+
+                // Zaakceptował
+                PdfPCell approvedCell = new PdfPCell { Border = PdfPCell.NO_BORDER, Padding = 2 };
+                approvedCell.AddElement(new Paragraph("Zaakceptował (rozl.):", authorLabelFont) { Alignment = Element.ALIGN_CENTER });
+                approvedCell.AddElement(new Paragraph(zaakceptowalNazwa, authorValueFont) { Alignment = Element.ALIGN_CENTER });
+                authorsTable.AddCell(approvedCell);
+
+                doc.Add(authorsTable);
 
                 doc.Close();
             }
@@ -6403,6 +6431,49 @@ namespace Kalendarz1
             {
                 UpdateStatus($"Błąd zapisu historii PDF: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Pobiera nazwę osoby która wprowadzała dane do rozliczeń (z ChangeLog)
+        /// </summary>
+        private string GetWprowadzilNazwa(int farmerCalcId)
+        {
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    // Sprawdź czy tabela istnieje
+                    string checkTable = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'FarmerCalcChangeLog'";
+                    using (SqlCommand checkCmd = new SqlCommand(checkTable, connection))
+                    {
+                        int exists = (int)checkCmd.ExecuteScalar();
+                        if (exists == 0) return "---";
+                    }
+
+                    // Pobierz pierwszą osobę która wprowadzała dane
+                    string query = @"SELECT TOP 1 ChangedBy
+                        FROM [dbo].[FarmerCalcChangeLog]
+                        WHERE FarmerCalcID = @ID
+                        ORDER BY ChangeDate ASC";
+
+                    using (SqlCommand cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@ID", farmerCalcId);
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && result != DBNull.Value)
+                        {
+                            return result.ToString();
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Ignoruj błędy
+            }
+            return "---";
         }
 
         // Sprawdź czy PDF istnieje dla danego dostawcy i dnia
@@ -8724,9 +8795,9 @@ namespace Kalendarz1
                     connection.Open();
 
                     string query = @"
-                        INSERT INTO dbo.FarmerCalc (CalcDate, CarLp, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5, LumQnt, ProdQnt, ProdWgt, Price, Addition, Loss, IncDeadConf)
+                        INSERT INTO dbo.FarmerCalc (CalcDate, CarLp, CustomerGID, CustomerRealGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5, LumQnt, ProdQnt, ProdWgt, Price, Addition, Loss, IncDeadConf)
                         OUTPUT INSERTED.ID
-                        VALUES (@CalcDate, @CarLp, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)";
+                        VALUES (@CalcDate, @CarLp, NULL, NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)";
 
                     using (SqlCommand cmd = new SqlCommand(query, connection))
                     {
@@ -9346,6 +9417,51 @@ namespace Kalendarz1
             {
                 if (lblSrWydajnosc != null) lblSrWydajnosc.Text = "0%";
             }
+        }
+
+        /// <summary>
+        /// Obsługuje zmianę checkboxa grupowania według odbiorcy w Podsumowaniu
+        /// </summary>
+        private void ChkGroupByOdbiorcaPodsumowanie_Changed(object sender, RoutedEventArgs e)
+        {
+            var checkbox = sender as CheckBox;
+            bool groupByOdbiorca = checkbox?.IsChecked == true;
+
+            if (podsumowanieData == null || podsumowanieData.Count == 0) return;
+
+            var dataGrid = FindName("dataGridPodsumowanie") as DataGrid;
+
+            if (groupByOdbiorca)
+            {
+                // Grupuj według nazwy hodowcy (odbiorca)
+                var grouped = podsumowanieData
+                    .OrderBy(x => x.HodowcaDrobiu)
+                    .ThenBy(x => x.LP)
+                    .ToList();
+
+                podsumowanieData.Clear();
+                string lastHodowca = "";
+                int newLp = 1;
+
+                foreach (var item in grouped)
+                {
+                    // Dodaj separator przy zmianie grupy (poprzez oznaczenie tła)
+                    item.IsGroupStart = (item.HodowcaDrobiu != lastHodowca);
+                    lastHodowca = item.HodowcaDrobiu;
+                    item.LP = newLp++;
+                    podsumowanieData.Add(item);
+                }
+
+                UpdateStatus("Podsumowanie pogrupowane według odbiorcy");
+            }
+            else
+            {
+                // Sortuj według LP oryginalnego
+                LoadPodsumowanieData(); // Przeładuj dane aby zresetować sortowanie
+                UpdateStatus("Podsumowanie posortowane według LP");
+            }
+
+            if (dataGrid != null) dataGrid.Items.Refresh();
         }
 
         /// <summary>
@@ -11127,6 +11243,9 @@ namespace Kalendarz1
         public bool RoznicaSztukUjemna => RoznicaSztukZdatneProd < 0;
         public int RoznicaSztukZdatneZadekl => SztukiZdatne - SztukiZadeklarowane;
         public bool RoznicaSztukZadeklUjemna => RoznicaSztukZdatneZadekl < 0;
+
+        // Właściwość do oznaczenia początku nowej grupy (dla grupowania wg odbiorcy)
+        public bool IsGroupStart { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)
