@@ -644,18 +644,18 @@ namespace Kalendarz1
             sb.AppendLine(">>> BRAKI W DANYCH TRANSPORTOWYCH:");
             if (transportData != null)
             {
-                var brakCiagnika = transportData.Where(t => string.IsNullOrEmpty(t.RejestrCiagnika)).ToList();
-                var brakNaczepy = transportData.Where(t => string.IsNullOrEmpty(t.RejestrNaczepy)).ToList();
+                var brakSamochodu = transportData.Where(t => string.IsNullOrEmpty(t.Samochod)).ToList();
+                var brakRejestracji = transportData.Where(t => string.IsNullOrEmpty(t.NrRejestracyjny)).ToList();
                 var brakKierowcy = transportData.Where(t => string.IsNullOrEmpty(t.Kierowca)).ToList();
 
-                if (brakCiagnika.Any())
+                if (brakSamochodu.Any())
                 {
-                    problemy.Add($"[!] Brak nr rejestracyjnego ciągnika: LP {string.Join(", ", brakCiagnika.Select(t => t.Nr))}");
+                    problemy.Add($"[!] Brak samochodu: LP {string.Join(", ", brakSamochodu.Select(t => t.Nr))}");
                     problemCount++;
                 }
-                if (brakNaczepy.Any())
+                if (brakRejestracji.Any())
                 {
-                    problemy.Add($"[!] Brak nr rejestracyjnego naczepy: LP {string.Join(", ", brakNaczepy.Select(t => t.Nr))}");
+                    problemy.Add($"[!] Brak nr rejestracyjnego: LP {string.Join(", ", brakRejestracji.Select(t => t.Nr))}");
                     problemCount++;
                 }
                 if (brakKierowcy.Any())
@@ -664,7 +664,7 @@ namespace Kalendarz1
                     problemCount++;
                 }
 
-                if (!brakCiagnika.Any() && !brakNaczepy.Any() && !brakKierowcy.Any())
+                if (!brakSamochodu.Any() && !brakRejestracji.Any() && !brakKierowcy.Any())
                 {
                     sb.AppendLine("   [OK] Wszystkie transporty mają kompletne dane");
                 }
