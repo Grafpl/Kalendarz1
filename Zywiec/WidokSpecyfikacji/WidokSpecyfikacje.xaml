@@ -1803,6 +1803,12 @@
 
                                 <!-- PRAWA STRONA: Przyciski -->
                                 <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                    <Border Background="#FFFFFF20" CornerRadius="4" Padding="8,4" Margin="0,0,10,0">
+                                        <CheckBox x:Name="chkGroupBySupplierTransport" Content="Grupuj wg dostawcy"
+                                                  VerticalAlignment="Center" FontSize="11" Foreground="White"
+                                                  Checked="ChkGroupBySupplierTransport_Changed"
+                                                  Unchecked="ChkGroupBySupplierTransport_Changed"/>
+                                    </Border>
                                     <Border Background="#E67E22" CornerRadius="4" Margin="0,0,5,0">
                                         <Button Content="💾 Zapisz kolejność"
                                                 Click="BtnTransportSaveOrder_Click"
@@ -2882,8 +2888,8 @@
                 <Border Margin="5" CornerRadius="12">
                     <Border.Background>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                            <GradientStop Color="#F8FAFC" Offset="0"/>
-                            <GradientStop Color="#EEF2F7" Offset="1"/>
+                            <GradientStop Color="#F0FDF4" Offset="0"/>
+                            <GradientStop Color="#ECFDF5" Offset="1"/>
                         </LinearGradientBrush>
                     </Border.Background>
                     <Grid Margin="15">
@@ -2898,13 +2904,13 @@
                         <Border Grid.Row="0" CornerRadius="8" Margin="0,0,0,8">
                             <Border.Background>
                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                    <GradientStop Color="#1A237E" Offset="0"/>
-                                    <GradientStop Color="#283593" Offset="0.5"/>
-                                    <GradientStop Color="#3949AB" Offset="1"/>
+                                    <GradientStop Color="#059669" Offset="0"/>
+                                    <GradientStop Color="#10B981" Offset="0.5"/>
+                                    <GradientStop Color="#34D399" Offset="1"/>
                                 </LinearGradientBrush>
                             </Border.Background>
                             <Border.Effect>
-                                <DropShadowEffect ShadowDepth="2" Color="#1A237E" Opacity="0.2" BlurRadius="10"/>
+                                <DropShadowEffect ShadowDepth="2" Color="#059669" Opacity="0.2" BlurRadius="10"/>
                             </Border.Effect>
                             <Grid Margin="15,10">
                                 <Grid.ColumnDefinitions>
@@ -2935,7 +2941,7 @@
                                             ToolTip="Eksportuj do PDF">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
-                                                <Border x:Name="border" Background="#2196F3" CornerRadius="6" Padding="10,6">
+                                                <Border x:Name="border" Background="#0891B2" CornerRadius="6" Padding="10,6">
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="📄" FontSize="12" VerticalAlignment="Center"/>
                                                         <TextBlock Text=" PDF" Foreground="White" FontWeight="SemiBold"
@@ -2944,7 +2950,7 @@
                                                 </Border>
                                                 <ControlTemplate.Triggers>
                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="border" Property="Background" Value="#42A5F5"/>
+                                                        <Setter TargetName="border" Property="Background" Value="#06B6D4"/>
                                                     </Trigger>
                                                 </ControlTemplate.Triggers>
                                             </ControlTemplate>
@@ -2954,7 +2960,7 @@
                                             ToolTip="Kopiuj do schowka">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
-                                                <Border x:Name="border" Background="#9C27B0" CornerRadius="6" Padding="10,6">
+                                                <Border x:Name="border" Background="#7C3AED" CornerRadius="6" Padding="10,6">
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="📋" FontSize="12" VerticalAlignment="Center"/>
                                                         <TextBlock Text=" Kopiuj" Foreground="White" FontWeight="SemiBold"
@@ -2963,7 +2969,7 @@
                                                 </Border>
                                                 <ControlTemplate.Triggers>
                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="border" Property="Background" Value="#AB47BC"/>
+                                                        <Setter TargetName="border" Property="Background" Value="#8B5CF6"/>
                                                     </Trigger>
                                                 </ControlTemplate.Triggers>
                                             </ControlTemplate>
@@ -2989,13 +2995,13 @@
                                     <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.06" BlurRadius="6"/>
                                 </Border.Effect>
                                 <StackPanel Orientation="Horizontal" Margin="8,6">
-                                    <Border Background="#E3F2FD" CornerRadius="4" Padding="4" Margin="0,0,6,0">
+                                    <Border Background="#CFFAFE" CornerRadius="4" Padding="4" Margin="0,0,6,0">
                                         <TextBlock Text="📋" FontSize="12"/>
                                     </Border>
                                     <StackPanel VerticalAlignment="Center">
                                         <TextBlock Text="Wierszy" FontSize="9" Foreground="#78909C"/>
                                         <TextBlock x:Name="lblPodsumowanieSumaWierszy" Text="0"
-                                                   FontSize="16" FontWeight="Bold" Foreground="#1976D2"/>
+                                                   FontSize="16" FontWeight="Bold" Foreground="#0891B2"/>
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
@@ -3006,13 +3012,13 @@
                                     <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.06" BlurRadius="6"/>
                                 </Border.Effect>
                                 <StackPanel Orientation="Horizontal" Margin="8,6">
-                                    <Border Background="#FFF3E0" CornerRadius="4" Padding="4" Margin="0,0,6,0">
+                                    <Border Background="#FEF3C7" CornerRadius="4" Padding="4" Margin="0,0,6,0">
                                         <TextBlock Text="📝" FontSize="12"/>
                                     </Border>
                                     <StackPanel VerticalAlignment="Center">
                                         <TextBlock Text="Zadekl." FontSize="9" Foreground="#78909C"/>
                                         <TextBlock x:Name="lblPodsumowanieSumaZadekl" Text="0"
-                                                   FontSize="16" FontWeight="Bold" Foreground="#E65100"/>
+                                                   FontSize="16" FontWeight="Bold" Foreground="#D97706"/>
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
@@ -3023,13 +3029,13 @@
                                     <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.06" BlurRadius="6"/>
                                 </Border.Effect>
                                 <StackPanel Orientation="Horizontal" Margin="8,6">
-                                    <Border Background="#E8F5E9" CornerRadius="4" Padding="4" Margin="0,0,6,0">
+                                    <Border Background="#D1FAE5" CornerRadius="4" Padding="4" Margin="0,0,6,0">
                                         <TextBlock Text="✅" FontSize="12"/>
                                     </Border>
                                     <StackPanel VerticalAlignment="Center">
                                         <TextBlock Text="Zdatne" FontSize="9" Foreground="#78909C"/>
                                         <TextBlock x:Name="lblPodsumowanieSumaZdatnych" Text="0"
-                                                   FontSize="16" FontWeight="Bold" Foreground="#2E7D32"/>
+                                                   FontSize="16" FontWeight="Bold" Foreground="#059669"/>
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
@@ -3040,13 +3046,13 @@
                                     <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.06" BlurRadius="6"/>
                                 </Border.Effect>
                                 <StackPanel Orientation="Horizontal" Margin="8,6">
-                                    <Border Background="#E3F2FD" CornerRadius="4" Padding="4" Margin="0,0,6,0">
+                                    <Border Background="#DBEAFE" CornerRadius="4" Padding="4" Margin="0,0,6,0">
                                         <TextBlock Text="⚖️" FontSize="12"/>
                                     </Border>
                                     <StackPanel VerticalAlignment="Center">
                                         <TextBlock Text="KG Żywiec" FontSize="9" Foreground="#78909C"/>
                                         <TextBlock x:Name="lblPodsumowanieSumaKgZywiec" Text="0"
-                                                   FontSize="16" FontWeight="Bold" Foreground="#1565C0"/>
+                                                   FontSize="16" FontWeight="Bold" Foreground="#2563EB"/>
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
@@ -3057,13 +3063,13 @@
                                     <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.06" BlurRadius="6"/>
                                 </Border.Effect>
                                 <StackPanel Orientation="Horizontal" Margin="8,6">
-                                    <Border Background="#F3E5F5" CornerRadius="4" Padding="4" Margin="0,0,6,0">
+                                    <Border Background="#EDE9FE" CornerRadius="4" Padding="4" Margin="0,0,6,0">
                                         <TextBlock Text="📈" FontSize="12"/>
                                     </Border>
                                     <StackPanel VerticalAlignment="Center">
                                         <TextBlock Text="Wydajność" FontSize="9" Foreground="#78909C"/>
                                         <TextBlock x:Name="lblPodsumowanieSrWydajnosc" Text="0%"
-                                                   FontSize="16" FontWeight="Bold" Foreground="#7B1FA2"/>
+                                                   FontSize="16" FontWeight="Bold" Foreground="#7C3AED"/>
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
@@ -3161,7 +3167,7 @@
                                         <DataGridTextColumn.HeaderStyle>
                                             <Style TargetType="DataGridColumnHeader">
                                                 <Setter Property="Background" Value="#FEF3C7"/>
-                                                <Setter Property="Foreground" Value="#92400E"/>
+                                                <Setter Property="Foreground" Value="#B45309"/>
                                                 <Setter Property="FontWeight" Value="Bold"/>
                                                 <Setter Property="FontSize" Value="11"/>
                                                 <Setter Property="Padding" Value="10,8"/>
@@ -3173,7 +3179,7 @@
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                                 <Setter Property="Padding" Value="0,0,10,0"/>
                                                 <Setter Property="FontWeight" Value="SemiBold"/>
-                                                <Setter Property="Foreground" Value="#B45309"/>
+                                                <Setter Property="Foreground" Value="#D97706"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
@@ -3277,8 +3283,8 @@
                                     <DataGridTextColumn Header="Lumel" Binding="{Binding Lumel, StringFormat={}{0:N0}}" Width="70">
                                         <DataGridTextColumn.HeaderStyle>
                                             <Style TargetType="DataGridColumnHeader">
-                                                <Setter Property="Background" Value="#E0E7FF"/>
-                                                <Setter Property="Foreground" Value="#3730A3"/>
+                                                <Setter Property="Background" Value="#DBEAFE"/>
+                                                <Setter Property="Foreground" Value="#1E40AF"/>
                                                 <Setter Property="FontWeight" Value="Bold"/>
                                                 <Setter Property="FontSize" Value="11"/>
                                                 <Setter Property="Padding" Value="10,8"/>
@@ -3289,7 +3295,7 @@
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                                 <Setter Property="FontWeight" Value="SemiBold"/>
-                                                <Setter Property="Foreground" Value="#4338CA"/>
+                                                <Setter Property="Foreground" Value="#2563EB"/>
                                                 <Setter Property="Padding" Value="0,0,8,0"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
@@ -3310,7 +3316,7 @@
                                         <DataGridTextColumn.HeaderStyle>
                                             <Style TargetType="DataGridColumnHeader">
                                                 <Setter Property="Background" Value="#D1FAE5"/>
-                                                <Setter Property="Foreground" Value="#065F46"/>
+                                                <Setter Property="Foreground" Value="#047857"/>
                                                 <Setter Property="FontWeight" Value="Bold"/>
                                                 <Setter Property="FontSize" Value="11"/>
                                                 <Setter Property="Padding" Value="10,8"/>
@@ -3321,7 +3327,7 @@
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                                 <Setter Property="FontWeight" Value="Bold"/>
-                                                <Setter Property="Foreground" Value="#059669"/>
+                                                <Setter Property="Foreground" Value="#10B981"/>
                                                 <Setter Property="Padding" Value="0,0,8,0"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>

@@ -4306,6 +4306,47 @@ namespace Kalendarz1
             }
         }
 
+        // === Checkbox: Grupuj wiersze według dostawcy (Transport) ===
+        private void ChkGroupBySupplierTransport_Changed(object sender, RoutedEventArgs e)
+        {
+            var checkbox = sender as CheckBox;
+            bool groupBySupplier = checkbox?.IsChecked == true;
+
+            if (transportData == null || transportData.Count == 0) return;
+
+            if (groupBySupplier)
+            {
+                // Grupuj według dostawcy
+                var grouped = transportData
+                    .OrderBy(x => x.Dostawca)
+                    .ThenBy(x => x.Nr)
+                    .ToList();
+
+                transportData.Clear();
+                foreach (var item in grouped)
+                {
+                    transportData.Add(item);
+                }
+
+                UpdateStatus("Transport pogrupowany według dostawcy");
+            }
+            else
+            {
+                // Sortuj według LP
+                var sorted = transportData
+                    .OrderBy(x => x.Nr)
+                    .ToList();
+
+                transportData.Clear();
+                foreach (var item in sorted)
+                {
+                    transportData.Add(item);
+                }
+
+                UpdateStatus("Transport posortowany według LP");
+            }
+        }
+
         // === Checkbox: Grupuj wiersze według dostawcy (Płachta) ===
         private void ChkGroupBySupplierPlachta_Changed(object sender, RoutedEventArgs e)
         {
@@ -8417,31 +8458,32 @@ namespace Kalendarz1
                     doc.Add(subtitle);
 
                     // === TABELA GŁÓWNA ===
-                    PdfPTable table = new PdfPTable(5);
+                    PdfPTable table = new PdfPTable(4);
                     table.WidthPercentage = 100;
-                    float[] widths = { 8f, 12f, 35f, 15f, 20f };
+                    float[] widths = { 15f, 15f, 45f, 25f };
                     table.SetWidths(widths);
                     table.SpacingBefore = 10;
 
-                    // Nagłówki tabeli z ciemnym tłem
-                    BaseColor headerColor = new BaseColor(52, 73, 94); // #34495E
+                    // Nagłówki tabeli - czarno-białe
+                    BaseColor headerColor = BaseColor.BLACK;
+                    iTextSharp.text.Font fontHeaderBW = new iTextSharp.text.Font(bfArial, 11, iTextSharp.text.Font.BOLD, BaseColor.WHITE);
 
-                    string[] headers = { "LP", "ZESTAW", "NAZWA HODOWCY", "NR SPEC.", "SZTUKI ZDATNE" };
+                    string[] headers = { "LP (ZESTAW)", "NR SPECYFIKACJI", "NAZWA HODOWCY", "SZTUKI ZDATNE" };
                     foreach (var h in headers)
                     {
-                        PdfPCell cell = new PdfPCell(new Phrase(h, fontHeader));
+                        PdfPCell cell = new PdfPCell(new Phrase(h, fontHeaderBW));
                         cell.BackgroundColor = headerColor;
                         cell.HorizontalAlignment = Element.ALIGN_CENTER;
                         cell.VerticalAlignment = Element.ALIGN_MIDDLE;
                         cell.Padding = 8;
-                        cell.BorderColor = BaseColor.WHITE;
+                        cell.BorderColor = BaseColor.BLACK;
+                        cell.BorderWidth = 1f;
                         table.AddCell(cell);
                     }
 
                     // Dane
                     int sumaSztukZdatnych = 0;
                     int lp = 1;
-                    BaseColor altColor = new BaseColor(245, 245, 245);
 
                     foreach (var d in plachtaData)
                     {
@@ -8465,62 +8507,61 @@ namespace Kalendarz1
 
                         sumaSztukZdatnych += sztukiZdatne;
 
-                        BaseColor rowColor = lp % 2 == 0 ? altColor : BaseColor.WHITE;
-
-                        // LP
-                        PdfPCell cellLp = new PdfPCell(new Phrase(lp.ToString(), fontDataBold));
-                        cellLp.BackgroundColor = rowColor;
+                        // LP (Zestaw) - np. "1 zestaw"
+                        PdfPCell cellLp = new PdfPCell(new Phrase($"{lp} zestaw", fontDataBold));
+                        cellLp.BackgroundColor = BaseColor.WHITE;
                         cellLp.HorizontalAlignment = Element.ALIGN_CENTER;
                         cellLp.VerticalAlignment = Element.ALIGN_MIDDLE;
                         cellLp.Padding = 6;
+                        cellLp.BorderColor = BaseColor.BLACK;
+                        cellLp.BorderWidth = 0.5f;
                         table.AddCell(cellLp);
 
-                        // Zestaw (NR)
-                        PdfPCell cellZestaw = new PdfPCell(new Phrase($"{d.NrSpec} zestaw", fontData));
-                        cellZestaw.BackgroundColor = rowColor;
-                        cellZestaw.HorizontalAlignment = Element.ALIGN_CENTER;
-                        cellZestaw.VerticalAlignment = Element.ALIGN_MIDDLE;
-                        cellZestaw.Padding = 6;
-                        table.AddCell(cellZestaw);
+                        // Nr Specyfikacji
+                        PdfPCell cellNrSpec = new PdfPCell(new Phrase(d.NrSpec.ToString(), fontDataBold));
+                        cellNrSpec.BackgroundColor = BaseColor.WHITE;
+                        cellNrSpec.HorizontalAlignment = Element.ALIGN_CENTER;
+                        cellNrSpec.VerticalAlignment = Element.ALIGN_MIDDLE;
+                        cellNrSpec.Padding = 6;
+                        cellNrSpec.BorderColor = BaseColor.BLACK;
+                        cellNrSpec.BorderWidth = 0.5f;
+                        table.AddCell(cellNrSpec);
 
                         // Nazwa hodowcy
                         PdfPCell cellHodowca = new PdfPCell(new Phrase(d.Hodowca ?? "-", fontData));
-                        cellHodowca.BackgroundColor = rowColor;
+                        cellHodowca.BackgroundColor = BaseColor.WHITE;
                         cellHodowca.HorizontalAlignment = Element.ALIGN_LEFT;
                         cellHodowca.VerticalAlignment = Element.ALIGN_MIDDLE;
                         cellHodowca.Padding = 6;
                         cellHodowca.PaddingLeft = 10;
+                        cellHodowca.BorderColor = BaseColor.BLACK;
+                        cellHodowca.BorderWidth = 0.5f;
                         table.AddCell(cellHodowca);
-
-                        // Nr specyfikacji
-                        PdfPCell cellNrSpec = new PdfPCell(new Phrase(d.NrSpec.ToString(), fontDataBold));
-                        cellNrSpec.BackgroundColor = rowColor;
-                        cellNrSpec.HorizontalAlignment = Element.ALIGN_CENTER;
-                        cellNrSpec.VerticalAlignment = Element.ALIGN_MIDDLE;
-                        cellNrSpec.Padding = 6;
-                        table.AddCell(cellNrSpec);
 
                         // Sztuki zdatne
                         PdfPCell cellSztuki = new PdfPCell(new Phrase(sztukiZdatne.ToString("N0"), fontDataBold));
-                        cellSztuki.BackgroundColor = rowColor;
+                        cellSztuki.BackgroundColor = BaseColor.WHITE;
                         cellSztuki.HorizontalAlignment = Element.ALIGN_CENTER;
                         cellSztuki.VerticalAlignment = Element.ALIGN_MIDDLE;
                         cellSztuki.Padding = 6;
+                        cellSztuki.BorderColor = BaseColor.BLACK;
+                        cellSztuki.BorderWidth = 0.5f;
                         table.AddCell(cellSztuki);
 
                         lp++;
                     }
 
-                    // Wiersz sumy
-                    BaseColor sumColor = new BaseColor(39, 174, 96); // #27AE60
+                    // Wiersz sumy - czarno-biały
+                    BaseColor sumColor = new BaseColor(128, 128, 128); // szary
 
                     PdfPCell sumaLabelCell = new PdfPCell(new Phrase("SUMA SZTUK ZDATNYCH:", fontSum));
-                    sumaLabelCell.Colspan = 4;
+                    sumaLabelCell.Colspan = 3;
                     sumaLabelCell.BackgroundColor = sumColor;
                     sumaLabelCell.HorizontalAlignment = Element.ALIGN_RIGHT;
                     sumaLabelCell.VerticalAlignment = Element.ALIGN_MIDDLE;
                     sumaLabelCell.Padding = 10;
-                    sumaLabelCell.BorderColor = BaseColor.WHITE;
+                    sumaLabelCell.BorderColor = BaseColor.BLACK;
+                    sumaLabelCell.BorderWidth = 1f;
                     iTextSharp.text.Font fontSumWhite = new iTextSharp.text.Font(bfArial, 12, iTextSharp.text.Font.BOLD, BaseColor.WHITE);
                     sumaLabelCell.Phrase = new Phrase("SUMA SZTUK ZDATNYCH:", fontSumWhite);
                     table.AddCell(sumaLabelCell);
@@ -8530,7 +8571,8 @@ namespace Kalendarz1
                     sumaValueCell.HorizontalAlignment = Element.ALIGN_CENTER;
                     sumaValueCell.VerticalAlignment = Element.ALIGN_MIDDLE;
                     sumaValueCell.Padding = 10;
-                    sumaValueCell.BorderColor = BaseColor.WHITE;
+                    sumaValueCell.BorderColor = BaseColor.BLACK;
+                    sumaValueCell.BorderWidth = 1f;
                     table.AddCell(sumaValueCell);
 
                     doc.Add(table);
@@ -8545,14 +8587,18 @@ namespace Kalendarz1
                     signatureTable.WidthPercentage = 100;
                     signatureTable.SetWidths(new float[] { 50f, 50f });
 
-                    // Lewa kolumna - wygenerowano przez
+                    // Lewa kolumna - USER ID do wpisania
                     PdfPCell leftCell = new PdfPCell();
                     leftCell.Border = Rectangle.NO_BORDER;
                     leftCell.Padding = 10;
 
-                    Paragraph genBy = new Paragraph($"Wygenerowano przez: {Environment.UserName}", fontFooter);
+                    Paragraph userIdLabel = new Paragraph("USER ID (imię i nazwisko):", fontFooter);
+                    Paragraph userIdLine = new Paragraph("_________________________________", fontFooter);
+                    userIdLine.SpacingBefore = 10;
                     Paragraph genDate = new Paragraph($"Data wydruku: {DateTime.Now:dd.MM.yyyy HH:mm}", fontFooter);
-                    leftCell.AddElement(genBy);
+                    genDate.SpacingBefore = 10;
+                    leftCell.AddElement(userIdLabel);
+                    leftCell.AddElement(userIdLine);
                     leftCell.AddElement(genDate);
                     signatureTable.AddCell(leftCell);
 
