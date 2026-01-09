@@ -8567,7 +8567,6 @@ namespace Kalendarz1
                         TypCeny = "wolnyrynek",
                         Ubytek = 0,
                         PiK = false,
-                        SredniaWaga = 0,
                         SupplierColor = GenerateColorForSupplier("")
                     };
 
@@ -9159,16 +9158,19 @@ namespace Kalendarz1
         /// </summary>
         private void LoadPodsumowanieData()
         {
+            var dataGrid = FindName("dataGridPodsumowanie") as DataGrid;
+            var lblData = FindName("lblPodsumowanieData") as TextBlock;
+
             if (specyfikacjeData == null || specyfikacjeData.Count == 0)
             {
                 podsumowanieData.Clear();
-                dataGridPodsumowanie.ItemsSource = podsumowanieData;
+                if (dataGrid != null) dataGrid.ItemsSource = podsumowanieData;
                 UpdatePodsumowanieLabels();
                 return;
             }
 
             DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
-            lblPodsumowanieData.Text = selectedDate.ToString("dd.MM.yyyy");
+            if (lblData != null) lblData.Text = selectedDate.ToString("dd.MM.yyyy");
 
             podsumowanieData.Clear();
             int lp = 1;
@@ -9202,7 +9204,7 @@ namespace Kalendarz1
                 podsumowanieData.Add(row);
             }
 
-            dataGridPodsumowanie.ItemsSource = podsumowanieData;
+            if (dataGrid != null) dataGrid.ItemsSource = podsumowanieData;
             UpdatePodsumowanieLabels();
         }
 
@@ -9211,19 +9213,25 @@ namespace Kalendarz1
         /// </summary>
         private void UpdatePodsumowanieLabels()
         {
-            lblPodsumowanieSumaWierszy.Text = podsumowanieData.Count.ToString();
-            lblPodsumowanieSumaZadekl.Text = podsumowanieData.Sum(r => r.SztukiZadeklarowane).ToString("N0");
-            lblPodsumowanieSumaZdatnych.Text = podsumowanieData.Sum(r => r.SztukiZdatne).ToString("N0");
-            lblPodsumowanieSumaKgZywiec.Text = podsumowanieData.Sum(r => r.IloscKgZywiec).ToString("N0");
+            var lblSumaWierszy = FindName("lblPodsumowanieSumaWierszy") as TextBlock;
+            var lblSumaZadekl = FindName("lblPodsumowanieSumaZadekl") as TextBlock;
+            var lblSumaZdatnych = FindName("lblPodsumowanieSumaZdatnych") as TextBlock;
+            var lblSumaKgZywiec = FindName("lblPodsumowanieSumaKgZywiec") as TextBlock;
+            var lblSrWydajnosc = FindName("lblPodsumowanieSrWydajnosc") as TextBlock;
+
+            if (lblSumaWierszy != null) lblSumaWierszy.Text = podsumowanieData.Count.ToString();
+            if (lblSumaZadekl != null) lblSumaZadekl.Text = podsumowanieData.Sum(r => r.SztukiZadeklarowane).ToString("N0");
+            if (lblSumaZdatnych != null) lblSumaZdatnych.Text = podsumowanieData.Sum(r => r.SztukiZdatne).ToString("N0");
+            if (lblSumaKgZywiec != null) lblSumaKgZywiec.Text = podsumowanieData.Sum(r => r.IloscKgZywiec).ToString("N0");
 
             if (podsumowanieData.Count > 0)
             {
                 decimal srWydajnosc = podsumowanieData.Average(r => r.WydajnoscProcent);
-                lblPodsumowanieSrWydajnosc.Text = $"{srWydajnosc:F2}%";
+                if (lblSrWydajnosc != null) lblSrWydajnosc.Text = $"{srWydajnosc:F2}%";
             }
             else
             {
-                lblPodsumowanieSrWydajnosc.Text = "0%";
+                if (lblSrWydajnosc != null) lblSrWydajnosc.Text = "0%";
             }
         }
 
