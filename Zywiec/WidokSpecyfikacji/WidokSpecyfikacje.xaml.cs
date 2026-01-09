@@ -1243,13 +1243,13 @@ namespace Kalendarz1
             var selected = e.AddedItems[0] as SpecyfikacjaRow;
             if (selected == null) return;
 
-            // Zapisz wybrany wiersz od razu
+            // Zapisz wybrany wiersz od razu - to MUSI być natychmiastowe
             selectedRow = selected;
 
             // Pobierz klucz dostawcy TERAZ (przed Dispatcherem)
             var dostawcaKey = selected.Dostawca?.Trim();
 
-            // Dispatcher tylko do UI - przekazujemy już pobraną wartość
+            // Podświetlenie na NAJNIŻSZYM priorytecie - nie blokuje nawigacji/edycji
             Dispatcher.BeginInvoke(new Action(() =>
             {
                 if (!string.IsNullOrEmpty(dostawcaKey))
@@ -1260,7 +1260,7 @@ namespace Kalendarz1
                 {
                     ClearSupplierHighlight();
                 }
-            }), System.Windows.Threading.DispatcherPriority.Input);
+            }), DispatcherPriority.ApplicationIdle);
         }
 
         // === CurrentCellChanged: Tylko aktualizacja selectedRow ===
@@ -1824,31 +1824,30 @@ namespace Kalendarz1
         // === NAWIGACJA EXCEL-LIKE: Kompleksowa obsługa klawiszy ===
         private void DataGridView1_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            // === ENTER: Przejście w dół (Shift+Enter = góra) ===
+            // === ENTER: Przejście w dół (Shift+Enter = góra) - NATYCHMIASTOWA NAWIGACJA ===
             if (e.Key == Key.Enter)
             {
                 e.Handled = true;
-                var direction = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)
-                    ? FocusNavigationDirection.Up
-                    : FocusNavigationDirection.Down;
-
-                var uiElement = e.OriginalSource as UIElement;
-                uiElement?.MoveFocus(new TraversalRequest(direction));
+                bool goUp = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+                NavigateToNextRow(goUp);
             }
 
-            // === TAB: Przejście w prawo (Shift+Tab = lewo) ===
+            // === TAB: Przejście w prawo (Shift+Tab = lewo) - NATYCHMIASTOWA NAWIGACJA ===
             else if (e.Key == Key.Tab)
             {
-                // Domyślne zachowanie Tab jest OK, ale upewniamy się że działa
-                var direction = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)
-                    ? FocusNavigationDirection.Left
-                    : FocusNavigationDirection.Right;
+                e.Handled = true;
+                bool goLeft = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+                NavigateToNextColumn(goLeft);
+            }
 
-                var uiElement = e.OriginalSource as UIElement;
-                if (uiElement != null)
+            // === STRZAŁKA GÓRA/DÓŁ: Szybka nawigacja między wierszami ===
+            else if (e.Key == Key.Down || e.Key == Key.Up)
+            {
+                // Tylko jeśli nie jesteśmy w trybie edycji TextBox
+                if (!(e.OriginalSource is TextBox))
                 {
                     e.Handled = true;
-                    uiElement.MoveFocus(new TraversalRequest(direction));
+                    NavigateToNextRow(e.Key == Key.Up);
                 }
             }
 
@@ -1872,6 +1871,7 @@ namespace Kalendarz1
                 var cellInfo = dataGridView1.CurrentCell;
                 if (cellInfo.IsValid)
                 {
+                    dataGridView1.BeginEdit();
                     var cellContent = cellInfo.Column.GetCellContent(cellInfo.Item);
                     var textBox = FindVisualChild<TextBox>(cellContent);
                     if (textBox != null)
@@ -1924,6 +1924,113 @@ namespace Kalendarz1
                 e.Handled = true;
                 ApplyFieldsToSupplier(SupplierFieldMask.All);
             }
+        }
+
+        // === NAWIGACJA: Natychmiastowe przejście do następnego/poprzedniego wiersza ===
+        private void NavigateToNextRow(bool goUp)
+        {
+            var currentCell = dataGridView1.CurrentCell;
+            if (!currentCell.IsValid || currentCell.Item == null) return;
+
+            // Zatwierdź bieżącą edycję (nieblokujące)
+            dataGridView1.CommitEdit(DataGridEditingUnit.Cell, true);
+
+            var items = dataGridView1.Items;
+            int currentIndex = items.IndexOf(currentCell.Item);
+            int newIndex = goUp ? currentIndex - 1 : currentIndex + 1;
+
+            // Sprawdź granice
+            if (newIndex < 0 || newIndex >= items.Count) return;
+
+            var newItem = items[newIndex];
+            var column = currentCell.Column;
+
+            // Natychmiast ustaw nową komórkę
+            dataGridView1.CurrentCell = new DataGridCellInfo(newItem, column);
+            dataGridView1.SelectedItem = newItem;
+
+            // Rozpocznij edycję i zaznacz tekst natychmiast
+            BeginEditAndSelectAll();
+        }
+
+        // === NAWIGACJA: Natychmiastowe przejście do następnej/poprzedniej kolumny ===
+        private void NavigateToNextColumn(bool goLeft)
+        {
+            var currentCell = dataGridView1.CurrentCell;
+            if (!currentCell.IsValid || currentCell.Item == null) return;
+
+            // Zatwierdź bieżącą edycję (nieblokujące)
+            dataGridView1.CommitEdit(DataGridEditingUnit.Cell, true);
+
+            var columns = dataGridView1.Columns;
+            int currentColIndex = columns.IndexOf(currentCell.Column);
+
+            // Znajdź następną edytowalną kolumnę
+            int newColIndex = FindNextEditableColumn(currentColIndex, goLeft);
+            if (newColIndex < 0) return;
+
+            var newColumn = columns[newColIndex];
+            var item = currentCell.Item;
+
+            // Natychmiast ustaw nową komórkę
+            dataGridView1.CurrentCell = new DataGridCellInfo(item, newColumn);
+
+            // Rozpocznij edycję i zaznacz tekst natychmiast
+            BeginEditAndSelectAll();
+        }
+
+        // === HELPER: Rozpocznij edycję i zaznacz cały tekst ===
+        private void BeginEditAndSelectAll()
+        {
+            // Natychmiastowe rozpoczęcie edycji
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                dataGridView1.BeginEdit();
+
+                // Po rozpoczęciu edycji zaznacz cały tekst
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    var cellInfo = dataGridView1.CurrentCell;
+                    if (cellInfo.IsValid)
+                    {
+                        var cellContent = cellInfo.Column.GetCellContent(cellInfo.Item);
+                        var textBox = FindVisualChild<TextBox>(cellContent);
+                        if (textBox != null)
+                        {
+                            textBox.Focus();
+                            textBox.SelectAll();
+                        }
+                    }
+                }), DispatcherPriority.Input);
+            }), DispatcherPriority.Send);
+        }
+
+        // === HELPER: Znajdź następną edytowalną kolumnę ===
+        private int FindNextEditableColumn(int currentIndex, bool goLeft)
+        {
+            var columns = dataGridView1.Columns;
+            int count = columns.Count;
+            int step = goLeft ? -1 : 1;
+            int index = currentIndex + step;
+
+            // Szukaj w kierunku (zawijanie do początku/końca)
+            int iterations = 0;
+            while (iterations < count)
+            {
+                if (index < 0) index = count - 1;
+                if (index >= count) index = 0;
+
+                var col = columns[index];
+                if (!col.IsReadOnly && col.Visibility == Visibility.Visible)
+                {
+                    return index;
+                }
+
+                index += step;
+                iterations++;
+            }
+
+            return -1; // Brak edytowalnej kolumny
         }
 
         // === SCHOWEK: Kopiuj ustawienia cenowe wiersza ===
@@ -2324,16 +2431,15 @@ namespace Kalendarz1
                         MarkProductionFieldEdit(columnHeader);
                     }
 
-                    // Używamy Dispatchera, aby obliczenia wykonały się po zaktualizowaniu wartości w modelu
+                    // WAŻNE: Zapisz wiersz od razu (queuing), ale statystyki odłóż na później
+                    int rowId = row.ID;
+                    QueueRowForSave(rowId);
+
+                    // Statystyki na NAJNIŻSZYM priorytecie - nie blokują nawigacji
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        // Odśwież podsumowania
                         UpdateStatistics();
-
-                        // ASYNCHRONICZNY ZAPIS W TLE - użytkownik może od razu kontynuować wprowadzanie
-                        // Zapis wykonuje się po 500ms nieaktywności (debounce)
-                        QueueRowForSave(row.ID);
-                    }), System.Windows.Threading.DispatcherPriority.Background);
+                    }), DispatcherPriority.ApplicationIdle);
                 }
             }
         }

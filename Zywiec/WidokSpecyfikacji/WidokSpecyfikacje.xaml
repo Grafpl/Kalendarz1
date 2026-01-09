@@ -907,7 +907,7 @@
                       CanUserDeleteRows="False"
                       CanUserReorderColumns="False"
                       SelectionMode="Single"
-                      SelectionUnit="FullRow"
+                      SelectionUnit="CellOrRowHeader"
                       GridLinesVisibility="All"
                       HorizontalGridLinesBrush="#E0E0E0"
                       VerticalGridLinesBrush="#EEEEEE"
