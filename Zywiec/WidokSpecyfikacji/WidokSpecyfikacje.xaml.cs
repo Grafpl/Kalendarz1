@@ -35,6 +35,12 @@ namespace Kalendarz1
         public List<DostawcaItem> ListaDostawcow { get; set; }
         public List<string> ListaTypowCen { get; set; } = new List<string> { "wolnyrynek", "rolnicza", "łączona", "ministerialna" };
 
+        // Lista pośredników dla ComboBox (na razie pusta - użytkownik dostarczy dane później)
+        public ObservableCollection<PosrednikItem> ListaPosrednikow { get; set; } = new ObservableCollection<PosrednikItem>();
+
+        // Dane dla karty Podsumowanie
+        private ObservableCollection<PodsumowanieRow> podsumowanieData = new ObservableCollection<PodsumowanieRow>();
+
         // Backwards compatibility
         private List<DostawcaItem> listaDostawcow { get => ListaDostawcow; set => ListaDostawcow = value; }
         private List<string> listaTypowCen { get => ListaTypowCen; set => ListaTypowCen = value; }
@@ -270,8 +276,8 @@ namespace Kalendarz1
             }
         }
 
-        // === WYDAJNOŚĆ: Debounce Timer - zapisuje zmiany po 500ms nieaktywności ===
-        private void DebounceTimer_Tick(object sender, EventArgs e)
+        // === WYDAJNOŚĆ: Debounce Timer - zapisuje zmiany po 500ms nieaktywności ASYNCHRONICZNIE ===
+        private async void DebounceTimer_Tick(object sender, EventArgs e)
         {
             _debounceTimer.Stop();
 
@@ -280,8 +286,8 @@ namespace Kalendarz1
                 var idsToSave = _pendingSaveIds.ToList();
                 _pendingSaveIds.Clear();
 
-                // Zapisz wszystkie oczekujące zmiany w jednym batch
-                SaveRowsBatch(idsToSave);
+                // Zapisz wszystkie oczekujące zmiany w jednym batch - ASYNCHRONICZNIE w tle
+                await SaveRowsBatchAsync(idsToSave);
             }
         }
 
@@ -380,6 +386,9 @@ namespace Kalendarz1
             // Upewnij się że kolumna Symfonia istnieje w bazie
             EnsureSymfoniaColumnExists();
 
+            // Upewnij się że kolumna IdPosrednik istnieje w bazie
+            EnsureIdPosrednikColumnExists();
+
             // Wczytaj ustawienia administracyjne
             LoadAdminSettings();
 
@@ -409,22 +418,29 @@ namespace Kalendarz1
             }
         }
 
+        // Przechowuje aktualny tydzień dla mini kalendarza
+        private DateTime _currentWeekStart;
+
         /// <summary>
-        /// Odświeża mini kalendarz dla aktualnie wybranej daty
+        /// Odświeża mini kalendarz dla aktualnie wybranej daty (Pon-Pt)
         /// </summary>
         private async void RefreshMiniCalendar()
         {
             var selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
             _calendarDays.Clear();
 
-            // Generuj 7 dni (3 wstecz, dzisiaj, 3 wprzód)
-            for (int i = -3; i <= 3; i++)
+            // Znajdź poniedziałek tygodnia zawierającego wybraną datę
+            int daysFromMonday = ((int)selectedDate.DayOfWeek - 1 + 7) % 7;
+            _currentWeekStart = selectedDate.AddDays(-daysFromMonday);
+
+            // Generuj 5 dni (Pon-Pt)
+            for (int i = 0; i < 5; i++)
             {
-                var date = selectedDate.AddDays(i);
+                var date = _currentWeekStart.AddDays(i);
                 _calendarDays.Add(new CalendarDayItem
                 {
                     Date = date,
-                    IsSelected = (i == 0),
+                    IsSelected = (date.Date == selectedDate.Date),
                     HasData = false
                 });
             }
@@ -510,6 +526,26 @@ namespace Kalendarz1
             }
         }
 
+        /// <summary>
+        /// Przejdź do poprzedniego tygodnia
+        /// </summary>
+        private void BtnPrevWeek_Click(object sender, RoutedEventArgs e)
+        {
+            // Przesuń o tydzień wstecz
+            var newDate = _currentWeekStart.AddDays(-7);
+            dateTimePicker1.SelectedDate = newDate;
+        }
+
+        /// <summary>
+        /// Przejdź do następnego tygodnia
+        /// </summary>
+        private void BtnNextWeek_Click(object sender, RoutedEventArgs e)
+        {
+            // Przesuń o tydzień wprzód
+            var newDate = _currentWeekStart.AddDays(7);
+            dateTimePicker1.SelectedDate = newDate;
+        }
+
         #endregion
 
         // === TRANSPORT: Handlery dla karty Transport ===
@@ -539,6 +575,12 @@ namespace Kalendarz1
                 {
                     LoadRozliczeniaData();
                 }
+
+                // Załaduj dane podsumowania gdy przełączono na kartę Podsumowanie (index 4)
+                if (mainTabControl.SelectedIndex == 4)
+                {
+                    LoadPodsumowanieData();
+                }
             }
         }
 
@@ -562,6 +604,228 @@ namespace Kalendarz1
             transportData.Add(newTransport);
             dataGridTransport.SelectedItem = newTransport;
             dataGridTransport.ScrollIntoView(newTransport);
+        }
+
+        /// <summary>
+        /// Diagnostyka transportu - sprawdza problemy i pokazuje szczegółowy raport
+        /// </summary>
+        private void BtnTransportDiagnostyka_Click(object sender, RoutedEventArgs e)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("═══════════════════════════════════════════════════════");
+            sb.AppendLine("       DIAGNOSTYKA TRANSPORTU - RAPORT PROBLEMÓW");
+            sb.AppendLine("═══════════════════════════════════════════════════════");
+            sb.AppendLine();
+
+            DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+            sb.AppendLine($"Data: {selectedDate:dd.MM.yyyy} ({selectedDate.ToString("dddd", new System.Globalization.CultureInfo("pl-PL"))})");
+            sb.AppendLine();
+
+            int problemCount = 0;
+            var problemy = new List<string>();
+
+            // 1. Sprawdź spójność między specyfikacjami a transportem
+            sb.AppendLine(">>> SPÓJNOŚĆ SPECYFIKACJI I TRANSPORTU:");
+            int specCount = specyfikacjeData?.Count ?? 0;
+            int transportCount = transportData?.Count ?? 0;
+
+            if (specCount != transportCount)
+            {
+                problemy.Add($"[!] Liczba specyfikacji ({specCount}) != liczba transportów ({transportCount})");
+                problemCount++;
+            }
+            else
+            {
+                sb.AppendLine($"   [OK] Liczba rekordów zgodna: {specCount} specyfikacji = {transportCount} transportów");
+            }
+            sb.AppendLine();
+
+            // 2. Sprawdź braki w danych transportowych
+            sb.AppendLine(">>> BRAKI W DANYCH TRANSPORTOWYCH:");
+            if (transportData != null)
+            {
+                var brakSamochodu = transportData.Where(t => string.IsNullOrEmpty(t.Samochod)).ToList();
+                var brakRejestracji = transportData.Where(t => string.IsNullOrEmpty(t.NrRejestracyjny)).ToList();
+                var brakKierowcy = transportData.Where(t => string.IsNullOrEmpty(t.Kierowca)).ToList();
+
+                if (brakSamochodu.Any())
+                {
+                    problemy.Add($"[!] Brak samochodu: LP {string.Join(", ", brakSamochodu.Select(t => t.Nr))}");
+                    problemCount++;
+                }
+                if (brakRejestracji.Any())
+                {
+                    problemy.Add($"[!] Brak nr rejestracyjnego: LP {string.Join(", ", brakRejestracji.Select(t => t.Nr))}");
+                    problemCount++;
+                }
+                if (brakKierowcy.Any())
+                {
+                    problemy.Add($"[!] Brak kierowcy: LP {string.Join(", ", brakKierowcy.Select(t => t.Nr))}");
+                    problemCount++;
+                }
+
+                if (!brakSamochodu.Any() && !brakRejestracji.Any() && !brakKierowcy.Any())
+                {
+                    sb.AppendLine("   [OK] Wszystkie transporty mają kompletne dane");
+                }
+            }
+            sb.AppendLine();
+
+            // 3. Sprawdź braki w specyfikacjach
+            sb.AppendLine(">>> BRAKI W SPECYFIKACJACH:");
+            if (specyfikacjeData != null)
+            {
+                var brakDostawcy = specyfikacjeData.Where(s => string.IsNullOrEmpty(s.Dostawca) || s.Dostawca == "Nieznany").ToList();
+                var brakSztuk = specyfikacjeData.Where(s => s.SztukiDek == 0).ToList();
+                var brakCeny = specyfikacjeData.Where(s => s.Cena == 0).ToList();
+
+                if (brakDostawcy.Any())
+                {
+                    problemy.Add($"[!] Brak dostawcy: LP {string.Join(", ", brakDostawcy.Select(s => s.Nr))}");
+                    problemCount++;
+                }
+                if (brakSztuk.Any())
+                {
+                    problemy.Add($"[!] Brak deklaracji sztuk: LP {string.Join(", ", brakSztuk.Select(s => s.Nr))}");
+                    problemCount++;
+                }
+                if (brakCeny.Any())
+                {
+                    problemy.Add($"[!] Brak ceny: LP {string.Join(", ", brakCeny.Select(s => s.Nr))}");
+                    problemCount++;
+                }
+
+                if (!brakDostawcy.Any() && !brakSztuk.Any() && !brakCeny.Any())
+                {
+                    sb.AppendLine("   [OK] Wszystkie specyfikacje mają kompletne dane podstawowe");
+                }
+            }
+            sb.AppendLine();
+
+            // 4. Sprawdź anomalie - duże odchylenia
+            sb.AppendLine(">>> ANOMALIE (duże odchylenia):");
+            if (specyfikacjeData != null && specyfikacjeData.Count > 0)
+            {
+                var avgSztuki = specyfikacjeData.Average(s => s.SztukiDek);
+                var anomalieSztuki = specyfikacjeData.Where(s => s.SztukiDek > 0 && (s.SztukiDek > avgSztuki * 3 || s.SztukiDek < avgSztuki * 0.3)).ToList();
+
+                if (anomalieSztuki.Any())
+                {
+                    foreach (var anom in anomalieSztuki)
+                    {
+                        problemy.Add($"[!] LP {anom.Nr}: Nietypowa liczba sztuk ({anom.SztukiDek}) - średnia: {avgSztuki:N0}");
+                        problemCount++;
+                    }
+                }
+                else
+                {
+                    sb.AppendLine("   [OK] Brak znaczących anomalii w ilościach");
+                }
+
+                // Sprawdź duplikaty dostawców
+                var duplikaty = specyfikacjeData.GroupBy(s => s.Dostawca)
+                    .Where(g => g.Count() > 1 && !string.IsNullOrEmpty(g.Key) && g.Key != "Nieznany")
+                    .ToList();
+
+                if (duplikaty.Any())
+                {
+                    foreach (var dup in duplikaty)
+                    {
+                        sb.AppendLine($"   [i] Dostawca '{dup.Key}' pojawia się {dup.Count()} razy (LP: {string.Join(", ", dup.Select(s => s.Nr))})");
+                    }
+                }
+            }
+            sb.AppendLine();
+
+            // 5. Podsumowanie
+            sb.AppendLine("═══════════════════════════════════════════════════════");
+            sb.AppendLine($"PODSUMOWANIE: Znaleziono {problemCount} problemów");
+            sb.AppendLine("═══════════════════════════════════════════════════════");
+            sb.AppendLine();
+
+            if (problemy.Any())
+            {
+                sb.AppendLine("LISTA PROBLEMÓW:");
+                foreach (var problem in problemy)
+                {
+                    sb.AppendLine($"   {problem}");
+                }
+            }
+            else
+            {
+                sb.AppendLine("Brak wykrytych problemów - wszystko wygląda poprawnie!");
+            }
+
+            // Pokaż okno dialogowe z raportem
+            var diagWindow = new Window
+            {
+                Title = $"Diagnostyka Transportu - {selectedDate:dd.MM.yyyy}",
+                Width = 700,
+                Height = 600,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush(Color.FromRgb(245, 245, 245))
+            };
+
+            var scrollViewer = new ScrollViewer { Margin = new Thickness(15) };
+            var textBlock = new TextBlock
+            {
+                Text = sb.ToString(),
+                FontFamily = new System.Windows.Media.FontFamily("Consolas"),
+                FontSize = 12,
+                TextWrapping = TextWrapping.Wrap
+            };
+            scrollViewer.Content = textBlock;
+
+            var grid = new Grid();
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            Grid.SetRow(scrollViewer, 0);
+            grid.Children.Add(scrollViewer);
+
+            var buttonPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(15, 5, 15, 15)
+            };
+
+            var copyButton = new Button
+            {
+                Content = "Kopiuj do schowka",
+                Padding = new Thickness(15, 8, 15, 8),
+                Margin = new Thickness(0, 0, 10, 0),
+                Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                Foreground = new SolidColorBrush(Colors.White),
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand
+            };
+            copyButton.Click += (s, args) =>
+            {
+                Clipboard.SetText(sb.ToString());
+                MessageBox.Show("Raport skopiowany do schowka!", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            };
+
+            var closeButton = new Button
+            {
+                Content = "Zamknij",
+                Padding = new Thickness(20, 8, 20, 8),
+                Background = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
+                Foreground = new SolidColorBrush(Colors.White),
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand
+            };
+            closeButton.Click += (s, args) => diagWindow.Close();
+
+            buttonPanel.Children.Add(copyButton);
+            buttonPanel.Children.Add(closeButton);
+
+            Grid.SetRow(buttonPanel, 1);
+            grid.Children.Add(buttonPanel);
+
+            diagWindow.Content = grid;
+            diagWindow.ShowDialog();
         }
 
         private void BtnRefreshTransport_Click(object sender, RoutedEventArgs e)
@@ -1057,6 +1321,7 @@ namespace Kalendarz1
                 // Odśwież wszystkie karty przy zmianie daty
                 LoadRozliczeniaData();
                 LoadPlachtaData();
+                LoadPodsumowanieData(); // Auto-odświeżanie karty Podsumowanie
 
                 // Odśwież mini kalendarz
                 RefreshMiniCalendar();
@@ -1228,13 +1493,13 @@ namespace Kalendarz1
             var selected = e.AddedItems[0] as SpecyfikacjaRow;
             if (selected == null) return;
 
-            // Zapisz wybrany wiersz od razu
+            // Zapisz wybrany wiersz od razu - to MUSI być natychmiastowe
             selectedRow = selected;
 
             // Pobierz klucz dostawcy TERAZ (przed Dispatcherem)
             var dostawcaKey = selected.Dostawca?.Trim();
 
-            // Dispatcher tylko do UI - przekazujemy już pobraną wartość
+            // Podświetlenie na NAJNIŻSZYM priorytecie - nie blokuje nawigacji/edycji
             Dispatcher.BeginInvoke(new Action(() =>
             {
                 if (!string.IsNullOrEmpty(dostawcaKey))
@@ -1245,7 +1510,7 @@ namespace Kalendarz1
                 {
                     ClearSupplierHighlight();
                 }
-            }), System.Windows.Threading.DispatcherPriority.Input);
+            }), DispatcherPriority.ApplicationIdle);
         }
 
         // === CurrentCellChanged: Tylko aktualizacja selectedRow ===
@@ -1809,31 +2074,30 @@ namespace Kalendarz1
         // === NAWIGACJA EXCEL-LIKE: Kompleksowa obsługa klawiszy ===
         private void DataGridView1_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            // === ENTER: Przejście w dół (Shift+Enter = góra) ===
+            // === ENTER: Przejście w dół (Shift+Enter = góra) - NATYCHMIASTOWA NAWIGACJA ===
             if (e.Key == Key.Enter)
             {
                 e.Handled = true;
-                var direction = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)
-                    ? FocusNavigationDirection.Up
-                    : FocusNavigationDirection.Down;
-
-                var uiElement = e.OriginalSource as UIElement;
-                uiElement?.MoveFocus(new TraversalRequest(direction));
+                bool goUp = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+                NavigateToNextRow(goUp);
             }
 
-            // === TAB: Przejście w prawo (Shift+Tab = lewo) ===
+            // === TAB: Przejście w prawo (Shift+Tab = lewo) - NATYCHMIASTOWA NAWIGACJA ===
             else if (e.Key == Key.Tab)
             {
-                // Domyślne zachowanie Tab jest OK, ale upewniamy się że działa
-                var direction = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)
-                    ? FocusNavigationDirection.Left
-                    : FocusNavigationDirection.Right;
+                e.Handled = true;
+                bool goLeft = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+                NavigateToNextColumn(goLeft);
+            }
 
-                var uiElement = e.OriginalSource as UIElement;
-                if (uiElement != null)
+            // === STRZAŁKA GÓRA/DÓŁ: Szybka nawigacja między wierszami ===
+            else if (e.Key == Key.Down || e.Key == Key.Up)
+            {
+                // Tylko jeśli nie jesteśmy w trybie edycji TextBox
+                if (!(e.OriginalSource is TextBox))
                 {
                     e.Handled = true;
-                    uiElement.MoveFocus(new TraversalRequest(direction));
+                    NavigateToNextRow(e.Key == Key.Up);
                 }
             }
 
@@ -1857,6 +2121,7 @@ namespace Kalendarz1
                 var cellInfo = dataGridView1.CurrentCell;
                 if (cellInfo.IsValid)
                 {
+                    dataGridView1.BeginEdit();
                     var cellContent = cellInfo.Column.GetCellContent(cellInfo.Item);
                     var textBox = FindVisualChild<TextBox>(cellContent);
                     if (textBox != null)
@@ -1909,6 +2174,113 @@ namespace Kalendarz1
                 e.Handled = true;
                 ApplyFieldsToSupplier(SupplierFieldMask.All);
             }
+        }
+
+        // === NAWIGACJA: Natychmiastowe przejście do następnego/poprzedniego wiersza ===
+        private void NavigateToNextRow(bool goUp)
+        {
+            var currentCell = dataGridView1.CurrentCell;
+            if (!currentCell.IsValid || currentCell.Item == null) return;
+
+            // Zatwierdź bieżącą edycję (nieblokujące)
+            dataGridView1.CommitEdit(DataGridEditingUnit.Cell, true);
+
+            var items = dataGridView1.Items;
+            int currentIndex = items.IndexOf(currentCell.Item);
+            int newIndex = goUp ? currentIndex - 1 : currentIndex + 1;
+
+            // Sprawdź granice
+            if (newIndex < 0 || newIndex >= items.Count) return;
+
+            var newItem = items[newIndex];
+            var column = currentCell.Column;
+
+            // Natychmiast ustaw nową komórkę
+            dataGridView1.CurrentCell = new DataGridCellInfo(newItem, column);
+            dataGridView1.SelectedItem = newItem;
+
+            // Rozpocznij edycję i zaznacz tekst natychmiast
+            BeginEditAndSelectAll();
+        }
+
+        // === NAWIGACJA: Natychmiastowe przejście do następnej/poprzedniej kolumny ===
+        private void NavigateToNextColumn(bool goLeft)
+        {
+            var currentCell = dataGridView1.CurrentCell;
+            if (!currentCell.IsValid || currentCell.Item == null) return;
+
+            // Zatwierdź bieżącą edycję (nieblokujące)
+            dataGridView1.CommitEdit(DataGridEditingUnit.Cell, true);
+
+            var columns = dataGridView1.Columns;
+            int currentColIndex = columns.IndexOf(currentCell.Column);
+
+            // Znajdź następną edytowalną kolumnę
+            int newColIndex = FindNextEditableColumn(currentColIndex, goLeft);
+            if (newColIndex < 0) return;
+
+            var newColumn = columns[newColIndex];
+            var item = currentCell.Item;
+
+            // Natychmiast ustaw nową komórkę
+            dataGridView1.CurrentCell = new DataGridCellInfo(item, newColumn);
+
+            // Rozpocznij edycję i zaznacz tekst natychmiast
+            BeginEditAndSelectAll();
+        }
+
+        // === HELPER: Rozpocznij edycję i zaznacz cały tekst ===
+        private void BeginEditAndSelectAll()
+        {
+            // Natychmiastowe rozpoczęcie edycji
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                dataGridView1.BeginEdit();
+
+                // Po rozpoczęciu edycji zaznacz cały tekst
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    var cellInfo = dataGridView1.CurrentCell;
+                    if (cellInfo.IsValid)
+                    {
+                        var cellContent = cellInfo.Column.GetCellContent(cellInfo.Item);
+                        var textBox = FindVisualChild<TextBox>(cellContent);
+                        if (textBox != null)
+                        {
+                            textBox.Focus();
+                            textBox.SelectAll();
+                        }
+                    }
+                }), DispatcherPriority.Input);
+            }), DispatcherPriority.Send);
+        }
+
+        // === HELPER: Znajdź następną edytowalną kolumnę ===
+        private int FindNextEditableColumn(int currentIndex, bool goLeft)
+        {
+            var columns = dataGridView1.Columns;
+            int count = columns.Count;
+            int step = goLeft ? -1 : 1;
+            int index = currentIndex + step;
+
+            // Szukaj w kierunku (zawijanie do początku/końca)
+            int iterations = 0;
+            while (iterations < count)
+            {
+                if (index < 0) index = count - 1;
+                if (index >= count) index = 0;
+
+                var col = columns[index];
+                if (!col.IsReadOnly && col.Visibility == Visibility.Visible)
+                {
+                    return index;
+                }
+
+                index += step;
+                iterations++;
+            }
+
+            return -1; // Brak edytowalnej kolumny
         }
 
         // === SCHOWEK: Kopiuj ustawienia cenowe wiersza ===
@@ -2309,19 +2681,15 @@ namespace Kalendarz1
                         MarkProductionFieldEdit(columnHeader);
                     }
 
-                    // Używamy Dispatchera, aby obliczenia wykonały się po zaktualizowaniu wartości w modelu
+                    // WAŻNE: Zapisz wiersz od razu (queuing), ale statystyki odłóż na później
+                    int rowId = row.ID;
+                    QueueRowForSave(rowId);
+
+                    // Statystyki na NAJNIŻSZYM priorytecie - nie blokują nawigacji
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        // Tutaj wywołaj swoją logikę przeliczania wiersza
-                        // Zakładam, że masz metodę RecalculateWartosc() w klasie SpecyfikacjaRow
-                        // lub logikę w setterach właściwości.
-
-                        // Jeśli logika jest w setterach, to wystarczy odświeżyć podsumowania:
                         UpdateStatistics();
-
-                        // Opcjonalnie: Kolejkuj auto-zapis (jeśli używasz)
-                        // QueueRowForSave(row.ID);
-                    }), System.Windows.Threading.DispatcherPriority.Background);
+                    }), DispatcherPriority.ApplicationIdle);
                 }
             }
         }
@@ -2443,8 +2811,38 @@ namespace Kalendarz1
             decimal sumaWartosc = specyfikacjeData.Sum(r => r.Wartosc);
             lblSumaWartosc.Text = $"{sumaWartosc:N0} zł";
 
+            // Aktualizuj szybkie statystyki w panelu admina (jeśli istnieją)
+            UpdateQuickStats();
+
             // Aktualizuj wykres słupkowy porównania wag (hodowca vs ubojnia)
             UpdateWeightComparisonChart();
+        }
+
+        /// <summary>
+        /// Aktualizuje szybkie statystyki w panelu administracyjnym
+        /// </summary>
+        private void UpdateQuickStats()
+        {
+            try
+            {
+                var lblSpec = FindName("lblQuickStatSpec") as TextBlock;
+                var lblCena = FindName("lblQuickStatCena") as TextBlock;
+                var lblBezCeny = FindName("lblQuickStatBezCeny") as TextBlock;
+                var lblSztuki = FindName("lblQuickStatSztuki") as TextBlock;
+
+                if (lblSpec == null) return;
+
+                int total = specyfikacjeData?.Count ?? 0;
+                int zCena = specyfikacjeData?.Count(s => s.Cena > 0) ?? 0;
+                int bezCeny = total - zCena;
+                int sumaSzt = specyfikacjeData?.Sum(s => s.SztukiDek) ?? 0;
+
+                lblSpec.Text = total.ToString();
+                lblCena.Text = zCena.ToString();
+                lblBezCeny.Text = bezCeny.ToString();
+                lblSztuki.Text = sumaSzt.ToString("N0");
+            }
+            catch { /* Elementy mogą nie istnieć */ }
         }
 
         /// <summary>
@@ -2952,6 +3350,155 @@ namespace Kalendarz1
             }
         }
 
+        // === WYDAJNOŚĆ: ASYNCHRONICZNY Batch zapis wielu wierszy - NIE BLOKUJE UI ===
+        // Użytkownik może od razu kontynuować wprowadzanie danych, zapis wykonuje się w tle
+        private async Task SaveRowsBatchAsync(List<int> rowIds)
+        {
+            if (rowIds == null || rowIds.Count == 0) return;
+
+            // Skopiuj dane przed uruchomieniem w tle (thread safety)
+            var rowsToSave = new List<(int ID, int Nr, string DostawcaGID, int SztukiDek, int Padle, int CH, int NW, int ZM,
+                int LUMEL, int SztukiWybijak, decimal KilogramyWybijak, decimal Cena, decimal Dodatek, string TypCeny,
+                decimal Ubytek, bool PiK, decimal Opasienie, decimal KlasaB, int TerminDni, decimal SredniaWaga,
+                decimal DoZaplaty, decimal Wartosc, int? IdPosrednik)>();
+
+            foreach (var id in rowIds)
+            {
+                var row = specyfikacjeData.FirstOrDefault(r => r.ID == id);
+                if (row != null)
+                {
+                    rowsToSave.Add((row.ID, row.Nr, row.DostawcaGID, row.SztukiDek, row.Padle, row.CH, row.NW, row.ZM,
+                        row.LUMEL, row.SztukiWybijak, row.KilogramyWybijak, row.Cena, row.Dodatek, row.TypCeny,
+                        row.Ubytek, row.PiK, row.Opasienie, row.KlasaB, row.TerminDni, row.SredniaWaga,
+                        row.DoZaplaty, row.Wartosc, row.IdPosrednik));
+                }
+            }
+
+            if (rowsToSave.Count == 0) return;
+
+            try
+            {
+                // Uruchom zapis w tle - NIE BLOKUJE UI
+                await Task.Run(() =>
+                {
+                    using (SqlConnection connection = new SqlConnection(connectionString))
+                    {
+                        connection.Open();
+                        using (var transaction = connection.BeginTransaction())
+                        {
+                            try
+                            {
+                                foreach (var row in rowsToSave)
+                                {
+                                    // Znajdź ID typu ceny
+                                    int priceTypeId = -1;
+                                    if (!string.IsNullOrEmpty(row.TypCeny))
+                                    {
+                                        priceTypeId = zapytaniasql.ZnajdzIdCeny(row.TypCeny);
+                                    }
+
+                                    string query = @"UPDATE dbo.FarmerCalc SET
+                                        CarLp = @Nr,
+                                        CustomerGID = @DostawcaGID,
+                                        DeclI1 = @SztukiDek,
+                                        DeclI2 = @Padle,
+                                        DeclI3 = @CH,
+                                        DeclI4 = @NW,
+                                        DeclI5 = @ZM,
+                                        LumQnt = @LUMEL,
+                                        ProdQnt = @SztukiWybijak,
+                                        ProdWgt = @KgWybijak,
+                                        Price = @Cena,
+                                        Addition = @Dodatek,
+                                        PriceTypeID = @PriceTypeID,
+                                        Loss = @Ubytek,
+                                        IncDeadConf = @PiK,
+                                        Opasienie = @Opasienie,
+                                        KlasaB = @KlasaB,
+                                        TerminDni = @TerminDni,
+                                        AvgWgt = @AvgWgt,
+                                        PayWgt = @PayWgt,
+                                        PayNet = @PayNet,
+                                        IdPosrednik = @IdPosrednik
+                                        WHERE ID = @ID";
+
+                                    using (SqlCommand cmd = new SqlCommand(query, connection, transaction))
+                                    {
+                                        cmd.Parameters.AddWithValue("@ID", row.ID);
+                                        cmd.Parameters.AddWithValue("@Nr", row.Nr);
+                                        cmd.Parameters.AddWithValue("@DostawcaGID", (object)row.DostawcaGID ?? DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@SztukiDek", row.SztukiDek);
+                                        cmd.Parameters.AddWithValue("@Padle", row.Padle);
+                                        cmd.Parameters.AddWithValue("@CH", row.CH);
+                                        cmd.Parameters.AddWithValue("@NW", row.NW);
+                                        cmd.Parameters.AddWithValue("@ZM", row.ZM);
+                                        cmd.Parameters.AddWithValue("@LUMEL", row.LUMEL);
+                                        cmd.Parameters.AddWithValue("@SztukiWybijak", row.SztukiWybijak);
+                                        cmd.Parameters.AddWithValue("@KgWybijak", row.KilogramyWybijak);
+                                        cmd.Parameters.AddWithValue("@Cena", row.Cena);
+                                        cmd.Parameters.AddWithValue("@Dodatek", row.Dodatek);
+                                        cmd.Parameters.AddWithValue("@PriceTypeID", priceTypeId > 0 ? priceTypeId : (object)DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@Ubytek", row.Ubytek / 100);
+                                        cmd.Parameters.AddWithValue("@PiK", row.PiK);
+                                        cmd.Parameters.AddWithValue("@Opasienie", row.Opasienie);
+                                        cmd.Parameters.AddWithValue("@KlasaB", row.KlasaB);
+                                        cmd.Parameters.AddWithValue("@TerminDni", row.TerminDni);
+                                        cmd.Parameters.AddWithValue("@AvgWgt", row.SredniaWaga);
+                                        cmd.Parameters.AddWithValue("@PayWgt", row.DoZaplaty);
+                                        cmd.Parameters.AddWithValue("@PayNet", row.Wartosc);
+                                        cmd.Parameters.AddWithValue("@IdPosrednik", (object)row.IdPosrednik ?? DBNull.Value);
+                                        cmd.ExecuteNonQuery();
+                                    }
+                                }
+
+                                transaction.Commit();
+                            }
+                            catch
+                            {
+                                transaction.Rollback();
+                                throw;
+                            }
+                        }
+                    }
+                });
+
+                // Aktualizuj UI po zakończeniu zapisu (z powrotem w głównym wątku)
+                UpdateStatus($"✓ Zapisano {rowsToSave.Count} zmian w tle");
+                MarkSaveCompleted();
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Błąd async batch zapisu: {ex.Message}");
+                MarkSaveCompleted();
+            }
+        }
+
+        // === ASYNCHRONICZNY zapis pojedynczego pola - NIE BLOKUJE UI ===
+        private async Task SaveFieldToDatabaseAsync(int id, string columnName, object value)
+        {
+            try
+            {
+                await Task.Run(() =>
+                {
+                    using (SqlConnection connection = new SqlConnection(connectionString))
+                    {
+                        connection.Open();
+                        string query = $"UPDATE dbo.FarmerCalc SET {columnName} = @Value WHERE ID = @ID";
+                        using (SqlCommand cmd = new SqlCommand(query, connection))
+                        {
+                            cmd.Parameters.AddWithValue("@ID", id);
+                            cmd.Parameters.AddWithValue("@Value", value ?? DBNull.Value);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Dispatcher.Invoke(() => UpdateStatus($"Błąd async zapisu: {ex.Message}"));
+            }
+        }
+
         // === BATCH: Zapis wybranych pól dla wielu wierszy w jednym zapytaniu SQL ===
         private void SaveSupplierFieldsBatch(List<int> rowIds, SupplierFieldMask fields,
             decimal? cena = null, decimal? dodatek = null, decimal? ubytek = null,
@@ -3096,126 +3643,128 @@ namespace Kalendarz1
         /// <summary>
         /// Zapisuje zmianę do bazy danych FarmerCalcChangeLog
         /// </summary>
+        // WERSJA NIEBLOKUJĄCA - logowanie zmian w tle
         private void LogChangeToDatabase(int recordId, string fieldName, string oldValue, string newValue, string dostawca = "", int nr = 0, string carId = "")
         {
-            try
+            // Nie loguj jeśli wartości są takie same
+            if (oldValue == newValue) return;
+
+            // Pobierz wartości UI PRZED uruchomieniem w tle
+            DateTime calcDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+            string userId = App.UserID ?? "";
+            string connStr = connectionString;
+
+            // Dodaj do lokalnej listy natychmiast (UI thread)
+            _changeLog.Add(new ChangeLogEntry
             {
-                // Nie loguj jeśli wartości są takie same
-                if (oldValue == newValue) return;
+                Timestamp = DateTime.Now,
+                RowId = recordId,
+                PropertyName = fieldName,
+                OldValue = oldValue,
+                NewValue = newValue,
+                UserName = userId ?? Environment.UserName
+            });
 
-                using (SqlConnection conn = new SqlConnection(connectionString))
+            // Fire-and-forget: zapis do bazy w tle
+            _ = Task.Run(() =>
+            {
+                try
                 {
-                    conn.Open();
-
-                    // Upewnij się, że tabela istnieje z właściwą strukturą
-                    string createTableSql = @"
-                        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FarmerCalcChangeLog')
-                        BEGIN
-                            CREATE TABLE [dbo].[FarmerCalcChangeLog] (
-                                [ID] INT IDENTITY(1,1) PRIMARY KEY,
-                                [FarmerCalcID] INT NULL,
-                                [FieldName] NVARCHAR(100) NULL,
-                                [OldValue] NVARCHAR(500) NULL,
-                                [NewValue] NVARCHAR(500) NULL,
-                                [Dostawca] NVARCHAR(200) NULL,
-                                [ChangedBy] NVARCHAR(100) NULL,
-                                [UserID] NVARCHAR(50) NULL,
-                                [Nr] INT NULL,
-                                [CarID] NVARCHAR(50) NULL,
-                                [ChangeDate] DATETIME DEFAULT GETDATE(),
-                                [CalcDate] DATE NULL
-                            )
-                        END";
-
-                    using (SqlCommand cmd = new SqlCommand(createTableSql, conn))
+                    using (SqlConnection conn = new SqlConnection(connStr))
                     {
-                        cmd.ExecuteNonQuery();
-                    }
+                        conn.Open();
 
-                    // Dodaj brakujące kolumny pojedynczo (każda w osobnym bloku try)
-                    string[] alterCommands = new string[]
-                    {
-                        "IF COL_LENGTH('FarmerCalcChangeLog', 'FarmerCalcID') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [FarmerCalcID] INT NULL",
-                        "IF COL_LENGTH('FarmerCalcChangeLog', 'FieldName') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [FieldName] NVARCHAR(100) NULL",
-                        "IF COL_LENGTH('FarmerCalcChangeLog', 'OldValue') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [OldValue] NVARCHAR(500) NULL",
-                        "IF COL_LENGTH('FarmerCalcChangeLog', 'NewValue') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [NewValue] NVARCHAR(500) NULL",
-                        "IF COL_LENGTH('FarmerCalcChangeLog', 'Dostawca') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [Dostawca] NVARCHAR(200) NULL",
-                        "IF COL_LENGTH('FarmerCalcChangeLog', 'ChangedBy') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [ChangedBy] NVARCHAR(100) NULL",
-                        "IF COL_LENGTH('FarmerCalcChangeLog', 'UserID') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [UserID] NVARCHAR(50) NULL",
-                        "IF COL_LENGTH('FarmerCalcChangeLog', 'Nr') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [Nr] INT NULL",
-                        "IF COL_LENGTH('FarmerCalcChangeLog', 'CarID') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [CarID] NVARCHAR(50) NULL",
-                        "IF COL_LENGTH('FarmerCalcChangeLog', 'ChangeDate') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [ChangeDate] DATETIME NULL",
-                        "IF COL_LENGTH('FarmerCalcChangeLog', 'CalcDate') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [CalcDate] DATE NULL"
-                    };
+                        // Upewnij się, że tabela istnieje z właściwą strukturą
+                        string createTableSql = @"
+                            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FarmerCalcChangeLog')
+                            BEGIN
+                                CREATE TABLE [dbo].[FarmerCalcChangeLog] (
+                                    [ID] INT IDENTITY(1,1) PRIMARY KEY,
+                                    [FarmerCalcID] INT NULL,
+                                    [FieldName] NVARCHAR(100) NULL,
+                                    [OldValue] NVARCHAR(500) NULL,
+                                    [NewValue] NVARCHAR(500) NULL,
+                                    [Dostawca] NVARCHAR(200) NULL,
+                                    [ChangedBy] NVARCHAR(100) NULL,
+                                    [UserID] NVARCHAR(50) NULL,
+                                    [Nr] INT NULL,
+                                    [CarID] NVARCHAR(50) NULL,
+                                    [ChangeDate] DATETIME DEFAULT GETDATE(),
+                                    [CalcDate] DATE NULL
+                                )
+                            END";
 
-                    foreach (var alterCmd in alterCommands)
-                    {
-                        try
+                        using (SqlCommand cmd = new SqlCommand(createTableSql, conn))
                         {
-                            using (SqlCommand cmd = new SqlCommand(alterCmd, conn))
+                            cmd.ExecuteNonQuery();
+                        }
+
+                        // Dodaj brakujące kolumny pojedynczo
+                        string[] alterCommands = new string[]
+                        {
+                            "IF COL_LENGTH('FarmerCalcChangeLog', 'FarmerCalcID') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [FarmerCalcID] INT NULL",
+                            "IF COL_LENGTH('FarmerCalcChangeLog', 'FieldName') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [FieldName] NVARCHAR(100) NULL",
+                            "IF COL_LENGTH('FarmerCalcChangeLog', 'OldValue') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [OldValue] NVARCHAR(500) NULL",
+                            "IF COL_LENGTH('FarmerCalcChangeLog', 'NewValue') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [NewValue] NVARCHAR(500) NULL",
+                            "IF COL_LENGTH('FarmerCalcChangeLog', 'Dostawca') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [Dostawca] NVARCHAR(200) NULL",
+                            "IF COL_LENGTH('FarmerCalcChangeLog', 'ChangedBy') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [ChangedBy] NVARCHAR(100) NULL",
+                            "IF COL_LENGTH('FarmerCalcChangeLog', 'UserID') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [UserID] NVARCHAR(50) NULL",
+                            "IF COL_LENGTH('FarmerCalcChangeLog', 'Nr') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [Nr] INT NULL",
+                            "IF COL_LENGTH('FarmerCalcChangeLog', 'CarID') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [CarID] NVARCHAR(50) NULL",
+                            "IF COL_LENGTH('FarmerCalcChangeLog', 'ChangeDate') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [ChangeDate] DATETIME NULL",
+                            "IF COL_LENGTH('FarmerCalcChangeLog', 'CalcDate') IS NULL ALTER TABLE [dbo].[FarmerCalcChangeLog] ADD [CalcDate] DATE NULL"
+                        };
+
+                        foreach (var alterCmd in alterCommands)
+                        {
+                            try
                             {
-                                cmd.ExecuteNonQuery();
+                                using (SqlCommand cmd = new SqlCommand(alterCmd, conn))
+                                {
+                                    cmd.ExecuteNonQuery();
+                                }
                             }
+                            catch { /* Ignoruj błędy ALTER */ }
                         }
-                        catch { /* Ignoruj błędy ALTER - kolumna może już istnieć */ }
-                    }
 
-                    // Pobierz nazwę użytkownika z bazy na podstawie UserID
-                    string userName = Environment.UserName;
-                    string userId = App.UserID ?? "";
-                    if (!string.IsNullOrEmpty(userId))
-                    {
-                        try
+                        // Pobierz nazwę użytkownika
+                        string userName = Environment.UserName;
+                        if (!string.IsNullOrEmpty(userId))
                         {
-                            NazwaZiD nazwaZiD = new NazwaZiD();
-                            userName = nazwaZiD.GetNameById(userId) ?? userName;
+                            try
+                            {
+                                NazwaZiD nazwaZiD = new NazwaZiD();
+                                userName = nazwaZiD.GetNameById(userId) ?? userName;
+                            }
+                            catch { }
                         }
-                        catch { }
-                    }
 
-                    // Zapisz zmianę z dodatkowymi polami
-                    string sql = @"INSERT INTO [dbo].[FarmerCalcChangeLog]
-                        (FarmerCalcID, FieldName, OldValue, NewValue, Dostawca, ChangedBy, UserID, Nr, CarID, ChangeDate, CalcDate)
-                        VALUES (@FarmerCalcID, @FieldName, @OldValue, @NewValue, @Dostawca, @ChangedBy, @UserID, @Nr, @CarID, GETDATE(), @CalcDate)";
+                        // Zapisz zmianę
+                        string sql = @"INSERT INTO [dbo].[FarmerCalcChangeLog]
+                            (FarmerCalcID, FieldName, OldValue, NewValue, Dostawca, ChangedBy, UserID, Nr, CarID, ChangeDate, CalcDate)
+                            VALUES (@FarmerCalcID, @FieldName, @OldValue, @NewValue, @Dostawca, @ChangedBy, @UserID, @Nr, @CarID, GETDATE(), @CalcDate)";
 
-                    using (SqlCommand cmd = new SqlCommand(sql, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@FarmerCalcID", recordId);
-                        cmd.Parameters.AddWithValue("@FieldName", fieldName ?? "");
-                        cmd.Parameters.AddWithValue("@OldValue", oldValue ?? "");
-                        cmd.Parameters.AddWithValue("@NewValue", newValue ?? "");
-                        cmd.Parameters.AddWithValue("@Dostawca", dostawca ?? "");
-                        cmd.Parameters.AddWithValue("@ChangedBy", userName ?? "system");
-                        cmd.Parameters.AddWithValue("@UserID", userId ?? "");
-                        cmd.Parameters.AddWithValue("@Nr", nr);
-                        cmd.Parameters.AddWithValue("@CarID", carId ?? "");
-                        cmd.Parameters.AddWithValue("@CalcDate", dateTimePicker1.SelectedDate ?? DateTime.Today);
-                        int rowsAffected = cmd.ExecuteNonQuery();
-
-                        if (rowsAffected > 0)
+                        using (SqlCommand cmd = new SqlCommand(sql, conn))
                         {
-                            UpdateStatus($"✓ Zalogowano zmianę: {fieldName} ({oldValue} → {newValue})");
+                            cmd.Parameters.AddWithValue("@FarmerCalcID", recordId);
+                            cmd.Parameters.AddWithValue("@FieldName", fieldName ?? "");
+                            cmd.Parameters.AddWithValue("@OldValue", oldValue ?? "");
+                            cmd.Parameters.AddWithValue("@NewValue", newValue ?? "");
+                            cmd.Parameters.AddWithValue("@Dostawca", dostawca ?? "");
+                            cmd.Parameters.AddWithValue("@ChangedBy", userName ?? "system");
+                            cmd.Parameters.AddWithValue("@UserID", userId ?? "");
+                            cmd.Parameters.AddWithValue("@Nr", nr);
+                            cmd.Parameters.AddWithValue("@CarID", carId ?? "");
+                            cmd.Parameters.AddWithValue("@CalcDate", calcDate);
+                            cmd.ExecuteNonQuery();
                         }
                     }
                 }
-
-                // Dodaj też do lokalnej listy
-                _changeLog.Add(new ChangeLogEntry
+                catch (Exception ex)
                 {
-                    Timestamp = DateTime.Now,
-                    RowId = recordId,
-                    PropertyName = fieldName,
-                    OldValue = oldValue,
-                    NewValue = newValue,
-                    UserName = App.UserID ?? Environment.UserName
-                });
-            }
-            catch (Exception ex)
-            {
-                // POKAŻ BŁĄD UŻYTKOWNIKOWI!
-                UpdateStatus($"BŁĄD logowania: {ex.Message}");
-                MessageBox.Show($"Błąd zapisu do historii zmian:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+                    Dispatcher.BeginInvoke(new Action(() => UpdateStatus($"Błąd logowania: {ex.Message}")));
+                }
+            });
         }
 
         /// <summary>
@@ -4017,6 +4566,16 @@ namespace Kalendarz1
                     rozliczeniaData.Add(item);
                 }
 
+                // Ustaw IsFirstInGroup dla separatorów
+                string previousSupplier = null;
+                for (int i = 0; i < rozliczeniaData.Count; i++)
+                {
+                    var row = rozliczeniaData[i];
+                    string currentSupplier = row.Dostawca ?? "Nieznany";
+                    row.IsFirstInGroup = (previousSupplier != currentSupplier) && (i > 0);
+                    previousSupplier = currentSupplier;
+                }
+
                 UpdateStatus("Rozliczenia pogrupowane według dostawcy");
             }
             else
@@ -4032,7 +4591,70 @@ namespace Kalendarz1
                     rozliczeniaData.Add(item);
                 }
 
+                // Wyłącz separatory
+                foreach (var row in rozliczeniaData)
+                {
+                    row.IsFirstInGroup = false;
+                }
+
                 UpdateStatus("Rozliczenia posortowane według LP");
+            }
+        }
+
+        // === Checkbox: Grupuj wiersze według dostawcy (Transport) ===
+        private void ChkGroupBySupplierTransport_Changed(object sender, RoutedEventArgs e)
+        {
+            var checkbox = sender as CheckBox;
+            bool groupBySupplier = checkbox?.IsChecked == true;
+
+            if (transportData == null || transportData.Count == 0) return;
+
+            if (groupBySupplier)
+            {
+                // Grupuj według dostawcy
+                var grouped = transportData
+                    .OrderBy(x => x.Dostawca)
+                    .ThenBy(x => x.Nr)
+                    .ToList();
+
+                transportData.Clear();
+                foreach (var item in grouped)
+                {
+                    transportData.Add(item);
+                }
+
+                // Ustaw IsFirstInGroup dla separatorów
+                string previousSupplier = null;
+                for (int i = 0; i < transportData.Count; i++)
+                {
+                    var row = transportData[i];
+                    string currentSupplier = row.Dostawca ?? "Nieznany";
+                    row.IsFirstInGroup = (previousSupplier != currentSupplier) && (i > 0);
+                    previousSupplier = currentSupplier;
+                }
+
+                UpdateStatus("Transport pogrupowany według dostawcy");
+            }
+            else
+            {
+                // Sortuj według LP
+                var sorted = transportData
+                    .OrderBy(x => x.Nr)
+                    .ToList();
+
+                transportData.Clear();
+                foreach (var item in sorted)
+                {
+                    transportData.Add(item);
+                }
+
+                // Wyłącz separatory
+                foreach (var row in transportData)
+                {
+                    row.IsFirstInGroup = false;
+                }
+
+                UpdateStatus("Transport posortowany według LP");
             }
         }
 
@@ -4058,6 +4680,16 @@ namespace Kalendarz1
                     plachtaData.Add(item);
                 }
 
+                // Ustaw IsFirstInGroup dla separatorów
+                string previousHodowca = null;
+                for (int i = 0; i < plachtaData.Count; i++)
+                {
+                    var row = plachtaData[i];
+                    string currentHodowca = row.Hodowca ?? "Nieznany";
+                    row.IsFirstInGroup = (previousHodowca != currentHodowca) && (i > 0);
+                    previousHodowca = currentHodowca;
+                }
+
                 UpdateStatus("Płachta pogrupowana według hodowcy");
             }
             else
@@ -4071,6 +4703,12 @@ namespace Kalendarz1
                 foreach (var item in sorted)
                 {
                     plachtaData.Add(item);
+                }
+
+                // Wyłącz separatory
+                foreach (var row in plachtaData)
+                {
+                    row.IsFirstInGroup = false;
                 }
 
                 UpdateStatus("Płachta posortowana według LP");
@@ -4936,8 +5574,8 @@ namespace Kalendarz1
             sumaWartosc = 0;
             sumaKG = 0;
 
-            // A4 pionowa
-            Document doc = new Document(PageSize.A4, 25, 25, 20, 20);
+            // A4 pionowa - mniejsze marginesy dla lepszego wykorzystania strony
+            Document doc = new Document(PageSize.A4, 15, 15, 15, 15);
 
             string sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(
                 zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"),
@@ -5568,11 +6206,38 @@ namespace Kalendarz1
 
                 doc.Add(footerTable);
 
-                // Informacja o wygenerowaniu dokumentu
-                Paragraph generatedBy = new Paragraph($"Wygenerowano przez: {wystawiajacyNazwa}", new Font(polishFont, 7, Font.ITALIC, grayColor));
-                generatedBy.Alignment = Element.ALIGN_RIGHT;
-                generatedBy.SpacingBefore = 10f;
-                doc.Add(generatedBy);
+                // Pobierz informacje o autorach z rozliczeń (ChangeLog)
+                string wprowadzilNazwa = GetWprowadzilNazwa(ids[0]);
+                string zaakceptowalNazwa = wystawiajacyNazwa; // Osoba generująca PDF jako akceptująca
+
+                // Tabela z informacjami o autorach
+                PdfPTable authorsTable = new PdfPTable(3);
+                authorsTable.WidthPercentage = 100;
+                authorsTable.SpacingBefore = 10f;
+                authorsTable.SetWidths(new float[] { 1f, 1f, 1f });
+
+                Font authorLabelFont = new Font(polishFont, 7, Font.BOLD, grayColor);
+                Font authorValueFont = new Font(polishFont, 7, Font.ITALIC, grayColor);
+
+                // Wygenerował
+                PdfPCell genCell = new PdfPCell { Border = PdfPCell.NO_BORDER, Padding = 2 };
+                genCell.AddElement(new Paragraph("Wygenerował:", authorLabelFont) { Alignment = Element.ALIGN_CENTER });
+                genCell.AddElement(new Paragraph(wystawiajacyNazwa, authorValueFont) { Alignment = Element.ALIGN_CENTER });
+                authorsTable.AddCell(genCell);
+
+                // Wprowadził
+                PdfPCell enteredCell = new PdfPCell { Border = PdfPCell.NO_BORDER, Padding = 2 };
+                enteredCell.AddElement(new Paragraph("Wprowadził (rozl.):", authorLabelFont) { Alignment = Element.ALIGN_CENTER });
+                enteredCell.AddElement(new Paragraph(wprowadzilNazwa, authorValueFont) { Alignment = Element.ALIGN_CENTER });
+                authorsTable.AddCell(enteredCell);
+
+                // Zaakceptował
+                PdfPCell approvedCell = new PdfPCell { Border = PdfPCell.NO_BORDER, Padding = 2 };
+                approvedCell.AddElement(new Paragraph("Zaakceptował (rozl.):", authorLabelFont) { Alignment = Element.ALIGN_CENTER });
+                approvedCell.AddElement(new Paragraph(zaakceptowalNazwa, authorValueFont) { Alignment = Element.ALIGN_CENTER });
+                authorsTable.AddCell(approvedCell);
+
+                doc.Add(authorsTable);
 
                 doc.Close();
             }
@@ -6036,26 +6701,31 @@ namespace Kalendarz1
         #region === ENTER - ZASTOSUJ DO WSZYSTKICH DOSTAW OD DOSTAWCY ===
 
         // Metoda pomocnicza do zapisu pojedynczej wartości do bazy
+        // WERSJA NIEBLOKUJĄCA - zapis w tle, natychmiastowa nawigacja klawiszowa
         private void SaveFieldToDatabase(int id, string columnName, object value)
         {
-            try
+            // Fire-and-forget: zapis wykonywany w tle, NIE BLOKUJE UI
+            _ = Task.Run(() =>
             {
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                try
                 {
-                    connection.Open();
-                    string query = $"UPDATE dbo.FarmerCalc SET {columnName} = @Value WHERE ID = @ID";
-                    using (SqlCommand cmd = new SqlCommand(query, connection))
+                    using (SqlConnection connection = new SqlConnection(connectionString))
                     {
-                        cmd.Parameters.AddWithValue("@ID", id);
-                        cmd.Parameters.AddWithValue("@Value", value ?? DBNull.Value);
-                        cmd.ExecuteNonQuery();
+                        connection.Open();
+                        string query = $"UPDATE dbo.FarmerCalc SET {columnName} = @Value WHERE ID = @ID";
+                        using (SqlCommand cmd = new SqlCommand(query, connection))
+                        {
+                            cmd.Parameters.AddWithValue("@ID", id);
+                            cmd.Parameters.AddWithValue("@Value", value ?? DBNull.Value);
+                            cmd.ExecuteNonQuery();
+                        }
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                UpdateStatus($"Błąd zapisu: {ex.Message}");
-            }
+                catch (Exception ex)
+                {
+                    Dispatcher.BeginInvoke(new Action(() => UpdateStatus($"Błąd zapisu: {ex.Message}")));
+                }
+            });
         }
 
         #region === PDF HISTORY ===
@@ -6129,6 +6799,49 @@ namespace Kalendarz1
             {
                 UpdateStatus($"Błąd zapisu historii PDF: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Pobiera nazwę osoby która wprowadzała dane do rozliczeń (z ChangeLog)
+        /// </summary>
+        private string GetWprowadzilNazwa(int farmerCalcId)
+        {
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    // Sprawdź czy tabela istnieje
+                    string checkTable = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'FarmerCalcChangeLog'";
+                    using (SqlCommand checkCmd = new SqlCommand(checkTable, connection))
+                    {
+                        int exists = (int)checkCmd.ExecuteScalar();
+                        if (exists == 0) return "---";
+                    }
+
+                    // Pobierz pierwszą osobę która wprowadzała dane
+                    string query = @"SELECT TOP 1 ChangedBy
+                        FROM [dbo].[FarmerCalcChangeLog]
+                        WHERE FarmerCalcID = @ID
+                        ORDER BY ChangeDate ASC";
+
+                    using (SqlCommand cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@ID", farmerCalcId);
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && result != DBNull.Value)
+                        {
+                            return result.ToString();
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Ignoruj błędy
+            }
+            return "---";
         }
 
         // Sprawdź czy PDF istnieje dla danego dostawcy i dnia
@@ -6991,8 +7704,10 @@ namespace Kalendarz1
                             ISNULL(fc.DeclI1, 0) as SztukiDek,
                             ISNULL(fc.NettoWeight, 0) as NettoKg,
                             ISNULL(fc.Price, 0) as Cena,
+                            ISNULL(fc.Addition, 0) as Dodatek,
                             pt.Name as TypCeny,
-                            ISNULL(fc.NettoWeight, 0) * ISNULL(fc.Price, 0) as Wartosc,
+                            ISNULL(fc.TerminDni, 0) as TerminDni,
+                            ISNULL(fc.NettoWeight, 0) * (ISNULL(fc.Price, 0) + ISNULL(fc.Addition, 0)) as Wartosc,
                             ISNULL(fc.Symfonia, 0) as Symfonia
                         FROM dbo.FarmerCalc fc
                         LEFT JOIN dbo.Dostawcy k ON fc.CustomerGID = k.ID
@@ -7017,7 +7732,9 @@ namespace Kalendarz1
                                     SztukiDek = reader.IsDBNull(reader.GetOrdinal("SztukiDek")) ? 0 : Convert.ToInt32(reader["SztukiDek"]),
                                     NettoKg = reader.IsDBNull(reader.GetOrdinal("NettoKg")) ? 0 : Convert.ToDecimal(reader["NettoKg"]),
                                     Cena = reader.IsDBNull(reader.GetOrdinal("Cena")) ? 0 : Convert.ToDecimal(reader["Cena"]),
+                                    Dodatek = reader.IsDBNull(reader.GetOrdinal("Dodatek")) ? 0 : Convert.ToDecimal(reader["Dodatek"]),
                                     TypCeny = reader.IsDBNull(reader.GetOrdinal("TypCeny")) ? "" : reader["TypCeny"].ToString(),
+                                    TerminDni = reader.IsDBNull(reader.GetOrdinal("TerminDni")) ? 0 : Convert.ToInt32(reader["TerminDni"]),
                                     Wartosc = reader.IsDBNull(reader.GetOrdinal("Wartosc")) ? 0 : Convert.ToDecimal(reader["Wartosc"]),
                                     Symfonia = !reader.IsDBNull(reader.GetOrdinal("Symfonia")) && Convert.ToBoolean(reader["Symfonia"])
                                 });
@@ -7042,6 +7759,24 @@ namespace Kalendarz1
             }
         }
 
+        /// <summary>
+        /// Pobiera pełną nazwę użytkownika na podstawie UserID
+        /// </summary>
+        private string GetCurrentUserDisplayName()
+        {
+            string userId = App.UserID ?? Environment.UserName;
+            try
+            {
+                NazwaZiD nazwaZiD = new NazwaZiD();
+                string fullName = nazwaZiD.GetNameById(userId);
+                return !string.IsNullOrEmpty(fullName) ? fullName : userId;
+            }
+            catch
+            {
+                return userId;
+            }
+        }
+
         private void BtnZatwierdzDzien_Click(object sender, RoutedEventArgs e)
         {
             // Pierwsza kontrola - wprowadzenie WYBRANYCH wierszy
@@ -7055,7 +7790,7 @@ namespace Kalendarz1
                 return;
             }
 
-            string userName = Environment.UserName;
+            string userName = GetCurrentUserDisplayName();
             foreach (var row in selectedRows)
             {
                 row.Zatwierdzony = true;
@@ -7069,7 +7804,7 @@ namespace Kalendarz1
         private void BtnZatwierdzWszystko_Click(object sender, RoutedEventArgs e)
         {
             // Pierwsza kontrola - wprowadzenie WSZYSTKICH niezatwierdzonych wierszy
-            string userName = Environment.UserName;
+            string userName = GetCurrentUserDisplayName();
             int zatwierdzone = 0;
 
             foreach (var row in rozliczeniaData.Where(r => !r.Zatwierdzony))
@@ -7128,7 +7863,7 @@ namespace Kalendarz1
                 return;
             }
 
-            string userName = Environment.UserName;
+            string userName = GetCurrentUserDisplayName();
             int weryfikowane = 0;
             int pominieteSameOsoba = 0;
 
@@ -7164,7 +7899,7 @@ namespace Kalendarz1
         private void BtnWeryfikujWszystko_Click(object sender, RoutedEventArgs e)
         {
             // Weryfikacja WSZYSTKICH zatwierdzonych wierszy
-            string userName = Environment.UserName;
+            string userName = GetCurrentUserDisplayName();
             int weryfikowane = 0;
             int pominieteSameOsoba = 0;
 
@@ -7964,6 +8699,17 @@ namespace Kalendarz1
                     table.AddCell(new PdfPCell(new Phrase(sumaZM.ToString(), fontHeader)) { BackgroundColor = new BaseColor(200, 200, 200), HorizontalAlignment = Element.ALIGN_CENTER });
 
                     doc.Add(table);
+
+                    // Dodaj sekcję podpisów z rozwinięciem userId
+                    doc.Add(new Paragraph(" "));
+
+                    string wystawiajacyNazwa = GetCurrentUserDisplayName();
+                    iTextSharp.text.Font fontFooterPlachta = new iTextSharp.text.Font(bf, 9);
+
+                    Paragraph footerPara = new Paragraph($"Wystawił: {wystawiajacyNazwa}    |    Data wydruku: {DateTime.Now:dd.MM.yyyy HH:mm}", fontFooterPlachta);
+                    footerPara.Alignment = Element.ALIGN_RIGHT;
+                    doc.Add(footerPara);
+
                     doc.Close();
                 }
 
@@ -7973,6 +8719,307 @@ namespace Kalendarz1
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd zapisywania PDF:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Generuje PDF dla lekarzy weterynarii z danymi specyfikacji
+        /// Format: LP, Zestaw, Nazwa hodowcy, Nr specyfikacji, Liczba zdatnych sztuk (LUMEL - sztuki konfiskaty)
+        /// </summary>
+        private void BtnPlachtaDlaLekarzy_Click(object sender, RoutedEventArgs e)
+        {
+            if (plachtaData.Count == 0)
+            {
+                MessageBox.Show("Brak danych do wygenerowania raportu dla lekarzy!", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                // Utwórz ścieżkę dla pliku
+                string yearFolder = selectedDate.Year.ToString();
+                string monthFolder = selectedDate.Month.ToString("D2");
+                string dayFolder = selectedDate.Day.ToString("D2");
+
+                string folderPath = Path.Combine(defaultPlachtaPath, yearFolder, monthFolder, dayFolder);
+
+                // Utwórz folder jeśli nie istnieje
+                if (!Directory.Exists(folderPath))
+                {
+                    Directory.CreateDirectory(folderPath);
+                }
+
+                string fileName = $"DlaLekarzy_{selectedDate:yyyy-MM-dd}_{DateTime.Now:HHmmss}.pdf";
+                string filePath = Path.Combine(folderPath, fileName);
+
+                // Pobierz dane specyfikacji dla obliczenia liczby zdatnych sztuk
+                var specyfikacjeDict = specyfikacjeData?.ToDictionary(s => s.Nr, s => s) ?? new Dictionary<int, SpecyfikacjaRow>();
+
+                // Utwórz PDF z iTextSharp - format pionowy A4 na całą stronę
+                using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    Document doc = new Document(PageSize.A4, 30, 30, 40, 60);
+                    PdfWriter writer = PdfWriter.GetInstance(doc, fs);
+                    doc.Open();
+
+                    // Czcionki
+                    string arialPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "arial.ttf");
+                    BaseFont bfArial;
+                    if (File.Exists(arialPath))
+                    {
+                        bfArial = BaseFont.CreateFont(arialPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+                    }
+                    else
+                    {
+                        bfArial = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1250, BaseFont.NOT_EMBEDDED);
+                    }
+
+                    iTextSharp.text.Font fontTitle = new iTextSharp.text.Font(bfArial, 20, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontSubtitle = new iTextSharp.text.Font(bfArial, 14, iTextSharp.text.Font.NORMAL);
+                    iTextSharp.text.Font fontHeader = new iTextSharp.text.Font(bfArial, 11, iTextSharp.text.Font.BOLD, BaseColor.WHITE);
+                    iTextSharp.text.Font fontData = new iTextSharp.text.Font(bfArial, 11);
+                    iTextSharp.text.Font fontDataBold = new iTextSharp.text.Font(bfArial, 11, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontSum = new iTextSharp.text.Font(bfArial, 12, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontFooter = new iTextSharp.text.Font(bfArial, 10);
+                    iTextSharp.text.Font fontSignature = new iTextSharp.text.Font(bfArial, 10, iTextSharp.text.Font.ITALIC);
+
+                    // Nazwa dnia tygodnia
+                    string[] dniTygodnia = { "NIEDZIELA", "PONIEDZIAŁEK", "WTOREK", "ŚRODA", "CZWARTEK", "PIĄTEK", "SOBOTA" };
+                    string dzienTygodnia = dniTygodnia[(int)selectedDate.DayOfWeek];
+
+                    // === NAGŁÓWEK ===
+                    // Logo firmy (jeśli istnieje)
+                    string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logo.png");
+                    if (File.Exists(logoPath))
+                    {
+                        try
+                        {
+                            iTextSharp.text.Image logo = iTextSharp.text.Image.GetInstance(logoPath);
+                            logo.ScaleToFit(120, 60);
+                            logo.Alignment = Element.ALIGN_CENTER;
+                            doc.Add(logo);
+                            doc.Add(new Paragraph(" "));
+                        }
+                        catch { }
+                    }
+
+                    // Tytuł główny
+                    Paragraph title = new Paragraph("SPECYFIKACJA DLA WETERYNARII", fontTitle);
+                    title.Alignment = Element.ALIGN_CENTER;
+                    title.SpacingAfter = 5;
+                    doc.Add(title);
+
+                    // Podtytuł z datą
+                    Paragraph subtitle = new Paragraph($"Data: {selectedDate:dd.MM.yyyy} ({dzienTygodnia})", fontSubtitle);
+                    subtitle.Alignment = Element.ALIGN_CENTER;
+                    subtitle.SpacingAfter = 20;
+                    doc.Add(subtitle);
+
+                    // === TABELA GŁÓWNA ===
+                    PdfPTable table = new PdfPTable(5);
+                    table.WidthPercentage = 100;
+                    float[] widths = { 12f, 12f, 38f, 13f, 25f };
+                    table.SetWidths(widths);
+                    table.SpacingBefore = 10;
+
+                    // Nagłówki tabeli - szare
+                    BaseColor headerColor = new BaseColor(100, 100, 100); // Szary
+                    iTextSharp.text.Font fontHeaderBW = new iTextSharp.text.Font(bfArial, 10, iTextSharp.text.Font.BOLD, BaseColor.WHITE);
+
+                    string[] headers = { "LP (ZESTAW)", "NR SPEC.", "NAZWA HODOWCY", "KOD", "SZTUKI ZDATNE" };
+                    foreach (var h in headers)
+                    {
+                        PdfPCell cell = new PdfPCell(new Phrase(h, fontHeaderBW));
+                        cell.BackgroundColor = headerColor;
+                        cell.HorizontalAlignment = Element.ALIGN_CENTER;
+                        cell.VerticalAlignment = Element.ALIGN_MIDDLE;
+                        cell.Padding = 8;
+                        cell.BorderColor = BaseColor.BLACK;
+                        cell.BorderWidth = 1f;
+                        table.AddCell(cell);
+                    }
+
+                    // Dane
+                    int sumaSztukZdatnych = 0;
+                    int lp = 1;
+
+                    foreach (var d in plachtaData)
+                    {
+                        // Oblicz sztuki zdatne: LUMEL - sztuki konfiskaty (Padle + CH + NW + ZM)
+                        int sztukiKonfiskaty = d.Padle + d.Chore + d.NW + d.ZM;
+
+                        // Pobierz LUMEL z danych specyfikacji
+                        int lumel = 0;
+                        if (specyfikacjeDict.TryGetValue(d.NrSpec, out var spec))
+                        {
+                            lumel = spec.LUMEL;
+                        }
+                        else
+                        {
+                            // Jeśli nie ma w specyfikacji, użyj ilości deklarowanej minus konfiskaty
+                            lumel = d.IloscDek - sztukiKonfiskaty;
+                        }
+
+                        int sztukiZdatne = lumel - sztukiKonfiskaty;
+                        if (sztukiZdatne < 0) sztukiZdatne = 0;
+
+                        sumaSztukZdatnych += sztukiZdatne;
+
+                        // LP (Zestaw) - np. "1 zestaw"
+                        PdfPCell cellLp = new PdfPCell(new Phrase($"{lp} zestaw", fontDataBold));
+                        cellLp.BackgroundColor = BaseColor.WHITE;
+                        cellLp.HorizontalAlignment = Element.ALIGN_CENTER;
+                        cellLp.VerticalAlignment = Element.ALIGN_MIDDLE;
+                        cellLp.Padding = 6;
+                        cellLp.BorderColor = BaseColor.BLACK;
+                        cellLp.BorderWidth = 0.5f;
+                        table.AddCell(cellLp);
+
+                        // Nr Specyfikacji
+                        PdfPCell cellNrSpec = new PdfPCell(new Phrase(d.NrSpec.ToString(), fontDataBold));
+                        cellNrSpec.BackgroundColor = BaseColor.WHITE;
+                        cellNrSpec.HorizontalAlignment = Element.ALIGN_CENTER;
+                        cellNrSpec.VerticalAlignment = Element.ALIGN_MIDDLE;
+                        cellNrSpec.Padding = 6;
+                        cellNrSpec.BorderColor = BaseColor.BLACK;
+                        cellNrSpec.BorderWidth = 0.5f;
+                        table.AddCell(cellNrSpec);
+
+                        // Nazwa hodowcy
+                        PdfPCell cellHodowca = new PdfPCell(new Phrase(d.Hodowca ?? "-", fontData));
+                        cellHodowca.BackgroundColor = BaseColor.WHITE;
+                        cellHodowca.HorizontalAlignment = Element.ALIGN_LEFT;
+                        cellHodowca.VerticalAlignment = Element.ALIGN_MIDDLE;
+                        cellHodowca.Padding = 6;
+                        cellHodowca.PaddingLeft = 10;
+                        cellHodowca.BorderColor = BaseColor.BLACK;
+                        cellHodowca.BorderWidth = 0.5f;
+                        table.AddCell(cellHodowca);
+
+                        // Kod hodowcy (ID)
+                        PdfPCell cellKod = new PdfPCell(new Phrase(d.KodHodowcy ?? "-", fontData));
+                        cellKod.BackgroundColor = BaseColor.WHITE;
+                        cellKod.HorizontalAlignment = Element.ALIGN_CENTER;
+                        cellKod.VerticalAlignment = Element.ALIGN_MIDDLE;
+                        cellKod.Padding = 6;
+                        cellKod.BorderColor = BaseColor.BLACK;
+                        cellKod.BorderWidth = 0.5f;
+                        table.AddCell(cellKod);
+
+                        // Sztuki zdatne
+                        PdfPCell cellSztuki = new PdfPCell(new Phrase(sztukiZdatne.ToString("N0"), fontDataBold));
+                        cellSztuki.BackgroundColor = BaseColor.WHITE;
+                        cellSztuki.HorizontalAlignment = Element.ALIGN_CENTER;
+                        cellSztuki.VerticalAlignment = Element.ALIGN_MIDDLE;
+                        cellSztuki.Padding = 6;
+                        cellSztuki.BorderColor = BaseColor.BLACK;
+                        cellSztuki.BorderWidth = 0.5f;
+                        table.AddCell(cellSztuki);
+
+                        lp++;
+                    }
+
+                    // Wiersz sumy - szary
+                    BaseColor sumColor = new BaseColor(128, 128, 128); // szary
+
+                    PdfPCell sumaLabelCell = new PdfPCell(new Phrase("SUMA SZTUK ZDATNYCH:", fontSum));
+                    sumaLabelCell.Colspan = 4;
+                    sumaLabelCell.BackgroundColor = sumColor;
+                    sumaLabelCell.HorizontalAlignment = Element.ALIGN_RIGHT;
+                    sumaLabelCell.VerticalAlignment = Element.ALIGN_MIDDLE;
+                    sumaLabelCell.Padding = 10;
+                    sumaLabelCell.BorderColor = BaseColor.BLACK;
+                    sumaLabelCell.BorderWidth = 1f;
+                    iTextSharp.text.Font fontSumWhite = new iTextSharp.text.Font(bfArial, 12, iTextSharp.text.Font.BOLD, BaseColor.WHITE);
+                    sumaLabelCell.Phrase = new Phrase("SUMA SZTUK ZDATNYCH:", fontSumWhite);
+                    table.AddCell(sumaLabelCell);
+
+                    PdfPCell sumaValueCell = new PdfPCell(new Phrase(sumaSztukZdatnych.ToString("N0"), fontSumWhite));
+                    sumaValueCell.BackgroundColor = sumColor;
+                    sumaValueCell.HorizontalAlignment = Element.ALIGN_CENTER;
+                    sumaValueCell.VerticalAlignment = Element.ALIGN_MIDDLE;
+                    sumaValueCell.Padding = 10;
+                    sumaValueCell.BorderColor = BaseColor.BLACK;
+                    sumaValueCell.BorderWidth = 1f;
+                    table.AddCell(sumaValueCell);
+
+                    doc.Add(table);
+
+                    // === SEKCJA PODPISU ===
+                    doc.Add(new Paragraph(" "));
+                    doc.Add(new Paragraph(" "));
+                    doc.Add(new Paragraph(" "));
+
+                    // Tabela z podpisami
+                    PdfPTable signatureTable = new PdfPTable(2);
+                    signatureTable.WidthPercentage = 100;
+                    signatureTable.SetWidths(new float[] { 50f, 50f });
+
+                    // Lewa kolumna - USER ID ze zmiennej
+                    PdfPCell leftCell = new PdfPCell();
+                    leftCell.Border = Rectangle.NO_BORDER;
+                    leftCell.Padding = 10;
+
+                    string userId = App.UserID ?? "---";
+                    Paragraph userIdLabel = new Paragraph($"USER ID: {userId}", fontFooter);
+                    Paragraph genDate = new Paragraph($"Data wydruku: {DateTime.Now:dd.MM.yyyy HH:mm}", fontFooter);
+                    genDate.SpacingBefore = 10;
+                    leftCell.AddElement(userIdLabel);
+                    leftCell.AddElement(genDate);
+                    signatureTable.AddCell(leftCell);
+
+                    // Prawa kolumna - podpis
+                    PdfPCell rightCell = new PdfPCell();
+                    rightCell.Border = Rectangle.NO_BORDER;
+                    rightCell.Padding = 10;
+                    rightCell.HorizontalAlignment = Element.ALIGN_RIGHT;
+
+                    Paragraph signLine = new Paragraph("_______________________________", fontFooter);
+                    signLine.Alignment = Element.ALIGN_CENTER;
+                    Paragraph signLabel = new Paragraph("Podpis lekarza weterynarii", fontSignature);
+                    signLabel.Alignment = Element.ALIGN_CENTER;
+                    signLabel.SpacingBefore = 5;
+
+                    rightCell.AddElement(signLine);
+                    rightCell.AddElement(signLabel);
+                    signatureTable.AddCell(rightCell);
+
+                    doc.Add(signatureTable);
+
+                    // Stopka informacyjna
+                    doc.Add(new Paragraph(" "));
+                    Paragraph footer = new Paragraph(
+                        "UBOJNIA DROBIU \"PIÓRKOWSCY\" JERZY PIÓRKOWSKI\n" +
+                        "Dokument wygenerowany automatycznie z systemu specyfikacji.",
+                        fontSignature);
+                    footer.Alignment = Element.ALIGN_CENTER;
+                    footer.SpacingBefore = 20;
+                    doc.Add(footer);
+
+                    doc.Close();
+                }
+
+                UpdateStatus($"Zapisano PDF dla lekarzy: {fileName}");
+
+                // Pytaj czy otworzyć plik
+                var result = MessageBox.Show(
+                    $"Raport dla lekarzy został zapisany:\n{filePath}\n\nCzy chcesz otworzyć plik?",
+                    "Sukces", MessageBoxButton.YesNo, MessageBoxImage.Information);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = filePath,
+                        UseShellExecute = true
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd generowania PDF dla lekarzy:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -8063,6 +9110,187 @@ namespace Kalendarz1
             {
                 MessageBox.Show($"Błąd otwierania folderu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        #endregion
+
+        #region Dodawanie specyfikacji
+
+        /// <summary>
+        /// Dodaje nową specyfikację do karty Specyfikacje
+        /// </summary>
+        private void BtnDodajSpecyfikacje_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                // Sprawdź czy edycja jest dozwolona
+                if (!CheckEditingAllowed(selectedDate))
+                {
+                    return;
+                }
+
+                // Znajdź następny numer LP
+                int nextNr = 1;
+                if (specyfikacjeData != null && specyfikacjeData.Count > 0)
+                {
+                    nextNr = specyfikacjeData.Max(s => s.Nr) + 1;
+                }
+
+                // Utwórz nowy wiersz w bazie danych
+                int newId = CreateNewSpecyfikacjaInDatabase(selectedDate, nextNr);
+
+                if (newId > 0)
+                {
+                    // Utwórz nowy wiersz w lokalnej kolekcji
+                    var newRow = new SpecyfikacjaRow
+                    {
+                        ID = newId,
+                        Nr = nextNr,
+                        Number = 0,
+                        YearNumber = 0,
+                        Dostawca = "",
+                        RealDostawca = "",
+                        SztukiDek = 0,
+                        Padle = 0,
+                        CH = 0,
+                        NW = 0,
+                        ZM = 0,
+                        LUMEL = 0,
+                        SztukiWybijak = 0,
+                        KilogramyWybijak = 0,
+                        Cena = 0,
+                        Dodatek = 0,
+                        TypCeny = "wolnyrynek",
+                        Ubytek = 0,
+                        PiK = false,
+                        SupplierColor = GenerateColorForSupplier("")
+                    };
+
+                    specyfikacjeData.Add(newRow);
+
+                    // Odśwież DataGrid i zaznacz nowy wiersz
+                    dataGridView1.ItemsSource = null;
+                    dataGridView1.ItemsSource = specyfikacjeData;
+                    dataGridView1.SelectedItem = newRow;
+                    dataGridView1.ScrollIntoView(newRow);
+
+                    // Rozpocznij edycję komórki Dostawca
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        dataGridView1.CurrentCell = new DataGridCellInfo(newRow, dataGridView1.Columns[5]); // Kolumna Dostawca
+                        dataGridView1.BeginEdit();
+                    }), System.Windows.Threading.DispatcherPriority.Background);
+
+                    UpdateStatistics();
+                    UpdateStatus($"Dodano nową specyfikację LP: {nextNr}");
+                }
+                else
+                {
+                    MessageBox.Show("Nie udało się utworzyć nowej specyfikacji w bazie danych.", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd dodawania specyfikacji:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Tworzy nowy wiersz specyfikacji w bazie danych i zwraca jego ID
+        /// </summary>
+        private int CreateNewSpecyfikacjaInDatabase(DateTime calcDate, int carLp)
+        {
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    // Sprawdź czy tabela FarmerCalc istnieje i ma odpowiednie kolumny
+                    string checkQuery = @"
+                        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FarmerCalc')
+                        BEGIN
+                            CREATE TABLE dbo.FarmerCalc (
+                                ID INT IDENTITY(1,1) PRIMARY KEY,
+                                CalcDate DATE NOT NULL,
+                                CarLp INT NOT NULL,
+                                CustomerGID NVARCHAR(50) NULL,
+                                CustomerRealGID NVARCHAR(50) NULL,
+                                DeclI1 INT DEFAULT 0,
+                                DeclI2 INT DEFAULT 0,
+                                DeclI3 INT DEFAULT 0,
+                                DeclI4 INT DEFAULT 0,
+                                DeclI5 INT DEFAULT 0,
+                                LumQnt INT DEFAULT 0,
+                                ProdQnt INT DEFAULT 0,
+                                ProdWgt DECIMAL(18,2) DEFAULT 0,
+                                Price DECIMAL(18,2) DEFAULT 0,
+                                Addition DECIMAL(18,2) DEFAULT 0,
+                                Loss DECIMAL(18,2) DEFAULT 0,
+                                IncDeadConf BIT DEFAULT 0,
+                                NettoWeight DECIMAL(18,2) DEFAULT 0,
+                                Symfonia BIT DEFAULT 0,
+                                PriceTypeID INT NULL,
+                                TerminDni INT DEFAULT 0,
+                                IncPiK BIT DEFAULT 0
+                            )
+                        END";
+
+                    using (SqlCommand checkCmd = new SqlCommand(checkQuery, connection))
+                    {
+                        checkCmd.ExecuteNonQuery();
+                    }
+
+                    string query = @"
+                        INSERT INTO dbo.FarmerCalc (CalcDate, CarLp, CustomerGID, CustomerRealGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5, LumQnt, ProdQnt, ProdWgt, Price, Addition, Loss, IncDeadConf)
+                        OUTPUT INSERTED.ID
+                        VALUES (@CalcDate, @CarLp, NULL, NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)";
+
+                    using (SqlCommand cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@CalcDate", calcDate.Date);
+                        cmd.Parameters.AddWithValue("@CarLp", carLp);
+
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && int.TryParse(result.ToString(), out int newId))
+                        {
+                            return newId;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error creating new specyfikacja: {ex.Message}");
+                MessageBox.Show($"Szczegóły błędu tworzenia specyfikacji:\n{ex.Message}\n\nStack trace:\n{ex.StackTrace}",
+                    "Błąd bazy danych", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
+            return 0;
+        }
+
+        /// <summary>
+        /// Generuje kolor dla dostawcy (do paska bocznego)
+        /// </summary>
+        private string GenerateColorForSupplier(string supplierName)
+        {
+            if (string.IsNullOrEmpty(supplierName))
+                return "#CCCCCC";
+
+            // Użyj hash stringa do generowania koloru
+            int hash = supplierName.GetHashCode();
+            var r = (hash & 0xFF0000) >> 16;
+            var g = (hash & 0x00FF00) >> 8;
+            var b = hash & 0x0000FF;
+
+            // Rozjaśnij kolor, żeby był czytelny
+            r = Math.Min(255, r + 100);
+            g = Math.Min(255, g + 100);
+            b = Math.Min(255, b + 100);
+
+            return $"#{r:X2}{g:X2}{b:X2}";
         }
 
         #endregion
@@ -8259,6 +9487,33 @@ namespace Kalendarz1
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error adding Symfonia column: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Upewnia się, że kolumna IdPosrednik istnieje w tabeli FarmerCalc
+        /// </summary>
+        private void EnsureIdPosrednikColumnExists()
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string addColumnSql = @"
+                        IF COL_LENGTH('FarmerCalc', 'IdPosrednik') IS NULL
+                        BEGIN
+                            ALTER TABLE dbo.FarmerCalc ADD IdPosrednik INT NULL
+                        END";
+                    using (SqlCommand cmd = new SqlCommand(addColumnSql, conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error adding IdPosrednik column: {ex.Message}");
             }
         }
 
@@ -8522,6 +9777,388 @@ namespace Kalendarz1
         }
 
         #endregion
+
+        #region Karta Podsumowanie
+
+        /// <summary>
+        /// Odświeża dane na karcie Podsumowanie
+        /// </summary>
+        private void BtnPodsumowanieRefresh_Click(object sender, RoutedEventArgs e)
+        {
+            LoadPodsumowanieData();
+        }
+
+        /// <summary>
+        /// Ładuje dane do karty Podsumowanie na podstawie aktualnych specyfikacji
+        /// </summary>
+        private void LoadPodsumowanieData()
+        {
+            var dataGrid = FindName("dataGridPodsumowanie") as DataGrid;
+            var lblData = FindName("lblPodsumowanieData") as TextBlock;
+
+            if (specyfikacjeData == null || specyfikacjeData.Count == 0)
+            {
+                podsumowanieData.Clear();
+                if (dataGrid != null) dataGrid.ItemsSource = podsumowanieData;
+                UpdatePodsumowanieLabels();
+                return;
+            }
+
+            DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+            if (lblData != null) lblData.Text = selectedDate.ToString("dd.MM.yyyy");
+
+            podsumowanieData.Clear();
+            int lp = 1;
+
+            foreach (var spec in specyfikacjeData.OrderBy(s => s.Nr))
+            {
+                var row = new PodsumowanieRow
+                {
+                    LP = lp++,
+                    HodowcaDrobiu = spec.RealDostawca ?? spec.Dostawca,
+                    SztukiZadeklarowane = spec.SztukiDek,
+                    SztukiPadle = spec.Padle,
+                    SztukiKonfi = spec.CH + spec.NW + spec.ZM,
+                    KgKonf = (int)(spec.CH * spec.SredniaWaga + spec.NW * spec.SredniaWaga + spec.ZM * spec.SredniaWaga),
+                    KgPadle = (int)(spec.Padle * spec.SredniaWaga),
+                    Lumel = spec.LUMEL,
+                    SztukiKonfiskataT = spec.CH + spec.NW + spec.ZM,
+                    SztukiZdatne = spec.LUMEL - (spec.Padle + spec.CH + spec.NW + spec.ZM),
+                    IloscKgZywiec = spec.NettoUbojniValue > 0 ? spec.NettoUbojniValue : spec.KilogramyWybijak,
+                    SredniaWagaPrzedUbojem = spec.SredniaWaga,
+                    SztukiProdukcjaTuszka = spec.SztukiWybijak,
+                    WagaProdukcjaTuszka = spec.KilogramyWybijak
+                };
+
+                // Oblicz wydajność %: (LUMEL - konfiskaty) / SztukiDek * 100
+                if (spec.SztukiDek > 0)
+                {
+                    row.WydajnoscProcent = ((decimal)(spec.LUMEL - (spec.Padle + spec.CH + spec.NW + spec.ZM)) / spec.SztukiDek) * 100;
+                }
+
+                podsumowanieData.Add(row);
+            }
+
+            if (dataGrid != null) dataGrid.ItemsSource = podsumowanieData;
+            UpdatePodsumowanieLabels();
+        }
+
+        /// <summary>
+        /// Aktualizuje etykiety podsumowania w stopce karty
+        /// </summary>
+        private void UpdatePodsumowanieLabels()
+        {
+            var lblSumaWierszy = FindName("lblPodsumowanieSumaWierszy") as TextBlock;
+            var lblSumaZadekl = FindName("lblPodsumowanieSumaZadekl") as TextBlock;
+            var lblSumaZdatnych = FindName("lblPodsumowanieSumaZdatnych") as TextBlock;
+            var lblSumaKgZywiec = FindName("lblPodsumowanieSumaKgZywiec") as TextBlock;
+            var lblSrWydajnosc = FindName("lblPodsumowanieSrWydajnosc") as TextBlock;
+
+            if (lblSumaWierszy != null) lblSumaWierszy.Text = podsumowanieData.Count.ToString();
+            if (lblSumaZadekl != null) lblSumaZadekl.Text = podsumowanieData.Sum(r => r.SztukiZadeklarowane).ToString("N0");
+            if (lblSumaZdatnych != null) lblSumaZdatnych.Text = podsumowanieData.Sum(r => r.SztukiZdatne).ToString("N0");
+            if (lblSumaKgZywiec != null) lblSumaKgZywiec.Text = podsumowanieData.Sum(r => r.IloscKgZywiec).ToString("N0");
+
+            if (podsumowanieData.Count > 0)
+            {
+                decimal srWydajnosc = podsumowanieData.Average(r => r.WydajnoscProcent);
+                if (lblSrWydajnosc != null) lblSrWydajnosc.Text = $"{srWydajnosc:F2}%";
+            }
+            else
+            {
+                if (lblSrWydajnosc != null) lblSrWydajnosc.Text = "0%";
+            }
+        }
+
+        /// <summary>
+        /// Obsługuje zmianę checkboxa grupowania według odbiorcy w Podsumowaniu
+        /// </summary>
+        private void ChkGroupByOdbiorcaPodsumowanie_Changed(object sender, RoutedEventArgs e)
+        {
+            var checkbox = sender as CheckBox;
+            bool groupByOdbiorca = checkbox?.IsChecked == true;
+
+            if (podsumowanieData == null || podsumowanieData.Count == 0) return;
+
+            var dataGrid = FindName("dataGridPodsumowanie") as DataGrid;
+
+            if (groupByOdbiorca)
+            {
+                // Grupuj według nazwy hodowcy (odbiorca)
+                var grouped = podsumowanieData
+                    .OrderBy(x => x.HodowcaDrobiu)
+                    .ThenBy(x => x.LP)
+                    .ToList();
+
+                podsumowanieData.Clear();
+                string lastHodowca = "";
+                int newLp = 1;
+
+                foreach (var item in grouped)
+                {
+                    // Dodaj separator przy zmianie grupy (poprzez oznaczenie tła)
+                    item.IsGroupStart = (item.HodowcaDrobiu != lastHodowca);
+                    lastHodowca = item.HodowcaDrobiu;
+                    item.LP = newLp++;
+                    podsumowanieData.Add(item);
+                }
+
+                UpdateStatus("Podsumowanie pogrupowane według odbiorcy");
+            }
+            else
+            {
+                // Sortuj według LP oryginalnego
+                LoadPodsumowanieData(); // Przeładuj dane aby zresetować sortowanie
+                UpdateStatus("Podsumowanie posortowane według LP");
+            }
+
+            if (dataGrid != null) dataGrid.Items.Refresh();
+        }
+
+        /// <summary>
+        /// Eksportuje dane z karty Podsumowanie do PDF
+        /// </summary>
+        private void BtnPodsumowanieExportPdf_Click(object sender, RoutedEventArgs e)
+        {
+            if (podsumowanieData.Count == 0)
+            {
+                MessageBox.Show("Brak danych do eksportu!", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+                string yearFolder = selectedDate.Year.ToString();
+                string monthFolder = selectedDate.Month.ToString("D2");
+                string dayFolder = selectedDate.Day.ToString("D2");
+
+                string folderPath = Path.Combine(defaultPdfPath, yearFolder, monthFolder, dayFolder);
+                if (!Directory.Exists(folderPath))
+                {
+                    Directory.CreateDirectory(folderPath);
+                }
+
+                string fileName = $"Podsumowanie_{selectedDate:yyyy-MM-dd}_{DateTime.Now:HHmmss}.pdf";
+                string filePath = Path.Combine(folderPath, fileName);
+
+                using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    // A4 poziomo z minimalnymi marginesami (na całą kartkę)
+                    Document doc = new Document(PageSize.A4.Rotate(), 10, 10, 15, 15);
+                    PdfWriter writer = PdfWriter.GetInstance(doc, fs);
+                    doc.Open();
+
+                    // Czcionki
+                    string arialPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "arial.ttf");
+                    BaseFont bfArial;
+                    if (File.Exists(arialPath))
+                    {
+                        bfArial = BaseFont.CreateFont(arialPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+                    }
+                    else
+                    {
+                        bfArial = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1250, BaseFont.NOT_EMBEDDED);
+                    }
+
+                    // Mniejsze czcionki dla lepszego dopasowania na stronie
+                    iTextSharp.text.Font fontTitle = new iTextSharp.text.Font(bfArial, 14, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontSubtitle = new iTextSharp.text.Font(bfArial, 10);
+                    iTextSharp.text.Font fontHeader = new iTextSharp.text.Font(bfArial, 7, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontData = new iTextSharp.text.Font(bfArial, 7);
+                    iTextSharp.text.Font fontSum = new iTextSharp.text.Font(bfArial, 8, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontFooter = new iTextSharp.text.Font(bfArial, 9);
+
+                    // Tytuł
+                    Paragraph title = new Paragraph("RAPORT Z PRZYJĘCIA ŻYWCA DO UBOJU", fontTitle);
+                    title.Alignment = Element.ALIGN_CENTER;
+                    doc.Add(title);
+
+                    Paragraph subtitle = new Paragraph($"Podsumowanie Specyfikacja Przyjętego Drobiu do Uboju    Data: {selectedDate:dd.MM.yyyy}", fontSubtitle);
+                    subtitle.Alignment = Element.ALIGN_CENTER;
+                    subtitle.SpacingAfter = 15;
+                    doc.Add(subtitle);
+
+                    // Tabela
+                    PdfPTable table = new PdfPTable(19);
+                    table.WidthPercentage = 100;
+                    float[] widths = { 3f, 10f, 5f, 4f, 4f, 4f, 4f, 4f, 4f, 5f, 4f, 4f, 5f, 5f, 5f, 5f, 5f, 5f, 5f };
+                    table.SetWidths(widths);
+
+                    // Nagłówki
+                    string[] headers = { "L.P", "Hodowca Drobiu", "Szt.Zad.", "Padłe", "Konfi", "Suma", "KgKonf", "KgPad", "KgSuma", "Wydaj.%", "Lumel", "KonT", "Zdatne", "KgŻyw", "ŚrWaga", "Szt.Pr", "WgProd", "Róż1", "Róż2" };
+                    BaseColor headerColor = new BaseColor(44, 62, 80);
+
+                    foreach (var h in headers)
+                    {
+                        PdfPCell cell = new PdfPCell(new Phrase(h, fontHeader));
+                        cell.BackgroundColor = headerColor;
+                        cell.HorizontalAlignment = Element.ALIGN_CENTER;
+                        cell.VerticalAlignment = Element.ALIGN_MIDDLE;
+                        cell.Padding = 4; // Mniejszy padding dla kompaktowych wierszy
+                        cell.Phrase.Font.Color = BaseColor.WHITE;
+                        table.AddCell(cell);
+                    }
+
+                    // Dane - z mniejszym paddingiem dla kompaktowych wierszy
+                    float cellPadding = 3f; // Mniejszy padding
+                    foreach (var row in podsumowanieData)
+                    {
+                        table.AddCell(new PdfPCell(new Phrase(row.LP.ToString(), fontData)) { HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.HodowcaDrobiu ?? "-", fontData)) { VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.SztukiZadeklarowane.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding, BackgroundColor = new BaseColor(255, 224, 178) });
+                        table.AddCell(new PdfPCell(new Phrase(row.SztukiPadle.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.SztukiKonfi.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.SztukiSuma.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.KgKonf.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.KgPadle.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.KgSuma.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+
+                        // Wydajność z kolorem
+                        BaseColor wydColor = row.WydajnoscNiska ? new BaseColor(255, 205, 210) : new BaseColor(200, 230, 201);
+                        table.AddCell(new PdfPCell(new Phrase($"{row.WydajnoscProcent:F2}%", fontData)) { HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding, BackgroundColor = wydColor });
+
+                        table.AddCell(new PdfPCell(new Phrase(row.Lumel.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.SztukiKonfiskataT.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.SztukiZdatne.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding, BackgroundColor = new BaseColor(200, 230, 201) });
+                        table.AddCell(new PdfPCell(new Phrase(row.IloscKgZywiec.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.SredniaWagaPrzedUbojem.ToString("F2"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.SztukiProdukcjaTuszka.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.WagaProdukcjaTuszka.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.RoznicaSztukZdatneProd.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        table.AddCell(new PdfPCell(new Phrase(row.RoznicaSztukZdatneZadekl.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                    }
+
+                    // Wiersz sumy - z mniejszym paddingiem
+                    float sumPadding = 4f;
+                    BaseColor sumColor = new BaseColor(200, 200, 200);
+                    PdfPCell sumaCell = new PdfPCell(new Phrase("SUMA:", fontSum));
+                    sumaCell.Colspan = 2;
+                    sumaCell.BackgroundColor = sumColor;
+                    sumaCell.HorizontalAlignment = Element.ALIGN_RIGHT;
+                    sumaCell.VerticalAlignment = Element.ALIGN_MIDDLE;
+                    sumaCell.Padding = sumPadding;
+                    table.AddCell(sumaCell);
+
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiZadeklarowane).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiPadle).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiKonfi).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiSuma).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.KgKonf).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.KgPadle).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.KgSuma).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase($"{podsumowanieData.Average(r => r.WydajnoscProcent):F2}%", fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.Lumel).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiKonfiskataT).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiZdatne).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.IloscKgZywiec).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase($"{podsumowanieData.Average(r => r.SredniaWagaPrzedUbojem):F2}", fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiProdukcjaTuszka).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.WagaProdukcjaTuszka).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.RoznicaSztukZdatneProd).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.RoznicaSztukZdatneZadekl).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+
+                    doc.Add(table);
+
+                    // === SEKCJA PODPISÓW ===
+                    doc.Add(new Paragraph(" "));
+
+                    PdfPTable signatureTable = new PdfPTable(3);
+                    signatureTable.WidthPercentage = 100;
+                    signatureTable.SetWidths(new float[] { 33f, 34f, 33f });
+
+                    // Wprowadził
+                    PdfPCell cellWprowadzil = new PdfPCell();
+                    cellWprowadzil.Border = Rectangle.NO_BORDER;
+                    cellWprowadzil.Padding = 10;
+                    Paragraph wpLabel = new Paragraph("Wprowadził:", fontFooter);
+                    Paragraph wpLine = new Paragraph("_______________________________", fontFooter);
+                    wpLine.SpacingBefore = 15;
+                    cellWprowadzil.AddElement(wpLabel);
+                    cellWprowadzil.AddElement(wpLine);
+                    signatureTable.AddCell(cellWprowadzil);
+
+                    // Data wydruku (środkowa kolumna)
+                    PdfPCell cellData = new PdfPCell();
+                    cellData.Border = Rectangle.NO_BORDER;
+                    cellData.Padding = 10;
+                    cellData.HorizontalAlignment = Element.ALIGN_CENTER;
+                    Paragraph dataLabel = new Paragraph($"Data wydruku: {DateTime.Now:dd.MM.yyyy HH:mm}", fontFooter);
+                    dataLabel.Alignment = Element.ALIGN_CENTER;
+                    dataLabel.SpacingBefore = 25;
+                    cellData.AddElement(dataLabel);
+                    signatureTable.AddCell(cellData);
+
+                    // Zatwierdził
+                    PdfPCell cellZatwierdzil = new PdfPCell();
+                    cellZatwierdzil.Border = Rectangle.NO_BORDER;
+                    cellZatwierdzil.Padding = 10;
+                    cellZatwierdzil.HorizontalAlignment = Element.ALIGN_RIGHT;
+                    Paragraph ztLabel = new Paragraph("Zatwierdził:", fontFooter);
+                    ztLabel.Alignment = Element.ALIGN_RIGHT;
+                    Paragraph ztLine = new Paragraph("_______________________________", fontFooter);
+                    ztLine.Alignment = Element.ALIGN_RIGHT;
+                    ztLine.SpacingBefore = 15;
+                    cellZatwierdzil.AddElement(ztLabel);
+                    cellZatwierdzil.AddElement(ztLine);
+                    signatureTable.AddCell(cellZatwierdzil);
+
+                    doc.Add(signatureTable);
+
+                    doc.Close();
+                }
+
+                UpdateStatus($"Eksportowano PDF: {fileName}");
+                var result = MessageBox.Show($"Podsumowanie zostało wyeksportowane:\n{filePath}\n\nCzy otworzyć plik?", "Sukces", MessageBoxButton.YesNo, MessageBoxImage.Information);
+                if (result == MessageBoxResult.Yes)
+                {
+                    Process.Start(new ProcessStartInfo { FileName = filePath, UseShellExecute = true });
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd eksportu PDF:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Kopiuje dane z karty Podsumowanie do schowka (format dla Excel)
+        /// </summary>
+        private void BtnPodsumowanieCopy_Click(object sender, RoutedEventArgs e)
+        {
+            if (podsumowanieData.Count == 0)
+            {
+                MessageBox.Show("Brak danych do skopiowania!", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                var sb = new StringBuilder();
+
+                // Nagłówki
+                sb.AppendLine("L.P\tHodowca Drobiu\tSzt.Zadeklarowane\tSzt.Padłe\tSzt.Konfi\tSzt.Suma\tKgKonf\tKgPadłe\tKgSuma\tWydajność%\tLumel\tSzt.KonT\tSzt.Zdatne\tKgŻywiec\tŚr.Waga\tSzt.ProdTuszka\tWagaProdTuszka\tRóżn.Zdat-Prod\tRóżn.Zdat-Zadekl");
+
+                // Dane
+                foreach (var row in podsumowanieData)
+                {
+                    sb.AppendLine($"{row.LP}\t{row.HodowcaDrobiu}\t{row.SztukiZadeklarowane}\t{row.SztukiPadle}\t{row.SztukiKonfi}\t{row.SztukiSuma}\t{row.KgKonf}\t{row.KgPadle}\t{row.KgSuma}\t{row.WydajnoscProcent:F2}\t{row.Lumel}\t{row.SztukiKonfiskataT}\t{row.SztukiZdatne}\t{row.IloscKgZywiec:F0}\t{row.SredniaWagaPrzedUbojem:F2}\t{row.SztukiProdukcjaTuszka}\t{row.WagaProdukcjaTuszka:F0}\t{row.RoznicaSztukZdatneProd}\t{row.RoznicaSztukZdatneZadekl}");
+                }
+
+                // Suma
+                sb.AppendLine($"SUMA\t\t{podsumowanieData.Sum(r => r.SztukiZadeklarowane)}\t{podsumowanieData.Sum(r => r.SztukiPadle)}\t{podsumowanieData.Sum(r => r.SztukiKonfi)}\t{podsumowanieData.Sum(r => r.SztukiSuma)}\t{podsumowanieData.Sum(r => r.KgKonf)}\t{podsumowanieData.Sum(r => r.KgPadle)}\t{podsumowanieData.Sum(r => r.KgSuma)}\t{podsumowanieData.Average(r => r.WydajnoscProcent):F2}\t{podsumowanieData.Sum(r => r.Lumel)}\t{podsumowanieData.Sum(r => r.SztukiKonfiskataT)}\t{podsumowanieData.Sum(r => r.SztukiZdatne)}\t{podsumowanieData.Sum(r => r.IloscKgZywiec):F0}\t{podsumowanieData.Average(r => r.SredniaWagaPrzedUbojem):F2}\t{podsumowanieData.Sum(r => r.SztukiProdukcjaTuszka)}\t{podsumowanieData.Sum(r => r.WagaProdukcjaTuszka):F0}\t{podsumowanieData.Sum(r => r.RoznicaSztukZdatneProd)}\t{podsumowanieData.Sum(r => r.RoznicaSztukZdatneZadekl)}");
+
+                Clipboard.SetText(sb.ToString());
+                UpdateStatus("Dane skopiowane do schowka");
+                MessageBox.Show("Dane zostały skopiowane do schowka.\nMożesz wkleić je do Excela (Ctrl+V).", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd kopiowania:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        #endregion
     }
 
     // === KLASY POMOCNICZE ===
@@ -8618,6 +10255,10 @@ namespace Kalendarz1
         private bool _isFirstInGroup;
         private bool _isLastInGroup;
 
+        // Pośrednik
+        private int? _idPosrednik;
+        private string _posrednikNazwa;
+
         public bool IsHighlighted
         {
             get => _isHighlighted;
@@ -8691,6 +10332,19 @@ namespace Kalendarz1
         {
             get => _realDostawca;
             set { _realDostawca = value; OnPropertyChanged(nameof(RealDostawca)); }
+        }
+
+        // Pośrednik - ID i nazwa
+        public int? IdPosrednik
+        {
+            get => _idPosrednik;
+            set { _idPosrednik = value; OnPropertyChanged(nameof(IdPosrednik)); OnPropertyChanged(nameof(PosrednikNazwa)); }
+        }
+
+        public string PosrednikNazwa
+        {
+            get => _posrednikNazwa;
+            set { _posrednikNazwa = value; OnPropertyChanged(nameof(PosrednikNazwa)); }
         }
 
         public int SztukiDek
@@ -9602,6 +11256,14 @@ namespace Kalendarz1
             }
         }
 
+        // === GRUPOWANIE: Właściwość dla separatora grupy ===
+        private bool _isFirstInGroup;
+        public bool IsFirstInGroup
+        {
+            get => _isFirstInGroup;
+            set { _isFirstInGroup = value; OnPropertyChanged(nameof(IsFirstInGroup)); }
+        }
+
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)
         {
@@ -9893,7 +11555,9 @@ namespace Kalendarz1
         public int SztukiDek { get; set; }
         public decimal NettoKg { get; set; }
         public decimal Cena { get; set; }
+        public decimal Dodatek { get; set; }
         public string TypCeny { get; set; }
+        public int TerminDni { get; set; }
         public decimal Wartosc { get; set; }
 
         private bool _symfonia;
@@ -9935,6 +11599,14 @@ namespace Kalendarz1
         /// Wiersz jest zablokowany gdy zarówno Zatwierdzony jak i Zweryfikowany są true
         /// </summary>
         public bool JestZablokowany => Zatwierdzony && Zweryfikowany;
+
+        // === GRUPOWANIE: Właściwość dla separatora grupy ===
+        private bool _isFirstInGroup;
+        public bool IsFirstInGroup
+        {
+            get => _isFirstInGroup;
+            set { _isFirstInGroup = value; OnPropertyChanged(nameof(IsFirstInGroup)); }
+        }
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)
@@ -10004,6 +11676,14 @@ namespace Kalendarz1
         public bool Status { get; set; }
         public int CustomerGID { get; set; }
 
+        // === GRUPOWANIE: Właściwość dla separatora grupy ===
+        private bool _isFirstInGroup;
+        public bool IsFirstInGroup
+        {
+            get => _isFirstInGroup;
+            set { _isFirstInGroup = value; OnPropertyChanged(nameof(IsFirstInGroup)); }
+        }
+
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)
         {
@@ -10046,6 +11726,56 @@ namespace Kalendarz1
         public string ToolTipText => HasData
             ? $"{Date:dd.MM.yyyy} ({DayName})\n{RecordCount} rekordów"
             : $"{Date:dd.MM.yyyy} ({DayName})\nBrak danych";
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+
+    /// <summary>
+    /// Model dla pośrednika - używany w ComboBox kolumny Pośrednik
+    /// Użytkownik dostarczy tabelę z danymi pośredników później
+    /// </summary>
+    public class PosrednikItem
+    {
+        public int ID { get; set; }
+        public string Nazwa { get; set; }
+        public string Kod { get; set; }
+    }
+
+    /// <summary>
+    /// Model dla karty Podsumowanie - Raport z przyjęcia żywca do uboju
+    /// Agreguje dane specyfikacji dla każdego hodowcy
+    /// </summary>
+    public class PodsumowanieRow : INotifyPropertyChanged
+    {
+        public int LP { get; set; }
+        public string HodowcaDrobiu { get; set; }
+        public int SztukiZadeklarowane { get; set; }
+        public int SztukiPadle { get; set; }
+        public int SztukiKonfi { get; set; }
+        public int SztukiSuma => SztukiPadle + SztukiKonfi;
+        public int KgKonf { get; set; }
+        public int KgPadle { get; set; }
+        public int KgSuma => KgKonf + KgPadle;
+        public decimal WydajnoscProcent { get; set; }
+        public bool WydajnoscNiska => WydajnoscProcent < 77;
+        public int Lumel { get; set; }
+        public int SztukiKonfiskataT { get; set; }
+        public int SztukiZdatne { get; set; }
+        public decimal IloscKgZywiec { get; set; }
+        public decimal SredniaWagaPrzedUbojem { get; set; }
+        public int SztukiProdukcjaTuszka { get; set; }
+        public decimal WagaProdukcjaTuszka { get; set; }
+        public int RoznicaSztukZdatneProd => SztukiZdatne - SztukiProdukcjaTuszka;
+        public bool RoznicaSztukUjemna => RoznicaSztukZdatneProd < 0;
+        public int RoznicaSztukZdatneZadekl => SztukiZdatne - SztukiZadeklarowane;
+        public bool RoznicaSztukZadeklUjemna => RoznicaSztukZdatneZadekl < 0;
+
+        // Właściwość do oznaczenia początku nowej grupy (dla grupowania wg odbiorcy)
+        public bool IsGroupStart { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)
