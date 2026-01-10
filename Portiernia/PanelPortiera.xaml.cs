@@ -1,126 +1,252 @@
 using Microsoft.Data.SqlClient;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Drawing;
-using System.Drawing.Printing;
 using System.Globalization;
 using System.IO.Ports;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace Kalendarz1
 {
-    /// <summary>
-    /// Panel Portiera - dotykowy interfejs do rejestracji wag dostaw żywca
-    /// Zapisuje wagi do tabeli FarmerCalc wraz z historią (kto, kiedy, skąd)
-    /// </summary>
-    public partial class PanelPortiera : Window
+    public class InverseBooleanToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            => (value is bool b && b) ? Visibility.Collapsed : Visibility.Visible;
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotImplementedException();
+    }
+
+    public class Odbiorca
+    {
+        public string ID { get; set; }
+        public string Nazwa { get; set; }
+    }
+
+    public partial class PanelPortiera : Window, INotifyPropertyChanged
     {
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
 
         private ObservableCollection<DostawaPortiera> dostawy;
-        private DostawaPortiera wybranaDostwa;
-        private DateTime selectedDate = DateTime.Today;
+        private DostawaPortiera _wybranaDostwa;
 
-        // Aktywne pole wprowadzania (Brutto lub Tara)
+        public DostawaPortiera WybranaDostwa
+        {
+            get => _wybranaDostwa;
+            set { _wybranaDostwa = value; OnPropertyChanged(nameof(WybranaDostwa)); }
+        }
+
+        private DateTime _selectedDate = DateTime.Today;
+        public DateTime SelectedDate
+        {
+            get => _selectedDate;
+            set { if (_selectedDate != value) { _selectedDate = value; OnPropertyChanged(nameof(SelectedDate)); LoadDostawy(); } }
+        }
+
         private enum AktywnePole { Brutto, Tara }
         private AktywnePole aktywnePole = AktywnePole.Brutto;
+        private string aktualnyTryb = "Avilog";
 
-        // Źródło zapisu wagi
-        private const string WEIGHT_SOURCE = "PanelPortiera";
-
-        // Timery
-        private System.Windows.Threading.DispatcherTimer autoRefreshTimer;
-        private System.Windows.Threading.DispatcherTimer dateCheckTimer;
-
-        // Waga elektroniczna
         private SerialPort serialPort;
-        private bool scaleConnected = false;
-        private StringBuilder scaleBuffer = new StringBuilder();
+        private DispatcherTimer autoRefreshTimer;
+        private DispatcherTimer clockTimer;
+
+        public ObservableCollection<Odbiorca> ListaOdbiorcow { get; set; } = new ObservableCollection<Odbiorca>();
 
         public PanelPortiera()
         {
             InitializeComponent();
+            System.Threading.Thread.CurrentThread.CurrentCulture = new CultureInfo("pl-PL");
+            System.Threading.Thread.CurrentThread.CurrentUICulture = new CultureInfo("pl-PL");
+            DataContext = this;
+
             dostawy = new ObservableCollection<DostawaPortiera>();
             listDostawy.ItemsSource = dostawy;
+            gridTable.ItemsSource = dostawy;
+            cbOdbiorcy.ItemsSource = ListaOdbiorcow;
         }
 
-        public PanelPortiera(DateTime data) : this()
-        {
-            selectedDate = data;
-        }
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            UpdateDateDisplay();
             LoadDostawy();
+            // LoadOdbiorcy() wywołujemy teraz dynamicznie przy zmianie towaru
 
-            // Domyślnie aktywne pole Brutto
-            SetAktywnePole(AktywnePole.Brutto);
-
-            // Timer auto-odświeżania co 5 minut
-            autoRefreshTimer = new System.Windows.Threading.DispatcherTimer();
-            autoRefreshTimer.Interval = TimeSpan.FromMinutes(5);
-            autoRefreshTimer.Tick += AutoRefreshTimer_Tick;
+            autoRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(5) };
+            autoRefreshTimer.Tick += (s, ev) => LoadDostawy();
             autoRefreshTimer.Start();
-
-            // Timer sprawdzania daty co godzinę
-            dateCheckTimer = new System.Windows.Threading.DispatcherTimer();
-            dateCheckTimer.Interval = TimeSpan.FromHours(1);
-            dateCheckTimer.Tick += DateCheckTimer_Tick;
-            dateCheckTimer.Start();
+            clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            clockTimer.Tick += (s, ev) => lblTime.Text = DateTime.Now.ToString("HH:mm");
+            clockTimer.Start();
+            lblTime.Text = DateTime.Now.ToString("HH:mm");
+            ConnectToScale("COM3", 9600);
         }
 
-        private void AutoRefreshTimer_Tick(object sender, EventArgs e)
+        // === LOGIKA ODBIORCÓW NA SZTYWNO ===
+        private void UpdateOdbiorcy(string towar)
         {
-            // Auto-odświeżanie listy dostaw co 5 minut
-            LoadDostawy();
+            ListaOdbiorcow.Clear();
+            string domyslny = "";
 
-            // Jeśli była wybrana dostawa, spróbuj ją odświeżyć
-            if (wybranaDostwa != null)
+            if (towar == "JELITA")
             {
-                var odswiezona = dostawy.FirstOrDefault(d => d.ID == wybranaDostwa.ID);
-                if (odswiezona != null)
+                ListaOdbiorcow.Add(new Odbiorca { ID = "1", Nazwa = "Jasta" });
+                ListaOdbiorcow.Add(new Odbiorca { ID = "2", Nazwa = "General Food Supply" });
+                domyslny = "Jasta";
+            }
+            else if (towar == "PIÓRA")
+            {
+                ListaOdbiorcow.Add(new Odbiorca { ID = "1", Nazwa = "Jasta" });
+                domyslny = "Jasta";
+            }
+            else if (towar == "KREW")
+            {
+                ListaOdbiorcow.Add(new Odbiorca { ID = "1", Nazwa = "Jasta" });
+                ListaOdbiorcow.Add(new Odbiorca { ID = "2", Nazwa = "General Food Supply" });
+                // Brak domyślnego w wymaganiach, ale ustawmy pierwszy
+                domyslny = "Jasta";
+            }
+            else if (towar == "ŁAPY")
+            {
+                ListaOdbiorcow.Add(new Odbiorca { ID = "3", Nazwa = "Marcin Piórkowski" });
+                domyslny = "Marcin Piórkowski";
+            }
+
+            // Ustaw domyślnego
+            if (!string.IsNullOrEmpty(domyslny))
+                cbOdbiorcy.Text = domyslny;
+        }
+
+        private void UpdateThemeColor(string towar)
+        {
+            Color color;
+            if (towar == "KREW") color = (Color)ColorConverter.ConvertFromString("#D32F2F"); // Czerwony
+            else if (towar == "ŁAPY") color = (Color)ColorConverter.ConvertFromString("#FFC107"); // Żółty/Bursztynowy
+            else if (towar == "PIÓRA") color = (Color)ColorConverter.ConvertFromString("#9E9E9E"); // Szary/Biały (żeby tekst był widoczny)
+            else if (towar == "JELITA") color = (Color)ColorConverter.ConvertFromString("#795548"); // Brązowy (Odpady)
+            else color = (Color)ColorConverter.ConvertFromString("#F44336"); // Domyślny
+
+            this.Resources["ThemeColor"] = new SolidColorBrush(color);
+        }
+
+        public void BtnCommodity_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is RadioButton rb)
+            {
+                string towar = rb.Content.ToString();
+
+                // Aktualizuj kolory interfejsu
+                UpdateThemeColor(towar);
+
+                // Aktualizuj listę odbiorców
+                UpdateOdbiorcy(towar);
+
+                if (WybranaDostwa != null)
                 {
-                    WybierzDostawe(odswiezona);
+                    WybranaDostwa.Towar = towar;
+                    // Jeśli to nowy wpis, ustaw też domyślnego odbiorcę od razu w obiekcie
+                    if (cbOdbiorcy.Items.Count > 0)
+                        WybranaDostwa.HodowcaNazwa = cbOdbiorcy.Text;
                 }
             }
         }
 
-        private void DateCheckTimer_Tick(object sender, EventArgs e)
+        // === KLAWIATURA EKRANOWA ===
+        private void TxtEditRejestracja_Click(object sender, MouseButtonEventArgs e)
         {
-            // Sprawdź czy wybrana data to dzisiejsza data
-            if (selectedDate.Date != DateTime.Today)
+            KeyboardOverlay.Visibility = Visibility.Visible;
+        }
+
+        private void CloseKeyboard_Click(object sender, RoutedEventArgs e)
+        {
+            KeyboardOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        private void Keyboard_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn)
             {
-                // Automatycznie przełącz na dzisiejszą datę
-                selectedDate = DateTime.Today;
-                UpdateDateDisplay();
+                txtEditRejestracja.Text += btn.Content.ToString();
+                // Aktualizuj też obiekt
+                if (WybranaDostwa != null) WybranaDostwa.NrRejestracyjny = txtEditRejestracja.Text;
+            }
+        }
+
+        private void KeyboardBackspace_Click(object sender, RoutedEventArgs e)
+        {
+            if (txtEditRejestracja.Text.Length > 0)
+            {
+                txtEditRejestracja.Text = txtEditRejestracja.Text.Substring(0, txtEditRejestracja.Text.Length - 1);
+                if (WybranaDostwa != null) WybranaDostwa.NrRejestracyjny = txtEditRejestracja.Text;
+            }
+        }
+
+
+        // === RESZTA KODU BEZ ZMIAN ===
+        public void BtnClose_Click(object sender, RoutedEventArgs e)
+        {
+            if (MessageBox.Show("Zamknąć system?", "Wyjście", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+            {
+                if (serialPort != null && serialPort.IsOpen) serialPort.Close();
+                this.Close();
+            }
+        }
+
+        public void BtnRefresh_Click(object sender, RoutedEventArgs e) => LoadDostawy();
+        public void PrevDay_Click(object sender, RoutedEventArgs e) => SelectedDate = SelectedDate.AddDays(-1);
+        public void NextDay_Click(object sender, RoutedEventArgs e) => SelectedDate = SelectedDate.AddDays(1);
+        public void DatePicker_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is DatePicker dp && dp.SelectedDate.HasValue) SelectedDate = dp.SelectedDate.Value;
+        }
+
+        public void ZmienTryb_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is RadioButton rb && rb.Tag != null)
+            {
+                string tag = rb.Tag.ToString();
+                if (tag == "🐔") aktualnyTryb = "Avilog";
+                else aktualnyTryb = "Odpady";
+
+                if (aktualnyTryb == "Avilog")
+                {
+                    this.Resources["ThemeColor"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFA726"));
+                    lblHeaderTitle.Text = "LISTA: AVILOG";
+                    viewTiles.Visibility = Visibility.Visible;
+                    gridTable.Visibility = Visibility.Collapsed;
+                    panelButtonsLeft.Visibility = Visibility.Collapsed;
+                    panelCommodity.Visibility = Visibility.Collapsed;
+                    lblOdbiorcaTitle.Text = "Kierowca:";
+                }
+                else
+                {
+                    // Domyślnie czerwony dla odpadów, ale zmieni się po kliknięciu towaru
+                    this.Resources["ThemeColor"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F44336"));
+                    lblHeaderTitle.Text = "LISTA: ODPADY";
+                    viewTiles.Visibility = Visibility.Collapsed;
+                    gridTable.Visibility = Visibility.Visible;
+                    panelButtonsLeft.Visibility = Visibility.Visible;
+                    panelCommodity.Visibility = Visibility.Visible;
+                    lblOdbiorcaTitle.Text = "Odbiorca:";
+
+                    // Domyślnie zaznacz Krew
+                    btnKrew.IsChecked = true;
+                    BtnCommodity_Click(btnKrew, null);
+                }
+
                 LoadDostawy();
                 ClearWybranaDostwa();
             }
         }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            // Zatrzymaj timery przy zamykaniu okna
-            autoRefreshTimer?.Stop();
-            dateCheckTimer?.Stop();
-
-            // Rozłącz wagę
-            if (scaleConnected)
-            {
-                DisconnectScale();
-            }
-
-            base.OnClosed(e);
-        }
-
-        #region Ładowanie danych z FarmerCalc
 
         private void LoadDostawy()
         {
@@ -132,894 +258,370 @@ namespace Kalendarz1
                 {
                     conn.Open();
 
-                    // Pobierz dostawy z FarmerCalc dla wybranej daty
-                    // Używamy subquery do pobrania nazwy hodowcy (obsługa varchar ID ze spacjami)
-                    string query = @"
-                        SELECT 
-                            fc.ID,
-                            fc.LpDostawy,
-                            fc.CustomerGID,
+                    if (aktualnyTryb == "Avilog")
+                    {
+                        string query = @"SELECT fc.ID, fc.LpDostawy, fc.CustomerGID,
                             (SELECT TOP 1 ShortName FROM dbo.Dostawcy WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(fc.CustomerGID))) as HodowcaNazwa,
-                            fc.DriverGID,
-                            ISNULL(dr.[Name], '') as KierowcaNazwa,
-                            fc.CarID,
-                            fc.TrailerID,
-                            fc.Wyjazd,
-                            fc.Zaladunek,
-                            fc.Przyjazd,
-                            fc.SztPoj,
-                            fc.WagaDek,
-                            ISNULL(fc.FullFarmWeight, 0) as BruttoHodowcy,
-                            ISNULL(fc.EmptyFarmWeight, 0) as TaraHodowcy,
-                            ISNULL(fc.NettoFarmWeight, 0) as NettoHodowcy,
-                            fc.FarmWeightDate,
-                            fc.FarmWeightUser,
-                            fc.FarmWeightSource,
-                            fc.NotkaWozek
+                            ISNULL(dr.[Name], '') as KierowcaNazwa, fc.CarID, fc.TrailerID, fc.SztPoj,
+                            ISNULL(fc.FullFarmWeight, 0) as Brutto, ISNULL(fc.EmptyFarmWeight, 0) as Tara, ISNULL(fc.NettoFarmWeight, 0) as Netto
                         FROM dbo.FarmerCalc fc
                         LEFT JOIN dbo.Driver dr ON fc.DriverGID = dr.GID
                         WHERE CAST(fc.CalcDate AS DATE) = @Data
-                        ORDER BY 
-                            CASE WHEN ISNUMERIC(fc.LpDostawy) = 1 THEN CAST(fc.LpDostawy AS INT) ELSE 999999 END,
-                            fc.ID";
+                        ORDER BY CASE WHEN ISNUMERIC(fc.LpDostawy) = 1 THEN CAST(fc.LpDostawy AS INT) ELSE 999999 END, fc.ID";
 
-                    using (SqlCommand cmd = new SqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@Data", selectedDate.Date);
-
-                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        using (SqlCommand cmd = new SqlCommand(query, conn))
                         {
-                            int lp = 1;
-                            while (reader.Read())
+                            cmd.Parameters.AddWithValue("@Data", SelectedDate);
+                            using (SqlDataReader r = cmd.ExecuteReader())
                             {
-                                string customerGID = reader["CustomerGID"]?.ToString()?.Trim() ?? "";
-                                string hodowcaNazwa = reader["HodowcaNazwa"]?.ToString() ?? "";
-
-                                // Jeśli brak nazwy hodowcy
-                                if (string.IsNullOrEmpty(hodowcaNazwa))
+                                int lp = 1;
+                                while (r.Read())
                                 {
-                                    hodowcaNazwa = customerGID == "-1" ? "Do przypisania" : "Nieznany";
+                                    var d = new DostawaPortiera
+                                    {
+                                        ID = Convert.ToInt64(r["ID"]),
+                                        Lp = (lp++).ToString(),
+                                        HodowcaNazwa = r["HodowcaNazwa"]?.ToString() ?? "Nieznany",
+                                        KierowcaNazwa = r["KierowcaNazwa"]?.ToString() ?? "",
+                                        CarID = r["CarID"]?.ToString() ?? "",
+                                        TrailerID = r["TrailerID"]?.ToString() ?? "",
+                                        Brutto = r["Brutto"] != DBNull.Value ? Convert.ToInt32(Convert.ToDecimal(r["Brutto"])) : 0,
+                                        Tara = r["Tara"] != DBNull.Value ? Convert.ToInt32(Convert.ToDecimal(r["Tara"])) : 0,
+                                        Netto = r["Netto"] != DBNull.Value ? Convert.ToInt32(Convert.ToDecimal(r["Netto"])) : 0,
+                                        SztukiPlan = r["SztPoj"] != DBNull.Value ? Convert.ToInt32(Convert.ToDecimal(r["SztPoj"])) : 0,
+                                        Towar = "Żywiec"
+                                    };
+                                    d.NrRejestracyjny = $"{d.CarID} {d.TrailerID}";
+                                    d.GodzinaPrzyjazdu = new DateTime(SelectedDate.Year, SelectedDate.Month, SelectedDate.Day, 6, 0, 0).AddMinutes((lp - 1) * 15).ToString("HH:mm");
+                                    d.UpdateStatus();
+                                    dostawy.Add(d);
                                 }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        string query = @"
+                            SELECT ID, Format(DataWazenia, 'HH:mm') as Godzina, NrRejestracyjny, Odbiorca, Brutto, Tara, Netto, Towar
+                            FROM dbo.OdpadyRejestr
+                            WHERE CAST(DataWazenia AS DATE) = @Data
+                            ORDER BY DataWazenia DESC";
 
-                                var dostawa = new DostawaPortiera
+                        using (SqlCommand cmd = new SqlCommand(query, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@Data", SelectedDate);
+                            using (SqlDataReader r = cmd.ExecuteReader())
+                            {
+                                while (r.Read())
                                 {
-                                    ID = Convert.ToInt64(reader["ID"]),
-                                    Lp = lp.ToString(),
-                                    LpDostawy = reader["LpDostawy"]?.ToString() ?? lp.ToString(),
-                                    CustomerGID = customerGID,
-                                    HodowcaNazwa = hodowcaNazwa,
-                                    DriverGID = reader["DriverGID"] != DBNull.Value ? Convert.ToInt32(reader["DriverGID"]) : (int?)null,
-                                    KierowcaNazwa = reader["KierowcaNazwa"]?.ToString() ?? "",
-                                    CarID = reader["CarID"]?.ToString() ?? "",
-                                    TrailerID = reader["TrailerID"]?.ToString() ?? "",
-                                    Uwagi = reader["NotkaWozek"]?.ToString() ?? ""
-                                };
-
-                                // Numer rejestracyjny
-                                dostawa.NrRejestracyjny = !string.IsNullOrEmpty(dostawa.CarID) ? dostawa.CarID : "-";
-                                if (!string.IsNullOrEmpty(dostawa.TrailerID))
-                                    dostawa.NrRejestracyjny += " / " + dostawa.TrailerID;
-
-                                // Godziny
-                                if (reader["Zaladunek"] != DBNull.Value)
-                                    dostawa.GodzinaZaladunku = Convert.ToDateTime(reader["Zaladunek"]);
-                                if (reader["Przyjazd"] != DBNull.Value)
-                                    dostawa.GodzinaPrzyjazdu = Convert.ToDateTime(reader["Przyjazd"]);
-                                if (reader["Wyjazd"] != DBNull.Value)
-                                    dostawa.GodzinaWyjazdu = Convert.ToDateTime(reader["Wyjazd"]);
-
-                                // Sztuki i waga deklarowana (decimal w bazie)
-                                dostawa.SztukiPlan = reader["SztPoj"] != DBNull.Value ? Convert.ToInt32(Convert.ToDecimal(reader["SztPoj"])) : 0;
-                                dostawa.WagaDek = reader["WagaDek"] != DBNull.Value ? Convert.ToDecimal(reader["WagaDek"]) : 0;
-
-                                // Wagi od hodowcy (z FarmerCalc) - decimal w bazie
-                                dostawa.Brutto = reader["BruttoHodowcy"] != DBNull.Value ? Convert.ToInt32(Convert.ToDecimal(reader["BruttoHodowcy"])) : 0;
-                                dostawa.Tara = reader["TaraHodowcy"] != DBNull.Value ? Convert.ToInt32(Convert.ToDecimal(reader["TaraHodowcy"])) : 0;
-                                dostawa.Netto = reader["NettoHodowcy"] != DBNull.Value ? Convert.ToInt32(Convert.ToDecimal(reader["NettoHodowcy"])) : 0;
-
-                                // Historia wagi
-                                if (reader["FarmWeightDate"] != DBNull.Value)
-                                    dostawa.WagaData = Convert.ToDateTime(reader["FarmWeightDate"]);
-                                dostawa.WagaUser = reader["FarmWeightUser"]?.ToString() ?? "";
-                                dostawa.WagaSource = reader["FarmWeightSource"]?.ToString() ?? "";
-
-                                // Status
-                                dostawa.UpdateStatus();
-
-                                dostawy.Add(dostawa);
-                                lp++;
+                                    var d = new DostawaPortiera
+                                    {
+                                        ID = Convert.ToInt64(r["ID"]),
+                                        GodzinaPrzyjazdu = r["Godzina"].ToString(),
+                                        NrRejestracyjny = r["NrRejestracyjny"].ToString(),
+                                        HodowcaNazwa = r["Odbiorca"].ToString(),
+                                        Brutto = Convert.ToInt32(r["Brutto"]),
+                                        Tara = Convert.ToInt32(r["Tara"]),
+                                        Netto = Convert.ToInt32(r["Netto"]),
+                                        Towar = r["Towar"].ToString(),
+                                        Lp = "-",
+                                        CarID = "",
+                                        TrailerID = "",
+                                        KierowcaNazwa = "",
+                                        SztukiPlan = 0
+                                    };
+                                    d.UpdateStatus();
+                                    dostawy.Add(d);
+                                }
                             }
                         }
                     }
                 }
-
-                if (dostawy.Count == 0)
-                {
-                    // Brak danych - info w panelu
-                }
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd ładowania dostaw:\n{ex.Message}", "Błąd",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            catch { }
         }
 
-        #endregion
-
-        #region Obsługa UI
-
-        private void UpdateDateDisplay()
-        {
-            lblData.Text = selectedDate.ToString("dd.MM.yyyy");
-            var culture = new CultureInfo("pl-PL");
-            string dayName = selectedDate.ToString("dddd", culture);
-            lblDzienTygodnia.Text = char.ToUpper(dayName[0]) + dayName.Substring(1);
-        }
-
-        private void BtnPreviousDay_Click(object sender, RoutedEventArgs e)
-        {
-            selectedDate = selectedDate.AddDays(-1);
-            UpdateDateDisplay();
-            LoadDostawy();
-            ClearWybranaDostwa();
-        }
-
-        private void BtnNextDay_Click(object sender, RoutedEventArgs e)
-        {
-            selectedDate = selectedDate.AddDays(1);
-            UpdateDateDisplay();
-            LoadDostawy();
-            ClearWybranaDostwa();
-        }
-
-        private void BtnRefresh_Click(object sender, RoutedEventArgs e)
-        {
-            LoadDostawy();
-
-            // Odśwież wybraną dostawę jeśli istnieje
-            if (wybranaDostwa != null)
-            {
-                var odswiezona = dostawy.FirstOrDefault(d => d.ID == wybranaDostwa.ID);
-                if (odswiezona != null)
-                {
-                    WybierzDostawe(odswiezona);
-                }
-                else
-                {
-                    ClearWybranaDostwa();
-                }
-            }
-        }
-
-        private void BtnMoveUp_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button btn && btn.Tag is DostawaPortiera dostawa)
-            {
-                int index = dostawy.IndexOf(dostawa);
-                if (index > 0)
-                {
-                    dostawy.Move(index, index - 1);
-                    UpdateLpNumbers();
-                    SaveOrderToDatabase();
-                }
-            }
-        }
-
-        private void BtnMoveDown_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button btn && btn.Tag is DostawaPortiera dostawa)
-            {
-                int index = dostawy.IndexOf(dostawa);
-                if (index < dostawy.Count - 1)
-                {
-                    dostawy.Move(index, index + 1);
-                    UpdateLpNumbers();
-                    SaveOrderToDatabase();
-                }
-            }
-        }
-
-        private void UpdateLpNumbers()
-        {
-            for (int i = 0; i < dostawy.Count; i++)
-            {
-                dostawy[i].Lp = (i + 1).ToString();
-                dostawy[i].LpDostawy = (i + 1).ToString();
-            }
-            listDostawy.Items.Refresh();
-        }
-
-        private void SaveOrderToDatabase()
-        {
-            try
-            {
-                using (SqlConnection conn = new SqlConnection(connectionString))
-                {
-                    conn.Open();
-                    using (SqlTransaction transaction = conn.BeginTransaction())
-                    {
-                        try
-                        {
-                            for (int i = 0; i < dostawy.Count; i++)
-                            {
-                                string updateQuery = "UPDATE dbo.FarmerCalc SET LpDostawy = @Lp WHERE ID = @ID";
-                                using (SqlCommand cmd = new SqlCommand(updateQuery, conn, transaction))
-                                {
-                                    cmd.Parameters.AddWithValue("@Lp", i + 1);
-                                    cmd.Parameters.AddWithValue("@ID", dostawy[i].ID);
-                                    cmd.ExecuteNonQuery();
-                                }
-                            }
-                            transaction.Commit();
-                        }
-                        catch
-                        {
-                            transaction.Rollback();
-                            throw;
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd zapisu kolejności:\n{ex.Message}", "Błąd",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void Dostawa_Click(object sender, MouseButtonEventArgs e)
+        public void Dostawa_Click(object sender, MouseButtonEventArgs e)
         {
             if (sender is Border border && border.Tag is DostawaPortiera dostawa)
-            {
                 WybierzDostawe(dostawa);
-            }
+        }
+
+        private void GridTable_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (gridTable.SelectedItem is DostawaPortiera dostawa)
+                WybierzDostawe(dostawa);
         }
 
         private void WybierzDostawe(DostawaPortiera dostawa)
         {
-            wybranaDostwa = dostawa;
+            WybranaDostwa = dostawa;
 
-            // Aktualizuj panel
-            lblWybranyLp.Text = $"LP: {dostawa.Lp}";
-            lblWybranyHodowca.Text = dostawa.HodowcaNazwa;
-            lblWybranyKierowca.Text = $"🚚 {dostawa.KierowcaNazwa} • {dostawa.CarID} / {dostawa.TrailerID}";
-
-            // Status i historia
-            if (!string.IsNullOrEmpty(dostawa.WagaUser))
+            if (aktualnyTryb == "Avilog")
             {
-                lblStatus.Text = $"{dostawa.WagaSource}";
+                lblTrybPracy.Text = "PODGLĄD";
+                panelReadOnlyCar.Visibility = Visibility.Visible;
+                panelEditCar.Visibility = Visibility.Collapsed;
+                panelReadOnlyOdbiorca.Visibility = Visibility.Visible;
+                panelEditOdbiorca.Visibility = Visibility.Collapsed;
+                panelCommodity.Visibility = Visibility.Collapsed;
+
+                lblWybranyPojazd.Text = dostawa.CarID;
+                lblWybranaNaczepa.Text = dostawa.TrailerID;
+                lblWybranyKierowca.Text = dostawa.KierowcaNazwa;
+                lblWybranyHodowca.Text = dostawa.HodowcaNazwa;
             }
             else
             {
-                lblStatus.Text = "";
+                lblTrybPracy.Text = "EDYCJA DANYCH";
+                panelReadOnlyCar.Visibility = Visibility.Collapsed;
+                panelEditCar.Visibility = Visibility.Visible;
+                txtEditRejestracja.Text = dostawa.NrRejestracyjny;
+
+                panelReadOnlyOdbiorca.Visibility = Visibility.Collapsed;
+                panelEditOdbiorca.Visibility = Visibility.Visible;
+
+                // Ustaw Odbiorcę i Towar (Przyciski nad wagą)
+                if (!string.IsNullOrEmpty(dostawa.HodowcaNazwa)) cbOdbiorcy.Text = dostawa.HodowcaNazwa;
+                else cbOdbiorcy.SelectedIndex = -1;
+
+                if (dostawa.Towar == "KREW") btnKrew.IsChecked = true;
+                else if (dostawa.Towar == "ŁAPY") btnLapy.IsChecked = true;
+                else if (dostawa.Towar == "PIÓRA") btnPiora.IsChecked = true;
+                else if (dostawa.Towar == "JELITA") btnJelita.IsChecked = true;
+
+                // Wywołaj aktualizację kolorów i list dla wybranego towaru
+                BtnCommodity_Click((dostawa.Towar == "KREW" ? btnKrew : (dostawa.Towar == "ŁAPY" ? btnLapy : (dostawa.Towar == "PIÓRA" ? btnPiora : btnJelita))), null);
+
+                panelCommodity.Visibility = Visibility.Visible;
             }
 
-            // Timestamp zapisu wagi
-            if (dostawa.WagaData.HasValue)
-            {
-                lblWagaTimestamp.Text = $"✓ Zapisano: {dostawa.WagaData.Value:dd.MM.yyyy HH:mm:ss} przez {dostawa.WagaUser}";
-            }
-            else
-            {
-                lblWagaTimestamp.Text = "";
-            }
+            lblPlanowaneSztuki.Text = dostawa.SztukiPlanDisplay;
+            lblWagiBaza.Text = $"Baza: B={dostawa.Brutto} | T={dostawa.Tara}";
 
-            // Wczytaj zapisane wagi
-            txtBrutto.Text = dostawa.Brutto > 0 ? dostawa.Brutto.ToString() : "0";
-            txtTara.Text = dostawa.Tara > 0 ? dostawa.Tara.ToString() : "0";
-            UpdateNetto();
-
-            // Włącz przycisk zapisu
+            txtBrutto.Text = dostawa.Brutto.ToString();
+            txtTara.Text = dostawa.Tara.ToString();
+            UpdateBigDisplay();
             btnZapisz.IsEnabled = true;
-
-            // Włącz przycisk drukowania jeśli są wagi
             btnDrukuj.IsEnabled = dostawa.Netto > 0;
-
-            // Ustaw aktywne pole na Brutto
-            SetAktywnePole(AktywnePole.Brutto);
+            btnDelete.IsEnabled = true;
         }
 
         private void ClearWybranaDostwa()
         {
-            wybranaDostwa = null;
-            lblWybranyLp.Text = "LP: -";
-            lblWybranyHodowca.Text = "Wybierz dostawę z listy";
-            lblWybranyKierowca.Text = "";
-            lblStatus.Text = "";
-            lblWagaTimestamp.Text = "";
-            txtBrutto.Text = "0";
-            txtTara.Text = "0";
-            txtNetto.Text = "0 kg";
-            btnZapisz.IsEnabled = false;
-            btnDrukuj.IsEnabled = false;
+            WybranaDostwa = null;
+            lblWybranyPojazd.Text = "---"; lblWybranaNaczepa.Text = "---"; lblWagiBaza.Text = "";
+            lblWybranyOdbiorca.Text = "---"; lblWybranyHodowca.Text = "";
+            txtBrutto.Text = "0"; txtTara.Text = "0"; BigWeightDisplay.Text = "0";
+            btnZapisz.IsEnabled = false; btnDelete.IsEnabled = false;
         }
 
-        #endregion
-
-        #region Klawiatura numeryczna
-
-        private void SetAktywnePole(AktywnePole pole)
+        public void Mode_Click(object sender, RoutedEventArgs e)
         {
-            aktywnePole = pole;
+            aktywnePole = (radioBrutto.IsChecked == true) ? AktywnePole.Brutto : AktywnePole.Tara;
+            UpdateBigDisplay();
+        }
 
-            // Podświetl aktywne pole
-            if (pole == AktywnePole.Brutto)
+        private void UpdateBigDisplay()
+        {
+            if (WybranaDostwa == null) { BigWeightDisplay.Text = "0"; return; }
+            string rawValue = (aktywnePole == AktywnePole.Brutto) ? txtBrutto.Text : txtTara.Text;
+
+            if (int.TryParse(rawValue, out int val))
             {
-                borderBrutto.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FFA726"));
-                borderTara.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#0F3460"));
+                var nfi = (NumberFormatInfo)CultureInfo.InvariantCulture.NumberFormat.Clone();
+                nfi.NumberGroupSeparator = " ";
+                BigWeightDisplay.Text = val.ToString("N0", nfi);
             }
-            else
-            {
-                borderBrutto.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#0F3460"));
-                borderTara.BorderBrush = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#42A5F5"));
-            }
+            else BigWeightDisplay.Text = "0";
         }
 
-        private void TxtBrutto_Click(object sender, MouseButtonEventArgs e)
+        public void NumpadClick(object sender, RoutedEventArgs e)
         {
-            SetAktywnePole(AktywnePole.Brutto);
-        }
-
-        private void TxtTara_Click(object sender, MouseButtonEventArgs e)
-        {
-            SetAktywnePole(AktywnePole.Tara);
-        }
-
-        private void NumpadClick(object sender, RoutedEventArgs e)
-        {
+            if (WybranaDostwa == null) return;
             if (sender is Button btn)
             {
-                string digit = btn.Content.ToString();
-
-                TextBlock targetField = aktywnePole == AktywnePole.Brutto ? txtBrutto : txtTara;
-
-                string currentValue = targetField.Text;
-                if (currentValue == "0")
-                    currentValue = "";
-
-                // Limit do 6 cyfr (max 999999 kg)
-                if (currentValue.Length < 6)
-                {
-                    currentValue += digit;
-                    targetField.Text = currentValue;
-                    UpdateNetto();
-                }
+                TextBlock target = (aktywnePole == AktywnePole.Brutto) ? txtBrutto : txtTara;
+                if (target.Text == "0") target.Text = "";
+                if (target.Text.Length < 6) target.Text += btn.Content.ToString();
+                UpdateBigDisplay();
             }
         }
 
-        private void BtnClear_Click(object sender, RoutedEventArgs e)
+        public void BtnClear_Click(object sender, RoutedEventArgs e)
         {
-            TextBlock targetField = aktywnePole == AktywnePole.Brutto ? txtBrutto : txtTara;
-            targetField.Text = "0";
-            UpdateNetto();
+            if (WybranaDostwa == null) return;
+            ((aktywnePole == AktywnePole.Brutto) ? txtBrutto : txtTara).Text = "0";
+            UpdateBigDisplay();
         }
 
-        private void BtnBackspace_Click(object sender, RoutedEventArgs e)
+        public void BtnBackspace_Click(object sender, RoutedEventArgs e)
         {
-            TextBlock targetField = aktywnePole == AktywnePole.Brutto ? txtBrutto : txtTara;
-            string currentValue = targetField.Text;
-
-            if (currentValue.Length > 1)
-            {
-                targetField.Text = currentValue.Substring(0, currentValue.Length - 1);
-            }
-            else
-            {
-                targetField.Text = "0";
-            }
-
-            UpdateNetto();
+            if (WybranaDostwa == null) return;
+            TextBlock target = (aktywnePole == AktywnePole.Brutto) ? txtBrutto : txtTara;
+            if (target.Text.Length > 0) target.Text = target.Text.Substring(0, target.Text.Length - 1);
+            if (string.IsNullOrEmpty(target.Text)) target.Text = "0";
+            UpdateBigDisplay();
         }
 
-        private void UpdateNetto()
+        public void BtnZapisz_Click(object sender, RoutedEventArgs e)
         {
-            int brutto = 0;
-            int tara = 0;
-
-            int.TryParse(txtBrutto.Text, out brutto);
-            int.TryParse(txtTara.Text, out tara);
-
-            int netto = brutto - tara;
-            txtNetto.Text = $"{netto:N0} kg";
-        }
-
-        #endregion
-
-        #region Zapis do FarmerCalc
-
-        private void BtnZapisz_Click(object sender, RoutedEventArgs e)
-        {
-            if (wybranaDostwa == null)
-            {
-                MessageBox.Show("Wybierz dostawę z listy!", "Uwaga",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            int brutto = 0;
-            int tara = 0;
-
-            if (!int.TryParse(txtBrutto.Text, out brutto) || brutto <= 0)
-            {
-                MessageBox.Show("Wprowadź poprawną wagę BRUTTO!", "Uwaga",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
-                SetAktywnePole(AktywnePole.Brutto);
-                return;
-            }
-
-            int.TryParse(txtTara.Text, out tara);
-            int netto = brutto - tara;
-
-            // Pobierz nazwę użytkownika
-            string userName = App.UserFullName ?? App.UserID ?? "Nieznany";
-
+            if (WybranaDostwa == null) return;
             try
             {
+                int.TryParse(txtBrutto.Text, out int b);
+                int.TryParse(txtTara.Text, out int t);
+
+                if (t > b && b > 0)
+                {
+                    MessageBox.Show("BŁĄD: Tara > Brutto!", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                if (b > 0 && b < 5000 && t == 0)
+                {
+                    if (MessageBox.Show($"Waga {b} kg podejrzanie mała. Zapisać?", "Weryfikacja", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.No) return;
+                }
+
+                if (aktualnyTryb != "Avilog" && string.IsNullOrEmpty(cbOdbiorcy.Text))
+                {
+                    MessageBox.Show("Wybierz ODBIORCĘ!", "Brak danych", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                WybranaDostwa.Brutto = b;
+                WybranaDostwa.Tara = t;
+                WybranaDostwa.Netto = b - t;
+
+                if (aktualnyTryb != "Avilog")
+                {
+                    WybranaDostwa.NrRejestracyjny = txtEditRejestracja.Text;
+                    WybranaDostwa.HodowcaNazwa = cbOdbiorcy.Text;
+                }
+
+                WybranaDostwa.UpdateStatus();
+
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
+                    string query = "";
 
-                    // Zapisz wagi od hodowcy do FarmerCalc wraz z historią
-                    string updateQuery = @"
-                        UPDATE dbo.FarmerCalc 
-                        SET FullFarmWeight = @Brutto,
-                            EmptyFarmWeight = @Tara,
-                            NettoFarmWeight = @Netto,
-                            FarmWeightDate = @WeightDate,
-                            FarmWeightUser = @WeightUser,
-                            FarmWeightSource = @WeightSource
-                        WHERE ID = @ID";
-
-                    using (SqlCommand cmd = new SqlCommand(updateQuery, conn))
+                    if (aktualnyTryb == "Avilog")
                     {
-                        cmd.Parameters.AddWithValue("@Brutto", brutto);
-                        cmd.Parameters.AddWithValue("@Tara", tara);
-                        cmd.Parameters.AddWithValue("@Netto", netto);
-                        cmd.Parameters.AddWithValue("@WeightDate", DateTime.Now);
-                        cmd.Parameters.AddWithValue("@WeightUser", userName);
-                        cmd.Parameters.AddWithValue("@WeightSource", WEIGHT_SOURCE);
-                        cmd.Parameters.AddWithValue("@ID", wybranaDostwa.ID);
+                        query = @"UPDATE dbo.FarmerCalc SET FullFarmWeight=@B, EmptyFarmWeight=@T, NettoFarmWeight=@N, FarmWeightDate=GETDATE(), FarmWeightUser='Portier', FarmWeightSource='PanelPortiera' WHERE ID=@ID";
+                    }
+                    else
+                    {
+                        if (WybranaDostwa.ID == -1)
+                            query = @"INSERT INTO dbo.OdpadyRejestr (Towar, NrRejestracyjny, Odbiorca, DataWazenia, Brutto, Tara, Netto, Status)
+                                      VALUES (@Towar, @Nr, @Odbiorca, GETDATE(), @B, @T, @N, 'Zakończone')";
+                        else
+                            query = @"UPDATE dbo.OdpadyRejestr SET Brutto=@B, Tara=@T, Netto=@N, NrRejestracyjny=@Nr, Odbiorca=@Odbiorca, Status='Zakończone', Towar=@Towar WHERE ID=@ID";
+                    }
 
-                        int rowsAffected = cmd.ExecuteNonQuery();
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@B", b);
+                        cmd.Parameters.AddWithValue("@T", t);
+                        cmd.Parameters.AddWithValue("@N", b - t);
+                        cmd.Parameters.AddWithValue("@ID", WybranaDostwa.ID);
 
-                        if (rowsAffected > 0)
+                        if (aktualnyTryb != "Avilog")
                         {
-                            // Aktualizuj lokalnie
-                            DateTime savedTime = DateTime.Now;
-                            wybranaDostwa.Brutto = brutto;
-                            wybranaDostwa.Tara = tara;
-                            wybranaDostwa.Netto = netto;
-                            wybranaDostwa.WagaData = savedTime;
-                            wybranaDostwa.WagaUser = userName;
-                            wybranaDostwa.WagaSource = WEIGHT_SOURCE;
-                            wybranaDostwa.UpdateStatus();
-
-                            // Aktualizuj timestamp w UI
-                            lblWagaTimestamp.Text = $"✓ Zapisano: {savedTime:dd.MM.yyyy HH:mm:ss} przez {userName}";
-
-                            // Włącz przycisk drukowania
-                            btnDrukuj.IsEnabled = true;
-
-                            // Odśwież listę
-                            listDostawy.Items.Refresh();
-
-                            // Przejdź do następnej dostawy oczekującej
-                            var nastepna = dostawy.FirstOrDefault(d =>
-                                d.Status == StatusDostawy.Oczekuje && d.ID != wybranaDostwa.ID);
-
-                            if (nastepna != null)
-                            {
-                                WybierzDostawe(nastepna);
-                            }
-                            else
-                            {
-                                // Wszystkie zważone!
-                                if (dostawy.All(d => d.Status == StatusDostawy.Zakonczony))
-                                {
-                                    MessageBox.Show("Wszystkie dostawy zostały zważone! 🎉",
-                                        "Gratulacje!", MessageBoxButton.OK, MessageBoxImage.Information);
-                                }
-                                ClearWybranaDostwa();
-                            }
+                            cmd.Parameters.AddWithValue("@Nr", WybranaDostwa.NrRejestracyjny);
+                            cmd.Parameters.AddWithValue("@Towar", WybranaDostwa.Towar);
+                            cmd.Parameters.AddWithValue("@Odbiorca", WybranaDostwa.HodowcaNazwa);
                         }
+
+                        cmd.ExecuteNonQuery();
                     }
                 }
+                LoadDostawy();
+                ClearWybranaDostwa();
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd zapisu wagi:\n{ex.Message}", "Błąd",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            catch (Exception ex) { MessageBox.Show("Błąd zapisu: " + ex.Message); }
         }
 
-        #endregion
-
-        #region Drukowanie kwitu wagowego
-
-        private DostawaPortiera dostawaDoDruku;
-
-        private void BtnDrukuj_Click(object sender, RoutedEventArgs e)
+        private void BtnNewEntry_Click(object sender, RoutedEventArgs e)
         {
-            if (wybranaDostwa == null || wybranaDostwa.Netto <= 0)
+            var nowe = new DostawaPortiera
             {
-                MessageBox.Show("Wybierz dostawę z zapisaną wagą!", "Uwaga",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                ID = -1,
+                GodzinaPrzyjazdu = DateTime.Now.ToString("HH:mm"),
+                Towar = "KREW", // Domyślnie
+                NrRejestracyjny = "",
+                HodowcaNazwa = "",
+                Brutto = 0,
+                Tara = 0,
+                Netto = 0
+            };
+            dostawy.Add(nowe);
+            gridTable.SelectedItem = nowe;
+            WybierzDostawe(nowe);
+        }
+
+        private void BtnDelete_Click(object sender, RoutedEventArgs e)
+        {
+            if (WybranaDostwa == null || WybranaDostwa.ID == -1)
+            {
+                dostawy.Remove(WybranaDostwa);
+                ClearWybranaDostwa();
                 return;
             }
 
-            dostawaDoDruku = wybranaDostwa;
-
-            try
+            if (MessageBox.Show("Czy na pewno chcesz USUNĄĆ ten wpis?", "Usuwanie", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
             {
-                PrintDocument printDoc = new PrintDocument();
-                printDoc.PrintPage += PrintDoc_PrintPage;
-
-                // Pokaż dialog drukowania
-                System.Windows.Forms.PrintDialog printDialog = new System.Windows.Forms.PrintDialog();
-                printDialog.Document = printDoc;
-
-                if (printDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                try
                 {
-                    printDoc.Print();
+                    using (SqlConnection conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+                        string query = "DELETE FROM dbo.OdpadyRejestr WHERE ID=@ID";
+                        using (SqlCommand cmd = new SqlCommand(query, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@ID", WybranaDostwa.ID);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                    LoadDostawy();
+                    ClearWybranaDostwa();
                 }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd drukowania:\n{ex.Message}", "Błąd",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                catch (Exception ex) { MessageBox.Show("Błąd usuwania: " + ex.Message); }
             }
         }
 
-        private void PrintDoc_PrintPage(object sender, PrintPageEventArgs e)
-        {
-            Graphics g = e.Graphics;
+        public void BtnDrukuj_Click(object sender, RoutedEventArgs e) => MessageBox.Show("Drukowanie...");
 
-            // Fonty dla drukarki termicznej 58mm (szerokość ~48mm do druku)
-            // Około 32 znaków na linię dla fontu 9pt
-            System.Drawing.Font fontTytul = new System.Drawing.Font("Arial", 11, System.Drawing.FontStyle.Bold);
-            System.Drawing.Font fontNaglowek = new System.Drawing.Font("Arial", 9, System.Drawing.FontStyle.Bold);
-            System.Drawing.Font fontNormal = new System.Drawing.Font("Arial", 8);
-            System.Drawing.Font fontDuzy = new System.Drawing.Font("Arial", 12, System.Drawing.FontStyle.Bold);
-            System.Drawing.Font fontMaly = new System.Drawing.Font("Arial", 7);
-
-            System.Drawing.Brush brushCzarny = System.Drawing.Brushes.Black;
-            System.Drawing.Pen penCzarny = new System.Drawing.Pen(System.Drawing.Color.Black, 1);
-
-            float y = 5;
-            float leftMargin = 5;
-            float width = 180; // ~48mm w pikselach (58mm - marginesy)
-            float centerX = leftMargin + width / 2;
-
-            // Funkcja do centrowania tekstu
-            StringFormat centerFormat = new StringFormat { Alignment = StringAlignment.Center };
-            StringFormat leftFormat = new StringFormat { Alignment = StringAlignment.Near };
-            StringFormat rightFormat = new StringFormat { Alignment = StringAlignment.Far };
-
-            // === NAGŁÓWEK ===
-            g.DrawString("UBOJNIA DROBIU", fontTytul, brushCzarny, centerX, y, centerFormat);
-            y += 16;
-            g.DrawString("PIÓRKOWSCY", fontTytul, brushCzarny, centerX, y, centerFormat);
-            y += 16;
-            g.DrawString("Brzeziny k. Łodzi", fontMaly, brushCzarny, centerX, y, centerFormat);
-            y += 14;
-
-            // Linia
-            g.DrawLine(penCzarny, leftMargin, y, leftMargin + width, y);
-            y += 5;
-
-            // === KWIT WAGOWY ===
-            g.DrawString("KWIT WAGOWY", fontTytul, brushCzarny, centerX, y, centerFormat);
-            y += 18;
-
-            // Linia
-            g.DrawLine(penCzarny, leftMargin, y, leftMargin + width, y);
-            y += 8;
-
-            // === DATA I LP ===
-            g.DrawString($"Data: {selectedDate:dd.MM.yyyy}", fontNormal, brushCzarny, leftMargin, y);
-            g.DrawString($"LP: {dostawaDoDruku.Lp}", fontNormal, brushCzarny, leftMargin + width, y, rightFormat);
-            y += 14;
-
-            // === HODOWCA ===
-            g.DrawString("HODOWCA:", fontNaglowek, brushCzarny, leftMargin, y);
-            y += 12;
-
-            // Podziel długą nazwę hodowcy na linie
-            string hodowca = dostawaDoDruku.HodowcaNazwa ?? "-";
-            if (hodowca.Length > 24)
-            {
-                g.DrawString(hodowca.Substring(0, 24), fontNormal, brushCzarny, leftMargin, y);
-                y += 11;
-                g.DrawString(hodowca.Substring(24), fontNormal, brushCzarny, leftMargin, y);
-            }
-            else
-            {
-                g.DrawString(hodowca, fontNormal, brushCzarny, leftMargin, y);
-            }
-            y += 14;
-
-            // === KIEROWCA ===
-            g.DrawString("KIEROWCA:", fontNaglowek, brushCzarny, leftMargin, y);
-            y += 12;
-            g.DrawString(dostawaDoDruku.KierowcaNazwa ?? "-", fontNormal, brushCzarny, leftMargin, y);
-            y += 14;
-
-            // === POJAZD ===
-            g.DrawString($"Auto: {dostawaDoDruku.CarID ?? "-"}", fontNormal, brushCzarny, leftMargin, y);
-            y += 11;
-            g.DrawString($"Nacz: {dostawaDoDruku.TrailerID ?? "-"}", fontNormal, brushCzarny, leftMargin, y);
-            y += 14;
-
-            // Linia
-            g.DrawLine(penCzarny, leftMargin, y, leftMargin + width, y);
-            y += 8;
-
-            // === WAGI ===
-            g.DrawString("WYNIKI WAŻENIA", fontNaglowek, brushCzarny, centerX, y, centerFormat);
-            y += 16;
-
-            // Brutto
-            g.DrawString("BRUTTO:", fontNormal, brushCzarny, leftMargin, y);
-            g.DrawString($"{dostawaDoDruku.Brutto:N0} kg", fontDuzy, brushCzarny, leftMargin + width, y, rightFormat);
-            y += 18;
-
-            // Tara
-            g.DrawString("TARA:", fontNormal, brushCzarny, leftMargin, y);
-            g.DrawString($"{dostawaDoDruku.Tara:N0} kg", fontDuzy, brushCzarny, leftMargin + width, y, rightFormat);
-            y += 18;
-
-            // Linia przed netto
-            g.DrawLine(penCzarny, leftMargin + 80, y, leftMargin + width, y);
-            y += 5;
-
-            // Netto - wyróżnione
-            g.DrawString("NETTO:", fontNaglowek, brushCzarny, leftMargin, y);
-            g.DrawString($"{dostawaDoDruku.Netto:N0} kg", fontDuzy, brushCzarny, leftMargin + width, y, rightFormat);
-            y += 20;
-
-            // Linia
-            g.DrawLine(penCzarny, leftMargin, y, leftMargin + width, y);
-            y += 8;
-
-            // === SZTUKI ===
-            if (dostawaDoDruku.SztukiPlan > 0)
-            {
-                g.DrawString($"Szt. plan.: {dostawaDoDruku.SztukiPlan:N0}", fontMaly, brushCzarny, leftMargin, y);
-                y += 12;
-            }
-
-            // === TIMESTAMP ===
-            string timestamp = dostawaDoDruku.WagaData.HasValue
-                ? dostawaDoDruku.WagaData.Value.ToString("dd.MM.yyyy HH:mm:ss")
-                : DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss");
-
-            g.DrawString($"Ważono: {timestamp}", fontMaly, brushCzarny, leftMargin, y);
-            y += 10;
-
-            string user = !string.IsNullOrEmpty(dostawaDoDruku.WagaUser)
-                ? dostawaDoDruku.WagaUser
-                : (App.UserFullName ?? App.UserID ?? "-");
-            g.DrawString($"Zważył: {user}", fontMaly, brushCzarny, leftMargin, y);
-            y += 16;
-
-            // Linia
-            g.DrawLine(penCzarny, leftMargin, y, leftMargin + width, y);
-            y += 12;
-
-            // === PODPISY ===
-            g.DrawString("Podpis portiera:", fontMaly, brushCzarny, leftMargin, y);
-            y += 20;
-            g.DrawLine(penCzarny, leftMargin, y, leftMargin + 80, y);
-            y += 12;
-
-            g.DrawString("Podpis kierowcy:", fontMaly, brushCzarny, leftMargin, y);
-            y += 20;
-            g.DrawLine(penCzarny, leftMargin, y, leftMargin + 80, y);
-            y += 15;
-
-            // === STOPKA ===
-            g.DrawLine(penCzarny, leftMargin, y, leftMargin + width, y);
-            y += 5;
-            g.DrawString($"Wydruk: {DateTime.Now:HH:mm:ss}", fontMaly, brushCzarny, centerX, y, centerFormat);
-
-            e.HasMorePages = false;
-        }
-
-        #endregion
-
-        #region Integracja z wagą elektroniczną
-
-        private void BtnConnectScale_Click(object sender, RoutedEventArgs e)
-        {
-            if (scaleConnected)
-            {
-                DisconnectScale();
-            }
-            else
-            {
-                ShowScaleConnectionDialog();
-            }
-        }
-
-        private void ShowScaleConnectionDialog()
-        {
-            // Pobierz dostępne porty COM
-            string[] ports = SerialPort.GetPortNames();
-
-            if (ports.Length == 0)
-            {
-                MessageBox.Show("Nie znaleziono żadnych portów COM.\nSprawdź czy waga jest podłączona.",
-                    "Brak portów", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            // Prosty dialog wyboru portu
-            var dialog = new Window
-            {
-                Title = "Połącz z wagą",
-                Width = 350,
-                Height = 280,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                Owner = this,
-                Background = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#1A1A2E")),
-                ResizeMode = ResizeMode.NoResize
-            };
-
-            var stack = new StackPanel { Margin = new Thickness(20) };
-
-            // Wybór portu
-            stack.Children.Add(new TextBlock
-            {
-                Text = "Port COM:",
-                Foreground = System.Windows.Media.Brushes.White,
-                FontSize = 14,
-                Margin = new Thickness(0, 0, 0, 5)
-            });
-
-            var cmbPort = new ComboBox { Height = 30, FontSize = 14 };
-            foreach (var port in ports) cmbPort.Items.Add(port);
-            cmbPort.SelectedIndex = 0;
-            stack.Children.Add(cmbPort);
-
-            // Prędkość transmisji
-            stack.Children.Add(new TextBlock
-            {
-                Text = "Prędkość (baud):",
-                Foreground = System.Windows.Media.Brushes.White,
-                FontSize = 14,
-                Margin = new Thickness(0, 15, 0, 5)
-            });
-
-            var cmbBaud = new ComboBox { Height = 30, FontSize = 14 };
-            int[] baudRates = { 9600, 19200, 38400, 57600, 115200 };
-            foreach (var baud in baudRates) cmbBaud.Items.Add(baud);
-            cmbBaud.SelectedItem = 9600;
-            stack.Children.Add(cmbBaud);
-
-            // Przyciski
-            var btnPanel = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                Margin = new Thickness(0, 20, 0, 0)
-            };
-
-            var btnConnect = new Button
-            {
-                Content = "Połącz",
-                Width = 100,
-                Height = 35,
-                Background = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#00BFA6")),
-                Foreground = System.Windows.Media.Brushes.White,
-                FontWeight = FontWeights.Bold,
-                Margin = new Thickness(0, 0, 10, 0)
-            };
-
-            var btnCancel = new Button
-            {
-                Content = "Anuluj",
-                Width = 80,
-                Height = 35,
-                Background = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#E94560")),
-                Foreground = System.Windows.Media.Brushes.White
-            };
-
-            btnConnect.Click += (s, args) =>
-            {
-                string selectedPort = cmbPort.SelectedItem?.ToString();
-                int selectedBaud = (int)cmbBaud.SelectedItem;
-
-                if (ConnectToScale(selectedPort, selectedBaud))
-                {
-                    dialog.DialogResult = true;
-                    dialog.Close();
-                }
-            };
-
-            btnCancel.Click += (s, args) => dialog.Close();
-
-            btnPanel.Children.Add(btnConnect);
-            btnPanel.Children.Add(btnCancel);
-            stack.Children.Add(btnPanel);
-
-            dialog.Content = stack;
-            dialog.ShowDialog();
-        }
-
-        private bool ConnectToScale(string portName, int baudRate)
+        // === WAGA RHEWA ===
+        private void ConnectToScale(string portName, int baudRate)
         {
             try
             {
-                serialPort = new SerialPort(portName)
-                {
-                    BaudRate = baudRate,
-                    DataBits = 8,
-                    Parity = Parity.None,
-                    StopBits = StopBits.One,
-                    Handshake = Handshake.None,
-                    ReadTimeout = 1000,
-                    WriteTimeout = 1000,
-                    Encoding = Encoding.ASCII
-                };
-
+                if (serialPort != null && serialPort.IsOpen) serialPort.Close();
+                serialPort = new SerialPort(portName, baudRate, Parity.None, 8, StopBits.One);
                 serialPort.DataReceived += SerialPort_DataReceived;
                 serialPort.Open();
 
-                scaleConnected = true;
-                UpdateScaleStatus();
-
-                MessageBox.Show($"Połączono z wagą na porcie {portName}", "Sukces",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-
-                return true;
+                lblScaleStatus.Text = $"Połączono ({portName})";
+                lblScaleStatus.Foreground = Brushes.LightGreen;
+                ledStabilnosc.Fill = Brushes.LightGreen;
             }
-            catch (Exception ex)
+            catch
             {
-                MessageBox.Show($"Błąd połączenia z wagą:\n{ex.Message}", "Błąd",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-                return false;
+                lblScaleStatus.Text = "Waga Offline";
+                lblScaleStatus.Foreground = Brushes.Gray;
+                ledStabilnosc.Fill = Brushes.Gray;
             }
         }
 
-        private void DisconnectScale()
+        public void BtnReadScale_Click(object sender, RoutedEventArgs e)
         {
-            try
+            if (serialPort != null && serialPort.IsOpen)
             {
-                if (serialPort != null && serialPort.IsOpen)
-                {
-                    serialPort.DataReceived -= SerialPort_DataReceived;
-                    serialPort.Close();
-                    serialPort.Dispose();
-                    serialPort = null;
-                }
-
-                scaleConnected = false;
-                UpdateScaleStatus();
+                try { serialPort.Write("S"); }
+                catch { MessageBox.Show("Błąd wysyłania komendy do wagi."); }
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd rozłączania wagi:\n{ex.Message}", "Błąd",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void UpdateScaleStatus()
-        {
-            if (scaleConnected && serialPort != null)
-            {
-                lblScaleStatus.Text = $"⚖️ Waga: Połączona ({serialPort.PortName})";
-                lblScaleStatus.Foreground = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#66BB6A"));
-                btnConnectScale.Content = "Rozłącz";
-                btnConnectScale.Background = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#E94560"));
-            }
-            else
-            {
-                lblScaleStatus.Text = "⚖️ Waga: Niepodłączona";
-                lblScaleStatus.Foreground = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#94A3B8"));
-                btnConnectScale.Content = "Połącz";
-                btnConnectScale.Background = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#16213E"));
-            }
+            else MessageBox.Show("Waga nie jest podłączona.", "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 
         private void SerialPort_DataReceived(object sender, SerialDataReceivedEventArgs e)
@@ -1027,299 +629,67 @@ namespace Kalendarz1
             try
             {
                 string data = serialPort.ReadExisting();
-                scaleBuffer.Append(data);
-
-                // Sprawdź czy mamy kompletną linię (zakończoną CR lub LF)
-                string bufferContent = scaleBuffer.ToString();
-                if (bufferContent.Contains("\r") || bufferContent.Contains("\n"))
+                Match match = Regex.Match(data, @"\d+");
+                if (match.Success && int.TryParse(match.Value, out int weight))
                 {
-                    string[] lines = bufferContent.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-
-                    if (lines.Length > 0)
+                    if (weight > 0 && weight < 100000)
                     {
-                        string lastLine = lines[lines.Length - 1];
-                        int weight = ParseWeightFromScale(lastLine);
-
-                        if (weight > 0)
+                        Dispatcher.Invoke(() =>
                         {
-                            // Aktualizuj UI w wątku głównym
-                            Dispatcher.Invoke(() =>
-                            {
-                                if (aktywnePole == AktywnePole.Brutto)
-                                {
-                                    txtBrutto.Text = weight.ToString();
-                                }
-                                else
-                                {
-                                    txtTara.Text = weight.ToString();
-                                }
-                                UpdateNetto();
-                            });
-                        }
+                            TextBlock target = (aktywnePole == AktywnePole.Brutto) ? txtBrutto : txtTara;
+                            target.Text = weight.ToString();
+                            UpdateBigDisplay();
+                        });
                     }
-
-                    scaleBuffer.Clear();
                 }
             }
-            catch (Exception)
-            {
-                // Ignoruj błędy odczytu
-            }
+            catch { }
         }
-
-        private int ParseWeightFromScale(string data)
-        {
-            // RHEWA 82c-1 format danych
-            // Typowe formaty RHEWA:
-            // "G     12345 kg" - waga brutto
-            // "N     12345 kg" - waga netto
-            // "T     12345 kg" - tara
-            // Lub sam numer: "     12345"
-
-            try
-            {
-                // Usuń prefiksy RHEWA (G, N, T, ST, US, OL)
-                string cleanData = data.Trim();
-
-                // Usuń znane prefiksy
-                string[] prefixes = { "G", "N", "T", "ST", "US", "OL", "GS", "NS" };
-                foreach (var prefix in prefixes)
-                {
-                    if (cleanData.StartsWith(prefix))
-                    {
-                        cleanData = cleanData.Substring(prefix.Length);
-                        break;
-                    }
-                }
-
-                // Usuń jednostkę kg
-                cleanData = cleanData.Replace("kg", "").Replace("KG", "").Replace("Kg", "");
-
-                // Usuń wszystko oprócz cyfr, minus i kropki/przecinka
-                cleanData = cleanData.Trim();
-
-                // Obsłuż przecinek jako separator dziesiętny
-                cleanData = cleanData.Replace(",", ".");
-
-                // Wyciągnij tylko cyfry i minus
-                string numericPart = new string(cleanData.Where(c => char.IsDigit(c) || c == '-' || c == '.').ToArray());
-
-                // Parsuj jako decimal i zaokrąglij do int
-                if (decimal.TryParse(numericPart, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal weight))
-                {
-                    return (int)Math.Abs(Math.Round(weight));
-                }
-
-                // Alternatywnie - tylko cyfry
-                string digitsOnly = new string(data.Where(char.IsDigit).ToArray());
-                if (int.TryParse(digitsOnly, out int intWeight))
-                {
-                    return Math.Abs(intWeight);
-                }
-            }
-            catch
-            {
-                // Ignoruj błędy parsowania
-            }
-
-            return 0;
-        }
-
-        private void BtnReadScale_Click(object sender, RoutedEventArgs e)
-        {
-            if (!scaleConnected || serialPort == null || !serialPort.IsOpen)
-            {
-                MessageBox.Show("Waga nie jest podłączona!\nKliknij 'Połącz' aby połączyć z wagą.",
-                    "Brak połączenia", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            // Określ które pole aktualizować
-            if (sender is Button btn && btn.Tag != null)
-            {
-                if (btn.Tag.ToString() == "Brutto")
-                {
-                    SetAktywnePole(AktywnePole.Brutto);
-                }
-                else if (btn.Tag.ToString() == "Tara")
-                {
-                    SetAktywnePole(AktywnePole.Tara);
-                }
-            }
-
-            try
-            {
-                // RHEWA 82c - komendy do odczytu wagi:
-                // "W" - odczyt wagi (weight)
-                // "G" - odczyt brutto (gross)
-                // "N" - odczyt netto (net)
-                // "S" - odczyt stabilny
-                // Lub ESC + "p" dla niektórych modeli
-
-                // Wyczyść bufor przed odczytem
-                scaleBuffer.Clear();
-                serialPort.DiscardInBuffer();
-
-                // Wyślij komendę - RHEWA zazwyczaj używa "S" lub CR
-                serialPort.WriteLine("S");
-
-                // Daj chwilę na odpowiedź
-                System.Threading.Thread.Sleep(200);
-
-                // Spróbuj odczytać bezpośrednio jeśli są dane
-                if (serialPort.BytesToRead > 0)
-                {
-                    string response = serialPort.ReadExisting();
-                    int weight = ParseWeightFromScale(response);
-
-                    if (weight > 0)
-                    {
-                        if (aktywnePole == AktywnePole.Brutto)
-                        {
-                            txtBrutto.Text = weight.ToString();
-                        }
-                        else
-                        {
-                            txtTara.Text = weight.ToString();
-                        }
-                        UpdateNetto();
-                    }
-                    else
-                    {
-                        MessageBox.Show("Nie udało się odczytać wagi.\nSprawdź czy waga jest stabilna.",
-                            "Błąd odczytu", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd odczytu z wagi:\n{ex.Message}", "Błąd",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        #endregion
     }
 
-    #region Klasy pomocnicze
-
-    /// <summary>
-    /// Status dostawy
-    /// </summary>
-    public enum StatusDostawy
-    {
-        Oczekuje,
-        WTrakcie,
-        Zakonczony
-    }
-
-    /// <summary>
-    /// Model dostawy dla panelu portiera
-    /// </summary>
     public class DostawaPortiera : INotifyPropertyChanged
     {
         public long ID { get; set; }
         public string Lp { get; set; }
-        public string LpDostawy { get; set; }
-        public string CustomerGID { get; set; }
         public string HodowcaNazwa { get; set; }
-        public int? DriverGID { get; set; }
         public string KierowcaNazwa { get; set; }
         public string CarID { get; set; }
         public string TrailerID { get; set; }
         public string NrRejestracyjny { get; set; }
-        public string Uwagi { get; set; }
-
-        public DateTime? GodzinaWyjazdu { get; set; }
-        public DateTime? GodzinaZaladunku { get; set; }
-        public DateTime? GodzinaPrzyjazdu { get; set; }
-
         public int SztukiPlan { get; set; }
-        public decimal WagaDek { get; set; }
-
-        // Historia wagi
-        public DateTime? WagaData { get; set; }
-        public string WagaUser { get; set; }
-        public string WagaSource { get; set; }
+        public string GodzinaPrzyjazdu { get; set; }
+        public string Towar { get; set; }
 
         private int _brutto;
-        public int Brutto
-        {
-            get => _brutto;
-            set { _brutto = value; OnPropertyChanged(nameof(Brutto)); OnPropertyChanged(nameof(BruttoDisplay)); }
-        }
+        public int Brutto { get => _brutto; set { _brutto = value; NotifyAll(); } }
 
         private int _tara;
-        public int Tara
-        {
-            get => _tara;
-            set { _tara = value; OnPropertyChanged(nameof(Tara)); OnPropertyChanged(nameof(TaraDisplay)); }
-        }
+        public int Tara { get => _tara; set { _tara = value; NotifyAll(); } }
 
         private int _netto;
-        public int Netto
-        {
-            get => _netto;
-            set { _netto = value; OnPropertyChanged(nameof(Netto)); OnPropertyChanged(nameof(NettoDisplay)); }
-        }
+        public int Netto { get => _netto; set { _netto = value; NotifyAll(); } }
 
-        private StatusDostawy _status = StatusDostawy.Oczekuje;
-        public StatusDostawy Status
-        {
-            get => _status;
-            set { _status = value; OnPropertyChanged(nameof(Status)); OnPropertyChanged(nameof(StatusText)); OnPropertyChanged(nameof(StatusColor)); }
-        }
-
-        // Wyświetlanie
-        public string BruttoDisplay => Brutto > 0 ? $"{Brutto:N0}" : "-";
-        public string TaraDisplay => Tara > 0 ? $"{Tara:N0}" : "-";
-        public string NettoDisplay => Netto > 0 ? $"{Netto:N0}" : "-";
-        public string SztukiPlanDisplay => SztukiPlan > 0 ? $"🐔 {SztukiPlan:N0} szt" : "";
-
-        public string StatusText
-        {
-            get
-            {
-                switch (Status)
-                {
-                    case StatusDostawy.Oczekuje: return "OCZEKUJE";
-                    case StatusDostawy.WTrakcie: return "W TRAKCIE";
-                    case StatusDostawy.Zakonczony: return "ZWAŻONY";
-                    default: return "";
-                }
-            }
-        }
+        public string BruttoDisplay => Brutto > 0 ? $"{Brutto:N0} kg" : "-";
+        public string TaraDisplay => Tara > 0 ? $"{Tara:N0} kg" : "-";
+        public string NettoDisplay => Netto > 0 ? $"{Netto:N0} kg" : "-";
+        public string SztukiPlanDisplay => SztukiPlan > 0 ? $"{SztukiPlan:N0} szt" : "";
+        public bool HasNetto => Netto > 0;
+        public Visibility SztukiVisibility => SztukiPlan > 0 ? Visibility.Visible : Visibility.Collapsed;
 
         public SolidColorBrush StatusColor
         {
             get
             {
-                switch (Status)
-                {
-                    case StatusDostawy.Oczekuje: return new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FFA726"));
-                    case StatusDostawy.WTrakcie: return new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#42A5F5"));
-                    case StatusDostawy.Zakonczony: return new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#66BB6A"));
-                    default: return new SolidColorBrush(Colors.Gray);
-                }
+                if (Brutto > 0 && Tara > 0) return new SolidColorBrush((System.Windows.Media.Color)ColorConverter.ConvertFromString("#4CAF50")); // Zielony
+                if (Brutto > 0 || Tara > 0) return new SolidColorBrush((System.Windows.Media.Color)ColorConverter.ConvertFromString("#FFA726")); // Pomarańczowy
+                return new SolidColorBrush((System.Windows.Media.Color)ColorConverter.ConvertFromString("#F44336")); // Czerwony
             }
         }
 
-        public void UpdateStatus()
-        {
-            if (Netto > 0)
-                Status = StatusDostawy.Zakonczony;
-            else if (Brutto > 0)
-                Status = StatusDostawy.WTrakcie;
-            else
-                Status = StatusDostawy.Oczekuje;
-        }
+        public string StatusText => (Brutto > 0 && Tara > 0) ? "ZAKOŃCZONE" : ((Brutto > 0 || Tara > 0) ? "W TOKU" : "NOWE");
 
+        public void UpdateStatus() => NotifyAll();
         public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
+        private void NotifyAll() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
     }
-
-    #endregion
 }
