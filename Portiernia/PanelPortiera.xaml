@@ -1,57 +1,35 @@
 <Window x:Class="Kalendarz1.PanelPortiera"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Panel Portiera - System Ważenia"
-        Height="1080" Width="1920"
-        WindowStartupLocation="CenterScreen"
-        WindowState="Maximized"
-        WindowStyle="None"
-        ResizeMode="NoResize"
-        Background="#121212"
-        FontFamily="Segoe UI"
-        Loaded="Window_Loaded">
+        Title="Panel Portiera" Height="1080" Width="1920"
+        WindowStartupLocation="CenterScreen" WindowState="Maximized"
+        WindowStyle="None" ResizeMode="NoResize" Background="#121212"
+        FontFamily="Segoe UI" Loaded="Window_Loaded" PreviewKeyDown="Window_PreviewKeyDown">
 
     <Window.Resources>
-        <!-- 1. KOLORY (Brushes) - Definicja początkowa -->
         <SolidColorBrush x:Key="ThemeColor" Color="#FFA726"/>
-        <SolidColorBrush x:Key="BackgroundDark" Color="#121212"/>
-        <SolidColorBrush x:Key="CardBackground" Color="#1E1E2E"/>
-        <SolidColorBrush x:Key="PanelBackground" Color="#161621"/>
-        <SolidColorBrush x:Key="TextPrimary" Color="#FFFFFF"/>
-        <SolidColorBrush x:Key="TextSecondary" Color="#888899"/>
 
-        <!-- 2. KONWERTERY -->
-        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
-
-        <!-- 3. STYLE -->
-
-        <!-- Styl wyboru towaru (GRUBSZE GUZIKI) -->
-        <Style x:Key="CommodityRadioStyle" TargetType="RadioButton">
+        <!-- Styl klawisza klawiatury -->
+        <Style x:Key="KbdKey" TargetType="Button">
             <Setter Property="Background" Value="#252530"/>
-            <Setter Property="Foreground" Value="#888"/>
-            <Setter Property="FontSize" Value="20"/>
-            <!-- Większa czcionka -->
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="32"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="Margin" Value="4"/>
-            <Setter Property="Height" Value="60"/>
-            <!-- Grubsze guziki -->
+            <Setter Property="Height" Value="75"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="bdr" Background="{TemplateBinding Background}" CornerRadius="8" BorderThickness="2" BorderBrush="Transparent">
-                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Orientation="Horizontal">
-                                <TextBlock x:Name="icon" Text="{TemplateBinding Tag}" FontSize="24" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="txt" Text="{TemplateBinding Content}" VerticalAlignment="Center"/>
-                            </StackPanel>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="10" BorderThickness="2" BorderBrush="#444">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="bdr" Property="Background" Value="{DynamicResource ThemeColor}"/>
-                                <Setter TargetName="bdr" Property="BorderBrush" Value="{DynamicResource ThemeColor}"/>
-                                <Setter TargetName="txt" Property="Foreground" Value="Black"/>
-                                <Setter TargetName="icon" Property="Foreground" Value="Black"/>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource ThemeColor}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#353545"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -59,24 +37,50 @@
             </Setter>
         </Style>
 
-        <!-- Styl Klawisza Klawiatury Ekranowej -->
-        <Style x:Key="KbdKey" TargetType="Button">
-            <Setter Property="Background" Value="#333"/>
+        <!-- Styl dużego numpada -->
+        <Style x:Key="BigNumpadBtn" TargetType="Button">
+            <Setter Property="Background" Value="#252530"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="FontSize" Value="36"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Margin" Value="2"/>
-            <Setter Property="Height" Value="60"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Margin" Value="3"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="bdr" Background="{TemplateBinding Background}" CornerRadius="6">
+                        <Border x:Name="brd" Background="{TemplateBinding Background}" CornerRadius="10">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bdr" Property="Background" Value="{DynamicResource ThemeColor}"/>
+                                <Setter TargetName="brd" Property="Background" Value="{DynamicResource ThemeColor}"/>
+                                <Setter Property="Foreground" Value="Black"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="brd" Property="Background" Value="#3A3A4A"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Styl RadioButton trybu -->
+        <Style x:Key="ModeRadioStyle" TargetType="RadioButton">
+            <Setter Property="Background" Value="#252530"/>
+            <Setter Property="Foreground" Value="#AAA"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Margin" Value="3"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="modeBrd" Background="{TemplateBinding Background}" CornerRadius="8" BorderThickness="2" BorderBrush="#444" Padding="15,8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="modeBrd" Property="Background" Value="{DynamicResource ThemeColor}"/>
                                 <Setter Property="Foreground" Value="Black"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -85,211 +89,162 @@
             </Setter>
         </Style>
 
-        <!-- DataGrid Style -->
+        <!-- Styl RadioButton towaru - NAPRAWIONY -->
+        <Style x:Key="CommodityRadioStyle" TargetType="RadioButton">
+            <Setter Property="Background" Value="#252530"/>
+            <Setter Property="Foreground" Value="#AAA"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Margin" Value="3"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="commBrd" Background="{TemplateBinding Background}" CornerRadius="8" BorderThickness="2" BorderBrush="#444">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="commBrd" Property="Background" Value="{DynamicResource ThemeColor}"/>
+                                <Setter TargetName="commBrd" Property="BorderBrush" Value="{DynamicResource ThemeColor}"/>
+                                <Setter Property="Foreground" Value="Black"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="commBrd" Property="BorderBrush" Value="#666"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Styl przełącznika wagi -->
+        <Style x:Key="WeightToggleStyle" TargetType="RadioButton">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="wtBrd" Background="#222" CornerRadius="10">
+                            <TextBlock x:Name="wtTxt" Text="{TemplateBinding Content}" FontSize="18" FontWeight="Bold" Foreground="#666" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="wtBrd" Property="Background" Value="White"/>
+                                <Setter TargetName="wtTxt" Property="Foreground" Value="Black"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Styl przycisku akcji -->
+        <Style x:Key="ActionButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#252530"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="actBrd" Background="{TemplateBinding Background}" CornerRadius="8" BorderThickness="2" BorderBrush="#444" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="actBrd" Property="Background" Value="#3A3A4A"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Styl DataGrid -->
         <Style x:Key="MyDataGridStyle" TargetType="DataGrid">
-            <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="RowBackground" Value="{DynamicResource PanelBackground}"/>
-            <Setter Property="AlternatingRowBackground" Value="{DynamicResource CardBackground}"/>
+            <Setter Property="Background" Value="#161621"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="RowBackground" Value="#161621"/>
+            <Setter Property="AlternatingRowBackground" Value="#1E1E2E"/>
             <Setter Property="HeadersVisibility" Value="Column"/>
             <Setter Property="GridLinesVisibility" Value="Horizontal"/>
             <Setter Property="HorizontalGridLinesBrush" Value="#333"/>
-            <Setter Property="VerticalGridLinesBrush" Value="Transparent"/>
-            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontSize" Value="22"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="RowHeight" Value="65"/>
+            <Setter Property="RowHeight" Value="85"/>
             <Setter Property="CanUserAddRows" Value="False"/>
             <Setter Property="AutoGenerateColumns" Value="False"/>
             <Setter Property="SelectionMode" Value="Single"/>
             <Setter Property="IsReadOnly" Value="True"/>
         </Style>
 
+        <!-- Styl nagłówka kolumny -->
         <Style TargetType="DataGridColumnHeader">
             <Setter Property="Background" Value="#252530"/>
             <Setter Property="Foreground" Value="{DynamicResource ThemeColor}"/>
-            <Setter Property="Padding" Value="15,10"/>
-            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="FontSize" Value="16"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-            <Setter Property="Height" Value="55"/>
-            <Setter Property="BorderThickness" Value="0,0,0,2"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource ThemeColor}"/>
+            <Setter Property="Height" Value="50"/>
         </Style>
 
+        <!-- Styl komórki -->
         <Style TargetType="DataGridCell">
-            <Setter Property="Padding" Value="15,0"/>
+            <Setter Property="Padding" Value="6,0"/>
+            <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="DataGridCell">
-                        <Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" BorderBrush="Transparent" BorderThickness="0">
-                            <ContentPresenter VerticalAlignment="Center" />
+                        <Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}">
+                            <ContentPresenter VerticalAlignment="Center"/>
                         </Border>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#333"/>
-                    <Setter Property="Foreground" Value="{DynamicResource ThemeColor}"/>
-                    <Setter Property="FontWeight" Value="Bold"/>
+                    <Setter Property="Background" Value="#3A3A50"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
 
-        <!-- Date Nav Btn -->
-        <Style x:Key="DateNavBtn" TargetType="Button">
+        <!-- Styl wiersza z animacją zaznaczenia -->
+        <Style TargetType="DataGridRow">
+            <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
-            <Setter Property="FontSize" Value="24"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Width" Value="50"/>
-            <Setter Property="Height" Value="50"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="8" BorderBrush="#333" BorderThickness="1">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#252535"/>
-                                <Setter Property="Foreground" Value="White"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="{DynamicResource ThemeColor}"/>
-                                <Setter Property="Foreground" Value="Black"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Top Menu Tabs -->
-        <Style x:Key="TopNavRadioStyle" TargetType="RadioButton">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#888"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-            <Setter Property="Margin" Value="0,0,10,0"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="bdr" Background="{TemplateBinding Background}" Padding="20,10" 
-                                CornerRadius="8" BorderThickness="0,0,0,3" BorderBrush="Transparent">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock x:Name="icon" Text="{TemplateBinding Tag}" FontSize="24" Margin="0,0,10,0"/>
-                                <TextBlock x:Name="txt" Text="{TemplateBinding Content}" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="bdr" Property="Background" Value="#252535"/>
-                                <Setter TargetName="bdr" Property="BorderBrush" Value="{DynamicResource ThemeColor}"/>
-                                <Setter TargetName="txt" Property="Foreground" Value="White"/>
-                                <Setter TargetName="icon" Property="Foreground" Value="{DynamicResource ThemeColor}"/>
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Foreground" Value="White"/>
-                                <Setter TargetName="bdr" Property="Background" Value="#1E1E2E"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Weigh Mode -->
-        <Style x:Key="WeighModeRadioStyle" TargetType="RadioButton">
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-            <Setter Property="Foreground" Value="#666"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="bdr" Background="#1E1E24" CornerRadius="8" Margin="4">
-                            <Grid>
-                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                    <TextBlock x:Name="txt" Text="{TemplateBinding Content}" 
-                                               HorizontalAlignment="Center"
-                                               FontSize="20" FontWeight="Bold" Foreground="{TemplateBinding Foreground}"/>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="bdr" Property="Background" Value="{DynamicResource ThemeColor}"/>
-                                <Setter Property="Foreground" Value="#121212"/>
-                                <Setter TargetName="bdr" Property="Effect">
-                                    <Setter.Value>
-                                        <DropShadowEffect Color="Black" BlurRadius="10" Opacity="0.3" ShadowDepth="2"/>
-                                    </Setter.Value>
-                                </Setter>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Card Style -->
-        <Style x:Key="CardStyle" TargetType="Border">
-            <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Margin" Value="5"/>
-            <Setter Property="Padding" Value="10"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="#333"/>
-            <Setter Property="MinHeight" Value="135"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="#2A2A3A"/>
-                    <Setter Property="BorderBrush" Value="{DynamicResource ThemeColor}"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#2D2D40"/>
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <ColorAnimation Storyboard.TargetProperty="(DataGridRow.Background).(SolidColorBrush.Color)"
+                                                From="#4A4A60" To="#2D2D40" Duration="0:0:0.5" 
+                                                AutoReverse="True" RepeatBehavior="3x"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
                 </Trigger>
             </Style.Triggers>
         </Style>
 
-        <!-- Numpad -->
-        <Style x:Key="BigNumpadBtn" TargetType="Button">
-            <Setter Property="Background" Value="#222"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontSize" Value="40"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Margin" Value="4"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bdr" Background="{TemplateBinding Background}" CornerRadius="8">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bdr" Property="Background" Value="{DynamicResource ThemeColor}"/>
-                                <Setter Property="Foreground" Value="Black"/>
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bdr" Property="Background" Value="#333"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Input Style -->
+        <!-- Styl pola tekstowego -->
         <Style x:Key="InputBoxStyle" TargetType="TextBox">
             <Setter Property="Background" Value="#252530"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontSize" Value="24"/>
+            <Setter Property="FontSize" Value="18"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="6" BorderThickness="1" BorderBrush="#444">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" BorderThickness="2" BorderBrush="#555">
                             <ScrollViewer x:Name="PART_ContentHost"/>
                         </Border>
                     </ControlTemplate>
@@ -298,85 +253,23 @@
         </Style>
     </Window.Resources>
 
-    <Grid Background="{DynamicResource BackgroundDark}">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+    <Grid Background="#121212">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="440"/>
+        </Grid.ColumnDefinitions>
 
-        <!-- === GÓRNY PASEK MENU === -->
-        <Border Grid.Row="0" Background="#161618" Padding="15,10" BorderThickness="0,0,0,1" BorderBrush="#333">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+        <!-- Lewa strona -->
+        <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="⚖️" FontSize="28" VerticalAlignment="Center" Margin="0,0,20,0" Foreground="White"/>
-
-                    <RadioButton Content="AVILOG" Tag="🐔" Style="{StaticResource TopNavRadioStyle}" IsChecked="True" 
-                                 Click="ZmienTryb_Click" GroupName="Mode" x:Name="rbAvilog"/>
-
-                    <RadioButton Content="ODPADY / INNE" Tag="♻️" Style="{StaticResource TopNavRadioStyle}" 
-                                 Click="ZmienTryb_Click" GroupName="Mode" x:Name="rbOdpady"/>
-                </StackPanel>
-
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="30,0,0,0">
-                    <Border Width="4" Height="30" Background="{DynamicResource ThemeColor}" CornerRadius="2" Margin="0,0,10,0"/>
-                    <TextBlock x:Name="lblHeaderTitle" Text="LISTA: AVILOG" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding ElementName=listDostawy, Path=Items.Count, StringFormat=' ({0})'}" 
-                               FontSize="22" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
-                    <Button Click="BtnRefresh_Click" Background="Transparent" BorderThickness="0" Cursor="Hand" Margin="15,0,0,0" VerticalAlignment="Center" ToolTip="Odśwież listę">
-                        <TextBlock Text="🔄" FontSize="20" Foreground="{DynamicResource TextSecondary}"/>
-                    </Button>
-                </StackPanel>
-
-                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,20,0">
-                    <Button Content="◀" Click="PrevDay_Click" Style="{StaticResource DateNavBtn}" Margin="0,0,5,0" Height="40" Width="40" FontSize="18"/>
-                    <Border Background="#252535" CornerRadius="6" Height="40" Padding="10,0">
-                        <DatePicker SelectedDate="{Binding SelectedDate, Mode=TwoWay}" 
-                                    SelectedDateChanged="DatePicker_SelectedDateChanged"
-                                    Width="140" FontSize="16" FontWeight="Bold"
-                                    VerticalContentAlignment="Center" BorderThickness="0" Background="Transparent"/>
-                    </Border>
-                    <Button Content="▶" Click="NextDay_Click" Style="{StaticResource DateNavBtn}" Margin="5,0,20,0" Height="40" Width="40" FontSize="18"/>
-                    <Border Background="#000" CornerRadius="6" Padding="20,0" Height="45" BorderBrush="#333" BorderThickness="1">
-                        <TextBlock x:Name="lblTime" Text="12:00" FontSize="30" FontWeight="Black" Foreground="{DynamicResource ThemeColor}" VerticalAlignment="Center"/>
-                    </Border>
-                </StackPanel>
-
-                <Button Grid.Column="3" Click="BtnClose_Click" Background="Transparent" BorderThickness="0" Cursor="Hand" VerticalAlignment="Center">
-                    <Border Background="#251010" Padding="15,8" CornerRadius="6" BorderBrush="#500" BorderThickness="1">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="EXIT" FontSize="12" Foreground="#FF8888" VerticalAlignment="Center" Margin="0,0,5,0" FontWeight="Bold"/>
-                            <TextBlock Text="❌" FontSize="18"/>
-                        </StackPanel>
-                    </Border>
-                </Button>
-            </Grid>
-        </Border>
-
-        <!-- === 2. GŁÓWNA ZAWARTOŚĆ === -->
-        <Grid Grid.Row="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <!-- Lista/Tabela -->
-                <ColumnDefinition Width="600"/>
-                <!-- Panel Prawy -->
-            </Grid.ColumnDefinitions>
-
-            <!-- ================= LEWA STRONA: LISTA / TABELA ================= -->
-            <Grid Grid.Column="0" Margin="20">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-
-                <!-- WIDOK 1: LISTA KAFELKÓW (Dla Avilog) -->
-                <ScrollViewer x:Name="viewTiles" Grid.Row="1" VerticalScrollBarVisibility="Auto" PanningMode="VerticalOnly">
+            <!-- Główny obszar -->
+            <Grid Grid.Row="0" Margin="10">
+                <!-- Widok kafelków AVILOG -->
+                <ScrollViewer x:Name="viewTiles" VerticalScrollBarVisibility="Auto">
                     <ItemsControl x:Name="listDostawy">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -385,60 +278,60 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Style="{StaticResource CardStyle}" MouseLeftButtonUp="Dostawa_Click" Tag="{Binding}">
+                                <Border x:Name="cardBorder" CornerRadius="12" Margin="5" Padding="10" BorderThickness="3" 
+                                        Cursor="Hand" MouseLeftButtonUp="Dostawa_Click" Tag="{Binding}" MinHeight="155"
+                                        Background="{Binding CardBackground}" BorderBrush="{Binding CardBorderBrush}">
+                                    <Border.Effect>
+                                        <DropShadowEffect Color="Black" BlurRadius="10" Opacity="0.3" ShadowDepth="2"/>
+                                    </Border.Effect>
                                     <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="10"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Border Grid.Column="0" Background="{Binding StatusColor}" CornerRadius="3"/>
-                                        <Grid Grid.Column="1" Margin="12,0,0,0">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-                                            <Grid Grid.Row="0" Margin="0,0,0,8">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel Orientation="Horizontal">
-                                                    <Border Background="#333" CornerRadius="4" Padding="6,1" Margin="0,0,8,0">
-                                                        <TextBlock Text="{Binding Lp}" Foreground="White" FontWeight="Bold" FontSize="14"/>
-                                                    </Border>
-                                                    <TextBlock Text="{Binding GodzinaPrzyjazdu}" Foreground="{DynamicResource ThemeColor}" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
-                                                </StackPanel>
-                                                <TextBlock Grid.Column="2" Text="{Binding HodowcaNazwa}" FontSize="13" FontWeight="Bold" Foreground="#FF5555" TextTrimming="CharacterEllipsis" MaxWidth="140" VerticalAlignment="Center"/>
-                                            </Grid>
-                                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,2">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <!-- Nagłówek karty -->
+                                        <Grid Grid.Row="0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Border Background="#333" CornerRadius="4" Padding="6,1" Margin="0,0,6,0">
+                                                    <TextBlock Text="{Binding Lp}" Foreground="White" FontWeight="Bold" FontSize="13"/>
+                                                </Border>
+                                                <TextBlock Text="{Binding GodzinaPrzyjazdu}" FontSize="18" FontWeight="Bold" 
+                                                           Foreground="{DynamicResource ThemeColor}" VerticalAlignment="Center"/>
+                                                <TextBlock Text=" • " FontSize="14" Foreground="#666" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding KierowcaNazwa}" FontSize="14" FontWeight="Bold" 
+                                                           Foreground="#EEE" VerticalAlignment="Center" 
+                                                           TextTrimming="CharacterEllipsis" MaxWidth="100"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding HodowcaNazwa}" HorizontalAlignment="Right" 
+                                                       Foreground="#FF8A80" FontSize="14" FontWeight="Bold" 
+                                                       TextTrimming="CharacterEllipsis" MaxWidth="150"/>
+                                        </Grid>
+
+                                        <!-- Środek karty -->
+                                        <StackPanel Grid.Row="1" VerticalAlignment="Center" Margin="0,4">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                                 <TextBlock Text="{Binding CarID}" FontSize="28" FontWeight="Black" Foreground="White"/>
                                                 <TextBlock Text=" " FontSize="28"/>
                                                 <TextBlock Text="{Binding TrailerID}" FontSize="28" FontWeight="Black" Foreground="#FFA726"/>
                                             </StackPanel>
-                                            <TextBlock Grid.Row="2" Text="{Binding KierowcaNazwa}" FontSize="18" FontWeight="Bold" Foreground="#DDD" TextTrimming="CharacterEllipsis" Margin="0,0,0,10"/>
-                                            <Grid Grid.Row="4">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="8"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
-                                                <Border Grid.Column="0" BorderBrush="#444" BorderThickness="1" CornerRadius="5" Background="#161618" Padding="4">
-                                                    <StackPanel>
-                                                        <TextBlock Text="BRUTTO" FontSize="9" Foreground="#888" HorizontalAlignment="Center"/>
-                                                        <TextBlock Text="{Binding BruttoDisplay}" FontSize="24" FontWeight="Black" Foreground="White" HorizontalAlignment="Center"/>
-                                                    </StackPanel>
-                                                </Border>
-                                                <Border Grid.Column="2" BorderBrush="#444" BorderThickness="1" CornerRadius="5" Background="#161618" Padding="4">
-                                                    <StackPanel>
-                                                        <TextBlock Text="TARA" FontSize="9" Foreground="#888" HorizontalAlignment="Center"/>
-                                                        <TextBlock Text="{Binding TaraDisplay}" FontSize="24" FontWeight="Black" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center"/>
-                                                    </StackPanel>
-                                                </Border>
-                                            </Grid>
+                                        </StackPanel>
+
+                                        <!-- Stopka karty -->
+                                        <Grid Grid.Row="2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                                <TextBlock Text="BRUTTO" Foreground="#666" FontSize="9" VerticalAlignment="Bottom" Margin="0,0,4,0"/>
+                                                <TextBlock Text="{Binding BruttoDisplay}" FontSize="16" FontWeight="Bold" Foreground="White"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                                <TextBlock Text="TARA" Foreground="#666" FontSize="9" VerticalAlignment="Bottom" Margin="0,0,4,0"/>
+                                                <TextBlock Text="{Binding TaraDisplay}" FontSize="16" FontWeight="Bold" Foreground="#888"/>
+                                            </StackPanel>
                                         </Grid>
                                     </Grid>
                                 </Border>
@@ -447,46 +340,63 @@
                     </ItemsControl>
                 </ScrollViewer>
 
-                <!-- WIDOK 2: TABELA (Dla Odpadów) -->
-                <DataGrid x:Name="gridTable" Grid.Row="1" AutoGenerateColumns="False" 
-                          Style="{StaticResource MyDataGridStyle}"
-                          Visibility="Collapsed" IsReadOnly="True" SelectionMode="Single"
+                <!-- Widok tabeli ODPADY -->
+                <DataGrid x:Name="gridTable" Visibility="Collapsed" Style="{StaticResource MyDataGridStyle}" 
                           SelectionChanged="GridTable_SelectionChanged">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Godz." Binding="{Binding GodzinaPrzyjazdu}" Width="90"/>
-                        <DataGridTextColumn Header="Nr Rejestracyjny" Binding="{Binding NrRejestracyjny}" Width="250" FontWeight="Bold"/>
-                        <DataGridTextColumn Header="Towar" Binding="{Binding Towar}" Width="150"/>
-                        <DataGridTextColumn Header="Odbiorca" Binding="{Binding HodowcaNazwa}" Width="*"/>
-                        <DataGridTextColumn Header="Brutto" Binding="{Binding BruttoDisplay}" Width="120"/>
-                        <DataGridTextColumn Header="Tara" Binding="{Binding TaraDisplay}" Width="120"/>
-                        <DataGridTextColumn Header="Netto" Binding="{Binding NettoDisplay}" Width="120" Foreground="{DynamicResource ThemeColor}"/>
+                        <DataGridTemplateColumn Header="" Width="50">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Ellipse Width="22" Height="22" HorizontalAlignment="Center" Fill="{Binding StatusColor}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="GODZ." Binding="{Binding GodzinaPrzyjazdu}" Width="80"/>
+                        <DataGridTemplateColumn Header="" Width="55">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding TowarIcon}" FontSize="32" FontWeight="Bold"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Foreground="{Binding TowarColor}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="REJESTRACJA" Binding="{Binding NrRejestracyjny}" Width="150"/>
+                        <DataGridTextColumn Header="ODBIORCA" Binding="{Binding HodowcaNazwa}" Width="*"/>
+                        <DataGridTextColumn Header="TARA" Binding="{Binding TaraDisplay}" Width="120"/>
+                        <DataGridTextColumn Header="BRUTTO" Binding="{Binding BruttoDisplay}" Width="120"/>
+                        <DataGridTextColumn Header="NETTO" Binding="{Binding NettoDisplay}" Width="130"/>
                     </DataGrid.Columns>
                 </DataGrid>
 
-                <!-- Przyciski NOWE i USUŃ -->
-                <StackPanel x:Name="panelButtonsLeft" Grid.Row="1" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="20"
-                            Orientation="Horizontal" Visibility="Collapsed">
-
-                    <Button x:Name="btnDelete" Width="80" Height="80" Margin="0,0,15,0" Click="BtnDelete_Click">
+                <!-- Przyciski dla ODPADY -->
+                <StackPanel x:Name="panelButtonsLeft" VerticalAlignment="Bottom" HorizontalAlignment="Right" 
+                            Orientation="Horizontal" Visibility="Collapsed" Margin="0,0,20,20">
+                    <Button x:Name="btnScanOdpady" Width="80" Height="80" Margin="0,0,10,0" 
+                            Click="BtnScan_Click" Style="{StaticResource ActionButtonStyle}">
+                        <TextBlock Text="&#x1F4F7;" FontSize="32"/>
+                    </Button>
+                    <Button x:Name="btnPrintOdpady" Width="80" Height="80" Margin="0,0,10,0" 
+                            Click="BtnPrint_Click" Style="{StaticResource ActionButtonStyle}">
+                        <TextBlock Text="&#x1F5B6;" FontSize="32"/>
+                    </Button>
+                    <Button x:Name="btnDelete" Width="80" Height="80" Margin="0,0,10,0" 
+                            Click="BtnDelete_Click" IsEnabled="False">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
-                                <Border Background="#442222" CornerRadius="40" BorderBrush="#FF5555" BorderThickness="2">
-                                    <TextBlock Text="🗑" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#FF5555"/>
+                                <Border Background="#2A1515" CornerRadius="12" BorderBrush="#FF5252" BorderThickness="2">
+                                    <TextBlock Text="&#x1F5D1;" FontSize="32" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                             </ControlTemplate>
                         </Button.Template>
                     </Button>
-
-                    <Button x:Name="btnNewEntry" Width="220" Height="80" Click="BtnNewEntry_Click">
+                    <Button x:Name="btnNewEntry" Width="180" Height="80" Click="BtnNewEntry_Click">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
-                                <Border Background="{DynamicResource ThemeColor}" CornerRadius="40">
-                                    <Border.Effect>
-                                        <DropShadowEffect Color="Black" BlurRadius="20" Opacity="0.6"/>
-                                    </Border.Effect>
+                                <Border Background="{DynamicResource ThemeColor}" CornerRadius="12">
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <TextBlock Text="➕" FontSize="30" Margin="0,0,10,0" Foreground="Black"/>
-                                        <TextBlock Text="NOWE" FontSize="24" FontWeight="Black" Foreground="Black"/>
+                                        <TextBlock Text="+" FontSize="36" Margin="0,0,8,0" Foreground="Black" FontWeight="Bold"/>
+                                        <TextBlock Text="NOWE" FontSize="22" FontWeight="Black" Foreground="Black"/>
                                     </StackPanel>
                                 </Border>
                             </ControlTemplate>
@@ -495,280 +405,422 @@
                 </StackPanel>
             </Grid>
 
-            <!-- ================= PRAWA STRONA: PANEL KONTROLNY ================= -->
-            <Border Grid.Column="1" Background="{DynamicResource PanelBackground}" BorderBrush="#252530" BorderThickness="1,0,0,0">
-                <Grid Margin="20">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <!-- Karta Auta (Edytowalna) -->
-                        <RowDefinition Height="Auto"/>
-                        <!-- WYBÓR TOWARU (Nowe!) -->
-                        <RowDefinition Height="Auto"/>
-                        <!-- Waga (Wielka) -->
-                        <RowDefinition Height="Auto"/>
-                        <!-- Toggle -->
-                        <RowDefinition Height="*"/>
-                        <!-- Numpad -->
-                        <RowDefinition Height="Auto"/>
-                        <!-- Save -->
-                    </Grid.RowDefinitions>
+            <!-- Dolny panel nawigacji -->
+            <Border Grid.Row="1" Background="#181820" Padding="12,10" BorderThickness="0,2,0,0" BorderBrush="#333">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-                    <!-- 1. KARTA AUTA -->
-                    <Border Grid.Row="0" Background="#1E1E2E" CornerRadius="8" Padding="15" Margin="0,0,0,10" BorderThickness="1" BorderBrush="#333">
-                        <StackPanel>
-                            <Grid Margin="0,0,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="DANE POJAZDU" FontSize="12" Foreground="#666" FontWeight="Bold"/>
-                                <TextBlock x:Name="lblTrybPracy" Text="PODGLĄD" FontSize="12" Foreground="{DynamicResource ThemeColor}" FontWeight="Bold"/>
-                            </Grid>
+                    <!-- Przycisk zamknij -->
+                    <Button Grid.Column="0" Click="BtnClose_Click" Cursor="Hand" Margin="0,0,10,0" Width="50" Height="50">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="#2A1010" CornerRadius="8" BorderBrush="#800" BorderThickness="2">
+                                    <TextBlock Text="X" FontSize="24" Foreground="#FF5555" FontWeight="Bold" 
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
 
-                            <!-- NR REJESTRACYJNY -->
-                            <Grid>
-                                <!-- Widok tylko do odczytu (Avilog) -->
-                                <StackPanel x:Name="panelReadOnlyCar" Visibility="Visible">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock x:Name="lblWybranyPojazd" Text="---" FontSize="28" FontWeight="Black" Foreground="White"/>
-                                        <TextBlock Text=" " FontSize="28"/>
-                                        <TextBlock x:Name="lblWybranaNaczepa" Text="---" FontSize="28" FontWeight="Black" Foreground="#FFA726"/>
-                                    </StackPanel>
-                                    <TextBlock x:Name="lblWybranyKierowca" Text="Wybierz auto..." FontSize="16" Foreground="#AAA" Margin="0,5,0,0"/>
-                                </StackPanel>
+                    <!-- DatePicker z ciemnym stylem -->
+                    <Border Grid.Column="1" Background="#FFA726" CornerRadius="8" BorderBrush="#FFA726" 
+                            BorderThickness="2" Padding="4,2" Margin="0,0,10,0">
+                        <DatePicker x:Name="dpDate" SelectedDate="{Binding SelectedDate, Mode=TwoWay}" 
+                                    SelectedDateChanged="DatePicker_SelectedDateChanged" 
+                                    Width="145" Height="44" FontSize="18" FontWeight="Bold" 
+                                    Background="#FFA726" BorderThickness="0" Foreground="Black">
+                            <DatePicker.Resources>
+                                <Style TargetType="DatePickerTextBox">
+                                    <Setter Property="Foreground" Value="Black"/>
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="FontSize" Value="18"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="Control.Template">
+                                        <Setter.Value>
+                                            <ControlTemplate>
+                                                <TextBox x:Name="PART_TextBox" 
+                                                         Text="{Binding Path=SelectedDate, RelativeSource={RelativeSource AncestorType=DatePicker}, StringFormat='{}{0:dd.MM.yyyy}'}"
+                                                         Foreground="Black" Background="Transparent" BorderThickness="0"
+                                                         FontSize="18" FontWeight="Bold" VerticalContentAlignment="Center"
+                                                         IsReadOnly="True" Focusable="False"/>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </DatePicker.Resources>
+                        </DatePicker>
+                    </Border>
 
-                                <!-- Widok do edycji (Odpady) -->
-                                <StackPanel x:Name="panelEditCar" Visibility="Collapsed">
-                                    <TextBlock Text="Nr Rejestracyjny:" FontSize="14" Foreground="#888"/>
-                                    <!-- KLIKNIĘCIE W TEXTBOX OTWIERA KLAWIATURĘ -->
-                                    <TextBox x:Name="txtEditRejestracja" Text="WB 12345" Style="{StaticResource InputBoxStyle}"
-                                             PreviewMouseLeftButtonUp="TxtEditRejestracja_Click" IsReadOnly="True" Cursor="Hand"/>
-                                </StackPanel>
-                            </Grid>
-
-                            <Separator Background="#333" Margin="0,15"/>
-
-                            <!-- ODBIORCA / HODOWCA -->
-                            <Grid>
-                                <StackPanel x:Name="panelReadOnlyOdbiorca" Visibility="Visible">
-                                    <TextBlock Text="Dostawca / Hodowca:" FontSize="12" Foreground="#888"/>
-                                    <TextBlock x:Name="lblWybranyHodowca" Text="---" FontSize="18" Foreground="#FF5555" FontWeight="Bold" TextWrapping="Wrap"/>
-                                </StackPanel>
-
-                                <StackPanel x:Name="panelEditOdbiorca" Visibility="Collapsed">
-                                    <TextBlock x:Name="lblOdbiorcaTitle" Text="Odbiorca Towaru:" FontSize="14" Foreground="#888" Margin="0,0,0,5"/>
-                                    <ComboBox x:Name="cbOdbiorcy" Height="50" FontSize="20" FontWeight="Bold" 
-                                              DisplayMemberPath="Nazwa" SelectedValuePath="ID">
-                                    </ComboBox>
-                                </StackPanel>
-                            </Grid>
-
-                            <!-- Pozostałe info -->
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,10,0,0">
-                                <TextBlock x:Name="lblWybranyOdbiorca" Visibility="Collapsed"/>
-                                <TextBlock x:Name="lblPlanowaneSztuki" Text="" FontSize="14" Foreground="#FFD700" HorizontalAlignment="Right" FontWeight="Bold"/>
-                                <TextBlock x:Name="lblWagiBaza" Text="" FontSize="10" Foreground="#444" HorizontalAlignment="Right" Margin="0,5,0,0"/>
-                            </StackPanel>
+                    <!-- Przyciski SKAN i DRUKUJ dla AVILOG -->
+                    <Button x:Name="btnScanAvilog" Grid.Column="2" Click="BtnScan_Click" 
+                            Style="{StaticResource ActionButtonStyle}" Height="50" Width="100" Margin="0,0,5,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#x1F4F7;" FontSize="20" Margin="0,0,5,0"/>
+                            <TextBlock Text="SKAN" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
                         </StackPanel>
-                    </Border>
+                    </Button>
+                    <Button x:Name="btnPrintAvilog" Grid.Column="3" Click="BtnPrint_Click" 
+                            Style="{StaticResource ActionButtonStyle}" Height="50" Width="110" Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#x1F5B6;" FontSize="20" Margin="0,0,5,0"/>
+                            <TextBlock Text="DRUKUJ" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
-                    <!-- 2. WYBÓR TOWARU (NAD WAGĄ) - Zaktualizowane kolory i ikonki -->
-                    <Grid Grid.Row="1" x:Name="panelCommodity" Visibility="Collapsed" Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <RadioButton x:Name="btnKrew" Content="KREW" Tag="🩸" GroupName="Comm" Style="{StaticResource CommodityRadioStyle}" Click="BtnCommodity_Click"/>
-                        <RadioButton Grid.Column="1" x:Name="btnLapy" Content="ŁAPY" Tag="🐾" GroupName="Comm" Style="{StaticResource CommodityRadioStyle}" Click="BtnCommodity_Click"/>
-                        <RadioButton Grid.Column="2" x:Name="btnJelita" Content="JELITA" Tag="➰" GroupName="Comm" Style="{StaticResource CommodityRadioStyle}" Click="BtnCommodity_Click"/>
-                        <RadioButton Grid.Column="3" x:Name="btnPiora" Content="PIÓRA" Tag="🪶" GroupName="Comm" Style="{StaticResource CommodityRadioStyle}" Click="BtnCommodity_Click"/>
-                    </Grid>
+                    <!-- Pusty spacer -->
+                    <Grid Grid.Column="4"/>
 
-                    <!-- 3. WYŚWIETLACZ WAGI -->
-                    <Border Grid.Row="2" Background="Black" BorderBrush="#333" BorderThickness="4" CornerRadius="8" Padding="10" Margin="0,0,0,15">
-                        <Grid>
-                            <StackPanel VerticalAlignment="Top" HorizontalAlignment="Left">
-                                <Ellipse x:Name="ledStabilnosc" Width="15" Height="15" Fill="Gray" Margin="5"/>
-                                <TextBlock Text="STABILNA" Foreground="Gray" FontSize="10" FontWeight="Bold" Margin="5,0,0,0" Opacity="0.7"/>
+                    <!-- Przełącznik trybów -->
+                    <StackPanel Grid.Column="5" Orientation="Horizontal" Margin="10,0">
+                        <RadioButton x:Name="rbAvilog" GroupName="Mode" IsChecked="True" Click="ZmienTryb_Click" 
+                                     Style="{StaticResource ModeRadioStyle}" Height="50">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#x1F414;" FontSize="22" Margin="0,0,6,0"/>
+                                <TextBlock Text="AVILOG" FontSize="15" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
-                            <DockPanel LastChildFill="True">
-                                <TextBlock DockPanel.Dock="Right" Text="kg" Foreground="#444" FontSize="24" FontWeight="Bold" VerticalAlignment="Bottom" Margin="0,0,10,15"/>
-                                <Viewbox Height="90" HorizontalAlignment="Right" Margin="0,0,5,0">
-                                    <TextBlock x:Name="BigWeightDisplay" Text="0" FontFamily="Consolas" FontWeight="Bold" Foreground="#00FF00"/>
-                                </Viewbox>
-                            </DockPanel>
-                            <Button Click="BtnReadScale_Click" Background="Transparent" BorderThickness="0" Cursor="Hand"/>
-                        </Grid>
+                        </RadioButton>
+                        <RadioButton x:Name="rbOdpady" GroupName="Mode" Click="ZmienTryb_Click" 
+                                     Style="{StaticResource ModeRadioStyle}" Height="50" MinWidth="240">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#x2764;" FontSize="22" Margin="0,0,6,0" Foreground="#FF5555"/>
+                                <TextBlock Text="KREW / JELITA / LAPY / PIORA" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+                    </StackPanel>
+
+                    <!-- Przycisk odśwież -->
+                    <Button Grid.Column="6" Click="BtnRefresh_Click" Background="Transparent" BorderThickness="0" 
+                            Margin="10,0" Width="50" Height="50" Cursor="Hand">
+                        <TextBlock Text="&#x1F504;" FontSize="26" Foreground="White"/>
+                    </Button>
+
+                    <!-- Zegar -->
+                    <Border Grid.Column="7" Background="Black" CornerRadius="10" Padding="16,0" Height="50" 
+                            BorderBrush="#FFA726" BorderThickness="2">
+                        <TextBlock x:Name="lblTime" Text="12:00" FontSize="26" FontWeight="Black" 
+                                   Foreground="#FFA726" VerticalAlignment="Center"/>
                     </Border>
+                </Grid>
+            </Border>
+        </Grid>
 
-                    <!-- 4. PRZEŁĄCZNIK -->
-                    <Grid Grid.Row="3" Height="60" Margin="0,0,0,15">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <RadioButton x:Name="radioBrutto" Content="📦 BRUTTO" GroupName="WeightType" IsChecked="True" 
-                                     Style="{StaticResource WeighModeRadioStyle}" Click="Mode_Click"/>
-                        <RadioButton x:Name="radioTara" Grid.Column="1" Content="🚛 TARA" GroupName="WeightType" 
-                                     Style="{StaticResource WeighModeRadioStyle}" Click="Mode_Click"/>
+        <!-- Prawa strona - panel wagi -->
+        <Border Grid.Column="1" Background="#16161D" BorderBrush="#333" BorderThickness="2,0,0,0">
+            <Grid Margin="10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Panel informacji o pojeździe -->
+                <Border Grid.Row="0" Background="#1E1E2E" CornerRadius="12" Padding="10" Margin="0,0,0,5" 
+                        BorderBrush="#444" BorderThickness="1">
+                    <StackPanel>
+                        <Grid>
+                            <!-- Tryb tylko do odczytu (AVILOG) -->
+                            <StackPanel x:Name="panelReadOnlyCar">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <TextBlock x:Name="lblWybranyPojazd" Text="---" FontSize="28" FontWeight="Black" Foreground="White"/>
+                                    <TextBlock Text="  " FontSize="28"/>
+                                    <TextBlock x:Name="lblWybranaNaczepa" Text="---" FontSize="28" FontWeight="Black" Foreground="#FFA726"/>
+                                </StackPanel>
+                                <TextBlock x:Name="lblWybranyKierowca" Text="Wybierz pojazd" FontSize="22" FontWeight="Bold" 
+                                           Foreground="#EEE" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                <TextBlock x:Name="lblWybranyHodowca" Text="" FontSize="16" Foreground="#FF8A80" 
+                                           FontWeight="Bold" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                <TextBlock x:Name="lblWybranaGodzina" Text="" FontSize="13" Foreground="#888" 
+                                           HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                            </StackPanel>
+
+                            <!-- Tryb edycji (ODPADY) -->
+                            <StackPanel x:Name="panelEditCar" Visibility="Collapsed">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="8"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="REJESTRACJA:" FontSize="11" FontWeight="Bold" Foreground="#888" Margin="0,0,0,2"/>
+                                        <TextBox x:Name="txtEditRejestracja" Style="{StaticResource InputBoxStyle}" 
+                                                 PreviewMouseLeftButtonUp="TxtEditRejestracja_Click" IsReadOnly="True" Cursor="Hand" Height="45"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="ODBIORCA:" FontSize="11" FontWeight="Bold" Foreground="#888" Margin="0,0,0,2"/>
+                                        <ComboBox x:Name="cbOdbiorcy" Height="45" FontSize="14" FontWeight="Bold" Padding="8"/>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Panel wyboru towaru (tylko ODPADY) -->
+                <Grid Grid.Row="1" x:Name="panelCommodity" Visibility="Collapsed" Margin="0,0,0,5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <RadioButton Grid.Row="0" Grid.Column="0" GroupName="C" x:Name="btnKrew" 
+                                 Style="{StaticResource CommodityRadioStyle}" Click="BtnCommodity_Click" IsChecked="True" Height="55">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="&#x2764;" FontSize="22" Margin="0,0,5,0" Foreground="#FF5555"/>
+                            <TextBlock Text="KREW" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton Grid.Row="0" Grid.Column="1" GroupName="C" x:Name="btnLapy" 
+                                 Style="{StaticResource CommodityRadioStyle}" Click="BtnCommodity_Click" Height="55">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="&#x1F43E;" FontSize="22" Margin="0,0,5,0" Foreground="#FFD54F"/>
+                            <TextBlock Text="LAPY" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton Grid.Row="0" Grid.Column="2" GroupName="C" x:Name="btnJelita" 
+                                 Style="{StaticResource CommodityRadioStyle}" Click="BtnCommodity_Click" Height="55">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="&#x27B0;" FontSize="22" Margin="0,0,5,0" Foreground="#A1887F"/>
+                            <TextBlock Text="JELITA" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton Grid.Row="1" Grid.Column="0" GroupName="C" x:Name="btnPiora" 
+                                 Style="{StaticResource CommodityRadioStyle}" Click="BtnCommodity_Click" Height="55">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="~" FontSize="26" Margin="0,0,5,0" Foreground="#BDBDBD" FontStyle="Italic"/>
+                            <TextBlock Text="PIORA" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" GroupName="C" x:Name="btnOdpady" 
+                                 Style="{StaticResource CommodityRadioStyle}" Click="BtnCommodity_Click" Height="55">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="&#x267B;" FontSize="22" Margin="0,0,5,0" Foreground="#AB47BC"/>
+                            <TextBlock Text="ODPADY" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </RadioButton>
+                </Grid>
+
+                <!-- Wyświetlacz wagi -->
+                <Border Grid.Row="2" Background="Black" BorderBrush="#444" BorderThickness="2" CornerRadius="10" Padding="8" Margin="0,0,0,5">
+                    <Grid Height="70">
+                        <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top">
+                            <Ellipse x:Name="ledStabilnosc" Width="12" Height="12" Fill="Gray"/>
+                            <TextBlock Text="STAB" Foreground="Gray" FontSize="8" HorizontalAlignment="Center" Margin="0,1,0,0"/>
+                        </StackPanel>
+                        <Viewbox Height="60" HorizontalAlignment="Right" Margin="0,0,8,0">
+                            <TextBlock x:Name="BigWeightDisplay" Text="0" FontFamily="Consolas" FontWeight="Bold" Foreground="#00FF00"/>
+                        </Viewbox>
+                        <TextBlock Text="kg" Foreground="#555" FontSize="18" FontWeight="Bold" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,-4,4"/>
+                        <Button Click="BtnReadScale_Click" Opacity="0" Cursor="Hand"/>
                     </Grid>
+                </Border>
 
-                    <!-- 5. NUMPAD -->
-                    <Grid Grid.Row="4" Margin="0,0,0,15">
+                <!-- Przełącznik TARA/BRUTTO -->
+                <Grid Grid.Row="3" Height="50" Margin="0,0,0,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <RadioButton x:Name="radioTara" Content="TARA (puste)" IsChecked="True" Click="Mode_Click" 
+                                 GroupName="WT" Margin="0,0,3,0" Style="{StaticResource WeightToggleStyle}"/>
+                    <RadioButton x:Name="radioBrutto" Content="BRUTTO (pelne)" Click="Mode_Click" 
+                                 GroupName="WT" Grid.Column="1" Margin="3,0,0,0" Style="{StaticResource WeightToggleStyle}"/>
+                </Grid>
+
+                <!-- Przycisk zapisz -->
+                <Button Grid.Row="4" x:Name="btnZapisz" Click="BtnZapisz_Click" Height="60" Margin="0,4,0,5" Cursor="Hand">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="saveBrd" Background="#4CAF50" CornerRadius="12">
+                                <TextBlock Text="ZATWIERDZ WAGE" FontSize="20" FontWeight="Bold" Foreground="White" 
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="saveBrd" Property="Background" Value="#5CBF60"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+
+                <!-- Numpad -->
+                <Grid Grid.Row="5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Row="0" Grid.Column="0" Content="7" Style="{StaticResource BigNumpadBtn}" Click="NumpadClick"/>
+                    <Button Grid.Row="0" Grid.Column="1" Content="8" Style="{StaticResource BigNumpadBtn}" Click="NumpadClick"/>
+                    <Button Grid.Row="0" Grid.Column="2" Content="9" Style="{StaticResource BigNumpadBtn}" Click="NumpadClick"/>
+                    <Button Grid.Row="1" Grid.Column="0" Content="4" Style="{StaticResource BigNumpadBtn}" Click="NumpadClick"/>
+                    <Button Grid.Row="1" Grid.Column="1" Content="5" Style="{StaticResource BigNumpadBtn}" Click="NumpadClick"/>
+                    <Button Grid.Row="1" Grid.Column="2" Content="6" Style="{StaticResource BigNumpadBtn}" Click="NumpadClick"/>
+                    <Button Grid.Row="2" Grid.Column="0" Content="1" Style="{StaticResource BigNumpadBtn}" Click="NumpadClick"/>
+                    <Button Grid.Row="2" Grid.Column="1" Content="2" Style="{StaticResource BigNumpadBtn}" Click="NumpadClick"/>
+                    <Button Grid.Row="2" Grid.Column="2" Content="3" Style="{StaticResource BigNumpadBtn}" Click="NumpadClick"/>
+                    <Button Grid.Row="3" Grid.Column="0" Content="C" Style="{StaticResource BigNumpadBtn}" Background="#3A1515" Foreground="#FF5555" Click="BtnClear_Click"/>
+                    <Button Grid.Row="3" Grid.Column="1" Content="0" Style="{StaticResource BigNumpadBtn}" Click="NumpadClick"/>
+                    <Button Grid.Row="3" Grid.Column="2" Content="&#x232B;" Style="{StaticResource BigNumpadBtn}" Background="#333" Click="BtnBackspace_Click"/>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- Ukryte pola na wartości wagi -->
+        <TextBlock x:Name="txtBrutto" Visibility="Collapsed" Text="0"/>
+        <TextBlock x:Name="txtTara" Visibility="Collapsed" Text="0"/>
+
+        <!-- Overlay klawiatury ekranowej -->
+        <Grid x:Name="KeyboardOverlay" Visibility="Collapsed" Grid.ColumnSpan="2" Background="#90000000" 
+              MouseLeftButtonUp="KeyboardOverlay_Click">
+            <Border VerticalAlignment="Bottom" Background="#F5101018" BorderBrush="#FFA726" BorderThickness="0,3,0,0" 
+                    Padding="20" MouseLeftButtonUp="KeyboardPanel_Click">
+                <StackPanel>
+                    <Grid Margin="0,0,0,15">
+                        <TextBlock Text="WPISZ NUMER REJESTRACYJNY" Foreground="#FFA726" FontWeight="Bold" 
+                                   HorizontalAlignment="Center" FontSize="24"/>
+                        <Button HorizontalAlignment="Right" Click="CloseKeyboard_Click" Background="Transparent" 
+                                BorderThickness="0" Width="50" Height="50">
+                            <TextBlock Text="X" Foreground="White" FontSize="30" FontWeight="Bold"/>
+                        </Button>
+                    </Grid>
+                    <UniformGrid Columns="10" Margin="0,8">
+                        <Button Content="1" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="2" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="3" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="4" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="5" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="6" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="7" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="8" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="9" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="0" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                    </UniformGrid>
+                    <UniformGrid Columns="10" Margin="0,8">
+                        <Button Content="Q" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="W" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="E" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="R" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="T" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="Y" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="U" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="I" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="O" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="P" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                    </UniformGrid>
+                    <UniformGrid Columns="9" Margin="40,8">
+                        <Button Content="A" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="S" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="D" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="F" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="G" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="H" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="J" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="K" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        <Button Content="L" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                    </UniformGrid>
+                    <Grid Margin="0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1.5*"/>
+                            <ColumnDefinition Width="7*"/>
+                            <ColumnDefinition Width="1.5*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" Content=" " Style="{StaticResource KbdKey}" Background="#333" Click="Keyboard_Click"/>
+                        <UniformGrid Grid.Column="1" Columns="7">
+                            <Button Content="Z" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                            <Button Content="X" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                            <Button Content="C" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                            <Button Content="V" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                            <Button Content="B" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                            <Button Content="N" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                            <Button Content="M" Style="{StaticResource KbdKey}" Click="Keyboard_Click"/>
+                        </UniformGrid>
+                        <Button Grid.Column="2" Content="&#x232B;" Style="{StaticResource KbdKey}" Click="KeyboardBackspace_Click" Background="#801010"/>
+                    </Grid>
+                    <Button Click="CloseKeyboard_Click" Margin="50,20,50,10" Height="75">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="#4CAF50" CornerRadius="12">
+                                    <TextBlock Text="GOTOWE" FontSize="28" FontWeight="Black" Foreground="White" 
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Overlay PIN -->
+        <Grid x:Name="PasswordOverlay" Visibility="Collapsed" Grid.ColumnSpan="2" Background="#E0000000">
+            <Border Background="#1E1E2E" CornerRadius="20" Padding="40" VerticalAlignment="Center" HorizontalAlignment="Center" Width="400">
+                <StackPanel>
+                    <TextBlock Text="PODAJ KOD PIN" FontSize="28" FontWeight="Bold" Foreground="White" 
+                               HorizontalAlignment="Center" Margin="0,0,0,20"/>
+                    <Border Background="Black" CornerRadius="10" Padding="20,12" Margin="0,0,0,20">
+                        <TextBlock x:Name="txtPinDisplay" Text="____" FontSize="40" FontWeight="Bold" 
+                                   Foreground="#FFA726" HorizontalAlignment="Center" FontFamily="Consolas"/>
+                    </Border>
+                    <Grid>
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="70"/>
+                            <RowDefinition Height="70"/>
+                            <RowDefinition Height="70"/>
+                            <RowDefinition Height="70"/>
                         </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <Button Grid.Row="0" Grid.Column="0" Content="7" Style="{StaticResource BigNumpadBtn}" Click="NumpadClick"/>
-                        <Button Grid.Row="0" Grid.Column="1" Content="8" Style="{StaticResource BigNumpadBtn}" Click="NumpadClick"/>
-                        <Button Grid.Row="0" Grid.Column="2" Content="9" Style="{StaticResource BigNumpadBtn}" Click="NumpadClick"/>
-                        <Button Grid.Row="1" Grid.Column="0" Content="4" Style="{StaticResource BigNumpadBtn}" Click="NumpadClick"/>
-                        <Button Grid.Row="1" Grid.Column="1" Content="5" Style="{StaticResource BigNumpadBtn}" Click="NumpadClick"/>
-                        <Button Grid.Row="1" Grid.Column="2" Content="6" Style="{StaticResource BigNumpadBtn}" Click="NumpadClick"/>
-                        <Button Grid.Row="2" Grid.Column="0" Content="1" Style="{StaticResource BigNumpadBtn}" Click="NumpadClick"/>
-                        <Button Grid.Row="2" Grid.Column="1" Content="2" Style="{StaticResource BigNumpadBtn}" Click="NumpadClick"/>
-                        <Button Grid.Row="2" Grid.Column="2" Content="3" Style="{StaticResource BigNumpadBtn}" Click="NumpadClick"/>
-                        <Button Grid.Row="3" Grid.Column="0" Content="C" Style="{StaticResource BigNumpadBtn}" Background="#2A1515" Foreground="#FF5555" Click="BtnClear_Click"/>
-                        <Button Grid.Row="3" Grid.Column="1" Content="0" Style="{StaticResource BigNumpadBtn}" Click="NumpadClick"/>
-                        <Button Grid.Row="3" Grid.Column="2" Content="⌫" Style="{StaticResource BigNumpadBtn}" Click="BtnBackspace_Click"/>
+                        <Button Grid.Row="0" Grid.Column="0" Content="1" Style="{StaticResource BigNumpadBtn}" Click="PinNumpadClick"/>
+                        <Button Grid.Row="0" Grid.Column="1" Content="2" Style="{StaticResource BigNumpadBtn}" Click="PinNumpadClick"/>
+                        <Button Grid.Row="0" Grid.Column="2" Content="3" Style="{StaticResource BigNumpadBtn}" Click="PinNumpadClick"/>
+                        <Button Grid.Row="1" Grid.Column="0" Content="4" Style="{StaticResource BigNumpadBtn}" Click="PinNumpadClick"/>
+                        <Button Grid.Row="1" Grid.Column="1" Content="5" Style="{StaticResource BigNumpadBtn}" Click="PinNumpadClick"/>
+                        <Button Grid.Row="1" Grid.Column="2" Content="6" Style="{StaticResource BigNumpadBtn}" Click="PinNumpadClick"/>
+                        <Button Grid.Row="2" Grid.Column="0" Content="7" Style="{StaticResource BigNumpadBtn}" Click="PinNumpadClick"/>
+                        <Button Grid.Row="2" Grid.Column="1" Content="8" Style="{StaticResource BigNumpadBtn}" Click="PinNumpadClick"/>
+                        <Button Grid.Row="2" Grid.Column="2" Content="9" Style="{StaticResource BigNumpadBtn}" Click="PinNumpadClick"/>
+                        <Button Grid.Row="3" Grid.Column="0" Content="C" Style="{StaticResource BigNumpadBtn}" Background="#3A1515" Foreground="#FF5555" Click="PinClear_Click"/>
+                        <Button Grid.Row="3" Grid.Column="1" Content="0" Style="{StaticResource BigNumpadBtn}" Click="PinNumpadClick"/>
+                        <Button Grid.Row="3" Grid.Column="2" Content="&#x232B;" Style="{StaticResource BigNumpadBtn}" Background="#333" Click="PinBackspace_Click"/>
                     </Grid>
-
-                    <!-- 6. AKCJE -->
-                    <Grid Grid.Row="5">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="80"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Button x:Name="btnDrukuj" Content="🖨️" Margin="0,0,10,0"
-                                Background="#252535" Foreground="White" FontSize="30"
-                                IsEnabled="False" Click="BtnDrukuj_Click" Cursor="Hand">
-                            <Button.Template>
-                                <ControlTemplate TargetType="Button">
-                                    <Border x:Name="bdr" Background="{TemplateBinding Background}" CornerRadius="8">
-                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsEnabled" Value="False">
-                                            <Setter TargetName="bdr" Property="Opacity" Value="0.3"/>
-                                        </Trigger>
-                                        <Trigger Property="IsPressed" Value="True">
-                                            <Setter TargetName="bdr" Property="Background" Value="#444"/>
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Button.Template>
-                        </Button>
-                        <Button Grid.Column="1" x:Name="btnZapisz" Click="BtnZapisz_Click" Height="70" IsEnabled="False" Cursor="Hand">
-                            <Button.Template>
-                                <ControlTemplate TargetType="Button">
-                                    <Border x:Name="bdr" Background="#2A2A2A" CornerRadius="8">
-                                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <TextBlock x:Name="txtAction" Text="WYBIERZ Z LISTY" FontSize="20" FontWeight="Bold" Foreground="#666" HorizontalAlignment="Center"/>
-                                            <TextBlock x:Name="txtSubAction" Text="ZATWIERDZENIE" FontSize="12" Foreground="#444" HorizontalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsEnabled" Value="True">
-                                            <Setter TargetName="bdr" Property="Background" Value="#4CAF50"/>
-                                            <Setter TargetName="txtAction" Property="Text" Value="ZAPISZ WAGĘ"/>
-                                            <Setter TargetName="txtAction" Property="Foreground" Value="White"/>
-                                            <Setter TargetName="txtSubAction" Property="Text" Value="DO BAZY DANYCH"/>
-                                            <Setter TargetName="txtSubAction" Property="Foreground" Value="#E0E0E0"/>
-                                        </Trigger>
-                                        <Trigger Property="IsPressed" Value="True">
-                                            <Setter TargetName="bdr" Property="Background" Value="#388E3C"/>
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Button.Template>
-                        </Button>
-                    </Grid>
-                </Grid>
+                    <Button Click="PinCancel_Click" Margin="0,20,0,0" Height="50">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="#333" CornerRadius="10">
+                                    <TextBlock Text="ANULUJ" FontSize="18" FontWeight="Bold" Foreground="#888" 
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
             </Border>
         </Grid>
-
-        <!-- NAKŁADKA KLAWIATURY EKRANOWEJ (QWERTY) -->
-        <Grid x:Name="KeyboardOverlay" Visibility="Collapsed" Background="#CC000000" Grid.RowSpan="2">
-            <Border Background="#222" VerticalAlignment="Bottom" Height="350" CornerRadius="15,15,0,0" Padding="10">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-
-                    <!-- Nagłówek klawiatury -->
-                    <Grid Grid.Row="0" Margin="0,0,0,10">
-                        <TextBlock Text="WPISZ NUMER REJESTRACYJNY" Foreground="Gray" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        <Button Content="ZAMKNIJ" HorizontalAlignment="Right" Click="CloseKeyboard_Click" Background="Transparent" Foreground="Red" BorderThickness="0"/>
-                    </Grid>
-
-                    <!-- Rząd 1 -->
-                    <UniformGrid Grid.Row="1" Columns="10">
-                        <Button Content="Q" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                        <Button Content="W" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                        <Button Content="E" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                        <Button Content="R" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                        <Button Content="T" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                        <Button Content="Y" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                        <Button Content="U" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                        <Button Content="I" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                        <Button Content="O" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                        <Button Content="P" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                    </UniformGrid>
-
-                    <!-- Rząd 2 -->
-                    <UniformGrid Grid.Row="2" Columns="10" Margin="20,0">
-                        <Button Content="A" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                        <Button Content="S" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                        <Button Content="D" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                        <Button Content="F" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                        <Button Content="G" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                        <Button Content="H" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                        <Button Content="J" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                        <Button Content="K" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                        <Button Content="L" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                    </UniformGrid>
-
-                    <!-- Rząd 3 -->
-                    <Grid Grid.Row="3">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="1.5*"/>
-                            <ColumnDefinition Width="7*"/>
-                            <ColumnDefinition Width="1.5*"/>
-                        </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0" Content="123" Style="{StaticResource KbdKey}"/>
-                        <UniformGrid Grid.Column="1" Columns="7">
-                            <Button Content="Z" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                            <Button Content="X" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                            <Button Content="C" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                            <Button Content="V" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                            <Button Content="B" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                            <Button Content="N" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                            <Button Content="M" Click="Keyboard_Click" Style="{StaticResource KbdKey}"/>
-                        </UniformGrid>
-                        <Button Grid.Column="2" Content="⌫" Click="KeyboardBackspace_Click" Style="{StaticResource KbdKey}" Background="#442222"/>
-                    </Grid>
-                </Grid>
-            </Border>
-        </Grid>
-
-        <StackPanel Grid.Row="1" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,20,5" Orientation="Horizontal" IsHitTestVisible="False">
-            <TextBlock Text="⚖️" FontSize="14" Foreground="White" Margin="0,0,5,0"/>
-            <TextBlock x:Name="lblScaleStatus" Text="Offline" FontSize="12" Foreground="#444"/>
-        </StackPanel>
-        <TextBlock x:Name="txtBrutto" Visibility="Collapsed" Text="0"/>
-        <TextBlock x:Name="txtTara" Visibility="Collapsed" Text="0"/>
-        <TextBlock x:Name="txtNetto" Visibility="Collapsed" Text="0"/>
     </Grid>
 </Window>
