@@ -154,6 +154,12 @@
     <Compile Update="Zywiec\WidokSpecyfikacji\HistoriaZmianSpecyfikacjeWindow.xaml.cs">
       <DependentUpon>HistoriaZmianSpecyfikacjeWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Update="Zywiec\WidokSpecyfikacji\PhotoViewerWindow.xaml.cs">
+      <DependentUpon>PhotoViewerWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Update="Zywiec\WidokSpecyfikacji\PhotoCompareWindow.xaml.cs">
+      <DependentUpon>PhotoCompareWindow.xaml</DependentUpon>
+    </Compile>
   </ItemGroup>
 
 </Project>
