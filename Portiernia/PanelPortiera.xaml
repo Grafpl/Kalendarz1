@@ -209,22 +209,25 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Styl wiersza z animacją zaznaczenia -->
+        <!-- Styl wiersza z wyraźnym zaznaczeniem -->
         <Style TargetType="DataGridRow">
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="#2A2A3A"/>
                 </Trigger>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#2D2D40"/>
+                    <Setter Property="Background" Value="#3D3D5C"/>
+                    <Setter Property="BorderBrush" Value="#FFA726"/>
+                    <Setter Property="BorderThickness" Value="0,3,0,3"/>
                     <Trigger.EnterActions>
                         <BeginStoryboard>
                             <Storyboard>
                                 <ColorAnimation Storyboard.TargetProperty="(DataGridRow.Background).(SolidColorBrush.Color)"
-                                                From="#4A4A60" To="#2D2D40" Duration="0:0:0.5" 
-                                                AutoReverse="True" RepeatBehavior="3x"/>
+                                                From="#5A5A80" To="#3D3D5C" Duration="0:0:0.4" 
+                                                AutoReverse="True" RepeatBehavior="2x"/>
                             </Storyboard>
                         </BeginStoryboard>
                     </Trigger.EnterActions>
@@ -279,8 +282,15 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <Border x:Name="cardBorder" CornerRadius="12" Margin="5" Padding="10" BorderThickness="3" 
-                                        Cursor="Hand" MouseLeftButtonUp="Dostawa_Click" Tag="{Binding}" MinHeight="155"
+                                        Cursor="Hand" MouseLeftButtonUp="Dostawa_Click" MouseRightButtonUp="Dostawa_RightClick" 
+                                        Tag="{Binding}" MinHeight="155"
                                         Background="{Binding CardBackground}" BorderBrush="{Binding CardBorderBrush}">
+                                    <Border.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="📷 Podgląd zdjęcia TARA" Click="MenuZdjecieTara_Click" Tag="{Binding}"/>
+                                            <MenuItem Header="📷 Podgląd zdjęcia BRUTTO" Click="MenuZdjecieBrutto_Click" Tag="{Binding}"/>
+                                        </ContextMenu>
+                                    </Border.ContextMenu>
                                     <Border.Effect>
                                         <DropShadowEffect Color="Black" BlurRadius="10" Opacity="0.3" ShadowDepth="2"/>
                                     </Border.Effect>
@@ -342,7 +352,14 @@
 
                 <!-- Widok tabeli ODPADY -->
                 <DataGrid x:Name="gridTable" Visibility="Collapsed" Style="{StaticResource MyDataGridStyle}" 
-                          SelectionChanged="GridTable_SelectionChanged">
+                          SelectionChanged="GridTable_SelectionChanged"
+                          MouseLeftButtonUp="GridTable_MouseClick">
+                    <DataGrid.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="📷 Podgląd zdjęcia TARA" Click="MenuZdjecieTaraGrid_Click"/>
+                            <MenuItem Header="📷 Podgląd zdjęcia BRUTTO" Click="MenuZdjecieBruttoGrid_Click"/>
+                        </ContextMenu>
+                    </DataGrid.ContextMenu>
                     <DataGrid.Columns>
                         <DataGridTemplateColumn Header="" Width="50">
                             <DataGridTemplateColumn.CellTemplate>
@@ -469,15 +486,21 @@
                         </StackPanel>
                     </Button>
                     <Button x:Name="btnPrintAvilog" Grid.Column="3" Click="BtnPrint_Click" 
-                            Style="{StaticResource ActionButtonStyle}" Height="50" Width="110" Margin="0,0,10,0">
+                            Style="{StaticResource ActionButtonStyle}" Height="50" Width="110" Margin="0,0,5,0">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#x1F5B6;" FontSize="20" Margin="0,0,5,0"/>
                             <TextBlock Text="DRUKUJ" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-
-                    <!-- Pusty spacer -->
-                    <Grid Grid.Column="4"/>
+                    
+                    <!-- Przycisk KAMERA -->
+                    <Button Grid.Column="4" Click="BtnCamera_Click" HorizontalAlignment="Left"
+                            Style="{StaticResource ActionButtonStyle}" Height="50" Width="120" Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#x1F3A5;" FontSize="20" Margin="0,0,5,0"/>
+                            <TextBlock Text="KAMERA" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
                     <!-- Przełącznik trybów -->
                     <StackPanel Grid.Column="5" Orientation="Horizontal" Margin="10,0">
@@ -617,7 +640,8 @@
                 </Grid>
 
                 <!-- Wyświetlacz wagi -->
-                <Border Grid.Row="2" Background="Black" BorderBrush="#444" BorderThickness="2" CornerRadius="10" Padding="8" Margin="0,0,0,5">
+                <Border Grid.Row="2" Background="Black" BorderBrush="#444" BorderThickness="2" CornerRadius="10" Padding="8" Margin="0,0,0,5"
+                        MouseLeftButtonUp="BigDisplay_Click" Cursor="Hand" ToolTip="Kliknij aby odczytać wagę">
                     <Grid Height="70">
                         <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top">
                             <Ellipse x:Name="ledStabilnosc" Width="12" Height="12" Fill="Gray"/>
@@ -627,7 +651,6 @@
                             <TextBlock x:Name="BigWeightDisplay" Text="0" FontFamily="Consolas" FontWeight="Bold" Foreground="#00FF00"/>
                         </Viewbox>
                         <TextBlock Text="kg" Foreground="#555" FontSize="18" FontWeight="Bold" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,-4,4"/>
-                        <Button Click="BtnReadScale_Click" Opacity="0" Cursor="Hand"/>
                     </Grid>
                 </Border>
 
@@ -820,6 +843,48 @@
                         </Button.Template>
                     </Button>
                 </StackPanel>
+            </Border>
+        </Grid>
+        
+        <!-- Overlay KAMERA -->
+        <Grid x:Name="CameraOverlay" Visibility="Collapsed" Grid.ColumnSpan="2" Background="#F0000000" 
+              MouseLeftButtonUp="CameraOverlay_Click">
+            <Border Background="#1E1E2E" CornerRadius="15" Padding="10" 
+                    VerticalAlignment="Center" HorizontalAlignment="Center" 
+                    MaxWidth="1200" MaxHeight="800" MouseLeftButtonUp="CameraPanel_Click">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    
+                    <!-- Nagłówek -->
+                    <Grid Grid.Row="0" Margin="0,0,0,10">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🎥" FontSize="24" Margin="0,0,10,0"/>
+                            <TextBlock Text="PODGLĄD KAMERY - WJAZD" FontSize="22" FontWeight="Bold" Foreground="White"/>
+                        </StackPanel>
+                        <Button HorizontalAlignment="Right" Click="CameraClose_Click" Cursor="Hand" Width="40" Height="40">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="#FF5555" CornerRadius="20">
+                                        <TextBlock Text="X" FontSize="20" Foreground="White" FontWeight="Bold"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </Grid>
+                    
+                    <!-- Obraz z kamery -->
+                    <Border Grid.Row="1" Background="Black" CornerRadius="10" MinWidth="800" MinHeight="500">
+                        <Grid>
+                            <Image x:Name="cameraImage" Stretch="Uniform"/>
+                            <TextBlock x:Name="cameraStatus" Text="Ładowanie..." FontSize="24" Foreground="Gray"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                </Grid>
             </Border>
         </Grid>
     </Grid>

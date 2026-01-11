@@ -9,7 +9,9 @@ using System.IO;
 using System.IO.Ports;
 using System.Linq;
 using System.Media;
+using System.Net.Http;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -17,6 +19,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 namespace Kalendarz1
@@ -454,6 +457,9 @@ namespace Kalendarz1
 
         public void BtnCommodity_Click(object sender, RoutedEventArgs e)
         {
+            // Blokuj zmianę towaru gdy nie ma zaznaczenia
+            if (WybranaDostwa == null) return;
+            
             if (sender is RadioButton rb)
             {
                 if (rb == btnKrew) aktualnyTowar = "KREW";
@@ -476,6 +482,8 @@ namespace Kalendarz1
 
         private void TxtEditRejestracja_Click(object sender, MouseButtonEventArgs e)
         {
+            // Blokuj edycję gdy nie ma zaznaczenia
+            if (WybranaDostwa == null) return;
             KeyboardOverlay.Visibility = Visibility.Visible;
         }
 
@@ -662,7 +670,8 @@ namespace Kalendarz1
                             (SELECT TOP 1 ShortName FROM dbo.Dostawcy WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(fc.CustomerGID))) as HodowcaNazwa,
                             ISNULL(dr.[Name], '') as KierowcaNazwa, fc.CarID, fc.TrailerID, fc.SztPoj,
                             ISNULL(fc.FullFarmWeight, 0) as Brutto, ISNULL(fc.EmptyFarmWeight, 0) as Tara, 
-                            ISNULL(fc.NettoFarmWeight, 0) as Netto, fc.Przyjazd, fc.GodzinaTara, fc.GodzinaBrutto
+                            ISNULL(fc.NettoFarmWeight, 0) as Netto, fc.Przyjazd, fc.GodzinaTara, fc.GodzinaBrutto,
+                            fc.ZdjecieTaraPath, fc.ZdjecieBruttoPath
                         FROM dbo.FarmerCalc fc 
                         LEFT JOIN dbo.Driver dr ON fc.DriverGID = dr.GID
                         WHERE CAST(fc.CalcDate AS DATE) = @Data
@@ -695,7 +704,9 @@ namespace Kalendarz1
                                         Towar = "Zywiec",
                                         GodzinaPrzyjazdu = przyjazd?.ToString("HH:mm") ?? "00:00",
                                         GodzinaTaraDisplay = godzTara?.ToString("HH:mm") ?? "-",
-                                        GodzinaBruttoDisplay = godzBrutto?.ToString("HH:mm") ?? "-"
+                                        GodzinaBruttoDisplay = godzBrutto?.ToString("HH:mm") ?? "-",
+                                        ZdjecieTaraPath = r["ZdjecieTaraPath"]?.ToString(),
+                                        ZdjecieBruttoPath = r["ZdjecieBruttoPath"]?.ToString()
                                     };
                                     d.NrRejestracyjny = $"{d.CarID} {d.TrailerID}";
                                     dostawy.Add(d);
@@ -707,7 +718,8 @@ namespace Kalendarz1
                     {
                         string query = @"SELECT ID, FORMAT(DataWazenia, 'HH:mm') as Godzina, NrRejestracyjny, Odbiorca, 
                                    ISNULL(Brutto, 0) as Brutto, ISNULL(Tara, 0) as Tara, ISNULL(Netto, 0) as Netto, 
-                                   ISNULL(Towar, 'KREW') as Towar, GodzinaTara, GodzinaBrutto
+                                   ISNULL(Towar, 'KREW') as Towar, GodzinaTara, GodzinaBrutto,
+                                   ZdjecieTaraPath, ZdjecieBruttoPath
                             FROM dbo.OdpadyRejestr WHERE CAST(DataWazenia AS DATE) = @Data ORDER BY DataWazenia DESC";
 
                         using (var cmd = new SqlCommand(query, conn))
@@ -732,6 +744,8 @@ namespace Kalendarz1
                                         Towar = r["Towar"]?.ToString() ?? "KREW",
                                         GodzinaTaraDisplay = godzTara?.ToString("HH:mm") ?? "-",
                                         GodzinaBruttoDisplay = godzBrutto?.ToString("HH:mm") ?? "-",
+                                        ZdjecieTaraPath = r["ZdjecieTaraPath"]?.ToString(),
+                                        ZdjecieBruttoPath = r["ZdjecieBruttoPath"]?.ToString(),
                                         Lp = "-",
                                         CarID = "",
                                         TrailerID = "",
@@ -799,6 +813,60 @@ namespace Kalendarz1
                 WybierzDostawe(dostawa);
             }
         }
+
+        #region MENU KONTEKSTOWE - ZDJĘCIA
+
+        private void Dostawa_RightClick(object sender, MouseButtonEventArgs e)
+        {
+            // Menu kontekstowe jest obsługiwane automatycznie przez ContextMenu
+            e.Handled = false;
+        }
+
+        private void MenuZdjecieTara_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem menu && menu.Tag is DostawaPortiera dostawa)
+            {
+                string title = $"TARA - {dostawa.NrRejestracyjny} ({dostawa.TaraDisplay})";
+                ShowWeightPhoto(dostawa.ZdjecieTaraPath, title);
+            }
+        }
+
+        private void MenuZdjecieBrutto_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem menu && menu.Tag is DostawaPortiera dostawa)
+            {
+                string title = $"BRUTTO - {dostawa.NrRejestracyjny} ({dostawa.BruttoDisplay})";
+                ShowWeightPhoto(dostawa.ZdjecieBruttoPath, title);
+            }
+        }
+
+        private void MenuZdjecieTaraGrid_Click(object sender, RoutedEventArgs e)
+        {
+            if (gridTable.SelectedItem is DostawaPortiera dostawa)
+            {
+                string title = $"TARA - {dostawa.NrRejestracyjny} ({dostawa.TaraDisplay})";
+                ShowWeightPhoto(dostawa.ZdjecieTaraPath, title);
+            }
+            else
+            {
+                MessageBox.Show("Najpierw zaznacz wiersz w tabeli.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void MenuZdjecieBruttoGrid_Click(object sender, RoutedEventArgs e)
+        {
+            if (gridTable.SelectedItem is DostawaPortiera dostawa)
+            {
+                string title = $"BRUTTO - {dostawa.NrRejestracyjny} ({dostawa.BruttoDisplay})";
+                ShowWeightPhoto(dostawa.ZdjecieBruttoPath, title);
+            }
+            else
+            {
+                MessageBox.Show("Najpierw zaznacz wiersz w tabeli.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        #endregion
 
         private void WybierzDostawe(DostawaPortiera dostawa)
         {
@@ -969,7 +1037,8 @@ namespace Kalendarz1
 
         public void NumpadClick(object sender, RoutedEventArgs e)
         {
-            if (aktualnyTryb == "Avilog" && WybranaDostwa == null) return;
+            // Blokuj edycję gdy nie ma zaznaczenia
+            if (WybranaDostwa == null) return;
 
             if (sender is Button btn)
             {
@@ -1006,6 +1075,9 @@ namespace Kalendarz1
 
         public void BtnClear_Click(object sender, RoutedEventArgs e)
         {
+            // Blokuj gdy nie ma zaznaczenia
+            if (WybranaDostwa == null) return;
+            
             TextBlock target = (aktywnePole == AktywnePole.Brutto) ? txtBrutto : txtTara;
             target.Text = "0";
             
@@ -1026,6 +1098,9 @@ namespace Kalendarz1
 
         public void BtnBackspace_Click(object sender, RoutedEventArgs e)
         {
+            // Blokuj gdy nie ma zaznaczenia
+            if (WybranaDostwa == null) return;
+            
             TextBlock target = (aktywnePole == AktywnePole.Brutto) ? txtBrutto : txtTara;
             if (target.Text.Length > 0) target.Text = target.Text.Substring(0, target.Text.Length - 1);
             if (string.IsNullOrEmpty(target.Text)) target.Text = "0";
@@ -1055,7 +1130,9 @@ namespace Kalendarz1
             int.TryParse(txtBrutto.Text, out brutto);
             int.TryParse(txtTara.Text, out tara);
 
-            if (brutto == 0 && tara == 0) return;
+            // Pozwól zapisać jeśli jest jakakolwiek zmiana (nawet zerowanie)
+            bool jestZmiana = (brutto != originalBrutto) || (tara != originalTara);
+            if (!jestZmiana && brutto == 0 && tara == 0) return;
 
             bool success = false;
 
@@ -1066,6 +1143,8 @@ namespace Kalendarz1
             }
             else
             {
+                // W trybie ODPADY wymagaj zaznaczenia lub nowego wpisu
+                if (WybranaDostwa == null) return;
                 success = ZapiszOdpady(brutto, tara);
             }
 
@@ -1089,6 +1168,59 @@ namespace Kalendarz1
             int netto = (brutto > 0 && tara > 0) ? (brutto - tara) : 0;
             int prevB = originalBrutto;
             int prevT = originalTara;
+            
+            string rejestracja = $"{WybranaDostwa?.CarID}_{WybranaDostwa?.TrailerID}";
+            long dostawaId = WybranaDostwa.ID;
+            
+            Debug.WriteLine($"[ZAPIS AVILOG] ID={dostawaId}, Rej={rejestracja}");
+            Debug.WriteLine($"[ZAPIS AVILOG] Tara={tara} (prev={prevT}), Brutto={brutto} (prev={prevB})");
+            
+            // Zapisz zdjęcia w tle - ZAWSZE gdy wartość > 0 (nadpisuje poprzednie)
+            if (tara > 0)
+            {
+                Debug.WriteLine($"[ZAPIS AVILOG] Robię zdjęcie TARA...");
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        Debug.WriteLine($"[FOTO TARA] Start pobierania...");
+                        var path = await SaveCameraSnapshot("AVILOG", rejestracja, "TARA");
+                        Debug.WriteLine($"[FOTO TARA] Ścieżka: {path ?? "NULL"}");
+                        if (!string.IsNullOrEmpty(path))
+                        {
+                            await UpdatePhotoPathInDb("FarmerCalc", dostawaId, "ZdjecieTaraPath", path);
+                            Debug.WriteLine($"[FOTO TARA] Zapisano do bazy");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[FOTO TARA] BŁĄD: {ex.Message}");
+                    }
+                });
+            }
+            
+            if (brutto > 0)
+            {
+                Debug.WriteLine($"[ZAPIS AVILOG] Robię zdjęcie BRUTTO...");
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        Debug.WriteLine($"[FOTO BRUTTO] Start pobierania...");
+                        var path = await SaveCameraSnapshot("AVILOG", rejestracja, "BRUTTO");
+                        Debug.WriteLine($"[FOTO BRUTTO] Ścieżka: {path ?? "NULL"}");
+                        if (!string.IsNullOrEmpty(path))
+                        {
+                            await UpdatePhotoPathInDb("FarmerCalc", dostawaId, "ZdjecieBruttoPath", path);
+                            Debug.WriteLine($"[FOTO BRUTTO] Zapisano do bazy");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[FOTO BRUTTO] BŁĄD: {ex.Message}");
+                    }
+                });
+            }
 
             try
             {
@@ -1107,7 +1239,7 @@ namespace Kalendarz1
                         cmd.Parameters.AddWithValue("@N", netto);
                         cmd.Parameters.AddWithValue("@PrevB", prevB);
                         cmd.Parameters.AddWithValue("@PrevT", prevT);
-                        cmd.Parameters.AddWithValue("@ID", WybranaDostwa.ID);
+                        cmd.Parameters.AddWithValue("@ID", dostawaId);
                         cmd.ExecuteNonQuery();
                     }
                 }
@@ -1128,6 +1260,11 @@ namespace Kalendarz1
             string rejestracja = txtEditRejestracja.Text.Trim().ToUpper();
             int prevB = WybranaDostwa?.Brutto ?? 0;
             int prevT = WybranaDostwa?.Tara ?? 0;
+            string towar = aktualnyTowar;
+            long dostawaId = WybranaDostwa?.ID ?? 0;
+            
+            Debug.WriteLine($"[ZAPIS ODPADY] ID={dostawaId}, Rej={rejestracja}, Towar={towar}");
+            Debug.WriteLine($"[ZAPIS ODPADY] Tara={tara} (prev={prevT}), Brutto={brutto} (prev={prevB})");
 
             try
             {
@@ -1135,6 +1272,7 @@ namespace Kalendarz1
                 {
                     conn.Open();
                     string query;
+                    long insertedId = dostawaId;
 
                     if (WybranaDostwa != null && WybranaDostwa.ID > 0)
                     {
@@ -1144,6 +1282,21 @@ namespace Kalendarz1
                                       GodzinaTara = CASE WHEN @T > 0 AND (@PrevT = 0 OR @T <> @PrevT) THEN GETDATE() ELSE GodzinaTara END,
                                       GodzinaBrutto = CASE WHEN @B > 0 AND (@PrevB = 0 OR @B <> @PrevB) THEN GETDATE() ELSE GodzinaBrutto END
                                   WHERE ID=@ID";
+                        
+                        using (var cmd = new SqlCommand(query, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@B", brutto);
+                            cmd.Parameters.AddWithValue("@T", tara);
+                            cmd.Parameters.AddWithValue("@N", netto);
+                            cmd.Parameters.AddWithValue("@Nr", rejestracja);
+                            cmd.Parameters.AddWithValue("@Towar", towar);
+                            cmd.Parameters.AddWithValue("@Odbiorca", odbiorca);
+                            cmd.Parameters.AddWithValue("@Status", status);
+                            cmd.Parameters.AddWithValue("@PrevB", prevB);
+                            cmd.Parameters.AddWithValue("@PrevT", prevT);
+                            cmd.Parameters.AddWithValue("@ID", dostawaId);
+                            cmd.ExecuteNonQuery();
+                        }
                     }
                     else
                     {
@@ -1151,25 +1304,70 @@ namespace Kalendarz1
                                   (Towar, NrRejestracyjny, Odbiorca, DataWazenia, Brutto, Tara, Netto, Status, Operator, GodzinaTara, GodzinaBrutto) 
                                   VALUES (@Towar, @Nr, @Odbiorca, GETDATE(), @B, @T, @N, @Status, 'Portier',
                                           CASE WHEN @T > 0 THEN GETDATE() ELSE NULL END,
-                                          CASE WHEN @B > 0 THEN GETDATE() ELSE NULL END)";
+                                          CASE WHEN @B > 0 THEN GETDATE() ELSE NULL END);
+                                  SELECT SCOPE_IDENTITY();";
+                        
+                        using (var cmd = new SqlCommand(query, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@B", brutto);
+                            cmd.Parameters.AddWithValue("@T", tara);
+                            cmd.Parameters.AddWithValue("@N", netto);
+                            cmd.Parameters.AddWithValue("@Nr", rejestracja);
+                            cmd.Parameters.AddWithValue("@Towar", towar);
+                            cmd.Parameters.AddWithValue("@Odbiorca", odbiorca);
+                            cmd.Parameters.AddWithValue("@Status", status);
+                            
+                            var result = cmd.ExecuteScalar();
+                            if (result != null && result != DBNull.Value)
+                                insertedId = Convert.ToInt64(result);
+                            
+                            Debug.WriteLine($"[ZAPIS ODPADY] Nowy ID po INSERT: {insertedId}");
+                        }
                     }
-
-                    using (var cmd = new SqlCommand(query, conn))
+                    
+                    // Zapisz zdjęcia w tle - ZAWSZE gdy wartość > 0 (nadpisuje poprzednie)
+                    if (tara > 0 && insertedId > 0)
                     {
-                        cmd.Parameters.AddWithValue("@B", brutto);
-                        cmd.Parameters.AddWithValue("@T", tara);
-                        cmd.Parameters.AddWithValue("@N", netto);
-                        cmd.Parameters.AddWithValue("@Nr", rejestracja);
-                        cmd.Parameters.AddWithValue("@Towar", aktualnyTowar);
-                        cmd.Parameters.AddWithValue("@Odbiorca", odbiorca);
-                        cmd.Parameters.AddWithValue("@Status", status);
-                        cmd.Parameters.AddWithValue("@PrevB", prevB);
-                        cmd.Parameters.AddWithValue("@PrevT", prevT);
-
-                        if (WybranaDostwa != null && WybranaDostwa.ID > 0)
-                            cmd.Parameters.AddWithValue("@ID", WybranaDostwa.ID);
-
-                        cmd.ExecuteNonQuery();
+                        Debug.WriteLine($"[ZAPIS ODPADY] Robię zdjęcie TARA...");
+                        Task.Run(async () =>
+                        {
+                            try
+                            {
+                                var path = await SaveCameraSnapshot("ODPADY", rejestracja, "TARA", towar);
+                                Debug.WriteLine($"[FOTO ODPADY TARA] Ścieżka: {path ?? "NULL"}");
+                                if (!string.IsNullOrEmpty(path))
+                                {
+                                    await UpdatePhotoPathInDb("OdpadyRejestr", insertedId, "ZdjecieTaraPath", path);
+                                    Debug.WriteLine($"[FOTO ODPADY TARA] Zapisano do bazy");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.WriteLine($"[FOTO ODPADY TARA] BŁĄD: {ex.Message}");
+                            }
+                        });
+                    }
+                    
+                    if (brutto > 0 && insertedId > 0)
+                    {
+                        Debug.WriteLine($"[ZAPIS ODPADY] Robię zdjęcie BRUTTO...");
+                        Task.Run(async () =>
+                        {
+                            try
+                            {
+                                var path = await SaveCameraSnapshot("ODPADY", rejestracja, "BRUTTO", towar);
+                                Debug.WriteLine($"[FOTO ODPADY BRUTTO] Ścieżka: {path ?? "NULL"}");
+                                if (!string.IsNullOrEmpty(path))
+                                {
+                                    await UpdatePhotoPathInDb("OdpadyRejestr", insertedId, "ZdjecieBruttoPath", path);
+                                    Debug.WriteLine($"[FOTO ODPADY BRUTTO] Zapisano do bazy");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.WriteLine($"[FOTO ODPADY BRUTTO] BŁĄD: {ex.Message}");
+                            }
+                        });
                     }
                 }
                 return true;
@@ -1178,6 +1376,34 @@ namespace Kalendarz1
             {
                 MessageBox.Show("Blad zapisu: " + ex.Message, "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
                 return false;
+            }
+        }
+        
+        /// <summary>
+        /// Aktualizuje ścieżkę zdjęcia w bazie (wywoływane asynchronicznie w tle)
+        /// </summary>
+        private async Task UpdatePhotoPathInDb(string tableName, long id, string columnName, string path)
+        {
+            try
+            {
+                await Task.Run(() =>
+                {
+                    using (var conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+                        string query = $"UPDATE dbo.{tableName} SET {columnName} = @Path WHERE ID = @ID";
+                        using (var cmd = new SqlCommand(query, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@Path", path);
+                            cmd.Parameters.AddWithValue("@ID", id);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[FOTO] Błąd zapisu ścieżki do bazy: {ex.Message}");
             }
         }
 
@@ -1409,42 +1635,519 @@ namespace Kalendarz1
         {
             try
             {
-                if (!SerialPort.GetPortNames().Contains(portName)) return;
+                var availablePorts = SerialPort.GetPortNames();
+                System.Diagnostics.Debug.WriteLine($"[WAGA] Dostępne porty: {string.Join(", ", availablePorts)}");
+                
+                if (!availablePorts.Contains(portName))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[WAGA] Port {portName} nie znaleziony!");
+                    ledStabilnosc.Fill = Brushes.Red;
+                    return;
+                }
 
                 serialPort = new SerialPort(portName, baudRate, Parity.None, 8, StopBits.One);
+                serialPort.ReadTimeout = 2000;
+                serialPort.WriteTimeout = 1000;
+                serialPort.NewLine = "\r\n";
+                
                 serialPort.DataReceived += (s, e) =>
                 {
                     try
                     {
                         string data = serialPort.ReadLine();
+                        System.Diagnostics.Debug.WriteLine($"[WAGA] Odebrano: '{data}'");
+                        
                         Dispatcher.Invoke(() =>
                         {
                             var match = Regex.Match(data, @"(\d+)");
                             if (match.Success && int.TryParse(match.Groups[1].Value, out int weight))
                             {
+                                System.Diagnostics.Debug.WriteLine($"[WAGA] Parsowana waga: {weight}");
                                 TextBlock target = (aktywnePole == AktywnePole.Brutto) ? txtBrutto : txtTara;
                                 target.Text = weight.ToString();
+                                
+                                // Aktualizuj zmienne
+                                if (aktywnePole == AktywnePole.Brutto)
+                                {
+                                    wpisywaneBrutto = weight;
+                                    czekaNaPierwszaCyfreBrutto = false;
+                                }
+                                else
+                                {
+                                    wpisywaneTara = weight;
+                                    czekaNaPierwszaCyfreTara = false;
+                                }
+                                
                                 UpdateBigDisplay();
+                                ledStabilnosc.Fill = Brushes.LimeGreen;
                             }
                         });
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[WAGA] Błąd odczytu: {ex.Message}");
+                    }
                 };
+                
                 serialPort.Open();
                 ledStabilnosc.Fill = Brushes.Green;
+                System.Diagnostics.Debug.WriteLine($"[WAGA] Połączono z {portName}");
             }
-            catch
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"[WAGA] Błąd połączenia: {ex.Message}");
                 ledStabilnosc.Fill = Brushes.Gray;
+            }
+        }
+
+        public void BigDisplay_Click(object sender, MouseButtonEventArgs e)
+        {
+            // Sprawdź czy jest wybrana dostawa
+            if (WybranaDostwa == null)
+            {
+                MessageBox.Show("Najpierw wybierz dostawę z listy.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            
+            // Sprawdź dostępne porty COM
+            var availablePorts = SerialPort.GetPortNames();
+            if (availablePorts.Length == 0)
+            {
+                ledStabilnosc.Fill = Brushes.Red;
+                MessageBox.Show("Nie wykryto żadnego portu COM.\n\nSprawdź:\n• Czy kabel RS232/USB jest podłączony\n• Czy sterowniki są zainstalowane", 
+                    "Brak portu COM", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            
+            // Jeśli port nie istnieje - próbuj połączyć
+            if (serialPort == null)
+            {
+                string portToUse = availablePorts.Contains("COM3") ? "COM3" : availablePorts[0];
+                ConnectToScale(portToUse, 9600);
+                
+                if (serialPort == null || !serialPort.IsOpen)
+                {
+                    ledStabilnosc.Fill = Brushes.Red;
+                    MessageBox.Show($"Nie można połączyć z wagą.\n\nDostępne porty: {string.Join(", ", availablePorts)}\n\nSprawdź:\n• Czy waga jest włączona\n• Czy kabel jest podłączony\n• Numer portu COM w Menedżerze urządzeń", 
+                        "Błąd połączenia", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+            }
+            
+            // Jeśli port zamknięty - otwórz
+            if (!serialPort.IsOpen)
+            {
+                try
+                {
+                    serialPort.Open();
+                    ledStabilnosc.Fill = Brushes.Green;
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    ledStabilnosc.Fill = Brushes.Red;
+                    MessageBox.Show($"Port {serialPort.PortName} jest używany przez inny program.\n\nZamknij inne programy korzystające z wagi.", 
+                        "Port zajęty", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    ledStabilnosc.Fill = Brushes.Red;
+                    MessageBox.Show($"Nie można otworzyć portu {serialPort.PortName}:\n{ex.Message}", 
+                        "Błąd połączenia", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+            }
+            
+            // Wyślij komendę odczytu
+            try
+            {
+                ledStabilnosc.Fill = Brushes.Yellow;
+                serialPort.DiscardInBuffer();
+                serialPort.WriteLine("R"); // Komenda dla RHEWA - może być inna dla innych wag
+                
+                // Timer sprawdzający czy przyszła odpowiedź
+                var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+                timer.Tick += (s, args) =>
+                {
+                    timer.Stop();
+                    if (ledStabilnosc.Fill == Brushes.Yellow) // Nadal czeka - brak odpowiedzi
+                    {
+                        ledStabilnosc.Fill = Brushes.Red;
+                        MessageBox.Show("Waga nie odpowiada.\n\nSprawdź:\n• Czy waga jest włączona i stabilna\n• Czy ładunek jest na wadze\n• Ustawienia komunikacji wagi (9600 baud, 8N1)", 
+                            "Brak odpowiedzi", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+                };
+                timer.Start();
+            }
+            catch (Exception ex)
+            {
+                ledStabilnosc.Fill = Brushes.Red;
+                MessageBox.Show($"Błąd wysyłania komendy do wagi:\n{ex.Message}", 
+                    "Błąd komunikacji", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 
         public void BtnReadScale_Click(object sender, RoutedEventArgs e)
         {
-            if (serialPort != null && serialPort.IsOpen)
+            BigDisplay_Click(sender, null);
+        }
+
+        #endregion
+
+        #region KLIKNIĘCIE W PUSTE MIEJSCE
+
+        private void GridTable_MouseClick(object sender, MouseButtonEventArgs e)
+        {
+            // Sprawdź czy kliknięto w pusty obszar (nie w wiersz)
+            var hit = VisualTreeHelper.HitTest(gridTable, e.GetPosition(gridTable));
+            if (hit != null)
             {
-                try { serialPort.WriteLine("R"); }
-                catch { }
+                var row = FindParent<DataGridRow>(hit.VisualHit);
+                if (row == null)
+                {
+                    // Kliknięto w puste miejsce - odznacz
+                    gridTable.SelectedItem = null;
+                    ClearFormularz();
+                }
+            }
+        }
+
+        private static T FindParent<T>(DependencyObject child) where T : DependencyObject
+        {
+            var parent = VisualTreeHelper.GetParent(child);
+            while (parent != null && !(parent is T))
+            {
+                parent = VisualTreeHelper.GetParent(parent);
+            }
+            return parent as T;
+        }
+
+        #endregion
+
+        #region KAMERA
+
+        private const string CAMERA_IP = "192.168.0.76";
+        private const string CAMERA_USER = "admin";
+        private const string CAMERA_PASS = "terePacja12$";
+        private DispatcherTimer cameraTimer;
+        private bool cameraActive = false;
+
+        public void BtnCamera_Click(object sender, RoutedEventArgs e)
+        {
+            CameraOverlay.Visibility = Visibility.Visible;
+            cameraStatus.Text = "Łączenie z kamerą...";
+            cameraImage.Source = null;
+            StartCameraStream();
+        }
+
+        private void CameraClose_Click(object sender, RoutedEventArgs e)
+        {
+            StopCameraStream();
+            CameraOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        private void CameraOverlay_Click(object sender, MouseButtonEventArgs e)
+        {
+            StopCameraStream();
+            CameraOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        private void CameraPanel_Click(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true; // Nie zamykaj gdy kliknięto w panel
+        }
+
+        private void StartCameraStream()
+        {
+            cameraActive = true;
+            
+            // Timer do odświeżania obrazu co 200ms (5 FPS)
+            cameraTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+            cameraTimer.Tick += async (s, e) => await RefreshCameraImage();
+            cameraTimer.Start();
+            
+            // Pierwsze pobranie od razu
+            _ = RefreshCameraImage();
+        }
+
+        private void StopCameraStream()
+        {
+            cameraActive = false;
+            if (cameraTimer != null)
+            {
+                cameraTimer.Stop();
+                cameraTimer = null;
+            }
+        }
+
+        private async Task RefreshCameraImage()
+        {
+            if (!cameraActive) return;
+
+            try
+            {
+                // Różne endpointy Hikvision - próbujemy po kolei
+                string[] endpoints = new string[]
+                {
+                    $"http://{CAMERA_IP}/ISAPI/Streaming/channels/101/picture",
+                    $"http://{CAMERA_IP}/ISAPI/Streaming/channels/1/picture",
+                    $"http://{CAMERA_IP}/Streaming/channels/1/picture",
+                    $"http://{CAMERA_IP}/cgi-bin/snapshot.cgi",
+                    $"http://{CAMERA_IP}/snap.jpg",
+                    $"http://{CAMERA_IP}/jpg/image.jpg",
+                    $"http://{CAMERA_IP}/onvif-http/snapshot?Profile_1"
+                };
+                
+                using (var handler = new HttpClientHandler())
+                {
+                    handler.Credentials = new System.Net.NetworkCredential(CAMERA_USER, CAMERA_PASS);
+                    
+                    using (var client = new HttpClient(handler))
+                    {
+                        client.Timeout = TimeSpan.FromSeconds(5);
+                        
+                        foreach (var url in endpoints)
+                        {
+                            try
+                            {
+                                var response = await client.GetAsync(url);
+                                
+                                if (response.IsSuccessStatusCode)
+                                {
+                                    var imageData = await response.Content.ReadAsByteArrayAsync();
+                                    
+                                    // Sprawdź czy to rzeczywiście obraz (JPEG zaczyna się od FF D8)
+                                    if (imageData.Length > 2 && imageData[0] == 0xFF && imageData[1] == 0xD8)
+                                    {
+                                        Dispatcher.Invoke(() =>
+                                        {
+                                            if (!cameraActive) return;
+                                            
+                                            var bitmap = new BitmapImage();
+                                            using (var ms = new MemoryStream(imageData))
+                                            {
+                                                bitmap.BeginInit();
+                                                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                                                bitmap.StreamSource = ms;
+                                                bitmap.EndInit();
+                                                bitmap.Freeze();
+                                            }
+                                            cameraImage.Source = bitmap;
+                                            cameraStatus.Text = "";
+                                        });
+                                        return; // Sukces - wychodzimy
+                                    }
+                                }
+                            }
+                            catch { /* Próbuj następny endpoint */ }
+                        }
+                        
+                        // Żaden endpoint nie zadziałał
+                        Dispatcher.Invoke(() =>
+                        {
+                            cameraStatus.Text = "Nie można połączyć z kamerą.\nSprawdź IP i hasło.";
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    if (cameraActive)
+                        cameraStatus.Text = $"Błąd: {ex.Message}";
+                });
+            }
+        }
+
+        #endregion
+
+        #region ZAPIS ZDJĘĆ Z KAMERY
+
+        private const string PHOTOS_BASE_PATH = @"\\192.168.0.170\Install\WagaSamochodowa";
+
+        /// <summary>
+        /// Pobiera snapshot z kamery i zapisuje do pliku
+        /// </summary>
+        /// <param name="tryb">AVILOG lub ODPADY</param>
+        /// <param name="rejestracja">Numer rejestracyjny</param>
+        /// <param name="rodzajWagi">TARA lub BRUTTO</param>
+        /// <param name="towar">Rodzaj towaru (dla ODPADY)</param>
+        /// <returns>Ścieżka do zapisanego pliku lub null jeśli błąd</returns>
+        private async Task<string> SaveCameraSnapshot(string tryb, string rejestracja, string rodzajWagi, string towar = null)
+        {
+            Debug.WriteLine($"[SaveCameraSnapshot] START: tryb={tryb}, rej={rejestracja}, rodzaj={rodzajWagi}, towar={towar}");
+            
+            try
+            {
+                // Przygotuj folder z datą
+                string dateFolder = DateTime.Now.ToString("yyyy-MM-dd");
+                string fullFolderPath = Path.Combine(PHOTOS_BASE_PATH, dateFolder);
+                
+                Debug.WriteLine($"[SaveCameraSnapshot] Folder: {fullFolderPath}");
+                
+                // Utwórz folder jeśli nie istnieje
+                if (!Directory.Exists(fullFolderPath))
+                {
+                    Debug.WriteLine($"[SaveCameraSnapshot] Tworzę folder...");
+                    Directory.CreateDirectory(fullFolderPath);
+                }
+                
+                // Przygotuj nazwę pliku
+                string timeStamp = DateTime.Now.ToString("HH-mm-ss");
+                string safeRejestracja = rejestracja?.Replace(" ", "_").Replace("/", "-").Replace("\\", "-") ?? "BRAK";
+                string fileName;
+                
+                if (tryb == "AVILOG")
+                {
+                    // AVILOG_06-30-15_WGM12345_BRUTTO.jpg
+                    fileName = $"AVILOG_{timeStamp}_{safeRejestracja}_{rodzajWagi}.jpg";
+                }
+                else
+                {
+                    // ODPADY_08-15-22_ABC9876_KREW_TARA.jpg
+                    fileName = $"ODPADY_{timeStamp}_{safeRejestracja}_{towar}_{rodzajWagi}.jpg";
+                }
+                
+                string fullFilePath = Path.Combine(fullFolderPath, fileName);
+                Debug.WriteLine($"[SaveCameraSnapshot] Plik: {fullFilePath}");
+                
+                // Pobierz zdjęcie z kamery
+                Debug.WriteLine($"[SaveCameraSnapshot] Pobieram snapshot z kamery...");
+                byte[] imageData = await GetCameraSnapshotBytes();
+                
+                if (imageData != null && imageData.Length > 0)
+                {
+                    Debug.WriteLine($"[SaveCameraSnapshot] Pobrano {imageData.Length} bajtów, zapisuję...");
+                    // Zapisz do pliku
+                    await Task.Run(() => File.WriteAllBytes(fullFilePath, imageData));
+                    Debug.WriteLine($"[SaveCameraSnapshot] SUKCES: {fullFilePath}");
+                    return fullFilePath;
+                }
+                
+                Debug.WriteLine($"[SaveCameraSnapshot] BŁĄD: Brak danych z kamery");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[FOTO] Błąd zapisu zdjęcia: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Pobiera bajty obrazu z kamery
+        /// </summary>
+        private async Task<byte[]> GetCameraSnapshotBytes()
+        {
+            string[] endpoints = new string[]
+            {
+                $"http://{CAMERA_IP}/ISAPI/Streaming/channels/101/picture",
+                $"http://{CAMERA_IP}/ISAPI/Streaming/channels/1/picture",
+                $"http://{CAMERA_IP}/Streaming/channels/1/picture",
+                $"http://{CAMERA_IP}/cgi-bin/snapshot.cgi",
+                $"http://{CAMERA_IP}/snap.jpg"
+            };
+            
+            using (var handler = new HttpClientHandler())
+            {
+                handler.Credentials = new System.Net.NetworkCredential(CAMERA_USER, CAMERA_PASS);
+                
+                using (var client = new HttpClient(handler))
+                {
+                    client.Timeout = TimeSpan.FromSeconds(5);
+                    
+                    foreach (var url in endpoints)
+                    {
+                        try
+                        {
+                            var response = await client.GetAsync(url);
+                            
+                            if (response.IsSuccessStatusCode)
+                            {
+                                var imageData = await response.Content.ReadAsByteArrayAsync();
+                                
+                                // Sprawdź czy to JPEG
+                                if (imageData.Length > 2 && imageData[0] == 0xFF && imageData[1] == 0xD8)
+                                {
+                                    return imageData;
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+                }
+            }
+            
+            return null;
+        }
+
+        /// <summary>
+        /// Wyświetla zdjęcie z ważenia w nowym oknie
+        /// </summary>
+        private void ShowWeightPhoto(string photoPath, string title)
+        {
+            if (string.IsNullOrEmpty(photoPath))
+            {
+                MessageBox.Show("Brak zdjęcia dla tego ważenia.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            
+            if (!File.Exists(photoPath))
+            {
+                MessageBox.Show($"Plik nie istnieje:\n{photoPath}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            
+            try
+            {
+                // Otwórz okno ze zdjęciem
+                var photoWindow = new Window
+                {
+                    Title = title,
+                    Width = 1000,
+                    Height = 700,
+                    WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                    Background = new SolidColorBrush(Color.FromRgb(30, 30, 46))
+                };
+                
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.UriSource = new Uri(photoPath);
+                bitmap.EndInit();
+                
+                var image = new Image
+                {
+                    Source = bitmap,
+                    Stretch = Stretch.Uniform,
+                    Margin = new Thickness(10)
+                };
+                
+                var grid = new Grid();
+                grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                
+                Grid.SetRow(image, 0);
+                grid.Children.Add(image);
+                
+                var infoText = new TextBlock
+                {
+                    Text = photoPath,
+                    Foreground = Brushes.Gray,
+                    FontSize = 12,
+                    Margin = new Thickness(10, 5, 10, 10),
+                    TextWrapping = TextWrapping.Wrap
+                };
+                Grid.SetRow(infoText, 1);
+                grid.Children.Add(infoText);
+                
+                photoWindow.Content = grid;
+                photoWindow.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania zdjęcia:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -1465,6 +2168,10 @@ namespace Kalendarz1
         public int SztukiPlan { get; set; }
         public string GodzinaTaraDisplay { get; set; } = "-";
         public string GodzinaBruttoDisplay { get; set; } = "-";
+        
+        // Ścieżki do zdjęć z ważenia
+        public string ZdjecieTaraPath { get; set; }
+        public string ZdjecieBruttoPath { get; set; }
 
         private int _brutto;
         public int Brutto
