@@ -593,8 +593,36 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
                                         <TextBlock Text="REJESTRACJA:" FontSize="11" FontWeight="Bold" Foreground="#888" Margin="0,0,0,2"/>
-                                        <TextBox x:Name="txtEditRejestracja" Style="{StaticResource InputBoxStyle}" 
-                                                 PreviewMouseLeftButtonUp="TxtEditRejestracja_Click" IsReadOnly="True" Cursor="Hand" Height="45"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="txtEditRejestracja" Grid.Column="0" Style="{StaticResource InputBoxStyle}" 
+                                                     PreviewMouseLeftButtonUp="TxtEditRejestracja_Click" IsReadOnly="True" Cursor="Hand" Height="45"/>
+                                            <!-- Przycisk skanowania tablicy -->
+                                            <Button Grid.Column="1" Click="BtnScanPlateToTextBox_Click" Width="45" Height="45" Margin="5,0,0,0"
+                                                    ToolTip="Skanuj tablicę z kamery" Cursor="Hand">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="border" Background="#2E7D32" CornerRadius="8">
+                                                            <TextBlock Text="📷" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="border" Property="Background" Value="#43A047"/>
+                                                            </Trigger>
+                                                            <Trigger Property="IsPressed" Value="True">
+                                                                <Setter TargetName="border" Property="Background" Value="#1B5E20"/>
+                                                            </Trigger>
+                                                            <Trigger Property="IsEnabled" Value="False">
+                                                                <Setter TargetName="border" Property="Background" Value="#555"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                            </Button>
+                                        </Grid>
                                     </StackPanel>
                                     <StackPanel Grid.Column="2">
                                         <TextBlock Text="ODBIORCA:" FontSize="11" FontWeight="Bold" Foreground="#888" Margin="0,0,0,2"/>
@@ -1008,19 +1036,36 @@
                                        FontSize="14" Foreground="#666" 
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             
-                            <!-- Przycisk ALPR po prawej -->
-                            <Button Grid.Column="2" Click="BtnScanPlate_Click" Width="140" Height="50" ToolTip="Rozpoznaj tablicę rejestracyjną">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border Background="#2E7D32" CornerRadius="8" Cursor="Hand">
-                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                <TextBlock Text="🚗" FontSize="22" Margin="0,0,8,0"/>
-                                                <TextBlock Text="SKANUJ" FontSize="16" Foreground="White" FontWeight="Bold" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </Border>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
+                            <!-- Przyciski ALPR po prawej -->
+                            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                <!-- Wgraj zdjęcie z dysku -->
+                                <Button Click="BtnLoadImageForALPR_Click" Width="130" Height="50" Margin="0,0,10,0" ToolTip="Wgraj zdjęcie z dysku do rozpoznania">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="#1565C0" CornerRadius="8" Cursor="Hand">
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <TextBlock Text="📁" FontSize="20" Margin="0,0,6,0"/>
+                                                    <TextBlock Text="Z DYSKU" FontSize="14" Foreground="White" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                
+                                <!-- Skanuj z kamery -->
+                                <Button Click="BtnScanPlateInCameraWindow_Click" Width="140" Height="50" ToolTip="Rozpoznaj tablicę z kamery na żywo">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="#2E7D32" CornerRadius="8" Cursor="Hand">
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <TextBlock Text="🚗" FontSize="22" Margin="0,0,8,0"/>
+                                                    <TextBlock Text="SKANUJ" FontSize="16" Foreground="White" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </StackPanel>
                         </Grid>
                     </Border>
                 </Grid>

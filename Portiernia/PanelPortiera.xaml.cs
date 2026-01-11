@@ -1833,11 +1833,6 @@ namespace Kalendarz1
         private DispatcherTimer cameraTimer;
         private bool cameraActive = false;
 
-        // Ścieżka do OpenALPR - ustaw po instalacji
-        private const string OPENALPR_PATH = @"C:\OpenALPR\alpr.exe";
-        private const string OPENALPR_CONFIG = @"C:\OpenALPR\openalpr.conf";
-        private const string OPENALPR_RUNTIME = @"C:\OpenALPR\runtime_data";
-
         // Zoom i przesuwanie kamery
         private double currentZoom = 1.0;
         private Point cameraDragStart;
@@ -1845,6 +1840,9 @@ namespace Kalendarz1
 
         public void BtnCamera_Click(object sender, RoutedEventArgs e)
         {
+            // Normalny tryb - nie wpisuj do TextBox
+            cameraScanToTextBoxMode = false;
+
             CameraOverlay.Visibility = Visibility.Visible;
             cameraStatus.Text = "Łączenie z kamerą...";
             cameraImage.Source = null;
@@ -1859,6 +1857,7 @@ namespace Kalendarz1
         {
             StopCameraStream();
             CameraOverlay.Visibility = Visibility.Collapsed;
+            cameraScanToTextBoxMode = false; // Reset trybu
         }
 
         private void CameraOverlay_Click(object sender, MouseButtonEventArgs e)
@@ -1868,6 +1867,7 @@ namespace Kalendarz1
             {
                 StopCameraStream();
                 CameraOverlay.Visibility = Visibility.Collapsed;
+                cameraScanToTextBoxMode = false; // Reset trybu
             }
         }
 
@@ -2290,54 +2290,39 @@ namespace Kalendarz1
 
         #endregion
 
-        #region ROZPOZNAWANIE TABLIC (ALPR)
+        #region ROZPOZNAWANIE TABLIC (Plate Recognizer API)
+
+        // === KLUCZ API Plate Recognizer ===
+        // Darmowe 2500 skanów/miesiąc - https://platerecognizer.com/
+        private const string PLATE_RECOGNIZER_API_KEY = "e5c8ab0f0171e177faaf82a69427fb706a15bcbf";
+        private const string PLATE_RECOGNIZER_URL = "https://api.platerecognizer.com/v1/plate-reader/";
 
         /// <summary>
-        /// Rozpoznaje tablicę rejestracyjną ze zdjęcia z kamery
+        /// Rozpoznaje tablicę rejestracyjną ze zdjęcia z kamery (Plate Recognizer API)
         /// </summary>
-        /// <returns>Rozpoznana tablica lub null</returns>
         public async Task<AlprResult> RecognizePlateFromCamera()
         {
             var result = new AlprResult();
 
             try
             {
-                // 1. Sprawdź czy OpenALPR jest zainstalowany
-                result.Steps.Add($"[1] Szukam OpenALPR: {OPENALPR_PATH}");
+                // 1. Sprawdź czy klucz API jest ustawiony
+                result.Steps.Add("[1] Sprawdzam klucz API...");
 
-                if (!File.Exists(OPENALPR_PATH))
+                if (string.IsNullOrEmpty(PLATE_RECOGNIZER_API_KEY) || PLATE_RECOGNIZER_API_KEY == "WKLEJ_TUTAJ_SWOJ_API_KEY")
                 {
-                    result.Error = $"OpenALPR NIE ZNALEZIONY!\n\nOczekiwana lokalizacja:\n{OPENALPR_PATH}\n\nPobierz z:\nhttps://github.com/openalpr/openalpr/releases\n\nRozpakuj do C:\\OpenALPR\\";
-                    result.Steps.Add("   ❌ BŁĄD: Plik alpr.exe nie istnieje!");
+                    result.Error = "Brak klucza API!\n\n" +
+                        "1. Zarejestruj się na https://platerecognizer.com/\n" +
+                        "2. Skopiuj API Token z Dashboard\n" +
+                        "3. Wklej do PanelPortiera.xaml.cs w linii:\n" +
+                        "   PLATE_RECOGNIZER_API_KEY = \"twój_klucz\"";
+                    result.Steps.Add("   ❌ BŁĄD: Klucz API nie jest skonfigurowany!");
                     return result;
                 }
-                result.Steps.Add("   ✓ alpr.exe znaleziony");
+                result.Steps.Add("   ✓ Klucz API skonfigurowany");
 
-                // 2. Sprawdź runtime_data
-                result.Steps.Add($"[2] Sprawdzam runtime_data: {OPENALPR_RUNTIME}");
-                if (!Directory.Exists(OPENALPR_RUNTIME))
-                {
-                    result.Steps.Add("   ⚠ Folder runtime_data nie istnieje (może być w innej lokalizacji)");
-                }
-                else
-                {
-                    var files = Directory.GetFiles(OPENALPR_RUNTIME, "*", SearchOption.AllDirectories).Length;
-                    result.Steps.Add($"   ✓ runtime_data istnieje ({files} plików)");
-                }
-
-                // 3. Sprawdź config
-                result.Steps.Add($"[3] Sprawdzam config: {OPENALPR_CONFIG}");
-                if (!File.Exists(OPENALPR_CONFIG))
-                {
-                    result.Steps.Add("   ⚠ Plik openalpr.conf nie istnieje");
-                }
-                else
-                {
-                    result.Steps.Add("   ✓ openalpr.conf istnieje");
-                }
-
-                // 4. Pobierz zdjęcie z kamery
-                result.Steps.Add($"[4] Pobieram zdjęcie z kamery {CAMERA_IP}...");
+                // 2. Pobierz zdjęcie z kamery
+                result.Steps.Add($"[2] Pobieram zdjęcie z kamery {CAMERA_IP}...");
                 byte[] imageData = await GetCameraSnapshotBytes();
 
                 if (imageData == null || imageData.Length == 0)
@@ -2348,94 +2333,62 @@ namespace Kalendarz1
                 }
                 result.Steps.Add($"   ✓ Pobrano {imageData.Length} bajtów ({imageData.Length / 1024} KB)");
 
-                // 5. Zapisz do pliku tymczasowego
-                string tempFile = Path.Combine(Path.GetTempPath(), $"alpr_temp_{DateTime.Now:HHmmss}.jpg");
-                result.Steps.Add($"[5] Zapisuję do pliku: {tempFile}");
-                File.WriteAllBytes(tempFile, imageData);
+                // 3. Zapisz zdjęcie do folderu diagnostycznego
+                string tempFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "ALPR_Test");
+                if (!Directory.Exists(tempFolder))
+                    Directory.CreateDirectory(tempFolder);
 
-                if (!File.Exists(tempFile))
-                {
-                    result.Error = "Nie udało się zapisać pliku tymczasowego!";
-                    result.Steps.Add("   ❌ BŁĄD: Plik nie został utworzony!");
-                    return result;
-                }
-                var fileInfo = new FileInfo(tempFile);
-                result.Steps.Add($"   ✓ Plik zapisany ({fileInfo.Length} bajtów)");
+                string tempFile = Path.Combine(tempFolder, $"ALPR_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.jpg");
+                result.Steps.Add($"[3] Zapisuję zdjęcie: {tempFile}");
+                File.WriteAllBytes(tempFile, imageData);
+                result.Steps.Add($"   ✓ Zdjęcie zapisane na pulpicie w: ALPR_Test");
                 result.TempImagePath = tempFile;
 
-                try
+                // 4. Wyślij do Plate Recognizer API
+                result.Steps.Add("[4] Wysyłam do Plate Recognizer API...");
+
+                using (var client = new HttpClient())
                 {
-                    // 6. Przygotuj argumenty
-                    string arguments = $"-c eu -j \"{tempFile}\"";
-                    if (File.Exists(OPENALPR_CONFIG))
+                    client.DefaultRequestHeaders.Add("Authorization", $"Token {PLATE_RECOGNIZER_API_KEY}");
+                    client.Timeout = TimeSpan.FromSeconds(30);
+
+                    using (var content = new MultipartFormDataContent())
                     {
-                        arguments = $"-c eu --config \"{OPENALPR_CONFIG}\" -j \"{tempFile}\"";
-                    }
+                        var imageContent = new ByteArrayContent(imageData);
+                        imageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/jpeg");
+                        content.Add(imageContent, "upload", "image.jpg");
 
-                    result.Steps.Add($"[6] Uruchamiam OpenALPR...");
-                    result.Steps.Add($"   Komenda: alpr.exe {arguments}");
+                        // Dodaj region Polski dla lepszej dokładności
+                        content.Add(new StringContent("pl"), "regions");
 
-                    // 7. Wywołaj OpenALPR
-                    var startInfo = new ProcessStartInfo
-                    {
-                        FileName = OPENALPR_PATH,
-                        Arguments = arguments,
-                        UseShellExecute = false,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        CreateNoWindow = true,
-                        WorkingDirectory = Path.GetDirectoryName(OPENALPR_PATH)
-                    };
+                        result.Steps.Add("   Wysyłam żądanie POST...");
 
-                    result.Steps.Add($"[7] Czekam na wynik...");
+                        var response = await client.PostAsync(PLATE_RECOGNIZER_URL, content);
+                        var responseBody = await response.Content.ReadAsStringAsync();
 
-                    using (var process = Process.Start(startInfo))
-                    {
-                        if (process == null)
+                        result.RawOutput = responseBody;
+                        result.Steps.Add($"   Status: {response.StatusCode}");
+                        result.Steps.Add($"   Response length: {responseBody.Length} znaków");
+
+                        if (!response.IsSuccessStatusCode)
                         {
-                            result.Error = "Nie udało się uruchomić procesu alpr.exe!";
-                            result.Steps.Add("   ❌ BŁĄD: Process.Start zwrócił null!");
+                            result.Error = $"Błąd API: {response.StatusCode}\n\n{responseBody}";
+                            result.Steps.Add($"   ❌ BŁĄD HTTP: {response.StatusCode}");
+
+                            if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                            {
+                                result.Error = "Nieprawidłowy klucz API lub wyczerpany limit.\n\n" +
+                                    "Sprawdź na https://platerecognizer.com/\n" +
+                                    "Dashboard → Usage";
+                            }
                             return result;
                         }
 
-                        string output = await process.StandardOutput.ReadToEndAsync();
-                        string error = await process.StandardError.ReadToEndAsync();
+                        // 5. Parsuj wynik JSON
+                        result.Steps.Add("[5] Parsuję odpowiedź...");
+                        result.Steps.Add($"   Pierwsze 500 znaków: {responseBody.Substring(0, Math.Min(500, responseBody.Length))}");
 
-                        bool exited = process.WaitForExit(15000); // Max 15 sekund
-
-                        if (!exited)
-                        {
-                            process.Kill();
-                            result.Error = "OpenALPR nie odpowiedział w ciągu 15 sekund!";
-                            result.Steps.Add("   ❌ BŁĄD: Timeout - proces zabity!");
-                            return result;
-                        }
-
-                        result.ExitCode = process.ExitCode;
-                        result.RawOutput = output;
-                        result.RawError = error;
-
-                        result.Steps.Add($"   Exit code: {process.ExitCode}");
-                        result.Steps.Add($"   Output length: {output?.Length ?? 0} znaków");
-                        result.Steps.Add($"   Error length: {error?.Length ?? 0} znaków");
-
-                        if (!string.IsNullOrEmpty(error))
-                        {
-                            result.Steps.Add($"   STDERR: {error.Substring(0, Math.Min(200, error.Length))}");
-                        }
-
-                        if (string.IsNullOrWhiteSpace(output))
-                        {
-                            result.Error = $"OpenALPR nie zwrócił żadnych danych!\n\nExit code: {process.ExitCode}\n\nSTDERR:\n{error}";
-                            result.Steps.Add("   ❌ BŁĄD: Pusty output!");
-                            return result;
-                        }
-
-                        result.Steps.Add($"[8] Parsuję wynik JSON...");
-                        result.Steps.Add($"   Pierwsze 300 znaków: {output.Substring(0, Math.Min(300, output.Length))}");
-
-                        // 8. Parsuj wynik
-                        var parseResult = ParseAlprResultDetailed(output);
+                        var parseResult = ParsePlateRecognizerResult(responseBody);
                         result.Plate = parseResult.plate;
                         result.Confidence = parseResult.confidence;
                         result.PlatesFound = parseResult.platesFound;
@@ -2443,11 +2396,11 @@ namespace Kalendarz1
                         if (parseResult.platesFound == 0)
                         {
                             result.Steps.Add("   ⚠ Nie znaleziono żadnych tablic na zdjęciu");
-                            result.Error = "OpenALPR nie wykrył żadnej tablicy na zdjęciu.\n\nMożliwe przyczyny:\n• Auto nie jest widoczne na kamerze\n• Tablica jest nieczytelna/brudna\n• Złe oświetlenie\n• Zły kąt kamery";
+                            result.Error = "Nie wykryto tablicy na zdjęciu.\n\nMożliwe przyczyny:\n• Auto nie jest widoczne na kamerze\n• Tablica jest nieczytelna/brudna\n• Złe oświetlenie\n• Zły kąt kamery\n\nZdjęcie zapisane w: ALPR_Test na pulpicie";
                         }
                         else if (string.IsNullOrEmpty(parseResult.plate))
                         {
-                            result.Steps.Add($"   ⚠ Znaleziono {parseResult.platesFound} tablic, ale pewność < 70%");
+                            result.Steps.Add($"   ⚠ Znaleziono {parseResult.platesFound} tablic, ale pewność < 60%");
                             result.Error = $"Znaleziono tablicę, ale pewność jest zbyt niska ({parseResult.confidence:F1}%).\n\nPopraw widoczność tablicy.";
                         }
                         else
@@ -2457,26 +2410,154 @@ namespace Kalendarz1
                         }
                     }
                 }
-                finally
-                {
-                    // Usuń plik tymczasowy
-                    try
-                    {
-                        if (File.Exists(tempFile))
-                            File.Delete(tempFile);
-                        result.Steps.Add("[9] Usunięto plik tymczasowy");
-                    }
-                    catch { }
-                }
 
+                return result;
+            }
+            catch (HttpRequestException ex)
+            {
+                result.Error = $"Błąd połączenia z API:\n{ex.Message}\n\nSprawdź połączenie internetowe.";
+                result.Steps.Add($"   ❌ BŁĄD HTTP: {ex.Message}");
+                return result;
+            }
+            catch (TaskCanceledException)
+            {
+                result.Error = "Przekroczono czas oczekiwania (30s).\n\nSprawdź połączenie internetowe.";
+                result.Steps.Add("   ❌ BŁĄD: Timeout");
                 return result;
             }
             catch (Exception ex)
             {
-                result.Error = $"Wyjątek: {ex.GetType().Name}\n\n{ex.Message}\n\nStack:\n{ex.StackTrace?.Substring(0, Math.Min(500, ex.StackTrace?.Length ?? 0))}";
+                result.Error = $"Wyjątek: {ex.GetType().Name}\n\n{ex.Message}";
                 result.Steps.Add($"   ❌ WYJĄTEK: {ex.Message}");
                 return result;
             }
+        }
+
+        /// <summary>
+        /// Parsuje wynik JSON z Plate Recognizer API
+        /// </summary>
+        private (string plate, double confidence, int platesFound) ParsePlateRecognizerResult(string json)
+        {
+            try
+            {
+                // Format: {"results":[{"box":{...},"plate":"ebr4h30","region":{...},"score":0.987,"candidates":[...],"dscore":0.776,...}]}
+                // Uwaga: jest też "score":0.039 w region - to ignorujemy!
+
+                string bestPlate = null;
+                double bestConfidence = 0;
+                int platesFound = 0;
+
+                // Znajdź "results":[
+                int resultsIndex = json.IndexOf("\"results\"");
+                if (resultsIndex == -1)
+                    return (null, 0, 0);
+
+                // Znajdź "plate": w results
+                int plateIndex = json.IndexOf("\"plate\"", resultsIndex);
+                if (plateIndex == -1)
+                    return (null, 0, 0);
+
+                platesFound = 1;
+
+                // Wyciągnij wartość plate
+                int plateColon = json.IndexOf(":", plateIndex);
+                int plateStartQuote = json.IndexOf("\"", plateColon + 1);
+                int plateEndQuote = json.IndexOf("\"", plateStartQuote + 1);
+
+                if (plateStartQuote != -1 && plateEndQuote != -1)
+                {
+                    bestPlate = json.Substring(plateStartQuote + 1, plateEndQuote - plateStartQuote - 1);
+                }
+
+                // Teraz szukaj "score": które jest NA TYM SAMYM POZIOMIE co plate
+                // To znaczy szukamy wzorca: ,"score":X.XXX gdzie X > 0.5
+                // Szukamy od pozycji plate do końca tego obiektu result
+
+                // Znajdź wszystkie "score": i wybierz NAJWYŻSZĄ wartość
+                int searchPos = plateEndQuote;
+                int maxSearch = Math.Min(json.Length, searchPos + 500); // szukaj w następnych 500 znakach
+
+                while (searchPos < maxSearch)
+                {
+                    int scoreIdx = json.IndexOf("\"score\"", searchPos);
+                    if (scoreIdx == -1 || scoreIdx > maxSearch)
+                        break;
+
+                    int scoreColon = json.IndexOf(":", scoreIdx);
+                    if (scoreColon == -1)
+                        break;
+
+                    int scoreEnd = json.IndexOfAny(new char[] { ',', '}', ']' }, scoreColon + 1);
+                    if (scoreEnd == -1)
+                        break;
+
+                    string scoreStr = json.Substring(scoreColon + 1, scoreEnd - scoreColon - 1).Trim();
+
+                    if (double.TryParse(scoreStr, System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture, out double score))
+                    {
+                        double scorePercent = score <= 1 ? score * 100 : score;
+
+                        // Bierzemy NAJWYŻSZY score
+                        if (scorePercent > bestConfidence)
+                        {
+                            bestConfidence = scorePercent;
+                        }
+                    }
+
+                    searchPos = scoreEnd + 1;
+                }
+
+                // Formatuj tablicę
+                if (!string.IsNullOrEmpty(bestPlate))
+                {
+                    bestPlate = FormatPolishPlate(bestPlate.ToUpper());
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[ALPR] Parsed: plate={bestPlate}, confidence={bestConfidence:F1}%");
+
+                // Zwróć jeśli mamy tablicę i pewność >= 50%
+                if (!string.IsNullOrEmpty(bestPlate) && bestConfidence >= 50)
+                    return (bestPlate, bestConfidence, platesFound);
+                else if (!string.IsNullOrEmpty(bestPlate))
+                    return (null, bestConfidence, platesFound); // znaleziono ale niska pewność
+                else
+                    return (null, 0, 0);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ALPR] Parse error: {ex.Message}");
+                return (null, 0, 0);
+            }
+        }
+
+        /// <summary>
+        /// Formatuje polską tablicę rejestracyjną (dodaje spację)
+        /// </summary>
+        private string FormatPolishPlate(string plate)
+        {
+            if (string.IsNullOrEmpty(plate) || plate.Length < 4)
+                return plate;
+
+            // Polskie tablice: 2-3 litery + cyfry/litery
+            // Np. EBR4H30 -> EBR 4H30, WGM12345 -> WGM 12345
+
+            // Znajdź gdzie kończą się litery na początku
+            int letterCount = 0;
+            foreach (char c in plate)
+            {
+                if (char.IsLetter(c))
+                    letterCount++;
+                else
+                    break;
+            }
+
+            if (letterCount >= 2 && letterCount <= 3 && letterCount < plate.Length)
+            {
+                return plate.Substring(0, letterCount) + " " + plate.Substring(letterCount);
+            }
+
+            return plate;
         }
 
         /// <summary>
@@ -2499,7 +2580,7 @@ namespace Kalendarz1
             {
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine("═══════════════════════════════════════");
-                sb.AppendLine("      DIAGNOSTYKA ALPR");
+                sb.AppendLine("   DIAGNOSTYKA - Plate Recognizer");
                 sb.AppendLine("═══════════════════════════════════════\n");
 
                 foreach (var step in Steps)
@@ -2525,64 +2606,6 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Parsuje wynik JSON z OpenALPR ze szczegółami
-        /// </summary>
-        private (string plate, double confidence, int platesFound) ParseAlprResultDetailed(string jsonOutput)
-        {
-            try
-            {
-                int platesFound = 0;
-                string bestPlate = null;
-                double bestConfidence = 0;
-
-                // Licz ile razy występuje "plate":
-                int idx = 0;
-                while ((idx = jsonOutput.IndexOf("\"plate\"", idx)) != -1)
-                {
-                    platesFound++;
-                    idx++;
-                }
-
-                // Znajdź najlepszy wynik
-                int plateIndex = jsonOutput.IndexOf("\"plate\"");
-                if (plateIndex == -1)
-                    return (null, 0, 0);
-
-                int colonIndex = jsonOutput.IndexOf(":", plateIndex);
-                int startQuote = jsonOutput.IndexOf("\"", colonIndex + 1);
-                int endQuote = jsonOutput.IndexOf("\"", startQuote + 1);
-
-                if (startQuote != -1 && endQuote != -1)
-                {
-                    bestPlate = jsonOutput.Substring(startQuote + 1, endQuote - startQuote - 1);
-
-                    int confIndex = jsonOutput.IndexOf("\"confidence\"", endQuote);
-                    if (confIndex != -1)
-                    {
-                        int confColon = jsonOutput.IndexOf(":", confIndex);
-                        int confEnd = jsonOutput.IndexOfAny(new char[] { ',', '}' }, confColon);
-                        if (confEnd != -1)
-                        {
-                            string confStr = jsonOutput.Substring(confColon + 1, confEnd - confColon - 1).Trim();
-                            double.TryParse(confStr, System.Globalization.NumberStyles.Any,
-                                System.Globalization.CultureInfo.InvariantCulture, out bestConfidence);
-                        }
-                    }
-                }
-
-                // Zwróć tylko jeśli pewność >= 70%
-                if (bestConfidence >= 70)
-                    return (bestPlate?.ToUpper(), bestConfidence, platesFound);
-                else
-                    return (null, bestConfidence, platesFound);
-            }
-            catch
-            {
-                return (null, 0, 0);
-            }
-        }
-
-        /// <summary>
         /// Przycisk skanowania tablicy rejestracyjnej
         /// </summary>
         public async void BtnScanPlate_Click(object sender, RoutedEventArgs e)
@@ -2596,33 +2619,7 @@ namespace Kalendarz1
             try
             {
                 var result = await RecognizePlateFromCamera();
-
-                if (result.Success && !string.IsNullOrEmpty(result.Plate))
-                {
-                    // Znaleziono tablicę
-                    if (aktualnyTryb == "Odpady" && txtEditRejestracja != null)
-                    {
-                        txtEditRejestracja.Text = result.Plate;
-                        PlaySound(true);
-                        MessageBox.Show($"✓ Rozpoznano tablicę:\n\n{result.Plate}\n\nPewność: {result.Confidence:F1}%",
-                            "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                    else
-                    {
-                        PlaySound(true);
-                        MessageBox.Show($"✓ Rozpoznano tablicę:\n\n{result.Plate}\n\nPewność: {result.Confidence:F1}%\n\n(W trybie AVILOG tablica jest przypisana do dostawy)",
-                            "Rozpoznana tablica", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                }
-                else
-                {
-                    PlaySound(false);
-
-                    // Pokaż pełną diagnostykę
-                    string diagnostics = result.GetDiagnostics();
-
-                    MessageBox.Show(diagnostics, "Diagnostyka ALPR", MessageBoxButton.OK, MessageBoxImage.Warning);
-                }
+                HandleAlprResult(result);
             }
             catch (Exception ex)
             {
@@ -2636,6 +2633,255 @@ namespace Kalendarz1
                 {
                     btn2.IsEnabled = true;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Wgraj zdjęcie z dysku i rozpoznaj tablicę
+        /// </summary>
+        public async void BtnLoadImageForALPR_Click(object sender, RoutedEventArgs e)
+        {
+            // Otwórz dialog wyboru pliku
+            var dialog = new OpenFileDialog
+            {
+                Title = "Wybierz zdjęcie do rozpoznania tablicy",
+                Filter = "Obrazy|*.jpg;*.jpeg;*.png;*.bmp|Wszystkie pliki|*.*",
+                InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures)
+            };
+
+            // Sprawdź czy jest folder ALPR_Test na pulpicie
+            string alprFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "ALPR_Test");
+            if (Directory.Exists(alprFolder))
+            {
+                dialog.InitialDirectory = alprFolder;
+            }
+
+            // Sprawdź też folder zdjęć z wagi
+            string wagaFolder = @"\\192.168.0.170\Install\WagaSamochodowa";
+            if (Directory.Exists(wagaFolder))
+            {
+                // Znajdź najnowszy folder z datą
+                try
+                {
+                    var dirs = Directory.GetDirectories(wagaFolder).OrderByDescending(d => d).FirstOrDefault();
+                    if (!string.IsNullOrEmpty(dirs))
+                        dialog.InitialDirectory = dirs;
+                }
+                catch { }
+            }
+
+            if (dialog.ShowDialog() != true)
+                return;
+
+            if (sender is Button btn)
+                btn.IsEnabled = false;
+
+            try
+            {
+                var result = await RecognizePlateFromFile(dialog.FileName);
+                HandleAlprResult(result);
+            }
+            catch (Exception ex)
+            {
+                PlaySound(false);
+                MessageBox.Show($"Nieoczekiwany błąd:\n\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                if (sender is Button btn2)
+                    btn2.IsEnabled = true;
+            }
+        }
+
+        /// <summary>
+        /// Rozpoznaje tablicę z pliku na dysku
+        /// </summary>
+        private async Task<AlprResult> RecognizePlateFromFile(string filePath)
+        {
+            var result = new AlprResult();
+
+            try
+            {
+                result.Steps.Add($"[1] Wczytuję plik: {filePath}");
+
+                if (!File.Exists(filePath))
+                {
+                    result.Error = $"Plik nie istnieje:\n{filePath}";
+                    result.Steps.Add("   ❌ BŁĄD: Plik nie istnieje!");
+                    return result;
+                }
+
+                byte[] imageData = File.ReadAllBytes(filePath);
+                result.Steps.Add($"   ✓ Wczytano {imageData.Length} bajtów ({imageData.Length / 1024} KB)");
+                result.TempImagePath = filePath;
+
+                // Wyślij do API
+                result.Steps.Add("[2] Wysyłam do Plate Recognizer API...");
+
+                using (var client = new HttpClient())
+                {
+                    client.DefaultRequestHeaders.Add("Authorization", $"Token {PLATE_RECOGNIZER_API_KEY}");
+                    client.Timeout = TimeSpan.FromSeconds(30);
+
+                    using (var content = new MultipartFormDataContent())
+                    {
+                        var imageContent = new ByteArrayContent(imageData);
+                        string mimeType = "image/jpeg";
+                        if (filePath.ToLower().EndsWith(".png"))
+                            mimeType = "image/png";
+                        imageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(mimeType);
+                        content.Add(imageContent, "upload", Path.GetFileName(filePath));
+                        content.Add(new StringContent("pl"), "regions");
+
+                        var response = await client.PostAsync(PLATE_RECOGNIZER_URL, content);
+                        var responseBody = await response.Content.ReadAsStringAsync();
+
+                        result.RawOutput = responseBody;
+                        result.Steps.Add($"   Status: {response.StatusCode}");
+
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            result.Error = $"Błąd API: {response.StatusCode}\n\n{responseBody}";
+                            result.Steps.Add($"   ❌ BŁĄD HTTP: {response.StatusCode}");
+                            return result;
+                        }
+
+                        result.Steps.Add("[3] Parsuję odpowiedź...");
+                        result.Steps.Add($"   Pierwsze 400 znaków: {responseBody.Substring(0, Math.Min(400, responseBody.Length))}");
+
+                        var parseResult = ParsePlateRecognizerResult(responseBody);
+                        result.Plate = parseResult.plate;
+                        result.Confidence = parseResult.confidence;
+                        result.PlatesFound = parseResult.platesFound;
+
+                        if (parseResult.platesFound == 0)
+                        {
+                            result.Steps.Add("   ⚠ Nie znaleziono żadnych tablic na zdjęciu");
+                            result.Error = "Nie wykryto tablicy na zdjęciu.\n\nSprawdź czy tablica jest widoczna.";
+                        }
+                        else if (string.IsNullOrEmpty(parseResult.plate))
+                        {
+                            result.Steps.Add($"   ⚠ Pewność zbyt niska: {parseResult.confidence:F1}%");
+                            result.Error = $"Znaleziono tablicę, ale pewność jest zbyt niska ({parseResult.confidence:F1}%).";
+                        }
+                        else
+                        {
+                            result.Steps.Add($"   ✓ Rozpoznano: {parseResult.plate} ({parseResult.confidence:F1}%)");
+                            result.Success = true;
+                        }
+                    }
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                result.Error = $"Wyjątek: {ex.Message}";
+                result.Steps.Add($"   ❌ WYJĄTEK: {ex.Message}");
+                return result;
+            }
+        }
+
+        /// <summary>
+        /// Obsługuje wynik ALPR - pokazuje komunikat lub wstawia tablicę
+        /// </summary>
+        private void HandleAlprResult(AlprResult result)
+        {
+            if (result.Success && !string.IsNullOrEmpty(result.Plate))
+            {
+                // Znaleziono tablicę
+                if (aktualnyTryb == "Odpady" && txtEditRejestracja != null)
+                {
+                    txtEditRejestracja.Text = result.Plate;
+                    PlaySound(true);
+                    MessageBox.Show($"✓ Rozpoznano tablicę:\n\n{result.Plate}\n\nPewność: {result.Confidence:F1}%",
+                        "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    PlaySound(true);
+                    MessageBox.Show($"✓ Rozpoznano tablicę:\n\n{result.Plate}\n\nPewność: {result.Confidence:F1}%\n\n(W trybie AVILOG tablica jest przypisana do dostawy)",
+                        "Rozpoznana tablica", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            else
+            {
+                PlaySound(false);
+                string diagnostics = result.GetDiagnostics();
+                MessageBox.Show(diagnostics, "Diagnostyka ALPR", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        // Flaga - czy okno kamery jest otwarte w trybie skanowania do TextBox
+        private bool cameraScanToTextBoxMode = false;
+
+        /// <summary>
+        /// Otwórz okno kamery w trybie skanowania do TextBox (mały przycisk przy polu rejestracji)
+        /// </summary>
+        public void BtnScanPlateToTextBox_Click(object sender, RoutedEventArgs e)
+        {
+            // Ustaw tryb skanowania do TextBox
+            cameraScanToTextBoxMode = true;
+
+            // Otwórz okno kamery
+            CameraOverlay.Visibility = Visibility.Visible;
+            cameraStatus.Text = "Łączenie z kamerą...";
+            cameraImage.Source = null;
+
+            // Reset zoom przy otwarciu
+            ResetCameraZoom();
+
+            StartCameraStream();
+        }
+
+        /// <summary>
+        /// Skanuj tablicę - wersja dla okna kamery (obsługuje tryb TextBox)
+        /// </summary>
+        public async void BtnScanPlateInCameraWindow_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn)
+                btn.IsEnabled = false;
+
+            try
+            {
+                var result = await RecognizePlateFromCamera();
+
+                if (result.Success && !string.IsNullOrEmpty(result.Plate))
+                {
+                    // Znaleziono tablicę
+                    PlaySound(true);
+
+                    if (cameraScanToTextBoxMode && txtEditRejestracja != null)
+                    {
+                        // Tryb skanowania do TextBox - wpisz do pola
+                        txtEditRejestracja.Text = result.Plate;
+
+                        MessageBox.Show($"✓ Rozpoznano tablicę:\n\n{result.Plate}\n\nPewność: {result.Confidence:F1}%",
+                            "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        // Normalny tryb - tylko pokaż wynik
+                        MessageBox.Show($"✓ Rozpoznano tablicę:\n\n{result.Plate}\n\nPewność: {result.Confidence:F1}%",
+                            "Rozpoznana tablica", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                }
+                else
+                {
+                    PlaySound(false);
+                    string diagnostics = result.GetDiagnostics();
+                    MessageBox.Show(diagnostics, "Diagnostyka ALPR", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                PlaySound(false);
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                if (sender is Button btn2)
+                    btn2.IsEnabled = true;
             }
         }
 
