@@ -21,6 +21,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using System.Drawing.Printing;
 using System.Diagnostics;
+using Kalendarz.Zywiec.WidokSpecyfikacji;
 
 namespace Kalendarz1
 {
