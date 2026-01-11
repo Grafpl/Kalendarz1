@@ -1042,6 +1042,13 @@
                                     </MenuItem>
                                     <Separator/>
                                     <MenuItem Header="Odswiez dane" Click="ContextMenu_RefreshData"/>
+                                    <Separator/>
+                                    <MenuItem Header="Zdjecia z wazenia">
+                                        <MenuItem Header="Podglad zdjecia TARA" Click="ContextMenu_ShowPhotoTara"/>
+                                        <MenuItem Header="Podglad zdjecia BRUTTO" Click="ContextMenu_ShowPhotoBrutto"/>
+                                        <Separator/>
+                                        <MenuItem Header="Porownaj zdjecia (TARA | BRUTTO)" Click="ContextMenu_ShowPhotosCompare" FontWeight="SemiBold"/>
+                                    </MenuItem>
                                 </ContextMenu>
                             </DataGrid.ContextMenu>
 

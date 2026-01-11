@@ -21,6 +21,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using System.Drawing.Printing;
 using System.Diagnostics;
+using Kalendarz.Zywiec.WidokSpecyfikacji;
 
 namespace Kalendarz1
 {
@@ -388,6 +389,9 @@ namespace Kalendarz1
 
             // Upewnij się że kolumna IdPosrednik istnieje w bazie
             EnsureIdPosrednikColumnExists();
+
+            // Upewnij się że kolumny dla zdjęć z ważenia istnieją w bazie
+            EnsurePhotoColumnsExist();
 
             // Wczytaj ustawienia administracyjne
             LoadAdminSettings();
@@ -1345,6 +1349,7 @@ namespace Kalendarz1
                                     fc.Opasienie, fc.KlasaB, fc.TerminDni, fc.CalcDate,
                                     fc.DriverGID, fc.CarID, fc.TrailerID, fc.Przyjazd,
                                     fc.PoczatekUslugi, fc.Wyjazd, fc.DojazdHodowca, fc.Zaladunek, fc.ZaladunekKoniec, fc.WyjazdHodowca, fc.KoniecUslugi,
+                                    fc.ZdjecieTaraPath, fc.ZdjecieBruttoPath,
                                     d.Name AS DriverName
                                     FROM [LibraNet].[dbo].[FarmerCalc] fc
                                     LEFT JOIN [LibraNet].[dbo].[Driver] d ON fc.DriverGID = d.GID
@@ -1419,7 +1424,10 @@ namespace Kalendarz1
                                 WyjazdHodowca = row["WyjazdHodowca"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["WyjazdHodowca"]) : null,
                                 KoniecUslugi = row["KoniecUslugi"] != DBNull.Value ? (DateTime?)Convert.ToDateTime(row["KoniecUslugi"]) : null,
                                 // Pole Symfonia (sprawdź czy kolumna istnieje)
-                                Symfonia = dataTable.Columns.Contains("Symfonia") && row["Symfonia"] != DBNull.Value && Convert.ToBoolean(row["Symfonia"])
+                                Symfonia = dataTable.Columns.Contains("Symfonia") && row["Symfonia"] != DBNull.Value && Convert.ToBoolean(row["Symfonia"]),
+                                // Ścieżki do zdjęć z ważenia
+                                ZdjecieTaraPath = dataTable.Columns.Contains("ZdjecieTaraPath") ? ZapytaniaSQL.GetValueOrDefault<string>(row, "ZdjecieTaraPath", null)?.Trim() : null,
+                                ZdjecieBruttoPath = dataTable.Columns.Contains("ZdjecieBruttoPath") ? ZapytaniaSQL.GetValueOrDefault<string>(row, "ZdjecieBruttoPath", null)?.Trim() : null
                             };
 
                             specyfikacjeData.Add(specRow);
@@ -2520,6 +2528,55 @@ namespace Kalendarz1
             // Odśwież dane z bazy
             LoadData(dateTimePicker1.SelectedDate ?? DateTime.Today);
             UpdateStatus("Dane odswiezone");
+        }
+
+        #endregion
+
+        #region === MENU KONTEKSTOWE: Zdjęcia z ważenia ===
+
+        /// <summary>
+        /// Podgląd zdjęcia TARA dla wybranego wiersza
+        /// </summary>
+        private void ContextMenu_ShowPhotoTara(object sender, RoutedEventArgs e)
+        {
+            if (selectedRow == null)
+            {
+                MessageBox.Show("Nie wybrano wiersza.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            string title = $"TARA - {selectedRow.Dostawca} (LP: {selectedRow.Nr})";
+            PhotoViewerWindow.ShowPhoto(selectedRow.ZdjecieTaraPath, title);
+        }
+
+        /// <summary>
+        /// Podgląd zdjęcia BRUTTO dla wybranego wiersza
+        /// </summary>
+        private void ContextMenu_ShowPhotoBrutto(object sender, RoutedEventArgs e)
+        {
+            if (selectedRow == null)
+            {
+                MessageBox.Show("Nie wybrano wiersza.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            string title = $"BRUTTO - {selectedRow.Dostawca} (LP: {selectedRow.Nr})";
+            PhotoViewerWindow.ShowPhoto(selectedRow.ZdjecieBruttoPath, title);
+        }
+
+        /// <summary>
+        /// Porównanie zdjęć TARA i BRUTTO obok siebie
+        /// </summary>
+        private void ContextMenu_ShowPhotosCompare(object sender, RoutedEventArgs e)
+        {
+            if (selectedRow == null)
+            {
+                MessageBox.Show("Nie wybrano wiersza.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            string title = $"{selectedRow.Dostawca} (LP: {selectedRow.Nr})";
+            PhotoCompareWindow.ShowComparison(selectedRow.ZdjecieTaraPath, selectedRow.ZdjecieBruttoPath, title);
         }
 
         #endregion
@@ -9517,6 +9574,37 @@ namespace Kalendarz1
             }
         }
 
+        /// <summary>
+        /// Upewnia się, że kolumny dla zdjęć z ważenia istnieją w tabeli FarmerCalc
+        /// </summary>
+        private void EnsurePhotoColumnsExist()
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string addColumnsSql = @"
+                        IF COL_LENGTH('FarmerCalc', 'ZdjecieTaraPath') IS NULL
+                        BEGIN
+                            ALTER TABLE dbo.FarmerCalc ADD ZdjecieTaraPath NVARCHAR(500) NULL
+                        END;
+                        IF COL_LENGTH('FarmerCalc', 'ZdjecieBruttoPath') IS NULL
+                        BEGIN
+                            ALTER TABLE dbo.FarmerCalc ADD ZdjecieBruttoPath NVARCHAR(500) NULL
+                        END";
+                    using (SqlCommand cmd = new SqlCommand(addColumnsSql, conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error adding photo columns: {ex.Message}");
+            }
+        }
+
         private void EnsureSettingsTableExists()
         {
             try
@@ -10259,6 +10347,10 @@ namespace Kalendarz1
         private int? _idPosrednik;
         private string _posrednikNazwa;
 
+        // Ścieżki do zdjęć z ważenia
+        private string _zdjecieTaraPath;
+        private string _zdjecieBruttoPath;
+
         public bool IsHighlighted
         {
             get => _isHighlighted;
@@ -10346,6 +10438,23 @@ namespace Kalendarz1
             get => _posrednikNazwa;
             set { _posrednikNazwa = value; OnPropertyChanged(nameof(PosrednikNazwa)); }
         }
+
+        // Ścieżki do zdjęć z ważenia
+        public string ZdjecieTaraPath
+        {
+            get => _zdjecieTaraPath;
+            set { _zdjecieTaraPath = value; OnPropertyChanged(nameof(ZdjecieTaraPath)); OnPropertyChanged(nameof(HasZdjecieTara)); }
+        }
+
+        public string ZdjecieBruttoPath
+        {
+            get => _zdjecieBruttoPath;
+            set { _zdjecieBruttoPath = value; OnPropertyChanged(nameof(ZdjecieBruttoPath)); OnPropertyChanged(nameof(HasZdjecieBrutto)); }
+        }
+
+        // Właściwości pomocnicze - czy zdjęcie istnieje
+        public bool HasZdjecieTara => !string.IsNullOrEmpty(_zdjecieTaraPath);
+        public bool HasZdjecieBrutto => !string.IsNullOrEmpty(_zdjecieBruttoPath);
 
         public int SztukiDek
         {

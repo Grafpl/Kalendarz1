@@ -1,0 +1,187 @@
+<Window x:Class="Kalendarz.Zywiec.WidokSpecyfikacji.PhotoCompareWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Porownanie zdjec TARA | BRUTTO"
+        Height="900" Width="1600"
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
+        Background="#1E1E1E"
+        KeyDown="Window_KeyDown">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Pasek narzędzi -->
+        <Border Grid.Row="0" Background="#2D2D2D" Padding="10,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Lewa strona - TARA -->
+                <TextBlock Grid.Column="0" Text="TARA (waga pustego pojazdu)"
+                           Foreground="#4CAF50" FontSize="16" FontWeight="Bold"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                <!-- Środek - kontrolki -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Button x:Name="btnZoomIn" Content="+ Zoom" Click="BtnZoomIn_Click"
+                            Width="80" Height="32" Margin="0,0,5,0"
+                            Background="#3C3C3C" Foreground="White" BorderThickness="0"
+                            FontSize="13" Cursor="Hand"/>
+                    <Button x:Name="btnZoomOut" Content="- Zoom" Click="BtnZoomOut_Click"
+                            Width="80" Height="32" Margin="0,0,5,0"
+                            Background="#3C3C3C" Foreground="White" BorderThickness="0"
+                            FontSize="13" Cursor="Hand"/>
+                    <Button x:Name="btnFitToWindow" Content="Dopasuj" Click="BtnFitToWindow_Click"
+                            Width="80" Height="32" Margin="0,0,5,0"
+                            Background="#3C3C3C" Foreground="White" BorderThickness="0"
+                            FontSize="13" Cursor="Hand"/>
+                    <TextBlock x:Name="txtZoomLevel" Text="100%" VerticalAlignment="Center"
+                               Foreground="#CCCCCC" FontSize="13" Margin="10,0"/>
+                    <CheckBox x:Name="chkSyncZoom" Content="Synchronizuj zoom"
+                              IsChecked="True" VerticalAlignment="Center"
+                              Foreground="White" Margin="10,0,0,0"/>
+                </StackPanel>
+
+                <!-- Prawa strona - BRUTTO -->
+                <TextBlock Grid.Column="2" Text="BRUTTO (waga pojazdu z ladunkiem)"
+                           Foreground="#FF9800" FontSize="16" FontWeight="Bold"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <!-- Główny obszar ze zdjęciami -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="3"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Zdjęcie TARA (lewe) -->
+            <Border Grid.Column="0" Background="#1E1E1E" BorderBrush="#4CAF50" BorderThickness="2" Margin="5">
+                <Grid>
+                    <ScrollViewer x:Name="scrollViewerLeft"
+                                  HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Auto"
+                                  Background="Transparent"
+                                  PreviewMouseWheel="ScrollViewerLeft_PreviewMouseWheel"
+                                  ScrollChanged="ScrollViewerLeft_ScrollChanged">
+                        <Grid x:Name="imageContainerLeft"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              RenderTransformOrigin="0.5,0.5">
+                            <Grid.RenderTransform>
+                                <ScaleTransform x:Name="scaleTransformLeft" ScaleX="1" ScaleY="1"/>
+                            </Grid.RenderTransform>
+                            <Image x:Name="imgTara"
+                                   Stretch="None"
+                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                        </Grid>
+                    </ScrollViewer>
+                    <!-- Overlay gdy brak zdjęcia -->
+                    <Border x:Name="overlayTara" Background="#2D2D2D" Visibility="Collapsed">
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <TextBlock Text="Brak zdjecia TARA" Foreground="#888888"
+                                       FontSize="18" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="txtTaraError" Foreground="#FF5555"
+                                       FontSize="12" HorizontalAlignment="Center"
+                                       TextWrapping="Wrap" MaxWidth="300" Margin="0,10,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Separator -->
+            <GridSplitter Grid.Column="1" Width="3" Background="#3C3C3C"
+                          HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+
+            <!-- Zdjęcie BRUTTO (prawe) -->
+            <Border Grid.Column="2" Background="#1E1E1E" BorderBrush="#FF9800" BorderThickness="2" Margin="5">
+                <Grid>
+                    <ScrollViewer x:Name="scrollViewerRight"
+                                  HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Auto"
+                                  Background="Transparent"
+                                  PreviewMouseWheel="ScrollViewerRight_PreviewMouseWheel"
+                                  ScrollChanged="ScrollViewerRight_ScrollChanged">
+                        <Grid x:Name="imageContainerRight"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              RenderTransformOrigin="0.5,0.5">
+                            <Grid.RenderTransform>
+                                <ScaleTransform x:Name="scaleTransformRight" ScaleX="1" ScaleY="1"/>
+                            </Grid.RenderTransform>
+                            <Image x:Name="imgBrutto"
+                                   Stretch="None"
+                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                        </Grid>
+                    </ScrollViewer>
+                    <!-- Overlay gdy brak zdjęcia -->
+                    <Border x:Name="overlayBrutto" Background="#2D2D2D" Visibility="Collapsed">
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <TextBlock Text="Brak zdjecia BRUTTO" Foreground="#888888"
+                                       FontSize="18" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="txtBruttoError" Foreground="#FF5555"
+                                       FontSize="12" HorizontalAlignment="Center"
+                                       TextWrapping="Wrap" MaxWidth="300" Margin="0,10,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Pasek statusu -->
+        <Border Grid.Row="2" Background="#2D2D2D" Padding="10,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Info TARA -->
+                <StackPanel Grid.Column="0">
+                    <TextBlock x:Name="txtTaraFileName" Text="TARA: -"
+                               Foreground="#4CAF50" FontSize="11" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="txtTaraPath" Text="" Foreground="#666666" FontSize="10"
+                               TextTrimming="CharacterEllipsis"
+                               ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+                </StackPanel>
+
+                <!-- Przyciski -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="btnOpenTaraFolder" Content="Folder TARA" Click="BtnOpenTaraFolder_Click"
+                            Height="28" Padding="10,0" Margin="0,0,5,0"
+                            Background="#4CAF50" Foreground="White" BorderThickness="0"
+                            FontSize="11" Cursor="Hand"/>
+                    <Button x:Name="btnOpenBruttoFolder" Content="Folder BRUTTO" Click="BtnOpenBruttoFolder_Click"
+                            Height="28" Padding="10,0" Margin="0,0,15,0"
+                            Background="#FF9800" Foreground="White" BorderThickness="0"
+                            FontSize="11" Cursor="Hand"/>
+                    <Button x:Name="btnClose" Content="Zamknij (Esc)" Click="BtnClose_Click"
+                            Height="28" Padding="15,0"
+                            Background="#3C3C3C" Foreground="White" BorderThickness="0"
+                            FontSize="11" Cursor="Hand"/>
+                </StackPanel>
+
+                <!-- Info BRUTTO -->
+                <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                    <TextBlock x:Name="txtBruttoFileName" Text="BRUTTO: -"
+                               Foreground="#FF9800" FontSize="11" FontWeight="SemiBold"
+                               HorizontalAlignment="Right"/>
+                    <TextBlock x:Name="txtBruttoPath" Text="" Foreground="#666666" FontSize="10"
+                               TextTrimming="CharacterEllipsis" HorizontalAlignment="Right"
+                               ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
