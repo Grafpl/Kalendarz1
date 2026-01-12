@@ -23,6 +23,14 @@ using System.Drawing.Printing;
 using System.Diagnostics;
 using Kalendarz.Zywiec.WidokSpecyfikacji;
 
+// Aliasy dla rozwiązania konfliktu System.Drawing vs System.Windows.Media
+using Color = System.Windows.Media.Color;
+using ColorConverter = System.Windows.Media.ColorConverter;
+using Brushes = System.Windows.Media.Brushes;
+using FontFamily = System.Windows.Media.FontFamily;
+using Point = System.Windows.Point;
+using Image = System.Windows.Controls.Image;
+
 namespace Kalendarz1
 {
     public partial class WidokSpecyfikacje : Window
@@ -51,6 +59,7 @@ namespace Kalendarz1
         private static string defaultPlachtaPath = @"\\192.168.0.170\Public\Plachty\";
         private static bool useDefaultPath = true;
         private static bool _pdfCzarnoBialy = false; // Tryb czarno-biały PDF (logo kolorowe)
+        private static bool _drukujTerminPlatnosci = false; // Czy drukować termin płatności na PDF
         private decimal sumaWartosc = 0;
         private decimal sumaKG = 0;
 
@@ -5528,10 +5537,13 @@ namespace Kalendarz1
                 mainValue.Alignment = Element.ALIGN_CENTER;
                 mainCell.AddElement(mainValue);
 
-                // Termin płatności
-                Paragraph terminInfo = new Paragraph($"Termin płatności: {terminPlatnosci:dd.MM.yyyy} ({terminZaplatyDni} dni)", new Font(polishFont, 10, Font.ITALIC, grayColor));
-                terminInfo.Alignment = Element.ALIGN_CENTER;
-                mainCell.AddElement(terminInfo);
+                // Termin płatności (opcjonalnie)
+                if (_drukujTerminPlatnosci)
+                {
+                    Paragraph terminInfo = new Paragraph($"Termin płatności: {terminPlatnosci:dd.MM.yyyy} ({terminZaplatyDni} dni)", new Font(polishFont, 10, Font.ITALIC, grayColor));
+                    terminInfo.Alignment = Element.ALIGN_CENTER;
+                    mainCell.AddElement(terminInfo);
+                }
 
                 mainBox.AddCell(mainCell);
                 doc.Add(mainBox);
@@ -6226,11 +6238,14 @@ namespace Kalendarz1
                 wartoscBox.AddCell(wartoscCell);
                 sumCell.AddElement(wartoscBox);
 
-                // Termin płatności pod wypłatą
-                sumCell.AddElement(new Paragraph(" ", new Font(polishFont, 4, Font.NORMAL)));
-                Paragraph terminP = new Paragraph($"Termin płatności: {terminPlatnosci:dd.MM.yyyy} ({terminZaplatyDni} dni)", new Font(polishFont, 8, Font.ITALIC, grayColor));
-                terminP.Alignment = Element.ALIGN_CENTER;
-                sumCell.AddElement(terminP);
+                // Termin płatności pod wypłatą (opcjonalnie)
+                if (_drukujTerminPlatnosci)
+                {
+                    sumCell.AddElement(new Paragraph(" ", new Font(polishFont, 4, Font.NORMAL)));
+                    Paragraph terminP = new Paragraph($"Termin płatności: {terminPlatnosci:dd.MM.yyyy} ({terminZaplatyDni} dni)", new Font(polishFont, 8, Font.ITALIC, grayColor));
+                    terminP.Alignment = Element.ALIGN_CENTER;
+                    sumCell.AddElement(terminP);
+                }
 
                 summaryTable.AddCell(sumCell);
                 doc.Add(summaryTable);
@@ -9431,6 +9446,9 @@ namespace Kalendarz1
                 // Pobierz tryb kolorów PDF
                 _pdfCzarnoBialy = rbPdfCzarnoBialy.IsChecked == true;
 
+                // Pobierz opcję drukowania terminu płatności
+                _drukujTerminPlatnosci = chkDrukujTerminPlatnosci.IsChecked == true;
+
                 // Zapisz do bazy
                 SaveAdminSettings();
 
@@ -9744,6 +9762,23 @@ namespace Kalendarz1
                             rbPdfCzarnoBialy.IsChecked = false;
                         }
                     }
+
+                    // Wczytaj opcję drukowania terminu płatności
+                    string queryDrukujTermin = "SELECT SettingValue FROM FarmerCalcSettings WHERE SettingName = 'DrukujTerminPlatnosci'";
+                    using (SqlCommand cmd = new SqlCommand(queryDrukujTermin, conn))
+                    {
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && bool.TryParse(result.ToString(), out bool drukujTermin))
+                        {
+                            _drukujTerminPlatnosci = drukujTermin;
+                            chkDrukujTerminPlatnosci.IsChecked = drukujTermin;
+                        }
+                        else
+                        {
+                            _drukujTerminPlatnosci = false;
+                            chkDrukujTerminPlatnosci.IsChecked = false;
+                        }
+                    }
                 }
             }
             catch (Exception ex)
@@ -9820,6 +9855,21 @@ namespace Kalendarz1
                     using (SqlCommand cmd = new SqlCommand(mergePdfColorMode, conn))
                     {
                         cmd.Parameters.AddWithValue("@Value", _pdfCzarnoBialy.ToString());
+                        cmd.Parameters.AddWithValue("@User", user);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Zapisz opcję drukowania terminu płatności
+                    string mergeDrukujTermin = @"
+                        MERGE FarmerCalcSettings AS target
+                        USING (SELECT 'DrukujTerminPlatnosci' AS SettingName) AS source
+                        ON target.SettingName = source.SettingName
+                        WHEN MATCHED THEN UPDATE SET SettingValue = @Value, ModifiedDate = GETDATE(), ModifiedBy = @User
+                        WHEN NOT MATCHED THEN INSERT (SettingName, SettingValue, ModifiedBy) VALUES ('DrukujTerminPlatnosci', @Value, @User);";
+
+                    using (SqlCommand cmd = new SqlCommand(mergeDrukujTermin, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Value", _drukujTerminPlatnosci.ToString());
                         cmd.Parameters.AddWithValue("@User", user);
                         cmd.ExecuteNonQuery();
                     }

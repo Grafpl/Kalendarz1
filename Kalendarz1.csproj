@@ -77,11 +77,6 @@
     <PackageReference Include="WinForms.DataVisualization" Version="1.9.2" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Reference Include="itextsharp">
-      <HintPath>bin\Debug\net7.0-windows7.0\itextsharp.dll</HintPath>
-    </Reference>
-  </ItemGroup>
 
   <ItemGroup>
     <Resource Include="background_video.mp4">
