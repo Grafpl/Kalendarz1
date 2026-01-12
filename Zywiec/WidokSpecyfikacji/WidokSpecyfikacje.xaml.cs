@@ -4493,6 +4493,32 @@ namespace Kalendarz1
             }
         }
 
+        // === Checkbox: Pokaż/ukryj kolumnę Pośrednik ===
+        private void ChkShowPosrednik_Changed(object sender, RoutedEventArgs e)
+        {
+            bool isChecked = (sender as CheckBox)?.IsChecked == true;
+
+            if (colPosrednik != null)
+            {
+                colPosrednik.Visibility = isChecked
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
+        }
+
+        // === Checkbox: Pokaż/ukryj kolumnę Dodatek ===
+        private void ChkShowDodatek_Changed(object sender, RoutedEventArgs e)
+        {
+            bool isChecked = (sender as CheckBox)?.IsChecked == true;
+
+            if (colDodatek != null)
+            {
+                colDodatek.Visibility = isChecked
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
+        }
+
         // === Checkbox: Grupuj wiersze według dostawcy ===
         private void ChkGroupBySupplier_Changed(object sender, RoutedEventArgs e)
         {

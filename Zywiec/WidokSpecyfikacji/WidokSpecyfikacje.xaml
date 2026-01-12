@@ -965,6 +965,8 @@
                                               FontSize="11"
                                               VerticalAlignment="Center"
                                               IsChecked="False"
+                                              Checked="ChkShowPosrednik_Changed"
+                                              Unchecked="ChkShowPosrednik_Changed"
                                               ToolTip="Zaznacz aby wyświetlić kolumnę Pośrednik. Dane pośredników będą dostępne po skonfigurowaniu tabeli."/>
                                 </Border>
 
@@ -975,6 +977,8 @@
                                               FontSize="11"
                                               VerticalAlignment="Center"
                                               IsChecked="False"
+                                              Checked="ChkShowDodatek_Changed"
+                                              Unchecked="ChkShowDodatek_Changed"
                                               ToolTip="Zaznacz aby wyświetlić kolumnę Dodatek do ceny."/>
                                 </Border>
 
@@ -1210,7 +1214,7 @@
 
                                 <!-- Kolumna Pośrednik - domyślnie ukryta, widoczność kontrolowana przez checkbox -->
                                 <DataGridTemplateColumn x:Name="colPosrednik" Header="Pośrednik" Width="140"
-                                                        Visibility="{Binding ElementName=chkShowPosrednik, Path=IsChecked, Converter={StaticResource BoolToVis}}">
+                                                        Visibility="Collapsed">
                                     <DataGridTemplateColumn.CellStyle>
                                         <Style TargetType="DataGridCell">
                                             <Setter Property="Background" Value="#E1F5FE"/>
@@ -1437,7 +1441,7 @@
                                     </DataGridTemplateColumn.CellStyle>
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding SztukiWybijak, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
+                                            <TextBox Text="{Binding SztukiWybijak, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                                      Style="{StaticResource NumericTextBoxStyle}"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -1452,7 +1456,7 @@
                                     </DataGridTemplateColumn.CellStyle>
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding KilogramyWybijak, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource ZeroToEmptyConverter}}"
+                                            <TextBox Text="{Binding KilogramyWybijak, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                                      Style="{StaticResource NumericTextBoxStyle}"
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"/>
@@ -1486,7 +1490,7 @@
                                 <DataGridTemplateColumn x:Name="colDodatek" Header="Dodatek" Width="70"
                                             HeaderStyle="{StaticResource CenaHeaderStyle}"
                                             CellStyle="{StaticResource CellStyleBlue}"
-                                            Visibility="{Binding ElementName=chkShowDodatek, Path=IsChecked, Converter={StaticResource BoolToVis}}">
+                                            Visibility="Collapsed">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBox Text="{Binding Dodatek, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"

@@ -1208,22 +1208,25 @@ namespace Kalendarz1
                 if (selectedCardBorder != null)
                     AnimateSuccess(selectedCardBorder);
 
-                // Drukuj paragon
-                string typ = (tara > 0 && brutto == 0) ? "TARA" : (brutto > 0 ? "BRUTTO" : "");
-                if (!string.IsNullOrEmpty(typ))
+                // Drukuj paragon tylko jeśli checkbox jest zaznaczony
+                if (chkAutoPrint.IsChecked == true)
                 {
-                    if (aktualnyTryb == "Avilog")
+                    string typ = (tara > 0 && brutto == 0) ? "TARA" : (brutto > 0 ? "BRUTTO" : "");
+                    if (!string.IsNullOrEmpty(typ))
                     {
-                        string rej = $"{WybranaDostwa?.CarID} {WybranaDostwa?.TrailerID}";
-                        int netto = (brutto > 0 && tara > 0) ? (brutto - tara) : 0;
-                        PrintReceipt(rej, "ŻYWIEC", WybranaDostwa?.HodowcaNazwa ?? "", brutto, tara, netto, typ);
-                    }
-                    else
-                    {
-                        string rej = txtEditRejestracja.Text.Trim();
-                        string odbNazwa = (cbOdbiorcy.SelectedItem is Odbiorca o) ? o.Nazwa : "";
-                        int netto = (brutto > 0 && tara > 0) ? (brutto - tara) : 0;
-                        PrintReceipt(rej, aktualnyTowar, odbNazwa, brutto, tara, netto, typ);
+                        if (aktualnyTryb == "Avilog")
+                        {
+                            string rej = $"{WybranaDostwa?.CarID} {WybranaDostwa?.TrailerID}";
+                            int netto = (brutto > 0 && tara > 0) ? (brutto - tara) : 0;
+                            PrintReceipt(rej, "ŻYWIEC", WybranaDostwa?.HodowcaNazwa ?? "", brutto, tara, netto, typ);
+                        }
+                        else
+                        {
+                            string rej = txtEditRejestracja.Text.Trim();
+                            string odbNazwa = (cbOdbiorcy.SelectedItem is Odbiorca o) ? o.Nazwa : "";
+                            int netto = (brutto > 0 && tara > 0) ? (brutto - tara) : 0;
+                            PrintReceipt(rej, aktualnyTowar, odbNazwa, brutto, tara, netto, typ);
+                        }
                     }
                 }
             }

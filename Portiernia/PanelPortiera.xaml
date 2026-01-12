@@ -722,13 +722,17 @@
 
                 <!-- Przyciski zapisz i drukuj -->
                 <Grid Grid.Row="4" Margin="0,4,0,5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
                     <!-- Przycisk zapisz -->
-                    <Button Grid.Column="0" x:Name="btnZapisz" Click="BtnZapisz_Click" Height="60" Margin="0,0,5,0" Cursor="Hand">
+                    <Button Grid.Row="0" Grid.Column="0" x:Name="btnZapisz" Click="BtnZapisz_Click" Height="60" Margin="0,0,5,0" Cursor="Hand">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border x:Name="saveBrd" Background="#4CAF50" CornerRadius="12">
@@ -745,7 +749,7 @@
                     </Button>
 
                     <!-- Przycisk drukuj wagę -->
-                    <Button Grid.Column="1" x:Name="btnDrukujWage" Click="BtnDrukujWage_Click" Height="60" Width="60" Cursor="Hand"
+                    <Button Grid.Row="0" Grid.Column="1" x:Name="btnDrukujWage" Click="BtnDrukujWage_Click" Height="60" Width="60" Cursor="Hand"
                             ToolTip="Drukuj wagę na drukarce PICCO">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
@@ -760,6 +764,17 @@
                             </ControlTemplate>
                         </Button.Template>
                     </Button>
+
+                    <!-- Checkbox automatycznego druku paragonu -->
+                    <CheckBox Grid.Row="1" Grid.ColumnSpan="2" x:Name="chkAutoPrint" IsChecked="True"
+                              Margin="0,8,0,0" HorizontalAlignment="Center" Cursor="Hand"
+                              ToolTip="Automatycznie drukuj paragon po zatwierdzeniu wagi">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🖨️" FontSize="16" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="Drukuj paragon automatycznie" FontSize="13" Foreground="#AAA"
+                                       VerticalAlignment="Center" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </CheckBox>
                 </Grid>
 
                 <!-- Numpad -->
