@@ -6282,6 +6282,9 @@ namespace Kalendarz1
                 string wprowadzilNazwa = GetWprowadzilNazwa(ids[0]);
                 string zaakceptowalNazwa = wystawiajacyNazwa; // Osoba generująca PDF jako akceptująca
 
+                // Pobierz statystyki wprowadzenia/weryfikacji
+                var (wprowadzenia, weryfikacje, total) = GetZatwierdzeniaStats(dzienUbojowy);
+
                 // Tabela z informacjami o autorach
                 PdfPTable authorsTable = new PdfPTable(3);
                 authorsTable.WidthPercentage = 100;
@@ -6297,16 +6300,38 @@ namespace Kalendarz1
                 genCell.AddElement(new Paragraph(wystawiajacyNazwa, authorValueFont) { Alignment = Element.ALIGN_CENTER });
                 authorsTable.AddCell(genCell);
 
-                // Wprowadził
+                // Wprowadził - z procentami
                 PdfPCell enteredCell = new PdfPCell { Border = PdfPCell.NO_BORDER, Padding = 2 };
                 enteredCell.AddElement(new Paragraph("Wprowadził (rozl.):", authorLabelFont) { Alignment = Element.ALIGN_CENTER });
-                enteredCell.AddElement(new Paragraph(wprowadzilNazwa, authorValueFont) { Alignment = Element.ALIGN_CENTER });
+                if (wprowadzenia.Count > 0 && total > 0)
+                {
+                    foreach (var kv in wprowadzenia)
+                    {
+                        decimal pct = (decimal)kv.Value / total * 100;
+                        enteredCell.AddElement(new Paragraph($"{kv.Key}: {pct:F0}%", authorValueFont) { Alignment = Element.ALIGN_CENTER });
+                    }
+                }
+                else
+                {
+                    enteredCell.AddElement(new Paragraph(wprowadzilNazwa, authorValueFont) { Alignment = Element.ALIGN_CENTER });
+                }
                 authorsTable.AddCell(enteredCell);
 
-                // Zaakceptował
+                // Zaakceptował/Zweryfikował - z procentami
                 PdfPCell approvedCell = new PdfPCell { Border = PdfPCell.NO_BORDER, Padding = 2 };
-                approvedCell.AddElement(new Paragraph("Zaakceptował (rozl.):", authorLabelFont) { Alignment = Element.ALIGN_CENTER });
-                approvedCell.AddElement(new Paragraph(zaakceptowalNazwa, authorValueFont) { Alignment = Element.ALIGN_CENTER });
+                approvedCell.AddElement(new Paragraph("Zweryfikował (rozl.):", authorLabelFont) { Alignment = Element.ALIGN_CENTER });
+                if (weryfikacje.Count > 0 && total > 0)
+                {
+                    foreach (var kv in weryfikacje)
+                    {
+                        decimal pct = (decimal)kv.Value / total * 100;
+                        approvedCell.AddElement(new Paragraph($"{kv.Key}: {pct:F0}%", authorValueFont) { Alignment = Element.ALIGN_CENTER });
+                    }
+                }
+                else
+                {
+                    approvedCell.AddElement(new Paragraph(zaakceptowalNazwa, authorValueFont) { Alignment = Element.ALIGN_CENTER });
+                }
                 authorsTable.AddCell(approvedCell);
 
                 doc.Add(authorsTable);
@@ -7801,6 +7826,9 @@ namespace Kalendarz1
         {
             try
             {
+                // Upewnij się że tabela zatwierdzień istnieje
+                EnsureRozliczeniaZatwierdzeniaTabelaExists();
+
                 // Użyj tej samej daty co w Specyfikacjach (główny DatePicker w lewym górnym rogu)
                 DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
 
@@ -7860,6 +7888,9 @@ namespace Kalendarz1
 
                 dataGridRozliczenia.ItemsSource = rozliczeniaData;
 
+                // Załaduj stany zatwierdzenia z bazy
+                LoadZatwierdzeniaForRozliczenia();
+
                 // Aktualizuj podsumowanie
                 lblRozliczeniaSumaWierszy.Text = rozliczeniaData.Count.ToString();
                 lblRozliczeniaSumaSztuk.Text = rozliczeniaData.Sum(r => r.SztukiDek).ToString("N0");
@@ -7911,6 +7942,7 @@ namespace Kalendarz1
                 row.Zatwierdzony = true;
                 row.ZatwierdzonePrzez = userName;
                 row.DataZatwierdzenia = DateTime.Now;
+                SaveZatwierdzenie(row);
             }
 
             UpdateStatus($"Zatwierdzono wprowadzenie {selectedRows.Count} wierszy przez {userName}");
@@ -7927,6 +7959,7 @@ namespace Kalendarz1
                 row.Zatwierdzony = true;
                 row.ZatwierdzonePrzez = userName;
                 row.DataZatwierdzenia = DateTime.Now;
+                SaveZatwierdzenie(row);
                 zatwierdzone++;
             }
 
@@ -7950,6 +7983,7 @@ namespace Kalendarz1
                 row.Zatwierdzony = false;
                 row.ZatwierdzonePrzez = null;
                 row.DataZatwierdzenia = null;
+                SaveZatwierdzenie(row);
                 cofniete++;
             }
 
@@ -7994,6 +8028,7 @@ namespace Kalendarz1
                 row.Zweryfikowany = true;
                 row.ZweryfikowanePrzez = userName;
                 row.DataWeryfikacji = DateTime.Now;
+                SaveZatwierdzenie(row);
                 weryfikowane++;
             }
 
@@ -8030,6 +8065,7 @@ namespace Kalendarz1
                 row.Zweryfikowany = true;
                 row.ZweryfikowanePrzez = userName;
                 row.DataWeryfikacji = DateTime.Now;
+                SaveZatwierdzenie(row);
                 weryfikowane++;
             }
 
@@ -8073,6 +8109,7 @@ namespace Kalendarz1
                     row.Zweryfikowany = false;
                     row.ZweryfikowanePrzez = null;
                     row.DataWeryfikacji = null;
+                    SaveZatwierdzenie(row);
                 }
                 UpdateStatus($"Cofnięto weryfikację dla {zweryfikowane.Count} wierszy");
             }
@@ -8083,6 +8120,230 @@ namespace Kalendarz1
             // TODO: Implementacja eksportu do Symfonii
             MessageBox.Show("Funkcja eksportu do Symfonii w przygotowaniu.",
                 "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        /// <summary>
+        /// Tworzy tabelę RozliczeniaZatwierdzenia jeśli nie istnieje
+        /// </summary>
+        private void EnsureRozliczeniaZatwierdzeniaTabelaExists()
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string createTable = @"
+                        IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'RozliczeniaZatwierdzenia')
+                        BEGIN
+                            CREATE TABLE [dbo].[RozliczeniaZatwierdzenia](
+                                [ID] [int] IDENTITY(1,1) NOT NULL,
+                                [FarmerCalcID] [int] NOT NULL,
+                                [CalcDate] [date] NOT NULL,
+                                [Zatwierdzony] [bit] NOT NULL DEFAULT 0,
+                                [ZatwierdzonePrzez] [nvarchar](100) NULL,
+                                [DataZatwierdzenia] [datetime] NULL,
+                                [Zweryfikowany] [bit] NOT NULL DEFAULT 0,
+                                [ZweryfikowanePrzez] [nvarchar](100) NULL,
+                                [DataWeryfikacji] [datetime] NULL,
+                                PRIMARY KEY CLUSTERED ([ID] ASC),
+                                UNIQUE NONCLUSTERED ([FarmerCalcID] ASC)
+                            )
+                        END";
+                    using (SqlCommand cmd = new SqlCommand(createTable, conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Błąd tworzenia tabeli zatwierdzień: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Zapisuje stan zatwierdzenia/weryfikacji do bazy danych
+        /// </summary>
+        private void SaveZatwierdzenie(RozliczenieRow row)
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string upsert = @"
+                        MERGE [dbo].[RozliczeniaZatwierdzenia] AS target
+                        USING (SELECT @FarmerCalcID as FarmerCalcID) AS source
+                        ON target.FarmerCalcID = source.FarmerCalcID
+                        WHEN MATCHED THEN
+                            UPDATE SET
+                                Zatwierdzony = @Zatwierdzony,
+                                ZatwierdzonePrzez = @ZatwierdzonePrzez,
+                                DataZatwierdzenia = @DataZatwierdzenia,
+                                Zweryfikowany = @Zweryfikowany,
+                                ZweryfikowanePrzez = @ZweryfikowanePrzez,
+                                DataWeryfikacji = @DataWeryfikacji
+                        WHEN NOT MATCHED THEN
+                            INSERT (FarmerCalcID, CalcDate, Zatwierdzony, ZatwierdzonePrzez, DataZatwierdzenia, Zweryfikowany, ZweryfikowanePrzez, DataWeryfikacji)
+                            VALUES (@FarmerCalcID, @CalcDate, @Zatwierdzony, @ZatwierdzonePrzez, @DataZatwierdzenia, @Zweryfikowany, @ZweryfikowanePrzez, @DataWeryfikacji);";
+
+                    using (SqlCommand cmd = new SqlCommand(upsert, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@FarmerCalcID", row.ID);
+                        cmd.Parameters.AddWithValue("@CalcDate", row.Data.Date);
+                        cmd.Parameters.AddWithValue("@Zatwierdzony", row.Zatwierdzony);
+                        cmd.Parameters.AddWithValue("@ZatwierdzonePrzez", (object)row.ZatwierdzonePrzez ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@DataZatwierdzenia", (object)row.DataZatwierdzenia ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Zweryfikowany", row.Zweryfikowany);
+                        cmd.Parameters.AddWithValue("@ZweryfikowanePrzez", (object)row.ZweryfikowanePrzez ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@DataWeryfikacji", (object)row.DataWeryfikacji ?? DBNull.Value);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Błąd zapisu zatwierdzenia: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Ładuje stany zatwierdzenia/weryfikacji dla wierszy rozliczeń
+        /// </summary>
+        private void LoadZatwierdzeniaForRozliczenia()
+        {
+            try
+            {
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Sprawdź czy tabela istnieje
+                    string checkTable = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'RozliczeniaZatwierdzenia'";
+                    using (SqlCommand checkCmd = new SqlCommand(checkTable, conn))
+                    {
+                        int exists = (int)checkCmd.ExecuteScalar();
+                        if (exists == 0) return;
+                    }
+
+                    string query = @"
+                        SELECT FarmerCalcID, Zatwierdzony, ZatwierdzonePrzez, DataZatwierdzenia,
+                               Zweryfikowany, ZweryfikowanePrzez, DataWeryfikacji
+                        FROM [dbo].[RozliczeniaZatwierdzenia]
+                        WHERE CalcDate = @CalcDate";
+
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@CalcDate", selectedDate.Date);
+
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                int fcId = reader.GetInt32(0);
+                                var row = rozliczeniaData.FirstOrDefault(r => r.ID == fcId);
+                                if (row != null)
+                                {
+                                    row.Zatwierdzony = reader.GetBoolean(1);
+                                    row.ZatwierdzonePrzez = reader.IsDBNull(2) ? null : reader.GetString(2);
+                                    row.DataZatwierdzenia = reader.IsDBNull(3) ? (DateTime?)null : reader.GetDateTime(3);
+                                    row.Zweryfikowany = reader.GetBoolean(4);
+                                    row.ZweryfikowanePrzez = reader.IsDBNull(5) ? null : reader.GetString(5);
+                                    row.DataWeryfikacji = reader.IsDBNull(6) ? (DateTime?)null : reader.GetDateTime(6);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Błąd ładowania zatwierdzień: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Pobiera statystyki wprowadzenia i weryfikacji dla danej daty
+        /// </summary>
+        private (Dictionary<string, int> wprowadzenia, Dictionary<string, int> weryfikacje, int total) GetZatwierdzeniaStats(DateTime date)
+        {
+            var wprowadzenia = new Dictionary<string, int>();
+            var weryfikacje = new Dictionary<string, int>();
+            int total = 0;
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Sprawdź czy tabela istnieje
+                    string checkTable = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'RozliczeniaZatwierdzenia'";
+                    using (SqlCommand checkCmd = new SqlCommand(checkTable, conn))
+                    {
+                        int exists = (int)checkCmd.ExecuteScalar();
+                        if (exists == 0) return (wprowadzenia, weryfikacje, 0);
+                    }
+
+                    // Policz łączną liczbę wierszy dla daty
+                    string countQuery = "SELECT COUNT(*) FROM [dbo].[FarmerCalc] WHERE CalcDate = @CalcDate";
+                    using (SqlCommand countCmd = new SqlCommand(countQuery, conn))
+                    {
+                        countCmd.Parameters.AddWithValue("@CalcDate", date.Date);
+                        total = (int)countCmd.ExecuteScalar();
+                    }
+
+                    // Pobierz statystyki wprowadzenia
+                    string wpQuery = @"
+                        SELECT ZatwierdzonePrzez, COUNT(*) as Cnt
+                        FROM [dbo].[RozliczeniaZatwierdzenia]
+                        WHERE CalcDate = @CalcDate AND Zatwierdzony = 1 AND ZatwierdzonePrzez IS NOT NULL
+                        GROUP BY ZatwierdzonePrzez";
+
+                    using (SqlCommand cmd = new SqlCommand(wpQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@CalcDate", date.Date);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                string osoba = reader.GetString(0);
+                                int cnt = reader.GetInt32(1);
+                                wprowadzenia[osoba] = cnt;
+                            }
+                        }
+                    }
+
+                    // Pobierz statystyki weryfikacji
+                    string wrQuery = @"
+                        SELECT ZweryfikowanePrzez, COUNT(*) as Cnt
+                        FROM [dbo].[RozliczeniaZatwierdzenia]
+                        WHERE CalcDate = @CalcDate AND Zweryfikowany = 1 AND ZweryfikowanePrzez IS NOT NULL
+                        GROUP BY ZweryfikowanePrzez";
+
+                    using (SqlCommand cmd = new SqlCommand(wrQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@CalcDate", date.Date);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                string osoba = reader.GetString(0);
+                                int cnt = reader.GetInt32(1);
+                                weryfikacje[osoba] = cnt;
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Ignoruj błędy
+            }
+
+            return (wprowadzenia, weryfikacje, total);
         }
 
         #endregion
@@ -10197,13 +10458,13 @@ namespace Kalendarz1
                         table.AddCell(new PdfPCell(new Phrase(row.KgPadle.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
                         table.AddCell(new PdfPCell(new Phrase(row.KgSuma.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
 
-                        // Wydajność z kolorem
-                        BaseColor wydColor = row.WydajnoscNiska ? new BaseColor(255, 205, 210) : new BaseColor(200, 230, 201);
+                        // Wydajność z kolorem - takie same kolory jak na ekranie (#D1FAE5 zielony, #FEE2E2 czerwony)
+                        BaseColor wydColor = row.WydajnoscNiska ? new BaseColor(254, 226, 226) : new BaseColor(209, 250, 229);
                         table.AddCell(new PdfPCell(new Phrase($"{row.WydajnoscProcent:F2}%", fontData)) { HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding, BackgroundColor = wydColor });
 
                         table.AddCell(new PdfPCell(new Phrase(row.Lumel.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
                         table.AddCell(new PdfPCell(new Phrase(row.SztukiKonfiskataT.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
-                        table.AddCell(new PdfPCell(new Phrase(row.SztukiZdatne.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding, BackgroundColor = new BaseColor(200, 230, 201) });
+                        table.AddCell(new PdfPCell(new Phrase(row.SztukiZdatne.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding, BackgroundColor = new BaseColor(209, 250, 229) });
                         table.AddCell(new PdfPCell(new Phrase(row.IloscKgZywiec.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
                         table.AddCell(new PdfPCell(new Phrase(row.SredniaWagaPrzedUbojem.ToString("F2"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
                         table.AddCell(new PdfPCell(new Phrase(row.SztukiProdukcjaTuszka.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
@@ -10242,6 +10503,92 @@ namespace Kalendarz1
                     table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.RoznicaSztukZdatneZadekl).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
 
                     doc.Add(table);
+
+                    // === SEKCJA STATYSTYK WPROWADZENIA/WERYFIKACJI ===
+                    var (wprowadzenia, weryfikacje, total) = GetZatwierdzeniaStats(selectedDate);
+
+                    if (total > 0 && (wprowadzenia.Count > 0 || weryfikacje.Count > 0))
+                    {
+                        doc.Add(new Paragraph(" "));
+
+                        PdfPTable statsTable = new PdfPTable(2);
+                        statsTable.WidthPercentage = 80;
+                        statsTable.HorizontalAlignment = Element.ALIGN_CENTER;
+                        statsTable.SetWidths(new float[] { 50f, 50f });
+
+                        // Nagłówki
+                        PdfPCell headerWprowadzenie = new PdfPCell(new Phrase("WPROWADZENIE (Rozliczenia)", fontHeader));
+                        headerWprowadzenie.BackgroundColor = new BaseColor(25, 118, 210); // Blue
+                        headerWprowadzenie.HorizontalAlignment = Element.ALIGN_CENTER;
+                        headerWprowadzenie.Padding = 6;
+                        statsTable.AddCell(headerWprowadzenie);
+
+                        PdfPCell headerWeryfikacja = new PdfPCell(new Phrase("WERYFIKACJA (Rozliczenia)", fontHeader));
+                        headerWeryfikacja.BackgroundColor = new BaseColor(92, 138, 58); // Green
+                        headerWeryfikacja.HorizontalAlignment = Element.ALIGN_CENTER;
+                        headerWeryfikacja.Padding = 6;
+                        statsTable.AddCell(headerWeryfikacja);
+
+                        // Zawartość - Wprowadzenie
+                        PdfPCell cellWpStats = new PdfPCell();
+                        cellWpStats.Padding = 8;
+                        cellWpStats.BackgroundColor = new BaseColor(227, 242, 253); // Light blue
+
+                        if (wprowadzenia.Count > 0)
+                        {
+                            foreach (var kv in wprowadzenia)
+                            {
+                                decimal pct = (decimal)kv.Value / total * 100;
+                                Paragraph p = new Paragraph($"{kv.Key}: {kv.Value}/{total} ({pct:F1}%)", fontData);
+                                p.Alignment = Element.ALIGN_CENTER;
+                                cellWpStats.AddElement(p);
+                            }
+                            int sumaWp = wprowadzenia.Values.Sum();
+                            decimal sumaPct = (decimal)sumaWp / total * 100;
+                            Paragraph pSum = new Paragraph($"Razem: {sumaWp}/{total} ({sumaPct:F1}%)", fontSum);
+                            pSum.Alignment = Element.ALIGN_CENTER;
+                            pSum.SpacingBefore = 5;
+                            cellWpStats.AddElement(pSum);
+                        }
+                        else
+                        {
+                            Paragraph p = new Paragraph("Brak wprowadzonych", fontData);
+                            p.Alignment = Element.ALIGN_CENTER;
+                            cellWpStats.AddElement(p);
+                        }
+                        statsTable.AddCell(cellWpStats);
+
+                        // Zawartość - Weryfikacja
+                        PdfPCell cellWrStats = new PdfPCell();
+                        cellWrStats.Padding = 8;
+                        cellWrStats.BackgroundColor = new BaseColor(232, 245, 233); // Light green
+
+                        if (weryfikacje.Count > 0)
+                        {
+                            foreach (var kv in weryfikacje)
+                            {
+                                decimal pct = (decimal)kv.Value / total * 100;
+                                Paragraph p = new Paragraph($"{kv.Key}: {kv.Value}/{total} ({pct:F1}%)", fontData);
+                                p.Alignment = Element.ALIGN_CENTER;
+                                cellWrStats.AddElement(p);
+                            }
+                            int sumaWr = weryfikacje.Values.Sum();
+                            decimal sumaPctWr = (decimal)sumaWr / total * 100;
+                            Paragraph pSumWr = new Paragraph($"Razem: {sumaWr}/{total} ({sumaPctWr:F1}%)", fontSum);
+                            pSumWr.Alignment = Element.ALIGN_CENTER;
+                            pSumWr.SpacingBefore = 5;
+                            cellWrStats.AddElement(pSumWr);
+                        }
+                        else
+                        {
+                            Paragraph p = new Paragraph("Brak zweryfikowanych", fontData);
+                            p.Alignment = Element.ALIGN_CENTER;
+                            cellWrStats.AddElement(p);
+                        }
+                        statsTable.AddCell(cellWrStats);
+
+                        doc.Add(statsTable);
+                    }
 
                     // === SEKCJA PODPISÓW ===
                     doc.Add(new Paragraph(" "));
