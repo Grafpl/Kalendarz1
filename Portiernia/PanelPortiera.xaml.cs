@@ -492,7 +492,11 @@ namespace Kalendarz1
         private void TxtEditRejestracja_Click(object sender, MouseButtonEventArgs e)
         {
             // Blokuj edycję gdy nie ma zaznaczenia
-            if (WybranaDostwa == null) return;
+            if (WybranaDostwa == null)
+            {
+                PokazKomunikatNajpierwNowe();
+                return;
+            }
             KeyboardOverlay.Visibility = Visibility.Visible;
         }
 
@@ -1367,7 +1371,15 @@ namespace Kalendarz1
 
                             var result = cmd.ExecuteScalar();
                             if (result != null && result != DBNull.Value)
+                            {
                                 insertedId = Convert.ToInt64(result);
+                                // WAŻNE: Zaktualizuj ID w wybranej dostawie aby kolejny zapis był UPDATE nie INSERT
+                                if (WybranaDostwa != null)
+                                {
+                                    WybranaDostwa.ID = insertedId;
+                                    Debug.WriteLine($"[ZAPIS ODPADY] Zaktualizowano WybranaDostwa.ID = {insertedId}");
+                                }
+                            }
 
                             Debug.WriteLine($"[ZAPIS ODPADY] Nowy ID po INSERT: {insertedId}");
                         }
