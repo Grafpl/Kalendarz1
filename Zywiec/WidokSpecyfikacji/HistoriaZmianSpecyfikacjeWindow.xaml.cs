@@ -27,9 +27,9 @@ namespace Kalendarz1
             _connectionString = connectionString;
             _allChanges = new ObservableCollection<ChangeLogItem>();
 
-            // Ustaw domyślne daty
+            // Ustaw domyslne daty (3 dni wstecz do dzisiaj)
             dateTo.SelectedDate = DateTime.Today;
-            dateFrom.SelectedDate = DateTime.Today.AddDays(-30);
+            dateFrom.SelectedDate = DateTime.Today.AddDays(-3);
 
             // Załaduj dane
             LoadData();

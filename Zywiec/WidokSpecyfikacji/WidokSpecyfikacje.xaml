@@ -3046,16 +3046,6 @@
                                     </DataGridTextColumn.EditingElementStyle>
                                 </DataGridTextColumn>
 
-                                <!-- Status -->
-                                <DataGridTemplateColumn Header="" Width="50">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <Border Background="#27AE60" CornerRadius="3" Padding="6,2" HorizontalAlignment="Center">
-                                                <TextBlock Text="OK" Foreground="White" FontWeight="Bold" FontSize="10"/>
-                                            </Border>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
                             </DataGrid.Columns>
                         </DataGrid>
 
@@ -3124,49 +3114,43 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
-                                <!-- LEWA STRONA: Tytul i data -->
+                                <!-- LEWA STRONA: Przyciski PDF i Kopiuj (duze) -->
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="PODSUMOWANIE" FontSize="14" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
-                                    <Border Background="#FFFFFF20" CornerRadius="4" Padding="10,4" Margin="15,0,0,0">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock x:Name="lblPodsumowanieData" Text="-" FontWeight="Bold"
-                                                       Foreground="#FFD54F" FontSize="13" VerticalAlignment="Center"/>
-                                        </StackPanel>
+                                    <Border Background="#0891B2" CornerRadius="6" Margin="0,0,8,0">
+                                        <Button Click="BtnPodsumowanieExportPdf_Click" Cursor="Hand"
+                                                Padding="16,8" Background="Transparent" Foreground="White"
+                                                BorderThickness="0" FontWeight="Bold"
+                                                ToolTip="Eksportuj do PDF">
+                                            <TextBlock Text="PDF" FontSize="14" VerticalAlignment="Center"/>
+                                        </Button>
+                                    </Border>
+                                    <Border Background="#7C3AED" CornerRadius="6">
+                                        <Button Click="BtnPodsumowanieCopy_Click" Cursor="Hand"
+                                                Padding="16,8" Background="Transparent" Foreground="White"
+                                                BorderThickness="0" FontWeight="Bold"
+                                                ToolTip="Kopiuj do schowka">
+                                            <TextBlock Text="KOPIUJ" FontSize="14" VerticalAlignment="Center"/>
+                                        </Button>
                                     </Border>
                                 </StackPanel>
 
-                                <!-- SRODEK: Checkbox grupowania -->
+                                <!-- SRODEK: Tytul i data -->
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <TextBlock Text="PODSUMOWANIE" FontSize="14" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                                    <Border Background="#FFFFFF20" CornerRadius="4" Padding="10,4" Margin="15,0,0,0">
+                                        <TextBlock x:Name="lblPodsumowanieData" Text="-" FontWeight="Bold"
+                                                   Foreground="White" FontSize="13" VerticalAlignment="Center"/>
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- PRAWA STRONA: Checkbox grupowania -->
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                                     <Border Background="#10B98130" CornerRadius="4" Padding="8,4">
                                         <CheckBox x:Name="chkGroupByOdbiorcaPodsumowanie" Content="Grupuj wg odbiorcy"
                                                   VerticalAlignment="Center" FontSize="11" Foreground="White"
                                                   Checked="ChkGroupByOdbiorcaPodsumowanie_Changed"
                                                   Unchecked="ChkGroupByOdbiorcaPodsumowanie_Changed"
                                                   ToolTip="Grupuj dane wedlug odbiorcy z separatorami"/>
-                                    </Border>
-                                </StackPanel>
-
-                                <!-- PRAWA STRONA: Przyciski -->
-                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Border Background="#0891B2" CornerRadius="4" Margin="0,0,5,0">
-                                        <Button Click="BtnPodsumowanieExportPdf_Click" Cursor="Hand"
-                                                Padding="12,4" Background="Transparent" Foreground="White"
-                                                BorderThickness="0" FontWeight="SemiBold"
-                                                ToolTip="Eksportuj do PDF">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="PDF" FontSize="11" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </Button>
-                                    </Border>
-                                    <Border Background="#7C3AED" CornerRadius="4">
-                                        <Button Click="BtnPodsumowanieCopy_Click" Cursor="Hand"
-                                                Padding="12,4" Background="Transparent" Foreground="White"
-                                                BorderThickness="0" FontWeight="SemiBold"
-                                                ToolTip="Kopiuj do schowka">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="Kopiuj" FontSize="11" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </Button>
                                     </Border>
                                 </StackPanel>
                             </Grid>
@@ -3218,11 +3202,18 @@
                                             <Trigger Property="IsSelected" Value="True">
                                                 <Setter Property="Background" Value="#DBEAFE"/>
                                             </Trigger>
-                                            <!-- Obramowanie na początku nowej grupy -->
+                                            <!-- Obramowanie na poczatku nowej grupy -->
                                             <DataTrigger Binding="{Binding IsGroupStart}" Value="True">
                                                 <Setter Property="BorderThickness" Value="0,3,0,0"/>
                                                 <Setter Property="BorderBrush" Value="#2E7D32"/>
                                                 <Setter Property="Background" Value="#E8F5E9"/>
+                                            </DataTrigger>
+                                            <!-- Wiersz SUMA - pogrubiony, szare tlo -->
+                                            <DataTrigger Binding="{Binding IsSumRow}" Value="True">
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Background" Value="#E2E8F0"/>
+                                                <Setter Property="BorderThickness" Value="0,2,0,0"/>
+                                                <Setter Property="BorderBrush" Value="#64748B"/>
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -3244,8 +3235,8 @@
                                     </Style>
                                 </DataGrid.CellStyle>
                                 <DataGrid.Columns>
-                                    <!-- L.P -->
-                                    <DataGridTextColumn Header="L.P" Binding="{Binding LP}" Width="40">
+                                    <!-- L.P - ukryj 0 dla wiersza SUMA -->
+                                    <DataGridTextColumn Header="L.P" Binding="{Binding LP, Converter={StaticResource ZeroToEmptyConverter}}" Width="40">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -3267,46 +3258,64 @@
                                     </DataGridTextColumn>
 
                                     <!-- Sztuki Zadeklarowane -->
-                                    <DataGridTextColumn Header="Zadekl. [szt]" Binding="{Binding SztukiZadeklarowane, StringFormat={}{0:N0}}" Width="85">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Setter Property="Padding" Value="0,0,10,0"/>
-                                                <Setter Property="FontWeight" Value="SemiBold"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
+                                    <DataGridTemplateColumn Width="85">
+                                        <DataGridTemplateColumn.Header>
+                                            <StackPanel>
+                                                <TextBlock Text="Zadekl." HorizontalAlignment="Center" FontWeight="Bold"/>
+                                                <TextBlock Text="[szt]" HorizontalAlignment="Center" FontSize="9" Foreground="#64748B"/>
+                                            </StackPanel>
+                                        </DataGridTemplateColumn.Header>
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding SztukiZadeklarowane, StringFormat={}{0:N0}}" HorizontalAlignment="Right" Padding="0,0,10,0" FontWeight="SemiBold"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
 
-                                    <!-- Sztuki Padłe -->
-                                    <DataGridTextColumn Header="Padłe [szt]" Binding="{Binding SztukiPadle, StringFormat={}{0:N0}}" Width="70">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Setter Property="Padding" Value="0,0,8,0"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
+                                    <!-- Sztuki Padle -->
+                                    <DataGridTemplateColumn Width="70">
+                                        <DataGridTemplateColumn.Header>
+                                            <StackPanel>
+                                                <TextBlock Text="Padle" HorizontalAlignment="Center" FontWeight="Bold"/>
+                                                <TextBlock Text="[szt]" HorizontalAlignment="Center" FontSize="9" Foreground="#64748B"/>
+                                            </StackPanel>
+                                        </DataGridTemplateColumn.Header>
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding SztukiPadle, StringFormat={}{0:N0}}" HorizontalAlignment="Right" Padding="0,0,8,0"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
 
                                     <!-- Sztuki Konfi -->
-                                    <DataGridTextColumn Header="Konfi [szt]" Binding="{Binding SztukiKonfi, StringFormat={}{0:N0}}" Width="70">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Setter Property="Padding" Value="0,0,8,0"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
+                                    <DataGridTemplateColumn Width="70">
+                                        <DataGridTemplateColumn.Header>
+                                            <StackPanel>
+                                                <TextBlock Text="Konfi" HorizontalAlignment="Center" FontWeight="Bold"/>
+                                                <TextBlock Text="[szt]" HorizontalAlignment="Center" FontSize="9" Foreground="#64748B"/>
+                                            </StackPanel>
+                                        </DataGridTemplateColumn.Header>
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding SztukiKonfi, StringFormat={}{0:N0}}" HorizontalAlignment="Right" Padding="0,0,8,0"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
 
                                     <!-- Sztuki Suma -->
-                                    <DataGridTextColumn Header="Suma [szt]" Binding="{Binding SztukiSuma, StringFormat={}{0:N0}}" Width="75">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Setter Property="FontWeight" Value="Bold"/>
-                                                <Setter Property="Padding" Value="0,0,8,0"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
+                                    <DataGridTemplateColumn Width="75">
+                                        <DataGridTemplateColumn.Header>
+                                            <StackPanel>
+                                                <TextBlock Text="Suma" HorizontalAlignment="Center" FontWeight="Bold"/>
+                                                <TextBlock Text="[szt]" HorizontalAlignment="Center" FontSize="9" Foreground="#64748B"/>
+                                            </StackPanel>
+                                        </DataGridTemplateColumn.Header>
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding SztukiSuma, StringFormat={}{0:N0}}" HorizontalAlignment="Right" Padding="0,0,8,0" FontWeight="Bold"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
 
                                     <!-- Kg Konf -->
                                     <DataGridTextColumn Header="Konfi [kg]" Binding="{Binding KgKonf, StringFormat={}{0:N0}}" Width="70">
@@ -3460,12 +3469,6 @@
                             </DataGrid>
                         </Border>
 
-                        <!-- STOPKA -->
-                        <Border Grid.Row="2" Margin="0,10,0,10" Padding="10">
-                            <TextBlock x:Name="lblPodsumowanieInfo"
-                                       Text="Podsumowanie Specyfikacja Przyjetego Drobiu do Uboju"
-                                       FontStyle="Italic" Foreground="#94A3B8" FontSize="11" HorizontalAlignment="Center"/>
-                        </Border>
                     </Grid>
                 </Border>
             </TabItem>

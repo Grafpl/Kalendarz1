@@ -4540,43 +4540,53 @@ namespace Kalendarz1
 
             if (specyfikacjeData == null || specyfikacjeData.Count == 0) return;
 
-            if (groupBySupplier)
+            // WAZNE: Blokuj logowanie zmian podczas grupowania
+            _isLoadingData = true;
+
+            try
             {
-                // Grupuj według dostawcy, zachowując kolejność LP w grupie
-                var grouped = specyfikacjeData
-                    .OrderBy(x => x.RealDostawca)
-                    .ThenBy(x => x.Nr)
-                    .ToList();
-
-                // Wyczyść i dodaj ponownie w nowej kolejności
-                specyfikacjeData.Clear();
-                foreach (var item in grouped)
+                if (groupBySupplier)
                 {
-                    specyfikacjeData.Add(item);
+                    // Grupuj wedlug dostawcy, zachowujac kolejnosc LP w grupie
+                    var grouped = specyfikacjeData
+                        .OrderBy(x => x.RealDostawca)
+                        .ThenBy(x => x.Nr)
+                        .ToList();
+
+                    // Wyczysc i dodaj ponownie w nowej kolejnosci
+                    specyfikacjeData.Clear();
+                    foreach (var item in grouped)
+                    {
+                        specyfikacjeData.Add(item);
+                    }
+
+                    // Przypisz kolory i oznacz granice grup
+                    AssignSupplierColorsAndGroups();
+
+                    UpdateStatus("Wiersze pogrupowane wedlug dostawcy");
                 }
+                else
+                {
+                    // Sortuj wedlug LP
+                    var sorted = specyfikacjeData
+                        .OrderBy(x => x.Nr)
+                        .ToList();
 
-                // Przypisz kolory i oznacz granice grup
-                AssignSupplierColorsAndGroups();
+                    specyfikacjeData.Clear();
+                    foreach (var item in sorted)
+                    {
+                        specyfikacjeData.Add(item);
+                    }
 
-                UpdateStatus("Wiersze pogrupowane według dostawcy");
+                    // Przypisz kolory (bez grup separatorow)
+                    AssignSupplierColorsAndGroups();
+
+                    UpdateStatus("Wiersze posortowane wedlug LP");
+                }
             }
-            else
+            finally
             {
-                // Sortuj według LP
-                var sorted = specyfikacjeData
-                    .OrderBy(x => x.Nr)
-                    .ToList();
-
-                specyfikacjeData.Clear();
-                foreach (var item in sorted)
-                {
-                    specyfikacjeData.Add(item);
-                }
-
-                // Przypisz kolory (bez grup separatorów)
-                AssignSupplierColorsAndGroups();
-
-                UpdateStatus("Wiersze posortowane według LP");
+                _isLoadingData = false;
             }
         }
 
@@ -10523,12 +10533,18 @@ namespace Kalendarz1
                     iTextSharp.text.Font fontSum = new iTextSharp.text.Font(bfArial, 8, iTextSharp.text.Font.BOLD);
                     iTextSharp.text.Font fontFooter = new iTextSharp.text.Font(bfArial, 9);
 
-                    // Tytuł
-                    Paragraph title = new Paragraph("RAPORT Z PRZYJĘCIA ŻYWCA DO UBOJU", fontTitle);
+                    // Data wydruku na gorze
+                    Paragraph dateprint = new Paragraph($"Data wydruku: {DateTime.Now:dd.MM.yyyy HH:mm}", fontSubtitle);
+                    dateprint.Alignment = Element.ALIGN_RIGHT;
+                    dateprint.SpacingAfter = 5;
+                    doc.Add(dateprint);
+
+                    // Tytul
+                    Paragraph title = new Paragraph("RAPORT Z PRZYJECIA ZYWCA DO UBOJU", fontTitle);
                     title.Alignment = Element.ALIGN_CENTER;
                     doc.Add(title);
 
-                    Paragraph subtitle = new Paragraph($"Podsumowanie Specyfikacja Przyjętego Drobiu do Uboju    Data: {selectedDate:dd.MM.yyyy}", fontSubtitle);
+                    Paragraph subtitle = new Paragraph($"Data uboju: {selectedDate:dd.MM.yyyy}", fontSubtitle);
                     subtitle.Alignment = Element.ALIGN_CENTER;
                     subtitle.SpacingAfter = 15;
                     doc.Add(subtitle);
@@ -10627,17 +10643,27 @@ namespace Kalendarz1
 
                     doc.Add(table);
 
-                    // === SEKCJA STATYSTYK WPROWADZENIA/WERYFIKACJI - prosty tekst ===
+                    // === SEKCJA STATYSTYK WPROWADZENIA/WERYFIKACJI - tabela 2 kolumny ===
                     var (wprowadzenia, weryfikacje, total) = GetZatwierdzeniaStats(selectedDate);
 
                     if (total > 0 && (wprowadzenia.Count > 0 || weryfikacje.Count > 0))
                     {
                         doc.Add(new Paragraph(" "));
 
-                        // Wprowadzenie - prosty tekst
+                        // Tabela 2 kolumny - Wprowadzenie | Weryfikacja
+                        PdfPTable statsTable = new PdfPTable(2);
+                        statsTable.WidthPercentage = 80;
+                        statsTable.HorizontalAlignment = Element.ALIGN_LEFT;
+                        statsTable.SetWidths(new float[] { 50f, 50f });
+
+                        // Lewa kolumna - Wprowadzenie
+                        PdfPCell leftCell = new PdfPCell();
+                        leftCell.Border = Rectangle.NO_BORDER;
+                        leftCell.Padding = 5;
+
                         Paragraph wpTitlePar = new Paragraph("Wprowadzenie (Rozliczenia):", fontSum);
                         wpTitlePar.SpacingAfter = 3;
-                        doc.Add(wpTitlePar);
+                        leftCell.AddElement(wpTitlePar);
 
                         if (wprowadzenia.Count > 0)
                         {
@@ -10645,25 +10671,28 @@ namespace Kalendarz1
                             {
                                 decimal pct = (decimal)kv.Value / total * 100;
                                 Paragraph p = new Paragraph($"   {kv.Key}: {kv.Value}/{total} ({pct:F1}%)", fontData);
-                                doc.Add(p);
+                                leftCell.AddElement(p);
                             }
                             int sumaWp = wprowadzenia.Values.Sum();
                             decimal sumaPct = (decimal)sumaWp / total * 100;
                             Paragraph pSum = new Paragraph($"   Razem: {sumaWp}/{total} ({sumaPct:F1}%)", fontSum);
-                            pSum.SpacingAfter = 8;
-                            doc.Add(pSum);
+                            leftCell.AddElement(pSum);
                         }
                         else
                         {
                             Paragraph p = new Paragraph("   Brak wprowadzonych", fontData);
-                            p.SpacingAfter = 8;
-                            doc.Add(p);
+                            leftCell.AddElement(p);
                         }
+                        statsTable.AddCell(leftCell);
 
-                        // Weryfikacja - prosty tekst
+                        // Prawa kolumna - Weryfikacja
+                        PdfPCell rightCell = new PdfPCell();
+                        rightCell.Border = Rectangle.NO_BORDER;
+                        rightCell.Padding = 5;
+
                         Paragraph wrTitlePar = new Paragraph("Weryfikacja (Rozliczenia):", fontSum);
                         wrTitlePar.SpacingAfter = 3;
-                        doc.Add(wrTitlePar);
+                        rightCell.AddElement(wrTitlePar);
 
                         if (weryfikacje.Count > 0)
                         {
@@ -10671,64 +10700,22 @@ namespace Kalendarz1
                             {
                                 decimal pct = (decimal)kv.Value / total * 100;
                                 Paragraph p = new Paragraph($"   {kv.Key}: {kv.Value}/{total} ({pct:F1}%)", fontData);
-                                doc.Add(p);
+                                rightCell.AddElement(p);
                             }
                             int sumaWr = weryfikacje.Values.Sum();
                             decimal sumaPctWr = (decimal)sumaWr / total * 100;
                             Paragraph pSumWr = new Paragraph($"   Razem: {sumaWr}/{total} ({sumaPctWr:F1}%)", fontSum);
-                            doc.Add(pSumWr);
+                            rightCell.AddElement(pSumWr);
                         }
                         else
                         {
                             Paragraph p = new Paragraph("   Brak zweryfikowanych", fontData);
-                            doc.Add(p);
+                            rightCell.AddElement(p);
                         }
+                        statsTable.AddCell(rightCell);
+
+                        doc.Add(statsTable);
                     }
-
-                    // === SEKCJA PODPISÓW ===
-                    doc.Add(new Paragraph(" "));
-
-                    PdfPTable signatureTable = new PdfPTable(3);
-                    signatureTable.WidthPercentage = 100;
-                    signatureTable.SetWidths(new float[] { 33f, 34f, 33f });
-
-                    // Wprowadził
-                    PdfPCell cellWprowadzil = new PdfPCell();
-                    cellWprowadzil.Border = Rectangle.NO_BORDER;
-                    cellWprowadzil.Padding = 10;
-                    Paragraph wpLabel = new Paragraph("Wprowadził:", fontFooter);
-                    Paragraph wpLine = new Paragraph("_______________________________", fontFooter);
-                    wpLine.SpacingBefore = 15;
-                    cellWprowadzil.AddElement(wpLabel);
-                    cellWprowadzil.AddElement(wpLine);
-                    signatureTable.AddCell(cellWprowadzil);
-
-                    // Data wydruku (środkowa kolumna)
-                    PdfPCell cellData = new PdfPCell();
-                    cellData.Border = Rectangle.NO_BORDER;
-                    cellData.Padding = 10;
-                    cellData.HorizontalAlignment = Element.ALIGN_CENTER;
-                    Paragraph dataLabel = new Paragraph($"Data wydruku: {DateTime.Now:dd.MM.yyyy HH:mm}", fontFooter);
-                    dataLabel.Alignment = Element.ALIGN_CENTER;
-                    dataLabel.SpacingBefore = 25;
-                    cellData.AddElement(dataLabel);
-                    signatureTable.AddCell(cellData);
-
-                    // Zatwierdził
-                    PdfPCell cellZatwierdzil = new PdfPCell();
-                    cellZatwierdzil.Border = Rectangle.NO_BORDER;
-                    cellZatwierdzil.Padding = 10;
-                    cellZatwierdzil.HorizontalAlignment = Element.ALIGN_RIGHT;
-                    Paragraph ztLabel = new Paragraph("Zatwierdził:", fontFooter);
-                    ztLabel.Alignment = Element.ALIGN_RIGHT;
-                    Paragraph ztLine = new Paragraph("_______________________________", fontFooter);
-                    ztLine.Alignment = Element.ALIGN_RIGHT;
-                    ztLine.SpacingBefore = 15;
-                    cellZatwierdzil.AddElement(ztLabel);
-                    cellZatwierdzil.AddElement(ztLine);
-                    signatureTable.AddCell(cellZatwierdzil);
-
-                    doc.Add(signatureTable);
 
                     doc.Close();
                 }
