@@ -22,40 +22,25 @@ namespace Kalendarz1
 
             try
             {
-                // Wymuszamy inicjalizację iTextSharp przez utworzenie prostego dokumentu
-                var testDoc = new iTextSharp.text.Document();
-                using (var ms = new MemoryStream())
+                // KROK 1: Napraw pole 'version' przez reflection PRZED użyciem iTextSharp
+                // To rozwiązuje NullReferenceException w Version.GetInstance() na .NET 8
+                var versionType = typeof(iTextSharp.text.Version);
+
+                // Sprawdź czy pole 'version' jest null
+                var versionField = versionType.GetField("version", BindingFlags.NonPublic | BindingFlags.Static);
+                if (versionField != null && versionField.GetValue(null) == null)
                 {
-                    var writer = iTextSharp.text.pdf.PdfWriter.GetInstance(testDoc, ms);
-                    testDoc.Open();
-                    testDoc.Close();
+                    // Utwórz instancję Version ręcznie przez reflection
+                    var instance = Activator.CreateInstance(versionType, true);
+                    versionField.SetValue(null, instance);
                 }
+
                 _iTextSharpInitialized = true;
             }
-            catch
+            catch (Exception ex)
             {
-                // Jeśli standardowa inicjalizacja nie działa, próbujemy reflection
-                try
-                {
-                    var versionType = typeof(iTextSharp.text.Version);
-                    var field = versionType.GetField("version", BindingFlags.NonPublic | BindingFlags.Static);
-                    if (field != null && field.GetValue(null) == null)
-                    {
-                        var constructor = versionType.GetConstructor(
-                            BindingFlags.NonPublic | BindingFlags.Instance,
-                            null, Type.EmptyTypes, null);
-                        if (constructor != null)
-                        {
-                            var instance = constructor.Invoke(null);
-                            field.SetValue(null, instance);
-                        }
-                    }
-                    _iTextSharpInitialized = true;
-                }
-                catch
-                {
-                    // Ignoruj - aplikacja spróbuje kontynuować bez inicjalizacji
-                }
+                System.Diagnostics.Debug.WriteLine($"iTextSharp initialization warning: {ex.Message}");
+                // Kontynuuj mimo błędu - może się uda bez inicjalizacji
             }
         }
 
