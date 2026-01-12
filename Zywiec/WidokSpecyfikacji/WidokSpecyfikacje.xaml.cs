@@ -6916,6 +6916,49 @@ namespace Kalendarz1
             return "---";
         }
 
+        /// <summary>
+        /// Pobiera nazwę osoby która zatwierdziła/ostatnio edytowała dane (z ChangeLog)
+        /// </summary>
+        private string GetZatwierdzilNazwa(int farmerCalcId)
+        {
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    // Sprawdź czy tabela istnieje
+                    string checkTable = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'FarmerCalcChangeLog'";
+                    using (SqlCommand checkCmd = new SqlCommand(checkTable, connection))
+                    {
+                        int exists = (int)checkCmd.ExecuteScalar();
+                        if (exists == 0) return "---";
+                    }
+
+                    // Pobierz ostatnią osobę która edytowała dane
+                    string query = @"SELECT TOP 1 ChangedBy
+                        FROM [dbo].[FarmerCalcChangeLog]
+                        WHERE FarmerCalcID = @ID
+                        ORDER BY ChangeDate DESC";
+
+                    using (SqlCommand cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@ID", farmerCalcId);
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && result != DBNull.Value)
+                        {
+                            return result.ToString();
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Ignoruj błędy
+            }
+            return "---";
+        }
+
         // Sprawdź czy PDF istnieje dla danego dostawcy i dnia
         private string GetPdfPathForIds(List<int> ids)
         {
@@ -9965,13 +10008,15 @@ namespace Kalendarz1
                     IloscKgZywiec = spec.DoZaplaty,
                     SredniaWagaPrzedUbojem = spec.SredniaWaga,
                     SztukiProdukcjaTuszka = spec.SztukiWybijak,
-                    WagaProdukcjaTuszka = spec.KilogramyWybijak
+                    WagaProdukcjaTuszka = spec.KilogramyWybijak,
+                    Wprowadzil = GetWprowadzilNazwa(spec.ID),
+                    Zatwierdził = GetZatwierdzilNazwa(spec.ID)
                 };
 
-                // Oblicz wydajność %: (LUMEL - konfiskaty) / SztukiDek * 100
-                if (spec.SztukiDek > 0)
+                // Oblicz wydajność %: (Waga Produkcja / Kg żywiec) * 100
+                if (spec.DoZaplaty > 0)
                 {
-                    row.WydajnoscProcent = ((decimal)(spec.LUMEL - (spec.Padle + spec.CH + spec.NW + spec.ZM)) / spec.SztukiDek) * 100;
+                    row.WydajnoscProcent = (spec.KilogramyWybijak / spec.DoZaplaty) * 100;
                 }
 
                 podsumowanieData.Add(row);
@@ -11921,6 +11966,48 @@ namespace Kalendarz1
         public int KgSuma => KgKonf + KgPadle;
         public decimal WydajnoscProcent { get; set; }
         public bool WydajnoscNiska => WydajnoscProcent < 77;
+
+        /// <summary>
+        /// Kolor wydajności - skala 3-kolorowa (czerwony-żółty-zielony) od 74% do 79%
+        /// </summary>
+        public System.Windows.Media.SolidColorBrush WydajnoscColor
+        {
+            get
+            {
+                // Progi: Min=74%, Środek=75%, Max=79%
+                decimal val = WydajnoscProcent;
+                byte r, g, b;
+
+                if (val <= 74)
+                {
+                    // Czerwony
+                    r = 255; g = 0; b = 0;
+                }
+                else if (val <= 75)
+                {
+                    // Interpolacja czerwony -> żółty (74-75)
+                    double t = (double)(val - 74) / 1.0;
+                    r = 255;
+                    g = (byte)(255 * t);
+                    b = 0;
+                }
+                else if (val <= 79)
+                {
+                    // Interpolacja żółty -> zielony (75-79)
+                    double t = (double)(val - 75) / 4.0;
+                    r = (byte)(255 * (1 - t));
+                    g = 255;
+                    b = 0;
+                }
+                else
+                {
+                    // Zielony
+                    r = 0; g = 255; b = 0;
+                }
+
+                return new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(r, g, b));
+            }
+        }
         public int Lumel { get; set; }
         public int SztukiKonfiskataT { get; set; }
         public int SztukiZdatne { get; set; }
@@ -11935,6 +12022,10 @@ namespace Kalendarz1
 
         // Właściwość do oznaczenia początku nowej grupy (dla grupowania wg odbiorcy)
         public bool IsGroupStart { get; set; }
+
+        // Informacje o użytkownikach
+        public string Wprowadzil { get; set; } = "-";
+        public string Zatwierdził { get; set; } = "-";
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)

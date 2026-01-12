@@ -597,8 +597,9 @@
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBox x:Name="txtEditRejestracja" Grid.Column="0" Style="{StaticResource InputBoxStyle}" 
-                                                     PreviewMouseLeftButtonUp="TxtEditRejestracja_Click" IsReadOnly="True" Cursor="Hand" Height="45"/>
+                                            <TextBox x:Name="txtEditRejestracja" Grid.Column="0" Style="{StaticResource InputBoxStyle}"
+                                                     PreviewMouseLeftButtonUp="TxtEditRejestracja_Click" IsReadOnly="True" Cursor="Hand" Height="45"
+                                                     TextChanged="TxtEditRejestracja_TextChanged"/>
                                             <!-- Przycisk skanowania tablicy -->
                                             <Button Grid.Column="1" Click="BtnScanPlateToTextBox_Click" Width="45" Height="45" Margin="5,0,0,0"
                                                     ToolTip="Skanuj tablicę z kamery" Cursor="Hand">

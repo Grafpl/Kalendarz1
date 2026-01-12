@@ -523,6 +523,15 @@ namespace Kalendarz1
                 txtEditRejestracja.Text = txtEditRejestracja.Text.Substring(0, txtEditRejestracja.Text.Length - 1);
         }
 
+        private void TxtEditRejestracja_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            // Aktualizuj nr rejestracyjny w wybranej dostawie na bieżąco
+            if (WybranaDostwa != null)
+            {
+                WybranaDostwa.NrRejestracyjny = txtEditRejestracja.Text.Trim().ToUpper();
+            }
+        }
+
         #endregion
 
         #region PIN / WYJSCIE
@@ -3093,7 +3102,18 @@ namespace Kalendarz1
         public string KierowcaNazwa { get; set; }
         public string CarID { get; set; }
         public string TrailerID { get; set; }
-        public string NrRejestracyjny { get; set; }
+
+        private string _nrRejestracyjny;
+        public string NrRejestracyjny
+        {
+            get => _nrRejestracyjny;
+            set
+            {
+                _nrRejestracyjny = value;
+                OnPropertyChanged(nameof(NrRejestracyjny));
+            }
+        }
+
         public string Towar { get; set; }
         public int SztukiPlan { get; set; }
         public string GodzinaTaraDisplay { get; set; } = "-";

@@ -3335,7 +3335,7 @@
                                       SelectionMode="Single"
                                       SelectionUnit="FullRow"
                                       FontSize="11"
-                                      RowHeight="28"
+                                      RowHeight="36"
                                       ColumnHeaderHeight="40"
                                       Background="White"
                                       AlternatingRowBackground="#FAFBFC"
@@ -3482,34 +3482,15 @@
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
 
-                                    <!-- Wydajność % -->
-                                    <DataGridTemplateColumn Header="Wydajność %" Width="85">
+                                    <!-- Wydajność % - skala 3-kolorowa (czerwony-żółty-zielony) od 74% do 79% -->
+                                    <DataGridTemplateColumn Header="Wydaj.%" Width="85">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <Border Padding="6,4" CornerRadius="6" HorizontalAlignment="Center" Margin="4,2">
-                                                    <Border.Style>
-                                                        <Style TargetType="Border">
-                                                            <Setter Property="Background" Value="#D1FAE5"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding WydajnoscNiska}" Value="True">
-                                                                    <Setter Property="Background" Value="#FEE2E2"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Border.Style>
+                                                <Border Padding="6,4" CornerRadius="0" HorizontalAlignment="Stretch"
+                                                        Background="{Binding WydajnoscColor}">
                                                     <TextBlock Text="{Binding WydajnoscProcent, StringFormat={}{0:F2}%}"
-                                                               HorizontalAlignment="Center" FontWeight="Bold" FontSize="11">
-                                                        <TextBlock.Style>
-                                                            <Style TargetType="TextBlock">
-                                                                <Setter Property="Foreground" Value="#065F46"/>
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding WydajnoscNiska}" Value="True">
-                                                                        <Setter Property="Foreground" Value="#DC2626"/>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </TextBlock.Style>
-                                                    </TextBlock>
+                                                               HorizontalAlignment="Center" FontWeight="Bold" FontSize="11"
+                                                               Foreground="Black"/>
                                                 </Border>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
@@ -3637,6 +3618,46 @@
                                                         <Setter Property="FontWeight" Value="Bold"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+
+                                    <!-- Wprowadził -->
+                                    <DataGridTextColumn Header="Wprowadził" Binding="{Binding Wprowadzil}" Width="100">
+                                        <DataGridTextColumn.HeaderStyle>
+                                            <Style TargetType="DataGridColumnHeader">
+                                                <Setter Property="Background" Value="#E8F5E9"/>
+                                                <Setter Property="Foreground" Value="#2E7D32"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="FontSize" Value="11"/>
+                                                <Setter Property="Padding" Value="10,8"/>
+                                                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                            </Style>
+                                        </DataGridTextColumn.HeaderStyle>
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Padding" Value="4,0"/>
+                                                <Setter Property="FontSize" Value="10"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+
+                                    <!-- Zatwierdził -->
+                                    <DataGridTextColumn Header="Zatwierdził" Binding="{Binding Zatwierdził}" Width="100">
+                                        <DataGridTextColumn.HeaderStyle>
+                                            <Style TargetType="DataGridColumnHeader">
+                                                <Setter Property="Background" Value="#FFF3E0"/>
+                                                <Setter Property="Foreground" Value="#E65100"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="FontSize" Value="11"/>
+                                                <Setter Property="Padding" Value="10,8"/>
+                                                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                            </Style>
+                                        </DataGridTextColumn.HeaderStyle>
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Padding" Value="4,0"/>
+                                                <Setter Property="FontSize" Value="10"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
