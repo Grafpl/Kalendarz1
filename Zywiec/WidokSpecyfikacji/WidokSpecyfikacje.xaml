@@ -617,6 +617,17 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- Przycisk Odswiez -->
+                    <Border Background="#27AE60" CornerRadius="6" Padding="0" Margin="10,0,0,0" VerticalAlignment="Center">
+                        <Button x:Name="btnRefreshAll" Click="BtnRefreshAll_Click" Cursor="Hand"
+                                Background="Transparent" BorderThickness="0" Padding="12,6"
+                                ToolTip="Odswiez wszystkie dane">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Odswiez" Foreground="White" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </Border>
+
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
@@ -1146,16 +1157,25 @@
                                         <Style TargetType="DataGridCell">
                                             <Setter Property="Background" Value="#E8F5E9"/>
                                             <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="Foreground" Value="Black"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Foreground" Value="Black"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                    <Setter Property="Background" Value="#C8E6C9"/>
+                                                </Trigger>
+                                            </Style.Triggers>
                                         </Style>
                                     </DataGridTemplateColumn.CellStyle>
-                                    <!-- CellTemplate: Wyświetlanie (tylko tekst) -->
+                                    <!-- CellTemplate: Wyswietlanie (tylko tekst) -->
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding Dostawca}"
                                                        VerticalAlignment="Center"
                                                        Padding="5,0"
                                                        TextTrimming="CharacterEllipsis"
-                                                       Background="#E8F5E9"/>
+                                                       Background="Transparent"
+                                                       Foreground="Black"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                     <!-- CellEditingTemplate: Edycja z autocomplete -->
@@ -1967,22 +1987,22 @@
                                   GridLinesVisibility="All"
                                   HorizontalGridLinesBrush="#E0E0E0"
                                   VerticalGridLinesBrush="#EEEEEE"
-                                  RowHeight="32"
-                                  ColumnHeaderHeight="36"
+                                  RowHeight="38"
+                                  ColumnHeaderHeight="42"
                                   Background="White"
                                   BorderThickness="0"
-                                  FontSize="10"
+                                  FontSize="11"
                                   AlternatingRowBackground="#FAFAFA"
                                   EnableRowVirtualization="True">
 
-                            <!-- Styl nagłówka z zawijaniem tekstu -->
+                            <!-- Styl naglowka z zawijaniem tekstu -->
                             <DataGrid.ColumnHeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
                                     <Setter Property="Background" Value="#34495E"/>
                                     <Setter Property="Foreground" Value="White"/>
                                     <Setter Property="FontWeight" Value="SemiBold"/>
-                                    <Setter Property="FontSize" Value="9"/>
-                                    <Setter Property="Padding" Value="4,2"/>
+                                    <Setter Property="FontSize" Value="10"/>
+                                    <Setter Property="Padding" Value="6,4"/>
                                     <Setter Property="HorizontalContentAlignment" Value="Center"/>
                                     <Setter Property="VerticalContentAlignment" Value="Center"/>
                                     <Setter Property="ContentTemplate">
@@ -2300,7 +2320,7 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="% wylicz." Binding="{Binding ProcentRoznicy, StringFormat={}{0:F2}}" Width="52" IsReadOnly="True" ToolTipService.ToolTip="Procent wyliczony (różnica/netto hodowcy)">
+                                <DataGridTextColumn Header="% wylicz." Binding="{Binding ProcentRoznicy, StringFormat={}{0:F2}%}" Width="60" IsReadOnly="True" ToolTipService.ToolTip="Procent wyliczony (roznica/netto hodowcy)">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -2310,7 +2330,7 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="Ubytek %" Binding="{Binding UbytekUmowny, StringFormat={}{0:F2}}" Width="52" IsReadOnly="True" ToolTipService.ToolTip="Ubytek umowny z karty Specyfikacje">
+                                <DataGridTextColumn Header="Ubytek %" Binding="{Binding UbytekUmowny, StringFormat={}{0:F2}%}" Width="60" IsReadOnly="True" ToolTipService.ToolTip="Ubytek umowny z karty Specyfikacje">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -2320,7 +2340,7 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="Różn. %" Binding="{Binding RoznicaProcentow, StringFormat={}{0:F2}}" Width="50" IsReadOnly="True" ToolTipService.ToolTip="Różnica między % wyliczonym a ubytkiem umownym">
+                                <DataGridTextColumn Header="Rozn. %" Binding="{Binding RoznicaProcentow, StringFormat={}{0:F2}%}" Width="58" IsReadOnly="True" ToolTipService.ToolTip="Roznica miedzy % wyliczonym a ubytkiem umownym">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="VerticalAlignment" Value="Center"/>

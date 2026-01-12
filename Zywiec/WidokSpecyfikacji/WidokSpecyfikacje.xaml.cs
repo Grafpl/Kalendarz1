@@ -848,6 +848,15 @@ namespace Kalendarz1
             UpdateStatus("Dane transportowe odświeżone");
         }
 
+        /// <summary>
+        /// Odswieza wszystkie dane - przycisk obok panelu tygodni
+        /// </summary>
+        private void BtnRefreshAll_Click(object sender, RoutedEventArgs e)
+        {
+            LoadData(dateTimePicker1.SelectedDate ?? DateTime.Today);
+            UpdateStatus("Wszystkie dane odswiezone");
+        }
+
         private void BtnTransportMoveUp_Click(object sender, RoutedEventArgs e)
         {
             if (dataGridTransport.SelectedItem is TransportRow selectedTransportRow)
