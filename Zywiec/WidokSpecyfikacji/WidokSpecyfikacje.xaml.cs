@@ -10604,9 +10604,9 @@ namespace Kalendarz1
                     table.DefaultCell.BorderWidth = 1;
                     table.DefaultCell.BorderColor = BaseColor.BLACK;
 
-                    // Nagłówki
-                    string[] headers = { "L.P", "Hodowca Drobiu", "Szt.Zad.", "Padłe", "Konfi", "Suma", "KgKonf", "KgPad", "KgSuma", "Wydaj.%", "Lumel", "KonT", "Zdatne", "KgŻyw", "ŚrWaga", "Szt.Pr", "WgProd", "Róż1", "Róż2" };
-                    BaseColor headerColor = new BaseColor(44, 62, 80);
+                    // Nagłówki z jednostkami [szt] i [kg]
+                    string[] headers = { "L.P", "Hodowca Drobiu", "Zadekl.[szt]", "Padłe[szt]", "Konfi[szt]", "Suma[szt]", "Konfi[kg]", "Padłe[kg]", "Suma[kg]", "Wydaj.%", "Lumel[szt]", "KonT[szt]", "Zdatne[szt]", "Żywiec[kg]", "ŚrWaga[kg]", "Prod.[szt]", "Prod.[kg]", "Różn.1", "Różn.2" };
+                    BaseColor headerColor = new BaseColor(60, 60, 60); // Ciemnoszary, mniej jaskrawy
 
                     foreach (var h in headers)
                     {
@@ -10614,15 +10614,15 @@ namespace Kalendarz1
                         cell.BackgroundColor = headerColor;
                         cell.HorizontalAlignment = Element.ALIGN_CENTER;
                         cell.VerticalAlignment = Element.ALIGN_MIDDLE;
-                        cell.Padding = 4;
+                        cell.Padding = 5;
                         cell.BorderWidth = 1;
                         cell.BorderColor = BaseColor.BLACK;
                         cell.Phrase.Font.Color = BaseColor.WHITE;
                         table.AddCell(cell);
                     }
 
-                    // Dane - z mniejszym paddingiem dla kompaktowych wierszy
-                    float cellPadding = 3f; // Mniejszy padding
+                    // Dane - wyższe wiersze
+                    float cellPadding = 6f; // Większy padding dla wyższych wierszy
                     foreach (var row in podsumowanieData)
                     {
                         table.AddCell(new PdfPCell(new Phrase(row.LP.ToString(), fontData)) { HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
@@ -10688,90 +10688,62 @@ namespace Kalendarz1
 
                     doc.Add(table);
 
-                    // === SEKCJA STATYSTYK WPROWADZENIA/WERYFIKACJI ===
+                    // === SEKCJA STATYSTYK WPROWADZENIA/WERYFIKACJI - prosty tekst ===
                     var (wprowadzenia, weryfikacje, total) = GetZatwierdzeniaStats(selectedDate);
 
                     if (total > 0 && (wprowadzenia.Count > 0 || weryfikacje.Count > 0))
                     {
                         doc.Add(new Paragraph(" "));
 
-                        PdfPTable statsTable = new PdfPTable(2);
-                        statsTable.WidthPercentage = 80;
-                        statsTable.HorizontalAlignment = Element.ALIGN_CENTER;
-                        statsTable.SetWidths(new float[] { 50f, 50f });
-
-                        // Nagłówki
-                        PdfPCell headerWprowadzenie = new PdfPCell(new Phrase("WPROWADZENIE (Rozliczenia)", fontHeader));
-                        headerWprowadzenie.BackgroundColor = new BaseColor(25, 118, 210); // Blue
-                        headerWprowadzenie.HorizontalAlignment = Element.ALIGN_CENTER;
-                        headerWprowadzenie.Padding = 6;
-                        statsTable.AddCell(headerWprowadzenie);
-
-                        PdfPCell headerWeryfikacja = new PdfPCell(new Phrase("WERYFIKACJA (Rozliczenia)", fontHeader));
-                        headerWeryfikacja.BackgroundColor = new BaseColor(92, 138, 58); // Green
-                        headerWeryfikacja.HorizontalAlignment = Element.ALIGN_CENTER;
-                        headerWeryfikacja.Padding = 6;
-                        statsTable.AddCell(headerWeryfikacja);
-
-                        // Zawartość - Wprowadzenie
-                        PdfPCell cellWpStats = new PdfPCell();
-                        cellWpStats.Padding = 8;
-                        cellWpStats.BackgroundColor = new BaseColor(227, 242, 253); // Light blue
+                        // Wprowadzenie - prosty tekst
+                        Paragraph wpTitlePar = new Paragraph("Wprowadzenie (Rozliczenia):", fontSum);
+                        wpTitlePar.SpacingAfter = 3;
+                        doc.Add(wpTitlePar);
 
                         if (wprowadzenia.Count > 0)
                         {
                             foreach (var kv in wprowadzenia)
                             {
                                 decimal pct = (decimal)kv.Value / total * 100;
-                                Paragraph p = new Paragraph($"{kv.Key}: {kv.Value}/{total} ({pct:F1}%)", fontData);
-                                p.Alignment = Element.ALIGN_CENTER;
-                                cellWpStats.AddElement(p);
+                                Paragraph p = new Paragraph($"   {kv.Key}: {kv.Value}/{total} ({pct:F1}%)", fontData);
+                                doc.Add(p);
                             }
                             int sumaWp = wprowadzenia.Values.Sum();
                             decimal sumaPct = (decimal)sumaWp / total * 100;
-                            Paragraph pSum = new Paragraph($"Razem: {sumaWp}/{total} ({sumaPct:F1}%)", fontSum);
-                            pSum.Alignment = Element.ALIGN_CENTER;
-                            pSum.SpacingBefore = 5;
-                            cellWpStats.AddElement(pSum);
+                            Paragraph pSum = new Paragraph($"   Razem: {sumaWp}/{total} ({sumaPct:F1}%)", fontSum);
+                            pSum.SpacingAfter = 8;
+                            doc.Add(pSum);
                         }
                         else
                         {
-                            Paragraph p = new Paragraph("Brak wprowadzonych", fontData);
-                            p.Alignment = Element.ALIGN_CENTER;
-                            cellWpStats.AddElement(p);
+                            Paragraph p = new Paragraph("   Brak wprowadzonych", fontData);
+                            p.SpacingAfter = 8;
+                            doc.Add(p);
                         }
-                        statsTable.AddCell(cellWpStats);
 
-                        // Zawartość - Weryfikacja
-                        PdfPCell cellWrStats = new PdfPCell();
-                        cellWrStats.Padding = 8;
-                        cellWrStats.BackgroundColor = new BaseColor(232, 245, 233); // Light green
+                        // Weryfikacja - prosty tekst
+                        Paragraph wrTitlePar = new Paragraph("Weryfikacja (Rozliczenia):", fontSum);
+                        wrTitlePar.SpacingAfter = 3;
+                        doc.Add(wrTitlePar);
 
                         if (weryfikacje.Count > 0)
                         {
                             foreach (var kv in weryfikacje)
                             {
                                 decimal pct = (decimal)kv.Value / total * 100;
-                                Paragraph p = new Paragraph($"{kv.Key}: {kv.Value}/{total} ({pct:F1}%)", fontData);
-                                p.Alignment = Element.ALIGN_CENTER;
-                                cellWrStats.AddElement(p);
+                                Paragraph p = new Paragraph($"   {kv.Key}: {kv.Value}/{total} ({pct:F1}%)", fontData);
+                                doc.Add(p);
                             }
                             int sumaWr = weryfikacje.Values.Sum();
                             decimal sumaPctWr = (decimal)sumaWr / total * 100;
-                            Paragraph pSumWr = new Paragraph($"Razem: {sumaWr}/{total} ({sumaPctWr:F1}%)", fontSum);
-                            pSumWr.Alignment = Element.ALIGN_CENTER;
-                            pSumWr.SpacingBefore = 5;
-                            cellWrStats.AddElement(pSumWr);
+                            Paragraph pSumWr = new Paragraph($"   Razem: {sumaWr}/{total} ({sumaPctWr:F1}%)", fontSum);
+                            doc.Add(pSumWr);
                         }
                         else
                         {
-                            Paragraph p = new Paragraph("Brak zweryfikowanych", fontData);
-                            p.Alignment = Element.ALIGN_CENTER;
-                            cellWrStats.AddElement(p);
+                            Paragraph p = new Paragraph("   Brak zweryfikowanych", fontData);
+                            doc.Add(p);
                         }
-                        statsTable.AddCell(cellWrStats);
-
-                        doc.Add(statsTable);
                     }
 
                     // === SEKCJA PODPISÓW ===

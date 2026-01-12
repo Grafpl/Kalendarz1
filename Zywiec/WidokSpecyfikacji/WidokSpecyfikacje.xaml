@@ -1605,7 +1605,7 @@
                                             <TextBox Text="{Binding Ubytek, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                                      Style="{StaticResource NumericTextBoxStyle}"
                                                      FontWeight="SemiBold"
-                                                     Foreground="#C62828"
+                                                     Foreground="Black"
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
                                                      KeyDown="Ubytek_KeyDown"
@@ -3380,29 +3380,18 @@
                                     </DataGridTextColumn>
 
                                     <!-- Sztuki Zadeklarowane -->
-                                    <DataGridTextColumn Header="Szt. Zadekl." Binding="{Binding SztukiZadeklarowane, StringFormat={}{0:N0}}" Width="80">
-                                        <DataGridTextColumn.HeaderStyle>
-                                            <Style TargetType="DataGridColumnHeader">
-                                                <Setter Property="Background" Value="#FEF3C7"/>
-                                                <Setter Property="Foreground" Value="#B45309"/>
-                                                <Setter Property="FontWeight" Value="Bold"/>
-                                                <Setter Property="FontSize" Value="11"/>
-                                                <Setter Property="Padding" Value="10,8"/>
-                                                <Setter Property="HorizontalContentAlignment" Value="Center"/>
-                                            </Style>
-                                        </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn Header="Zadekl. [szt]" Binding="{Binding SztukiZadeklarowane, StringFormat={}{0:N0}}" Width="85">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                                 <Setter Property="Padding" Value="0,0,10,0"/>
                                                 <Setter Property="FontWeight" Value="SemiBold"/>
-                                                <Setter Property="Foreground" Value="#D97706"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
 
                                     <!-- Sztuki Padłe -->
-                                    <DataGridTextColumn Header="Padłe" Binding="{Binding SztukiPadle, StringFormat={}{0:N0}}" Width="60">
+                                    <DataGridTextColumn Header="Padłe [szt]" Binding="{Binding SztukiPadle, StringFormat={}{0:N0}}" Width="70">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -3412,7 +3401,7 @@
                                     </DataGridTextColumn>
 
                                     <!-- Sztuki Konfi -->
-                                    <DataGridTextColumn Header="Konfi" Binding="{Binding SztukiKonfi, StringFormat={}{0:N0}}" Width="60">
+                                    <DataGridTextColumn Header="Konfi [szt]" Binding="{Binding SztukiKonfi, StringFormat={}{0:N0}}" Width="70">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -3422,7 +3411,7 @@
                                     </DataGridTextColumn>
 
                                     <!-- Sztuki Suma -->
-                                    <DataGridTextColumn Header="Suma Szt." Binding="{Binding SztukiSuma, StringFormat={}{0:N0}}" Width="70">
+                                    <DataGridTextColumn Header="Suma [szt]" Binding="{Binding SztukiSuma, StringFormat={}{0:N0}}" Width="75">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -3433,7 +3422,7 @@
                                     </DataGridTextColumn>
 
                                     <!-- Kg Konf -->
-                                    <DataGridTextColumn Header="Kg Konf" Binding="{Binding KgKonf, StringFormat={}{0:N0}}" Width="65">
+                                    <DataGridTextColumn Header="Konfi [kg]" Binding="{Binding KgKonf, StringFormat={}{0:N0}}" Width="70">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -3443,7 +3432,7 @@
                                     </DataGridTextColumn>
 
                                     <!-- Kg Padłe -->
-                                    <DataGridTextColumn Header="Kg Padłe" Binding="{Binding KgPadle, StringFormat={}{0:N0}}" Width="65">
+                                    <DataGridTextColumn Header="Padłe [kg]" Binding="{Binding KgPadle, StringFormat={}{0:N0}}" Width="70">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -3453,7 +3442,7 @@
                                     </DataGridTextColumn>
 
                                     <!-- KG Suma -->
-                                    <DataGridTextColumn Header="Kg Suma" Binding="{Binding KgSuma, StringFormat={}{0:N0}}" Width="70">
+                                    <DataGridTextColumn Header="Suma [kg]" Binding="{Binding KgSuma, StringFormat={}{0:N0}}" Width="75">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -3478,29 +3467,18 @@
                                     </DataGridTemplateColumn>
 
                                     <!-- Lumel -->
-                                    <DataGridTextColumn Header="Lumel" Binding="{Binding Lumel, StringFormat={}{0:N0}}" Width="70">
-                                        <DataGridTextColumn.HeaderStyle>
-                                            <Style TargetType="DataGridColumnHeader">
-                                                <Setter Property="Background" Value="#DBEAFE"/>
-                                                <Setter Property="Foreground" Value="#1E40AF"/>
-                                                <Setter Property="FontWeight" Value="Bold"/>
-                                                <Setter Property="FontSize" Value="11"/>
-                                                <Setter Property="Padding" Value="10,8"/>
-                                                <Setter Property="HorizontalContentAlignment" Value="Center"/>
-                                            </Style>
-                                        </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn Header="Lumel [szt]" Binding="{Binding Lumel, StringFormat={}{0:N0}}" Width="80">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                                 <Setter Property="FontWeight" Value="SemiBold"/>
-                                                <Setter Property="Foreground" Value="#2563EB"/>
                                                 <Setter Property="Padding" Value="0,0,8,0"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
 
                                     <!-- Sztuki Konfiskata t -->
-                                    <DataGridTextColumn Header="Konf.T" Binding="{Binding SztukiKonfiskataT, StringFormat={}{0:N0}}" Width="60">
+                                    <DataGridTextColumn Header="Konf.T [szt]" Binding="{Binding SztukiKonfiskataT, StringFormat={}{0:N0}}" Width="75">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -3510,29 +3488,18 @@
                                     </DataGridTextColumn>
 
                                     <!-- Sztuki Zdatne -->
-                                    <DataGridTextColumn Header="Zdatne" Binding="{Binding SztukiZdatne, StringFormat={}{0:N0}}" Width="75">
-                                        <DataGridTextColumn.HeaderStyle>
-                                            <Style TargetType="DataGridColumnHeader">
-                                                <Setter Property="Background" Value="#D1FAE5"/>
-                                                <Setter Property="Foreground" Value="#047857"/>
-                                                <Setter Property="FontWeight" Value="Bold"/>
-                                                <Setter Property="FontSize" Value="11"/>
-                                                <Setter Property="Padding" Value="10,8"/>
-                                                <Setter Property="HorizontalContentAlignment" Value="Center"/>
-                                            </Style>
-                                        </DataGridTextColumn.HeaderStyle>
+                                    <DataGridTextColumn Header="Zdatne [szt]" Binding="{Binding SztukiZdatne, StringFormat={}{0:N0}}" Width="85">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                                 <Setter Property="FontWeight" Value="Bold"/>
-                                                <Setter Property="Foreground" Value="#10B981"/>
                                                 <Setter Property="Padding" Value="0,0,8,0"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
 
                                     <!-- Ilość Kg Żywiec -->
-                                    <DataGridTextColumn Header="Kg Żywiec" Binding="{Binding IloscKgZywiec, StringFormat={}{0:N0}}" Width="80">
+                                    <DataGridTextColumn Header="Żywiec [kg]" Binding="{Binding IloscKgZywiec, StringFormat={}{0:N0}}" Width="80">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -3542,7 +3509,7 @@
                                     </DataGridTextColumn>
 
                                     <!-- Średnia Waga -->
-                                    <DataGridTextColumn Header="Śr. Waga" Binding="{Binding SredniaWagaPrzedUbojem, StringFormat={}{0:F2}}" Width="70">
+                                    <DataGridTextColumn Header="Śr.Waga [kg]" Binding="{Binding SredniaWagaPrzedUbojem, StringFormat={}{0:F2}}" Width="80">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -3552,7 +3519,7 @@
                                     </DataGridTextColumn>
 
                                     <!-- Szt. Prod. Tuszka -->
-                                    <DataGridTextColumn Header="Szt. Prod." Binding="{Binding SztukiProdukcjaTuszka, StringFormat={}{0:N0}}" Width="70">
+                                    <DataGridTextColumn Header="Prod. [szt]" Binding="{Binding SztukiProdukcjaTuszka, StringFormat={}{0:N0}}" Width="75">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -3562,7 +3529,7 @@
                                     </DataGridTextColumn>
 
                                     <!-- Waga Prod. Tuszka -->
-                                    <DataGridTextColumn Header="Waga Prod." Binding="{Binding WagaProdukcjaTuszka, StringFormat={}{0:N0}}" Width="80">
+                                    <DataGridTextColumn Header="Prod. [kg]" Binding="{Binding WagaProdukcjaTuszka, StringFormat={}{0:N0}}" Width="75">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -3572,7 +3539,7 @@
                                     </DataGridTextColumn>
 
                                     <!-- Różn. szt. Zdat.-Prod. -->
-                                    <DataGridTextColumn Header="Różn. Prod." Binding="{Binding RoznicaSztukZdatneProd, StringFormat={}{0:N0}}" Width="75">
+                                    <DataGridTextColumn Header="Różn.1 [szt]" Binding="{Binding RoznicaSztukZdatneProd, StringFormat={}{0:N0}}" Width="80">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -3588,7 +3555,7 @@
                                     </DataGridTextColumn>
 
                                     <!-- Różn. szt. Zdat.-Zadekl. -->
-                                    <DataGridTextColumn Header="Różn. Zadekl." Binding="{Binding RoznicaSztukZdatneZadekl, StringFormat={}{0:N0}}" Width="80">
+                                    <DataGridTextColumn Header="Różn.2 [szt]" Binding="{Binding RoznicaSztukZdatneZadekl, StringFormat={}{0:N0}}" Width="80">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
