@@ -23,6 +23,14 @@ using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
+// Aliasy dla rozwiązania konfliktu System.Drawing vs System.Windows.Media
+using Color = System.Windows.Media.Color;
+using ColorConverter = System.Windows.Media.ColorConverter;
+using Brushes = System.Windows.Media.Brushes;
+using FontFamily = System.Windows.Media.FontFamily;
+using Point = System.Windows.Point;
+using Image = System.Windows.Controls.Image;
+
 namespace Kalendarz1
 {
     public class Odbiorca
