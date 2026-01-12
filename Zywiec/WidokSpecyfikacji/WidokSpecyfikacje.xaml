@@ -2066,42 +2066,45 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="100" IsReadOnly="True">
+                                <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="85" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="VerticalAlignment" Value="Center"/>
-                                            <Setter Property="TextWrapping" Value="Wrap"/>
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
                                             <Setter Property="Padding" Value="2,0"/>
+                                            <Setter Property="FontSize" Value="10"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="Kierowca" Binding="{Binding Kierowca, Mode=TwoWay}" Width="100">
+                                <DataGridTextColumn Header="Kierowca" Binding="{Binding Kierowca, Mode=TwoWay}" Width="80">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="VerticalAlignment" Value="Center"/>
-                                            <Setter Property="TextWrapping" Value="Wrap"/>
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
                                             <Setter Property="Padding" Value="2,0"/>
+                                            <Setter Property="FontSize" Value="10"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="Auto" Binding="{Binding Samochod, Mode=TwoWay}" Width="70">
+                                <DataGridTextColumn Header="Auto" Binding="{Binding Samochod, Mode=TwoWay}" Width="60">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="VerticalAlignment" Value="Center"/>
                                             <Setter Property="HorizontalAlignment" Value="Center"/>
                                             <Setter Property="FontWeight" Value="SemiBold"/>
+                                            <Setter Property="FontSize" Value="9"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="Nr rej." Binding="{Binding NrRejestracyjny, Mode=TwoWay}" Width="80">
+                                <DataGridTextColumn Header="Nr rej." Binding="{Binding NrRejestracyjny, Mode=TwoWay}" Width="70">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="VerticalAlignment" Value="Center"/>
                                             <Setter Property="HorizontalAlignment" Value="Center"/>
-                                            <Setter Property="FontSize" Value="9"/>
+                                            <Setter Property="FontSize" Value="8"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
@@ -2335,7 +2338,7 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="% wylicz." Binding="{Binding ProcentRoznicy, StringFormat={}{0:F2}%}" Width="60" IsReadOnly="True" ToolTipService.ToolTip="Procent wyliczony (roznica/netto hodowcy)">
+                                <DataGridTextColumn Header="Ubytek Wylicz." Binding="{Binding ProcentRoznicy, StringFormat={}{0:F2}%}" Width="75" IsReadOnly="True" ToolTipService.ToolTip="Ubytek wyliczony (roznica/netto hodowcy)">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -2345,7 +2348,7 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="Ubytek %" Binding="{Binding UbytekUmowny, StringFormat={}{0:F2}%}" Width="60" IsReadOnly="True" ToolTipService.ToolTip="Ubytek umowny z karty Specyfikacje">
+                                <DataGridTextColumn Header="Ubytek Ustal." Binding="{Binding UbytekUmowny, StringFormat={}{0:F2}%}" Width="75" IsReadOnly="True" ToolTipService.ToolTip="Ubytek ustalony z karty Specyfikacje">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -2355,15 +2358,100 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="Rozn. %" Binding="{Binding RoznicaProcentow, StringFormat={}{0:F2}%}" Width="58" IsReadOnly="True" ToolTipService.ToolTip="Roznica miedzy % wyliczonym a ubytkiem umownym">
+                                <!-- Różnica % z kolorowaniem: czerwony minus, zielony plus -->
+                                <DataGridTemplateColumn Header="Różn. %" Width="60" IsReadOnly="True" SortMemberPath="RoznicaProcentow" ToolTipService.ToolTip="Roznica miedzy ubytkiem wyliczonym a ustalonym">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Padding="2,0" CornerRadius="3" Margin="1">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="Transparent"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsRoznicaUjemna}" Value="True">
+                                                                <Setter Property="Background" Value="#E53935"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding IsRoznicaDodatnia}" Value="True">
+                                                                <Setter Property="Background" Value="#43A047"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="{Binding RoznicaProcentow, StringFormat={}{0:F2}%}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#E65100"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsRoznicaUjemna}" Value="True">
+                                                                    <Setter Property="Foreground" Value="White"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding IsRoznicaDodatnia}" Value="True">
+                                                                    <Setter Property="Foreground" Value="Black"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- Zysk/Strata w zł (różnica * cena) -->
+                                <DataGridTemplateColumn Header="Zysk/Strata" Width="75" IsReadOnly="True" SortMemberPath="ZyskStrata" ToolTipService.ToolTip="Zysk lub strata w zł (różnica kg * cena)">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Padding="2,0" CornerRadius="3" Margin="1">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="Transparent"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsZyskUjemny}" Value="True">
+                                                                <Setter Property="Background" Value="#E53935"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding IsZyskDodatni}" Value="True">
+                                                                <Setter Property="Background" Value="#43A047"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="{Binding ZyskStrata, StringFormat={}{0:F0} zł}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="Black"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsZyskUjemny}" Value="True">
+                                                                    <Setter Property="Foreground" Value="White"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding IsZyskDodatni}" Value="True">
+                                                                    <Setter Property="Foreground" Value="Black"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- Kopia kolumny Dostawca na końcu -->
+                                <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="90" IsReadOnly="True">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="VerticalAlignment" Value="Center"/>
-                                            <Setter Property="HorizontalAlignment" Value="Center"/>
-                                            <Setter Property="FontWeight" Value="Bold"/>
-                                            <Setter Property="Foreground" Value="#E65100"/>
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                            <Setter Property="Padding" Value="2,0"/>
+                                            <Setter Property="Background" Value="#E8F5E9"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
+                                    <DataGridTextColumn.CellStyle>
+                                        <Style TargetType="DataGridCell">
+                                            <Setter Property="Background" Value="#E8F5E9"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                        </Style>
+                                    </DataGridTextColumn.CellStyle>
                                 </DataGridTextColumn>
 
                             </DataGrid.Columns>
@@ -2728,6 +2816,24 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
+
+                                <!-- Kopia kolumny Dostawca na końcu -->
+                                <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="100" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                            <Setter Property="Padding" Value="3,0"/>
+                                            <Setter Property="Background" Value="#E8F5E9"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                    <DataGridTextColumn.CellStyle>
+                                        <Style TargetType="DataGridCell">
+                                            <Setter Property="Background" Value="#E8F5E9"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                        </Style>
+                                    </DataGridTextColumn.CellStyle>
+                                </DataGridTextColumn>
                             </DataGrid.Columns>
                         </DataGrid>
 
@@ -3059,6 +3165,16 @@
                                             <Setter Property="Background" Value="#E0F2F1"/>
                                         </Style>
                                     </DataGridTextColumn.EditingElementStyle>
+                                </DataGridTextColumn>
+
+                                <!-- Dostawca (kopia) -->
+                                <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="85" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource NormalStyle}">
+                                            <Setter Property="Foreground" Value="#2E86C1"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
                             </DataGrid.Columns>
@@ -3478,6 +3594,18 @@
                                                         <Setter Property="FontWeight" Value="Bold"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+
+                                    <!-- Dostawca (kopia) -->
+                                    <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="85">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Left"/>
+                                                <Setter Property="Foreground" Value="#2E86C1"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                <Setter Property="Padding" Value="8,0"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>

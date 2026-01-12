@@ -11851,6 +11851,31 @@ namespace Kalendarz1
         /// </summary>
         public decimal RoznicaProcentow => ProcentRoznicy - UbytekUmowny;
 
+        /// <summary>
+        /// Czy różnica procentów jest ujemna (strata)
+        /// </summary>
+        public bool IsRoznicaUjemna => RoznicaProcentow < 0;
+
+        /// <summary>
+        /// Czy różnica procentów jest dodatnia (zysk)
+        /// </summary>
+        public bool IsRoznicaDodatnia => RoznicaProcentow > 0;
+
+        /// <summary>
+        /// Zysk/Strata w zł = Różnica kg * Cena
+        /// </summary>
+        public decimal ZyskStrata => RoznicaWag * Cena;
+
+        /// <summary>
+        /// Czy zysk/strata jest ujemna
+        /// </summary>
+        public bool IsZyskUjemny => ZyskStrata < 0;
+
+        /// <summary>
+        /// Czy zysk/strata jest dodatnia
+        /// </summary>
+        public bool IsZyskDodatni => ZyskStrata > 0;
+
         // Liczba skrzynek (z FarmerCalc)
         private int _skrzynki;
         public int Skrzynki
