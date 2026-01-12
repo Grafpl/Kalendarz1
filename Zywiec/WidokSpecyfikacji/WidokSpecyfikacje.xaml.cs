@@ -1043,7 +1043,10 @@ namespace Kalendarz1
                     // Wagi i ubytek
                     NettoHodowcy = spec.NettoHodowcyValue,
                     NettoUbojni = spec.NettoUbojniValue,
-                    UbytekUmowny = spec.Ubytek
+                    UbytekUmowny = spec.Ubytek,
+                    // Cena i dopłata (do obliczenia Zysk/Strata)
+                    Cena = spec.Cena,
+                    Doplata = spec.Dodatek
                 };
 
                 transportData.Add(transportRow);
@@ -11861,10 +11864,46 @@ namespace Kalendarz1
         /// </summary>
         public bool IsRoznicaDodatnia => RoznicaProcentow > 0;
 
+        // === CENA I DOPŁATA ===
+        private decimal _cena;
+        private decimal _doplata;
+
         /// <summary>
-        /// Zysk/Strata w zł = Różnica kg * Cena
+        /// Cena z bazy danych (Price)
         /// </summary>
-        public decimal ZyskStrata => RoznicaWag * Cena;
+        public decimal Cena
+        {
+            get => _cena;
+            set
+            {
+                _cena = value;
+                OnPropertyChanged(nameof(Cena));
+                OnPropertyChanged(nameof(ZyskStrata));
+                OnPropertyChanged(nameof(IsZyskUjemny));
+                OnPropertyChanged(nameof(IsZyskDodatni));
+            }
+        }
+
+        /// <summary>
+        /// Dopłata z bazy danych (Addition)
+        /// </summary>
+        public decimal Doplata
+        {
+            get => _doplata;
+            set
+            {
+                _doplata = value;
+                OnPropertyChanged(nameof(Doplata));
+                OnPropertyChanged(nameof(ZyskStrata));
+                OnPropertyChanged(nameof(IsZyskUjemny));
+                OnPropertyChanged(nameof(IsZyskDodatni));
+            }
+        }
+
+        /// <summary>
+        /// Zysk/Strata w zł = Różnica kg * (Cena + Dopłata)
+        /// </summary>
+        public decimal ZyskStrata => RoznicaWag * (Cena + Doplata);
 
         /// <summary>
         /// Czy zysk/strata jest ujemna
