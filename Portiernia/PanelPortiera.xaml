@@ -430,6 +430,7 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
@@ -535,6 +536,16 @@
                         </RadioButton>
                     </StackPanel>
 
+                    <!-- Status drukarki -->
+                    <Border Grid.Column="5" Background="#1A1A24" CornerRadius="8" Padding="10,5" Margin="10,0" 
+                            VerticalAlignment="Center" HorizontalAlignment="Left">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="lblPrinterIcon" Text="🖨️" FontSize="18" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBlock x:Name="lblPrinterStatus" Text="" FontSize="12" Foreground="#888" 
+                                       VerticalAlignment="Center" MaxWidth="200" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                    </Border>
+
                     <!-- Przycisk odśwież -->
                     <Button Grid.Column="6" Click="BtnRefresh_Click" Background="Transparent" BorderThickness="0" 
                             Margin="10,0" Width="50" Height="50" Cursor="Hand">
@@ -542,7 +553,7 @@
                     </Button>
 
                     <!-- Zegar -->
-                    <Border Grid.Column="7" Background="Black" CornerRadius="10" Padding="16,0" Height="50" 
+                    <Border Grid.Column="8" Background="Black" CornerRadius="10" Padding="16,0" Height="50" 
                             BorderBrush="#FFA726" BorderThickness="2">
                         <TextBlock x:Name="lblTime" Text="12:00" FontSize="26" FontWeight="Black" 
                                    Foreground="#FFA726" VerticalAlignment="Center"/>

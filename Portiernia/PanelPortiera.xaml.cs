@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Drawing;
+using System.Drawing.Printing;
 using System.Globalization;
 using System.IO;
 using System.IO.Ports;
@@ -54,11 +56,11 @@ namespace Kalendarz1
         private int originalBrutto = 0;
         private int originalTara = 0;
         private string aktualnyTowar = "KREW";
-
+        
         // Zmienne do przechowywania aktualnie wpisywanych wartości (niezależne od bazy)
         private int wpisywaneBrutto = 0;
         private int wpisywaneTara = 0;
-
+        
         // Flagi do śledzenia czy pierwsza cyfra przy edycji (ma wyzerować wyświetlacz)
         private bool czekaNaPierwszaCyfreBrutto = false;
         private bool czekaNaPierwszaCyfreTara = false;
@@ -285,10 +287,10 @@ namespace Kalendarz1
         private void AddDigitToWeight(string digit)
         {
             TextBlock target = (aktywnePole == AktywnePole.Brutto) ? txtBrutto : txtTara;
-
+            
             // Sprawdź czy czeka na pierwszą cyfrę (edycja istniejącego wpisu)
             bool czyZerowac = (aktywnePole == AktywnePole.Brutto) ? czekaNaPierwszaCyfreBrutto : czekaNaPierwszaCyfreTara;
-
+            
             if (czyZerowac)
             {
                 target.Text = "";
@@ -301,15 +303,15 @@ namespace Kalendarz1
             {
                 target.Text = "";
             }
-
+            
             if (target.Text.Length < 6) target.Text += digit;
-
+            
             // Aktualizuj odpowiednią zmienną wpisywaną
             if (aktywnePole == AktywnePole.Brutto)
                 int.TryParse(txtBrutto.Text, out wpisywaneBrutto);
             else
                 int.TryParse(txtTara.Text, out wpisywaneTara);
-
+            
             UpdateBigDisplay();
         }
 
@@ -318,7 +320,7 @@ namespace Kalendarz1
             TextBlock target = (aktywnePole == AktywnePole.Brutto) ? txtBrutto : txtTara;
             if (target.Text.Length > 0) target.Text = target.Text.Substring(0, target.Text.Length - 1);
             if (string.IsNullOrEmpty(target.Text)) target.Text = "0";
-
+            
             // Wyłącz flagę jeśli użyto backspace
             if (aktywnePole == AktywnePole.Brutto)
             {
@@ -330,7 +332,7 @@ namespace Kalendarz1
                 czekaNaPierwszaCyfreTara = false;
                 int.TryParse(txtTara.Text, out wpisywaneTara);
             }
-
+            
             UpdateBigDisplay();
         }
 
@@ -338,7 +340,7 @@ namespace Kalendarz1
         {
             TextBlock target = (aktywnePole == AktywnePole.Brutto) ? txtBrutto : txtTara;
             target.Text = "0";
-
+            
             // Wyłącz flagę i wyczyść zmienną
             if (aktywnePole == AktywnePole.Brutto)
             {
@@ -350,7 +352,7 @@ namespace Kalendarz1
                 czekaNaPierwszaCyfreTara = false;
                 wpisywaneTara = 0;
             }
-
+            
             UpdateBigDisplay();
         }
 
@@ -361,7 +363,7 @@ namespace Kalendarz1
                 int.TryParse(txtBrutto.Text, out wpisywaneBrutto);
             else
                 int.TryParse(txtTara.Text, out wpisywaneTara);
-
+            
             // Przełącz
             if (radioBrutto.IsChecked == true)
             {
@@ -434,7 +436,7 @@ namespace Kalendarz1
             var jasta = ListaOdbiorcow.FirstOrDefault(x => x.Nazwa == "Jasta");
             if (jasta != null)
                 cbOdbiorcy.SelectedItem = jasta;
-            else if (ListaOdbiorcow.Count > 0)
+            else if (ListaOdbiorcow.Count > 0) 
                 cbOdbiorcy.SelectedIndex = 0;
         }
 
@@ -872,11 +874,11 @@ namespace Kalendarz1
             WybranaDostwa = dostawa;
             originalBrutto = dostawa.Brutto;
             originalTara = dostawa.Tara;
-
+            
             // Inicjalizuj zmienne wpisywane wartościami z bazy
             wpisywaneBrutto = dostawa.Brutto;
             wpisywaneTara = dostawa.Tara;
-
+            
             // Ustaw flagi - jeśli jest wartość, pierwsza cyfra ma wyzerować
             czekaNaPierwszaCyfreBrutto = (dostawa.Brutto > 0);
             czekaNaPierwszaCyfreTara = (dostawa.Tara > 0);
@@ -950,11 +952,11 @@ namespace Kalendarz1
             WybranaDostwa = null;
             originalBrutto = 0;
             originalTara = 0;
-
+            
             // Wyczyść zmienne wpisywane
             wpisywaneBrutto = 0;
             wpisywaneTara = 0;
-
+            
             // Wyczyść flagi
             czekaNaPierwszaCyfreBrutto = false;
             czekaNaPierwszaCyfreTara = false;
@@ -1002,10 +1004,10 @@ namespace Kalendarz1
             {
                 int.TryParse(txtTara.Text, out wpisywaneTara);
             }
-
+            
             // Przełącz aktywne pole
             aktywnePole = (radioBrutto.IsChecked == true) ? AktywnePole.Brutto : AktywnePole.Tara;
-
+            
             // Pokaż wartość dla nowo wybranego pola
             if (aktywnePole == AktywnePole.Brutto)
             {
@@ -1015,7 +1017,7 @@ namespace Kalendarz1
             {
                 txtTara.Text = wpisywaneTara.ToString();
             }
-
+            
             UpdateBigDisplay();
         }
 
@@ -1042,10 +1044,10 @@ namespace Kalendarz1
             if (sender is Button btn)
             {
                 TextBlock target = (aktywnePole == AktywnePole.Brutto) ? txtBrutto : txtTara;
-
+                
                 // Sprawdź czy czeka na pierwszą cyfrę (edycja istniejącego wpisu)
                 bool czyZerowac = (aktywnePole == AktywnePole.Brutto) ? czekaNaPierwszaCyfreBrutto : czekaNaPierwszaCyfreTara;
-
+                
                 if (czyZerowac)
                 {
                     // Zeruj wyświetlacz i wyłącz flagę
@@ -1059,15 +1061,15 @@ namespace Kalendarz1
                 {
                     target.Text = "";
                 }
-
+                
                 if (target.Text.Length < 6) target.Text += btn.Content.ToString();
-
+                
                 // Aktualizuj odpowiednią zmienną wpisywaną
                 if (aktywnePole == AktywnePole.Brutto)
                     int.TryParse(txtBrutto.Text, out wpisywaneBrutto);
                 else
                     int.TryParse(txtTara.Text, out wpisywaneTara);
-
+                
                 UpdateBigDisplay();
             }
         }
@@ -1076,10 +1078,10 @@ namespace Kalendarz1
         {
             // Blokuj gdy nie ma zaznaczenia
             if (WybranaDostwa == null) return;
-
+            
             TextBlock target = (aktywnePole == AktywnePole.Brutto) ? txtBrutto : txtTara;
             target.Text = "0";
-
+            
             // Wyczyść odpowiednią zmienną wpisywaną i wyłącz flagę
             if (aktywnePole == AktywnePole.Brutto)
             {
@@ -1091,7 +1093,7 @@ namespace Kalendarz1
                 czekaNaPierwszaCyfreTara = false;
                 wpisywaneTara = 0;
             }
-
+            
             UpdateBigDisplay();
         }
 
@@ -1099,11 +1101,11 @@ namespace Kalendarz1
         {
             // Blokuj gdy nie ma zaznaczenia
             if (WybranaDostwa == null) return;
-
+            
             TextBlock target = (aktywnePole == AktywnePole.Brutto) ? txtBrutto : txtTara;
             if (target.Text.Length > 0) target.Text = target.Text.Substring(0, target.Text.Length - 1);
             if (string.IsNullOrEmpty(target.Text)) target.Text = "0";
-
+            
             // Wyłącz flagę i aktualizuj zmienną
             if (aktywnePole == AktywnePole.Brutto)
             {
@@ -1115,7 +1117,7 @@ namespace Kalendarz1
                 czekaNaPierwszaCyfreTara = false;
                 int.TryParse(txtTara.Text, out wpisywaneTara);
             }
-
+            
             UpdateBigDisplay();
         }
 
@@ -1152,6 +1154,25 @@ namespace Kalendarz1
                 PlaySound(true);
                 if (selectedCardBorder != null)
                     AnimateSuccess(selectedCardBorder);
+
+                // Drukuj paragon
+                string typ = (tara > 0 && brutto == 0) ? "TARA" : (brutto > 0 ? "BRUTTO" : "");
+                if (!string.IsNullOrEmpty(typ))
+                {
+                    if (aktualnyTryb == "Avilog")
+                    {
+                        string rej = $"{WybranaDostwa?.CarID} {WybranaDostwa?.TrailerID}";
+                        int netto = (brutto > 0 && tara > 0) ? (brutto - tara) : 0;
+                        PrintReceipt(rej, "ŻYWIEC", WybranaDostwa?.HodowcaNazwa ?? "", brutto, tara, netto, typ);
+                    }
+                    else
+                    {
+                        string rej = txtEditRejestracja.Text.Trim();
+                        string odbNazwa = (cbOdbiorcy.SelectedItem is Odbiorca o) ? o.Nazwa : "";
+                        int netto = (brutto > 0 && tara > 0) ? (brutto - tara) : 0;
+                        PrintReceipt(rej, aktualnyTowar, odbNazwa, brutto, tara, netto, typ);
+                    }
+                }
             }
             else
             {
@@ -1167,13 +1188,13 @@ namespace Kalendarz1
             int netto = (brutto > 0 && tara > 0) ? (brutto - tara) : 0;
             int prevB = originalBrutto;
             int prevT = originalTara;
-
+            
             string rejestracja = $"{WybranaDostwa?.CarID}_{WybranaDostwa?.TrailerID}";
             long dostawaId = WybranaDostwa.ID;
-
+            
             Debug.WriteLine($"[ZAPIS AVILOG] ID={dostawaId}, Rej={rejestracja}");
             Debug.WriteLine($"[ZAPIS AVILOG] Tara={tara} (prev={prevT}), Brutto={brutto} (prev={prevB})");
-
+            
             // Zapisz zdjęcia w tle - ZAWSZE gdy wartość > 0 (nadpisuje poprzednie)
             if (tara > 0)
             {
@@ -1197,7 +1218,7 @@ namespace Kalendarz1
                     }
                 });
             }
-
+            
             if (brutto > 0)
             {
                 Debug.WriteLine($"[ZAPIS AVILOG] Robię zdjęcie BRUTTO...");
@@ -1261,7 +1282,7 @@ namespace Kalendarz1
             int prevT = WybranaDostwa?.Tara ?? 0;
             string towar = aktualnyTowar;
             long dostawaId = WybranaDostwa?.ID ?? 0;
-
+            
             Debug.WriteLine($"[ZAPIS ODPADY] ID={dostawaId}, Rej={rejestracja}, Towar={towar}");
             Debug.WriteLine($"[ZAPIS ODPADY] Tara={tara} (prev={prevT}), Brutto={brutto} (prev={prevB})");
 
@@ -1281,7 +1302,7 @@ namespace Kalendarz1
                                       GodzinaTara = CASE WHEN @T > 0 AND (@PrevT = 0 OR @T <> @PrevT) THEN GETDATE() ELSE GodzinaTara END,
                                       GodzinaBrutto = CASE WHEN @B > 0 AND (@PrevB = 0 OR @B <> @PrevB) THEN GETDATE() ELSE GodzinaBrutto END
                                   WHERE ID=@ID";
-
+                        
                         using (var cmd = new SqlCommand(query, conn))
                         {
                             cmd.Parameters.AddWithValue("@B", brutto);
@@ -1305,7 +1326,7 @@ namespace Kalendarz1
                                           CASE WHEN @T > 0 THEN GETDATE() ELSE NULL END,
                                           CASE WHEN @B > 0 THEN GETDATE() ELSE NULL END);
                                   SELECT SCOPE_IDENTITY();";
-
+                        
                         using (var cmd = new SqlCommand(query, conn))
                         {
                             cmd.Parameters.AddWithValue("@B", brutto);
@@ -1315,15 +1336,15 @@ namespace Kalendarz1
                             cmd.Parameters.AddWithValue("@Towar", towar);
                             cmd.Parameters.AddWithValue("@Odbiorca", odbiorca);
                             cmd.Parameters.AddWithValue("@Status", status);
-
+                            
                             var result = cmd.ExecuteScalar();
                             if (result != null && result != DBNull.Value)
                                 insertedId = Convert.ToInt64(result);
-
+                            
                             Debug.WriteLine($"[ZAPIS ODPADY] Nowy ID po INSERT: {insertedId}");
                         }
                     }
-
+                    
                     // Zapisz zdjęcia w tle - ZAWSZE gdy wartość > 0 (nadpisuje poprzednie)
                     if (tara > 0 && insertedId > 0)
                     {
@@ -1346,7 +1367,7 @@ namespace Kalendarz1
                             }
                         });
                     }
-
+                    
                     if (brutto > 0 && insertedId > 0)
                     {
                         Debug.WriteLine($"[ZAPIS ODPADY] Robię zdjęcie BRUTTO...");
@@ -1377,7 +1398,7 @@ namespace Kalendarz1
                 return false;
             }
         }
-
+        
         /// <summary>
         /// Aktualizuje ścieżkę zdjęcia w bazie (wywoływane asynchronicznie w tle)
         /// </summary>
@@ -1636,7 +1657,7 @@ namespace Kalendarz1
             {
                 var availablePorts = SerialPort.GetPortNames();
                 System.Diagnostics.Debug.WriteLine($"[WAGA] Dostępne porty: {string.Join(", ", availablePorts)}");
-
+                
                 if (!availablePorts.Contains(portName))
                 {
                     System.Diagnostics.Debug.WriteLine($"[WAGA] Port {portName} nie znaleziony!");
@@ -1651,7 +1672,7 @@ namespace Kalendarz1
                 serialPort.Handshake = Handshake.None;
                 serialPort.DtrEnable = true;
                 serialPort.RtsEnable = true;
-
+                
                 serialPort.DataReceived += (s, e) =>
                 {
                     try
@@ -1659,20 +1680,20 @@ namespace Kalendarz1
                         System.Threading.Thread.Sleep(100); // Poczekaj na pełne dane
                         string data = serialPort.ReadExisting();
                         System.Diagnostics.Debug.WriteLine($"[WAGA] Odebrano RAW: '{data}' (hex: {BitConverter.ToString(System.Text.Encoding.ASCII.GetBytes(data))})");
-
+                        
                         Dispatcher.Invoke(() =>
                         {
                             // Parsuj wagę - szukaj liczby (może być ze spacjami, znakiem, jednostką)
                             // Formaty RHEWA: "+  12345 kg", "12345", "  12345  ", "S +    12345 kg"
                             var cleanData = data.Replace("kg", "").Replace("KG", "").Replace("+", "").Replace("-", "").Trim();
                             var match = Regex.Match(cleanData, @"(\d+)");
-
+                            
                             if (match.Success && int.TryParse(match.Groups[1].Value, out int weight))
                             {
                                 System.Diagnostics.Debug.WriteLine($"[WAGA] Parsowana waga: {weight} kg");
                                 TextBlock target = (aktywnePole == AktywnePole.Brutto) ? txtBrutto : txtTara;
                                 target.Text = weight.ToString();
-
+                                
                                 // Aktualizuj zmienne
                                 if (aktywnePole == AktywnePole.Brutto)
                                 {
@@ -1684,7 +1705,7 @@ namespace Kalendarz1
                                     wpisywaneTara = weight;
                                     czekaNaPierwszaCyfreTara = false;
                                 }
-
+                                
                                 UpdateBigDisplay();
                                 ledStabilnosc.Fill = Brushes.LimeGreen;
                             }
@@ -1699,7 +1720,7 @@ namespace Kalendarz1
                         System.Diagnostics.Debug.WriteLine($"[WAGA] Błąd odczytu: {ex.Message}");
                     }
                 };
-
+                
                 serialPort.Open();
                 ledStabilnosc.Fill = Brushes.Green;
                 System.Diagnostics.Debug.WriteLine($"[WAGA] Połączono z {portName}");
@@ -1719,32 +1740,32 @@ namespace Kalendarz1
                 MessageBox.Show("Najpierw wybierz dostawę z listy.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
-
+            
             // Sprawdź dostępne porty COM
             var availablePorts = SerialPort.GetPortNames();
             if (availablePorts.Length == 0)
             {
                 ledStabilnosc.Fill = Brushes.Red;
-                MessageBox.Show("Nie wykryto żadnego portu COM.\n\nSprawdź:\n• Czy kabel RS232/USB jest podłączony\n• Czy sterowniki są zainstalowane",
+                MessageBox.Show("Nie wykryto żadnego portu COM.\n\nSprawdź:\n• Czy kabel RS232/USB jest podłączony\n• Czy sterowniki są zainstalowane", 
                     "Brak portu COM", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-
+            
             // Jeśli port nie istnieje - próbuj połączyć
             if (serialPort == null)
             {
                 string portToUse = availablePorts.Contains("COM1") ? "COM1" : availablePorts[0];
                 ConnectToScale(portToUse, 9600);
-
+                
                 if (serialPort == null || !serialPort.IsOpen)
                 {
                     ledStabilnosc.Fill = Brushes.Red;
-                    MessageBox.Show($"Nie można połączyć z wagą.\n\nDostępne porty: {string.Join(", ", availablePorts)}\n\nSprawdź:\n• Czy waga jest włączona\n• Czy kabel jest podłączony\n• Numer portu COM w Menedżerze urządzeń",
+                    MessageBox.Show($"Nie można połączyć z wagą.\n\nDostępne porty: {string.Join(", ", availablePorts)}\n\nSprawdź:\n• Czy waga jest włączona\n• Czy kabel jest podłączony\n• Numer portu COM w Menedżerze urządzeń", 
                         "Błąd połączenia", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
             }
-
+            
             // Jeśli port zamknięty - otwórz
             if (!serialPort.IsOpen)
             {
@@ -1756,31 +1777,31 @@ namespace Kalendarz1
                 catch (UnauthorizedAccessException)
                 {
                     ledStabilnosc.Fill = Brushes.Red;
-                    MessageBox.Show($"Port {serialPort.PortName} jest używany przez inny program.\n\nZamknij inne programy korzystające z wagi.",
+                    MessageBox.Show($"Port {serialPort.PortName} jest używany przez inny program.\n\nZamknij inne programy korzystające z wagi.", 
                         "Port zajęty", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
                 catch (Exception ex)
                 {
                     ledStabilnosc.Fill = Brushes.Red;
-                    MessageBox.Show($"Nie można otworzyć portu {serialPort.PortName}:\n{ex.Message}",
+                    MessageBox.Show($"Nie można otworzyć portu {serialPort.PortName}:\n{ex.Message}", 
                         "Błąd połączenia", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
             }
-
+            
             // Wyślij komendę odczytu
             try
             {
                 ledStabilnosc.Fill = Brushes.Yellow;
                 serialPort.DiscardInBuffer();
                 serialPort.DiscardOutBuffer();
-
+                
                 // RHEWA 82c - próbujemy różne komendy
                 // ENQ (ASCII 5) - standardowa komenda żądania odczytu
                 serialPort.Write(new byte[] { 0x05 }, 0, 1); // ENQ
                 System.Diagnostics.Debug.WriteLine("[WAGA] Wysłano ENQ (0x05)");
-
+                
                 // Timer sprawdzający czy przyszła odpowiedź
                 var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
                 timer.Tick += (s, args) =>
@@ -1789,7 +1810,7 @@ namespace Kalendarz1
                     if (ledStabilnosc.Fill == Brushes.Yellow) // Nadal czeka - brak odpowiedzi
                     {
                         ledStabilnosc.Fill = Brushes.Red;
-                        MessageBox.Show("Waga nie odpowiada.\n\nSprawdź:\n• Czy waga jest włączona i stabilna\n• Czy ładunek jest na wadze\n• Ustawienia komunikacji wagi (9600 baud, 8N1)",
+                        MessageBox.Show("Waga nie odpowiada.\n\nSprawdź:\n• Czy waga jest włączona i stabilna\n• Czy ładunek jest na wadze\n• Ustawienia komunikacji wagi (9600 baud, 8N1)", 
                             "Brak odpowiedzi", MessageBoxButton.OK, MessageBoxImage.Warning);
                     }
                 };
@@ -1798,7 +1819,7 @@ namespace Kalendarz1
             catch (Exception ex)
             {
                 ledStabilnosc.Fill = Brushes.Red;
-                MessageBox.Show($"Błąd wysyłania komendy do wagi:\n{ex.Message}",
+                MessageBox.Show($"Błąd wysyłania komendy do wagi:\n{ex.Message}", 
                     "Błąd komunikacji", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
@@ -1847,7 +1868,7 @@ namespace Kalendarz1
         private const string CAMERA_PASS = "terePacja12$";
         private DispatcherTimer cameraTimer;
         private bool cameraActive = false;
-
+        
         // Zoom i przesuwanie kamery
         private double currentZoom = 1.0;
         private Point cameraDragStart;
@@ -1857,14 +1878,14 @@ namespace Kalendarz1
         {
             // Normalny tryb - nie wpisuj do TextBox
             cameraScanToTextBoxMode = false;
-
+            
             CameraOverlay.Visibility = Visibility.Visible;
             cameraStatus.Text = "Łączenie z kamerą...";
             cameraImage.Source = null;
-
+            
             // Reset zoom przy otwarciu
             ResetCameraZoom();
-
+            
             StartCameraStream();
         }
 
@@ -1890,9 +1911,9 @@ namespace Kalendarz1
         {
             e.Handled = true; // Nie zamykaj gdy kliknięto w panel
         }
-
+        
         #region ZOOM KAMERY
-
+        
         private void ResetCameraZoom()
         {
             currentZoom = 1.0;
@@ -1902,73 +1923,73 @@ namespace Kalendarz1
             cameraTranslate.Y = 0;
             UpdateZoomLabel();
         }
-
+        
         private void UpdateZoomLabel()
         {
             if (txtZoomLevel != null)
                 txtZoomLevel.Text = $"{(int)(currentZoom * 100)}%";
         }
-
+        
         private void SetZoom(double zoom)
         {
             currentZoom = Math.Max(0.25, Math.Min(8.0, zoom)); // Min 25%, Max 800%
             cameraScale.ScaleX = currentZoom;
             cameraScale.ScaleY = currentZoom;
-
+            
             // Jeśli zoom < 1, wycentruj
             if (currentZoom <= 1.0)
             {
                 cameraTranslate.X = 0;
                 cameraTranslate.Y = 0;
             }
-
+            
             UpdateZoomLabel();
         }
-
+        
         private void CameraZoomIn_Click(object sender, RoutedEventArgs e)
         {
             SetZoom(currentZoom * 1.25);
         }
-
+        
         private void CameraZoomOut_Click(object sender, RoutedEventArgs e)
         {
             SetZoom(currentZoom / 1.25);
         }
-
+        
         private void CameraZoomReset_Click(object sender, RoutedEventArgs e)
         {
             ResetCameraZoom();
         }
-
+        
         private void CameraZoom50_Click(object sender, RoutedEventArgs e)
         {
             SetZoom(0.5);
         }
-
+        
         private void CameraZoom100_Click(object sender, RoutedEventArgs e)
         {
             SetZoom(1.0);
             cameraTranslate.X = 0;
             cameraTranslate.Y = 0;
         }
-
+        
         private void CameraZoom200_Click(object sender, RoutedEventArgs e)
         {
             SetZoom(2.0);
         }
-
+        
         private void CameraZoom400_Click(object sender, RoutedEventArgs e)
         {
             SetZoom(4.0);
         }
-
+        
         private void CameraZoom_MouseWheel(object sender, MouseWheelEventArgs e)
         {
             double zoomFactor = e.Delta > 0 ? 1.15 : 1 / 1.15;
             SetZoom(currentZoom * zoomFactor);
             e.Handled = true;
         }
-
+        
         private void CameraImage_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (currentZoom > 1.0)
@@ -1980,7 +2001,7 @@ namespace Kalendarz1
             }
             e.Handled = true;
         }
-
+        
         private void CameraImage_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
             if (isDraggingCamera)
@@ -1991,7 +2012,7 @@ namespace Kalendarz1
             }
             e.Handled = true;
         }
-
+        
         private void CameraImage_MouseMove(object sender, MouseEventArgs e)
         {
             if (isDraggingCamera && currentZoom > 1.0)
@@ -1999,25 +2020,25 @@ namespace Kalendarz1
                 Point currentPos = e.GetPosition(cameraContainer);
                 double deltaX = currentPos.X - cameraDragStart.X;
                 double deltaY = currentPos.Y - cameraDragStart.Y;
-
+                
                 cameraTranslate.X += deltaX;
                 cameraTranslate.Y += deltaY;
-
+                
                 cameraDragStart = currentPos;
             }
         }
-
+        
         #endregion
 
         private void StartCameraStream()
         {
             cameraActive = true;
-
+            
             // Timer do odświeżania obrazu co 200ms (5 FPS)
             cameraTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
             cameraTimer.Tick += async (s, e) => await RefreshCameraImage();
             cameraTimer.Start();
-
+            
             // Pierwsze pobranie od razu
             _ = RefreshCameraImage();
         }
@@ -2049,32 +2070,32 @@ namespace Kalendarz1
                     $"http://{CAMERA_IP}/jpg/image.jpg",
                     $"http://{CAMERA_IP}/onvif-http/snapshot?Profile_1"
                 };
-
+                
                 using (var handler = new HttpClientHandler())
                 {
                     handler.Credentials = new System.Net.NetworkCredential(CAMERA_USER, CAMERA_PASS);
-
+                    
                     using (var client = new HttpClient(handler))
                     {
                         client.Timeout = TimeSpan.FromSeconds(5);
-
+                        
                         foreach (var url in endpoints)
                         {
                             try
                             {
                                 var response = await client.GetAsync(url);
-
+                                
                                 if (response.IsSuccessStatusCode)
                                 {
                                     var imageData = await response.Content.ReadAsByteArrayAsync();
-
+                                    
                                     // Sprawdź czy to rzeczywiście obraz (JPEG zaczyna się od FF D8)
                                     if (imageData.Length > 2 && imageData[0] == 0xFF && imageData[1] == 0xD8)
                                     {
                                         Dispatcher.Invoke(() =>
                                         {
                                             if (!cameraActive) return;
-
+                                            
                                             var bitmap = new BitmapImage();
                                             using (var ms = new MemoryStream(imageData))
                                             {
@@ -2093,7 +2114,7 @@ namespace Kalendarz1
                             }
                             catch { /* Próbuj następny endpoint */ }
                         }
-
+                        
                         // Żaden endpoint nie zadziałał
                         Dispatcher.Invoke(() =>
                         {
@@ -2129,27 +2150,27 @@ namespace Kalendarz1
         private async Task<string> SaveCameraSnapshot(string tryb, string rejestracja, string rodzajWagi, string towar = null)
         {
             Debug.WriteLine($"[SaveCameraSnapshot] START: tryb={tryb}, rej={rejestracja}, rodzaj={rodzajWagi}, towar={towar}");
-
+            
             try
             {
                 // Przygotuj folder z datą
                 string dateFolder = DateTime.Now.ToString("yyyy-MM-dd");
                 string fullFolderPath = Path.Combine(PHOTOS_BASE_PATH, dateFolder);
-
+                
                 Debug.WriteLine($"[SaveCameraSnapshot] Folder: {fullFolderPath}");
-
+                
                 // Utwórz folder jeśli nie istnieje
                 if (!Directory.Exists(fullFolderPath))
                 {
                     Debug.WriteLine($"[SaveCameraSnapshot] Tworzę folder...");
                     Directory.CreateDirectory(fullFolderPath);
                 }
-
+                
                 // Przygotuj nazwę pliku
                 string timeStamp = DateTime.Now.ToString("HH-mm-ss");
                 string safeRejestracja = rejestracja?.Replace(" ", "_").Replace("/", "-").Replace("\\", "-") ?? "BRAK";
                 string fileName;
-
+                
                 if (tryb == "AVILOG")
                 {
                     // AVILOG_06-30-15_WGM12345_BRUTTO.jpg
@@ -2160,14 +2181,14 @@ namespace Kalendarz1
                     // ODPADY_08-15-22_ABC9876_KREW_TARA.jpg
                     fileName = $"ODPADY_{timeStamp}_{safeRejestracja}_{towar}_{rodzajWagi}.jpg";
                 }
-
+                
                 string fullFilePath = Path.Combine(fullFolderPath, fileName);
                 Debug.WriteLine($"[SaveCameraSnapshot] Plik: {fullFilePath}");
-
+                
                 // Pobierz zdjęcie z kamery
                 Debug.WriteLine($"[SaveCameraSnapshot] Pobieram snapshot z kamery...");
                 byte[] imageData = await GetCameraSnapshotBytes();
-
+                
                 if (imageData != null && imageData.Length > 0)
                 {
                     Debug.WriteLine($"[SaveCameraSnapshot] Pobrano {imageData.Length} bajtów, zapisuję...");
@@ -2176,7 +2197,7 @@ namespace Kalendarz1
                     Debug.WriteLine($"[SaveCameraSnapshot] SUKCES: {fullFilePath}");
                     return fullFilePath;
                 }
-
+                
                 Debug.WriteLine($"[SaveCameraSnapshot] BŁĄD: Brak danych z kamery");
                 return null;
             }
@@ -2200,25 +2221,25 @@ namespace Kalendarz1
                 $"http://{CAMERA_IP}/cgi-bin/snapshot.cgi",
                 $"http://{CAMERA_IP}/snap.jpg"
             };
-
+            
             using (var handler = new HttpClientHandler())
             {
                 handler.Credentials = new System.Net.NetworkCredential(CAMERA_USER, CAMERA_PASS);
-
+                
                 using (var client = new HttpClient(handler))
                 {
                     client.Timeout = TimeSpan.FromSeconds(5);
-
+                    
                     foreach (var url in endpoints)
                     {
                         try
                         {
                             var response = await client.GetAsync(url);
-
+                            
                             if (response.IsSuccessStatusCode)
                             {
                                 var imageData = await response.Content.ReadAsByteArrayAsync();
-
+                                
                                 // Sprawdź czy to JPEG
                                 if (imageData.Length > 2 && imageData[0] == 0xFF && imageData[1] == 0xD8)
                                 {
@@ -2230,7 +2251,7 @@ namespace Kalendarz1
                     }
                 }
             }
-
+            
             return null;
         }
 
@@ -2244,13 +2265,13 @@ namespace Kalendarz1
                 MessageBox.Show("Brak zdjęcia dla tego ważenia.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
-
+            
             if (!File.Exists(photoPath))
             {
                 MessageBox.Show($"Plik nie istnieje:\n{photoPath}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-
+            
             try
             {
                 // Otwórz okno ze zdjęciem
@@ -2262,27 +2283,27 @@ namespace Kalendarz1
                     WindowStartupLocation = WindowStartupLocation.CenterScreen,
                     Background = new SolidColorBrush(Color.FromRgb(30, 30, 46))
                 };
-
+                
                 var bitmap = new BitmapImage();
                 bitmap.BeginInit();
                 bitmap.CacheOption = BitmapCacheOption.OnLoad;
                 bitmap.UriSource = new Uri(photoPath);
                 bitmap.EndInit();
-
+                
                 var image = new Image
                 {
                     Source = bitmap,
                     Stretch = Stretch.Uniform,
                     Margin = new Thickness(10)
                 };
-
+                
                 var grid = new Grid();
                 grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
                 grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
+                
                 Grid.SetRow(image, 0);
                 grid.Children.Add(image);
-
+                
                 var infoText = new TextBlock
                 {
                     Text = photoPath,
@@ -2293,7 +2314,7 @@ namespace Kalendarz1
                 };
                 Grid.SetRow(infoText, 1);
                 grid.Children.Add(infoText);
-
+                
                 photoWindow.Content = grid;
                 photoWindow.Show();
             }
@@ -2318,12 +2339,12 @@ namespace Kalendarz1
         public async Task<AlprResult> RecognizePlateFromCamera()
         {
             var result = new AlprResult();
-
+            
             try
             {
                 // 1. Sprawdź czy klucz API jest ustawiony
                 result.Steps.Add("[1] Sprawdzam klucz API...");
-
+                
                 if (string.IsNullOrEmpty(PLATE_RECOGNIZER_API_KEY) || PLATE_RECOGNIZER_API_KEY == "WKLEJ_TUTAJ_SWOJ_API_KEY")
                 {
                     result.Error = "Brak klucza API!\n\n" +
@@ -2339,7 +2360,7 @@ namespace Kalendarz1
                 // 2. Pobierz zdjęcie z kamery
                 result.Steps.Add($"[2] Pobieram zdjęcie z kamery {CAMERA_IP}...");
                 byte[] imageData = await GetCameraSnapshotBytes();
-
+                
                 if (imageData == null || imageData.Length == 0)
                 {
                     result.Error = "Nie udało się pobrać zdjęcia z kamery.\n\nSprawdź:\n• Czy kamera jest włączona\n• Czy IP jest prawidłowe\n• Czy hasło jest poprawne";
@@ -2352,7 +2373,7 @@ namespace Kalendarz1
                 string tempFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "ALPR_Test");
                 if (!Directory.Exists(tempFolder))
                     Directory.CreateDirectory(tempFolder);
-
+                    
                 string tempFile = Path.Combine(tempFolder, $"ALPR_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.jpg");
                 result.Steps.Add($"[3] Zapisuję zdjęcie: {tempFile}");
                 File.WriteAllBytes(tempFile, imageData);
@@ -2361,26 +2382,26 @@ namespace Kalendarz1
 
                 // 4. Wyślij do Plate Recognizer API
                 result.Steps.Add("[4] Wysyłam do Plate Recognizer API...");
-
+                
                 using (var client = new HttpClient())
                 {
                     client.DefaultRequestHeaders.Add("Authorization", $"Token {PLATE_RECOGNIZER_API_KEY}");
                     client.Timeout = TimeSpan.FromSeconds(30);
-
+                    
                     using (var content = new MultipartFormDataContent())
                     {
                         var imageContent = new ByteArrayContent(imageData);
                         imageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/jpeg");
                         content.Add(imageContent, "upload", "image.jpg");
-
+                        
                         // Dodaj region Polski dla lepszej dokładności
                         content.Add(new StringContent("pl"), "regions");
-
+                        
                         result.Steps.Add("   Wysyłam żądanie POST...");
-
+                        
                         var response = await client.PostAsync(PLATE_RECOGNIZER_URL, content);
                         var responseBody = await response.Content.ReadAsStringAsync();
-
+                        
                         result.RawOutput = responseBody;
                         result.Steps.Add($"   Status: {response.StatusCode}");
                         result.Steps.Add($"   Response length: {responseBody.Length} znaków");
@@ -2389,7 +2410,7 @@ namespace Kalendarz1
                         {
                             result.Error = $"Błąd API: {response.StatusCode}\n\n{responseBody}";
                             result.Steps.Add($"   ❌ BŁĄD HTTP: {response.StatusCode}");
-
+                            
                             if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
                             {
                                 result.Error = "Nieprawidłowy klucz API lub wyczerpany limit.\n\n" +
@@ -2402,7 +2423,7 @@ namespace Kalendarz1
                         // 5. Parsuj wynik JSON
                         result.Steps.Add("[5] Parsuję odpowiedź...");
                         result.Steps.Add($"   Pierwsze 500 znaków: {responseBody.Substring(0, Math.Min(500, responseBody.Length))}");
-
+                        
                         var parseResult = ParsePlateRecognizerResult(responseBody);
                         result.Plate = parseResult.plate;
                         result.Confidence = parseResult.confidence;
@@ -2457,7 +2478,7 @@ namespace Kalendarz1
             {
                 // Format: {"results":[{"box":{...},"plate":"ebr4h30","region":{...},"score":0.987,"candidates":[...],"dscore":0.776,...}]}
                 // Uwaga: jest też "score":0.039 w region - to ignorujemy!
-
+                
                 string bestPlate = null;
                 double bestConfidence = 0;
                 int platesFound = 0;
@@ -2487,39 +2508,39 @@ namespace Kalendarz1
                 // Teraz szukaj "score": które jest NA TYM SAMYM POZIOMIE co plate
                 // To znaczy szukamy wzorca: ,"score":X.XXX gdzie X > 0.5
                 // Szukamy od pozycji plate do końca tego obiektu result
-
+                
                 // Znajdź wszystkie "score": i wybierz NAJWYŻSZĄ wartość
                 int searchPos = plateEndQuote;
                 int maxSearch = Math.Min(json.Length, searchPos + 500); // szukaj w następnych 500 znakach
-
+                
                 while (searchPos < maxSearch)
                 {
                     int scoreIdx = json.IndexOf("\"score\"", searchPos);
                     if (scoreIdx == -1 || scoreIdx > maxSearch)
                         break;
-
+                    
                     int scoreColon = json.IndexOf(":", scoreIdx);
                     if (scoreColon == -1)
                         break;
-
+                        
                     int scoreEnd = json.IndexOfAny(new char[] { ',', '}', ']' }, scoreColon + 1);
                     if (scoreEnd == -1)
                         break;
-
+                    
                     string scoreStr = json.Substring(scoreColon + 1, scoreEnd - scoreColon - 1).Trim();
-
+                    
                     if (double.TryParse(scoreStr, System.Globalization.NumberStyles.Any,
                         System.Globalization.CultureInfo.InvariantCulture, out double score))
                     {
                         double scorePercent = score <= 1 ? score * 100 : score;
-
+                        
                         // Bierzemy NAJWYŻSZY score
                         if (scorePercent > bestConfidence)
                         {
                             bestConfidence = scorePercent;
                         }
                     }
-
+                    
                     searchPos = scoreEnd + 1;
                 }
 
@@ -2556,7 +2577,7 @@ namespace Kalendarz1
 
             // Polskie tablice: 2-3 litery + cyfry/litery
             // Np. EBR4H30 -> EBR 4H30, WGM12345 -> WGM 12345
-
+            
             // Znajdź gdzie kończą się litery na początku
             int letterCount = 0;
             foreach (char c in plate)
@@ -2597,13 +2618,13 @@ namespace Kalendarz1
                 sb.AppendLine("═══════════════════════════════════════");
                 sb.AppendLine("   DIAGNOSTYKA - Plate Recognizer");
                 sb.AppendLine("═══════════════════════════════════════\n");
-
+                
                 foreach (var step in Steps)
                     sb.AppendLine(step);
-
+                
                 sb.AppendLine("\n═══════════════════════════════════════");
                 sb.AppendLine($"WYNIK: {(Success ? "✓ SUKCES" : "❌ BŁĄD")}");
-
+                
                 if (Success)
                 {
                     sb.AppendLine($"TABLICA: {Plate}");
@@ -2613,9 +2634,9 @@ namespace Kalendarz1
                 {
                     sb.AppendLine($"\nBŁĄD:\n{Error}");
                 }
-
+                
                 sb.AppendLine("═══════════════════════════════════════");
-
+                
                 return sb.ToString();
             }
         }
@@ -2639,7 +2660,7 @@ namespace Kalendarz1
             catch (Exception ex)
             {
                 PlaySound(false);
-                MessageBox.Show($"Nieoczekiwany błąd:\n\n{ex.Message}\n\n{ex.StackTrace}",
+                MessageBox.Show($"Nieoczekiwany błąd:\n\n{ex.Message}\n\n{ex.StackTrace}", 
                     "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
@@ -2670,7 +2691,7 @@ namespace Kalendarz1
             {
                 dialog.InitialDirectory = alprFolder;
             }
-
+            
             // Sprawdź też folder zdjęć z wagi
             string wagaFolder = @"\\192.168.0.170\Install\WagaSamochodowa";
             if (Directory.Exists(wagaFolder))
@@ -2837,15 +2858,15 @@ namespace Kalendarz1
         {
             // Ustaw tryb skanowania do TextBox
             cameraScanToTextBoxMode = true;
-
+            
             // Otwórz okno kamery
             CameraOverlay.Visibility = Visibility.Visible;
             cameraStatus.Text = "Łączenie z kamerą...";
             cameraImage.Source = null;
-
+            
             // Reset zoom przy otwarciu
             ResetCameraZoom();
-
+            
             StartCameraStream();
         }
 
@@ -2865,12 +2886,12 @@ namespace Kalendarz1
                 {
                     // Znaleziono tablicę
                     PlaySound(true);
-
+                    
                     if (cameraScanToTextBoxMode && txtEditRejestracja != null)
                     {
                         // Tryb skanowania do TextBox - wpisz do pola
                         txtEditRejestracja.Text = result.Plate;
-
+                        
                         MessageBox.Show($"✓ Rozpoznano tablicę:\n\n{result.Plate}\n\nPewność: {result.Confidence:F1}%",
                             "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
                     }
@@ -2901,6 +2922,232 @@ namespace Kalendarz1
         }
 
         #endregion
+
+        #region DRUKOWANIE PARAGONÓW
+
+        // Nazwa drukarki - PICCO lub pierwsza dostępna drukarka POS
+        private string printerName = null;
+
+        /// <summary>
+        /// Znajduje drukarkę PICCO lub podobną drukarkę termiczną
+        /// </summary>
+        private string FindReceiptPrinter()
+        {
+            try
+            {
+                foreach (string printer in PrinterSettings.InstalledPrinters)
+                {
+                    string upper = printer.ToUpper();
+                    if (upper.Contains("PICCO") || upper.Contains("POS") || upper.Contains("THERMAL") || 
+                        upper.Contains("58") || upper.Contains("80") || upper.Contains("RECEIPT"))
+                    {
+                        Debug.WriteLine($"[DRUKARKA] Znaleziono: {printer}");
+                        return printer;
+                    }
+                }
+                
+                // Jeśli nie znaleziono specyficznej, użyj domyślnej
+                var settings = new PrinterSettings();
+                if (!string.IsNullOrEmpty(settings.PrinterName))
+                {
+                    Debug.WriteLine($"[DRUKARKA] Używam domyślnej: {settings.PrinterName}");
+                    return settings.PrinterName;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[DRUKARKA] Błąd szukania: {ex.Message}");
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Aktualizuje status drukarki na pasku
+        /// </summary>
+        private void UpdatePrinterStatus(string status, bool isError = false)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (lblPrinterStatus != null)
+                {
+                    lblPrinterStatus.Text = status;
+                    lblPrinterStatus.Foreground = isError 
+                        ? new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FF5555"))
+                        : new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#4CAF50"));
+                }
+                if (lblPrinterIcon != null)
+                {
+                    lblPrinterIcon.Foreground = isError
+                        ? new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FF5555"))
+                        : new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#4CAF50"));
+                }
+            });
+
+            // Wyczyść status po 5 sekundach
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+            timer.Tick += (s, e) =>
+            {
+                timer.Stop();
+                Dispatcher.Invoke(() =>
+                {
+                    if (lblPrinterStatus != null)
+                    {
+                        lblPrinterStatus.Text = "";
+                        lblPrinterIcon.Foreground = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#888888"));
+                    }
+                });
+            };
+            timer.Start();
+        }
+
+        /// <summary>
+        /// Drukuje paragon po zapisie ważenia
+        /// </summary>
+        private void PrintReceipt(string rejestracja, string towar, string odbiorca, int brutto, int tara, int netto, string typ)
+        {
+            Task.Run(() =>
+            {
+                try
+                {
+                    if (printerName == null)
+                        printerName = FindReceiptPrinter();
+
+                    if (string.IsNullOrEmpty(printerName))
+                    {
+                        UpdatePrinterStatus("Brak drukarki", true);
+                        return;
+                    }
+
+                    var printDoc = new PrintDocument();
+                    printDoc.PrinterSettings.PrinterName = printerName;
+
+                    if (!printDoc.PrinterSettings.IsValid)
+                    {
+                        UpdatePrinterStatus($"Drukarka niedostępna", true);
+                        return;
+                    }
+
+                    // Dane do wydruku
+                    string printRejestracja = rejestracja;
+                    string printTowar = towar;
+                    string printOdbiorca = odbiorca;
+                    int printBrutto = brutto;
+                    int printTara = tara;
+                    int printNetto = netto;
+                    string printTyp = typ;
+                    DateTime printDate = DateTime.Now;
+
+                    printDoc.PrintPage += (sender, e) =>
+                    {
+                        // Czcionki
+                        System.Drawing.Font fontTitle = new System.Drawing.Font("Arial", 10, System.Drawing.FontStyle.Bold);
+                        System.Drawing.Font fontNormal = new System.Drawing.Font("Arial", 8);
+                        System.Drawing.Font fontBold = new System.Drawing.Font("Arial", 9, System.Drawing.FontStyle.Bold);
+                        System.Drawing.Font fontBig = new System.Drawing.Font("Arial", 12, System.Drawing.FontStyle.Bold);
+
+                        float x = 5;
+                        float y = 5;
+                        float lineHeight = 14;
+                        float width = e.PageBounds.Width - 10;
+
+                        // Nagłówek
+                        string header = "UBOJNIA DROBIU";
+                        var headerSize = e.Graphics.MeasureString(header, fontTitle);
+                        e.Graphics.DrawString(header, fontTitle, System.Drawing.Brushes.Black, (width - headerSize.Width) / 2 + x, y);
+                        y += lineHeight + 2;
+
+                        string header2 = "PIÓRKOWSCY";
+                        var header2Size = e.Graphics.MeasureString(header2, fontTitle);
+                        e.Graphics.DrawString(header2, fontTitle, System.Drawing.Brushes.Black, (width - header2Size.Width) / 2 + x, y);
+                        y += lineHeight + 5;
+
+                        // Linia
+                        e.Graphics.DrawLine(System.Drawing.Pens.Black, x, y, x + width, y);
+                        y += 5;
+
+                        // Data i godzina
+                        e.Graphics.DrawString($"Data: {printDate:dd.MM.yyyy}  Godz: {printDate:HH:mm}", fontNormal, System.Drawing.Brushes.Black, x, y);
+                        y += lineHeight + 3;
+
+                        // Typ ważenia
+                        e.Graphics.DrawString($"Ważenie: {printTyp}", fontBold, System.Drawing.Brushes.Black, x, y);
+                        y += lineHeight + 5;
+
+                        // Linia
+                        e.Graphics.DrawLine(System.Drawing.Pens.Black, x, y, x + width, y);
+                        y += 5;
+
+                        // Dane
+                        e.Graphics.DrawString($"Rejestracja:", fontNormal, System.Drawing.Brushes.Black, x, y);
+                        y += lineHeight;
+                        e.Graphics.DrawString($"  {printRejestracja}", fontBold, System.Drawing.Brushes.Black, x, y);
+                        y += lineHeight + 3;
+
+                        if (!string.IsNullOrEmpty(printTowar))
+                        {
+                            e.Graphics.DrawString($"Towar: {printTowar}", fontNormal, System.Drawing.Brushes.Black, x, y);
+                            y += lineHeight;
+                        }
+
+                        if (!string.IsNullOrEmpty(printOdbiorca))
+                        {
+                            e.Graphics.DrawString($"Odbiorca: {printOdbiorca}", fontNormal, System.Drawing.Brushes.Black, x, y);
+                            y += lineHeight + 5;
+                        }
+
+                        // Linia
+                        e.Graphics.DrawLine(System.Drawing.Pens.Black, x, y, x + width, y);
+                        y += 5;
+
+                        // Wagi
+                        if (printTara > 0)
+                        {
+                            e.Graphics.DrawString($"TARA:    {printTara:N0} kg", fontNormal, System.Drawing.Brushes.Black, x, y);
+                            y += lineHeight;
+                        }
+
+                        if (printBrutto > 0)
+                        {
+                            e.Graphics.DrawString($"BRUTTO:  {printBrutto:N0} kg", fontNormal, System.Drawing.Brushes.Black, x, y);
+                            y += lineHeight;
+                        }
+
+                        if (printNetto > 0)
+                        {
+                            y += 3;
+                            e.Graphics.DrawLine(System.Drawing.Pens.Black, x, y, x + width, y);
+                            y += 5;
+                            e.Graphics.DrawString($"NETTO:   {printNetto:N0} kg", fontBig, System.Drawing.Brushes.Black, x, y);
+                            y += lineHeight + 5;
+                        }
+
+                        // Linia końcowa
+                        e.Graphics.DrawLine(System.Drawing.Pens.Black, x, y, x + width, y);
+                        y += 10;
+
+                        // Podpis
+                        e.Graphics.DrawString("Podpis kierowcy:", fontNormal, System.Drawing.Brushes.Black, x, y);
+                        y += lineHeight + 15;
+                        e.Graphics.DrawLine(System.Drawing.Pens.Black, x, y, x + width - 20, y);
+
+                        // Stopka
+                        y += 20;
+                        e.Graphics.DrawLine(System.Drawing.Pens.Black, x, y, x + width, y);
+                    };
+
+                    printDoc.Print();
+                    UpdatePrinterStatus($"✓ Wydrukowano {printTyp}", false);
+                    Debug.WriteLine($"[DRUKARKA] Wydrukowano paragon: {printTyp} - {printRejestracja}");
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[DRUKARKA] Błąd drukowania: {ex.Message}");
+                    UpdatePrinterStatus($"Błąd: {ex.Message}", true);
+                }
+            });
+        }
+
+        #endregion
     }
 
     public class DostawaPortiera : INotifyPropertyChanged
@@ -2917,7 +3164,7 @@ namespace Kalendarz1
         public int SztukiPlan { get; set; }
         public string GodzinaTaraDisplay { get; set; } = "-";
         public string GodzinaBruttoDisplay { get; set; } = "-";
-
+        
         // Ścieżki do zdjęć z ważenia
         public string ZdjecieTaraPath { get; set; }
         public string ZdjecieBruttoPath { get; set; }
