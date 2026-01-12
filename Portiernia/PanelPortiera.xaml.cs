@@ -97,6 +97,7 @@ namespace Kalendarz1
         private string aktualnyTryb = "Avilog";
 
         private SerialPort serialPort;
+        private bool _waitingForScaleRead = false; // Flaga: czy czekamy na odczyt wagi (tylko po kliknięciu)
         private DispatcherTimer autoRefreshTimer;
         private DispatcherTimer clockTimer;
         private DispatcherTimer dateCheckTimer;
@@ -1664,6 +1665,13 @@ namespace Kalendarz1
                 {
                     try
                     {
+                        // Ignoruj dane jeśli nie czekamy na odczyt (użytkownik nie kliknął w wyświetlacz)
+                        if (!_waitingForScaleRead)
+                        {
+                            serialPort.DiscardInBuffer(); // Wyczyść bufor
+                            return;
+                        }
+
                         System.Threading.Thread.Sleep(100); // Poczekaj na pełne dane
                         string data = serialPort.ReadExisting();
                         System.Diagnostics.Debug.WriteLine($"[WAGA] Odebrano RAW: '{data}' (hex: {BitConverter.ToString(System.Text.Encoding.ASCII.GetBytes(data))})");
@@ -1695,6 +1703,9 @@ namespace Kalendarz1
 
                                 UpdateBigDisplay();
                                 ledStabilnosc.Fill = Brushes.LimeGreen;
+
+                                // Zakończ oczekiwanie na odczyt
+                                _waitingForScaleRead = false;
                             }
                             else
                             {
@@ -1784,10 +1795,13 @@ namespace Kalendarz1
                 serialPort.DiscardInBuffer();
                 serialPort.DiscardOutBuffer();
 
+                // Ustaw flagę - teraz czekamy na odczyt z wagi
+                _waitingForScaleRead = true;
+
                 // RHEWA 82c - próbujemy różne komendy
                 // ENQ (ASCII 5) - standardowa komenda żądania odczytu
                 serialPort.Write(new byte[] { 0x05 }, 0, 1); // ENQ
-                System.Diagnostics.Debug.WriteLine("[WAGA] Wysłano ENQ (0x05)");
+                System.Diagnostics.Debug.WriteLine("[WAGA] Wysłano ENQ (0x05) - czekam na odpowiedź...");
 
                 // Timer sprawdzający czy przyszła odpowiedź
                 var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
@@ -1796,6 +1810,7 @@ namespace Kalendarz1
                     timer.Stop();
                     if (ledStabilnosc.Fill == Brushes.Yellow) // Nadal czeka - brak odpowiedzi
                     {
+                        _waitingForScaleRead = false; // Anuluj oczekiwanie
                         ledStabilnosc.Fill = Brushes.Red;
                         MessageBox.Show("Waga nie odpowiada.\n\nSprawdź:\n• Czy waga jest włączona i stabilna\n• Czy ładunek jest na wadze\n• Ustawienia komunikacji wagi (9600 baud, 8N1)",
                             "Brak odpowiedzi", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -1805,6 +1820,7 @@ namespace Kalendarz1
             }
             catch (Exception ex)
             {
+                _waitingForScaleRead = false; // Anuluj oczekiwanie
                 ledStabilnosc.Fill = Brushes.Red;
                 MessageBox.Show($"Błąd wysyłania komendy do wagi:\n{ex.Message}",
                     "Błąd komunikacji", MessageBoxButton.OK, MessageBoxImage.Warning);
