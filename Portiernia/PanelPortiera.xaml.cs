@@ -1118,17 +1118,12 @@ namespace Kalendarz1
         public void BtnClear_Click(object sender, RoutedEventArgs e)
         {
             // Blokuj gdy nie ma zaznaczenia
-<<<<<<< HEAD
-            if (WybranaDostwa == null) return;
-            
-=======
             if (WybranaDostwa == null)
             {
                 PokazKomunikatNajpierwNowe();
                 return;
             }
 
->>>>>>> claude/fix-spec-print-error-ghzam
             TextBlock target = (aktywnePole == AktywnePole.Brutto) ? txtBrutto : txtTara;
             target.Text = "0";
             
@@ -1150,17 +1145,12 @@ namespace Kalendarz1
         public void BtnBackspace_Click(object sender, RoutedEventArgs e)
         {
             // Blokuj gdy nie ma zaznaczenia
-<<<<<<< HEAD
-            if (WybranaDostwa == null) return;
-            
-=======
             if (WybranaDostwa == null)
             {
                 PokazKomunikatNajpierwNowe();
                 return;
             }
 
->>>>>>> claude/fix-spec-print-error-ghzam
             TextBlock target = (aktywnePole == AktywnePole.Brutto) ? txtBrutto : txtTara;
             if (target.Text.Length > 0) target.Text = target.Text.Substring(0, target.Text.Length - 1);
             if (string.IsNullOrEmpty(target.Text)) target.Text = "0";
@@ -1404,9 +1394,6 @@ namespace Kalendarz1
                             if (result != null && result != DBNull.Value)
                             {
                                 insertedId = Convert.ToInt64(result);
-<<<<<<< HEAD
-                            
-=======
                                 // WAŻNE: Zaktualizuj ID w wybranej dostawie aby kolejny zapis był UPDATE nie INSERT
                                 if (WybranaDostwa != null)
                                 {
@@ -1415,7 +1402,6 @@ namespace Kalendarz1
                                 }
                             }
 
->>>>>>> claude/fix-spec-print-error-ghzam
                             Debug.WriteLine($"[ZAPIS ODPADY] Nowy ID po INSERT: {insertedId}");
                         }
                     }
@@ -2007,14 +1993,6 @@ namespace Kalendarz1
                 ledStabilnosc.Fill = Brushes.Yellow;
                 serialPort.DiscardInBuffer();
                 serialPort.DiscardOutBuffer();
-<<<<<<< HEAD
-                
-                // RHEWA 82c - próbujemy różne komendy
-                // ENQ (ASCII 5) - standardowa komenda żądania odczytu
-                serialPort.Write(new byte[] { 0x05 }, 0, 1); // ENQ
-                System.Diagnostics.Debug.WriteLine("[WAGA] Wysłano ENQ (0x05)");
-                
-=======
 
                 // Ustaw flagę - teraz czekamy na odczyt z wagi
                 _waitingForScaleRead = true;
@@ -2024,7 +2002,6 @@ namespace Kalendarz1
                 serialPort.Write(new byte[] { 0x05 }, 0, 1); // ENQ
                 System.Diagnostics.Debug.WriteLine("[WAGA] Wysłano ENQ (0x05) - czekam na odpowiedź...");
 
->>>>>>> claude/fix-spec-print-error-ghzam
                 // Timer sprawdzający czy przyszła odpowiedź
                 var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
                 timer.Tick += (s, args) =>
