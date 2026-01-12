@@ -22,6 +22,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using System.Printing;
 
 // Aliasy dla rozwiązania konfliktu System.Drawing vs System.Windows.Media
 using Color = System.Windows.Media.Color;
@@ -677,8 +678,8 @@ namespace Kalendarz1
                         string query = @"SELECT fc.ID, fc.LpDostawy, fc.CustomerGID,
                             (SELECT TOP 1 ShortName FROM dbo.Dostawcy WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(fc.CustomerGID))) as HodowcaNazwa,
                             ISNULL(dr.[Name], '') as KierowcaNazwa, fc.CarID, fc.TrailerID, fc.SztPoj,
-                            ISNULL(fc.FullFarmWeight, 0) as Brutto, ISNULL(fc.EmptyFarmWeight, 0) as Tara, 
-                            ISNULL(fc.NettoFarmWeight, 0) as Netto, fc.Przyjazd, fc.GodzinaTara, fc.GodzinaBrutto,
+                            ISNULL(fc.FullWeight, 0) as Brutto, ISNULL(fc.EmptyWeight, 0) as Tara,
+                            ISNULL(fc.NettoWeight, 0) as Netto, fc.Przyjazd, fc.GodzinaTara, fc.GodzinaBrutto,
                             fc.ZdjecieTaraPath, fc.ZdjecieBruttoPath
                         FROM dbo.FarmerCalc fc 
                         LEFT JOIN dbo.Driver dr ON fc.DriverGID = dr.GID
@@ -1235,8 +1236,8 @@ namespace Kalendarz1
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    string query = @"UPDATE dbo.FarmerCalc 
-                                     SET FullFarmWeight=@B, EmptyFarmWeight=@T, NettoFarmWeight=@N,
+                    string query = @"UPDATE dbo.FarmerCalc
+                                     SET FullWeight=@B, EmptyWeight=@T, NettoWeight=@N,
                                          GodzinaTara = CASE WHEN @T > 0 AND (@PrevT = 0 OR @T <> @PrevT) THEN GETDATE() ELSE GodzinaTara END,
                                          GodzinaBrutto = CASE WHEN @B > 0 AND (@PrevB = 0 OR @B <> @PrevB) THEN GETDATE() ELSE GodzinaBrutto END
                                      WHERE ID=@ID";
@@ -1632,6 +1633,101 @@ namespace Kalendarz1
             {
                 PlaySound(false);
                 MessageBox.Show("Blad drukowania: " + ex.Message, "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        #endregion
+
+        #region DRUKOWANIE WAGI (PICCO)
+
+        public void BtnDrukujWage_Click(object sender, RoutedEventArgs e)
+        {
+            if (WybranaDostwa == null || WybranaDostwa.ID <= 0)
+            {
+                PlaySound(false);
+                MessageBox.Show("Najpierw wybierz wpis z listy!", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (WybranaDostwa.Brutto <= 0 && WybranaDostwa.Tara <= 0)
+            {
+                PlaySound(false);
+                MessageBox.Show("Brak danych wagi do wydruku!", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                int netto = WybranaDostwa.Brutto - WybranaDostwa.Tara;
+                string hodowca = WybranaDostwa.HodowcaNazwa ?? "---";
+                string kierowca = WybranaDostwa.KierowcaNazwa ?? "---";
+                string pojazd = WybranaDostwa.NrRejestracyjny ?? $"{WybranaDostwa.CarID} {WybranaDostwa.TrailerID}".Trim();
+
+                var pd = new PrintDialog();
+                // Szukaj drukarki PICCO
+                foreach (string printerName in System.Drawing.Printing.PrinterSettings.InstalledPrinters)
+                {
+                    if (printerName.ToUpper().Contains("PICCO"))
+                    {
+                        pd.PrintQueue = new System.Printing.LocalPrintServer().GetPrintQueue(printerName);
+                        break;
+                    }
+                }
+
+                // Tworzenie dokumentu dla drukarki termicznej (wąski paragon)
+                var doc = new FlowDocument
+                {
+                    FontFamily = new FontFamily("Consolas"),
+                    FontSize = 10,
+                    PageWidth = 200, // ~58mm dla drukarki PICCO
+                    PagePadding = new Thickness(5),
+                    ColumnWidth = double.PositiveInfinity
+                };
+
+                // Nagłówek
+                var header = new Paragraph { TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 0, 0, 5) };
+                header.Inlines.Add(new Run("PRONOVA Sp. z o.o.\n") { FontWeight = FontWeights.Bold, FontSize = 11 });
+                header.Inlines.Add(new Run("================================\n") { FontSize = 8 });
+                header.Inlines.Add(new Run("KWIT WAGOWY\n") { FontWeight = FontWeights.Bold, FontSize = 12 });
+                header.Inlines.Add(new Run($"{DateTime.Now:dd.MM.yyyy HH:mm}\n") { FontSize = 9 });
+                header.Inlines.Add(new Run("================================\n") { FontSize = 8 });
+                doc.Blocks.Add(header);
+
+                // Dane
+                var data = new Paragraph { Margin = new Thickness(0, 5, 0, 5), LineHeight = 16 };
+                data.Inlines.Add(new Run($"Hodowca:\n") { FontSize = 8 });
+                data.Inlines.Add(new Run($"{hodowca}\n") { FontWeight = FontWeights.Bold, FontSize = 10 });
+                data.Inlines.Add(new Run($"\nKierowca:\n") { FontSize = 8 });
+                data.Inlines.Add(new Run($"{kierowca}\n") { FontSize = 9 });
+                data.Inlines.Add(new Run($"\nPojazd:\n") { FontSize = 8 });
+                data.Inlines.Add(new Run($"{pojazd}\n") { FontWeight = FontWeights.Bold, FontSize = 10 });
+                doc.Blocks.Add(data);
+
+                // Wagi
+                var weights = new Paragraph { TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 5, 0, 5) };
+                weights.Inlines.Add(new Run("--------------------------------\n") { FontSize = 8 });
+                weights.Inlines.Add(new Run($"BRUTTO: {WybranaDostwa.Brutto} kg\n") { FontSize = 11 });
+                weights.Inlines.Add(new Run($"TARA:   {WybranaDostwa.Tara} kg\n") { FontSize = 11 });
+                weights.Inlines.Add(new Run("--------------------------------\n") { FontSize = 8 });
+                weights.Inlines.Add(new Run($"NETTO:  {netto} kg\n") { FontWeight = FontWeights.Bold, FontSize = 14 });
+                weights.Inlines.Add(new Run("================================\n") { FontSize = 8 });
+                doc.Blocks.Add(weights);
+
+                // Stopka
+                var footer = new Paragraph { TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 5, 0, 0) };
+                footer.Inlines.Add(new Run($"LP: {WybranaDostwa.Lp}  ID: {WybranaDostwa.ID}\n") { FontSize = 8 });
+                footer.Inlines.Add(new Run("\n\n\n") { FontSize = 6 }); // Miejsce na odcięcie
+                doc.Blocks.Add(footer);
+
+                pd.PrintDocument(((IDocumentPaginatorSource)doc).DocumentPaginator, $"Kwit wagowy {WybranaDostwa.ID}");
+
+                PlaySound(true);
+                UpdateStatus($"Wydrukowano kwit wagowy: {hodowca}");
+            }
+            catch (Exception ex)
+            {
+                PlaySound(false);
+                MessageBox.Show($"Błąd drukowania:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
