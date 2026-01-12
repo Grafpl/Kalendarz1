@@ -9600,6 +9600,139 @@ namespace Kalendarz1
         }
 
         /// <summary>
+        /// Otwiera folder z plikami specyfikacji dla zaznaczonego wiersza
+        /// </summary>
+        private void BtnOtworzFolder_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (selectedRow == null)
+                {
+                    MessageBox.Show("Najpierw zaznacz specyfikację.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                // Pobierz ścieżkę do folderu specyfikacji
+                string folderPath = GetSpecyfikacjaFolderPath(selectedRow);
+
+                if (string.IsNullOrEmpty(folderPath) || !System.IO.Directory.Exists(folderPath))
+                {
+                    // Spróbuj użyć domyślnego folderu
+                    folderPath = GetDefaultSpecyfikacjaFolder();
+                    if (string.IsNullOrEmpty(folderPath) || !System.IO.Directory.Exists(folderPath))
+                    {
+                        MessageBox.Show("Folder specyfikacji nie istnieje lub nie został skonfigurowany.\nSkonfiguruj domyślny folder w Panelu Administracyjnym.",
+                            "Folder nie znaleziony", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+                }
+
+                System.Diagnostics.Process.Start("explorer.exe", folderPath);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania folderu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Zwraca ścieżkę do folderu specyfikacji dla danego wiersza
+        /// </summary>
+        private string GetSpecyfikacjaFolderPath(SpecyfikacjaRow row)
+        {
+            if (row == null) return null;
+
+            // Sprawdź czy wiersz ma zapisaną ścieżkę PDF
+            if (!string.IsNullOrEmpty(row.PdfPath) && System.IO.File.Exists(row.PdfPath))
+            {
+                return System.IO.Path.GetDirectoryName(row.PdfPath);
+            }
+
+            // Użyj domyślnego folderu
+            return GetDefaultSpecyfikacjaFolder();
+        }
+
+        /// <summary>
+        /// Zwraca domyślny folder dla specyfikacji (używa tego samego ustawienia co DefaultPdfPath)
+        /// </summary>
+        private string GetDefaultSpecyfikacjaFolder()
+        {
+            // Użyj defaultPdfPath z ustawień panelu admina
+            if (!string.IsNullOrEmpty(defaultPdfPath) && System.IO.Directory.Exists(defaultPdfPath))
+            {
+                return defaultPdfPath;
+            }
+
+            try
+            {
+                // Spróbuj pobrać z bazy
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string query = "SELECT SettingValue FROM FarmerCalcSettings WHERE SettingName = 'DefaultPdfPath'";
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && result != DBNull.Value && !string.IsNullOrEmpty(result.ToString()))
+                        {
+                            return result.ToString();
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // Domyślna ścieżka
+            return System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Specyfikacje");
+        }
+
+        /// <summary>
+        /// Wysyła specyfikację emailem
+        /// </summary>
+        private void BtnWyslijEmail_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (selectedRow == null)
+                {
+                    MessageBox.Show("Najpierw zaznacz specyfikację.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                // Sprawdź czy specyfikacja ma PDF
+                string pdfPath = selectedRow.PdfPath;
+                if (string.IsNullOrEmpty(pdfPath) || !System.IO.File.Exists(pdfPath))
+                {
+                    MessageBox.Show("Specyfikacja nie ma wygenerowanego pliku PDF.\nNajpierw wygeneruj PDF.",
+                        "Brak pliku PDF", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Otwórz domyślny klient email z załącznikiem
+                string subject = $"Specyfikacja {selectedRow.RealDostawca} - {dateTimePicker1.SelectedDate:yyyy-MM-dd}";
+                string body = $"W załączniku przesyłam specyfikację dla {selectedRow.RealDostawca}.";
+
+                // Użyj mailto z załącznikiem (działa z Outlook)
+                string mailto = $"mailto:?subject={Uri.EscapeDataString(subject)}&body={Uri.EscapeDataString(body)}";
+
+                // Otwórz klienta email
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = mailto,
+                    UseShellExecute = true
+                });
+
+                // Poinformuj użytkownika o załączniku
+                MessageBox.Show($"Otworiono klienta email.\n\nPamiętaj aby ręcznie załączyć plik:\n{pdfPath}",
+                    "Wyślij email", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd wysyłania email:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
         /// Tworzy nowy wiersz specyfikacji w bazie danych i zwraca jego ID
         /// </summary>
         private int CreateNewSpecyfikacjaInDatabase(DateTime calcDate, int carLp)
@@ -10023,13 +10156,25 @@ namespace Kalendarz1
                     using (SqlCommand cmd = new SqlCommand(queryPrzel, conn))
                     {
                         var result = cmd.ExecuteScalar();
-                        if (result != null)
+                        if (result != null && !string.IsNullOrWhiteSpace(result.ToString()))
                         {
                             txtPrzelozeni.Text = result.ToString().Replace(";", Environment.NewLine);
                             _przelozeni = result.ToString()
                                 .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
                                 .Select(p => p.Trim())
                                 .ToList();
+                        }
+                        else
+                        {
+                            // Domyślnie "11111" ma dostęp
+                            _przelozeni = new List<string> { "11111" };
+                            txtPrzelozeni.Text = "11111";
+                        }
+
+                        // Upewnij się że "11111" zawsze ma dostęp
+                        if (!_przelozeni.Contains("11111"))
+                        {
+                            _przelozeni.Add("11111");
                         }
                     }
 
@@ -10449,11 +10594,15 @@ namespace Kalendarz1
                     subtitle.SpacingAfter = 15;
                     doc.Add(subtitle);
 
-                    // Tabela
+                    // Tabela z czarnymi obramowaniami
                     PdfPTable table = new PdfPTable(19);
                     table.WidthPercentage = 100;
                     float[] widths = { 3f, 10f, 5f, 4f, 4f, 4f, 4f, 4f, 4f, 5f, 4f, 4f, 5f, 5f, 5f, 5f, 5f, 5f, 5f };
                     table.SetWidths(widths);
+
+                    // Ustawienie domyślnych obramowań dla tabeli
+                    table.DefaultCell.BorderWidth = 1;
+                    table.DefaultCell.BorderColor = BaseColor.BLACK;
 
                     // Nagłówki
                     string[] headers = { "L.P", "Hodowca Drobiu", "Szt.Zad.", "Padłe", "Konfi", "Suma", "KgKonf", "KgPad", "KgSuma", "Wydaj.%", "Lumel", "KonT", "Zdatne", "KgŻyw", "ŚrWaga", "Szt.Pr", "WgProd", "Róż1", "Róż2" };
@@ -10465,7 +10614,9 @@ namespace Kalendarz1
                         cell.BackgroundColor = headerColor;
                         cell.HorizontalAlignment = Element.ALIGN_CENTER;
                         cell.VerticalAlignment = Element.ALIGN_MIDDLE;
-                        cell.Padding = 4; // Mniejszy padding dla kompaktowych wierszy
+                        cell.Padding = 4;
+                        cell.BorderWidth = 1;
+                        cell.BorderColor = BaseColor.BLACK;
                         cell.Phrase.Font.Color = BaseColor.WHITE;
                         table.AddCell(cell);
                     }
@@ -10484,9 +10635,16 @@ namespace Kalendarz1
                         table.AddCell(new PdfPCell(new Phrase(row.KgPadle.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
                         table.AddCell(new PdfPCell(new Phrase(row.KgSuma.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
 
-                        // Wydajność z kolorem - takie same kolory jak na ekranie (#D1FAE5 zielony, #FEE2E2 czerwony)
-                        BaseColor wydColor = row.WydajnoscNiska ? new BaseColor(254, 226, 226) : new BaseColor(209, 250, 229);
-                        table.AddCell(new PdfPCell(new Phrase($"{row.WydajnoscProcent:F2}%", fontData)) { HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding, BackgroundColor = wydColor });
+                        // Wydajność z kolorem - skala 3-kolorowa jak w Excelu (czerwony-żółty-zielony, 74-75-79%)
+                        BaseColor wydColor = GetWydajnoscPdfColor(row.WydajnoscProcent);
+                        var wydCell = new PdfPCell(new Phrase($"{row.WydajnoscProcent:F2}%", fontData));
+                        wydCell.HorizontalAlignment = Element.ALIGN_CENTER;
+                        wydCell.VerticalAlignment = Element.ALIGN_MIDDLE;
+                        wydCell.Padding = cellPadding;
+                        wydCell.BackgroundColor = wydColor;
+                        wydCell.BorderWidth = 1;
+                        wydCell.BorderColor = BaseColor.BLACK;
+                        table.AddCell(wydCell);
 
                         table.AddCell(new PdfPCell(new Phrase(row.Lumel.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
                         table.AddCell(new PdfPCell(new Phrase(row.SztukiKonfiskataT.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
@@ -10675,6 +10833,44 @@ namespace Kalendarz1
             {
                 MessageBox.Show($"Błąd eksportu PDF:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        /// <summary>
+        /// Oblicza kolor wydajności dla PDF - skala 3-kolorowa (czerwony-żółty-zielony)
+        /// Min=74%, Środek=75%, Max=79%
+        /// </summary>
+        private BaseColor GetWydajnoscPdfColor(decimal wydajnosc)
+        {
+            byte r, g, b;
+
+            if (wydajnosc <= 74)
+            {
+                // Czerwony
+                r = 255; g = 0; b = 0;
+            }
+            else if (wydajnosc <= 75)
+            {
+                // Interpolacja czerwony -> żółty (74-75)
+                double t = (double)(wydajnosc - 74) / 1.0;
+                r = 255;
+                g = (byte)(255 * t);
+                b = 0;
+            }
+            else if (wydajnosc <= 79)
+            {
+                // Interpolacja żółty -> zielony (75-79)
+                double t = (double)(wydajnosc - 75) / 4.0;
+                r = (byte)(255 * (1 - t));
+                g = 255;
+                b = 0;
+            }
+            else
+            {
+                // Zielony
+                r = 0; g = 255; b = 0;
+            }
+
+            return new BaseColor(r, g, b);
         }
 
         /// <summary>

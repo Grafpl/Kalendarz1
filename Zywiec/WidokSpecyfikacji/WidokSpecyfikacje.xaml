@@ -883,11 +883,9 @@
                             <RowDefinition Height="200"/>
                         </Grid.RowDefinitions>
 
-                        <!-- === TOOLBAR: Szybkie akcje masowe === -->
+                        <!-- === TOOLBAR === -->
                         <Border Grid.Row="0" Background="#F5F5F5" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="8,6">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Szybkie akcje:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,10,0"/>
-
                                 <Button x:Name="btnMoveUp" Click="BtnMoveUp_Click"
                                         Content="▲" ToolTip="Przesuń wiersz w górę"
                                         Padding="8,4" Margin="0,0,2,0" Background="#27AE60" Foreground="White"
@@ -922,6 +920,20 @@
                                 <Button x:Name="btnDodajSpecyfikacje" Click="BtnDodajSpecyfikacje_Click"
                                         Content="➕ Dodaj specyfikację" ToolTip="Dodaj nowy wiersz specyfikacji"
                                         Padding="10,4" Margin="2,0,5,0" Background="#2E7D32" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+
+                                <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
+
+                                <!-- Przycisk Otwórz folder -->
+                                <Button x:Name="btnOtworzFolder" Click="BtnOtworzFolder_Click"
+                                        Content="📁 Otwórz folder" ToolTip="Otwórz folder z plikami specyfikacji"
+                                        Padding="10,4" Margin="2,0,2,0" Background="#5D4037" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+
+                                <!-- Przycisk Wyślij email -->
+                                <Button x:Name="btnWyslijEmail" Click="BtnWyslijEmail_Click"
+                                        Content="📧 Wyślij email" ToolTip="Wyślij specyfikację emailem"
+                                        Padding="10,4" Margin="2,0,5,0" Background="#1976D2" Foreground="White"
                                         BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
 
                                 <!-- Checkboxy Opasienie/KlasaB obok LUMEL -->
@@ -996,15 +1008,6 @@
                                     </StackPanel>
                                 </Border>
 
-                                <!-- Panel alertów/błędów -->
-                                <Border x:Name="borderAlerts" Background="#FFF3E0" CornerRadius="4" Padding="8,3" Margin="15,0,0,0" Visibility="Collapsed"
-                                        ToolTip="Kliknij aby zobaczyć szczegóły problemów">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="⚠️" FontSize="12" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                        <TextBlock x:Name="lblAlertCount" Text="0 problemów" FontWeight="SemiBold" Foreground="#E65100"
-                                                   VerticalAlignment="Center" FontSize="11" Cursor="Hand" MouseLeftButtonDown="LblAlertCount_Click"/>
-                                    </StackPanel>
-                                </Border>
                             </StackPanel>
                         </Border>
 
@@ -1016,11 +1019,12 @@
                       SelectionMode="Single"
                       SelectionUnit="CellOrRowHeader"
                       GridLinesVisibility="All"
-                      HorizontalGridLinesBrush="#E0E0E0"
-                      VerticalGridLinesBrush="#EEEEEE"
+                      HorizontalGridLinesBrush="Black"
+                      VerticalGridLinesBrush="Black"
                       RowHeight="26"
                       Background="White"
-                      BorderThickness="0"
+                      BorderThickness="1"
+                      BorderBrush="Black"
                       FontSize="11"
                       ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
                       RowStyle="{StaticResource DataGridRowHoverStyle}"
@@ -2355,19 +2359,6 @@
                             <CheckBox x:Name="chkGroupBySupplierRozliczenia" Content="Grupuj wg dostawcy"
                                       VerticalAlignment="Center" FontSize="11" Foreground="#455A64"
                                       Checked="ChkGroupBySupplierRozliczenia_Changed" Unchecked="ChkGroupBySupplierRozliczenia_Changed"/>
-                            <Border Width="1" Background="#E0E0E0" Margin="10,2"/>
-                            <!-- Checkbox Płachta -->
-                            <Border Background="#E8F5E9" CornerRadius="4" Padding="5,2" Margin="5,0">
-                                <CheckBox x:Name="chkRozliczeniaPlachta" Content="📋 Płachta"
-                                          VerticalAlignment="Center" FontSize="11" Foreground="#2E7D32"
-                                          ToolTip="Zaznacz dla płachty"/>
-                            </Border>
-                            <!-- Checkbox Transport -->
-                            <Border Background="#E3F2FD" CornerRadius="4" Padding="5,2" Margin="5,0">
-                                <CheckBox x:Name="chkRozliczeniaTransport" Content="🚛 Transport"
-                                          VerticalAlignment="Center" FontSize="11" Foreground="#1565C0"
-                                          ToolTip="Zaznacz dla transportu"/>
-                            </Border>
                         </StackPanel>
 
                         <!-- Toolbar zatwierdzania z podwójną kontrolą -->
@@ -2714,7 +2705,7 @@
                                 </Grid.ColumnDefinitions>
 
                                 <!-- Statystyki tekstowe -->
-                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Text="Suma wierszy: " FontWeight="SemiBold"/>
                                     <TextBlock x:Name="lblRozliczeniaSumaWierszy" Text="0" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,20,0"/>
                                     <TextBlock Text="Suma sztuk: " FontWeight="SemiBold"/>
@@ -2724,38 +2715,6 @@
                                     <TextBlock Text="Suma wartość: " FontWeight="SemiBold"/>
                                     <TextBlock x:Name="lblRozliczeniaSumaWartosc" Text="0,00" FontWeight="Bold" Foreground="#2E7D32"/>
                                 </StackPanel>
-
-                                <!-- Mini wykres porównania wag (widoczny gdy obie wagi są > 0) -->
-                                <Border x:Name="borderWeightComparison" Grid.Column="1" Background="White" CornerRadius="4" Padding="10,5" Margin="20,0,0,0" BorderBrush="#E0E0E0" BorderThickness="1">
-                                    <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="80"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="80"/>
-                                        </Grid.ColumnDefinitions>
-
-                                        <TextBlock Grid.Row="0" Grid.ColumnSpan="3" Text="📊 Porównanie wag (Hodowca vs Ubojnia)" FontWeight="SemiBold" FontSize="10" Foreground="#455A64" Margin="0,0,0,5"/>
-
-                                        <!-- Waga hodowcy -->
-                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Hodowca:" FontSize="9" Foreground="#1976D2" VerticalAlignment="Center"/>
-                                        <Border Grid.Row="1" Grid.Column="1" Background="#BBDEFB" CornerRadius="2" Height="14" Margin="5,2">
-                                            <Border x:Name="barWagaHodowcy" Background="#1976D2" CornerRadius="2" HorizontalAlignment="Left" Width="100"/>
-                                        </Border>
-                                        <TextBlock Grid.Row="1" Grid.Column="2" x:Name="lblBarWagaHodowcy" Text="0 kg" FontSize="9" FontWeight="Bold" Foreground="#1976D2" VerticalAlignment="Center"/>
-
-                                        <!-- Waga ubojni -->
-                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Ubojnia:" FontSize="9" Foreground="#388E3C" VerticalAlignment="Center"/>
-                                        <Border Grid.Row="2" Grid.Column="1" Background="#C8E6C9" CornerRadius="2" Height="14" Margin="5,2">
-                                            <Border x:Name="barWagaUbojni" Background="#388E3C" CornerRadius="2" HorizontalAlignment="Left" Width="95"/>
-                                        </Border>
-                                        <TextBlock Grid.Row="2" Grid.Column="2" x:Name="lblBarWagaUbojni" Text="0 kg" FontSize="9" FontWeight="Bold" Foreground="#388E3C" VerticalAlignment="Center"/>
-                                    </Grid>
-                                </Border>
                             </Grid>
                         </Border>
                     </Grid>
@@ -3343,10 +3302,11 @@
                                       ColumnHeaderHeight="40"
                                       Background="White"
                                       AlternatingRowBackground="#FAFBFC"
-                                      GridLinesVisibility="Horizontal"
-                                      HorizontalGridLinesBrush="#E8ECF0"
-                                      VerticalGridLinesBrush="Transparent"
-                                      BorderThickness="0"
+                                      GridLinesVisibility="All"
+                                      HorizontalGridLinesBrush="Black"
+                                      VerticalGridLinesBrush="Black"
+                                      BorderThickness="1"
+                                      BorderBrush="Black"
                                       EnableRowVirtualization="True"
                                       Margin="3">
                                 <DataGrid.ColumnHeaderStyle>
@@ -3356,9 +3316,10 @@
                                         <Setter Property="FontWeight" Value="Bold"/>
                                         <Setter Property="FontSize" Value="11"/>
                                         <Setter Property="Padding" Value="10,8"/>
-                                        <Setter Property="BorderThickness" Value="0,0,0,2"/>
-                                        <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                                        <Setter Property="BorderBrush" Value="Black"/>
                                         <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                        <Setter Property="VerticalContentAlignment" Value="Center"/>
                                     </Style>
                                 </DataGrid.ColumnHeaderStyle>
                                 <DataGrid.RowStyle>
@@ -3379,6 +3340,22 @@
                                         </Style.Triggers>
                                     </Style>
                                 </DataGrid.RowStyle>
+                                <DataGrid.CellStyle>
+                                    <Style TargetType="DataGridCell">
+                                        <Setter Property="VerticalAlignment" Value="Stretch"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="DataGridCell">
+                                                    <Border Background="{TemplateBinding Background}"
+                                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                                            BorderThickness="{TemplateBinding BorderThickness}">
+                                                        <ContentPresenter VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </DataGrid.CellStyle>
                                 <DataGrid.Columns>
                                     <!-- L.P -->
                                     <DataGridTextColumn Header="L.P" Binding="{Binding LP}" Width="40">
