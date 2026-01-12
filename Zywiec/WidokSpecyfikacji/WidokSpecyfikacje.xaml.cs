@@ -9911,7 +9911,7 @@ namespace Kalendarz1
                     KgPadle = (int)(spec.Padle * spec.SredniaWaga),
                     Lumel = spec.LUMEL,
                     SztukiKonfiskataT = spec.CH + spec.NW + spec.ZM,
-                    SztukiZdatne = spec.LUMEL - (spec.Padle + spec.CH + spec.NW + spec.ZM),
+                    SztukiZdatne = spec.LUMEL - (spec.CH + spec.NW + spec.ZM),
                     IloscKgZywiec = spec.NettoUbojniValue > 0 ? spec.NettoUbojniValue : spec.KilogramyWybijak,
                     SredniaWagaPrzedUbojem = spec.SredniaWaga,
                     SztukiProdukcjaTuszka = spec.SztukiWybijak,
