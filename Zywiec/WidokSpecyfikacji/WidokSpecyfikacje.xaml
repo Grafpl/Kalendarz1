@@ -818,7 +818,7 @@
                         <TextBlock Text="Opcje drukowania PDF" FontWeight="SemiBold" Foreground="#3949AB" Margin="0,0,0,8"/>
                         <CheckBox x:Name="chkDrukujTerminPlatnosci"
                                   Content="📅 Drukuj termin płatności na specyfikacji"
-                                  IsChecked="True"
+                                  IsChecked="False"
                                   VerticalContentAlignment="Center"
                                   Margin="0,0,0,5"/>
                         <TextBlock Text="Odznacz aby ukryć termin płatności na PDF" FontSize="11" Foreground="#7F8C8D" Margin="0,3,0,0"/>

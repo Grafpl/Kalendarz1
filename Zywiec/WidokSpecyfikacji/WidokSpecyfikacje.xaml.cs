@@ -51,7 +51,7 @@ namespace Kalendarz1
         private static string defaultPlachtaPath = @"\\192.168.0.170\Public\Plachty\";
         private static bool useDefaultPath = true;
         private static bool _pdfCzarnoBialy = false; // Tryb czarno-biały PDF (logo kolorowe)
-        private static bool _drukujTerminPlatnosci = true; // Czy drukować termin płatności na PDF
+        private static bool _drukujTerminPlatnosci = false; // Czy drukować termin płatności na PDF
         private decimal sumaWartosc = 0;
         private decimal sumaKG = 0;
 
@@ -9767,8 +9767,8 @@ namespace Kalendarz1
                         }
                         else
                         {
-                            _drukujTerminPlatnosci = true;
-                            chkDrukujTerminPlatnosci.IsChecked = true;
+                            _drukujTerminPlatnosci = false;
+                            chkDrukujTerminPlatnosci.IsChecked = false;
                         }
                     }
                 }
