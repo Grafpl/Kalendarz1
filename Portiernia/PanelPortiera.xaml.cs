@@ -1722,7 +1722,7 @@ namespace Kalendarz1
                 pd.PrintDocument(((IDocumentPaginatorSource)doc).DocumentPaginator, $"Kwit wagowy {WybranaDostwa.ID}");
 
                 PlaySound(true);
-                UpdateStatus($"Wydrukowano kwit wagowy: {hodowca}");
+                // Kwit wydrukowany - dźwięk potwierdza sukces
             }
             catch (Exception ex)
             {
