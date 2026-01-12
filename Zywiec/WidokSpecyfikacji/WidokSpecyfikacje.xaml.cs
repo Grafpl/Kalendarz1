@@ -8811,7 +8811,7 @@ namespace Kalendarz1
                 string fileName = $"DlaLekarzy_{selectedDate:yyyy-MM-dd}_{DateTime.Now:HHmmss}.pdf";
                 string filePath = Path.Combine(folderPath, fileName);
 
-                // Pobierz dane specyfikacji dla obliczenia liczby zdatnych sztuk
+                // Pobierz dane specyfikacji dla obliczenia liczby zdanych sztuk
                 var specyfikacjeDict = specyfikacjeData?.ToDictionary(s => s.Nr, s => s) ?? new Dictionary<int, SpecyfikacjaRow>();
 
                 // Utwórz PDF z iTextSharp - format pionowy A4 na całą stronę
