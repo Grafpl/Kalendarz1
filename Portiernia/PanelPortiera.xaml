@@ -310,9 +310,8 @@
                                                 <TextBlock Text="{Binding GodzinaPrzyjazdu}" FontSize="18" FontWeight="Bold" 
                                                            Foreground="{DynamicResource ThemeColor}" VerticalAlignment="Center"/>
                                                 <TextBlock Text=" • " FontSize="14" Foreground="#666" VerticalAlignment="Center"/>
-                                                <TextBlock Text="{Binding KierowcaNazwa}" FontSize="14" FontWeight="Bold" 
-                                                           Foreground="#EEE" VerticalAlignment="Center" 
-                                                           TextTrimming="CharacterEllipsis" MaxWidth="100"/>
+                                                <TextBlock Text="{Binding KierowcaNazwa}" FontSize="14" FontWeight="Bold"
+                                                           Foreground="#EEE" VerticalAlignment="Center"/>
                                             </StackPanel>
                                             <TextBlock Text="{Binding HodowcaNazwa}" HorizontalAlignment="Right" 
                                                        Foreground="#FF8A80" FontSize="14" FontWeight="Bold" 
@@ -609,8 +608,9 @@
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBox x:Name="txtEditRejestracja" Grid.Column="0" Style="{StaticResource InputBoxStyle}" 
-                                                     PreviewMouseLeftButtonUp="TxtEditRejestracja_Click" IsReadOnly="True" Cursor="Hand" Height="45"/>
+                                            <TextBox x:Name="txtEditRejestracja" Grid.Column="0" Style="{StaticResource InputBoxStyle}"
+                                                     PreviewMouseLeftButtonUp="TxtEditRejestracja_Click" IsReadOnly="True" Cursor="Hand" Height="45"
+                                                     TextChanged="TxtEditRejestracja_TextChanged"/>
                                             <!-- Przycisk skanowania tablicy -->
                                             <Button Grid.Column="1" Click="BtnScanPlateToTextBox_Click" Width="45" Height="45" Margin="5,0,0,0"
                                                     ToolTip="Skanuj tablicę z kamery" Cursor="Hand">
@@ -720,22 +720,47 @@
                                  GroupName="WT" Grid.Column="1" Margin="3,0,0,0" Style="{StaticResource WeightToggleStyle}"/>
                 </Grid>
 
-                <!-- Przycisk zapisz -->
-                <Button Grid.Row="4" x:Name="btnZapisz" Click="BtnZapisz_Click" Height="60" Margin="0,4,0,5" Cursor="Hand">
-                    <Button.Template>
-                        <ControlTemplate TargetType="Button">
-                            <Border x:Name="saveBrd" Background="#4CAF50" CornerRadius="12">
-                                <TextBlock Text="ZATWIERDZ WAGE" FontSize="20" FontWeight="Bold" Foreground="White" 
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="saveBrd" Property="Background" Value="#5CBF60"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Button.Template>
-                </Button>
+                <!-- Przyciski zapisz i drukuj -->
+                <Grid Grid.Row="4" Margin="0,4,0,5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Przycisk zapisz -->
+                    <Button Grid.Column="0" x:Name="btnZapisz" Click="BtnZapisz_Click" Height="60" Margin="0,0,5,0" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="saveBrd" Background="#4CAF50" CornerRadius="12">
+                                    <TextBlock Text="ZATWIERDZ WAGE" FontSize="20" FontWeight="Bold" Foreground="White"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="saveBrd" Property="Background" Value="#5CBF60"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+
+                    <!-- Przycisk drukuj wagę -->
+                    <Button Grid.Column="1" x:Name="btnDrukujWage" Click="BtnDrukujWage_Click" Height="60" Width="60" Cursor="Hand"
+                            ToolTip="Drukuj wagę na drukarce PICCO">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="printBrd" Background="#1976D2" CornerRadius="12">
+                                    <TextBlock Text="🖨️" FontSize="28" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="printBrd" Property="Background" Value="#2196F3"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </Grid>
 
                 <!-- Numpad -->
                 <Grid Grid.Row="5">

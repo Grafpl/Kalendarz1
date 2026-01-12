@@ -24,6 +24,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using System.Printing;
 
 // Aliasy dla rozwiązania konfliktu System.Drawing vs System.Windows.Media
 using Color = System.Windows.Media.Color;
@@ -99,6 +100,7 @@ namespace Kalendarz1
         private string aktualnyTryb = "Avilog";
 
         private SerialPort serialPort;
+        private bool _waitingForScaleRead = false; // Flaga: czy czekamy na odczyt wagi (tylko po kliknięciu)
         private DispatcherTimer autoRefreshTimer;
         private DispatcherTimer clockTimer;
         private DispatcherTimer dateCheckTimer;
@@ -492,7 +494,11 @@ namespace Kalendarz1
         private void TxtEditRejestracja_Click(object sender, MouseButtonEventArgs e)
         {
             // Blokuj edycję gdy nie ma zaznaczenia
-            if (WybranaDostwa == null) return;
+            if (WybranaDostwa == null)
+            {
+                PokazKomunikatNajpierwNowe();
+                return;
+            }
             KeyboardOverlay.Visibility = Visibility.Visible;
         }
 
@@ -521,6 +527,15 @@ namespace Kalendarz1
         {
             if (txtEditRejestracja.Text.Length > 0)
                 txtEditRejestracja.Text = txtEditRejestracja.Text.Substring(0, txtEditRejestracja.Text.Length - 1);
+        }
+
+        private void TxtEditRejestracja_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            // Aktualizuj nr rejestracyjny w wybranej dostawie na bieżąco
+            if (WybranaDostwa != null)
+            {
+                WybranaDostwa.NrRejestracyjny = txtEditRejestracja.Text.Trim().ToUpper();
+            }
         }
 
         #endregion
@@ -678,8 +693,8 @@ namespace Kalendarz1
                         string query = @"SELECT fc.ID, fc.LpDostawy, fc.CustomerGID,
                             (SELECT TOP 1 ShortName FROM dbo.Dostawcy WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(fc.CustomerGID))) as HodowcaNazwa,
                             ISNULL(dr.[Name], '') as KierowcaNazwa, fc.CarID, fc.TrailerID, fc.SztPoj,
-                            ISNULL(fc.FullFarmWeight, 0) as Brutto, ISNULL(fc.EmptyFarmWeight, 0) as Tara, 
-                            ISNULL(fc.NettoFarmWeight, 0) as Netto, fc.Przyjazd, fc.GodzinaTara, fc.GodzinaBrutto,
+                            ISNULL(fc.FullWeight, 0) as Brutto, ISNULL(fc.EmptyWeight, 0) as Tara,
+                            ISNULL(fc.NettoWeight, 0) as Netto, fc.Przyjazd, fc.GodzinaTara, fc.GodzinaBrutto,
                             fc.ZdjecieTaraPath, fc.ZdjecieBruttoPath
                         FROM dbo.FarmerCalc fc 
                         LEFT JOIN dbo.Driver dr ON fc.DriverGID = dr.GID
@@ -1044,10 +1059,28 @@ namespace Kalendarz1
             }
         }
 
+        private void PokazKomunikatNajpierwNowe()
+        {
+            if (aktualnyTryb != "Avilog")
+            {
+                MessageBox.Show(
+                    "Aby wprowadzić wagę:\n\n" +
+                    "1. Wybierz towar (Krew, Łapy, Jelita, Pióra, Odpady)\n" +
+                    "2. Wybierz odbiorcę z listy\n" +
+                    "3. Naciśnij przycisk NOWE\n\n" +
+                    "Dopiero wtedy możesz wpisać lub odczytać wagę.",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
         public void NumpadClick(object sender, RoutedEventArgs e)
         {
             // Blokuj edycję gdy nie ma zaznaczenia
-            if (WybranaDostwa == null) return;
+            if (WybranaDostwa == null)
+            {
+                PokazKomunikatNajpierwNowe();
+                return;
+            }
 
             if (sender is Button btn)
             {
@@ -1085,8 +1118,17 @@ namespace Kalendarz1
         public void BtnClear_Click(object sender, RoutedEventArgs e)
         {
             // Blokuj gdy nie ma zaznaczenia
+<<<<<<< HEAD
             if (WybranaDostwa == null) return;
             
+=======
+            if (WybranaDostwa == null)
+            {
+                PokazKomunikatNajpierwNowe();
+                return;
+            }
+
+>>>>>>> claude/fix-spec-print-error-ghzam
             TextBlock target = (aktywnePole == AktywnePole.Brutto) ? txtBrutto : txtTara;
             target.Text = "0";
             
@@ -1108,8 +1150,17 @@ namespace Kalendarz1
         public void BtnBackspace_Click(object sender, RoutedEventArgs e)
         {
             // Blokuj gdy nie ma zaznaczenia
+<<<<<<< HEAD
             if (WybranaDostwa == null) return;
             
+=======
+            if (WybranaDostwa == null)
+            {
+                PokazKomunikatNajpierwNowe();
+                return;
+            }
+
+>>>>>>> claude/fix-spec-print-error-ghzam
             TextBlock target = (aktywnePole == AktywnePole.Brutto) ? txtBrutto : txtTara;
             if (target.Text.Length > 0) target.Text = target.Text.Substring(0, target.Text.Length - 1);
             if (string.IsNullOrEmpty(target.Text)) target.Text = "0";
@@ -1153,7 +1204,11 @@ namespace Kalendarz1
             else
             {
                 // W trybie ODPADY wymagaj zaznaczenia lub nowego wpisu
-                if (WybranaDostwa == null) return;
+                if (WybranaDostwa == null)
+                {
+                    PokazKomunikatNajpierwNowe();
+                    return;
+                }
                 success = ZapiszOdpady(brutto, tara);
             }
 
@@ -1255,8 +1310,8 @@ namespace Kalendarz1
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    string query = @"UPDATE dbo.FarmerCalc 
-                                     SET FullFarmWeight=@B, EmptyFarmWeight=@T, NettoFarmWeight=@N,
+                    string query = @"UPDATE dbo.FarmerCalc
+                                     SET FullWeight=@B, EmptyWeight=@T, NettoWeight=@N,
                                          GodzinaTara = CASE WHEN @T > 0 AND (@PrevT = 0 OR @T <> @PrevT) THEN GETDATE() ELSE GodzinaTara END,
                                          GodzinaBrutto = CASE WHEN @B > 0 AND (@PrevB = 0 OR @B <> @PrevB) THEN GETDATE() ELSE GodzinaBrutto END
                                      WHERE ID=@ID";
@@ -1347,8 +1402,20 @@ namespace Kalendarz1
                             
                             var result = cmd.ExecuteScalar();
                             if (result != null && result != DBNull.Value)
+                            {
                                 insertedId = Convert.ToInt64(result);
+<<<<<<< HEAD
                             
+=======
+                                // WAŻNE: Zaktualizuj ID w wybranej dostawie aby kolejny zapis był UPDATE nie INSERT
+                                if (WybranaDostwa != null)
+                                {
+                                    WybranaDostwa.ID = insertedId;
+                                    Debug.WriteLine($"[ZAPIS ODPADY] Zaktualizowano WybranaDostwa.ID = {insertedId}");
+                                }
+                            }
+
+>>>>>>> claude/fix-spec-print-error-ghzam
                             Debug.WriteLine($"[ZAPIS ODPADY] Nowy ID po INSERT: {insertedId}");
                         }
                     }
@@ -1442,7 +1509,27 @@ namespace Kalendarz1
         public void BtnNewEntry_Click(object sender, RoutedEventArgs e)
         {
             ClearFormularz();
-            WybranaDostwa = new DostawaPortiera { ID = 0, Towar = aktualnyTowar, Brutto = 0, Tara = 0, Netto = 0 };
+
+            // Utwórz nowy wpis z bieżącą godziną
+            var nowyWpis = new DostawaPortiera
+            {
+                ID = 0,
+                Towar = aktualnyTowar,
+                Brutto = 0,
+                Tara = 0,
+                Netto = 0,
+                GodzinaPrzyjazdu = DateTime.Now.ToString("HH:mm"),
+                NrRejestracyjny = "",
+                HodowcaNazwa = "(nowy wpis)"
+            };
+
+            // Dodaj do listy aby był widoczny w tabeli
+            dostawy.Insert(0, nowyWpis);
+
+            // Zaznacz nowy wiersz
+            WybranaDostwa = nowyWpis;
+            gridTable.SelectedItem = nowyWpis;
+
             radioTara.IsChecked = true;
             aktywnePole = AktywnePole.Tara;
             UpdateBigDisplay();
@@ -1657,6 +1744,112 @@ namespace Kalendarz1
 
         #endregion
 
+        #region DRUKOWANIE WAGI (PICCO)
+
+        public void BtnDrukujWage_Click(object sender, RoutedEventArgs e)
+        {
+            if (WybranaDostwa == null || WybranaDostwa.ID <= 0)
+            {
+                PlaySound(false);
+                MessageBox.Show("Najpierw wybierz wpis z listy!", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (WybranaDostwa.Brutto <= 0 && WybranaDostwa.Tara <= 0)
+            {
+                PlaySound(false);
+                MessageBox.Show("Brak danych wagi do wydruku!", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                int netto = WybranaDostwa.Brutto - WybranaDostwa.Tara;
+                string hodowca = WybranaDostwa.HodowcaNazwa ?? "---";
+                string kierowca = WybranaDostwa.KierowcaNazwa ?? "---";
+                string pojazd = WybranaDostwa.NrRejestracyjny ?? $"{WybranaDostwa.CarID} {WybranaDostwa.TrailerID}".Trim();
+
+                // Szukaj drukarki PICCO
+                string piccoPrinter = null;
+                foreach (string printerName in System.Drawing.Printing.PrinterSettings.InstalledPrinters)
+                {
+                    if (printerName.ToUpper().Contains("PICCO"))
+                    {
+                        piccoPrinter = printerName;
+                        break;
+                    }
+                }
+
+                if (string.IsNullOrEmpty(piccoPrinter))
+                {
+                    PlaySound(false);
+                    MessageBox.Show("Nie znaleziono drukarki PICCO!\n\nSprawdź czy drukarka jest podłączona i zainstalowana.",
+                        "Brak drukarki", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                var pd = new PrintDialog();
+                pd.PrintQueue = new LocalPrintServer().GetPrintQueue(piccoPrinter);
+
+                // Tworzenie dokumentu dla drukarki termicznej (wąski paragon)
+                var doc = new FlowDocument
+                {
+                    FontFamily = new FontFamily("Consolas"),
+                    FontSize = 10,
+                    PageWidth = 200, // ~58mm dla drukarki PICCO
+                    PagePadding = new Thickness(5),
+                    ColumnWidth = double.PositiveInfinity
+                };
+
+                // Nagłówek
+                var header = new Paragraph { TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 0, 0, 5) };
+                header.Inlines.Add(new Run("PRONOVA Sp. z o.o.\n") { FontWeight = FontWeights.Bold, FontSize = 11 });
+                header.Inlines.Add(new Run("================================\n") { FontSize = 8 });
+                header.Inlines.Add(new Run("KWIT WAGOWY\n") { FontWeight = FontWeights.Bold, FontSize = 12 });
+                header.Inlines.Add(new Run($"{DateTime.Now:dd.MM.yyyy HH:mm}\n") { FontSize = 9 });
+                header.Inlines.Add(new Run("================================\n") { FontSize = 8 });
+                doc.Blocks.Add(header);
+
+                // Dane
+                var data = new Paragraph { Margin = new Thickness(0, 5, 0, 5), LineHeight = 16 };
+                data.Inlines.Add(new Run($"Hodowca:\n") { FontSize = 8 });
+                data.Inlines.Add(new Run($"{hodowca}\n") { FontWeight = FontWeights.Bold, FontSize = 10 });
+                data.Inlines.Add(new Run($"\nKierowca:\n") { FontSize = 8 });
+                data.Inlines.Add(new Run($"{kierowca}\n") { FontSize = 9 });
+                data.Inlines.Add(new Run($"\nPojazd:\n") { FontSize = 8 });
+                data.Inlines.Add(new Run($"{pojazd}\n") { FontWeight = FontWeights.Bold, FontSize = 10 });
+                doc.Blocks.Add(data);
+
+                // Wagi
+                var weights = new Paragraph { TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 5, 0, 5) };
+                weights.Inlines.Add(new Run("--------------------------------\n") { FontSize = 8 });
+                weights.Inlines.Add(new Run($"BRUTTO: {WybranaDostwa.Brutto} kg\n") { FontSize = 11 });
+                weights.Inlines.Add(new Run($"TARA:   {WybranaDostwa.Tara} kg\n") { FontSize = 11 });
+                weights.Inlines.Add(new Run("--------------------------------\n") { FontSize = 8 });
+                weights.Inlines.Add(new Run($"NETTO:  {netto} kg\n") { FontWeight = FontWeights.Bold, FontSize = 14 });
+                weights.Inlines.Add(new Run("================================\n") { FontSize = 8 });
+                doc.Blocks.Add(weights);
+
+                // Stopka
+                var footer = new Paragraph { TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 5, 0, 0) };
+                footer.Inlines.Add(new Run($"LP: {WybranaDostwa.Lp}  ID: {WybranaDostwa.ID}\n") { FontSize = 8 });
+                footer.Inlines.Add(new Run("\n\n\n") { FontSize = 6 }); // Miejsce na odcięcie
+                doc.Blocks.Add(footer);
+
+                pd.PrintDocument(((IDocumentPaginatorSource)doc).DocumentPaginator, $"Kwit wagowy {WybranaDostwa.ID}");
+
+                PlaySound(true);
+                // Kwit wydrukowany - dźwięk potwierdza sukces
+            }
+            catch (Exception ex)
+            {
+                PlaySound(false);
+                MessageBox.Show($"Błąd drukowania:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        #endregion
+
         #region WAGA RS232
 
         private void ConnectToScale(string portName, int baudRate)
@@ -1685,6 +1878,13 @@ namespace Kalendarz1
                 {
                     try
                     {
+                        // Ignoruj dane jeśli nie czekamy na odczyt (użytkownik nie kliknął w wyświetlacz)
+                        if (!_waitingForScaleRead)
+                        {
+                            serialPort.DiscardInBuffer(); // Wyczyść bufor
+                            return;
+                        }
+
                         System.Threading.Thread.Sleep(100); // Poczekaj na pełne dane
                         string data = serialPort.ReadExisting();
                         System.Diagnostics.Debug.WriteLine($"[WAGA] Odebrano RAW: '{data}' (hex: {BitConverter.ToString(System.Text.Encoding.ASCII.GetBytes(data))})");
@@ -1716,6 +1916,9 @@ namespace Kalendarz1
                                 
                                 UpdateBigDisplay();
                                 ledStabilnosc.Fill = Brushes.LimeGreen;
+
+                                // Zakończ oczekiwanie na odczyt
+                                _waitingForScaleRead = false;
                             }
                             else
                             {
@@ -1745,7 +1948,7 @@ namespace Kalendarz1
             // Sprawdź czy jest wybrana dostawa
             if (WybranaDostwa == null)
             {
-                MessageBox.Show("Najpierw wybierz dostawę z listy.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                PokazKomunikatNajpierwNowe();
                 return;
             }
             
@@ -1804,12 +2007,24 @@ namespace Kalendarz1
                 ledStabilnosc.Fill = Brushes.Yellow;
                 serialPort.DiscardInBuffer();
                 serialPort.DiscardOutBuffer();
+<<<<<<< HEAD
                 
                 // RHEWA 82c - próbujemy różne komendy
                 // ENQ (ASCII 5) - standardowa komenda żądania odczytu
                 serialPort.Write(new byte[] { 0x05 }, 0, 1); // ENQ
                 System.Diagnostics.Debug.WriteLine("[WAGA] Wysłano ENQ (0x05)");
                 
+=======
+
+                // Ustaw flagę - teraz czekamy na odczyt z wagi
+                _waitingForScaleRead = true;
+
+                // RHEWA 82c - próbujemy różne komendy
+                // ENQ (ASCII 5) - standardowa komenda żądania odczytu
+                serialPort.Write(new byte[] { 0x05 }, 0, 1); // ENQ
+                System.Diagnostics.Debug.WriteLine("[WAGA] Wysłano ENQ (0x05) - czekam na odpowiedź...");
+
+>>>>>>> claude/fix-spec-print-error-ghzam
                 // Timer sprawdzający czy przyszła odpowiedź
                 var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
                 timer.Tick += (s, args) =>
@@ -1817,6 +2032,7 @@ namespace Kalendarz1
                     timer.Stop();
                     if (ledStabilnosc.Fill == Brushes.Yellow) // Nadal czeka - brak odpowiedzi
                     {
+                        _waitingForScaleRead = false; // Anuluj oczekiwanie
                         ledStabilnosc.Fill = Brushes.Red;
                         MessageBox.Show("Waga nie odpowiada.\n\nSprawdź:\n• Czy waga jest włączona i stabilna\n• Czy ładunek jest na wadze\n• Ustawienia komunikacji wagi (9600 baud, 8N1)", 
                             "Brak odpowiedzi", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -1826,6 +2042,7 @@ namespace Kalendarz1
             }
             catch (Exception ex)
             {
+                _waitingForScaleRead = false; // Anuluj oczekiwanie
                 ledStabilnosc.Fill = Brushes.Red;
                 MessageBox.Show($"Błąd wysyłania komendy do wagi:\n{ex.Message}", 
                     "Błąd komunikacji", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -3167,7 +3384,18 @@ namespace Kalendarz1
         public string KierowcaNazwa { get; set; }
         public string CarID { get; set; }
         public string TrailerID { get; set; }
-        public string NrRejestracyjny { get; set; }
+
+        private string _nrRejestracyjny;
+        public string NrRejestracyjny
+        {
+            get => _nrRejestracyjny;
+            set
+            {
+                _nrRejestracyjny = value;
+                OnPropertyChanged(nameof(NrRejestracyjny));
+            }
+        }
+
         public string Towar { get; set; }
         public int SztukiPlan { get; set; }
         public string GodzinaTaraDisplay { get; set; } = "-";
