@@ -1663,16 +1663,27 @@ namespace Kalendarz1
                 string kierowca = WybranaDostwa.KierowcaNazwa ?? "---";
                 string pojazd = WybranaDostwa.NrRejestracyjny ?? $"{WybranaDostwa.CarID} {WybranaDostwa.TrailerID}".Trim();
 
-                var pd = new PrintDialog();
                 // Szukaj drukarki PICCO
+                string piccoPrinter = null;
                 foreach (string printerName in System.Drawing.Printing.PrinterSettings.InstalledPrinters)
                 {
                     if (printerName.ToUpper().Contains("PICCO"))
                     {
-                        pd.PrintQueue = new System.Printing.LocalPrintServer().GetPrintQueue(printerName);
+                        piccoPrinter = printerName;
                         break;
                     }
                 }
+
+                if (string.IsNullOrEmpty(piccoPrinter))
+                {
+                    PlaySound(false);
+                    MessageBox.Show("Nie znaleziono drukarki PICCO!\n\nSprawdź czy drukarka jest podłączona i zainstalowana.",
+                        "Brak drukarki", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                var pd = new PrintDialog();
+                pd.PrintQueue = new LocalPrintServer().GetPrintQueue(piccoPrinter);
 
                 // Tworzenie dokumentu dla drukarki termicznej (wąski paragon)
                 var doc = new FlowDocument
