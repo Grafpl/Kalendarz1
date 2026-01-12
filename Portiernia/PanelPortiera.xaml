@@ -310,9 +310,8 @@
                                                 <TextBlock Text="{Binding GodzinaPrzyjazdu}" FontSize="18" FontWeight="Bold" 
                                                            Foreground="{DynamicResource ThemeColor}" VerticalAlignment="Center"/>
                                                 <TextBlock Text=" • " FontSize="14" Foreground="#666" VerticalAlignment="Center"/>
-                                                <TextBlock Text="{Binding KierowcaNazwa}" FontSize="14" FontWeight="Bold" 
-                                                           Foreground="#EEE" VerticalAlignment="Center" 
-                                                           TextTrimming="CharacterEllipsis" MaxWidth="100"/>
+                                                <TextBlock Text="{Binding KierowcaNazwa}" FontSize="14" FontWeight="Bold"
+                                                           Foreground="#EEE" VerticalAlignment="Center"/>
                                             </StackPanel>
                                             <TextBlock Text="{Binding HodowcaNazwa}" HorizontalAlignment="Right" 
                                                        Foreground="#FF8A80" FontSize="14" FontWeight="Bold" 
