@@ -11855,14 +11855,14 @@ namespace Kalendarz1
         public decimal RoznicaProcentow => ProcentRoznicy - UbytekUmowny;
 
         /// <summary>
-        /// Czy różnica procentów jest ujemna (strata)
+        /// Czy różnica procentów jest ujemna (dobrze - mniej ubytku niż zakładano)
         /// </summary>
-        public bool IsRoznicaUjemna => RoznicaProcentow < 0;
+        public bool IsRoznicaUjemna => NettoHodowcy > 0 && RoznicaProcentow < 0;
 
         /// <summary>
-        /// Czy różnica procentów jest dodatnia (zysk)
+        /// Czy różnica procentów jest dodatnia (źle - więcej ubytku niż zakładano)
         /// </summary>
-        public bool IsRoznicaDodatnia => RoznicaProcentow > 0;
+        public bool IsRoznicaDodatnia => NettoHodowcy > 0 && RoznicaProcentow > 0;
 
         // === CENA I DOPŁATA ===
         private decimal _cena;
@@ -11901,19 +11901,29 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Zysk/Strata w zł = Różnica kg * (Cena + Dopłata)
+        /// Zysk/Strata w zł = Różnica kg * (Cena + Dopłata). Zwraca 0 gdy brak NettoHodowcy.
         /// </summary>
-        public decimal ZyskStrata => RoznicaWag * (Cena + Doplata);
+        public decimal ZyskStrata => NettoHodowcy == 0 ? 0 : RoznicaWag * (Cena + Doplata);
 
         /// <summary>
-        /// Czy zysk/strata jest ujemna
+        /// Czy zysk/strata jest ujemna (tylko gdy jest waga hodowcy)
         /// </summary>
-        public bool IsZyskUjemny => ZyskStrata < 0;
+        public bool IsZyskUjemny => NettoHodowcy > 0 && ZyskStrata < 0;
 
         /// <summary>
-        /// Czy zysk/strata jest dodatnia
+        /// Czy zysk/strata jest dodatnia (tylko gdy jest waga hodowcy)
         /// </summary>
-        public bool IsZyskDodatni => ZyskStrata > 0;
+        public bool IsZyskDodatni => NettoHodowcy > 0 && ZyskStrata > 0;
+
+        /// <summary>
+        /// Wyświetlany tekst dla RoznicaProcentow - pusty gdy brak NettoHodowcy
+        /// </summary>
+        public string RoznicaProcentowDisplay => NettoHodowcy == 0 ? "" : $"{RoznicaProcentow:F2}%";
+
+        /// <summary>
+        /// Wyświetlany tekst dla ZyskStrata - pusty gdy brak NettoHodowcy
+        /// </summary>
+        public string ZyskStrataDisplay => NettoHodowcy == 0 ? "" : $"{ZyskStrata:F0} zł";
 
         // Liczba skrzynek (z FarmerCalc)
         private int _skrzynki;
