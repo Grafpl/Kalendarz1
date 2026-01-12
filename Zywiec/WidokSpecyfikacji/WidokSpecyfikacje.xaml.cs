@@ -121,6 +121,19 @@ namespace Kalendarz1
         // === BLOKADA: Zapobiega logowaniu zmian podczas ładowania danych ===
         private bool _isLoadingData = false;
 
+        // === CACHE HODOWCOW: Przechowuje wszystkie dane hodowcow aby unikac wielokrotnych zapytan do bazy ===
+        // Klucz: GID hodowcy, Wartosc: slownik z polami (ShortName, Email, Address, PostalCode, City, Phone1, Phone2, Phone3)
+        private Dictionary<string, Dictionary<string, string>> _hodowcyDataCache = new Dictionary<string, Dictionary<string, string>>();
+        private readonly object _hodowcyCacheLock = new object();
+        private readonly string[] _hodowcyCacheFields = { "ShortName", "Email", "Address", "PostalCode", "City", "Phone1", "Phone2", "Phone3" };
+
+        // === LAZY LOADING: Flagi sledzace czy zakladki zostaly zaladowane ===
+        // Dane sa ladowane tylko przy pierwszym otwarciu zakladki lub po zmianie daty
+        private bool _plachtaLoaded = false;
+        private bool _rozliczeniaLoaded = false;
+        private bool _podsumowanieLoaded = false;
+        private DateTime? _lastLoadedDate = null;
+
         // === AUTOCOMPLETE DOSTAWCY: TextBox + Popup + ListBox ===
         public ObservableCollection<DostawcaItem> SupplierSuggestions { get; set; } = new ObservableCollection<DostawcaItem>();
         private DispatcherTimer _supplierFilterTimer;
@@ -283,11 +296,181 @@ namespace Kalendarz1
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd ładowania dostawców: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Blad ladowania dostawcow: {ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        // === WYDAJNOŚĆ: Debounce Timer - zapisuje zmiany po 500ms nieaktywności ASYNCHRONICZNIE ===
+        // === CACHE HODOWCOW: Uniwersalna metoda pobierania danych z cache ===
+        /// <summary>
+        /// Pobiera dowolne pole hodowcy z cache. Jesli nie ma w cache, pobiera z bazy i zapisuje do cache.
+        /// Thread-safe dzieki lock. Obsluguje pola: ShortName, Email, Address, PostalCode, City, Phone1, Phone2, Phone3
+        /// </summary>
+        private string GetCachedHodowcaField(string gid, string fieldName)
+        {
+            if (string.IsNullOrWhiteSpace(gid) || gid == "-1") return null;
+
+            // Sprawdz czy mamy w cache
+            lock (_hodowcyCacheLock)
+            {
+                if (_hodowcyDataCache.TryGetValue(gid, out var cachedData))
+                {
+                    if (cachedData.TryGetValue(fieldName, out string value))
+                    {
+                        return value;
+                    }
+                }
+            }
+
+            // Nie ma w cache - zaladuj wszystkie pola dla tego hodowcy
+            LoadSingleHodowcaToCache(gid);
+
+            // Sprobuj ponownie
+            lock (_hodowcyCacheLock)
+            {
+                if (_hodowcyDataCache.TryGetValue(gid, out var cachedData))
+                {
+                    if (cachedData.TryGetValue(fieldName, out string value))
+                    {
+                        return value;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Laduje wszystkie dane pojedynczego hodowcy do cache.
+        /// </summary>
+        private void LoadSingleHodowcaToCache(string gid)
+        {
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    string fields = string.Join(", ", _hodowcyCacheFields);
+                    string query = $"SELECT ID, {fields} FROM dbo.Dostawcy WHERE ID = @gid";
+
+                    using (SqlCommand cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@gid", gid);
+
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                var data = new Dictionary<string, string>();
+                                foreach (string field in _hodowcyCacheFields)
+                                {
+                                    data[field] = reader[field]?.ToString() ?? "";
+                                }
+
+                                lock (_hodowcyCacheLock)
+                                {
+                                    _hodowcyDataCache[gid] = data;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"LoadSingleHodowcaToCache error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Wstepnie laduje wszystkie dane hodowcow do cache dla podanej listy GID.
+        /// Optymalizacja - jedno zapytanie zamiast wielu, pobiera wszystkie pola.
+        /// </summary>
+        private void PreloadHodowcyCache(List<string> gids)
+        {
+            if (gids == null || gids.Count == 0) return;
+
+            // Usun duplikaty i puste wartosci
+            var uniqueGids = gids.Where(g => !string.IsNullOrWhiteSpace(g) && g != "-1").Distinct().ToList();
+
+            // Sprawdz ktore GID nie sa jeszcze w cache
+            List<string> gidsToLoad;
+            lock (_hodowcyCacheLock)
+            {
+                gidsToLoad = uniqueGids.Where(g => !_hodowcyDataCache.ContainsKey(g)).ToList();
+            }
+
+            if (gidsToLoad.Count == 0) return;
+
+            try
+            {
+                // Pobierz wszystkie dane w jednym zapytaniu
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    // Dla duzych list dzielimy na batche po 500 (limit parametrow SQL)
+                    const int batchSize = 500;
+                    for (int batch = 0; batch < gidsToLoad.Count; batch += batchSize)
+                    {
+                        var batchGids = gidsToLoad.Skip(batch).Take(batchSize).ToList();
+
+                        // Uzyj parametryzowanego zapytania z IN
+                        string gidList = string.Join(",", batchGids.Select((g, i) => $"@gid{i}"));
+                        string fields = string.Join(", ", _hodowcyCacheFields);
+                        string query = $"SELECT ID, {fields} FROM dbo.Dostawcy WHERE ID IN ({gidList})";
+
+                        using (SqlCommand cmd = new SqlCommand(query, connection))
+                        {
+                            for (int i = 0; i < batchGids.Count; i++)
+                            {
+                                cmd.Parameters.AddWithValue($"@gid{i}", batchGids[i]);
+                            }
+
+                            using (SqlDataReader reader = cmd.ExecuteReader())
+                            {
+                                lock (_hodowcyCacheLock)
+                                {
+                                    while (reader.Read())
+                                    {
+                                        string id = reader["ID"]?.ToString()?.Trim();
+                                        if (!string.IsNullOrEmpty(id))
+                                        {
+                                            var data = new Dictionary<string, string>();
+                                            foreach (string field in _hodowcyCacheFields)
+                                            {
+                                                data[field] = reader[field]?.ToString() ?? "";
+                                            }
+                                            _hodowcyDataCache[id] = data;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"PreloadHodowcyCache error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Czysci cache hodowcow. Wywolywane przy odswiezaniu danych.
+        /// </summary>
+        private void ClearHodowcyCache()
+        {
+            lock (_hodowcyCacheLock)
+            {
+                _hodowcyDataCache.Clear();
+            }
+        }
+
+        // === Metody pomocnicze dla kompatybilnosci wstecznej ===
+        private string GetCachedHodowcaNazwa(string gid) => GetCachedHodowcaField(gid, "ShortName");
+        private string GetCachedHodowcaEmail(string gid) => GetCachedHodowcaField(gid, "Email");
+
+        // === WYDAJNOSC: Debounce Timer - zapisuje zmiany po 500ms nieaktywnosci ASYNCHRONICZNIE ===
         private async void DebounceTimer_Tick(object sender, EventArgs e)
         {
             _debounceTimer.Stop();
@@ -578,24 +761,39 @@ namespace Kalendarz1
                     lumelPanel.Visibility = Visibility.Collapsed;
                 }
 
-                // Załaduj dane płachty gdy przełączono na kartę Płachta (teraz index 2 po ReorderTabs)
-                if (mainTabControl.SelectedIndex == 2)
+                // === LAZY LOADING: Zaladuj dane tylko przy pierwszym otwarciu zakladki ===
+
+                // Załaduj dane płachty gdy przełączono na kartę Płachta (index 2)
+                if (mainTabControl.SelectedIndex == 2 && !_plachtaLoaded)
                 {
                     LoadPlachtaData();
+                    _plachtaLoaded = true;
                 }
 
-                // Załaduj dane rozliczeń gdy przełączono na kartę Rozliczenia (teraz index 3 po ReorderTabs)
-                if (mainTabControl.SelectedIndex == 3)
+                // Załaduj dane rozliczeń gdy przełączono na kartę Rozliczenia (index 3)
+                if (mainTabControl.SelectedIndex == 3 && !_rozliczeniaLoaded)
                 {
                     LoadRozliczeniaData();
+                    _rozliczeniaLoaded = true;
                 }
 
                 // Załaduj dane podsumowania gdy przełączono na kartę Podsumowanie (index 4)
-                if (mainTabControl.SelectedIndex == 4)
+                if (mainTabControl.SelectedIndex == 4 && !_podsumowanieLoaded)
                 {
                     LoadPodsumowanieData();
+                    _podsumowanieLoaded = true;
                 }
             }
+        }
+
+        /// <summary>
+        /// Resetuje flagi lazy loading - wywolywane przy zmianie daty
+        /// </summary>
+        private void ResetTabLoadedFlags()
+        {
+            _plachtaLoaded = false;
+            _rozliczeniaLoaded = false;
+            _podsumowanieLoaded = false;
         }
 
         private void UpdateTransportDateLabel()
@@ -853,7 +1051,29 @@ namespace Kalendarz1
         /// </summary>
         private void BtnRefreshAll_Click(object sender, RoutedEventArgs e)
         {
+            // LAZY LOADING: Resetuj flagi zakladek przed odswiezeniem
+            ResetTabLoadedFlags();
+            ClearHodowcyCache(); // Wyczysc cache hodowcow aby pobrac aktualne dane
+
             LoadData(dateTimePicker1.SelectedDate ?? DateTime.Today);
+
+            // Zaladuj dane dla aktualnie otwartej zakladki
+            switch (mainTabControl.SelectedIndex)
+            {
+                case 2: // Plachta
+                    LoadPlachtaData();
+                    _plachtaLoaded = true;
+                    break;
+                case 3: // Rozliczenia
+                    LoadRozliczeniaData();
+                    _rozliczeniaLoaded = true;
+                    break;
+                case 4: // Podsumowanie
+                    LoadPodsumowanieData();
+                    _podsumowanieLoaded = true;
+                    break;
+            }
+
             UpdateStatus("Wszystkie dane odswiezone");
         }
 
@@ -1337,21 +1557,50 @@ namespace Kalendarz1
         {
             if (dateTimePicker1.SelectedDate.HasValue)
             {
+                // LAZY LOADING: Resetuj flagi zakladek - dane beda zaladowane przy pierwszym otwarciu
+                ResetTabLoadedFlags();
+
                 LoadData(dateTimePicker1.SelectedDate.Value);
                 UpdateFullDateLabel();
                 UpdateTransportDateLabel();
 
-                // Odśwież wszystkie karty przy zmianie daty
-                LoadRozliczeniaData();
-                LoadPlachtaData();
-                LoadPodsumowanieData(); // Auto-odświeżanie karty Podsumowanie
+                // LAZY LOADING: Zaladuj dane tylko dla aktualnie otwartej zakladki
+                // Pozostale zakladki zostana zaladowane gdy uzytkownik na nie przejdzie
+                switch (mainTabControl.SelectedIndex)
+                {
+                    case 2: // Plachta
+                        LoadPlachtaData();
+                        _plachtaLoaded = true;
+                        break;
+                    case 3: // Rozliczenia
+                        LoadRozliczeniaData();
+                        _rozliczeniaLoaded = true;
+                        break;
+                    case 4: // Podsumowanie
+                        LoadPodsumowanieData();
+                        _podsumowanieLoaded = true;
+                        break;
+                }
 
                 // Odśwież mini kalendarz
                 RefreshMiniCalendar();
             }
         }
 
+        /// <summary>
+        /// Synchroniczna wersja LoadData - dla kompatybilności wstecznej
+        /// Deleguje do wersji async
+        /// </summary>
         private void LoadData(DateTime selectedDate)
+        {
+            // Uruchom async wersje bez czekania (dla event handlerow ktore nie moga byc async)
+            _ = LoadDataAsync(selectedDate);
+        }
+
+        /// <summary>
+        /// Asynchroniczne ladowanie danych - nie blokuje UI podczas pobierania z bazy
+        /// </summary>
+        private async Task LoadDataAsync(DateTime selectedDate)
         {
             _isLoadingData = true; // Blokuj logowanie zmian podczas ładowania
             try
@@ -1359,6 +1608,69 @@ namespace Kalendarz1
                 UpdateStatus("Ładowanie danych...");
                 specyfikacjeData.Clear();
 
+                // Wykonaj operacje bazodanowe w tle
+                var loadResult = await Task.Run(() => LoadDataFromDatabase(selectedDate));
+
+                if (loadResult.Success && loadResult.Rows != null && loadResult.Rows.Count > 0)
+                {
+                    // Aktualizuj UI na wątku głównym
+                    foreach (var specRow in loadResult.Rows)
+                    {
+                        specyfikacjeData.Add(specRow);
+                    }
+                    UpdateStatistics();
+                    LoadTransportData(); // Załaduj dane transportowe
+                    LoadHarmonogramData(); // Załaduj harmonogram dostaw
+                    LoadPdfStatusForAllRows(); // Załaduj status PDF dla wszystkich wierszy
+                    AssignSupplierColorsAndGroups(); // Przypisz kolory dostawcom
+                    UpdateStatus($"Załadowano {loadResult.Rows.Count} rekordów");
+                }
+                else if (loadResult.Success)
+                {
+                    UpdateStatistics();
+                    LoadTransportData(); // Wyczyść dane transportowe
+                    LoadHarmonogramData(); // Wyczyść harmonogram
+                    UpdateStatus("Brak danych dla wybranej daty");
+                }
+                else
+                {
+                    UpdateStatus($"Błąd: {loadResult.ErrorMessage}");
+                }
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Błąd: {ex.Message}");
+            }
+            finally
+            {
+                // WAŻNE: Resetuj flagę DOPIERO gdy WPF skończy binding checkboxów
+                // Użyj niskiego priorytetu aby poczekać na zakończenie wszystkich operacji UI
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    _isLoadingData = false;
+                }), System.Windows.Threading.DispatcherPriority.ContextIdle);
+            }
+        }
+
+        /// <summary>
+        /// Wynik operacji ladowania danych
+        /// </summary>
+        private class LoadDataResult
+        {
+            public bool Success { get; set; }
+            public string ErrorMessage { get; set; }
+            public List<SpecyfikacjaRow> Rows { get; set; }
+        }
+
+        /// <summary>
+        /// Pobiera dane z bazy - moze byc uruchomiona w tle (Task.Run)
+        /// </summary>
+        private LoadDataResult LoadDataFromDatabase(DateTime selectedDate)
+        {
+            var result = new LoadDataResult { Success = false, Rows = new List<SpecyfikacjaRow>() };
+
+            try
+            {
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
@@ -1384,10 +1696,20 @@ namespace Kalendarz1
 
                     if (dataTable.Rows.Count > 0)
                     {
+                        // OPTYMALIZACJA: Wstepnie zaladuj wszystkie nazwy hodowcow do cache (1 zapytanie zamiast N)
+                        var allGids = new List<string>();
                         foreach (DataRow row in dataTable.Rows)
                         {
-                            // WAŻNE: Trim() usuwa spacje z nchar(10) - bez tego ComboBox nie znajdzie dopasowania
+                            allGids.Add(ZapytaniaSQL.GetValueOrDefault<string>(row, "CustomerGID", "-1")?.Trim());
+                            allGids.Add(ZapytaniaSQL.GetValueOrDefault<string>(row, "CustomerRealGID", "-1")?.Trim());
+                        }
+                        PreloadHodowcyCache(allGids);
+
+                        foreach (DataRow row in dataTable.Rows)
+                        {
+                            // WAZNE: Trim() usuwa spacje z nchar(10) - bez tego ComboBox nie znajdzie dopasowania
                             string customerGID = ZapytaniaSQL.GetValueOrDefault<string>(row, "CustomerGID", "-1")?.Trim();
+                            string customerRealGID = ZapytaniaSQL.GetValueOrDefault<string>(row, "CustomerRealGID", "-1")?.Trim();
                             decimal nettoUbojniValue = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "NettoWeight", 0);
                             decimal nettoHodowcyValue = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "NettoFarmWeight", 0);
 
@@ -1398,9 +1720,8 @@ namespace Kalendarz1
                                 Number = ZapytaniaSQL.GetValueOrDefault<int>(row, "Number", 0),
                                 YearNumber = ZapytaniaSQL.GetValueOrDefault<int>(row, "YearNumber", 0),
                                 DostawcaGID = customerGID,
-                                Dostawca = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerGID, "ShortName"),
-                                RealDostawca = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(
-                                    ZapytaniaSQL.GetValueOrDefault<string>(row, "CustomerRealGID", "-1"), "ShortName"),
+                                Dostawca = GetCachedHodowcaNazwa(customerGID),
+                                RealDostawca = GetCachedHodowcaNazwa(customerRealGID),
                                 SztukiDek = ZapytaniaSQL.GetValueOrDefault<int>(row, "DeclI1", 0),
                                 Padle = ZapytaniaSQL.GetValueOrDefault<int>(row, "DeclI2", 0),
                                 CH = ZapytaniaSQL.GetValueOrDefault<int>(row, "DeclI3", 0),
@@ -1449,37 +1770,19 @@ namespace Kalendarz1
                                 ZdjecieBruttoPath = dataTable.Columns.Contains("ZdjecieBruttoPath") ? ZapytaniaSQL.GetValueOrDefault<string>(row, "ZdjecieBruttoPath", null)?.Trim() : null
                             };
 
-                            specyfikacjeData.Add(specRow);
+                            result.Rows.Add(specRow);
                         }
-                        UpdateStatistics();
-                        LoadTransportData(); // Załaduj dane transportowe
-                        LoadHarmonogramData(); // Załaduj harmonogram dostaw
-                        LoadPdfStatusForAllRows(); // Załaduj status PDF dla wszystkich wierszy
-                        AssignSupplierColorsAndGroups(); // Przypisz kolory dostawcom
-                        UpdateStatus($"Załadowano {dataTable.Rows.Count} rekordów");
                     }
-                    else
-                    {
-                        UpdateStatistics();
-                        LoadTransportData(); // Wyczyść dane transportowe
-                        LoadHarmonogramData(); // Wyczyść harmonogram
-                        UpdateStatus("Brak danych dla wybranej daty");
-                    }
+                    result.Success = true;
                 }
             }
             catch (Exception ex)
             {
-                UpdateStatus($"Błąd: {ex.Message}");
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
             }
-            finally
-            {
-                // WAŻNE: Resetuj flagę DOPIERO gdy WPF skończy binding checkboxów
-                // Użyj niskiego priorytetu aby poczekać na zakończenie wszystkich operacji UI
-                Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    _isLoadingData = false;
-                }), System.Windows.Threading.DispatcherPriority.ContextIdle);
-            }
+
+            return result;
         }
 
         private string FormatWeight(DataRow row, string columnName)
@@ -4541,6 +4844,7 @@ namespace Kalendarz1
             if (specyfikacjeData == null || specyfikacjeData.Count == 0) return;
 
             // WAZNE: Blokuj logowanie zmian podczas grupowania
+            // Ustawiamy flage PRZED operacjami na kolekcji
             _isLoadingData = true;
 
             try
@@ -4586,7 +4890,12 @@ namespace Kalendarz1
             }
             finally
             {
-                _isLoadingData = false;
+                // WAZNE: Odblokuj dopiero po zakonczeniu przetwarzania eventow UI
+                // Dispatcher.BeginInvoke z niskim priorytetem czeka az wszystkie eventy UI zostana obsluzone
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    _isLoadingData = false;
+                }), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
             }
         }
 
@@ -4881,7 +5190,7 @@ namespace Kalendarz1
             try
             {
                 string customerRealGID = zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID");
-                string sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "ShortName") ?? "Hodowca";
+                string sellerName = GetCachedHodowcaField(customerRealGID, "ShortName") ?? "Hodowca";
 
                 // Pobierz numer telefonu - sprawdź Phone1, Phone2, Phone3
                 string phoneNumber = GetPhoneNumber(customerRealGID);
@@ -4901,15 +5210,16 @@ namespace Kalendarz1
                         var hodowcaForm = new HodowcaForm(customerRealGID, Environment.UserName);
                         hodowcaForm.ShowDialog();
 
-                        // Po zamknięciu formularza - sprawdź ponownie czy telefon został uzupełniony
+                        // Po zamknięciu formularza - wyczysc cache i sprawdz ponownie
+                        ClearHodowcyCache(); // Wyczysc cache bo dane mogly sie zmienic
                         phoneNumber = GetPhoneNumber(customerRealGID);
                         if (string.IsNullOrWhiteSpace(phoneNumber))
                         {
                             MessageBox.Show("Numer telefonu nadal nie został uzupełniony.", "Brak telefonu", MessageBoxButton.OK, MessageBoxImage.Information);
                             return;
                         }
-                        // Odśwież nazwę hodowcy (mogła się zmienić)
-                        sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "ShortName") ?? "Hodowca";
+                        // Odśwież nazwę hodowcy z nowego cache (mogła się zmienić)
+                        sellerName = GetCachedHodowcaField(customerRealGID, "ShortName") ?? "Hodowca";
                     }
                     else
                     {
@@ -4984,15 +5294,15 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Pobiera pierwszy dostępny numer telefonu hodowcy (Phone1, Phone2 lub Phone3)
+        /// Pobiera pierwszy dostępny numer telefonu hodowcy z cache (Phone1, Phone2 lub Phone3)
         /// </summary>
         private string GetPhoneNumber(string customerGID)
         {
-            string phone = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerGID, "Phone1");
+            string phone = GetCachedHodowcaField(customerGID, "Phone1");
             if (string.IsNullOrWhiteSpace(phone))
-                phone = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerGID, "Phone2");
+                phone = GetCachedHodowcaField(customerGID, "Phone2");
             if (string.IsNullOrWhiteSpace(phone))
-                phone = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerGID, "Phone3");
+                phone = GetCachedHodowcaField(customerGID, "Phone3");
             return phone;
         }
 
@@ -5026,7 +5336,7 @@ namespace Kalendarz1
             try
             {
                 string customerRealGID = zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID");
-                string sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "ShortName") ?? "Hodowca";
+                string sellerName = GetCachedHodowcaField(customerRealGID, "ShortName") ?? "Hodowca";
 
                 // Pobierz telefon hodowcy
                 string phoneNumber = GetPhoneNumber(customerRealGID);
@@ -5043,13 +5353,14 @@ namespace Kalendarz1
                     {
                         var hodowcaForm = new HodowcaForm(customerRealGID, Environment.UserName);
                         hodowcaForm.ShowDialog();
+                        ClearHodowcyCache(); // Wyczysc cache bo dane mogly sie zmienic
                         phoneNumber = GetPhoneNumber(customerRealGID);
                         if (string.IsNullOrWhiteSpace(phoneNumber))
                         {
                             MessageBox.Show("Numer telefonu nadal nie został uzupełniony.", "Brak telefonu", MessageBoxButton.OK, MessageBoxImage.Information);
                             return;
                         }
-                        sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "ShortName") ?? "Hodowca";
+                        sellerName = GetCachedHodowcaField(customerRealGID, "ShortName") ?? "Hodowca";
                     }
                     else
                     {
@@ -5186,10 +5497,10 @@ namespace Kalendarz1
             try
             {
                 string customerRealGID = zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID");
-                string sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "ShortName") ?? "Hodowca";
+                string sellerName = GetCachedHodowcaField(customerRealGID, "ShortName") ?? "Hodowca";
 
-                // Pobierz email hodowcy - jesli jest w bazie to wstaw, jesli nie to puste
-                string email = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "Email") ?? "";
+                // Pobierz email hodowcy z cache - jesli jest w bazie to wstaw, jesli nie to puste
+                string email = GetCachedHodowcaField(customerRealGID, "Email") ?? "";
 
                 // Pobierz WSZYSTKIE rozliczenia dla tego hodowcy
                 var rozliczeniaHodowcy = specyfikacjeData
@@ -5252,10 +5563,8 @@ namespace Kalendarz1
             // A4 pionowa z mniejszymi marginesami
             Document doc = new Document(PageSize.A4, 30, 30, 25, 25);
 
-            string sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(
-                zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"),
-                "ShortName") ?? "Nieznany";
             string customerRealGID = zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID");
+            string sellerName = GetCachedHodowcaField(customerRealGID, "ShortName") ?? "Nieznany";
             DateTime dzienUbojowy = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CalcDate");
 
             string strDzienUbojowy = dzienUbojowy.ToString("yyyy.MM.dd");
@@ -5335,10 +5644,10 @@ namespace Kalendarz1
                 buyerCell.AddElement(new Paragraph("Koziołki 40, 95-061 Dmosin", textFont));
                 infoTable.AddCell(buyerCell);
 
-                // Sprzedający
-                string sellerStreet = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "Address") ?? "";
-                string sellerKod = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "PostalCode") ?? "";
-                string sellerMiejsc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "City") ?? "";
+                // Sprzedający - pobierz dane z cache
+                string sellerStreet = GetCachedHodowcaField(customerRealGID, "Address") ?? "";
+                string sellerKod = GetCachedHodowcaField(customerRealGID, "PostalCode") ?? "";
+                string sellerMiejsc = GetCachedHodowcaField(customerRealGID, "City") ?? "";
 
                 PdfPCell sellerCell = CreateRoundedCell(orangeColor, new BaseColor(255, 253, 248), 8);
                 sellerCell.AddElement(new Paragraph("SPRZEDAJĄCY", new Font(polishFont, 9, Font.BOLD, orangeColor)));
@@ -5592,9 +5901,8 @@ namespace Kalendarz1
             // A4 pionowa - mniejsze marginesy dla lepszego wykorzystania strony
             Document doc = new Document(PageSize.A4, 15, 15, 15, 15);
 
-            string sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(
-                zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerGID"),
-                "ShortName") ?? "Nieznany";
+            string customerGID = zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerGID");
+            string sellerName = GetCachedHodowcaField(customerGID, "ShortName") ?? "Nieznany";
             DateTime dzienUbojowy = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(
                 ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CalcDate");
 
@@ -5767,11 +6075,11 @@ namespace Kalendarz1
                 buyerCell.AddElement(new Paragraph("NIP: 726-162-54-06", textFont));
                 partiesTable.AddCell(buyerCell);
 
-                // Sprzedający (prawa strona)
+                // Sprzedający (prawa strona) - pobierz dane z cache
                 string customerRealGID = zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID");
-                string sellerStreet = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "Address") ?? "";
-                string sellerKod = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "PostalCode") ?? "";
-                string sellerMiejsc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "City") ?? "";
+                string sellerStreet = GetCachedHodowcaField(customerRealGID, "Address") ?? "";
+                string sellerKod = GetCachedHodowcaField(customerRealGID, "PostalCode") ?? "";
+                string sellerMiejsc = GetCachedHodowcaField(customerRealGID, "City") ?? "";
 
                 // Pobierz termin zapłaty z FarmerCalc (TerminDni), lub domyślny z Dostawcy
                 int? terminDniFromCalc = zapytaniasql.PobierzInformacjeZBazyDanych<int?>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "TerminDni");
@@ -10552,7 +10860,8 @@ namespace Kalendarz1
                     // Tabela z czarnymi obramowaniami
                     PdfPTable table = new PdfPTable(19);
                     table.WidthPercentage = 100;
-                    float[] widths = { 3f, 10f, 5f, 4f, 4f, 4f, 4f, 4f, 4f, 5f, 4f, 4f, 5f, 5f, 5f, 5f, 5f, 5f, 5f };
+                    // Szerokosci: LP, Hodowca, Zadekl, Padle, Konfi, Suma, KgKonf, KgPadle, KgSuma, Wydaj, Lumel(szerszy), KonT, Zdatne, Zywiec, SrWaga, Prod.szt, Prod.kg, Rozn1(krotszy), Rozn2(krotszy)
+                    float[] widths = { 3f, 10f, 5f, 4f, 4f, 4f, 4f, 4f, 4f, 5f, 6f, 4f, 5f, 5f, 5f, 5f, 5f, 4f, 4f };
                     table.SetWidths(widths);
 
                     // Ustawienie domyślnych obramowań dla tabeli
