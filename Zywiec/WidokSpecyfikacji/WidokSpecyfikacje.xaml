@@ -540,7 +540,8 @@
                                        FontSize="14"
                                        FontWeight="SemiBold"
                                        VerticalAlignment="Center"
-                                       Margin="15,0,0,0"/>
+                                       Margin="15,0,0,0"
+                                       MinWidth="210"/>
                         </StackPanel>
                     </Border>
 
@@ -1721,6 +1722,32 @@
                                         </Style>
                                     </DataGridTemplateColumn.CellStyle>
                                 </DataGridTemplateColumn>
+
+                                <!-- Kopia kolumny Dostawca na końcu - ułatwia przeglądanie od końca -->
+                                <DataGridTextColumn Header="Dostawca" Width="130" Binding="{Binding Dostawca}" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="5,0"/>
+                                            <Setter Property="Background" Value="#E8F5E9"/>
+                                            <Setter Property="Foreground" Value="Black"/>
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                    <DataGridTextColumn.CellStyle>
+                                        <Style TargetType="DataGridCell">
+                                            <Setter Property="Background" Value="#E8F5E9"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Foreground" Value="Black"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                    <Setter Property="Background" Value="#C8E6C9"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGridTextColumn.CellStyle>
+                                </DataGridTextColumn>
 
                             </DataGrid.Columns>
                         </DataGrid>
@@ -3125,7 +3152,8 @@
                                 <!-- SRODEK: Tytul i data -->
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <TextBlock Text="PODSUMOWANIE" FontSize="14" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
-                                    <Border Background="#FFFFFF20" CornerRadius="4" Padding="10,4" Margin="15,0,0,0">
+                                    <Border Background="#2C3E50" CornerRadius="4" Padding="10,4" Margin="15,0,0,0"
+                                            BorderBrush="#1A252F" BorderThickness="2">
                                         <TextBlock x:Name="lblPodsumowanieData" Text="-" FontWeight="Bold"
                                                    Foreground="White" FontSize="13" VerticalAlignment="Center"/>
                                     </Border>
