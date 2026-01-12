@@ -5635,7 +5635,7 @@ namespace Kalendarz1
             Document doc = new Document(PageSize.A4, 15, 15, 15, 15);
 
             string sellerName = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(
-                zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID"),
+                zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerGID"),
                 "ShortName") ?? "Nieznany";
             DateTime dzienUbojowy = zapytaniasql.PobierzInformacjeZBazyDanych<DateTime>(
                 ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CalcDate");
