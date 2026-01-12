@@ -560,6 +560,14 @@ namespace Kalendarz1
             dateTimePicker1.SelectedDate = newDate;
         }
 
+        /// <summary>
+        /// Przejdź do dzisiejszej daty
+        /// </summary>
+        private void BtnToday_Click(object sender, RoutedEventArgs e)
+        {
+            dateTimePicker1.SelectedDate = DateTime.Today;
+        }
+
         #endregion
 
         // === TRANSPORT: Handlery dla karty Transport ===
@@ -4586,7 +4594,12 @@ namespace Kalendarz1
             }
             finally
             {
-                _isLoadingData = false;
+                // WAZNE: Resetuj flage DOPIERO gdy WPF skonczy wszystkie operacje UI
+                // To zapobiega logowaniu zmian checkbox/combobox podczas grupowania
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    _isLoadingData = false;
+                }), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
             }
         }
 

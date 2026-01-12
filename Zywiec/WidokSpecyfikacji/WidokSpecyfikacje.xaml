@@ -614,6 +614,12 @@
                                     Background="Transparent" BorderThickness="0" VerticalAlignment="Center" Margin="5,0,0,0">
                                 <TextBlock Text="▶" Foreground="White" FontSize="14" FontWeight="Bold"/>
                             </Button>
+                            <!-- Przycisk Dziś -->
+                            <Button x:Name="btnToday" Click="BtnToday_Click" Cursor="Hand"
+                                    Background="#FF9800" BorderThickness="0" VerticalAlignment="Center" Margin="10,0,0,0"
+                                    Padding="8,4" ToolTip="Przejdź do dzisiejszej daty">
+                                <TextBlock Text="Dziś" Foreground="White" FontSize="11" FontWeight="Bold"/>
+                            </Button>
                         </StackPanel>
                     </Border>
 
@@ -631,18 +637,6 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
-                    <Button Content="DRUKUJ PDF"
-                            x:Name="button1"
-                            Click="Button1_Click"
-                            Style="{StaticResource MainButtonStyle}"
-                            Background="#E67E22"
-                            ToolTip="Drukuj specyfikację dla wybranego dostawcy"/>
-                    <Button Content="📂 Otwórz folder"
-                            x:Name="btnOpenPdfFolder"
-                            Click="BtnOpenPdfFolder_Click"
-                            Style="{StaticResource SecondaryButtonStyle}"
-                            Padding="12,8"
-                            ToolTip="Otwórz folder ze specyfikacjami"/>
                     <Button Content="⚙️"
                             x:Name="btnPdfSettings"
                             Click="BtnPdfSettings_Click"
@@ -656,12 +650,6 @@
                             Style="{StaticResource MainButtonStyle}"
                             Background="#16A085"
                             ToolTip="SMS z rozliczeniem"/>
-                    <Button Content="📧 EMAIL"
-                            x:Name="btnSendEmail"
-                            Click="BtnSendEmail_Click"
-                            Style="{StaticResource MainButtonStyle}"
-                            Background="#E74C3C"
-                            ToolTip="Wyślij email z PDF w załączniku"/>
                     <Button Content="⚙️ Admin"
                             x:Name="btnAdmin"
                             Click="BtnAdmin_Click"
