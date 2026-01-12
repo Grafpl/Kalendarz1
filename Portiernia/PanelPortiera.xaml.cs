@@ -1044,10 +1044,22 @@ namespace Kalendarz1
             }
         }
 
+        private void PokazKomunikatNajpierwNowe()
+        {
+            if (aktualnyTryb != "Avilog")
+            {
+                MessageBox.Show("Najpierw musisz nacisnąć NOWE", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
         public void NumpadClick(object sender, RoutedEventArgs e)
         {
             // Blokuj edycję gdy nie ma zaznaczenia
-            if (WybranaDostwa == null) return;
+            if (WybranaDostwa == null)
+            {
+                PokazKomunikatNajpierwNowe();
+                return;
+            }
 
             if (sender is Button btn)
             {
@@ -1085,7 +1097,11 @@ namespace Kalendarz1
         public void BtnClear_Click(object sender, RoutedEventArgs e)
         {
             // Blokuj gdy nie ma zaznaczenia
-            if (WybranaDostwa == null) return;
+            if (WybranaDostwa == null)
+            {
+                PokazKomunikatNajpierwNowe();
+                return;
+            }
 
             TextBlock target = (aktywnePole == AktywnePole.Brutto) ? txtBrutto : txtTara;
             target.Text = "0";
@@ -1108,7 +1124,11 @@ namespace Kalendarz1
         public void BtnBackspace_Click(object sender, RoutedEventArgs e)
         {
             // Blokuj gdy nie ma zaznaczenia
-            if (WybranaDostwa == null) return;
+            if (WybranaDostwa == null)
+            {
+                PokazKomunikatNajpierwNowe();
+                return;
+            }
 
             TextBlock target = (aktywnePole == AktywnePole.Brutto) ? txtBrutto : txtTara;
             if (target.Text.Length > 0) target.Text = target.Text.Substring(0, target.Text.Length - 1);
@@ -1153,7 +1173,11 @@ namespace Kalendarz1
             else
             {
                 // W trybie ODPADY wymagaj zaznaczenia lub nowego wpisu
-                if (WybranaDostwa == null) return;
+                if (WybranaDostwa == null)
+                {
+                    PokazKomunikatNajpierwNowe();
+                    return;
+                }
                 success = ZapiszOdpady(brutto, tara);
             }
 
@@ -1423,7 +1447,27 @@ namespace Kalendarz1
         public void BtnNewEntry_Click(object sender, RoutedEventArgs e)
         {
             ClearFormularz();
-            WybranaDostwa = new DostawaPortiera { ID = 0, Towar = aktualnyTowar, Brutto = 0, Tara = 0, Netto = 0 };
+
+            // Utwórz nowy wpis z bieżącą godziną
+            var nowyWpis = new DostawaPortiera
+            {
+                ID = 0,
+                Towar = aktualnyTowar,
+                Brutto = 0,
+                Tara = 0,
+                Netto = 0,
+                GodzinaPrzyjazdu = DateTime.Now.ToString("HH:mm"),
+                NrRejestracyjny = "",
+                HodowcaNazwa = "(nowy wpis)"
+            };
+
+            // Dodaj do listy aby był widoczny w tabeli
+            dostawy.Insert(0, nowyWpis);
+
+            // Zaznacz nowy wiersz
+            WybranaDostwa = nowyWpis;
+            gridTable.SelectedItem = nowyWpis;
+
             radioTara.IsChecked = true;
             aktywnePole = AktywnePole.Tara;
             UpdateBigDisplay();
