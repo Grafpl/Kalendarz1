@@ -1048,7 +1048,13 @@ namespace Kalendarz1
         {
             if (aktualnyTryb != "Avilog")
             {
-                MessageBox.Show("Najpierw musisz nacisnąć NOWE", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show(
+                    "Aby wprowadzić wagę:\n\n" +
+                    "1. Wybierz towar (Krew, Łapy, Jelita, Pióra, Odpady)\n" +
+                    "2. Wybierz odbiorcę z listy\n" +
+                    "3. Naciśnij przycisk NOWE\n\n" +
+                    "Dopiero wtedy możesz wpisać lub odczytać wagę.",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
@@ -1886,7 +1892,7 @@ namespace Kalendarz1
             // Sprawdź czy jest wybrana dostawa
             if (WybranaDostwa == null)
             {
-                MessageBox.Show("Najpierw wybierz dostawę z listy.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                PokazKomunikatNajpierwNowe();
                 return;
             }
 
