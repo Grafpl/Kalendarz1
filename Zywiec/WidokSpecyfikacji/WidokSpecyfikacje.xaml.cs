@@ -5015,7 +5015,60 @@ namespace Kalendarz1
                 phone = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerGID, "Phone3");
             return phone;
         }
+        private void ContextMenu_DuplicateRow(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var selectedRow = dataGridView1.SelectedItem as SpecyfikacjaRow;
+                if (selectedRow == null)
+                {
+                    MessageBox.Show("Wybierz wiersz do duplikowania!", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
 
+                string customerRealGID = "";
+                try { customerRealGID = zapytaniasql.PobierzInformacjeZBazyDanych<string>(selectedRow.ID, "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID") ?? ""; } catch { }
+
+                var duplicateData = new NowaSpecyfikacjaWindow.DuplicateData
+                {
+                    SourceHodowca = selectedRow.Dostawca ?? selectedRow.RealDostawca ?? "-",
+                    Cena = selectedRow.Cena,
+                    TypCeny = selectedRow.TypCeny ?? "",
+                    Ubytek = selectedRow.Ubytek,
+                    PiK = selectedRow.PiK,
+                    CustomerGID = selectedRow.DostawcaGID ?? "",
+                    CustomerRealGID = customerRealGID
+                };
+
+                DateTime? selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                var window = new NowaSpecyfikacjaWindow(connectionString, selectedDate, duplicateData);
+                window.Owner = Window.GetWindow(this);
+
+                if (window.ShowDialog() == true && window.SpecyfikacjaCreated)
+                {
+                    LoadData(selectedDate.Value);
+                    UpdateStatistics();
+                    UpdateStatus($"Duplikowano specyfikację. Nowe ID: {window.CreatedSpecId}");
+
+                    var newRow = specyfikacjeData.FirstOrDefault(s => s.ID == window.CreatedSpecId);
+                    if (newRow != null)
+                    {
+                        dataGridView1.SelectedItem = newRow;
+                        dataGridView1.ScrollIntoView(newRow);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd duplikowania:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Menu kontekstowe: Duplikuj wiersz jako nową specyfikację
+        /// Kopiuje ustawienia cenowe (Cena, Typ ceny, Ubytek, PiK, CustomerRealGID)
+        /// </summary>
         // === Przycisk SMS ZAŁADUNEK - informacja o godzinie przyjazdu auta ===
         private void BtnSmsZaladunek_Click(object sender, RoutedEventArgs e)
         {
@@ -8379,7 +8432,8 @@ namespace Kalendarz1
                             ISNULL(fc.DeclI2, 0) as Padle,
                             ISNULL(fc.DeclI3, 0) as CH,
                             ISNULL(fc.DeclI4, 0) as NW,
-                            ISNULL(fc.DeclI5, 0) as ZM
+                            ISNULL(fc.DeclI5, 0) as ZM,
+                            ISNULL(fc.NettoFarmWeight, ISNULL(fc.NettoWeight, 0)) as NettoWeight
                         FROM dbo.FarmerCalc fc
                         WHERE fc.CalcDate = @CalcDate
                         ORDER BY fc.CarLp, fc.ID";
@@ -8420,7 +8474,8 @@ namespace Kalendarz1
                                     Chore = reader["CH"] != DBNull.Value ? Convert.ToInt32(reader["CH"]) : 0,
                                     NW = reader["NW"] != DBNull.Value ? Convert.ToInt32(reader["NW"]) : 0,
                                     ZM = reader["ZM"] != DBNull.Value ? Convert.ToInt32(reader["ZM"]) : 0,
-                                    CustomerGID = 0
+                                    CustomerGID = 0,
+                                    NettoWeight = reader["NettoWeight"] != DBNull.Value ? Convert.ToDecimal(reader["NettoWeight"]) : 0
                                 });
                             }
                         }
@@ -9152,14 +9207,14 @@ namespace Kalendarz1
                         bfArial = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1250, BaseFont.NOT_EMBEDDED);
                     }
 
-                    iTextSharp.text.Font fontTitle = new iTextSharp.text.Font(bfArial, 20, iTextSharp.text.Font.BOLD);
-                    iTextSharp.text.Font fontSubtitle = new iTextSharp.text.Font(bfArial, 14, iTextSharp.text.Font.NORMAL);
-                    iTextSharp.text.Font fontHeader = new iTextSharp.text.Font(bfArial, 11, iTextSharp.text.Font.BOLD, BaseColor.WHITE);
-                    iTextSharp.text.Font fontData = new iTextSharp.text.Font(bfArial, 11);
-                    iTextSharp.text.Font fontDataBold = new iTextSharp.text.Font(bfArial, 11, iTextSharp.text.Font.BOLD);
-                    iTextSharp.text.Font fontSum = new iTextSharp.text.Font(bfArial, 12, iTextSharp.text.Font.BOLD);
-                    iTextSharp.text.Font fontFooter = new iTextSharp.text.Font(bfArial, 10);
-                    iTextSharp.text.Font fontSignature = new iTextSharp.text.Font(bfArial, 10, iTextSharp.text.Font.ITALIC);
+                    iTextSharp.text.Font fontTitle = new iTextSharp.text.Font(bfArial, 16, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontSubtitle = new iTextSharp.text.Font(bfArial, 11, iTextSharp.text.Font.NORMAL);
+                    iTextSharp.text.Font fontHeader = new iTextSharp.text.Font(bfArial, 9, iTextSharp.text.Font.BOLD, BaseColor.WHITE);
+                    iTextSharp.text.Font fontData = new iTextSharp.text.Font(bfArial, 9);
+                    iTextSharp.text.Font fontDataBold = new iTextSharp.text.Font(bfArial, 9, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontSum = new iTextSharp.text.Font(bfArial, 10, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontFooter = new iTextSharp.text.Font(bfArial, 8);
+                    iTextSharp.text.Font fontSignature = new iTextSharp.text.Font(bfArial, 8, iTextSharp.text.Font.ITALIC);
 
                     // Nazwa dnia tygodnia
                     string[] dniTygodnia = { "NIEDZIELA", "PONIEDZIAŁEK", "WTOREK", "ŚRODA", "CZWARTEK", "PIĄTEK", "SOBOTA" };
@@ -9173,10 +9228,9 @@ namespace Kalendarz1
                         try
                         {
                             iTextSharp.text.Image logo = iTextSharp.text.Image.GetInstance(logoPath);
-                            logo.ScaleToFit(120, 60);
+                            logo.ScaleToFit(80, 40);
                             logo.Alignment = Element.ALIGN_CENTER;
                             doc.Add(logo);
-                            doc.Add(new Paragraph(" "));
                         }
                         catch { }
                     }
@@ -9184,40 +9238,42 @@ namespace Kalendarz1
                     // Tytuł główny
                     Paragraph title = new Paragraph("SPECYFIKACJA DLA WETERYNARII", fontTitle);
                     title.Alignment = Element.ALIGN_CENTER;
-                    title.SpacingAfter = 5;
+                    title.SpacingAfter = 3;
                     doc.Add(title);
 
                     // Podtytuł z datą
                     Paragraph subtitle = new Paragraph($"Data: {selectedDate:dd.MM.yyyy} ({dzienTygodnia})", fontSubtitle);
                     subtitle.Alignment = Element.ALIGN_CENTER;
-                    subtitle.SpacingAfter = 20;
+                    subtitle.SpacingAfter = 8;
                     doc.Add(subtitle);
 
                     // === TABELA GŁÓWNA ===
-                    PdfPTable table = new PdfPTable(5);
-                    table.WidthPercentage = 100;
-                    float[] widths = { 12f, 12f, 38f, 13f, 25f };
+                    PdfPTable table = new PdfPTable(6);
+                    table.WidthPercentage = 98;
+                    float[] widths = { 12f, 8f, 38f, 10f, 10f, 22f };
                     table.SetWidths(widths);
                     table.SpacingBefore = 10;
 
-                    // Nagłówki tabeli - szare
-                    BaseColor headerColor = new BaseColor(100, 100, 100); // Szary
-                    iTextSharp.text.Font fontHeaderBW = new iTextSharp.text.Font(bfArial, 10, iTextSharp.text.Font.BOLD, BaseColor.WHITE);
+                    // Nagłówki tabeli - szare, z zawijaniem tekstu
+                    BaseColor headerColor = new BaseColor(80, 80, 80);
+                    iTextSharp.text.Font fontHeaderBW = new iTextSharp.text.Font(bfArial, 9, iTextSharp.text.Font.BOLD, BaseColor.WHITE);
 
-                    string[] headers = { "LP (ZESTAW)", "NR SPEC.", "NAZWA HODOWCY", "KOD", "SZTUKI ZDATNE" };
+                    string[] headers = { "LP\n(ZESTAW)", "NR\nSPEC.", "NAZWA HODOWCY", "KOD", "ŚR. WAGA\n[kg]", "SZTUKI\nZDATNE" };
                     foreach (var h in headers)
                     {
                         PdfPCell cell = new PdfPCell(new Phrase(h, fontHeaderBW));
                         cell.BackgroundColor = headerColor;
                         cell.HorizontalAlignment = Element.ALIGN_CENTER;
                         cell.VerticalAlignment = Element.ALIGN_MIDDLE;
-                        cell.Padding = 8;
+                        cell.Padding = 6;
+                        cell.PaddingTop = 8;
+                        cell.PaddingBottom = 8;
                         cell.BorderColor = BaseColor.BLACK;
                         cell.BorderWidth = 1f;
                         table.AddCell(cell);
                     }
 
-                    // Dane
+                    // Dane - wyższe wiersze
                     int sumaSztukZdatnych = 0;
                     int lp = 1;
 
@@ -9232,12 +9288,13 @@ namespace Kalendarz1
 
                         sumaSztukZdatnych += sztukiZdatne;
 
-                        // LP (Zestaw) - np. "1 zestaw"
+                        // LP z "Zestaw"
                         PdfPCell cellLp = new PdfPCell(new Phrase($"{lp} zestaw", fontDataBold));
                         cellLp.BackgroundColor = BaseColor.WHITE;
                         cellLp.HorizontalAlignment = Element.ALIGN_CENTER;
                         cellLp.VerticalAlignment = Element.ALIGN_MIDDLE;
                         cellLp.Padding = 6;
+                        cellLp.MinimumHeight = 28f;
                         cellLp.BorderColor = BaseColor.BLACK;
                         cellLp.BorderWidth = 0.5f;
                         table.AddCell(cellLp);
@@ -9247,7 +9304,7 @@ namespace Kalendarz1
                         cellNrSpec.BackgroundColor = BaseColor.WHITE;
                         cellNrSpec.HorizontalAlignment = Element.ALIGN_CENTER;
                         cellNrSpec.VerticalAlignment = Element.ALIGN_MIDDLE;
-                        cellNrSpec.Padding = 6;
+                        cellNrSpec.Padding = 3;
                         cellNrSpec.BorderColor = BaseColor.BLACK;
                         cellNrSpec.BorderWidth = 0.5f;
                         table.AddCell(cellNrSpec);
@@ -9258,7 +9315,8 @@ namespace Kalendarz1
                         cellHodowca.HorizontalAlignment = Element.ALIGN_LEFT;
                         cellHodowca.VerticalAlignment = Element.ALIGN_MIDDLE;
                         cellHodowca.Padding = 6;
-                        cellHodowca.PaddingLeft = 10;
+                        cellHodowca.PaddingLeft = 8;
+                        cellHodowca.MinimumHeight = 28f;
                         cellHodowca.BorderColor = BaseColor.BLACK;
                         cellHodowca.BorderWidth = 0.5f;
                         table.AddCell(cellHodowca);
@@ -9269,9 +9327,21 @@ namespace Kalendarz1
                         cellKod.HorizontalAlignment = Element.ALIGN_CENTER;
                         cellKod.VerticalAlignment = Element.ALIGN_MIDDLE;
                         cellKod.Padding = 6;
+                        cellKod.MinimumHeight = 28f;
                         cellKod.BorderColor = BaseColor.BLACK;
                         cellKod.BorderWidth = 0.5f;
                         table.AddCell(cellKod);
+
+                        // Średnia waga
+                        PdfPCell cellSrWaga = new PdfPCell(new Phrase(d.SredniaWaga.ToString("F2"), fontData));
+                        cellSrWaga.BackgroundColor = BaseColor.WHITE;
+                        cellSrWaga.HorizontalAlignment = Element.ALIGN_CENTER;
+                        cellSrWaga.VerticalAlignment = Element.ALIGN_MIDDLE;
+                        cellSrWaga.Padding = 6;
+                        cellSrWaga.MinimumHeight = 28f;
+                        cellSrWaga.BorderColor = BaseColor.BLACK;
+                        cellSrWaga.BorderWidth = 0.5f;
+                        table.AddCell(cellSrWaga);
 
                         // Sztuki zdatne
                         PdfPCell cellSztuki = new PdfPCell(new Phrase(sztukiZdatne.ToString("N0"), fontDataBold));
@@ -9279,6 +9349,7 @@ namespace Kalendarz1
                         cellSztuki.HorizontalAlignment = Element.ALIGN_CENTER;
                         cellSztuki.VerticalAlignment = Element.ALIGN_MIDDLE;
                         cellSztuki.Padding = 6;
+                        cellSztuki.MinimumHeight = 28f;
                         cellSztuki.BorderColor = BaseColor.BLACK;
                         cellSztuki.BorderWidth = 0.5f;
                         table.AddCell(cellSztuki);
@@ -9287,17 +9358,17 @@ namespace Kalendarz1
                     }
 
                     // Wiersz sumy - szary
-                    BaseColor sumColor = new BaseColor(128, 128, 128); // szary
+                    BaseColor sumColor = new BaseColor(70, 70, 70);
 
-                    PdfPCell sumaLabelCell = new PdfPCell(new Phrase("SUMA SZTUK ZDATNYCH:", fontSum));
-                    sumaLabelCell.Colspan = 4;
+                    PdfPCell sumaLabelCell = new PdfPCell();
+                    sumaLabelCell.Colspan = 5;
                     sumaLabelCell.BackgroundColor = sumColor;
                     sumaLabelCell.HorizontalAlignment = Element.ALIGN_RIGHT;
                     sumaLabelCell.VerticalAlignment = Element.ALIGN_MIDDLE;
-                    sumaLabelCell.Padding = 10;
+                    sumaLabelCell.Padding = 8;
                     sumaLabelCell.BorderColor = BaseColor.BLACK;
                     sumaLabelCell.BorderWidth = 1f;
-                    iTextSharp.text.Font fontSumWhite = new iTextSharp.text.Font(bfArial, 12, iTextSharp.text.Font.BOLD, BaseColor.WHITE);
+                    iTextSharp.text.Font fontSumWhite = new iTextSharp.text.Font(bfArial, 11, iTextSharp.text.Font.BOLD, BaseColor.WHITE);
                     sumaLabelCell.Phrase = new Phrase("SUMA SZTUK ZDATNYCH:", fontSumWhite);
                     table.AddCell(sumaLabelCell);
 
@@ -9305,14 +9376,14 @@ namespace Kalendarz1
                     sumaValueCell.BackgroundColor = sumColor;
                     sumaValueCell.HorizontalAlignment = Element.ALIGN_CENTER;
                     sumaValueCell.VerticalAlignment = Element.ALIGN_MIDDLE;
-                    sumaValueCell.Padding = 10;
+                    sumaValueCell.Padding = 8;
                     sumaValueCell.BorderColor = BaseColor.BLACK;
                     sumaValueCell.BorderWidth = 1f;
                     table.AddCell(sumaValueCell);
 
                     doc.Add(table);
 
-                    // === SEKCJA PODPISU ===
+                    // === SEKCJA PODPISU - więcej miejsca ===
                     doc.Add(new Paragraph(" "));
                     doc.Add(new Paragraph(" "));
                     doc.Add(new Paragraph(" "));
@@ -9322,30 +9393,32 @@ namespace Kalendarz1
                     signatureTable.WidthPercentage = 100;
                     signatureTable.SetWidths(new float[] { 50f, 50f });
 
-                    // Lewa kolumna - USER ID ze zmiennej
+                    // Lewa kolumna - kto wydrukował
                     PdfPCell leftCell = new PdfPCell();
                     leftCell.Border = Rectangle.NO_BORDER;
-                    leftCell.Padding = 10;
+                    leftCell.Padding = 3;
 
-                    string userId = App.UserID ?? "---";
-                    Paragraph userIdLabel = new Paragraph($"USER ID: {userId}", fontFooter);
+                    // Pobierz imię i nazwisko użytkownika
+                    NazwaZiD nazwaZiD = new NazwaZiD();
+                    string userName = nazwaZiD.GetNameById(App.UserID) ?? App.UserID ?? Environment.UserName;
+                    Paragraph userLabel = new Paragraph($"Wydrukował: {userName}", fontFooter);
                     Paragraph genDate = new Paragraph($"Data wydruku: {DateTime.Now:dd.MM.yyyy HH:mm}", fontFooter);
-                    genDate.SpacingBefore = 10;
-                    leftCell.AddElement(userIdLabel);
+                    genDate.SpacingBefore = 2;
+                    leftCell.AddElement(userLabel);
                     leftCell.AddElement(genDate);
                     signatureTable.AddCell(leftCell);
 
                     // Prawa kolumna - podpis
                     PdfPCell rightCell = new PdfPCell();
                     rightCell.Border = Rectangle.NO_BORDER;
-                    rightCell.Padding = 10;
+                    rightCell.Padding = 3;
                     rightCell.HorizontalAlignment = Element.ALIGN_RIGHT;
 
                     Paragraph signLine = new Paragraph("_______________________________", fontFooter);
                     signLine.Alignment = Element.ALIGN_CENTER;
                     Paragraph signLabel = new Paragraph("Podpis lekarza weterynarii", fontSignature);
                     signLabel.Alignment = Element.ALIGN_CENTER;
-                    signLabel.SpacingBefore = 5;
+                    signLabel.SpacingBefore = 2;
 
                     rightCell.AddElement(signLine);
                     rightCell.AddElement(signLabel);
@@ -9354,13 +9427,11 @@ namespace Kalendarz1
                     doc.Add(signatureTable);
 
                     // Stopka informacyjna
-                    doc.Add(new Paragraph(" "));
                     Paragraph footer = new Paragraph(
-                        "UBOJNIA DROBIU \"PIÓRKOWSCY\" JERZY PIÓRKOWSKI\n" +
-                        "Dokument wygenerowany automatycznie z systemu specyfikacji.",
+                        "UBOJNIA DROBIU \"PIÓRKOWSCY\" JERZY PIÓRKOWSKI - Dokument wygenerowany automatycznie",
                         fontSignature);
                     footer.Alignment = Element.ALIGN_CENTER;
-                    footer.SpacingBefore = 20;
+                    footer.SpacingBefore = 10;
                     doc.Add(footer);
 
                     doc.Close();
@@ -9496,69 +9567,109 @@ namespace Kalendarz1
                     return;
                 }
 
-                // Znajdź następny numer LP
-                int nextNr = 1;
-                if (specyfikacjeData != null && specyfikacjeData.Count > 0)
+                // Sprawdź czy Shift jest wciśnięty - wtedy stary tryb (szybkie dodanie pustego wiersza)
+                bool shiftPressed = (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
+
+                if (shiftPressed)
                 {
-                    nextNr = specyfikacjeData.Max(s => s.Nr) + 1;
-                }
-
-                // Utwórz nowy wiersz w bazie danych
-                int newId = CreateNewSpecyfikacjaInDatabase(selectedDate, nextNr);
-
-                if (newId > 0)
-                {
-                    // Utwórz nowy wiersz w lokalnej kolekcji
-                    var newRow = new SpecyfikacjaRow
-                    {
-                        ID = newId,
-                        Nr = nextNr,
-                        Number = 0,
-                        YearNumber = 0,
-                        Dostawca = "",
-                        RealDostawca = "",
-                        SztukiDek = 0,
-                        Padle = 0,
-                        CH = 0,
-                        NW = 0,
-                        ZM = 0,
-                        LUMEL = 0,
-                        SztukiWybijak = 0,
-                        KilogramyWybijak = 0,
-                        Cena = 0,
-                        Dodatek = 0,
-                        TypCeny = "wolnyrynek",
-                        Ubytek = 0,
-                        PiK = false,
-                        SupplierColor = GenerateColorForSupplier("")
-                    };
-
-                    specyfikacjeData.Add(newRow);
-
-                    // Odśwież DataGrid i zaznacz nowy wiersz
-                    dataGridView1.ItemsSource = null;
-                    dataGridView1.ItemsSource = specyfikacjeData;
-                    dataGridView1.SelectedItem = newRow;
-                    dataGridView1.ScrollIntoView(newRow);
-
-                    // Rozpocznij edycję komórki Dostawca
-                    Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        dataGridView1.CurrentCell = new DataGridCellInfo(newRow, dataGridView1.Columns[5]); // Kolumna Dostawca
-                        dataGridView1.BeginEdit();
-                    }), System.Windows.Threading.DispatcherPriority.Background);
-
-                    UpdateStatistics();
-                    UpdateStatus($"Dodano nową specyfikację LP: {nextNr}");
+                    // Stary tryb - szybkie dodanie pustego wiersza
+                    AddEmptySpecyfikacja(selectedDate);
                 }
                 else
                 {
-                    MessageBox.Show("Nie udało się utworzyć nowej specyfikacji w bazie danych.", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    // Nowy tryb - otwórz kreator
+                    var kreatorWindow = new Kalendarz1.Zywiec.WidokSpecyfikacji.NowaSpecyfikacjaWindow(connectionString, selectedDate);
+                    kreatorWindow.Owner = Window.GetWindow(this);
+
+                    if (kreatorWindow.ShowDialog() == true && kreatorWindow.SpecyfikacjaCreated)
+                    {
+                        // Odśwież dane
+                        LoadData(selectedDate);
+                        UpdateStatistics();
+                        UpdateStatus($"Dodano specyfikację ID: {kreatorWindow.CreatedSpecId}");
+
+                        // Opcjonalnie wydrukuj PDF
+                        if (kreatorWindow.PrintPdf && kreatorWindow.CreatedSpecId > 0)
+                        {
+                            // Znajdź wiersz i wydrukuj
+                            var newRow = specyfikacjeData.FirstOrDefault(s => s.ID == kreatorWindow.CreatedSpecId);
+                            if (newRow != null)
+                            {
+                                dataGridView1.SelectedItem = newRow;
+                                // TODO: Wywołaj drukowanie PDF
+                            }
+                        }
+                    }
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd dodawania specyfikacji:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        /// <summary>
+        /// Szybkie dodanie pustego wiersza specyfikacji (stary tryb)
+        /// </summary>
+        private void AddEmptySpecyfikacja(DateTime selectedDate)
+        {
+            // Znajdź następny numer LP
+            int nextNr = 1;
+            if (specyfikacjeData != null && specyfikacjeData.Count > 0)
+            {
+                nextNr = specyfikacjeData.Max(s => s.Nr) + 1;
+            }
+
+            // Utwórz nowy wiersz w bazie danych
+            int newId = CreateNewSpecyfikacjaInDatabase(selectedDate, nextNr);
+
+            if (newId > 0)
+            {
+                // Utwórz nowy wiersz w lokalnej kolekcji
+                var newRow = new SpecyfikacjaRow
+                {
+                    ID = newId,
+                    Nr = nextNr,
+                    Number = 0,
+                    YearNumber = 0,
+                    Dostawca = "",
+                    RealDostawca = "",
+                    SztukiDek = 0,
+                    Padle = 0,
+                    CH = 0,
+                    NW = 0,
+                    ZM = 0,
+                    LUMEL = 0,
+                    SztukiWybijak = 0,
+                    KilogramyWybijak = 0,
+                    Cena = 0,
+                    Dodatek = 0,
+                    TypCeny = "wolnyrynek",
+                    Ubytek = 0,
+                    PiK = false,
+                    SupplierColor = GenerateColorForSupplier("")
+                };
+
+                specyfikacjeData.Add(newRow);
+
+                // Odśwież DataGrid i zaznacz nowy wiersz
+                dataGridView1.ItemsSource = null;
+                dataGridView1.ItemsSource = specyfikacjeData;
+                dataGridView1.SelectedItem = newRow;
+                dataGridView1.ScrollIntoView(newRow);
+
+                // Rozpocznij edycję komórki Dostawca
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    dataGridView1.CurrentCell = new DataGridCellInfo(newRow, dataGridView1.Columns[5]); // Kolumna Dostawca
+                    dataGridView1.BeginEdit();
+                }), System.Windows.Threading.DispatcherPriority.Background);
+
+                UpdateStatistics();
+                UpdateStatus($"Dodano nową specyfikację LP: {nextNr}");
+            }
+            else
+            {
+                MessageBox.Show("Nie udało się utworzyć nowej specyfikacji w bazie danych.", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -9844,6 +9955,8 @@ namespace Kalendarz1
         private int _dniBlokady = 3;
         private List<string> _przelozeni = new List<string> { "11111" }; // Domyślny admin UserID
         private Dictionary<DateTime, bool> _odblokowaneDni = new Dictionary<DateTime, bool>();
+        private string _defaultPlachtaSavePath = "";
+        private string _defaultPodsumowaniePath = "";
 
         private bool IsCurrentUserAdmin()
         {
@@ -9890,6 +10003,57 @@ namespace Kalendarz1
             if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
             {
                 txtDefaultPdfPath.Text = dialog.SelectedPath;
+            }
+        }
+
+        private void BtnBrowsePlachtaPath_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new System.Windows.Forms.FolderBrowserDialog
+            {
+                Description = "Wybierz folder do zapisywania PDF 'Dla Lekarzy'",
+                ShowNewFolderButton = true,
+                SelectedPath = defaultPlachtaPath ?? ""
+            };
+
+            if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                defaultPlachtaPath = dialog.SelectedPath;
+                var txtBox = this.FindName("txtDefaultPlachtaPath") as TextBox;
+                if (txtBox != null) txtBox.Text = dialog.SelectedPath;
+            }
+        }
+
+        private void BtnBrowsePlachtaSavePath_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new System.Windows.Forms.FolderBrowserDialog
+            {
+                Description = "Wybierz folder do zapisywania PDF Płachty",
+                ShowNewFolderButton = true,
+                SelectedPath = _defaultPlachtaSavePath ?? ""
+            };
+
+            if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                _defaultPlachtaSavePath = dialog.SelectedPath;
+                var txtBox = this.FindName("txtDefaultPlachtaSavePath") as TextBox;
+                if (txtBox != null) txtBox.Text = dialog.SelectedPath;
+            }
+        }
+
+        private void BtnBrowsePodsumowaniePath_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new System.Windows.Forms.FolderBrowserDialog
+            {
+                Description = "Wybierz folder do zapisywania PDF Podsumowań",
+                ShowNewFolderButton = true,
+                SelectedPath = _defaultPodsumowaniePath ?? ""
+            };
+
+            if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                _defaultPodsumowaniePath = dialog.SelectedPath;
+                var txtBox = this.FindName("txtDefaultPodsumowaniePath") as TextBox;
+                if (txtBox != null) txtBox.Text = dialog.SelectedPath;
             }
         }
 
@@ -10420,6 +10584,39 @@ namespace Kalendarz1
                             chkDrukujTerminPlatnosci.IsChecked = false;
                         }
                     }
+
+                    // Wczytaj ścieżkę Płachta - Dla Lekarzy (do UI)
+                    var txtPlachta = this.FindName("txtDefaultPlachtaPath") as TextBox;
+                    if (txtPlachta != null)
+                    {
+                        txtPlachta.Text = defaultPlachtaPath ?? "";
+                    }
+
+                    // Wczytaj ścieżkę Płachta - Zapisz PDF
+                    string queryPlachtaSavePath = "SELECT SettingValue FROM FarmerCalcSettings WHERE SettingName = 'DefaultPlachtaSavePath'";
+                    using (SqlCommand cmd = new SqlCommand(queryPlachtaSavePath, conn))
+                    {
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && !string.IsNullOrEmpty(result.ToString()))
+                        {
+                            _defaultPlachtaSavePath = result.ToString();
+                            var txtPlachtaSave = this.FindName("txtDefaultPlachtaSavePath") as TextBox;
+                            if (txtPlachtaSave != null) txtPlachtaSave.Text = _defaultPlachtaSavePath;
+                        }
+                    }
+
+                    // Wczytaj ścieżkę Podsumowanie PDF
+                    string queryPodsPath = "SELECT SettingValue FROM FarmerCalcSettings WHERE SettingName = 'DefaultPodsumowaniePath'";
+                    using (SqlCommand cmd = new SqlCommand(queryPodsPath, conn))
+                    {
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && !string.IsNullOrEmpty(result.ToString()))
+                        {
+                            _defaultPodsumowaniePath = result.ToString();
+                            var txtPods = this.FindName("txtDefaultPodsumowaniePath") as TextBox;
+                            if (txtPods != null) txtPods.Text = _defaultPodsumowaniePath;
+                        }
+                    }
                 }
             }
             catch (Exception ex)
@@ -10514,12 +10711,102 @@ namespace Kalendarz1
                         cmd.Parameters.AddWithValue("@User", user);
                         cmd.ExecuteNonQuery();
                     }
+
+                    // Pobierz wartości z UI przez FindName
+                    var txtPlachta = this.FindName("txtDefaultPlachtaPath") as TextBox;
+                    var txtPlachtaSave = this.FindName("txtDefaultPlachtaSavePath") as TextBox;
+                    var txtPods = this.FindName("txtDefaultPodsumowaniePath") as TextBox;
+
+                    // Zapisz ścieżkę Płachta (Dla Lekarzy)
+                    string plachtaPath = txtPlachta?.Text?.Trim() ?? defaultPlachtaPath;
+                    if (!string.IsNullOrWhiteSpace(plachtaPath))
+                    {
+                        defaultPlachtaPath = plachtaPath;
+                        string mergePlachtaPath = @"
+                            MERGE FarmerCalcSettings AS target
+                            USING (SELECT 'DefaultPlachtaPath' AS SettingName) AS source
+                            ON target.SettingName = source.SettingName
+                            WHEN MATCHED THEN UPDATE SET SettingValue = @Value, ModifiedDate = GETDATE(), ModifiedBy = @User
+                            WHEN NOT MATCHED THEN INSERT (SettingName, SettingValue, ModifiedBy) VALUES ('DefaultPlachtaPath', @Value, @User);";
+
+                        using (SqlCommand cmd = new SqlCommand(mergePlachtaPath, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@Value", plachtaPath);
+                            cmd.Parameters.AddWithValue("@User", user);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    // Zapisz ścieżkę Płachta (Zapisz PDF)
+                    string plachtaSavePath = txtPlachtaSave?.Text?.Trim() ?? _defaultPlachtaSavePath;
+                    if (!string.IsNullOrWhiteSpace(plachtaSavePath))
+                    {
+                        _defaultPlachtaSavePath = plachtaSavePath;
+                        string mergePlachtaSavePath = @"
+                            MERGE FarmerCalcSettings AS target
+                            USING (SELECT 'DefaultPlachtaSavePath' AS SettingName) AS source
+                            ON target.SettingName = source.SettingName
+                            WHEN MATCHED THEN UPDATE SET SettingValue = @Value, ModifiedDate = GETDATE(), ModifiedBy = @User
+                            WHEN NOT MATCHED THEN INSERT (SettingName, SettingValue, ModifiedBy) VALUES ('DefaultPlachtaSavePath', @Value, @User);";
+
+                        using (SqlCommand cmd = new SqlCommand(mergePlachtaSavePath, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@Value", plachtaSavePath);
+                            cmd.Parameters.AddWithValue("@User", user);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    // Zapisz ścieżkę Podsumowanie
+                    string podsPath = txtPods?.Text?.Trim() ?? _defaultPodsumowaniePath;
+                    if (!string.IsNullOrWhiteSpace(podsPath))
+                    {
+                        _defaultPodsumowaniePath = podsPath;
+                        string mergePodsPath = @"
+                            MERGE FarmerCalcSettings AS target
+                            USING (SELECT 'DefaultPodsumowaniePath' AS SettingName) AS source
+                            ON target.SettingName = source.SettingName
+                            WHEN MATCHED THEN UPDATE SET SettingValue = @Value, ModifiedDate = GETDATE(), ModifiedBy = @User
+                            WHEN NOT MATCHED THEN INSERT (SettingName, SettingValue, ModifiedBy) VALUES ('DefaultPodsumowaniePath', @Value, @User);";
+
+                        using (SqlCommand cmd = new SqlCommand(mergePodsPath, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@Value", podsPath);
+                            cmd.Parameters.AddWithValue("@User", user);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd zapisu do bazy: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        /// <summary>
+        /// Pobiera ścieżkę do podsumowań z bazy danych
+        /// </summary>
+        private string GetPodsumowaniePathFromDb()
+        {
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string query = "SELECT SettingValue FROM FarmerCalcSettings WHERE SettingName = 'DefaultPodsumowaniePath'";
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && !string.IsNullOrEmpty(result.ToString()))
+                        {
+                            return result.ToString();
+                        }
+                    }
+                }
+            }
+            catch { }
+            return _defaultPodsumowaniePath;
         }
 
         private void SaveDayUnlockStatus(DateTime date, bool isUnlocked)
@@ -10591,6 +10878,20 @@ namespace Kalendarz1
 
             foreach (var spec in specyfikacjeData.OrderBy(s => s.Nr))
             {
+                // Oblicz DOKŁADNĄ średnią wagę (niezaokrągloną) - tak jak w specyfikacji PDF
+                // Wzór: Śr.waga = Netto / Dostarcz.(ARIMR) = Netto / (LUMEL + Padłe)
+                decimal dokladnaSrWaga = (spec.LUMEL + spec.Padle) > 0
+                    ? spec.WagaNettoDoRozliczenia / (spec.LUMEL + spec.Padle)
+                    : 0;
+
+                // KgKonf i KgPadle pokazujemy ZAWSZE (niezależnie od PiK) - do celów informacyjnych
+                // Wzór z PDF: Konf[kg] = Konf[szt] × Śr.waga (zaokrąglone do pełnych kg)
+                int kgKonf = (int)Math.Round((spec.CH + spec.NW + spec.ZM) * dokladnaSrWaga, 0);
+                int kgPadle = (int)Math.Round(spec.Padle * dokladnaSrWaga, 0);
+
+                // Średnia waga wyświetlana (zaokrąglona do 2 miejsc po przecinku)
+                decimal srWagaDisplay = Math.Round(dokladnaSrWaga, 2);
+
                 var row = new PodsumowanieRow
                 {
                     LP = lp++,
@@ -10599,16 +10900,16 @@ namespace Kalendarz1
                     SztukiZadeklarowane = spec.SztukiDek,
                     SztukiPadle = spec.Padle,
                     SztukiKonfi = spec.CH + spec.NW + spec.ZM,
-                    KgKonf = (int)(spec.CH * spec.SredniaWaga + spec.NW * spec.SredniaWaga + spec.ZM * spec.SredniaWaga),
-                    KgPadle = (int)(spec.Padle * spec.SredniaWaga),
+                    KgKonf = kgKonf,    // Pokazujemy ZAWSZE (informacyjnie)
+                    KgPadle = kgPadle,  // Pokazujemy ZAWSZE (informacyjnie)
                     Lumel = spec.LUMEL,
                     SztukiKonfiskataT = spec.CH + spec.NW + spec.ZM,
                     // Wzór ze specyfikacji PDF: 
                     // Dostarcz.(ARIMR) = LUMEL + Padłe
                     // Zdatne = Dostarcz - Padłe - Konf = LUMEL - Konf (Padłe się kasuje!)
                     SztukiZdatne = spec.LUMEL - (spec.CH + spec.NW + spec.ZM),
-                    IloscKgZywiec = spec.DoZaplaty,  // Obliczone DoZaplaty - kolumna "Do zapł." z PDF
-                    SredniaWagaPrzedUbojem = spec.SredniaWaga,
+                    IloscKgZywiec = spec.DoZaplaty,  // DoZaplaty uwzględnia PiK w swoim obliczeniu
+                    SredniaWagaPrzedUbojem = srWagaDisplay,
                     SztukiProdukcjaTuszka = spec.SztukiWybijak,
                     WagaProdukcjaTuszka = spec.KilogramyWybijak,
                     Wprowadzil = GetWprowadzilNazwa(spec.ID),
@@ -10778,40 +11079,51 @@ namespace Kalendarz1
                     // Mniejsze czcionki dla lepszego dopasowania na stronie
                     iTextSharp.text.Font fontTitle = new iTextSharp.text.Font(bfArial, 14, iTextSharp.text.Font.BOLD);
                     iTextSharp.text.Font fontSubtitle = new iTextSharp.text.Font(bfArial, 10);
-                    iTextSharp.text.Font fontHeader = new iTextSharp.text.Font(bfArial, 7, iTextSharp.text.Font.BOLD);
+                    iTextSharp.text.Font fontHeader = new iTextSharp.text.Font(bfArial, 6, iTextSharp.text.Font.BOLD);
                     iTextSharp.text.Font fontData = new iTextSharp.text.Font(bfArial, 7);
                     iTextSharp.text.Font fontSum = new iTextSharp.text.Font(bfArial, 8, iTextSharp.text.Font.BOLD);
-                    iTextSharp.text.Font fontFooter = new iTextSharp.text.Font(bfArial, 9);
+                    iTextSharp.text.Font fontFooter = new iTextSharp.text.Font(bfArial, 8);
 
-                    // Data wydruku na gorze
-                    Paragraph dateprint = new Paragraph($"Data wydruku: {DateTime.Now:dd.MM.yyyy HH:mm}", fontSubtitle);
+                    // Dzień tygodnia
+                    string[] dniTygodnia = { "Niedziela", "Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota" };
+                    string dzienTygodnia = dniTygodnia[(int)selectedDate.DayOfWeek];
+
+                    // Pobierz imię i nazwisko drukującego
+                    NazwaZiD nazwaZiDPods = new NazwaZiD();
+                    string drukujacy = nazwaZiDPods.GetNameById(App.UserID) ?? App.UserID ?? Environment.UserName;
+
+                    // Data wydruku + kto drukuje na górze po prawej (odsunięte od marginesu)
+                    Paragraph dateprint = new Paragraph($"Data wydruku: {DateTime.Now:dd.MM.yyyy HH:mm}\nWydrukował: {drukujacy}", fontFooter);
                     dateprint.Alignment = Element.ALIGN_RIGHT;
+                    dateprint.IndentationRight = 15f;  // Odsunięcie od prawego marginesu
                     dateprint.SpacingAfter = 5;
                     doc.Add(dateprint);
 
-                    // Tytul
-                    Paragraph title = new Paragraph("RAPORT Z PRZYJECIA ZYWCA DO UBOJU", fontTitle);
+                    // Tytuł
+                    Paragraph title = new Paragraph("RAPORT Z PRZYJĘCIA ŻYWCA DO UBOJU", fontTitle);
                     title.Alignment = Element.ALIGN_CENTER;
                     doc.Add(title);
 
-                    Paragraph subtitle = new Paragraph($"Data uboju: {selectedDate:dd.MM.yyyy}", fontSubtitle);
+                    // Data uboju z dniem tygodnia
+                    Paragraph subtitle = new Paragraph($"Data uboju: {selectedDate:dd.MM.yyyy} ({dzienTygodnia})", fontSubtitle);
                     subtitle.Alignment = Element.ALIGN_CENTER;
-                    subtitle.SpacingAfter = 15;
+                    subtitle.SpacingAfter = 10;
                     doc.Add(subtitle);
 
-                    // Tabela z czarnymi obramowaniami (17 kolumn)
+                    // Tabela z czarnymi obramowaniami (17 kolumn) - trochę węższa
                     PdfPTable table = new PdfPTable(17);
-                    table.WidthPercentage = 100;
-                    float[] widths = { 3f, 11f, 5f, 4f, 4f, 4f, 4f, 4f, 4f, 5f, 5f, 4f, 5f, 5f, 5f, 5f, 5f };
+                    table.WidthPercentage = 96;
+                    // Zmniejszone kolumny kg (Konfi[kg], Padłe[kg], Suma[kg])
+                    float[] widths = { 3f, 11f, 5f, 4f, 4f, 4f, 3.5f, 3.5f, 3.5f, 5f, 5f, 4f, 5f, 5.5f, 5f, 5f, 5.5f };
                     table.SetWidths(widths);
 
                     // Ustawienie domyślnych obramowań dla tabeli
                     table.DefaultCell.BorderWidth = 1;
                     table.DefaultCell.BorderColor = BaseColor.BLACK;
 
-                    // Nagłówki z jednostkami [szt] i [kg]
-                    string[] headers = { "L.P", "Hodowca Drobiu", "Zadekl.[szt]", "Padłe[szt]", "Konfi[szt]", "Suma[szt]", "Konfi[kg]", "Padłe[kg]", "Suma[kg]", "Wydaj.%", "Lumel[szt]", "KonT[szt]", "Zdatne[szt]", "Żywiec[kg]", "ŚrWaga[kg]", "Prod.[szt]", "Prod.[kg]" };
-                    BaseColor headerColor = new BaseColor(60, 60, 60); // Ciemnoszary, mniej jaskrawy
+                    // Nagłówki z jednostkami w osobnych liniach
+                    string[] headers = { "L.P", "Hodowca\nDrobiu", "Zadekl.\n[szt]", "Padłe\n[szt]", "Konfi\n[szt]", "Suma\n[szt]", "Konfi\n[kg]", "Padłe\n[kg]", "Suma\n[kg]", "Wydaj.\n[%]", "Lumel\n[szt]", "KonT\n[szt]", "Zdatne\n[szt]", "Żywiec\n[kg]", "ŚrWaga\n[kg]", "Prod.\n[szt]", "Prod.\n[kg]" };
+                    BaseColor headerColor = new BaseColor(60, 60, 60); // Ciemnoszary
 
                     foreach (var h in headers)
                     {
@@ -10827,7 +11139,7 @@ namespace Kalendarz1
                     }
 
                     // Dane - wyższe wiersze (pomijamy wiersz SUMA który jest na końcu)
-                    float cellPadding = 6f; // Większy padding dla wyższych wierszy
+                    float cellPadding = 8f; // Większy padding dla wyższych wierszy
                     foreach (var row in podsumowanieData.Where(r => !r.IsSumRow && r.HodowcaDrobiu != "SUMA"))
                     {
                         table.AddCell(new PdfPCell(new Phrase(row.LP.ToString(), fontData)) { HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
@@ -10901,47 +11213,65 @@ namespace Kalendarz1
                         doc.Add(new Paragraph(" "));
 
                         // Tabela 2 kolumny - Wprowadzenie | Weryfikacja
+                        // Tabela 2 kolumny - OBLICZENIA po lewej | ZATWIERDZENIE po prawej
                         PdfPTable statsTable = new PdfPTable(2);
-                        statsTable.WidthPercentage = 80;
+                        statsTable.WidthPercentage = 100;
                         statsTable.HorizontalAlignment = Element.ALIGN_LEFT;
-                        statsTable.SetWidths(new float[] { 50f, 50f });
+                        statsTable.SetWidths(new float[] { 55f, 45f });
 
-                        // Lewa kolumna - Wprowadzenie
+                        // Lewa kolumna - SPOSÓB OBLICZENIA
                         PdfPCell leftCell = new PdfPCell();
                         leftCell.Border = Rectangle.NO_BORDER;
                         leftCell.Padding = 5;
 
-                        Paragraph wpTitlePar = new Paragraph("Wprowadzenie (Rozliczenia):", fontSum);
-                        wpTitlePar.SpacingAfter = 3;
-                        leftCell.AddElement(wpTitlePar);
+                        iTextSharp.text.Font fontCalcTitle = new iTextSharp.text.Font(bfArial, 8, iTextSharp.text.Font.BOLD);
+                        iTextSharp.text.Font fontCalc = new iTextSharp.text.Font(bfArial, 7);
+
+                        Paragraph calcTitle = new Paragraph("SPOSÓB OBLICZENIA:", fontCalcTitle);
+                        calcTitle.SpacingAfter = 3;
+                        leftCell.AddElement(calcTitle);
+
+                        // Pobierz wartości z wiersza SUMA
+                        var suma = sumRowData;
+
+                        // Konkretne i proste obliczenia
+                        leftCell.AddElement(new Paragraph($"• Suma [szt] = Padłe + Konfi = {suma.SztukiPadle:N0} + {suma.SztukiKonfi:N0} = {suma.SztukiSuma:N0} szt", fontCalc));
+                        leftCell.AddElement(new Paragraph($"• Zdatne [szt] = Lumel - KonT = {suma.Lumel:N0} - {suma.SztukiKonfiskataT:N0} = {suma.SztukiZdatne:N0} szt", fontCalc));
+                        leftCell.AddElement(new Paragraph($"• Suma [kg] = Konfi[kg] + Padłe[kg] = {suma.KgKonf:N0} + {suma.KgPadle:N0} = {suma.KgSuma:N0} kg", fontCalc));
+                        leftCell.AddElement(new Paragraph($"• Wydajność = Prod.[kg] ÷ Żywiec[kg] × 100 = {suma.WagaProdukcjaTuszka:N0} ÷ {suma.IloscKgZywiec:N0} × 100 = {suma.WydajnoscProcent:F2}%", fontCalc));
+                        leftCell.AddElement(new Paragraph($"• Śr.waga = Netto ÷ (Lumel + Padłe)", fontCalc));
+                        leftCell.AddElement(new Paragraph($"• Żywiec[kg] = Netto - Padłe[kg] - Konfi[kg] - Ubytek - Opas. - Kl.B", fontCalc));
+
+                        statsTable.AddCell(leftCell);
+
+                        // Prawa kolumna - WPROWADZENIE i WERYFIKACJA
+                        PdfPCell rightCell = new PdfPCell();
+                        rightCell.Border = Rectangle.NO_BORDER;
+                        rightCell.Padding = 5;
+
+                        // Wprowadzenie
+                        Paragraph wpTitlePar = new Paragraph("WPROWADZENIE:", fontSum);
+                        wpTitlePar.SpacingAfter = 2;
+                        rightCell.AddElement(wpTitlePar);
 
                         if (wprowadzenia.Count > 0)
                         {
                             foreach (var kv in wprowadzenia)
                             {
                                 decimal pct = (decimal)kv.Value / total * 100;
-                                Paragraph p = new Paragraph($"   {kv.Key}: {kv.Value}/{total} ({pct:F1}%)", fontData);
-                                leftCell.AddElement(p);
+                                Paragraph p = new Paragraph($"  {kv.Key}: {kv.Value}/{total} ({pct:F0}%)", fontData);
+                                rightCell.AddElement(p);
                             }
-                            int sumaWp = wprowadzenia.Values.Sum();
-                            decimal sumaPct = (decimal)sumaWp / total * 100;
-                            Paragraph pSum = new Paragraph($"   Razem: {sumaWp}/{total} ({sumaPct:F1}%)", fontSum);
-                            leftCell.AddElement(pSum);
                         }
                         else
                         {
-                            Paragraph p = new Paragraph("   Brak wprowadzonych", fontData);
-                            leftCell.AddElement(p);
+                            rightCell.AddElement(new Paragraph("  Brak", fontData));
                         }
-                        statsTable.AddCell(leftCell);
 
-                        // Prawa kolumna - Weryfikacja
-                        PdfPCell rightCell = new PdfPCell();
-                        rightCell.Border = Rectangle.NO_BORDER;
-                        rightCell.Padding = 5;
-
-                        Paragraph wrTitlePar = new Paragraph("Weryfikacja (Rozliczenia):", fontSum);
-                        wrTitlePar.SpacingAfter = 3;
+                        // Weryfikacja
+                        Paragraph wrTitlePar = new Paragraph("WERYFIKACJA:", fontSum);
+                        wrTitlePar.SpacingBefore = 5;
+                        wrTitlePar.SpacingAfter = 2;
                         rightCell.AddElement(wrTitlePar);
 
                         if (weryfikacje.Count > 0)
@@ -10949,19 +11279,15 @@ namespace Kalendarz1
                             foreach (var kv in weryfikacje)
                             {
                                 decimal pct = (decimal)kv.Value / total * 100;
-                                Paragraph p = new Paragraph($"   {kv.Key}: {kv.Value}/{total} ({pct:F1}%)", fontData);
+                                Paragraph p = new Paragraph($"  {kv.Key}: {kv.Value}/{total} ({pct:F0}%)", fontData);
                                 rightCell.AddElement(p);
                             }
-                            int sumaWr = weryfikacje.Values.Sum();
-                            decimal sumaPctWr = (decimal)sumaWr / total * 100;
-                            Paragraph pSumWr = new Paragraph($"   Razem: {sumaWr}/{total} ({sumaPctWr:F1}%)", fontSum);
-                            rightCell.AddElement(pSumWr);
                         }
                         else
                         {
-                            Paragraph p = new Paragraph("   Brak zweryfikowanych", fontData);
-                            rightCell.AddElement(p);
+                            rightCell.AddElement(new Paragraph("  Brak", fontData));
                         }
+
                         statsTable.AddCell(rightCell);
 
                         doc.Add(statsTable);
@@ -11058,6 +11384,101 @@ namespace Kalendarz1
             }
         }
 
+        /// <summary>
+        /// Otwiera folder z podsumowaniami PDF
+        /// </summary>
+        private void BtnPodsumowanieOpenFolder_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                // Pobierz ścieżkę z bazy lub użyj domyślnej
+                string basePath = GetPodsumowaniePathFromDb() ??
+                                  Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ZPSP", "Podsumowania");
+
+                string yearFolder = selectedDate.Year.ToString();
+                string monthFolder = selectedDate.Month.ToString("D2");
+                string folderPath = Path.Combine(basePath, yearFolder, monthFolder);
+
+                // Jeśli folder nie istnieje, otwórz folder bazowy
+                if (!Directory.Exists(folderPath))
+                {
+                    folderPath = basePath;
+                    if (!Directory.Exists(folderPath))
+                    {
+                        Directory.CreateDirectory(folderPath);
+                    }
+                }
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = folderPath,
+                    UseShellExecute = true
+                });
+
+                UpdateStatus($"Otwarto folder: {folderPath}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania folderu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Wysyła podsumowanie emailem z załącznikiem PDF
+        /// </summary>
+        private void BtnPodsumowanieEmail_Click(object sender, RoutedEventArgs e)
+        {
+            if (podsumowanieData.Count == 0)
+            {
+                MessageBox.Show("Brak danych do wysłania!", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+                string[] dniTygodnia = { "Niedziela", "Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota" };
+                string dzienTygodnia = dniTygodnia[(int)selectedDate.DayOfWeek];
+
+                // Oblicz sumy
+                var sumaZdatne = podsumowanieData.Where(r => !r.IsSumRow).Sum(r => r.SztukiZdatne);
+                var sumaKgZywiec = podsumowanieData.Where(r => !r.IsSumRow).Sum(r => r.IloscKgZywiec);
+                var iloscSpec = podsumowanieData.Count(r => !r.IsSumRow);
+
+                // Tytuł emaila
+                string subject = $"Podsumowanie uboju z dnia {selectedDate:dd.MM.yyyy} ({dzienTygodnia})";
+
+                // Treść emaila
+                string body = $"Dzień dobry,\n\n" +
+                             $"W załączniku przesyłam raport podsumowania z przyjęcia żywca do uboju.\n\n" +
+                             $"Data uboju: {selectedDate:dd.MM.yyyy} ({dzienTygodnia})\n" +
+                             $"Liczba specyfikacji: {iloscSpec}\n" +
+                             $"Suma sztuk zdatnych: {sumaZdatne:N0} szt\n" +
+                             $"Suma kg żywca: {sumaKgZywiec:N0} kg\n\n" +
+                             $"Pozdrawiam,\n" +
+                             $"UBOJNIA DROBIU \"PIÓRKOWSCY\"";
+
+                // Otwórz domyślnego klienta poczty
+                string mailto = $"mailto:?subject={Uri.EscapeDataString(subject)}&body={Uri.EscapeDataString(body)}";
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = mailto,
+                    UseShellExecute = true
+                });
+
+                UpdateStatus("Otwarto klienta poczty - załącz PDF ręcznie");
+                MessageBox.Show("Otworzyłem domyślnego klienta poczty.\n\nPamiętaj o załączeniu pliku PDF podsumowania ręcznie!\n\n(Najpierw zapisz PDF przyciskiem 'Zapisz Podsumowanie')",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania poczty:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         #endregion
     }
 
@@ -11065,1784 +11486,1812 @@ namespace Kalendarz1
 
     // Klasa dla akcji undo
     public class UndoAction
+{
+    public string ActionType { get; set; } // DELETE, EDIT
+    public int RowId { get; set; }
+    public string PropertyName { get; set; }
+    public object OldValue { get; set; }
+    public object NewValue { get; set; }
+    public SpecyfikacjaRow RowData { get; set; } // Kopia całego wiersza dla DELETE
+    public int RowIndex { get; set; }
+}
+
+// Klasa dla wpisu w historii zmian
+public class ChangeLogEntry
+{
+    public DateTime Timestamp { get; set; }
+    public int RowId { get; set; }
+    public string Action { get; set; }
+    public string PropertyName { get; set; }
+    public string OldValue { get; set; }
+    public string NewValue { get; set; }
+    public string UserName { get; set; }
+}
+
+// Klasa dla elementu dostawcy w ComboBox
+public class DostawcaItem
+{
+    public string GID { get; set; }
+    public string ShortName { get; set; }
+}
+
+// Klasa modelu danych
+public class SpecyfikacjaRow : INotifyPropertyChanged
+{
+    private int _id;
+    private int _nr;
+    private int _number;        // Numer specyfikacji
+    private int _yearNumber;    // Numer w roku
+    private string _dostawcaGID;
+    private string _dostawca;
+    private string _realDostawca;
+    private int _sztukiDek;
+    private int _padle;
+    private int _ch;
+    private int _nw;
+    private int _zm;
+    private string _bruttoHodowcy;
+    private string _taraHodowcy;
+    private string _nettoHodowcy;
+    private decimal _nettoHodowcyValue;
+    private string _bruttoUbojni;
+    private string _taraUbojni;
+    private string _nettoUbojni;
+    private decimal _nettoUbojniValue;
+    private int _lumel;
+    private int _sztukiWybijak;
+    private decimal _kilogramyWybijak;
+    private decimal _cena;
+    private decimal _dodatek;
+    private string _typCeny;
+    private bool _piK;
+    private decimal _ubytek;
+    private bool _wydrukowano;
+    // Nowe pola
+    private decimal _opasienie;
+    private decimal _klasaB;
+    private decimal _payWgt;  // Wartość PayWgt z bazy danych (Do zapł.)
+    private int _terminDni;
+    private DateTime _dataUboju;
+    private bool _symfonia;
+
+    // Pola transportowe
+    private int? _driverGID;
+    private string _carID;
+    private string _trailerID;
+    private DateTime? _arrivalTime;
+    private string _kierowcaNazwa;
+
+    // Godziny transportowe
+    private DateTime? _poczatekUslugi;
+    private DateTime? _wyjazd;
+    private DateTime? _dojazdHodowca;
+    private DateTime? _zaladunek;
+    private DateTime? _zaladunekKoniec;
+    private DateTime? _wyjazdHodowca;
+    private DateTime? _koniecUslugi;
+
+    // Podświetlenie grupy dostawcy
+    private bool _isHighlighted;
+    private string _supplierColor = "#CCCCCC";
+    private bool _isFirstInGroup;
+    private bool _isLastInGroup;
+
+    // Pośrednik
+    private int? _idPosrednik;
+    private string _posrednikNazwa;
+
+    // Ścieżki do zdjęć z ważenia
+    private string _zdjecieTaraPath;
+    private string _zdjecieBruttoPath;
+
+    // Odbiorca (CustomerRealGid)
+    private string _odbiorca;
+
+    public bool IsHighlighted
     {
-        public string ActionType { get; set; } // DELETE, EDIT
-        public int RowId { get; set; }
-        public string PropertyName { get; set; }
-        public object OldValue { get; set; }
-        public object NewValue { get; set; }
-        public SpecyfikacjaRow RowData { get; set; } // Kopia całego wiersza dla DELETE
-        public int RowIndex { get; set; }
+        get => _isHighlighted;
+        set { _isHighlighted = value; OnPropertyChanged(nameof(IsHighlighted)); }
     }
 
-    // Klasa dla wpisu w historii zmian
-    public class ChangeLogEntry
+    // Kolor paska bocznego dostawcy
+    public string SupplierColor
     {
-        public DateTime Timestamp { get; set; }
-        public int RowId { get; set; }
-        public string Action { get; set; }
-        public string PropertyName { get; set; }
-        public string OldValue { get; set; }
-        public string NewValue { get; set; }
-        public string UserName { get; set; }
+        get => _supplierColor;
+        set { _supplierColor = value; OnPropertyChanged(nameof(SupplierColor)); }
     }
 
-    // Klasa dla elementu dostawcy w ComboBox
-    public class DostawcaItem
+    // Czy pierwszy wiersz w grupie dostawcy (do separatora wizualnego)
+    public bool IsFirstInGroup
     {
-        public string GID { get; set; }
-        public string ShortName { get; set; }
+        get => _isFirstInGroup;
+        set { _isFirstInGroup = value; OnPropertyChanged(nameof(IsFirstInGroup)); }
     }
 
-    // Klasa modelu danych
-    public class SpecyfikacjaRow : INotifyPropertyChanged
+    // Czy ostatni wiersz w grupie dostawcy
+    public bool IsLastInGroup
     {
-        private int _id;
-        private int _nr;
-        private int _number;        // Numer specyfikacji
-        private int _yearNumber;    // Numer w roku
-        private string _dostawcaGID;
-        private string _dostawca;
-        private string _realDostawca;
-        private int _sztukiDek;
-        private int _padle;
-        private int _ch;
-        private int _nw;
-        private int _zm;
-        private string _bruttoHodowcy;
-        private string _taraHodowcy;
-        private string _nettoHodowcy;
-        private decimal _nettoHodowcyValue;
-        private string _bruttoUbojni;
-        private string _taraUbojni;
-        private string _nettoUbojni;
-        private decimal _nettoUbojniValue;
-        private int _lumel;
-        private int _sztukiWybijak;
-        private decimal _kilogramyWybijak;
-        private decimal _cena;
-        private decimal _dodatek;
-        private string _typCeny;
-        private bool _piK;
-        private decimal _ubytek;
-        private bool _wydrukowano;
-        // Nowe pola
-        private decimal _opasienie;
-        private decimal _klasaB;
-        private decimal _payWgt;  // Wartość PayWgt z bazy danych (Do zapł.)
-        private int _terminDni;
-        private DateTime _dataUboju;
-        private bool _symfonia;
+        get => _isLastInGroup;
+        set { _isLastInGroup = value; OnPropertyChanged(nameof(IsLastInGroup)); }
+    }
 
-        // Pola transportowe
-        private int? _driverGID;
-        private string _carID;
-        private string _trailerID;
-        private DateTime? _arrivalTime;
-        private string _kierowcaNazwa;
+    public bool Wydrukowano
+    {
+        get => _wydrukowano;
+        set { _wydrukowano = value; OnPropertyChanged(nameof(Wydrukowano)); }
+    }
 
-        // Godziny transportowe
-        private DateTime? _poczatekUslugi;
-        private DateTime? _wyjazd;
-        private DateTime? _dojazdHodowca;
-        private DateTime? _zaladunek;
-        private DateTime? _zaladunekKoniec;
-        private DateTime? _wyjazdHodowca;
-        private DateTime? _koniecUslugi;
+    public string Odbiorca
+    {
+        get => _odbiorca;
+        set { _odbiorca = value; OnPropertyChanged(nameof(Odbiorca)); }
+    }
 
-        // Podświetlenie grupy dostawcy
-        private bool _isHighlighted;
-        private string _supplierColor = "#CCCCCC";
-        private bool _isFirstInGroup;
-        private bool _isLastInGroup;
+    public int ID
+    {
+        get => _id;
+        set { _id = value; OnPropertyChanged(nameof(ID)); }
+    }
 
-        // Pośrednik
-        private int? _idPosrednik;
-        private string _posrednikNazwa;
+    public int Nr
+    {
+        get => _nr;
+        set { _nr = value; OnPropertyChanged(nameof(Nr)); }
+    }
 
-        // Ścieżki do zdjęć z ważenia
-        private string _zdjecieTaraPath;
-        private string _zdjecieBruttoPath;
+    public int Number
+    {
+        get => _number;
+        set { _number = value; OnPropertyChanged(nameof(Number)); }
+    }
 
-        // Odbiorca (CustomerRealGid)
-        private string _odbiorca;
+    public int YearNumber
+    {
+        get => _yearNumber;
+        set { _yearNumber = value; OnPropertyChanged(nameof(YearNumber)); }
+    }
 
-        public bool IsHighlighted
+    public string DostawcaGID
+    {
+        get => _dostawcaGID;
+        set { _dostawcaGID = value; OnPropertyChanged(nameof(DostawcaGID)); }
+    }
+
+    public string Dostawca
+    {
+        get => _dostawca;
+        set { _dostawca = value; OnPropertyChanged(nameof(Dostawca)); }
+    }
+
+    public string RealDostawca
+    {
+        get => _realDostawca;
+        set { _realDostawca = value; OnPropertyChanged(nameof(RealDostawca)); }
+    }
+
+    // Pośrednik - ID i nazwa
+    public int? IdPosrednik
+    {
+        get => _idPosrednik;
+        set { _idPosrednik = value; OnPropertyChanged(nameof(IdPosrednik)); OnPropertyChanged(nameof(PosrednikNazwa)); }
+    }
+
+    public string PosrednikNazwa
+    {
+        get => _posrednikNazwa;
+        set { _posrednikNazwa = value; OnPropertyChanged(nameof(PosrednikNazwa)); }
+    }
+
+    // Ścieżki do zdjęć z ważenia
+    public string ZdjecieTaraPath
+    {
+        get => _zdjecieTaraPath;
+        set { _zdjecieTaraPath = value; OnPropertyChanged(nameof(ZdjecieTaraPath)); OnPropertyChanged(nameof(HasZdjecieTara)); }
+    }
+
+    public string ZdjecieBruttoPath
+    {
+        get => _zdjecieBruttoPath;
+        set { _zdjecieBruttoPath = value; OnPropertyChanged(nameof(ZdjecieBruttoPath)); OnPropertyChanged(nameof(HasZdjecieBrutto)); }
+    }
+
+    // Właściwości pomocnicze - czy zdjęcie istnieje
+    public bool HasZdjecieTara => !string.IsNullOrEmpty(_zdjecieTaraPath);
+    public bool HasZdjecieBrutto => !string.IsNullOrEmpty(_zdjecieBruttoPath);
+
+    public int SztukiDek
+    {
+        get => _sztukiDek;
+        set { _sztukiDek = value; OnPropertyChanged(nameof(SztukiDek)); RecalculateWartosc(); }
+    }
+
+    public int Padle
+    {
+        get => _padle;
+        set { _padle = value; OnPropertyChanged(nameof(Padle)); RecalculateWartosc(); }
+    }
+
+    public int CH
+    {
+        get => _ch;
+        set { _ch = value; OnPropertyChanged(nameof(CH)); RecalculateWartosc(); }
+    }
+
+    public int NW
+    {
+        get => _nw;
+        set { _nw = value; OnPropertyChanged(nameof(NW)); RecalculateWartosc(); }
+    }
+
+    public int ZM
+    {
+        get => _zm;
+        set { _zm = value; OnPropertyChanged(nameof(ZM)); RecalculateWartosc(); }
+    }
+
+    public string BruttoHodowcy
+    {
+        get => _bruttoHodowcy;
+        set { _bruttoHodowcy = value; OnPropertyChanged(nameof(BruttoHodowcy)); }
+    }
+
+    public string TaraHodowcy
+    {
+        get => _taraHodowcy;
+        set { _taraHodowcy = value; OnPropertyChanged(nameof(TaraHodowcy)); }
+    }
+
+    public string NettoHodowcy
+    {
+        get => _nettoHodowcy;
+        set { _nettoHodowcy = value; OnPropertyChanged(nameof(NettoHodowcy)); }
+    }
+
+    public decimal NettoHodowcyValue
+    {
+        get => _nettoHodowcyValue;
+        set { _nettoHodowcyValue = value; OnPropertyChanged(nameof(NettoHodowcyValue)); OnPropertyChanged(nameof(WagaNettoDoRozliczenia)); RecalculateWartosc(); }
+    }
+
+    /// <summary>
+    /// Waga netto do rozliczenia: preferuje wagę hodowcy, jeśli jest > 0, w przeciwnym razie wagę ubojni
+    /// </summary>
+    public decimal WagaNettoDoRozliczenia => NettoHodowcyValue > 0 ? NettoHodowcyValue : NettoUbojniValue;
+
+    public string BruttoUbojni
+    {
+        get => _bruttoUbojni;
+        set { _bruttoUbojni = value; OnPropertyChanged(nameof(BruttoUbojni)); }
+    }
+
+    public string TaraUbojni
+    {
+        get => _taraUbojni;
+        set { _taraUbojni = value; OnPropertyChanged(nameof(TaraUbojni)); }
+    }
+
+    public string NettoUbojni
+    {
+        get => _nettoUbojni;
+        set { _nettoUbojni = value; OnPropertyChanged(nameof(NettoUbojni)); }
+    }
+
+    public decimal NettoUbojniValue
+    {
+        get => _nettoUbojniValue;
+        set { _nettoUbojniValue = value; OnPropertyChanged(nameof(NettoUbojniValue)); OnPropertyChanged(nameof(WagaNettoDoRozliczenia)); RecalculateWartosc(); }
+    }
+
+    public int LUMEL
+    {
+        get => _lumel;
+        set { _lumel = value; OnPropertyChanged(nameof(LUMEL)); }
+    }
+
+    public int SztukiWybijak
+    {
+        get => _sztukiWybijak;
+        set { _sztukiWybijak = value; OnPropertyChanged(nameof(SztukiWybijak)); }
+    }
+
+    public decimal KilogramyWybijak
+    {
+        get => _kilogramyWybijak;
+        set { _kilogramyWybijak = value; OnPropertyChanged(nameof(KilogramyWybijak)); }
+    }
+
+    public decimal Cena
+    {
+        get => _cena;
+        set { _cena = value; OnPropertyChanged(nameof(Cena)); RecalculateWartosc(); }
+    }
+
+    public decimal Dodatek
+    {
+        get => _dodatek;
+        set { _dodatek = value; OnPropertyChanged(nameof(Dodatek)); RecalculateWartosc(); }
+    }
+
+    public string TypCeny
+    {
+        get => _typCeny;
+        set { _typCeny = value; OnPropertyChanged(nameof(TypCeny)); }
+    }
+
+    public bool PiK
+    {
+        get => _piK;
+        set { _piK = value; OnPropertyChanged(nameof(PiK)); RecalculateWartosc(); }
+    }
+
+    public decimal Ubytek
+    {
+        get => _ubytek;
+        set { _ubytek = value; OnPropertyChanged(nameof(Ubytek)); RecalculateWartosc(); }
+    }
+
+    // === NOWE WŁAŚCIWOŚCI ===
+
+    public decimal Opasienie
+    {
+        get => _opasienie;
+        set { _opasienie = value; OnPropertyChanged(nameof(Opasienie)); RecalculateWartosc(); }
+    }
+
+    public decimal KlasaB
+    {
+        get => _klasaB;
+        set { _klasaB = value; OnPropertyChanged(nameof(KlasaB)); RecalculateWartosc(); }
+    }
+
+    /// <summary>
+    /// PayWgt z bazy danych - kolumna "Do zapł." z PDF specyfikacji
+    /// </summary>
+    public decimal PayWgt
+    {
+        get => _payWgt;
+        set { _payWgt = value; OnPropertyChanged(nameof(PayWgt)); }
+    }
+
+    public int TerminDni
+    {
+        get => _terminDni;
+        set { _terminDni = value; OnPropertyChanged(nameof(TerminDni)); OnPropertyChanged(nameof(TerminPlatnosci)); }
+    }
+
+    public bool Symfonia
+    {
+        get => _symfonia;
+        set { _symfonia = value; OnPropertyChanged(nameof(Symfonia)); }
+    }
+
+    public DateTime DataUboju
+    {
+        get => _dataUboju;
+        set { _dataUboju = value; OnPropertyChanged(nameof(DataUboju)); OnPropertyChanged(nameof(TerminPlatnosci)); }
+    }
+
+    // === WŁAŚCIWOŚCI TRANSPORTOWE ===
+    public int? DriverGID
+    {
+        get => _driverGID;
+        set { _driverGID = value; OnPropertyChanged(nameof(DriverGID)); }
+    }
+
+    public string CarID
+    {
+        get => _carID;
+        set { _carID = value; OnPropertyChanged(nameof(CarID)); }
+    }
+
+    public string TrailerID
+    {
+        get => _trailerID;
+        set { _trailerID = value; OnPropertyChanged(nameof(TrailerID)); }
+    }
+
+    public DateTime? ArrivalTime
+    {
+        get => _arrivalTime;
+        set { _arrivalTime = value; OnPropertyChanged(nameof(ArrivalTime)); }
+    }
+
+    public string KierowcaNazwa
+    {
+        get => _kierowcaNazwa;
+        set { _kierowcaNazwa = value; OnPropertyChanged(nameof(KierowcaNazwa)); }
+    }
+
+    // === GODZINY TRANSPORTOWE ===
+    public DateTime? PoczatekUslugi
+    {
+        get => _poczatekUslugi;
+        set { _poczatekUslugi = value; OnPropertyChanged(nameof(PoczatekUslugi)); }
+    }
+
+    public DateTime? Wyjazd
+    {
+        get => _wyjazd;
+        set { _wyjazd = value; OnPropertyChanged(nameof(Wyjazd)); }
+    }
+
+    public DateTime? DojazdHodowca
+    {
+        get => _dojazdHodowca;
+        set { _dojazdHodowca = value; OnPropertyChanged(nameof(DojazdHodowca)); }
+    }
+
+    public DateTime? Zaladunek
+    {
+        get => _zaladunek;
+        set { _zaladunek = value; OnPropertyChanged(nameof(Zaladunek)); }
+    }
+
+    public DateTime? ZaladunekKoniec
+    {
+        get => _zaladunekKoniec;
+        set { _zaladunekKoniec = value; OnPropertyChanged(nameof(ZaladunekKoniec)); }
+    }
+
+    public DateTime? WyjazdHodowca
+    {
+        get => _wyjazdHodowca;
+        set { _wyjazdHodowca = value; OnPropertyChanged(nameof(WyjazdHodowca)); }
+    }
+
+    public DateTime? KoniecUslugi
+    {
+        get => _koniecUslugi;
+        set { _koniecUslugi = value; OnPropertyChanged(nameof(KoniecUslugi)); }
+    }
+
+    // === WŁAŚCIWOŚCI OBLICZANE ===
+
+    /// <summary>
+    /// Suma konfiskat: CH + NW + ZM [szt]
+    /// </summary>
+    public int Konfiskaty => CH + NW + ZM;
+
+    /// <summary>
+    /// Średnia waga: WagaNettoDoRozliczenia / (LUMEL + Padłe) [kg/szt]
+    /// Gdzie: LUMEL + Padłe = Dostarcz.(ARIMR)
+    /// Zaokrąglane standardowo do 2 miejsc po przecinku (jak w PDF specyfikacji)
+    /// </summary>
+    public decimal SredniaWaga => (LUMEL + Padle) > 0 ? Math.Round(WagaNettoDoRozliczenia / (LUMEL + Padle), 2) : 0;
+
+    /// <summary>
+    /// Dokładna średnia waga (NIEZAOKRĄGLONA) - używana do obliczania kg padłych i konfiskat
+    /// Zgodnie z PDF specyfikacji: kg = szt × (Netto / Dostarcz) - bez zaokrąglania pośredniego
+    /// </summary>
+    private decimal DokladnaSrWaga => (LUMEL + Padle) > 0 ? WagaNettoDoRozliczenia / (LUMEL + Padle) : 0;
+
+    /// <summary>
+    /// Sztuki zdatne: SztukiDek - Padłe - Konfiskaty [szt]
+    /// </summary>
+    public int Zdatne => SztukiDek - Padle - Konfiskaty;
+
+    /// <summary>
+    /// Padłe w kg: Padłe × Śr.waga (niezaokrąglona), wynik zaokrąglony do pełnych kg
+    /// Wzór zgodny z PDF: Padłe[kg] = Padłe[szt] × (Netto ÷ Dostarcz.)
+    /// </summary>
+    public decimal PadleKg => Math.Round(Padle * DokladnaSrWaga, 0);
+
+    /// <summary>
+    /// Konfiskaty w kg: Konfiskaty × Śr.waga (niezaokrąglona), wynik zaokrąglony do pełnych kg
+    /// Wzór zgodny z PDF: Konf.[kg] = Konf.[szt] × (Netto ÷ Dostarcz.)
+    /// </summary>
+    public decimal KonfiskatyKg => Math.Round(Konfiskaty * DokladnaSrWaga, 0);
+
+    /// <summary>
+    /// Do zapłaty [kg]: Netto - Padłe[kg] - Konf[kg] - Ubytek[kg] - Opas - KlB
+    /// Wzór zgodny z PDF specyfikacji:
+    /// Ubytek[kg] = Netto × Ubytek%
+    /// Do zapł. = Netto - Padłe[kg] - Konf[kg] - Ubytek[kg] - Opas - KlB
+    /// </summary>
+    public decimal DoZaplaty
+    {
+        get
         {
-            get => _isHighlighted;
-            set { _isHighlighted = value; OnPropertyChanged(nameof(IsHighlighted)); }
-        }
+            decimal netto = WagaNettoDoRozliczenia;
 
-        // Kolor paska bocznego dostawcy
-        public string SupplierColor
-        {
-            get => _supplierColor;
-            set { _supplierColor = value; OnPropertyChanged(nameof(SupplierColor)); }
-        }
+            // Ubytek liczony od NETTO (zgodnie z PDF)
+            decimal ubytekKg = Math.Round(netto * (Ubytek / 100), 0);
 
-        // Czy pierwszy wiersz w grupie dostawcy (do separatora wizualnego)
-        public bool IsFirstInGroup
-        {
-            get => _isFirstInGroup;
-            set { _isFirstInGroup = value; OnPropertyChanged(nameof(IsFirstInGroup)); }
-        }
+            decimal doZaplaty = netto;
 
-        // Czy ostatni wiersz w grupie dostawcy
-        public bool IsLastInGroup
-        {
-            get => _isLastInGroup;
-            set { _isLastInGroup = value; OnPropertyChanged(nameof(IsLastInGroup)); }
-        }
-
-        public bool Wydrukowano
-        {
-            get => _wydrukowano;
-            set { _wydrukowano = value; OnPropertyChanged(nameof(Wydrukowano)); }
-        }
-
-        public string Odbiorca
-        {
-            get => _odbiorca;
-            set { _odbiorca = value; OnPropertyChanged(nameof(Odbiorca)); }
-        }
-
-        public int ID
-        {
-            get => _id;
-            set { _id = value; OnPropertyChanged(nameof(ID)); }
-        }
-
-        public int Nr
-        {
-            get => _nr;
-            set { _nr = value; OnPropertyChanged(nameof(Nr)); }
-        }
-
-        public int Number
-        {
-            get => _number;
-            set { _number = value; OnPropertyChanged(nameof(Number)); }
-        }
-
-        public int YearNumber
-        {
-            get => _yearNumber;
-            set { _yearNumber = value; OnPropertyChanged(nameof(YearNumber)); }
-        }
-
-        public string DostawcaGID
-        {
-            get => _dostawcaGID;
-            set { _dostawcaGID = value; OnPropertyChanged(nameof(DostawcaGID)); }
-        }
-
-        public string Dostawca
-        {
-            get => _dostawca;
-            set { _dostawca = value; OnPropertyChanged(nameof(Dostawca)); }
-        }
-
-        public string RealDostawca
-        {
-            get => _realDostawca;
-            set { _realDostawca = value; OnPropertyChanged(nameof(RealDostawca)); }
-        }
-
-        // Pośrednik - ID i nazwa
-        public int? IdPosrednik
-        {
-            get => _idPosrednik;
-            set { _idPosrednik = value; OnPropertyChanged(nameof(IdPosrednik)); OnPropertyChanged(nameof(PosrednikNazwa)); }
-        }
-
-        public string PosrednikNazwa
-        {
-            get => _posrednikNazwa;
-            set { _posrednikNazwa = value; OnPropertyChanged(nameof(PosrednikNazwa)); }
-        }
-
-        // Ścieżki do zdjęć z ważenia
-        public string ZdjecieTaraPath
-        {
-            get => _zdjecieTaraPath;
-            set { _zdjecieTaraPath = value; OnPropertyChanged(nameof(ZdjecieTaraPath)); OnPropertyChanged(nameof(HasZdjecieTara)); }
-        }
-
-        public string ZdjecieBruttoPath
-        {
-            get => _zdjecieBruttoPath;
-            set { _zdjecieBruttoPath = value; OnPropertyChanged(nameof(ZdjecieBruttoPath)); OnPropertyChanged(nameof(HasZdjecieBrutto)); }
-        }
-
-        // Właściwości pomocnicze - czy zdjęcie istnieje
-        public bool HasZdjecieTara => !string.IsNullOrEmpty(_zdjecieTaraPath);
-        public bool HasZdjecieBrutto => !string.IsNullOrEmpty(_zdjecieBruttoPath);
-
-        public int SztukiDek
-        {
-            get => _sztukiDek;
-            set { _sztukiDek = value; OnPropertyChanged(nameof(SztukiDek)); RecalculateWartosc(); }
-        }
-
-        public int Padle
-        {
-            get => _padle;
-            set { _padle = value; OnPropertyChanged(nameof(Padle)); RecalculateWartosc(); }
-        }
-
-        public int CH
-        {
-            get => _ch;
-            set { _ch = value; OnPropertyChanged(nameof(CH)); RecalculateWartosc(); }
-        }
-
-        public int NW
-        {
-            get => _nw;
-            set { _nw = value; OnPropertyChanged(nameof(NW)); RecalculateWartosc(); }
-        }
-
-        public int ZM
-        {
-            get => _zm;
-            set { _zm = value; OnPropertyChanged(nameof(ZM)); RecalculateWartosc(); }
-        }
-
-        public string BruttoHodowcy
-        {
-            get => _bruttoHodowcy;
-            set { _bruttoHodowcy = value; OnPropertyChanged(nameof(BruttoHodowcy)); }
-        }
-
-        public string TaraHodowcy
-        {
-            get => _taraHodowcy;
-            set { _taraHodowcy = value; OnPropertyChanged(nameof(TaraHodowcy)); }
-        }
-
-        public string NettoHodowcy
-        {
-            get => _nettoHodowcy;
-            set { _nettoHodowcy = value; OnPropertyChanged(nameof(NettoHodowcy)); }
-        }
-
-        public decimal NettoHodowcyValue
-        {
-            get => _nettoHodowcyValue;
-            set { _nettoHodowcyValue = value; OnPropertyChanged(nameof(NettoHodowcyValue)); OnPropertyChanged(nameof(WagaNettoDoRozliczenia)); RecalculateWartosc(); }
-        }
-
-        /// <summary>
-        /// Waga netto do rozliczenia: preferuje wagę hodowcy, jeśli jest > 0, w przeciwnym razie wagę ubojni
-        /// </summary>
-        public decimal WagaNettoDoRozliczenia => NettoHodowcyValue > 0 ? NettoHodowcyValue : NettoUbojniValue;
-
-        public string BruttoUbojni
-        {
-            get => _bruttoUbojni;
-            set { _bruttoUbojni = value; OnPropertyChanged(nameof(BruttoUbojni)); }
-        }
-
-        public string TaraUbojni
-        {
-            get => _taraUbojni;
-            set { _taraUbojni = value; OnPropertyChanged(nameof(TaraUbojni)); }
-        }
-
-        public string NettoUbojni
-        {
-            get => _nettoUbojni;
-            set { _nettoUbojni = value; OnPropertyChanged(nameof(NettoUbojni)); }
-        }
-
-        public decimal NettoUbojniValue
-        {
-            get => _nettoUbojniValue;
-            set { _nettoUbojniValue = value; OnPropertyChanged(nameof(NettoUbojniValue)); OnPropertyChanged(nameof(WagaNettoDoRozliczenia)); RecalculateWartosc(); }
-        }
-
-        public int LUMEL
-        {
-            get => _lumel;
-            set { _lumel = value; OnPropertyChanged(nameof(LUMEL)); }
-        }
-
-        public int SztukiWybijak
-        {
-            get => _sztukiWybijak;
-            set { _sztukiWybijak = value; OnPropertyChanged(nameof(SztukiWybijak)); }
-        }
-
-        public decimal KilogramyWybijak
-        {
-            get => _kilogramyWybijak;
-            set { _kilogramyWybijak = value; OnPropertyChanged(nameof(KilogramyWybijak)); }
-        }
-
-        public decimal Cena
-        {
-            get => _cena;
-            set { _cena = value; OnPropertyChanged(nameof(Cena)); RecalculateWartosc(); }
-        }
-
-        public decimal Dodatek
-        {
-            get => _dodatek;
-            set { _dodatek = value; OnPropertyChanged(nameof(Dodatek)); RecalculateWartosc(); }
-        }
-
-        public string TypCeny
-        {
-            get => _typCeny;
-            set { _typCeny = value; OnPropertyChanged(nameof(TypCeny)); }
-        }
-
-        public bool PiK
-        {
-            get => _piK;
-            set { _piK = value; OnPropertyChanged(nameof(PiK)); RecalculateWartosc(); }
-        }
-
-        public decimal Ubytek
-        {
-            get => _ubytek;
-            set { _ubytek = value; OnPropertyChanged(nameof(Ubytek)); RecalculateWartosc(); }
-        }
-
-        // === NOWE WŁAŚCIWOŚCI ===
-
-        public decimal Opasienie
-        {
-            get => _opasienie;
-            set { _opasienie = value; OnPropertyChanged(nameof(Opasienie)); RecalculateWartosc(); }
-        }
-
-        public decimal KlasaB
-        {
-            get => _klasaB;
-            set { _klasaB = value; OnPropertyChanged(nameof(KlasaB)); RecalculateWartosc(); }
-        }
-
-        /// <summary>
-        /// PayWgt z bazy danych - kolumna "Do zapł." z PDF specyfikacji
-        /// </summary>
-        public decimal PayWgt
-        {
-            get => _payWgt;
-            set { _payWgt = value; OnPropertyChanged(nameof(PayWgt)); }
-        }
-
-        public int TerminDni
-        {
-            get => _terminDni;
-            set { _terminDni = value; OnPropertyChanged(nameof(TerminDni)); OnPropertyChanged(nameof(TerminPlatnosci)); }
-        }
-
-        public bool Symfonia
-        {
-            get => _symfonia;
-            set { _symfonia = value; OnPropertyChanged(nameof(Symfonia)); }
-        }
-
-        public DateTime DataUboju
-        {
-            get => _dataUboju;
-            set { _dataUboju = value; OnPropertyChanged(nameof(DataUboju)); OnPropertyChanged(nameof(TerminPlatnosci)); }
-        }
-
-        // === WŁAŚCIWOŚCI TRANSPORTOWE ===
-        public int? DriverGID
-        {
-            get => _driverGID;
-            set { _driverGID = value; OnPropertyChanged(nameof(DriverGID)); }
-        }
-
-        public string CarID
-        {
-            get => _carID;
-            set { _carID = value; OnPropertyChanged(nameof(CarID)); }
-        }
-
-        public string TrailerID
-        {
-            get => _trailerID;
-            set { _trailerID = value; OnPropertyChanged(nameof(TrailerID)); }
-        }
-
-        public DateTime? ArrivalTime
-        {
-            get => _arrivalTime;
-            set { _arrivalTime = value; OnPropertyChanged(nameof(ArrivalTime)); }
-        }
-
-        public string KierowcaNazwa
-        {
-            get => _kierowcaNazwa;
-            set { _kierowcaNazwa = value; OnPropertyChanged(nameof(KierowcaNazwa)); }
-        }
-
-        // === GODZINY TRANSPORTOWE ===
-        public DateTime? PoczatekUslugi
-        {
-            get => _poczatekUslugi;
-            set { _poczatekUslugi = value; OnPropertyChanged(nameof(PoczatekUslugi)); }
-        }
-
-        public DateTime? Wyjazd
-        {
-            get => _wyjazd;
-            set { _wyjazd = value; OnPropertyChanged(nameof(Wyjazd)); }
-        }
-
-        public DateTime? DojazdHodowca
-        {
-            get => _dojazdHodowca;
-            set { _dojazdHodowca = value; OnPropertyChanged(nameof(DojazdHodowca)); }
-        }
-
-        public DateTime? Zaladunek
-        {
-            get => _zaladunek;
-            set { _zaladunek = value; OnPropertyChanged(nameof(Zaladunek)); }
-        }
-
-        public DateTime? ZaladunekKoniec
-        {
-            get => _zaladunekKoniec;
-            set { _zaladunekKoniec = value; OnPropertyChanged(nameof(ZaladunekKoniec)); }
-        }
-
-        public DateTime? WyjazdHodowca
-        {
-            get => _wyjazdHodowca;
-            set { _wyjazdHodowca = value; OnPropertyChanged(nameof(WyjazdHodowca)); }
-        }
-
-        public DateTime? KoniecUslugi
-        {
-            get => _koniecUslugi;
-            set { _koniecUslugi = value; OnPropertyChanged(nameof(KoniecUslugi)); }
-        }
-
-        // === WŁAŚCIWOŚCI OBLICZANE ===
-
-        /// <summary>
-        /// Suma konfiskat: CH + NW + ZM [szt]
-        /// </summary>
-        public int Konfiskaty => CH + NW + ZM;
-
-        /// <summary>
-        /// Średnia waga: WagaNettoDoRozliczenia / SztukiDek [kg/szt]
-        /// </summary>
-        public decimal SredniaWaga => SztukiDek > 0 ? Math.Round(WagaNettoDoRozliczenia / SztukiDek, 2) : 0;
-
-        /// <summary>
-        /// Sztuki zdatne: SztukiDek - Padłe - Konfiskaty [szt]
-        /// </summary>
-        public int Zdatne => SztukiDek - Padle - Konfiskaty;
-
-        /// <summary>
-        /// Padłe w kg: Padłe * Średnia waga [kg]
-        /// </summary>
-        public decimal PadleKg => Math.Round(Padle * SredniaWaga, 0);
-
-        /// <summary>
-        /// Konfiskaty w kg: Konfiskaty * Średnia waga [kg]
-        /// </summary>
-        public decimal KonfiskatyKg => Math.Round(Konfiskaty * SredniaWaga, 0);
-
-        /// <summary>
-        /// Do zapłaty [kg]: WagaNettoDoRozliczenia - Padłe[kg] - Konf[kg] - Opas - KlasaB (z uwzględnieniem PiK i ubytku)
-        /// </summary>
-        public decimal DoZaplaty
-        {
-            get
+            // Jeśli PiK = false, odejmujemy padłe i konfiskaty
+            if (!PiK)
             {
-                decimal bazaKg = WagaNettoDoRozliczenia;
-
-                // Jeśli PiK = false, odejmujemy padłe i konfiskaty
-                if (!PiK)
-                {
-                    bazaKg -= PadleKg;
-                    bazaKg -= KonfiskatyKg;
-                }
-
-                // Zawsze odejmujemy opasienie i klasę B
-                bazaKg -= Opasienie;
-                bazaKg -= KlasaB;
-
-                // Zastosowanie ubytku procentowego
-                decimal poUbytku = bazaKg * (1 - Ubytek / 100);
-
-                return Math.Round(poUbytku, 0);
+                doZaplaty -= PadleKg;
+                doZaplaty -= KonfiskatyKg;
             }
-        }
 
-        /// <summary>
-        /// Termin płatności (data)
-        /// </summary>
-        public DateTime TerminPlatnosci => DataUboju.AddDays(TerminDni);
+            // Zawsze odejmujemy opasienie, klasę B i ubytek
+            doZaplaty -= Opasienie;
+            doZaplaty -= KlasaB;
+            doZaplaty -= ubytekKg;
 
-        // === WARTOŚĆ KOŃCOWA ===
-
-        /// <summary>
-        /// Wartość końcowa = DoZaplaty * (Cena + Dodatek)
-        /// </summary>
-        public decimal Wartosc
-        {
-            get
-            {
-                decimal cenaZDodatkiem = Cena + Dodatek;
-                return Math.Round(DoZaplaty * cenaZDodatkiem, 0);
-            }
-        }
-
-        public void RecalculateWartosc()
-        {
-            OnPropertyChanged(nameof(Konfiskaty));
-            OnPropertyChanged(nameof(SredniaWaga));
-            OnPropertyChanged(nameof(Zdatne));
-            OnPropertyChanged(nameof(PadleKg));
-            OnPropertyChanged(nameof(KonfiskatyKg));
-            OnPropertyChanged(nameof(DoZaplaty));
-            OnPropertyChanged(nameof(Wartosc));
-        }
-
-        // === PDF STATUS ===
-        private bool _hasPdf = false;
-        private string _pdfPath = null;
-
-        public bool HasPdf
-        {
-            get => _hasPdf;
-            set { _hasPdf = value; OnPropertyChanged(nameof(HasPdf)); OnPropertyChanged(nameof(PdfStatus)); }
-        }
-
-        public string PdfPath
-        {
-            get => _pdfPath;
-            set { _pdfPath = value; OnPropertyChanged(nameof(PdfPath)); }
-        }
-
-        public string PdfStatus => HasPdf ? "✓" : "";
-
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        protected void OnPropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            return Math.Round(doZaplaty, 0);
         }
     }
 
     /// <summary>
-    /// Konwerter dla kolumny Dodatek:
-    /// - Pokazuje puste pole gdy wartość = 0
-    /// - Obsługuje przecinek i kropkę jako separator dziesiętny
+    /// Termin płatności (data)
     /// </summary>
-    public class ZeroToEmptyConverter : System.Windows.Data.IValueConverter
+    public DateTime TerminPlatnosci => DataUboju.AddDays(TerminDni);
+
+    // === WARTOŚĆ KOŃCOWA ===
+
+    /// <summary>
+    /// Wartość końcowa = DoZaplaty * (Cena + Dodatek)
+    /// </summary>
+    public decimal Wartosc
     {
-        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        get
         {
-            if (value == null)
+            decimal cenaZDodatkiem = Cena + Dodatek;
+            return Math.Round(DoZaplaty * cenaZDodatkiem, 0);
+        }
+    }
+
+    public void RecalculateWartosc()
+    {
+        OnPropertyChanged(nameof(Konfiskaty));
+        OnPropertyChanged(nameof(SredniaWaga));
+        OnPropertyChanged(nameof(Zdatne));
+        OnPropertyChanged(nameof(PadleKg));
+        OnPropertyChanged(nameof(KonfiskatyKg));
+        OnPropertyChanged(nameof(DoZaplaty));
+        OnPropertyChanged(nameof(Wartosc));
+    }
+
+    // === PDF STATUS ===
+    private bool _hasPdf = false;
+    private string _pdfPath = null;
+
+    public bool HasPdf
+    {
+        get => _hasPdf;
+        set { _hasPdf = value; OnPropertyChanged(nameof(HasPdf)); OnPropertyChanged(nameof(PdfStatus)); }
+    }
+
+    public string PdfPath
+    {
+        get => _pdfPath;
+        set { _pdfPath = value; OnPropertyChanged(nameof(PdfPath)); }
+    }
+
+    public string PdfStatus => HasPdf ? "✓" : "";
+
+    public event PropertyChangedEventHandler PropertyChanged;
+
+    protected void OnPropertyChanged(string propertyName)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+}
+
+/// <summary>
+/// Konwerter dla kolumny Dodatek:
+/// - Pokazuje puste pole gdy wartość = 0
+/// - Obsługuje przecinek i kropkę jako separator dziesiętny
+/// </summary>
+public class ZeroToEmptyConverter : System.Windows.Data.IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        if (value == null)
+            return string.Empty;
+
+        // Obsługa int
+        if (value is int intValue)
+        {
+            if (intValue == 0)
                 return string.Empty;
-
-            // Obsługa int
-            if (value is int intValue)
-            {
-                if (intValue == 0)
-                    return string.Empty;
-                return intValue.ToString();
-            }
-
-            // Obsługa decimal
-            if (value is decimal decValue)
-            {
-                if (decValue == 0)
-                    return string.Empty;
-                return decValue.ToString("F2", culture);
-            }
-
-            // Obsługa double
-            if (value is double dblValue)
-            {
-                if (dblValue == 0)
-                    return string.Empty;
-                return dblValue.ToString();
-            }
-
-            return value.ToString();
+            return intValue.ToString();
         }
 
-        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        // Obsługa decimal
+        if (value is decimal decValue)
         {
-            if (value == null || string.IsNullOrWhiteSpace(value.ToString()))
+            if (decValue == 0)
+                return string.Empty;
+            return decValue.ToString("F2", culture);
+        }
+
+        // Obsługa double
+        if (value is double dblValue)
+        {
+            if (dblValue == 0)
+                return string.Empty;
+            return dblValue.ToString();
+        }
+
+        return value.ToString();
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        if (value == null || string.IsNullOrWhiteSpace(value.ToString()))
+        {
+            // Zwróć odpowiedni typ zera
+            if (targetType == typeof(int)) return 0;
+            if (targetType == typeof(decimal)) return 0m;
+            if (targetType == typeof(double)) return 0.0;
+            return 0;
+        }
+
+        string input = value.ToString().Trim();
+        input = input.Replace(',', '.');
+
+        // Dla int
+        if (targetType == typeof(int))
+        {
+            if (int.TryParse(input, out int intResult))
+                return intResult;
+            return 0;
+        }
+
+        // Dla decimal
+        if (targetType == typeof(decimal))
+        {
+            if (decimal.TryParse(input, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal decResult))
+                return decResult;
+            return 0m;
+        }
+
+        // Dla double
+        if (targetType == typeof(double))
+        {
+            if (double.TryParse(input, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double dblResult))
+                return dblResult;
+            return 0.0;
+        }
+
+        return 0;
+    }
+}
+
+/// <summary>
+/// Model danych dla wiersza transportu
+/// </summary>
+public class TransportRow : INotifyPropertyChanged
+{
+    private int _specyfikacjaID;
+    private int _nr;
+    private string _dostawca;
+    private string _kierowca;
+    private string _samochod;
+    private string _nrRejestracyjny;
+    private DateTime? _godzinaWyjazdu;
+    private DateTime? _godzinaPrzyjazdu;
+    private string _trasa;
+    private int _iloscSkrzynek;
+    private int _sztuki;
+    private decimal _kilogramy;
+    private string _status;
+    private string _uwagi;
+
+    // ID powiązane ze SpecyfikacjaRow.ID (FarmerCalc.ID)
+    public int SpecyfikacjaID
+    {
+        get => _specyfikacjaID;
+        set { _specyfikacjaID = value; OnPropertyChanged(nameof(SpecyfikacjaID)); }
+    }
+
+    // Godziny transportowe
+    private DateTime? _poczatekUslugi;
+    private DateTime? _dojazdHodowca;
+    private DateTime? _zaladunek;
+    private DateTime? _zaladunekKoniec;
+    private DateTime? _wyjazdHodowca;
+    private DateTime? _koniecUslugi;
+
+    public int Nr
+    {
+        get => _nr;
+        set { _nr = value; OnPropertyChanged(nameof(Nr)); }
+    }
+
+    public string Dostawca
+    {
+        get => _dostawca;
+        set { _dostawca = value; OnPropertyChanged(nameof(Dostawca)); }
+    }
+
+    public string Kierowca
+    {
+        get => _kierowca;
+        set { _kierowca = value; OnPropertyChanged(nameof(Kierowca)); }
+    }
+
+    public string Samochod
+    {
+        get => _samochod;
+        set { _samochod = value; OnPropertyChanged(nameof(Samochod)); }
+    }
+
+    public string NrRejestracyjny
+    {
+        get => _nrRejestracyjny;
+        set { _nrRejestracyjny = value; OnPropertyChanged(nameof(NrRejestracyjny)); }
+    }
+
+    public DateTime? GodzinaWyjazdu
+    {
+        get => _godzinaWyjazdu;
+        set { _godzinaWyjazdu = value; OnPropertyChanged(nameof(GodzinaWyjazdu)); }
+    }
+
+    public DateTime? GodzinaPrzyjazdu
+    {
+        get => _godzinaPrzyjazdu;
+        set { _godzinaPrzyjazdu = value; OnPropertyChanged(nameof(GodzinaPrzyjazdu)); }
+    }
+
+    public string Trasa
+    {
+        get => _trasa;
+        set { _trasa = value; OnPropertyChanged(nameof(Trasa)); }
+    }
+
+    public int IloscSkrzynek
+    {
+        get => _iloscSkrzynek;
+        set { _iloscSkrzynek = value; OnPropertyChanged(nameof(IloscSkrzynek)); }
+    }
+
+    public int Sztuki
+    {
+        get => _sztuki;
+        set { _sztuki = value; OnPropertyChanged(nameof(Sztuki)); }
+    }
+
+    public decimal Kilogramy
+    {
+        get => _kilogramy;
+        set { _kilogramy = value; OnPropertyChanged(nameof(Kilogramy)); }
+    }
+
+    public string Status
+    {
+        get => _status;
+        set { _status = value; OnPropertyChanged(nameof(Status)); }
+    }
+
+    public string Uwagi
+    {
+        get => _uwagi;
+        set { _uwagi = value; OnPropertyChanged(nameof(Uwagi)); }
+    }
+
+    // === GODZINY TRANSPORTOWE ===
+    public DateTime? PoczatekUslugi
+    {
+        get => _poczatekUslugi;
+        set { _poczatekUslugi = value; OnPropertyChanged(nameof(PoczatekUslugi)); OnPropertyChanged(nameof(CzasCalkowity)); }
+    }
+
+    public DateTime? DojazdHodowca
+    {
+        get => _dojazdHodowca;
+        set { _dojazdHodowca = value; OnPropertyChanged(nameof(DojazdHodowca)); OnPropertyChanged(nameof(CzasDojazd)); OnPropertyChanged(nameof(CzasPostoj)); }
+    }
+
+    public DateTime? Zaladunek
+    {
+        get => _zaladunek;
+        set { _zaladunek = value; OnPropertyChanged(nameof(Zaladunek)); OnPropertyChanged(nameof(CzasZaladunek)); }
+    }
+
+    public DateTime? ZaladunekKoniec
+    {
+        get => _zaladunekKoniec;
+        set { _zaladunekKoniec = value; OnPropertyChanged(nameof(ZaladunekKoniec)); OnPropertyChanged(nameof(CzasZaladunek)); }
+    }
+
+    public DateTime? WyjazdHodowca
+    {
+        get => _wyjazdHodowca;
+        set { _wyjazdHodowca = value; OnPropertyChanged(nameof(WyjazdHodowca)); OnPropertyChanged(nameof(CzasPostoj)); OnPropertyChanged(nameof(CzasRozladunek)); }
+    }
+
+    public DateTime? KoniecUslugi
+    {
+        get => _koniecUslugi;
+        set { _koniecUslugi = value; OnPropertyChanged(nameof(KoniecUslugi)); OnPropertyChanged(nameof(CzasCalkowity)); OnPropertyChanged(nameof(IsKoniec0000)); }
+    }
+
+    // === OBLICZONE CZASY TRWANIA ===
+
+    /// <summary>
+    /// Czas dojazdu do hodowcy (GodzinaWyjazdu -> DojazdHodowca)
+    /// </summary>
+    public string CzasDojazd
+    {
+        get
+        {
+            if (GodzinaWyjazdu.HasValue && DojazdHodowca.HasValue)
             {
-                // Zwróć odpowiedni typ zera
-                if (targetType == typeof(int)) return 0;
-                if (targetType == typeof(decimal)) return 0m;
-                if (targetType == typeof(double)) return 0.0;
-                return 0;
+                var diff = DojazdHodowca.Value - GodzinaWyjazdu.Value;
+                return FormatTimeSpan(diff);
             }
+            return "";
+        }
+    }
 
-            string input = value.ToString().Trim();
-            input = input.Replace(',', '.');
-
-            // Dla int
-            if (targetType == typeof(int))
+    /// <summary>
+    /// Czas załadunku (Zaladunek -> ZaladunekKoniec)
+    /// </summary>
+    public string CzasZaladunek
+    {
+        get
+        {
+            if (Zaladunek.HasValue && ZaladunekKoniec.HasValue)
             {
-                if (int.TryParse(input, out int intResult))
-                    return intResult;
-                return 0;
+                var diff = ZaladunekKoniec.Value - Zaladunek.Value;
+                return FormatTimeSpan(diff);
             }
+            return "";
+        }
+    }
 
-            // Dla decimal
-            if (targetType == typeof(decimal))
+    /// <summary>
+    /// Czas postoju u hodowcy (DojazdHodowca -> WyjazdHodowca)
+    /// </summary>
+    public string CzasPostoj
+    {
+        get
+        {
+            if (DojazdHodowca.HasValue && WyjazdHodowca.HasValue)
             {
-                if (decimal.TryParse(input, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal decResult))
-                    return decResult;
-                return 0m;
+                var diff = WyjazdHodowca.Value - DojazdHodowca.Value;
+                return FormatTimeSpan(diff);
             }
+            return "";
+        }
+    }
 
-            // Dla double
-            if (targetType == typeof(double))
+    /// <summary>
+    /// Czas powrotu (WyjazdHodowca -> GodzinaPrzyjazdu)
+    /// </summary>
+    public string CzasRozladunek
+    {
+        get
+        {
+            if (WyjazdHodowca.HasValue && GodzinaPrzyjazdu.HasValue)
             {
-                if (double.TryParse(input, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double dblResult))
-                    return dblResult;
-                return 0.0;
+                var diff = GodzinaPrzyjazdu.Value - WyjazdHodowca.Value;
+                return FormatTimeSpan(diff);
             }
+            return "";
+        }
+    }
 
+    /// <summary>
+    /// Całkowity czas usługi (PoczatekUslugi -> KoniecUslugi lub GodzinaWyjazdu -> GodzinaPrzyjazdu)
+    /// </summary>
+    public string CzasCalkowity
+    {
+        get
+        {
+            if (PoczatekUslugi.HasValue && KoniecUslugi.HasValue)
+            {
+                var diff = KoniecUslugi.Value - PoczatekUslugi.Value;
+                return FormatTimeSpan(diff);
+            }
+            else if (GodzinaWyjazdu.HasValue && GodzinaPrzyjazdu.HasValue)
+            {
+                var diff = GodzinaPrzyjazdu.Value - GodzinaWyjazdu.Value;
+                return FormatTimeSpan(diff);
+            }
+            return "";
+        }
+    }
+
+    private string FormatTimeSpan(TimeSpan ts)
+    {
+        if (ts.TotalHours < 0)
+            return $"-{(int)Math.Abs(ts.TotalHours)}:{Math.Abs(ts.Minutes):D2}";
+        return $"{(int)ts.TotalHours}:{ts.Minutes:D2}";
+    }
+
+    // === CZASY W MINUTACH (dla nowych kolumn) ===
+
+    /// <summary>
+    /// Czas dojazdu w minutach (Wyj -> Doj)
+    /// </summary>
+    public int? CzasDojMin
+    {
+        get
+        {
+            if (GodzinaWyjazdu.HasValue && DojazdHodowca.HasValue)
+            {
+                return (int)(DojazdHodowca.Value - GodzinaWyjazdu.Value).TotalMinutes;
+            }
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Czas powrotu w minutach (Wyj.H -> Przyj)
+    /// </summary>
+    public int? CzasPowrotMin
+    {
+        get
+        {
+            if (WyjazdHodowca.HasValue && GodzinaPrzyjazdu.HasValue)
+            {
+                return (int)(GodzinaPrzyjazdu.Value - WyjazdHodowca.Value).TotalMinutes;
+            }
+            return null;
+        }
+    }
+
+    // Średnie czasy dla dostawcy (ustawiane zewnętrznie)
+    private int _sredniaCzasDojMin;
+    private int _sredniaCzasPowrotMin;
+
+    public int SredniaCzasDojMin
+    {
+        get => _sredniaCzasDojMin;
+        set
+        {
+            _sredniaCzasDojMin = value;
+            OnPropertyChanged(nameof(SredniaCzasDojMin));
+            OnPropertyChanged(nameof(IsCzasDojAbnormal));
+        }
+    }
+
+    public int SredniaCzasPowrotMin
+    {
+        get => _sredniaCzasPowrotMin;
+        set
+        {
+            _sredniaCzasPowrotMin = value;
+            OnPropertyChanged(nameof(SredniaCzasPowrotMin));
+            OnPropertyChanged(nameof(IsCzasPowrotAbnormal));
+        }
+    }
+
+    /// <summary>
+    /// Czy czas dojazdu jest nietypowo długi (>20min ponad średnią)
+    /// </summary>
+    public bool IsCzasDojAbnormal
+    {
+        get
+        {
+            if (!CzasDojMin.HasValue || SredniaCzasDojMin == 0) return false;
+            return CzasDojMin.Value > SredniaCzasDojMin + 20;
+        }
+    }
+
+    /// <summary>
+    /// Czy czas powrotu jest nietypowo długi (>20min ponad średnią)
+    /// </summary>
+    public bool IsCzasPowrotAbnormal
+    {
+        get
+        {
+            if (!CzasPowrotMin.HasValue || SredniaCzasPowrotMin == 0) return false;
+            return CzasPowrotMin.Value > SredniaCzasPowrotMin + 20;
+        }
+    }
+
+    // === WAGI I UBYTEK ===
+    private decimal _nettoHodowcy;
+    private decimal _nettoUbojni;
+    private decimal _ubytekUmowny;
+
+    public decimal NettoHodowcy
+    {
+        get => _nettoHodowcy;
+        set
+        {
+            _nettoHodowcy = value;
+            OnPropertyChanged(nameof(NettoHodowcy));
+            OnPropertyChanged(nameof(RoznicaWag));
+            OnPropertyChanged(nameof(ProcentRoznicy));
+        }
+    }
+
+    public decimal NettoUbojni
+    {
+        get => _nettoUbojni;
+        set
+        {
+            _nettoUbojni = value;
+            OnPropertyChanged(nameof(NettoUbojni));
+            OnPropertyChanged(nameof(RoznicaWag));
+            OnPropertyChanged(nameof(ProcentRoznicy));
+        }
+    }
+
+    /// <summary>
+    /// Różnica wag: Netto Hodowcy - Netto Ubojni
+    /// </summary>
+    public decimal RoznicaWag => NettoHodowcy - NettoUbojni;
+
+    /// <summary>
+    /// Procent różnicy od wagi hodowcy: (RoznicaWag / NettoHodowcy) * 100
+    /// </summary>
+    public decimal ProcentRoznicy
+    {
+        get
+        {
+            if (NettoHodowcy > 0)
+                return (RoznicaWag / NettoHodowcy) * 100;
             return 0;
         }
     }
 
     /// <summary>
-    /// Model danych dla wiersza transportu
+    /// Ubytek umowny z karty Specyfikacje (Loss)
     /// </summary>
-    public class TransportRow : INotifyPropertyChanged
+    public decimal UbytekUmowny
     {
-        private int _specyfikacjaID;
-        private int _nr;
-        private string _dostawca;
-        private string _kierowca;
-        private string _samochod;
-        private string _nrRejestracyjny;
-        private DateTime? _godzinaWyjazdu;
-        private DateTime? _godzinaPrzyjazdu;
-        private string _trasa;
-        private int _iloscSkrzynek;
-        private int _sztuki;
-        private decimal _kilogramy;
-        private string _status;
-        private string _uwagi;
-
-        // ID powiązane ze SpecyfikacjaRow.ID (FarmerCalc.ID)
-        public int SpecyfikacjaID
+        get => _ubytekUmowny;
+        set
         {
-            get => _specyfikacjaID;
-            set { _specyfikacjaID = value; OnPropertyChanged(nameof(SpecyfikacjaID)); }
-        }
-
-        // Godziny transportowe
-        private DateTime? _poczatekUslugi;
-        private DateTime? _dojazdHodowca;
-        private DateTime? _zaladunek;
-        private DateTime? _zaladunekKoniec;
-        private DateTime? _wyjazdHodowca;
-        private DateTime? _koniecUslugi;
-
-        public int Nr
-        {
-            get => _nr;
-            set { _nr = value; OnPropertyChanged(nameof(Nr)); }
-        }
-
-        public string Dostawca
-        {
-            get => _dostawca;
-            set { _dostawca = value; OnPropertyChanged(nameof(Dostawca)); }
-        }
-
-        public string Kierowca
-        {
-            get => _kierowca;
-            set { _kierowca = value; OnPropertyChanged(nameof(Kierowca)); }
-        }
-
-        public string Samochod
-        {
-            get => _samochod;
-            set { _samochod = value; OnPropertyChanged(nameof(Samochod)); }
-        }
-
-        public string NrRejestracyjny
-        {
-            get => _nrRejestracyjny;
-            set { _nrRejestracyjny = value; OnPropertyChanged(nameof(NrRejestracyjny)); }
-        }
-
-        public DateTime? GodzinaWyjazdu
-        {
-            get => _godzinaWyjazdu;
-            set { _godzinaWyjazdu = value; OnPropertyChanged(nameof(GodzinaWyjazdu)); }
-        }
-
-        public DateTime? GodzinaPrzyjazdu
-        {
-            get => _godzinaPrzyjazdu;
-            set { _godzinaPrzyjazdu = value; OnPropertyChanged(nameof(GodzinaPrzyjazdu)); }
-        }
-
-        public string Trasa
-        {
-            get => _trasa;
-            set { _trasa = value; OnPropertyChanged(nameof(Trasa)); }
-        }
-
-        public int IloscSkrzynek
-        {
-            get => _iloscSkrzynek;
-            set { _iloscSkrzynek = value; OnPropertyChanged(nameof(IloscSkrzynek)); }
-        }
-
-        public int Sztuki
-        {
-            get => _sztuki;
-            set { _sztuki = value; OnPropertyChanged(nameof(Sztuki)); }
-        }
-
-        public decimal Kilogramy
-        {
-            get => _kilogramy;
-            set { _kilogramy = value; OnPropertyChanged(nameof(Kilogramy)); }
-        }
-
-        public string Status
-        {
-            get => _status;
-            set { _status = value; OnPropertyChanged(nameof(Status)); }
-        }
-
-        public string Uwagi
-        {
-            get => _uwagi;
-            set { _uwagi = value; OnPropertyChanged(nameof(Uwagi)); }
-        }
-
-        // === GODZINY TRANSPORTOWE ===
-        public DateTime? PoczatekUslugi
-        {
-            get => _poczatekUslugi;
-            set { _poczatekUslugi = value; OnPropertyChanged(nameof(PoczatekUslugi)); OnPropertyChanged(nameof(CzasCalkowity)); }
-        }
-
-        public DateTime? DojazdHodowca
-        {
-            get => _dojazdHodowca;
-            set { _dojazdHodowca = value; OnPropertyChanged(nameof(DojazdHodowca)); OnPropertyChanged(nameof(CzasDojazd)); OnPropertyChanged(nameof(CzasPostoj)); }
-        }
-
-        public DateTime? Zaladunek
-        {
-            get => _zaladunek;
-            set { _zaladunek = value; OnPropertyChanged(nameof(Zaladunek)); OnPropertyChanged(nameof(CzasZaladunek)); }
-        }
-
-        public DateTime? ZaladunekKoniec
-        {
-            get => _zaladunekKoniec;
-            set { _zaladunekKoniec = value; OnPropertyChanged(nameof(ZaladunekKoniec)); OnPropertyChanged(nameof(CzasZaladunek)); }
-        }
-
-        public DateTime? WyjazdHodowca
-        {
-            get => _wyjazdHodowca;
-            set { _wyjazdHodowca = value; OnPropertyChanged(nameof(WyjazdHodowca)); OnPropertyChanged(nameof(CzasPostoj)); OnPropertyChanged(nameof(CzasRozladunek)); }
-        }
-
-        public DateTime? KoniecUslugi
-        {
-            get => _koniecUslugi;
-            set { _koniecUslugi = value; OnPropertyChanged(nameof(KoniecUslugi)); OnPropertyChanged(nameof(CzasCalkowity)); OnPropertyChanged(nameof(IsKoniec0000)); }
-        }
-
-        // === OBLICZONE CZASY TRWANIA ===
-
-        /// <summary>
-        /// Czas dojazdu do hodowcy (GodzinaWyjazdu -> DojazdHodowca)
-        /// </summary>
-        public string CzasDojazd
-        {
-            get
-            {
-                if (GodzinaWyjazdu.HasValue && DojazdHodowca.HasValue)
-                {
-                    var diff = DojazdHodowca.Value - GodzinaWyjazdu.Value;
-                    return FormatTimeSpan(diff);
-                }
-                return "";
-            }
-        }
-
-        /// <summary>
-        /// Czas załadunku (Zaladunek -> ZaladunekKoniec)
-        /// </summary>
-        public string CzasZaladunek
-        {
-            get
-            {
-                if (Zaladunek.HasValue && ZaladunekKoniec.HasValue)
-                {
-                    var diff = ZaladunekKoniec.Value - Zaladunek.Value;
-                    return FormatTimeSpan(diff);
-                }
-                return "";
-            }
-        }
-
-        /// <summary>
-        /// Czas postoju u hodowcy (DojazdHodowca -> WyjazdHodowca)
-        /// </summary>
-        public string CzasPostoj
-        {
-            get
-            {
-                if (DojazdHodowca.HasValue && WyjazdHodowca.HasValue)
-                {
-                    var diff = WyjazdHodowca.Value - DojazdHodowca.Value;
-                    return FormatTimeSpan(diff);
-                }
-                return "";
-            }
-        }
-
-        /// <summary>
-        /// Czas powrotu (WyjazdHodowca -> GodzinaPrzyjazdu)
-        /// </summary>
-        public string CzasRozladunek
-        {
-            get
-            {
-                if (WyjazdHodowca.HasValue && GodzinaPrzyjazdu.HasValue)
-                {
-                    var diff = GodzinaPrzyjazdu.Value - WyjazdHodowca.Value;
-                    return FormatTimeSpan(diff);
-                }
-                return "";
-            }
-        }
-
-        /// <summary>
-        /// Całkowity czas usługi (PoczatekUslugi -> KoniecUslugi lub GodzinaWyjazdu -> GodzinaPrzyjazdu)
-        /// </summary>
-        public string CzasCalkowity
-        {
-            get
-            {
-                if (PoczatekUslugi.HasValue && KoniecUslugi.HasValue)
-                {
-                    var diff = KoniecUslugi.Value - PoczatekUslugi.Value;
-                    return FormatTimeSpan(diff);
-                }
-                else if (GodzinaWyjazdu.HasValue && GodzinaPrzyjazdu.HasValue)
-                {
-                    var diff = GodzinaPrzyjazdu.Value - GodzinaWyjazdu.Value;
-                    return FormatTimeSpan(diff);
-                }
-                return "";
-            }
-        }
-
-        private string FormatTimeSpan(TimeSpan ts)
-        {
-            if (ts.TotalHours < 0)
-                return $"-{(int)Math.Abs(ts.TotalHours)}:{Math.Abs(ts.Minutes):D2}";
-            return $"{(int)ts.TotalHours}:{ts.Minutes:D2}";
-        }
-
-        // === CZASY W MINUTACH (dla nowych kolumn) ===
-
-        /// <summary>
-        /// Czas dojazdu w minutach (Wyj -> Doj)
-        /// </summary>
-        public int? CzasDojMin
-        {
-            get
-            {
-                if (GodzinaWyjazdu.HasValue && DojazdHodowca.HasValue)
-                {
-                    return (int)(DojazdHodowca.Value - GodzinaWyjazdu.Value).TotalMinutes;
-                }
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Czas powrotu w minutach (Wyj.H -> Przyj)
-        /// </summary>
-        public int? CzasPowrotMin
-        {
-            get
-            {
-                if (WyjazdHodowca.HasValue && GodzinaPrzyjazdu.HasValue)
-                {
-                    return (int)(GodzinaPrzyjazdu.Value - WyjazdHodowca.Value).TotalMinutes;
-                }
-                return null;
-            }
-        }
-
-        // Średnie czasy dla dostawcy (ustawiane zewnętrznie)
-        private int _sredniaCzasDojMin;
-        private int _sredniaCzasPowrotMin;
-
-        public int SredniaCzasDojMin
-        {
-            get => _sredniaCzasDojMin;
-            set
-            {
-                _sredniaCzasDojMin = value;
-                OnPropertyChanged(nameof(SredniaCzasDojMin));
-                OnPropertyChanged(nameof(IsCzasDojAbnormal));
-            }
-        }
-
-        public int SredniaCzasPowrotMin
-        {
-            get => _sredniaCzasPowrotMin;
-            set
-            {
-                _sredniaCzasPowrotMin = value;
-                OnPropertyChanged(nameof(SredniaCzasPowrotMin));
-                OnPropertyChanged(nameof(IsCzasPowrotAbnormal));
-            }
-        }
-
-        /// <summary>
-        /// Czy czas dojazdu jest nietypowo długi (>20min ponad średnią)
-        /// </summary>
-        public bool IsCzasDojAbnormal
-        {
-            get
-            {
-                if (!CzasDojMin.HasValue || SredniaCzasDojMin == 0) return false;
-                return CzasDojMin.Value > SredniaCzasDojMin + 20;
-            }
-        }
-
-        /// <summary>
-        /// Czy czas powrotu jest nietypowo długi (>20min ponad średnią)
-        /// </summary>
-        public bool IsCzasPowrotAbnormal
-        {
-            get
-            {
-                if (!CzasPowrotMin.HasValue || SredniaCzasPowrotMin == 0) return false;
-                return CzasPowrotMin.Value > SredniaCzasPowrotMin + 20;
-            }
-        }
-
-        // === WAGI I UBYTEK ===
-        private decimal _nettoHodowcy;
-        private decimal _nettoUbojni;
-        private decimal _ubytekUmowny;
-
-        public decimal NettoHodowcy
-        {
-            get => _nettoHodowcy;
-            set
-            {
-                _nettoHodowcy = value;
-                OnPropertyChanged(nameof(NettoHodowcy));
-                OnPropertyChanged(nameof(RoznicaWag));
-                OnPropertyChanged(nameof(ProcentRoznicy));
-            }
-        }
-
-        public decimal NettoUbojni
-        {
-            get => _nettoUbojni;
-            set
-            {
-                _nettoUbojni = value;
-                OnPropertyChanged(nameof(NettoUbojni));
-                OnPropertyChanged(nameof(RoznicaWag));
-                OnPropertyChanged(nameof(ProcentRoznicy));
-            }
-        }
-
-        /// <summary>
-        /// Różnica wag: Netto Hodowcy - Netto Ubojni
-        /// </summary>
-        public decimal RoznicaWag => NettoHodowcy - NettoUbojni;
-
-        /// <summary>
-        /// Procent różnicy od wagi hodowcy: (RoznicaWag / NettoHodowcy) * 100
-        /// </summary>
-        public decimal ProcentRoznicy
-        {
-            get
-            {
-                if (NettoHodowcy > 0)
-                    return (RoznicaWag / NettoHodowcy) * 100;
-                return 0;
-            }
-        }
-
-        /// <summary>
-        /// Ubytek umowny z karty Specyfikacje (Loss)
-        /// </summary>
-        public decimal UbytekUmowny
-        {
-            get => _ubytekUmowny;
-            set
-            {
-                _ubytekUmowny = value;
-                OnPropertyChanged(nameof(UbytekUmowny));
-                OnPropertyChanged(nameof(RoznicaProcentow));
-            }
-        }
-
-        /// <summary>
-        /// Różnica między % wyliczonym a ubytkiem umownym
-        /// </summary>
-        public decimal RoznicaProcentow => ProcentRoznicy - UbytekUmowny;
-
-        /// <summary>
-        /// Czy różnica procentów jest ujemna (dobrze - mniej ubytku niż zakładano)
-        /// </summary>
-        public bool IsRoznicaUjemna => NettoHodowcy > 0 && RoznicaProcentow < 0;
-
-        /// <summary>
-        /// Czy różnica procentów jest dodatnia (źle - więcej ubytku niż zakładano)
-        /// </summary>
-        public bool IsRoznicaDodatnia => NettoHodowcy > 0 && RoznicaProcentow > 0;
-
-        // === CENA I DOPŁATA ===
-        private decimal _cena;
-        private decimal _doplata;
-
-        /// <summary>
-        /// Cena z bazy danych (Price)
-        /// </summary>
-        public decimal Cena
-        {
-            get => _cena;
-            set
-            {
-                _cena = value;
-                OnPropertyChanged(nameof(Cena));
-                OnPropertyChanged(nameof(ZyskStrata));
-                OnPropertyChanged(nameof(IsZyskUjemny));
-                OnPropertyChanged(nameof(IsZyskDodatni));
-            }
-        }
-
-        /// <summary>
-        /// Dopłata z bazy danych (Addition)
-        /// </summary>
-        public decimal Doplata
-        {
-            get => _doplata;
-            set
-            {
-                _doplata = value;
-                OnPropertyChanged(nameof(Doplata));
-                OnPropertyChanged(nameof(ZyskStrata));
-                OnPropertyChanged(nameof(IsZyskUjemny));
-                OnPropertyChanged(nameof(IsZyskDodatni));
-            }
-        }
-
-        /// <summary>
-        /// Zysk/Strata w zł = Różnica kg * (Cena + Dopłata). Zwraca 0 gdy brak NettoHodowcy.
-        /// </summary>
-        public decimal ZyskStrata => NettoHodowcy == 0 ? 0 : RoznicaWag * (Cena + Doplata);
-
-        /// <summary>
-        /// Czy zysk/strata jest ujemna (tylko gdy jest waga hodowcy)
-        /// </summary>
-        public bool IsZyskUjemny => NettoHodowcy > 0 && ZyskStrata < 0;
-
-        /// <summary>
-        /// Czy zysk/strata jest dodatnia (tylko gdy jest waga hodowcy)
-        /// </summary>
-        public bool IsZyskDodatni => NettoHodowcy > 0 && ZyskStrata > 0;
-
-        /// <summary>
-        /// Wyświetlany tekst dla RoznicaProcentow - pusty gdy brak NettoHodowcy
-        /// </summary>
-        public string RoznicaProcentowDisplay => NettoHodowcy == 0 ? "" : $"{RoznicaProcentow:F2}%";
-
-        /// <summary>
-        /// Wyświetlany tekst dla ZyskStrata - pusty gdy brak NettoHodowcy
-        /// </summary>
-        public string ZyskStrataDisplay => NettoHodowcy == 0 ? "" : $"{ZyskStrata:F0} zł";
-
-        // Liczba skrzynek (z FarmerCalc)
-        private int _skrzynki;
-        public int Skrzynki
-        {
-            get => _skrzynki;
-            set { _skrzynki = value; OnPropertyChanged(nameof(Skrzynki)); }
-        }
-
-        // Sztuki pojemników (Padle)
-        private int _sztPoj;
-        public int SztPoj
-        {
-            get => _sztPoj;
-            set { _sztPoj = value; OnPropertyChanged(nameof(SztPoj)); }
-        }
-
-        /// <summary>
-        /// Czy KoniecUslugi jest równy 00:00 (do kolorowania wiersza na czerwono)
-        /// </summary>
-        public bool IsKoniec0000 => KoniecUslugi.HasValue &&
-            KoniecUslugi.Value.Hour == 0 && KoniecUslugi.Value.Minute == 0;
-
-        // === SZACOWANY CZAS DOJAZDU (na podstawie historii) ===
-        private string _szacowanyCzasDojazdu;
-        private int _sredniaMinutDojazdu;
-
-        /// <summary>
-        /// Szacowany czas dojazdu na podstawie historycznych danych
-        /// </summary>
-        public string SzacowanyCzasDojazdu
-        {
-            get => _szacowanyCzasDojazdu;
-            set { _szacowanyCzasDojazdu = value; OnPropertyChanged(nameof(SzacowanyCzasDojazdu)); }
-        }
-
-        /// <summary>
-        /// Średnia minut dojazdu do tego dostawcy (z historii)
-        /// </summary>
-        public int SredniaMinutDojazdu
-        {
-            get => _sredniaMinutDojazdu;
-            set { _sredniaMinutDojazdu = value; OnPropertyChanged(nameof(SredniaMinutDojazdu)); }
-        }
-
-        // === TIMELINE: Pozycje na osi czasu dnia ===
-
-        /// <summary>
-        /// Pozycja startu na osi czasu (0-100%)
-        /// </summary>
-        public double TimelineStartPercent
-        {
-            get
-            {
-                var start = PoczatekUslugi ?? GodzinaWyjazdu;
-                if (!start.HasValue) return 0;
-                // Dzień roboczy 4:00 - 20:00 (16 godzin)
-                var minutesFromStart = (start.Value.Hour - 4) * 60 + start.Value.Minute;
-                return Math.Max(0, Math.Min(100, minutesFromStart / 960.0 * 100)); // 960 = 16 * 60
-            }
-        }
-
-        /// <summary>
-        /// Szerokość na osi czasu (różnica końca od startu w %)
-        /// </summary>
-        public double TimelineWidthPercent
-        {
-            get
-            {
-                var start = PoczatekUslugi ?? GodzinaWyjazdu;
-                var end = KoniecUslugi ?? GodzinaPrzyjazdu;
-                if (!start.HasValue || !end.HasValue) return 5; // Minimalna szerokość
-                var durationMinutes = (end.Value - start.Value).TotalMinutes;
-                return Math.Max(2, Math.Min(100 - TimelineStartPercent, durationMinutes / 960.0 * 100));
-            }
-        }
-
-        /// <summary>
-        /// Kolor paska na timeline (zielony gdy zakończone, niebieski gdy w trakcie, szary gdy nie rozpoczęte)
-        /// </summary>
-        public string TimelineColor
-        {
-            get
-            {
-                if (KoniecUslugi.HasValue && KoniecUslugi.Value.Hour > 0) return "#4CAF50"; // Zakończone
-                if (PoczatekUslugi.HasValue || GodzinaWyjazdu.HasValue) return "#2196F3"; // W trakcie
-                return "#BDBDBD"; // Nie rozpoczęte
-            }
-        }
-
-        // === GRUPOWANIE: Właściwość dla separatora grupy ===
-        private bool _isFirstInGroup;
-        public bool IsFirstInGroup
-        {
-            get => _isFirstInGroup;
-            set { _isFirstInGroup = value; OnPropertyChanged(nameof(IsFirstInGroup)); }
-        }
-
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-    }
-
-    public class HarmonogramRow : INotifyPropertyChanged
-    {
-        private int _lp;
-        private string _dostawca;
-        private int _sztukiDek;
-        private decimal _wagaDek;
-        private decimal _razemKg;
-        private decimal _cena;
-        private decimal _dodatek;
-        private string _typCeny;
-        private int _auta;
-        private string _uwagi;
-
-        public int LP
-        {
-            get => _lp;
-            set { _lp = value; OnPropertyChanged(nameof(LP)); }
-        }
-
-        public string Dostawca
-        {
-            get => _dostawca;
-            set { _dostawca = value; OnPropertyChanged(nameof(Dostawca)); }
-        }
-
-        public int SztukiDek
-        {
-            get => _sztukiDek;
-            set { _sztukiDek = value; OnPropertyChanged(nameof(SztukiDek)); }
-        }
-
-        public decimal WagaDek
-        {
-            get => _wagaDek;
-            set { _wagaDek = value; OnPropertyChanged(nameof(WagaDek)); }
-        }
-
-        public decimal RazemKg
-        {
-            get => _razemKg;
-            set { _razemKg = value; OnPropertyChanged(nameof(RazemKg)); }
-        }
-
-        public decimal Cena
-        {
-            get => _cena;
-            set { _cena = value; OnPropertyChanged(nameof(Cena)); }
-        }
-
-        public decimal Dodatek
-        {
-            get => _dodatek;
-            set { _dodatek = value; OnPropertyChanged(nameof(Dodatek)); }
-        }
-
-        public string TypCeny
-        {
-            get => _typCeny;
-            set { _typCeny = value; OnPropertyChanged(nameof(TypCeny)); }
-        }
-
-        public int Auta
-        {
-            get => _auta;
-            set { _auta = value; OnPropertyChanged(nameof(Auta)); }
-        }
-
-        public string Uwagi
-        {
-            get => _uwagi;
-            set { _uwagi = value; OnPropertyChanged(nameof(Uwagi)); }
-        }
-
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            _ubytekUmowny = value;
+            OnPropertyChanged(nameof(UbytekUmowny));
+            OnPropertyChanged(nameof(RoznicaProcentow));
         }
     }
 
     /// <summary>
-    /// Flagi do masowego kopiowania pól dostawcy
-    /// Pozwala na kopiowanie wielu pól jednocześnie w jednej operacji SQL
+    /// Różnica między % wyliczonym a ubytkiem umownym
     /// </summary>
-    [Flags]
-    public enum SupplierFieldMask
-    {
-        None = 0,
-        Cena = 1,
-        Dodatek = 2,
-        Ubytek = 4,
-        TypCeny = 8,
-        TerminDni = 16,
-        PiK = 32,
-        All = Cena | Dodatek | Ubytek | TypCeny | TerminDni | PiK
-    }
+    public decimal RoznicaProcentow => ProcentRoznicy - UbytekUmowny;
 
     /// <summary>
-    /// Schowek do kopiowania ustawień wiersza (Ctrl+Shift+C/V)
+    /// Czy różnica procentów jest ujemna (dobrze - mniej ubytku niż zakładano)
     /// </summary>
-    public class SupplierClipboard
+    public bool IsRoznicaUjemna => NettoHodowcy > 0 && RoznicaProcentow < 0;
+
+    /// <summary>
+    /// Czy różnica procentów jest dodatnia (źle - więcej ubytku niż zakładano)
+    /// </summary>
+    public bool IsRoznicaDodatnia => NettoHodowcy > 0 && RoznicaProcentow > 0;
+
+    // === CENA I DOPŁATA ===
+    private decimal _cena;
+    private decimal _doplata;
+
+    /// <summary>
+    /// Cena z bazy danych (Price)
+    /// </summary>
+    public decimal Cena
     {
-        public decimal? Cena { get; set; }
-        public decimal? Dodatek { get; set; }
-        public decimal? Ubytek { get; set; }
-        public string TypCeny { get; set; }
-        public int? TerminDni { get; set; }
-        public bool? PiK { get; set; }
-        public bool HasData => Cena.HasValue || Dodatek.HasValue || Ubytek.HasValue || TypCeny != null || TerminDni.HasValue || PiK.HasValue;
-
-        public void Clear()
+        get => _cena;
+        set
         {
-            Cena = null;
-            Dodatek = null;
-            Ubytek = null;
-            TypCeny = null;
-            TerminDni = null;
-            PiK = null;
-        }
-
-        public void CopyFrom(SpecyfikacjaRow row)
-        {
-            Cena = row.Cena;
-            Dodatek = row.Dodatek;
-            Ubytek = row.Ubytek;
-            TypCeny = row.TypCeny;
-            TerminDni = row.TerminDni;
-            PiK = row.PiK;
-        }
-
-        public override string ToString()
-        {
-            var parts = new List<string>();
-            if (Cena.HasValue) parts.Add($"Cena={Cena:F2}");
-            if (Dodatek.HasValue) parts.Add($"Dodatek={Dodatek:F2}");
-            if (Ubytek.HasValue) parts.Add($"Ubytek={Ubytek:F2}%");
-            if (TypCeny != null) parts.Add($"TypCeny={TypCeny}");
-            if (TerminDni.HasValue) parts.Add($"Termin={TerminDni}dni");
-            if (PiK.HasValue) parts.Add($"PiK={PiK}");
-            return string.Join(", ", parts);
+            _cena = value;
+            OnPropertyChanged(nameof(Cena));
+            OnPropertyChanged(nameof(ZyskStrata));
+            OnPropertyChanged(nameof(IsZyskUjemny));
+            OnPropertyChanged(nameof(IsZyskDodatni));
         }
     }
 
     /// <summary>
-    /// Konwerter walidacji - zwraca czerwony kolor dla wartosci 0 lub pustych
-    /// Uzycie: Foreground="{Binding Cena, Converter={StaticResource ZeroToRedBrush}}"
+    /// Dopłata z bazy danych (Addition)
     /// </summary>
-    public class ZeroToRedBrushConverter : System.Windows.Data.IValueConverter
+    public decimal Doplata
     {
-        private static readonly System.Windows.Media.SolidColorBrush RedBrush =
-            new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(211, 47, 47)); // #D32F2F
-        private static readonly System.Windows.Media.SolidColorBrush BlackBrush =
-            new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black);
-
-        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        get => _doplata;
+        set
         {
-            if (value == null) return RedBrush;
-
-            if (value is decimal decValue && decValue == 0) return RedBrush;
-            if (value is int intValue && intValue == 0) return RedBrush;
-            if (value is double dblValue && dblValue == 0) return RedBrush;
-            if (value is string strValue && string.IsNullOrWhiteSpace(strValue)) return RedBrush;
-
-            return BlackBrush;
-        }
-
-        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
-        {
-            throw new NotImplementedException();
+            _doplata = value;
+            OnPropertyChanged(nameof(Doplata));
+            OnPropertyChanged(nameof(ZyskStrata));
+            OnPropertyChanged(nameof(IsZyskUjemny));
+            OnPropertyChanged(nameof(IsZyskDodatni));
         }
     }
 
     /// <summary>
-    /// Konwerter walidacji - zwraca Bold dla wartosci 0 (podkreslenie braku danych)
+    /// Zysk/Strata w zł = Różnica kg * (Cena + Dopłata). Zwraca 0 gdy brak NettoHodowcy.
     /// </summary>
-    public class ZeroToBoldConverter : System.Windows.Data.IValueConverter
+    public decimal ZyskStrata => NettoHodowcy == 0 ? 0 : RoznicaWag * (Cena + Doplata);
+
+    /// <summary>
+    /// Czy zysk/strata jest ujemna (tylko gdy jest waga hodowcy)
+    /// </summary>
+    public bool IsZyskUjemny => NettoHodowcy > 0 && ZyskStrata < 0;
+
+    /// <summary>
+    /// Czy zysk/strata jest dodatnia (tylko gdy jest waga hodowcy)
+    /// </summary>
+    public bool IsZyskDodatni => NettoHodowcy > 0 && ZyskStrata > 0;
+
+    /// <summary>
+    /// Wyświetlany tekst dla RoznicaProcentow - pusty gdy brak NettoHodowcy
+    /// </summary>
+    public string RoznicaProcentowDisplay => NettoHodowcy == 0 ? "" : $"{RoznicaProcentow:F2}%";
+
+    /// <summary>
+    /// Wyświetlany tekst dla ZyskStrata - pusty gdy brak NettoHodowcy
+    /// </summary>
+    public string ZyskStrataDisplay => NettoHodowcy == 0 ? "" : $"{ZyskStrata:F0} zł";
+
+    // Liczba skrzynek (z FarmerCalc)
+    private int _skrzynki;
+    public int Skrzynki
     {
-        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        get => _skrzynki;
+        set { _skrzynki = value; OnPropertyChanged(nameof(Skrzynki)); }
+    }
+
+    // Sztuki pojemników (Padle)
+    private int _sztPoj;
+    public int SztPoj
+    {
+        get => _sztPoj;
+        set { _sztPoj = value; OnPropertyChanged(nameof(SztPoj)); }
+    }
+
+    /// <summary>
+    /// Czy KoniecUslugi jest równy 00:00 (do kolorowania wiersza na czerwono)
+    /// </summary>
+    public bool IsKoniec0000 => KoniecUslugi.HasValue &&
+        KoniecUslugi.Value.Hour == 0 && KoniecUslugi.Value.Minute == 0;
+
+    // === SZACOWANY CZAS DOJAZDU (na podstawie historii) ===
+    private string _szacowanyCzasDojazdu;
+    private int _sredniaMinutDojazdu;
+
+    /// <summary>
+    /// Szacowany czas dojazdu na podstawie historycznych danych
+    /// </summary>
+    public string SzacowanyCzasDojazdu
+    {
+        get => _szacowanyCzasDojazdu;
+        set { _szacowanyCzasDojazdu = value; OnPropertyChanged(nameof(SzacowanyCzasDojazdu)); }
+    }
+
+    /// <summary>
+    /// Średnia minut dojazdu do tego dostawcy (z historii)
+    /// </summary>
+    public int SredniaMinutDojazdu
+    {
+        get => _sredniaMinutDojazdu;
+        set { _sredniaMinutDojazdu = value; OnPropertyChanged(nameof(SredniaMinutDojazdu)); }
+    }
+
+    // === TIMELINE: Pozycje na osi czasu dnia ===
+
+    /// <summary>
+    /// Pozycja startu na osi czasu (0-100%)
+    /// </summary>
+    public double TimelineStartPercent
+    {
+        get
         {
-            if (value == null) return System.Windows.FontWeights.Bold;
-
-            if (value is decimal decValue && decValue == 0) return System.Windows.FontWeights.Bold;
-            if (value is int intValue && intValue == 0) return System.Windows.FontWeights.Bold;
-
-            return System.Windows.FontWeights.Normal;
-        }
-
-        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
-        {
-            throw new NotImplementedException();
+            var start = PoczatekUslugi ?? GodzinaWyjazdu;
+            if (!start.HasValue) return 0;
+            // Dzień roboczy 4:00 - 20:00 (16 godzin)
+            var minutesFromStart = (start.Value.Hour - 4) * 60 + start.Value.Minute;
+            return Math.Max(0, Math.Min(100, minutesFromStart / 960.0 * 100)); // 960 = 16 * 60
         }
     }
 
     /// <summary>
-    /// Konwerter procentu na piksele dla Timeline (0-100% -> 0-szerokość)
+    /// Szerokość na osi czasu (różnica końca od startu w %)
     /// </summary>
-    public class PercentToPixelConverter : System.Windows.Data.IValueConverter
+    public double TimelineWidthPercent
     {
-        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        get
         {
-            if (value == null) return 0.0;
-
-            double percent = 0;
-            if (value is double d) percent = d;
-            else if (value is decimal dec) percent = (double)dec;
-            else if (double.TryParse(value.ToString(), out double parsed)) percent = parsed;
-
-            double maxWidth = 500; // Domyślna szerokość timeline
-            if (parameter != null && double.TryParse(parameter.ToString(), out double paramWidth))
-                maxWidth = paramWidth;
-
-            return Math.Max(0, Math.Min(maxWidth, percent / 100.0 * maxWidth));
-        }
-
-        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
-        {
-            throw new NotImplementedException();
+            var start = PoczatekUslugi ?? GodzinaWyjazdu;
+            var end = KoniecUslugi ?? GodzinaPrzyjazdu;
+            if (!start.HasValue || !end.HasValue) return 5; // Minimalna szerokość
+            var durationMinutes = (end.Value - start.Value).TotalMinutes;
+            return Math.Max(2, Math.Min(100 - TimelineStartPercent, durationMinutes / 960.0 * 100));
         }
     }
 
     /// <summary>
-    /// Konwerter procentu na Margin dla pozycji na Timeline
+    /// Kolor paska na timeline (zielony gdy zakończone, niebieski gdy w trakcie, szary gdy nie rozpoczęte)
     /// </summary>
-    public class PercentToMarginConverter : System.Windows.Data.IValueConverter
+    public string TimelineColor
     {
-        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        get
         {
-            if (value == null) return new System.Windows.Thickness(0);
-
-            double percent = 0;
-            if (value is double d) percent = d;
-            else if (value is decimal dec) percent = (double)dec;
-            else if (double.TryParse(value.ToString(), out double parsed)) percent = parsed;
-
-            // Konwertuj procent na piksele (zakładając szerokość 120px dla mini timeline)
-            double pixels = percent / 100.0 * 116; // 116px - margines
-
-            return new System.Windows.Thickness(Math.Max(0, pixels), 0, 0, 0);
-        }
-
-        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
-        {
-            throw new NotImplementedException();
+            if (KoniecUslugi.HasValue && KoniecUslugi.Value.Hour > 0) return "#4CAF50"; // Zakończone
+            if (PoczatekUslugi.HasValue || GodzinaWyjazdu.HasValue) return "#2196F3"; // W trakcie
+            return "#BDBDBD"; // Nie rozpoczęte
         }
     }
+
+    // === GRUPOWANIE: Właściwość dla separatora grupy ===
+    private bool _isFirstInGroup;
+    public bool IsFirstInGroup
+    {
+        get => _isFirstInGroup;
+        set { _isFirstInGroup = value; OnPropertyChanged(nameof(IsFirstInGroup)); }
+    }
+
+    public event PropertyChangedEventHandler PropertyChanged;
+    protected void OnPropertyChanged(string propertyName)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+}
+
+public class HarmonogramRow : INotifyPropertyChanged
+{
+    private int _lp;
+    private string _dostawca;
+    private int _sztukiDek;
+    private decimal _wagaDek;
+    private decimal _razemKg;
+    private decimal _cena;
+    private decimal _dodatek;
+    private string _typCeny;
+    private int _auta;
+    private string _uwagi;
+
+    public int LP
+    {
+        get => _lp;
+        set { _lp = value; OnPropertyChanged(nameof(LP)); }
+    }
+
+    public string Dostawca
+    {
+        get => _dostawca;
+        set { _dostawca = value; OnPropertyChanged(nameof(Dostawca)); }
+    }
+
+    public int SztukiDek
+    {
+        get => _sztukiDek;
+        set { _sztukiDek = value; OnPropertyChanged(nameof(SztukiDek)); }
+    }
+
+    public decimal WagaDek
+    {
+        get => _wagaDek;
+        set { _wagaDek = value; OnPropertyChanged(nameof(WagaDek)); }
+    }
+
+    public decimal RazemKg
+    {
+        get => _razemKg;
+        set { _razemKg = value; OnPropertyChanged(nameof(RazemKg)); }
+    }
+
+    public decimal Cena
+    {
+        get => _cena;
+        set { _cena = value; OnPropertyChanged(nameof(Cena)); }
+    }
+
+    public decimal Dodatek
+    {
+        get => _dodatek;
+        set { _dodatek = value; OnPropertyChanged(nameof(Dodatek)); }
+    }
+
+    public string TypCeny
+    {
+        get => _typCeny;
+        set { _typCeny = value; OnPropertyChanged(nameof(TypCeny)); }
+    }
+
+    public int Auta
+    {
+        get => _auta;
+        set { _auta = value; OnPropertyChanged(nameof(Auta)); }
+    }
+
+    public string Uwagi
+    {
+        get => _uwagi;
+        set { _uwagi = value; OnPropertyChanged(nameof(Uwagi)); }
+    }
+
+    public event PropertyChangedEventHandler PropertyChanged;
+    protected void OnPropertyChanged(string propertyName)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+}
+
+/// <summary>
+/// Flagi do masowego kopiowania pól dostawcy
+/// Pozwala na kopiowanie wielu pól jednocześnie w jednej operacji SQL
+/// </summary>
+[Flags]
+public enum SupplierFieldMask
+{
+    None = 0,
+    Cena = 1,
+    Dodatek = 2,
+    Ubytek = 4,
+    TypCeny = 8,
+    TerminDni = 16,
+    PiK = 32,
+    All = Cena | Dodatek | Ubytek | TypCeny | TerminDni | PiK
+}
+
+/// <summary>
+/// Schowek do kopiowania ustawień wiersza (Ctrl+Shift+C/V)
+/// </summary>
+public class SupplierClipboard
+{
+    public decimal? Cena { get; set; }
+    public decimal? Dodatek { get; set; }
+    public decimal? Ubytek { get; set; }
+    public string TypCeny { get; set; }
+    public int? TerminDni { get; set; }
+    public bool? PiK { get; set; }
+    public bool HasData => Cena.HasValue || Dodatek.HasValue || Ubytek.HasValue || TypCeny != null || TerminDni.HasValue || PiK.HasValue;
+
+    public void Clear()
+    {
+        Cena = null;
+        Dodatek = null;
+        Ubytek = null;
+        TypCeny = null;
+        TerminDni = null;
+        PiK = null;
+    }
+
+    public void CopyFrom(SpecyfikacjaRow row)
+    {
+        Cena = row.Cena;
+        Dodatek = row.Dodatek;
+        Ubytek = row.Ubytek;
+        TypCeny = row.TypCeny;
+        TerminDni = row.TerminDni;
+        PiK = row.PiK;
+    }
+
+    public override string ToString()
+    {
+        var parts = new List<string>();
+        if (Cena.HasValue) parts.Add($"Cena={Cena:F2}");
+        if (Dodatek.HasValue) parts.Add($"Dodatek={Dodatek:F2}");
+        if (Ubytek.HasValue) parts.Add($"Ubytek={Ubytek:F2}%");
+        if (TypCeny != null) parts.Add($"TypCeny={TypCeny}");
+        if (TerminDni.HasValue) parts.Add($"Termin={TerminDni}dni");
+        if (PiK.HasValue) parts.Add($"PiK={PiK}");
+        return string.Join(", ", parts);
+    }
+}
+
+/// <summary>
+/// Konwerter walidacji - zwraca czerwony kolor dla wartosci 0 lub pustych
+/// Uzycie: Foreground="{Binding Cena, Converter={StaticResource ZeroToRedBrush}}"
+/// </summary>
+public class ZeroToRedBrushConverter : System.Windows.Data.IValueConverter
+{
+    private static readonly System.Windows.Media.SolidColorBrush RedBrush =
+        new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(211, 47, 47)); // #D32F2F
+    private static readonly System.Windows.Media.SolidColorBrush BlackBrush =
+        new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black);
+
+    public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        if (value == null) return RedBrush;
+
+        if (value is decimal decValue && decValue == 0) return RedBrush;
+        if (value is int intValue && intValue == 0) return RedBrush;
+        if (value is double dblValue && dblValue == 0) return RedBrush;
+        if (value is string strValue && string.IsNullOrWhiteSpace(strValue)) return RedBrush;
+
+        return BlackBrush;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+/// <summary>
+/// Konwerter walidacji - zwraca Bold dla wartosci 0 (podkreslenie braku danych)
+/// </summary>
+public class ZeroToBoldConverter : System.Windows.Data.IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        if (value == null) return System.Windows.FontWeights.Bold;
+
+        if (value is decimal decValue && decValue == 0) return System.Windows.FontWeights.Bold;
+        if (value is int intValue && intValue == 0) return System.Windows.FontWeights.Bold;
+
+        return System.Windows.FontWeights.Normal;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+/// <summary>
+/// Konwerter procentu na piksele dla Timeline (0-100% -> 0-szerokość)
+/// </summary>
+public class PercentToPixelConverter : System.Windows.Data.IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        if (value == null) return 0.0;
+
+        double percent = 0;
+        if (value is double d) percent = d;
+        else if (value is decimal dec) percent = (double)dec;
+        else if (double.TryParse(value.ToString(), out double parsed)) percent = parsed;
+
+        double maxWidth = 500; // Domyślna szerokość timeline
+        if (parameter != null && double.TryParse(parameter.ToString(), out double paramWidth))
+            maxWidth = paramWidth;
+
+        return Math.Max(0, Math.Min(maxWidth, percent / 100.0 * maxWidth));
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+/// <summary>
+/// Konwerter procentu na Margin dla pozycji na Timeline
+/// </summary>
+public class PercentToMarginConverter : System.Windows.Data.IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        if (value == null) return new System.Windows.Thickness(0);
+
+        double percent = 0;
+        if (value is double d) percent = d;
+        else if (value is decimal dec) percent = (double)dec;
+        else if (double.TryParse(value.ToString(), out double parsed)) percent = parsed;
+
+        // Konwertuj procent na piksele (zakładając szerokość 120px dla mini timeline)
+        double pixels = percent / 100.0 * 116; // 116px - margines
+
+        return new System.Windows.Thickness(Math.Max(0, pixels), 0, 0, 0);
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+/// <summary>
+/// Konwerter procentu na Width dla paska Timeline
+/// </summary>
+public class PercentToWidthConverter : System.Windows.Data.IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        if (value == null) return 5.0;
+
+        double percent = 0;
+        if (value is double d) percent = d;
+        else if (value is decimal dec) percent = (double)dec;
+        else if (double.TryParse(value.ToString(), out double parsed)) percent = parsed;
+
+        // Konwertuj procent na piksele (zakładając szerokość 120px dla mini timeline)
+        double pixels = percent / 100.0 * 116;
+
+        return Math.Max(3, Math.Min(116, pixels)); // Minimum 3px, max 116px
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+/// <summary>
+/// Klasa modelu danych dla karty Rozliczenia
+/// </summary>
+public class RozliczenieRow : INotifyPropertyChanged
+{
+    public int ID { get; set; }
+    public DateTime Data { get; set; }
+    public int Nr { get; set; }
+    public string Dostawca { get; set; }
+    public int SztukiDek { get; set; }
+    public decimal NettoKg { get; set; }
+    public decimal Cena { get; set; }
+    public decimal Dodatek { get; set; }
+    public string TypCeny { get; set; }
+    public int TerminDni { get; set; }
+    public decimal Wartosc { get; set; }
+
+    private bool _symfonia;
+    public bool Symfonia
+    {
+        get => _symfonia;
+        set { _symfonia = value; OnPropertyChanged(nameof(Symfonia)); }
+    }
+
+    private bool _arimr;
+    public bool ARIMR
+    {
+        get => _arimr;
+        set { _arimr = value; OnPropertyChanged(nameof(ARIMR)); }
+    }
+
+    private bool _zatwierdzony;
+    public bool Zatwierdzony
+    {
+        get => _zatwierdzony;
+        set { _zatwierdzony = value; OnPropertyChanged(nameof(Zatwierdzony)); OnPropertyChanged(nameof(JestZablokowany)); }
+    }
+
+    public string ZatwierdzonePrzez { get; set; }
+    public DateTime? DataZatwierdzenia { get; set; }
+
+    // === PODWÓJNA KONTROLA: Weryfikacja przez drugiego pracownika ===
+    private bool _zweryfikowany;
+    public bool Zweryfikowany
+    {
+        get => _zweryfikowany;
+        set { _zweryfikowany = value; OnPropertyChanged(nameof(Zweryfikowany)); OnPropertyChanged(nameof(JestZablokowany)); }
+    }
+
+    public string ZweryfikowanePrzez { get; set; }
+    public DateTime? DataWeryfikacji { get; set; }
 
     /// <summary>
-    /// Konwerter procentu na Width dla paska Timeline
+    /// Wiersz jest zablokowany gdy zarówno Zatwierdzony jak i Zweryfikowany są true
     /// </summary>
-    public class PercentToWidthConverter : System.Windows.Data.IValueConverter
+    public bool JestZablokowany => Zatwierdzony && Zweryfikowany;
+
+    // === GRUPOWANIE: Właściwość dla separatora grupy ===
+    private bool _isFirstInGroup;
+    public bool IsFirstInGroup
     {
-        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
-        {
-            if (value == null) return 5.0;
-
-            double percent = 0;
-            if (value is double d) percent = d;
-            else if (value is decimal dec) percent = (double)dec;
-            else if (double.TryParse(value.ToString(), out double parsed)) percent = parsed;
-
-            // Konwertuj procent na piksele (zakładając szerokość 120px dla mini timeline)
-            double pixels = percent / 100.0 * 116;
-
-            return Math.Max(3, Math.Min(116, pixels)); // Minimum 3px, max 116px
-        }
-
-        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
-        {
-            throw new NotImplementedException();
-        }
+        get => _isFirstInGroup;
+        set { _isFirstInGroup = value; OnPropertyChanged(nameof(IsFirstInGroup)); }
     }
+
+    public event PropertyChangedEventHandler PropertyChanged;
+    protected void OnPropertyChanged(string propertyName)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+}
+
+public class PlachtaRow : INotifyPropertyChanged
+{
+    public int ID { get; set; }
+
+    private int _lp;
+    public int Lp
+    {
+        get => _lp;
+        set { _lp = value; OnPropertyChanged(nameof(Lp)); }
+    }
+
+    public int NrSpec { get; set; }  // CarLp - numer specyfikacji
+    public string Hodowca { get; set; }
+    public string Adres { get; set; }
+    public string BadaniaSalmonella { get; set; }  // VetComment
+    public string NrSwZdrowia { get; set; }  // VetNo
+
+    private string _nrGospodarstwa;
+    public string NrGospodarstwa
+    {
+        get => _nrGospodarstwa;
+        set { _nrGospodarstwa = value; OnPropertyChanged(nameof(NrGospodarstwa)); }
+    }
+
+    public int IloscDek { get; set; }  // DeclI1
+    public int Lumel { get; set; }     // LumQnt - LUMEL (Dostarcz./ARIMR)
+    public string Ciagnik { get; set; }  // CarID
+    public string Naczepa { get; set; }  // TrailerID
+
+    private int _padle;
+    public int Padle
+    {
+        get => _padle;
+        set { _padle = value; OnPropertyChanged(nameof(Padle)); }
+    }
+
+    public string KodHodowcy { get; set; }  // CustomerGID
+
+    private int _chore;
+    public int Chore
+    {
+        get => _chore;
+        set { _chore = value; OnPropertyChanged(nameof(Chore)); }
+    }
+
+    private int _nw;
+    public int NW
+    {
+        get => _nw;
+        set { _nw = value; OnPropertyChanged(nameof(NW)); }
+    }
+
+    private int _zm;
+    public int ZM
+    {
+        get => _zm;
+        set { _zm = value; OnPropertyChanged(nameof(ZM)); }
+    }
+
+    public bool Status { get; set; }
+    public int CustomerGID { get; set; }
 
     /// <summary>
-    /// Klasa modelu danych dla karty Rozliczenia
+    /// Waga netto [kg] - preferuje NettoFarmWeight, fallback do NettoWeight
     /// </summary>
-    public class RozliczenieRow : INotifyPropertyChanged
-    {
-        public int ID { get; set; }
-        public DateTime Data { get; set; }
-        public int Nr { get; set; }
-        public string Dostawca { get; set; }
-        public int SztukiDek { get; set; }
-        public decimal NettoKg { get; set; }
-        public decimal Cena { get; set; }
-        public decimal Dodatek { get; set; }
-        public string TypCeny { get; set; }
-        public int TerminDni { get; set; }
-        public decimal Wartosc { get; set; }
-
-        private bool _symfonia;
-        public bool Symfonia
-        {
-            get => _symfonia;
-            set { _symfonia = value; OnPropertyChanged(nameof(Symfonia)); }
-        }
-
-        private bool _arimr;
-        public bool ARIMR
-        {
-            get => _arimr;
-            set { _arimr = value; OnPropertyChanged(nameof(ARIMR)); }
-        }
-
-        private bool _zatwierdzony;
-        public bool Zatwierdzony
-        {
-            get => _zatwierdzony;
-            set { _zatwierdzony = value; OnPropertyChanged(nameof(Zatwierdzony)); OnPropertyChanged(nameof(JestZablokowany)); }
-        }
-
-        public string ZatwierdzonePrzez { get; set; }
-        public DateTime? DataZatwierdzenia { get; set; }
-
-        // === PODWÓJNA KONTROLA: Weryfikacja przez drugiego pracownika ===
-        private bool _zweryfikowany;
-        public bool Zweryfikowany
-        {
-            get => _zweryfikowany;
-            set { _zweryfikowany = value; OnPropertyChanged(nameof(Zweryfikowany)); OnPropertyChanged(nameof(JestZablokowany)); }
-        }
-
-        public string ZweryfikowanePrzez { get; set; }
-        public DateTime? DataWeryfikacji { get; set; }
-
-        /// <summary>
-        /// Wiersz jest zablokowany gdy zarówno Zatwierdzony jak i Zweryfikowany są true
-        /// </summary>
-        public bool JestZablokowany => Zatwierdzony && Zweryfikowany;
-
-        // === GRUPOWANIE: Właściwość dla separatora grupy ===
-        private bool _isFirstInGroup;
-        public bool IsFirstInGroup
-        {
-            get => _isFirstInGroup;
-            set { _isFirstInGroup = value; OnPropertyChanged(nameof(IsFirstInGroup)); }
-        }
-
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-    }
-
-    public class PlachtaRow : INotifyPropertyChanged
-    {
-        public int ID { get; set; }
-
-        private int _lp;
-        public int Lp
-        {
-            get => _lp;
-            set { _lp = value; OnPropertyChanged(nameof(Lp)); }
-        }
-
-        public int NrSpec { get; set; }  // CarLp - numer specyfikacji
-        public string Hodowca { get; set; }
-        public string Adres { get; set; }
-        public string BadaniaSalmonella { get; set; }  // VetComment
-        public string NrSwZdrowia { get; set; }  // VetNo
-
-        private string _nrGospodarstwa;
-        public string NrGospodarstwa
-        {
-            get => _nrGospodarstwa;
-            set { _nrGospodarstwa = value; OnPropertyChanged(nameof(NrGospodarstwa)); }
-        }
-
-        public int IloscDek { get; set; }  // DeclI1
-        public int Lumel { get; set; }     // LumQnt - LUMEL (Dostarcz./ARIMR)
-        public string Ciagnik { get; set; }  // CarID
-        public string Naczepa { get; set; }  // TrailerID
-
-        private int _padle;
-        public int Padle
-        {
-            get => _padle;
-            set { _padle = value; OnPropertyChanged(nameof(Padle)); }
-        }
-
-        public string KodHodowcy { get; set; }  // CustomerGID
-
-        private int _chore;
-        public int Chore
-        {
-            get => _chore;
-            set { _chore = value; OnPropertyChanged(nameof(Chore)); }
-        }
-
-        private int _nw;
-        public int NW
-        {
-            get => _nw;
-            set { _nw = value; OnPropertyChanged(nameof(NW)); }
-        }
-
-        private int _zm;
-        public int ZM
-        {
-            get => _zm;
-            set { _zm = value; OnPropertyChanged(nameof(ZM)); }
-        }
-
-        public bool Status { get; set; }
-        public int CustomerGID { get; set; }
-
-        // === GRUPOWANIE: Właściwość dla separatora grupy ===
-        private bool _isFirstInGroup;
-        public bool IsFirstInGroup
-        {
-            get => _isFirstInGroup;
-            set { _isFirstInGroup = value; OnPropertyChanged(nameof(IsFirstInGroup)); }
-        }
-
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-    }
+    public decimal NettoWeight { get; set; }
 
     /// <summary>
-    /// Model dla mini kalendarza - reprezentuje jeden dzień
+    /// Średnia waga = Netto / (Lumel + Padłe) [kg/szt]
+    /// Dostarcz.(ARIMR) = Lumel + Padłe
     /// </summary>
-    public class CalendarDayItem : INotifyPropertyChanged
+    public decimal SredniaWaga => (Lumel + Padle) > 0 ? Math.Round(NettoWeight / (Lumel + Padle), 2) : 0;
+
+    // === GRUPOWANIE: Właściwość dla separatora grupy ===
+    private bool _isFirstInGroup;
+    public bool IsFirstInGroup
     {
-        public DateTime Date { get; set; }
-        public string DayNumber => Date.Day.ToString();
-        public string DayName => Date.ToString("ddd", System.Globalization.CultureInfo.GetCultureInfo("pl-PL"));
-
-        private bool _hasData;
-        public bool HasData
-        {
-            get => _hasData;
-            set { _hasData = value; OnPropertyChanged(nameof(HasData)); }
-        }
-
-        private bool _isSelected;
-        public bool IsSelected
-        {
-            get => _isSelected;
-            set { _isSelected = value; OnPropertyChanged(nameof(IsSelected)); }
-        }
-
-        public bool IsToday => Date.Date == DateTime.Today;
-
-        private int _recordCount;
-        public int RecordCount
-        {
-            get => _recordCount;
-            set { _recordCount = value; OnPropertyChanged(nameof(RecordCount)); OnPropertyChanged(nameof(ToolTipText)); }
-        }
-
-        public string ToolTipText => HasData
-            ? $"{Date:dd.MM.yyyy} ({DayName})\n{RecordCount} rekordów"
-            : $"{Date:dd.MM.yyyy} ({DayName})\nBrak danych";
-
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
+        get => _isFirstInGroup;
+        set { _isFirstInGroup = value; OnPropertyChanged(nameof(IsFirstInGroup)); }
     }
 
-    /// <summary>
-    /// Model dla pośrednika - używany w ComboBox kolumny Pośrednik
-    /// Użytkownik dostarczy tabelę z danymi pośredników później
-    /// </summary>
-    public class PosrednikItem
+    public event PropertyChangedEventHandler PropertyChanged;
+    protected void OnPropertyChanged(string propertyName)
     {
-        public int ID { get; set; }
-        public string Nazwa { get; set; }
-        public string Kod { get; set; }
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+}
+
+/// <summary>
+/// Model dla mini kalendarza - reprezentuje jeden dzień
+/// </summary>
+public class CalendarDayItem : INotifyPropertyChanged
+{
+    public DateTime Date { get; set; }
+    public string DayNumber => Date.Day.ToString();
+    public string DayName => Date.ToString("ddd", System.Globalization.CultureInfo.GetCultureInfo("pl-PL"));
+
+    private bool _hasData;
+    public bool HasData
+    {
+        get => _hasData;
+        set { _hasData = value; OnPropertyChanged(nameof(HasData)); }
     }
 
-    /// <summary>
-    /// Model dla karty Podsumowanie - Raport z przyjęcia żywca do uboju
-    /// Agreguje dane specyfikacji dla każdego hodowcy
-    /// </summary>
-    public class PodsumowanieRow : INotifyPropertyChanged
+    private bool _isSelected;
+    public bool IsSelected
     {
-        public int LP { get; set; }
-        public string HodowcaDrobiu { get; set; }
-        public string Odbiorca { get; set; }  // CustomerRealGid - nazwa odbiorcy
-        public int SztukiZadeklarowane { get; set; }
-        public int SztukiPadle { get; set; }
-        public int SztukiKonfi { get; set; }
-        public int SztukiSuma => SztukiPadle + SztukiKonfi;
-        public int KgKonf { get; set; }
-        public int KgPadle { get; set; }
-        public int KgSuma => KgKonf + KgPadle;
-        public decimal WydajnoscProcent { get; set; }
-        public bool WydajnoscNiska => WydajnoscProcent < 77;
+        get => _isSelected;
+        set { _isSelected = value; OnPropertyChanged(nameof(IsSelected)); }
+    }
 
-        /// <summary>
-        /// Kolor wydajności - skala 3-kolorowa (czerwony-żółty-zielony) od 74% do 79%
-        /// </summary>
-        public System.Windows.Media.SolidColorBrush WydajnoscColor
+    public bool IsToday => Date.Date == DateTime.Today;
+
+    private int _recordCount;
+    public int RecordCount
+    {
+        get => _recordCount;
+        set { _recordCount = value; OnPropertyChanged(nameof(RecordCount)); OnPropertyChanged(nameof(ToolTipText)); }
+    }
+
+    public string ToolTipText => HasData
+        ? $"{Date:dd.MM.yyyy} ({DayName})\n{RecordCount} rekordów"
+        : $"{Date:dd.MM.yyyy} ({DayName})\nBrak danych";
+
+    public event PropertyChangedEventHandler PropertyChanged;
+    protected void OnPropertyChanged(string propertyName)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+}
+
+/// <summary>
+/// Model dla pośrednika - używany w ComboBox kolumny Pośrednik
+/// Użytkownik dostarczy tabelę z danymi pośredników później
+/// </summary>
+public class PosrednikItem
+{
+    public int ID { get; set; }
+    public string Nazwa { get; set; }
+    public string Kod { get; set; }
+}
+
+/// <summary>
+/// Model dla karty Podsumowanie - Raport z przyjęcia żywca do uboju
+/// Agreguje dane specyfikacji dla każdego hodowcy
+/// </summary>
+public class PodsumowanieRow : INotifyPropertyChanged
+{
+    public int LP { get; set; }
+    public string HodowcaDrobiu { get; set; }
+    public string Odbiorca { get; set; }  // CustomerRealGid - nazwa odbiorcy
+    public int SztukiZadeklarowane { get; set; }
+    public int SztukiPadle { get; set; }
+    public int SztukiKonfi { get; set; }
+    public int SztukiSuma => SztukiPadle + SztukiKonfi;
+    public int KgKonf { get; set; }
+    public int KgPadle { get; set; }
+    public int KgSuma => KgKonf + KgPadle;
+    public decimal WydajnoscProcent { get; set; }
+    public bool WydajnoscNiska => WydajnoscProcent < 77;
+
+    /// <summary>
+    /// Kolor wydajności - skala 3-kolorowa (czerwony-żółty-zielony) od 74% do 79%
+    /// </summary>
+    public System.Windows.Media.SolidColorBrush WydajnoscColor
+    {
+        get
         {
-            get
+            // Progi: Min=74%, Środek=75%, Max=79%
+            decimal val = WydajnoscProcent;
+            byte r, g, b;
+
+            if (val <= 74)
             {
-                // Progi: Min=74%, Środek=75%, Max=79%
-                decimal val = WydajnoscProcent;
-                byte r, g, b;
-
-                if (val <= 74)
-                {
-                    // Czerwony
-                    r = 255; g = 0; b = 0;
-                }
-                else if (val <= 75)
-                {
-                    // Interpolacja czerwony -> żółty (74-75)
-                    double t = (double)(val - 74) / 1.0;
-                    r = 255;
-                    g = (byte)(255 * t);
-                    b = 0;
-                }
-                else if (val <= 79)
-                {
-                    // Interpolacja żółty -> zielony (75-79)
-                    double t = (double)(val - 75) / 4.0;
-                    r = (byte)(255 * (1 - t));
-                    g = 255;
-                    b = 0;
-                }
-                else
-                {
-                    // Zielony
-                    r = 0; g = 255; b = 0;
-                }
-
-                return new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(r, g, b));
+                // Czerwony
+                r = 255; g = 0; b = 0;
             }
-        }
-        public int Lumel { get; set; }
-        public int SztukiKonfiskataT { get; set; }
-        public int SztukiZdatne { get; set; }
-        public decimal IloscKgZywiec { get; set; }
-        public decimal SredniaWagaPrzedUbojem { get; set; }
-        public int SztukiProdukcjaTuszka { get; set; }
-        public decimal WagaProdukcjaTuszka { get; set; }
-        public int RoznicaSztukZdatneProd => SztukiZdatne - SztukiProdukcjaTuszka;
-        public bool RoznicaSztukUjemna => RoznicaSztukZdatneProd < 0;
-        public int RoznicaSztukZdatneZadekl => SztukiZdatne - SztukiZadeklarowane;
-        public bool RoznicaSztukZadeklUjemna => RoznicaSztukZdatneZadekl < 0;
+            else if (val <= 75)
+            {
+                // Interpolacja czerwony -> żółty (74-75)
+                double t = (double)(val - 74) / 1.0;
+                r = 255;
+                g = (byte)(255 * t);
+                b = 0;
+            }
+            else if (val <= 79)
+            {
+                // Interpolacja żółty -> zielony (75-79)
+                double t = (double)(val - 75) / 4.0;
+                r = (byte)(255 * (1 - t));
+                g = 255;
+                b = 0;
+            }
+            else
+            {
+                // Zielony
+                r = 0; g = 255; b = 0;
+            }
 
-        // Wlasciwosc do oznaczenia poczatku nowej grupy (dla grupowania wg odbiorcy)
-        public bool IsGroupStart { get; set; }
-
-        // Wlasciwosc do oznaczenia wiersza sumy
-        public bool IsSumRow { get; set; } = false;
-
-        // Informacje o uzytkownikach
-        public string Wprowadzil { get; set; } = "-";
-        public string Zatwierdził { get; set; } = "-";
-
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            return new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(r, g, b));
         }
     }
+    public int Lumel { get; set; }
+    public int SztukiKonfiskataT { get; set; }
+    public int SztukiZdatne { get; set; }
+    public decimal IloscKgZywiec { get; set; }
+    public decimal SredniaWagaPrzedUbojem { get; set; }
+    public int SztukiProdukcjaTuszka { get; set; }
+    public decimal WagaProdukcjaTuszka { get; set; }
+    public int RoznicaSztukZdatneProd => SztukiZdatne - SztukiProdukcjaTuszka;
+    public bool RoznicaSztukUjemna => RoznicaSztukZdatneProd < 0;
+    public int RoznicaSztukZdatneZadekl => SztukiZdatne - SztukiZadeklarowane;
+    public bool RoznicaSztukZadeklUjemna => RoznicaSztukZdatneZadekl < 0;
+
+    // Wlasciwosc do oznaczenia poczatku nowej grupy (dla grupowania wg odbiorcy)
+    public bool IsGroupStart { get; set; }
+
+    // Wlasciwosc do oznaczenia wiersza sumy
+    public bool IsSumRow { get; set; } = false;
+
+    // Informacje o uzytkownikach
+    public string Wprowadzil { get; set; } = "-";
+    public string Zatwierdził { get; set; } = "-";
+
+    public event PropertyChangedEventHandler PropertyChanged;
+    protected void OnPropertyChanged(string propertyName)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+}
 }

@@ -670,12 +670,12 @@
         <!-- Panel Administracyjny (domyślnie ukryty) -->
         <Border x:Name="adminPanel" Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Right"
                 Background="White" CornerRadius="10" Margin="20,60,20,0" Padding="15"
-                Visibility="Collapsed" Panel.ZIndex="1000" MaxHeight="700">
+                Visibility="Collapsed" Panel.ZIndex="1000" MaxHeight="650">
             <Border.Effect>
                 <DropShadowEffect ShadowDepth="3" Color="#000000" Opacity="0.2" BlurRadius="15"/>
             </Border.Effect>
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel Width="420">
+                <StackPanel Width="380">
                     <TextBlock Text="⚙️ Panel Administracyjny" FontSize="16" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,15"/>
 
                     <!-- Ustawienia blokady -->
@@ -720,22 +720,78 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Domyślna ścieżka PDF -->
-                    <Border Background="#E3F2FD" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                    <!-- === ŚCIEŻKI ZAPISU === -->
+                    <TextBlock Text="📁 Ścieżki zapisu plików" FontSize="13" FontWeight="Bold" Foreground="#1565C0" Margin="0,5,0,10"/>
+
+                    <!-- Ścieżka PDF Specyfikacji -->
+                    <Border Background="#E3F2FD" CornerRadius="5" Padding="10" Margin="0,0,0,8">
                         <StackPanel>
-                            <TextBlock Text="Domyślna ścieżka zapisu PDF" FontWeight="SemiBold" Foreground="#1565C0" Margin="0,0,0,5"/>
+                            <TextBlock Text="Specyfikacje PDF (karta Specyfikacje)" FontWeight="SemiBold" Foreground="#1565C0" FontSize="11" Margin="0,0,0,5"/>
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBox x:Name="txtDefaultPdfPath" Grid.Column="0" Height="28"
+                                <TextBox x:Name="txtDefaultPdfPath" Grid.Column="0" Height="26" FontSize="10"
                                      VerticalContentAlignment="Center" Margin="0,0,5,0"/>
                                 <Button Grid.Column="1" Content="..." Padding="8,4"
                                     Background="#1976D2" Foreground="White" BorderThickness="0"
                                     Cursor="Hand" Click="BtnBrowsePdfPath_Click" ToolTip="Wybierz folder"/>
                             </Grid>
-                            <TextBlock Text="Folder gdzie zapisywane są specyfikacje PDF" FontSize="11" Foreground="#7F8C8D" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Ścieżka Płachta - Dla Lekarzy -->
+                    <Border Background="#E8F5E9" CornerRadius="5" Padding="10" Margin="0,0,0,8">
+                        <StackPanel>
+                            <TextBlock Text="Dla Lekarzy PDF (karta Płachta)" FontWeight="SemiBold" Foreground="#2E7D32" FontSize="11" Margin="0,0,0,5"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="txtDefaultPlachtaPath" Grid.Column="0" Height="26" FontSize="10"
+                                     VerticalContentAlignment="Center" Margin="0,0,5,0"/>
+                                <Button Grid.Column="1" Content="..." Padding="8,4"
+                                    Background="#2E7D32" Foreground="White" BorderThickness="0"
+                                    Cursor="Hand" Click="BtnBrowsePlachtaPath_Click" ToolTip="Wybierz folder"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Ścieżka Płachta - Zapisz PDF -->
+                    <Border Background="#FFF8E1" CornerRadius="5" Padding="10" Margin="0,0,0,8">
+                        <StackPanel>
+                            <TextBlock Text="Zapisz PDF Płachty (karta Płachta)" FontWeight="SemiBold" Foreground="#F57C00" FontSize="11" Margin="0,0,0,5"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="txtDefaultPlachtaSavePath" Grid.Column="0" Height="26" FontSize="10"
+                                     VerticalContentAlignment="Center" Margin="0,0,5,0"/>
+                                <Button Grid.Column="1" Content="..." Padding="8,4"
+                                    Background="#F57C00" Foreground="White" BorderThickness="0"
+                                    Cursor="Hand" Click="BtnBrowsePlachtaSavePath_Click" ToolTip="Wybierz folder"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Ścieżka Podsumowanie PDF -->
+                    <Border Background="#FCE4EC" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Podsumowanie PDF (karta Podsumowanie)" FontWeight="SemiBold" Foreground="#C2185B" FontSize="11" Margin="0,0,0,5"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="txtDefaultPodsumowaniePath" Grid.Column="0" Height="26" FontSize="10"
+                                     VerticalContentAlignment="Center" Margin="0,0,5,0"/>
+                                <Button Grid.Column="1" Content="..." Padding="8,4"
+                                    Background="#C2185B" Foreground="White" BorderThickness="0"
+                                    Cursor="Hand" Click="BtnBrowsePodsumowaniePath_Click" ToolTip="Wybierz folder"/>
+                            </Grid>
                         </StackPanel>
                     </Border>
 
@@ -753,21 +809,15 @@
                                     <RowDefinition/>
                                     <RowDefinition/>
                                     <RowDefinition/>
-                                    <RowDefinition/>
-                                    <RowDefinition/>
                                 </Grid.RowDefinitions>
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="F5" FontWeight="Bold" Foreground="#1565C0" Margin="0,2"/>
                                 <TextBlock Grid.Row="0" Grid.Column="1" Text=" - Odśwież dane" Margin="5,2"/>
                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="Ctrl+Z" FontWeight="Bold" Foreground="#1565C0" Margin="0,2"/>
-                                <TextBlock Grid.Row="1" Grid.Column="1" Text=" - Cofnij ostatnią zmianę" Margin="5,2"/>
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Ctrl+Shift+C" FontWeight="Bold" Foreground="#1565C0" Margin="0,2"/>
-                                <TextBlock Grid.Row="2" Grid.Column="1" Text=" - Kopiuj ustawienia cenowe" Margin="5,2"/>
-                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Ctrl+Shift+V" FontWeight="Bold" Foreground="#1565C0" Margin="0,2"/>
-                                <TextBlock Grid.Row="3" Grid.Column="1" Text=" - Wklej ustawienia cenowe" Margin="5,2"/>
-                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Delete" FontWeight="Bold" Foreground="#C0392B" Margin="0,2"/>
-                                <TextBlock Grid.Row="4" Grid.Column="1" Text=" - Usuń zaznaczony wiersz" Margin="5,2"/>
-                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Enter" FontWeight="Bold" Foreground="#1565C0" Margin="0,2"/>
-                                <TextBlock Grid.Row="5" Grid.Column="1" Text=" - Przejdź do następnego pola" Margin="5,2"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text=" - Cofnij zmianę" Margin="5,2"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Ctrl+Shift+C/V" FontWeight="Bold" Foreground="#1565C0" Margin="0,2"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text=" - Kopiuj/Wklej ceny" Margin="5,2"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Delete" FontWeight="Bold" Foreground="#C0392B" Margin="0,2"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" Text=" - Usuń wiersz" Margin="5,2"/>
                             </Grid>
                         </StackPanel>
                     </Border>
@@ -806,10 +856,9 @@
                             <StackPanel Orientation="Horizontal">
                                 <RadioButton x:Name="rbPdfKolorowy" Content="🎨 Kolorowy" IsChecked="True" Margin="0,0,20,0"
                                          GroupName="PdfColorMode" VerticalContentAlignment="Center"/>
-                                <RadioButton x:Name="rbPdfCzarnoBialy" Content="🖨️ Czarno-biały (logo kolorowe)"
+                                <RadioButton x:Name="rbPdfCzarnoBialy" Content="🖨️ Czarno-biały"
                                          GroupName="PdfColorMode" VerticalContentAlignment="Center"/>
                             </StackPanel>
-                            <TextBlock Text="Czarno-biały tryb oszczędza tusz drukarki" FontSize="11" Foreground="#7F8C8D" Margin="0,3,0,0"/>
                         </StackPanel>
                     </Border>
 
@@ -818,11 +867,9 @@
                         <StackPanel>
                             <TextBlock Text="Opcje drukowania PDF" FontWeight="SemiBold" Foreground="#3949AB" Margin="0,0,0,8"/>
                             <CheckBox x:Name="chkDrukujTerminPlatnosci"
-                                  Content="📅 Drukuj termin płatności na specyfikacji"
+                                  Content="📅 Drukuj termin płatności"
                                   IsChecked="False"
-                                  VerticalContentAlignment="Center"
-                                  Margin="0,0,0,5"/>
-                            <TextBlock Text="Odznacz aby ukryć termin płatności na PDF" FontSize="11" Foreground="#7F8C8D" Margin="0,3,0,0"/>
+                                  VerticalContentAlignment="Center"/>
                         </StackPanel>
                     </Border>
 
@@ -831,8 +878,6 @@
                         BorderBrush="#EF5350" BorderThickness="1">
                         <StackPanel>
                             <TextBlock Text="⚠️ Strefa niebezpieczna" FontWeight="Bold" Foreground="#C62828" Margin="0,0,0,8"/>
-                            <TextBlock Text="Usuń wszystkie specyfikacje z wybranego dnia wraz z historią zmian." 
-                                   FontSize="11" Foreground="#C62828" TextWrapping="Wrap" Margin="0,0,0,8"/>
                             <Button x:Name="btnUsunWszystkieZDnia" 
                                 Content="🗑️ Usuń wszystkie specyfikacje z tego dnia"
                                 Padding="10,8" 
@@ -843,9 +888,6 @@
                                 Cursor="Hand" 
                                 Click="BtnUsunWszystkieZDnia_Click"
                                 HorizontalAlignment="Stretch"/>
-                            <TextBlock Text="Ta operacja jest nieodwracalna!" 
-                                   FontSize="10" Foreground="#C62828" FontStyle="Italic" 
-                                   Margin="0,5,0,0" HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Border>
 
@@ -943,7 +985,8 @@
 
                                 <!-- Przycisk Dodaj specyfikację -->
                                 <Button x:Name="btnDodajSpecyfikacje" Click="BtnDodajSpecyfikacje_Click"
-                                        Content="➕ Dodaj specyfikację" ToolTip="Dodaj nowy wiersz specyfikacji"
+                                        Content="➕ Dodaj specyfikację" 
+                                        ToolTip="Otwórz kreator nowej specyfikacji&#x0a;Shift+klik = szybkie dodanie pustego wiersza"
                                         Padding="10,4" Margin="2,0,5,0" Background="#2E7D32" Foreground="White"
                                         BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
 
@@ -979,7 +1022,7 @@
                                         Padding="10,4" Margin="2,0,5,0" Background="#1976D2" Foreground="White"
                                         BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
 
-                                <!-- Checkboxy Opasienie/KlasaB/Dodatek/Pośrednik obok LUMEL -->
+                                <!-- Checkboxy Opasienie/KlasaB obok LUMEL -->
                                 <Border Background="#F5F5F5" CornerRadius="4" Padding="5,2" Margin="5,0">
                                     <StackPanel Orientation="Horizontal">
                                         <CheckBox x:Name="chkShowOpasienie2"
@@ -994,21 +1037,7 @@
                                                   FontSize="11"
                                                   VerticalAlignment="Center"
                                                   Checked="ChkShowKlasaB_Changed"
-                                                  Unchecked="ChkShowKlasaB_Changed"
-                                                  Margin="0,0,8,0"/>
-                                        <CheckBox x:Name="chkShowDodatek"
-                                                  Content="Dodatek"
-                                                  FontSize="11"
-                                                  VerticalAlignment="Center"
-                                                  Checked="ChkShowDodatek_Changed"
-                                                  Unchecked="ChkShowDodatek_Changed"
-                                                  Margin="0,0,8,0"/>
-                                        <CheckBox x:Name="chkShowPosrednik"
-                                                  Content="Pośrednik"
-                                                  FontSize="11"
-                                                  VerticalAlignment="Center"
-                                                  Checked="ChkShowPosrednik_Changed"
-                                                  Unchecked="ChkShowPosrednik_Changed"/>
+                                                  Unchecked="ChkShowKlasaB_Changed"/>
                                     </StackPanel>
                                 </Border>
 
@@ -1026,6 +1055,30 @@
                                 </Border>
 
                                 <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
+
+                                <!-- Checkbox pokazywania kolumny Pośrednik -->
+                                <Border Background="#E1F5FE" CornerRadius="4" Padding="5,2" Margin="5,0">
+                                    <CheckBox x:Name="chkShowPosrednik"
+                                              Content="🤝 Pokaż Pośrednika"
+                                              FontSize="11"
+                                              VerticalAlignment="Center"
+                                              IsChecked="False"
+                                              Checked="ChkShowPosrednik_Changed"
+                                              Unchecked="ChkShowPosrednik_Changed"
+                                              ToolTip="Zaznacz aby wyświetlić kolumnę Pośrednik. Dane pośredników będą dostępne po skonfigurowaniu tabeli."/>
+                                </Border>
+
+                                <!-- Checkbox pokazywania kolumny Dodatek -->
+                                <Border Background="#E8F5E9" CornerRadius="4" Padding="5,2" Margin="5,0">
+                                    <CheckBox x:Name="chkShowDodatek"
+                                              Content="💰 Pokaż Dodatek"
+                                              FontSize="11"
+                                              VerticalAlignment="Center"
+                                              IsChecked="False"
+                                              Checked="ChkShowDodatek_Changed"
+                                              Unchecked="ChkShowDodatek_Changed"
+                                              ToolTip="Zaznacz aby wyświetlić kolumnę Dodatek do ceny."/>
+                                </Border>
 
                                 <TextBlock x:Name="lblClipboardInfo" Text="" VerticalAlignment="Center"
                                            FontStyle="Italic" Foreground="#757575" Margin="10,0,0,0"/>
@@ -1100,11 +1153,14 @@
                                     <Separator/>
                                     <MenuItem Header="Odswiez dane" Click="ContextMenu_RefreshData"/>
                                     <Separator/>
+                                    <Separator/>
+                                    <MenuItem Header="📋 Duplikuj jako nową specyfikację" Click="ContextMenu_DuplicateRow" FontWeight="Bold" Foreground="#B45309"/>
+                                    <Separator/>
                                     <MenuItem Header="Zdjecia z wazenia">
                                         <MenuItem Header="Podglad zdjecia TARA" Click="ContextMenu_ShowPhotoTara"/>
                                         <MenuItem Header="Podglad zdjecia BRUTTO" Click="ContextMenu_ShowPhotoBrutto"/>
                                         <Separator/>
-                                        <MenuItem Header="Porownaj zdjecia (TARA | BRUTTO)" Click="ContextMenu_ShowPhotosCompare" FontWeight="SemiBold"/>
+                                        <MenuItem Header="🗑️ Usuń specyfikację (Delete)" Click="ContextMenu_DeleteRow" Foreground="Red" FontWeight="Bold"/>
                                     </MenuItem>
                                 </ContextMenu>
                             </DataGrid.ContextMenu>
@@ -3155,6 +3211,16 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
+                                <!-- Średnia Waga [kg/szt] -->
+                                <DataGridTextColumn Header="ŚR.WAGA" Binding="{Binding SredniaWaga, StringFormat=F2}" Width="60" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CenterStyle}">
+                                            <Setter Property="Foreground" Value="#1565C0"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
                                 <!-- CH (Chore) - edytowalne -->
                                 <DataGridTextColumn Header="CH" Binding="{Binding Chore, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="45">
                                     <DataGridTextColumn.ElementStyle>
@@ -3281,22 +3347,39 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
-                                <!-- LEWA STRONA: Przyciski PDF i Kopiuj (duze) -->
+                                <!-- LEWA STRONA: Przyciski PDF, Folder, Email -->
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                                     <Border Background="#0891B2" CornerRadius="6" Margin="0,0,8,0">
                                         <Button Click="BtnPodsumowanieExportPdf_Click" Cursor="Hand"
-                                                Padding="16,8" Background="Transparent" Foreground="White"
+                                                Padding="12,8" Background="Transparent" Foreground="White"
                                                 BorderThickness="0" FontWeight="Bold"
-                                                ToolTip="Eksportuj do PDF">
-                                            <TextBlock Text="PDF" FontSize="14" VerticalAlignment="Center"/>
+                                                ToolTip="Zapisz raport podsumowania do PDF">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="📄" FontSize="12" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                                <TextBlock Text="Zapisz Podsumowanie" FontSize="12" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </Border>
+                                    <Border Background="#059669" CornerRadius="6" Margin="0,0,8,0">
+                                        <Button Click="BtnPodsumowanieOpenFolder_Click" Cursor="Hand"
+                                                Padding="12,8" Background="Transparent" Foreground="White"
+                                                BorderThickness="0" FontWeight="Bold"
+                                                ToolTip="Otwórz folder z podsumowaniami PDF">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="📁" FontSize="12" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                                <TextBlock Text="Otwórz folder" FontSize="12" VerticalAlignment="Center"/>
+                                            </StackPanel>
                                         </Button>
                                     </Border>
                                     <Border Background="#7C3AED" CornerRadius="6">
-                                        <Button Click="BtnPodsumowanieCopy_Click" Cursor="Hand"
-                                                Padding="16,8" Background="Transparent" Foreground="White"
+                                        <Button Click="BtnPodsumowanieEmail_Click" Cursor="Hand"
+                                                Padding="12,8" Background="Transparent" Foreground="White"
                                                 BorderThickness="0" FontWeight="Bold"
-                                                ToolTip="Kopiuj do schowka">
-                                            <TextBlock Text="KOPIUJ" FontSize="14" VerticalAlignment="Center"/>
+                                                ToolTip="Wyślij podsumowanie emailem">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="✉️" FontSize="12" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                                <TextBlock Text="Wyślij email" FontSize="12" VerticalAlignment="Center"/>
+                                            </StackPanel>
                                         </Button>
                                     </Border>
                                 </StackPanel>
@@ -3333,12 +3416,13 @@
                                       AutoGenerateColumns="False"
                                       CanUserAddRows="False"
                                       CanUserDeleteRows="False"
+                                      CanUserSortColumns="False"
                                       IsReadOnly="True"
                                       SelectionMode="Single"
                                       SelectionUnit="FullRow"
                                       FontSize="11"
                                       RowHeight="36"
-                                      ColumnHeaderHeight="40"
+                                      ColumnHeaderHeight="48"
                                       Background="White"
                                       AlternatingRowBackground="#FAFBFC"
                                       GridLinesVisibility="All"
@@ -3598,6 +3682,38 @@
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                                 <Setter Property="Padding" Value="0,0,8,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+
+                                    <!-- Różn. szt. Zdat.-Prod. -->
+                                    <DataGridTextColumn Header="Różn.1 [szt]" Binding="{Binding RoznicaSztukZdatneProd, StringFormat={}{0:N0}}" Width="80">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding RoznicaSztukUjemna}" Value="True">
+                                                        <Setter Property="Foreground" Value="#DC2626"/>
+                                                        <Setter Property="FontWeight" Value="Bold"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+
+                                    <!-- Różn. szt. Zdat.-Zadekl. -->
+                                    <DataGridTextColumn Header="Różn.2 [szt]" Binding="{Binding RoznicaSztukZdatneZadekl, StringFormat={}{0:N0}}" Width="80">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="Padding" Value="0,0,8,0"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding RoznicaSztukZadeklUjemna}" Value="True">
+                                                        <Setter Property="Foreground" Value="#DC2626"/>
+                                                        <Setter Property="FontWeight" Value="Bold"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
