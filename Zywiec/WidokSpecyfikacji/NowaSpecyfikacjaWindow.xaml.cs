@@ -645,4 +645,50 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
     }
 
     #endregion
+
+    #region Klasa DuplicateData (dla menu kontekstowego)
+
+    public partial class NowaSpecyfikacjaWindow
+    {
+        /// <summary>
+        /// Dane do duplikacji specyfikacji z menu kontekstowego
+        /// Kopiuje TYLKO ustawienia cenowe hodowcy (bez danych wagowych)
+        /// </summary>
+        public class DuplicateData
+        {
+            public string SourceHodowca { get; set; }
+            public decimal Cena { get; set; }
+            public string TypCeny { get; set; }
+            public decimal Ubytek { get; set; }
+            public bool PiK { get; set; }
+            public string CustomerGID { get; set; }
+            public string CustomerRealGID { get; set; }
+        }
+
+        /// <summary>
+        /// Konstruktor z danymi do duplikacji (z menu kontekstowego)
+        /// </summary>
+        public NowaSpecyfikacjaWindow(string connString, DateTime? defaultDate, DuplicateData duplicateData)
+            : this(connString, defaultDate, duplicateData?.CustomerGID, ConvertToUstawienia(duplicateData))
+        {
+        }
+
+        private static DuplikatUstawienia ConvertToUstawienia(DuplicateData data)
+        {
+            if (data == null) return null;
+
+            return new DuplikatUstawienia
+            {
+                CustomerGID = data.CustomerGID,
+                CustomerRealGID = data.CustomerRealGID,
+                DostawcaNazwa = data.SourceHodowca,
+                Cena = data.Cena,
+                TypCeny = data.TypCeny,
+                Ubytek = data.Ubytek,
+                PIK = data.PiK ? 1 : 0
+            };
+        }
+    }
+
+    #endregion
 }

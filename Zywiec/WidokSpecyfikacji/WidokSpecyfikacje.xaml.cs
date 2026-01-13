@@ -5066,9 +5066,13 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Menu kontekstowe: Duplikuj wiersz jako nową specyfikację
-        /// Kopiuje ustawienia cenowe (Cena, Typ ceny, Ubytek, PiK, CustomerRealGID)
+        /// Menu kontekstowe: Usuń specyfikację
         /// </summary>
+        private void ContextMenu_DeleteRow(object sender, RoutedEventArgs e)
+        {
+            DeleteSelectedRow();
+        }
+
         // === Przycisk SMS ZAŁADUNEK - informacja o godzinie przyjazdu auta ===
         private void BtnSmsZaladunek_Click(object sender, RoutedEventArgs e)
         {

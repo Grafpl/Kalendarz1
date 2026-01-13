@@ -1154,14 +1154,14 @@
                                     <MenuItem Header="Odswiez dane" Click="ContextMenu_RefreshData"/>
                                     <Separator/>
                                     <Separator/>
-                                    <MenuItem Header="📋 Duplikuj jako nową specyfikację" Click="ContextMenu_DuplicateRow" FontWeight="Bold" Foreground="#B45309"/>
+                                    <MenuItem Header="📋 Duplikuj ustawienia hodowcy" Click="ContextMenu_DuplicateRow" FontWeight="Bold" Foreground="#B45309"/>
                                     <Separator/>
                                     <MenuItem Header="Zdjecia z wazenia">
                                         <MenuItem Header="Podglad zdjecia TARA" Click="ContextMenu_ShowPhotoTara"/>
                                         <MenuItem Header="Podglad zdjecia BRUTTO" Click="ContextMenu_ShowPhotoBrutto"/>
-                                        <Separator/>
-                                        <MenuItem Header="🗑️ Usuń specyfikację (Delete)" Click="ContextMenu_DeleteRow" Foreground="Red" FontWeight="Bold"/>
                                     </MenuItem>
+                                    <Separator/>
+                                    <MenuItem Header="🗑️ Usuń specyfikację" Click="ContextMenu_DeleteRow" Foreground="Red" FontWeight="Bold"/>
                                 </ContextMenu>
                             </DataGrid.ContextMenu>
 
