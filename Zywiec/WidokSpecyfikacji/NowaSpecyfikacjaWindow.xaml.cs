@@ -550,20 +550,16 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                             newId = Convert.ToInt32(maxResult);
                     }
 
-                    // Pobierz wartości z duplikatu jeśli są
-                    decimal cena = UstawieniaDoDuplikacji?.Cena ?? 0;
-                    string typCeny = UstawieniaDoDuplikacji?.TypCeny ?? "";
-                    decimal ubytek = UstawieniaDoDuplikacji?.Ubytek ?? 0;
-                    decimal pik = UstawieniaDoDuplikacji?.PIK ?? 0;
+                    // Pobierz CustomerRealGID z duplikatu jeśli jest
                     string customerRealGid = UstawieniaDoDuplikacji?.CustomerRealGID ?? "";
 
                     string query = @"
-                        INSERT INTO dbo.FarmerCalc 
-                        (ID, CalcDate, CarLp, CustomerGID, CustomerRealGID, CarID, TrailerID, DriverGID, 
-                         DeclI1, NettoWeight, Cena, TypCeny, Ubytek, PIK)
-                        VALUES 
-                        (@ID, @CalcDate, @CarLp, @CustomerGID, @CustomerRealGID, @CarID, @TrailerID, @DriverGID, 
-                         0, 0, @Cena, @TypCeny, @Ubytek, @PIK)";
+                        INSERT INTO dbo.FarmerCalc
+                        (ID, CalcDate, CarLp, CustomerGID, CustomerRealGID, CarID, TrailerID, DriverGID,
+                         DeclI1, NettoWeight)
+                        VALUES
+                        (@ID, @CalcDate, @CarLp, @CustomerGID, @CustomerRealGID, @CarID, @TrailerID, @DriverGID,
+                         0, 0)";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
@@ -575,10 +571,6 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                         cmd.Parameters.AddWithValue("@CarID", string.IsNullOrEmpty(carId) ? (object)DBNull.Value : carId);
                         cmd.Parameters.AddWithValue("@TrailerID", string.IsNullOrEmpty(trailerId) ? (object)DBNull.Value : trailerId);
                         cmd.Parameters.AddWithValue("@DriverGID", driverGid.HasValue ? (object)driverGid.Value : DBNull.Value);
-                        cmd.Parameters.AddWithValue("@Cena", cena);
-                        cmd.Parameters.AddWithValue("@TypCeny", string.IsNullOrEmpty(typCeny) ? (object)DBNull.Value : typCeny);
-                        cmd.Parameters.AddWithValue("@Ubytek", ubytek);
-                        cmd.Parameters.AddWithValue("@PIK", pik);
 
                         int rows = cmd.ExecuteNonQuery();
                         if (rows > 0)

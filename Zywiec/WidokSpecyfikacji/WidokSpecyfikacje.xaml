@@ -1103,7 +1103,7 @@
                       CanUserDeleteRows="False"
                       CanUserReorderColumns="False"
                       SelectionMode="Single"
-                      SelectionUnit="CellOrRowHeader"
+                      SelectionUnit="FullRow"
                       GridLinesVisibility="All"
                       HorizontalGridLinesBrush="Black"
                       VerticalGridLinesBrush="Black"
