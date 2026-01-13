@@ -5050,6 +5050,13 @@ namespace Kalendarz1
 
                 if (window.ShowDialog() == true && window.SpecyfikacjaCreated)
                 {
+                    // Loguj duplikację do historii zmian
+                    string details = $"Źródło: LP {selectedRow.Nr}, Hodowca: {duplicateData.SourceHodowca}, " +
+                                   $"Cena: {duplicateData.Cena:F2}, Typ: {duplicateData.TypCeny}, " +
+                                   $"Ubytek: {duplicateData.Ubytek}%, PiK: {duplicateData.PiK}";
+                    LogChangeToDatabase(window.CreatedSpecId, "DUPLICATE", $"Źródło ID: {selectedRow.ID}", details,
+                        duplicateData.SourceHodowca, 0, "");
+
                     LoadData(selectedDate.Value);
                     UpdateStatistics();
                     UpdateStatus($"Duplikowano specyfikację. Nowe ID: {window.CreatedSpecId}");
