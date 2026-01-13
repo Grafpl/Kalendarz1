@@ -1118,33 +1118,13 @@
                       VirtualizingPanel.VirtualizationMode="Recycling"
                       VirtualizingPanel.ScrollUnit="Pixel">
 
-                            <!-- === MENU KONTEKSTOWE: Masowe operacje === -->
+                            <!-- === MENU KONTEKSTOWE === -->
                             <DataGrid.ContextMenu>
                                 <ContextMenu>
                                     <MenuItem Header="📄 Generuj PDF dla dostawcy" Click="Button1_Click" FontWeight="Bold"/>
                                     <MenuItem Header="📄 Generuj PDF dla wszystkich" Click="BtnPrintAll_Click"/>
                                     <Separator/>
-                                    <MenuItem Header="Kopiuj z wiersza powyzej (Ctrl+D)" Click="ContextMenu_CopyFromAbove"/>
-                                    <Separator/>
-                                    <MenuItem Header="Schowek ustawien cenowych">
-                                        <MenuItem Header="Kopiuj ustawienia (Ctrl+Shift+C)" Click="ContextMenu_CopySettings"/>
-                                        <MenuItem Header="Wklej ustawienia (Ctrl+Shift+V)" Click="ContextMenu_PasteSettings"/>
-                                        <MenuItem Header="Wklej do wszystkich wierszy dostawcy" Click="ContextMenu_PasteSettingsToSupplier"/>
-                                    </MenuItem>
-                                    <Separator/>
-                                    <MenuItem Header="Zastosuj do dostawcy">
-                                        <MenuItem Header="Tylko CENE" Click="ContextMenu_ApplyCenaToSupplier"/>
-                                        <MenuItem Header="Tylko DODATEK" Click="ContextMenu_ApplyDodatekToSupplier"/>
-                                        <MenuItem Header="Tylko UBYTEK" Click="ContextMenu_ApplyUbytekToSupplier"/>
-                                        <MenuItem Header="Tylko TYP CENY" Click="ContextMenu_ApplyTypCenyToSupplier"/>
-                                        <Separator/>
-                                        <MenuItem Header="WSZYSTKIE pola (Ctrl+Shift+A)" Click="ContextMenu_ApplyAllToSupplier" FontWeight="Bold"/>
-                                        <Separator/>
-                                        <MenuItem Header="Szablon z historii (uzupelnij puste)" Click="ContextMenu_ApplyTemplate"/>
-                                    </MenuItem>
-                                    <Separator/>
-                                    <MenuItem Header="Odswiez dane" Click="ContextMenu_RefreshData"/>
-                                    <Separator/>
+                                    <MenuItem Header="🔄 Odśwież dane" Click="ContextMenu_RefreshData"/>
                                     <Separator/>
                                     <MenuItem Header="📋 Duplikuj ustawienia hodowcy" Click="ContextMenu_DuplicateRow" FontWeight="Bold" Foreground="#B45309"/>
                                     <Separator/>

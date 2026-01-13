@@ -996,6 +996,17 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                 int errors = 0;
                 string lastError = ""; // Przechowuje pierwszy błąd do wyświetlenia
 
+                // Pobierz dane użytkownika przed Task.Run
+                string importUser = App.UserID ?? Environment.UserName;
+                string importUserName = importUser;
+                try
+                {
+                    var nazwaZiD = new NazwaZiD();
+                    importUserName = nazwaZiD.GetNameById(importUser) ?? importUser;
+                }
+                catch { }
+                string sourceFileName = Path.GetFileName(_selectedFilePath);
+
                 await Task.Run(() =>
                 {
                     using (var connection = new SqlConnection(connectionString))
@@ -1006,7 +1017,7 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                         if (overwriteExisting)
                         {
                             Dispatcher.Invoke(() => lblProgress.Text = "Usuwanie istniejących danych...");
-                            
+
                             string deleteQuery = "DELETE FROM dbo.FarmerCalc WHERE CalcDate = @Date";
                             using (var deleteCmd = new SqlCommand(deleteQuery, connection))
                             {
@@ -1018,11 +1029,12 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                         // Importuj dane
                         int total = importData.Count;
                         int current = 0;
+                        var importedIds = new List<int>();
 
                         foreach (var row in importData)
                         {
                             current++;
-                            Dispatcher.Invoke(() => 
+                            Dispatcher.Invoke(() =>
                             {
                                 lblProgress.Text = $"Importowanie {current}/{total}...";
                                 progressBar.IsIndeterminate = false;
@@ -1043,7 +1055,8 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
 
                             try
                             {
-                                InsertSpecyfikacja(connection, row, mapping.WybranyDostawca, lpDostawy);
+                                int newId = InsertSpecyfikacja(connection, row, mapping.WybranyDostawca, lpDostawy);
+                                importedIds.Add(newId);
                                 imported++;
                             }
                             catch (Exception ex)
@@ -1056,6 +1069,14 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                                 }
                                 errors++;
                             }
+                        }
+
+                        // Loguj import do historii zmian
+                        if (imported > 0)
+                        {
+                            Dispatcher.Invoke(() => lblProgress.Text = "Zapisywanie historii importu...");
+                            LogImportToHistory(connection, importedIds, importUser, importUserName,
+                                sourceFileName, dataUboju, imported);
                         }
                     }
                 });
@@ -1119,7 +1140,7 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
             }
         }
 
-        private void InsertSpecyfikacja(SqlConnection connection, ImportRow row, DostawcaItem dostawca, int lpDostawy)
+        private int InsertSpecyfikacja(SqlConnection connection, ImportRow row, DostawcaItem dostawca, int lpDostawy)
         {
             // Oblicz netto wagi
             decimal nettoHodowcy = row.BruttoHodowcy - row.TaraHodowcy;
@@ -1136,13 +1157,13 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
             }
 
             string query = @"
-                INSERT INTO dbo.FarmerCalc 
-                (ID, Number, CalcDate, CarLp, CustomerGID, CustomerRealGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5, 
-                 LumQnt, ProdQnt, ProdWgt, Price, Addition, Loss, IncDeadConf, 
+                INSERT INTO dbo.FarmerCalc
+                (ID, Number, CalcDate, CarLp, CustomerGID, CustomerRealGID, DeclI1, DeclI2, DeclI3, DeclI4, DeclI5,
+                 LumQnt, ProdQnt, ProdWgt, Price, Addition, Loss, IncDeadConf,
                  NettoWeight, PriceTypeID, LpDostawy,
                  FullWeight, EmptyWeight, FullFarmWeight, EmptyFarmWeight, NettoFarmWeight)
-                VALUES 
-                (@ID, @Number, @CalcDate, @CarLp, @CustomerGID, @CustomerRealGID, @DeclI1, @DeclI2, @DeclI3, @DeclI4, @DeclI5, 
+                VALUES
+                (@ID, @Number, @CalcDate, @CarLp, @CustomerGID, @CustomerRealGID, @DeclI1, @DeclI2, @DeclI3, @DeclI4, @DeclI5,
                  @LumQnt, @ProdQnt, @ProdWgt, @Price, @Addition, @Loss, @IncDeadConf,
                  @NettoWeight, @PriceTypeID, @LpDostawy,
                  @FullWeight, @EmptyWeight, @FullFarmWeight, @EmptyFarmWeight, @NettoFarmWeight)";
@@ -1179,6 +1200,67 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                 cmd.Parameters.AddWithValue("@NettoFarmWeight", nettoHodowcy);      // Netto hodowcy -> NettoFarmWeight
 
                 cmd.ExecuteNonQuery();
+            }
+
+            return nextId;
+        }
+
+        /// <summary>
+        /// Loguje import specyfikacji do historii zmian
+        /// </summary>
+        private void LogImportToHistory(SqlConnection connection, List<int> importedIds, string userId, string userName,
+            string sourceFileName, DateTime dataUboju, int totalImported)
+        {
+            try
+            {
+                // Upewnij się, że tabela istnieje
+                string createTableSql = @"
+                    IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FarmerCalcChangeLog')
+                    BEGIN
+                        CREATE TABLE [dbo].[FarmerCalcChangeLog] (
+                            [ID] INT IDENTITY(1,1) PRIMARY KEY,
+                            [FarmerCalcID] INT NULL,
+                            [FieldName] NVARCHAR(100) NULL,
+                            [OldValue] NVARCHAR(500) NULL,
+                            [NewValue] NVARCHAR(500) NULL,
+                            [Dostawca] NVARCHAR(200) NULL,
+                            [ChangedBy] NVARCHAR(100) NULL,
+                            [UserID] NVARCHAR(50) NULL,
+                            [Nr] INT NULL,
+                            [CarID] NVARCHAR(50) NULL,
+                            [ChangeDate] DATETIME DEFAULT GETDATE(),
+                            [CalcDate] DATE NULL
+                        )
+                    END";
+
+                using (var cmd = new SqlCommand(createTableSql, connection))
+                {
+                    cmd.ExecuteNonQuery();
+                }
+
+                // Loguj zbiorczy wpis o imporcie
+                string insertSql = @"
+                    INSERT INTO [dbo].[FarmerCalcChangeLog]
+                    (FarmerCalcID, FieldName, OldValue, NewValue, ChangedBy, UserID, ChangeDate, CalcDate)
+                    VALUES
+                    (NULL, @FieldName, @OldValue, @NewValue, @ChangedBy, @UserID, GETDATE(), @CalcDate)";
+
+                using (var cmd = new SqlCommand(insertSql, connection))
+                {
+                    cmd.Parameters.AddWithValue("@FieldName", "IMPORT");
+                    cmd.Parameters.AddWithValue("@OldValue", $"Plik: {sourceFileName}");
+                    cmd.Parameters.AddWithValue("@NewValue", $"Zaimportowano {totalImported} specyfikacji. IDs: {string.Join(",", importedIds.Take(20))}{(importedIds.Count > 20 ? "..." : "")}");
+                    cmd.Parameters.AddWithValue("@ChangedBy", userName);
+                    cmd.Parameters.AddWithValue("@UserID", userId);
+                    cmd.Parameters.AddWithValue("@CalcDate", dataUboju.Date);
+
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd logowania importu: {ex.Message}");
+                // Nie przerywamy importu z powodu błędu logowania
             }
         }
 
