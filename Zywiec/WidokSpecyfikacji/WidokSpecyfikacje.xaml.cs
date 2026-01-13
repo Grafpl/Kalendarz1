@@ -9535,6 +9535,52 @@ namespace Kalendarz1
             }
         }
 
+        #region Import z Excel
+
+        /// <summary>
+        /// Otwiera kreator importu specyfikacji z pliku Excel/LibreOffice
+        /// </summary>
+        private void BtnImportExcel_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var wizard = new Kalendarz1.Zywiec.WidokSpecyfikacji.ImportSpecyfikacjeWizard(connectionString);
+
+                // Callback do odświeżenia danych po imporcie
+                wizard.OnImportCompleted = () =>
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        // Odśwież dane w DataGrid po imporcie
+                        if (dateTimePicker1.SelectedDate.HasValue)
+                        {
+                            LoadData(dateTimePicker1.SelectedDate.Value);
+
+                            // Pokaż komunikat sukcesu
+                            statusLabel.Text = "Import zakończony - dane odświeżone";
+                        }
+                    });
+                };
+
+                wizard.Owner = this;
+                var result = wizard.ShowDialog();
+
+                // Jeśli import się powiódł, odśwież widok
+                if (result == true && dateTimePicker1.SelectedDate.HasValue)
+                {
+                    LoadData(dateTimePicker1.SelectedDate.Value);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania kreatora importu:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Diagnostics.Debug.WriteLine($"BtnImportExcel_Click error: {ex}");
+            }
+        }
+
+        #endregion
+
         /// <summary>
         /// Otwiera folder z plikami specyfikacji dla zaznaczonego wiersza
         /// </summary>
@@ -9876,6 +9922,163 @@ namespace Kalendarz1
             SaveDayUnlockStatus(selectedDate, false);
             UpdateBlockingStatus();
             UpdateStatus($"Dzień {selectedDate:yyyy-MM-dd} został zablokowany");
+        }
+
+        /// <summary>
+        /// Usuwa wszystkie specyfikacje i powiązane dane z wybranego dnia
+        /// </summary>
+        private void BtnUsunWszystkieZDnia_Click(object sender, RoutedEventArgs e)
+        {
+            // Sprawdź czy użytkownik ma uprawnienia
+            if (!IsCurrentUserAdmin())
+            {
+                MessageBox.Show("Brak uprawnień do tej operacji.\nTylko administrator może usuwać dane.",
+                    "Brak dostępu", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Sprawdź czy wybrano datę
+            if (!dateTimePicker1.SelectedDate.HasValue)
+            {
+                MessageBox.Show("Najpierw wybierz datę.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            DateTime selectedDate = dateTimePicker1.SelectedDate.Value.Date;
+
+            // Pobierz liczbę rekordów do usunięcia
+            int recordCount = 0;
+            try
+            {
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    using (var cmd = new SqlCommand("SELECT COUNT(*) FROM dbo.FarmerCalc WHERE CalcDate = @Date AND (Deleted = 0 OR Deleted IS NULL)", connection))
+                    {
+                        cmd.Parameters.AddWithValue("@Date", selectedDate);
+                        recordCount = (int)cmd.ExecuteScalar();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd sprawdzania danych:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            if (recordCount == 0)
+            {
+                MessageBox.Show($"Brak specyfikacji do usunięcia z dnia {selectedDate:dd.MM.yyyy}.",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // Potwierdzenie 1
+            var result1 = MessageBox.Show(
+                $"Czy na pewno chcesz usunąć WSZYSTKIE specyfikacje z dnia {selectedDate:dd.MM.yyyy}?\n\n" +
+                $"Liczba rekordów do usunięcia: {recordCount}\n\n" +
+                "Ta operacja jest NIEODWRACALNA!",
+                "⚠️ Potwierdzenie usunięcia",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result1 != MessageBoxResult.Yes) return;
+
+            // Potwierdzenie 2 - wpisz "USUŃ"
+            var inputWindow = new System.Windows.Window
+            {
+                Title = "Potwierdzenie usunięcia",
+                Width = 400,
+                Height = 180,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize
+            };
+
+            var stack = new StackPanel { Margin = new Thickness(20) };
+            stack.Children.Add(new TextBlock
+            {
+                Text = $"Aby potwierdzić usunięcie danych z {selectedDate:dd.MM.yyyy},\nwpisz słowo USUŃ:",
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 10)
+            });
+            var inputBox = new TextBox { Height = 30, FontSize = 14 };
+            stack.Children.Add(inputBox);
+            var btnConfirm = new Button
+            {
+                Content = "Potwierdź usunięcie",
+                Margin = new Thickness(0, 15, 0, 0),
+                Padding = new Thickness(20, 8, 20, 8),
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#D32F2F")),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0)
+            };
+            btnConfirm.Click += (s, args) => { inputWindow.DialogResult = true; inputWindow.Close(); };
+            stack.Children.Add(btnConfirm);
+            inputWindow.Content = stack;
+
+            if (inputWindow.ShowDialog() != true || inputBox.Text.Trim().ToUpper() != "USUŃ")
+            {
+                MessageBox.Show("Operacja anulowana - nieprawidłowe potwierdzenie.",
+                    "Anulowano", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // Wykonaj usunięcie
+            try
+            {
+                int deletedSpecs = 0;
+                int deletedLogs = 0;
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    // Usuń logi zmian (jeśli tabela istnieje)
+                    try
+                    {
+                        using (var cmd = new SqlCommand(@"
+                            DELETE FROM dbo.FarmerCalcChangeLog 
+                            WHERE FarmerCalcID IN (SELECT ID FROM dbo.FarmerCalc WHERE CalcDate = @Date)", connection))
+                        {
+                            cmd.Parameters.AddWithValue("@Date", selectedDate);
+                            deletedLogs = cmd.ExecuteNonQuery();
+                        }
+                    }
+                    catch
+                    {
+                        // Tabela FarmerCalcChangeLog może nie istnieć - ignorujemy
+                        deletedLogs = 0;
+                    }
+
+                    // Usuń specyfikacje (hard delete)
+                    using (var cmd = new SqlCommand("DELETE FROM dbo.FarmerCalc WHERE CalcDate = @Date", connection))
+                    {
+                        cmd.Parameters.AddWithValue("@Date", selectedDate);
+                        deletedSpecs = cmd.ExecuteNonQuery();
+                    }
+                }
+
+                // Odśwież widok
+                specyfikacjeData.Clear();
+                UpdateStatistics();
+
+                MessageBox.Show(
+                    $"✅ Usunięto dane z dnia {selectedDate:dd.MM.yyyy}:\n\n" +
+                    $"• Specyfikacji: {deletedSpecs}\n" +
+                    $"• Wpisów w logu zmian: {deletedLogs}",
+                    "Usunięto",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+
+                // Zamknij panel admina
+                adminPanel.Visibility = Visibility.Collapsed;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd usuwania danych:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void UpdateBlockingStatus()

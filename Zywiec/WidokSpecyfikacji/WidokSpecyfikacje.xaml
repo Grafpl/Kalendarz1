@@ -670,169 +670,194 @@
         <!-- Panel Administracyjny (domyślnie ukryty) -->
         <Border x:Name="adminPanel" Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Right"
                 Background="White" CornerRadius="10" Margin="20,60,20,0" Padding="15"
-                Visibility="Collapsed" Panel.ZIndex="1000">
+                Visibility="Collapsed" Panel.ZIndex="1000" MaxHeight="700">
             <Border.Effect>
                 <DropShadowEffect ShadowDepth="3" Color="#000000" Opacity="0.2" BlurRadius="15"/>
             </Border.Effect>
-            <StackPanel Width="350">
-                <TextBlock Text="⚙️ Panel Administracyjny" FontSize="16" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,15"/>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Width="420">
+                    <TextBlock Text="⚙️ Panel Administracyjny" FontSize="16" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,15"/>
 
-                <!-- Ustawienia blokady -->
-                <Border Background="#F5F5F5" CornerRadius="5" Padding="10" Margin="0,0,0,10">
-                    <StackPanel>
-                        <TextBlock Text="Blokada edycji" FontWeight="SemiBold" Foreground="#34495E" Margin="0,0,0,8"/>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                            <TextBlock Text="Dni od przyjęcia drobiu:" VerticalAlignment="Center" Width="150"/>
-                            <TextBox x:Name="txtDniBlokady" Width="60" Text="3" TextAlignment="Center"
+                    <!-- Ustawienia blokady -->
+                    <Border Background="#F5F5F5" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Blokada edycji" FontWeight="SemiBold" Foreground="#34495E" Margin="0,0,0,8"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                <TextBlock Text="Dni od przyjęcia drobiu:" VerticalAlignment="Center" Width="150"/>
+                                <TextBox x:Name="txtDniBlokady" Width="60" Text="3" TextAlignment="Center"
                                      VerticalContentAlignment="Center" Height="28"/>
-                            <TextBlock Text="dni" VerticalAlignment="Center" Margin="5,0,0,0"/>
-                        </StackPanel>
-                        <TextBlock Text="Po tym czasie edycja wymaga zgody przełożonego"
+                                <TextBlock Text="dni" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                            </StackPanel>
+                            <TextBlock Text="Po tym czasie edycja wymaga zgody przełożonego"
                                    FontSize="11" Foreground="#7F8C8D" TextWrapping="Wrap"/>
-                    </StackPanel>
-                </Border>
+                        </StackPanel>
+                    </Border>
 
-                <!-- Status blokady dla wybranego dnia -->
-                <Border Background="#FFF3E0" CornerRadius="5" Padding="10" Margin="0,0,0,10">
-                    <StackPanel>
-                        <TextBlock Text="Status wybranego dnia" FontWeight="SemiBold" Foreground="#E65100" Margin="0,0,0,5"/>
-                        <TextBlock x:Name="lblStatusBlokady" Text="Dzień odblokowany do edycji" Foreground="#2E7D32"/>
-                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                            <Button x:Name="btnOdblokujDzien" Content="🔓 Odblokuj dzień"
+                    <!-- Status blokady dla wybranego dnia -->
+                    <Border Background="#FFF3E0" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Status wybranego dnia" FontWeight="SemiBold" Foreground="#E65100" Margin="0,0,0,5"/>
+                            <TextBlock x:Name="lblStatusBlokady" Text="Dzień odblokowany do edycji" Foreground="#2E7D32"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                <Button x:Name="btnOdblokujDzien" Content="🔓 Odblokuj dzień"
                                     Padding="10,5" Background="#27AE60" Foreground="White"
                                     BorderThickness="0" Cursor="Hand" Click="BtnOdblokujDzien_Click"
                                     Margin="0,0,10,0" Visibility="Collapsed"/>
-                            <Button x:Name="btnZablokujDzien" Content="🔒 Zablokuj dzień"
+                                <Button x:Name="btnZablokujDzien" Content="🔒 Zablokuj dzień"
                                     Padding="10,5" Background="#E74C3C" Foreground="White"
                                     BorderThickness="0" Cursor="Hand" Click="BtnZablokujDzien_Click"/>
+                            </StackPanel>
                         </StackPanel>
-                    </StackPanel>
-                </Border>
+                    </Border>
 
-                <!-- Lista przełożonych -->
-                <Border Background="#E8F5E9" CornerRadius="5" Padding="10" Margin="0,0,0,10">
-                    <StackPanel>
-                        <TextBlock Text="Przełożeni (mogą odblokować)" FontWeight="SemiBold" Foreground="#2E7D32" Margin="0,0,0,5"/>
-                        <TextBox x:Name="txtPrzelozeni" Height="60" TextWrapping="Wrap" AcceptsReturn="True"
+                    <!-- Lista przełożonych -->
+                    <Border Background="#E8F5E9" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Przełożeni (mogą odblokować)" FontWeight="SemiBold" Foreground="#2E7D32" Margin="0,0,0,5"/>
+                            <TextBox x:Name="txtPrzelozeni" Height="60" TextWrapping="Wrap" AcceptsReturn="True"
                                  Text="admin&#x0a;kierownik" VerticalScrollBarVisibility="Auto"/>
-                        <TextBlock Text="Jeden login na linię" FontSize="11" Foreground="#7F8C8D" Margin="0,3,0,0"/>
-                    </StackPanel>
-                </Border>
+                            <TextBlock Text="Jeden login na linię" FontSize="11" Foreground="#7F8C8D" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Border>
 
-                <!-- Domyślna ścieżka PDF -->
-                <Border Background="#E3F2FD" CornerRadius="5" Padding="10" Margin="0,0,0,10">
-                    <StackPanel>
-                        <TextBlock Text="Domyślna ścieżka zapisu PDF" FontWeight="SemiBold" Foreground="#1565C0" Margin="0,0,0,5"/>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBox x:Name="txtDefaultPdfPath" Grid.Column="0" Height="28"
+                    <!-- Domyślna ścieżka PDF -->
+                    <Border Background="#E3F2FD" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Domyślna ścieżka zapisu PDF" FontWeight="SemiBold" Foreground="#1565C0" Margin="0,0,0,5"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="txtDefaultPdfPath" Grid.Column="0" Height="28"
                                      VerticalContentAlignment="Center" Margin="0,0,5,0"/>
-                            <Button Grid.Column="1" Content="..." Padding="8,4"
+                                <Button Grid.Column="1" Content="..." Padding="8,4"
                                     Background="#1976D2" Foreground="White" BorderThickness="0"
                                     Cursor="Hand" Click="BtnBrowsePdfPath_Click" ToolTip="Wybierz folder"/>
-                        </Grid>
-                        <TextBlock Text="Folder gdzie zapisywane są specyfikacje PDF" FontSize="11" Foreground="#7F8C8D" Margin="0,3,0,0"/>
-                    </StackPanel>
-                </Border>
-
-                <!-- Skróty klawiszowe - podpowiedzi -->
-                <Border Background="#ECEFF1" CornerRadius="5" Padding="10" Margin="0,0,0,10">
-                    <StackPanel>
-                        <TextBlock Text="Skróty klawiszowe" FontWeight="SemiBold" Foreground="#455A64" Margin="0,0,0,8"/>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition/>
-                                <RowDefinition/>
-                                <RowDefinition/>
-                                <RowDefinition/>
-                                <RowDefinition/>
-                                <RowDefinition/>
-                            </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="F5" FontWeight="Bold" Foreground="#1565C0" Margin="0,2"/>
-                            <TextBlock Grid.Row="0" Grid.Column="1" Text=" - Odśwież dane" Margin="5,2"/>
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Ctrl+Z" FontWeight="Bold" Foreground="#1565C0" Margin="0,2"/>
-                            <TextBlock Grid.Row="1" Grid.Column="1" Text=" - Cofnij ostatnią zmianę" Margin="5,2"/>
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Ctrl+Shift+C" FontWeight="Bold" Foreground="#1565C0" Margin="0,2"/>
-                            <TextBlock Grid.Row="2" Grid.Column="1" Text=" - Kopiuj ustawienia cenowe" Margin="5,2"/>
-                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Ctrl+Shift+V" FontWeight="Bold" Foreground="#1565C0" Margin="0,2"/>
-                            <TextBlock Grid.Row="3" Grid.Column="1" Text=" - Wklej ustawienia cenowe" Margin="5,2"/>
-                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Delete" FontWeight="Bold" Foreground="#C0392B" Margin="0,2"/>
-                            <TextBlock Grid.Row="4" Grid.Column="1" Text=" - Usuń zaznaczony wiersz" Margin="5,2"/>
-                            <TextBlock Grid.Row="5" Grid.Column="0" Text="Enter" FontWeight="Bold" Foreground="#1565C0" Margin="0,2"/>
-                            <TextBlock Grid.Row="5" Grid.Column="1" Text=" - Przejdź do następnego pola" Margin="5,2"/>
-                        </Grid>
-                    </StackPanel>
-                </Border>
-
-                <!-- Szybkie statystyki dnia -->
-                <Border Background="#E8F5E9" CornerRadius="5" Padding="10" Margin="0,0,0,10">
-                    <StackPanel>
-                        <TextBlock Text="Szybkie statystyki dnia" FontWeight="SemiBold" Foreground="#2E7D32" Margin="0,0,0,8"/>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition/>
-                                <RowDefinition/>
-                                <RowDefinition/>
-                                <RowDefinition/>
-                            </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Specyfikacji:" Margin="0,2"/>
-                            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="lblQuickStatSpec" Text="0" FontWeight="Bold" Foreground="#2E7D32" HorizontalAlignment="Right"/>
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Z ceną:" Margin="0,2"/>
-                            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="lblQuickStatCena" Text="0" FontWeight="Bold" Foreground="#1565C0" HorizontalAlignment="Right"/>
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Bez ceny:" Margin="0,2"/>
-                            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="lblQuickStatBezCeny" Text="0" FontWeight="Bold" Foreground="#C0392B" HorizontalAlignment="Right"/>
-                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Suma sztuk:" Margin="0,2"/>
-                            <TextBlock Grid.Row="3" Grid.Column="1" x:Name="lblQuickStatSztuki" Text="0" FontWeight="Bold" Foreground="#E65100" HorizontalAlignment="Right"/>
-                        </Grid>
-                    </StackPanel>
-                </Border>
-
-                <!-- Tryb kolorów PDF -->
-                <Border Background="#FFF3E0" CornerRadius="5" Padding="10" Margin="0,0,0,10">
-                    <StackPanel>
-                        <TextBlock Text="Tryb kolorów PDF" FontWeight="SemiBold" Foreground="#E65100" Margin="0,0,0,5"/>
-                        <StackPanel Orientation="Horizontal">
-                            <RadioButton x:Name="rbPdfKolorowy" Content="🎨 Kolorowy" IsChecked="True" Margin="0,0,20,0"
-                                         GroupName="PdfColorMode" VerticalContentAlignment="Center"/>
-                            <RadioButton x:Name="rbPdfCzarnoBialy" Content="🖨️ Czarno-biały (logo kolorowe)"
-                                         GroupName="PdfColorMode" VerticalContentAlignment="Center"/>
+                            </Grid>
+                            <TextBlock Text="Folder gdzie zapisywane są specyfikacje PDF" FontSize="11" Foreground="#7F8C8D" Margin="0,3,0,0"/>
                         </StackPanel>
-                        <TextBlock Text="Czarno-biały tryb oszczędza tusz drukarki" FontSize="11" Foreground="#7F8C8D" Margin="0,3,0,0"/>
-                    </StackPanel>
-                </Border>
+                    </Border>
 
-                <!-- Opcje drukowania PDF -->
-                <Border Background="#E8EAF6" CornerRadius="5" Padding="10" Margin="0,0,0,10">
-                    <StackPanel>
-                        <TextBlock Text="Opcje drukowania PDF" FontWeight="SemiBold" Foreground="#3949AB" Margin="0,0,0,8"/>
-                        <CheckBox x:Name="chkDrukujTerminPlatnosci"
+                    <!-- Skróty klawiszowe - podpowiedzi -->
+                    <Border Background="#ECEFF1" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Skróty klawiszowe" FontWeight="SemiBold" Foreground="#455A64" Margin="0,0,0,8"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="F5" FontWeight="Bold" Foreground="#1565C0" Margin="0,2"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text=" - Odśwież dane" Margin="5,2"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Ctrl+Z" FontWeight="Bold" Foreground="#1565C0" Margin="0,2"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text=" - Cofnij ostatnią zmianę" Margin="5,2"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Ctrl+Shift+C" FontWeight="Bold" Foreground="#1565C0" Margin="0,2"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text=" - Kopiuj ustawienia cenowe" Margin="5,2"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Ctrl+Shift+V" FontWeight="Bold" Foreground="#1565C0" Margin="0,2"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" Text=" - Wklej ustawienia cenowe" Margin="5,2"/>
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Delete" FontWeight="Bold" Foreground="#C0392B" Margin="0,2"/>
+                                <TextBlock Grid.Row="4" Grid.Column="1" Text=" - Usuń zaznaczony wiersz" Margin="5,2"/>
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Enter" FontWeight="Bold" Foreground="#1565C0" Margin="0,2"/>
+                                <TextBlock Grid.Row="5" Grid.Column="1" Text=" - Przejdź do następnego pola" Margin="5,2"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Szybkie statystyki dnia -->
+                    <Border Background="#E8F5E9" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Szybkie statystyki dnia" FontWeight="SemiBold" Foreground="#2E7D32" Margin="0,0,0,8"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Specyfikacji:" Margin="0,2"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="lblQuickStatSpec" Text="0" FontWeight="Bold" Foreground="#2E7D32" HorizontalAlignment="Right"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Z ceną:" Margin="0,2"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="lblQuickStatCena" Text="0" FontWeight="Bold" Foreground="#1565C0" HorizontalAlignment="Right"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Bez ceny:" Margin="0,2"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="lblQuickStatBezCeny" Text="0" FontWeight="Bold" Foreground="#C0392B" HorizontalAlignment="Right"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Suma sztuk:" Margin="0,2"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="lblQuickStatSztuki" Text="0" FontWeight="Bold" Foreground="#E65100" HorizontalAlignment="Right"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Tryb kolorów PDF -->
+                    <Border Background="#FFF3E0" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Tryb kolorów PDF" FontWeight="SemiBold" Foreground="#E65100" Margin="0,0,0,5"/>
+                            <StackPanel Orientation="Horizontal">
+                                <RadioButton x:Name="rbPdfKolorowy" Content="🎨 Kolorowy" IsChecked="True" Margin="0,0,20,0"
+                                         GroupName="PdfColorMode" VerticalContentAlignment="Center"/>
+                                <RadioButton x:Name="rbPdfCzarnoBialy" Content="🖨️ Czarno-biały (logo kolorowe)"
+                                         GroupName="PdfColorMode" VerticalContentAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="Czarno-biały tryb oszczędza tusz drukarki" FontSize="11" Foreground="#7F8C8D" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Opcje drukowania PDF -->
+                    <Border Background="#E8EAF6" CornerRadius="5" Padding="10" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Opcje drukowania PDF" FontWeight="SemiBold" Foreground="#3949AB" Margin="0,0,0,8"/>
+                            <CheckBox x:Name="chkDrukujTerminPlatnosci"
                                   Content="📅 Drukuj termin płatności na specyfikacji"
                                   IsChecked="False"
                                   VerticalContentAlignment="Center"
                                   Margin="0,0,0,5"/>
-                        <TextBlock Text="Odznacz aby ukryć termin płatności na PDF" FontSize="11" Foreground="#7F8C8D" Margin="0,3,0,0"/>
-                    </StackPanel>
-                </Border>
+                            <TextBlock Text="Odznacz aby ukryć termin płatności na PDF" FontSize="11" Foreground="#7F8C8D" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Border>
 
-                <!-- Przyciski -->
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Content="Zapisz ustawienia" Padding="15,8" Background="#3498DB" Foreground="White"
+                    <!-- NIEBEZPIECZNE: Usuwanie specyfikacji z dnia -->
+                    <Border Background="#FFEBEE" CornerRadius="5" Padding="10" Margin="0,0,0,10"
+                        BorderBrush="#EF5350" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="⚠️ Strefa niebezpieczna" FontWeight="Bold" Foreground="#C62828" Margin="0,0,0,8"/>
+                            <TextBlock Text="Usuń wszystkie specyfikacje z wybranego dnia wraz z historią zmian." 
+                                   FontSize="11" Foreground="#C62828" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                            <Button x:Name="btnUsunWszystkieZDnia" 
+                                Content="🗑️ Usuń wszystkie specyfikacje z tego dnia"
+                                Padding="10,8" 
+                                Background="#D32F2F" 
+                                Foreground="White"
+                                FontWeight="SemiBold"
+                                BorderThickness="0" 
+                                Cursor="Hand" 
+                                Click="BtnUsunWszystkieZDnia_Click"
+                                HorizontalAlignment="Stretch"/>
+                            <TextBlock Text="Ta operacja jest nieodwracalna!" 
+                                   FontSize="10" Foreground="#C62828" FontStyle="Italic" 
+                                   Margin="0,5,0,0" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Przyciski -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Zapisz ustawienia" Padding="15,8" Background="#3498DB" Foreground="White"
                             BorderThickness="0" Cursor="Hand" Click="BtnSaveAdminSettings_Click" Margin="0,0,10,0"/>
-                    <Button Content="Zamknij" Padding="15,8" Background="#95A5A6" Foreground="White"
+                        <Button Content="Zamknij" Padding="15,8" Background="#95A5A6" Foreground="White"
                             BorderThickness="0" Cursor="Hand" Click="BtnCloseAdmin_Click"/>
+                    </StackPanel>
                 </StackPanel>
-            </StackPanel>
+            </ScrollViewer>
         </Border>
 
         <TabControl Grid.Row="1" Margin="20,15,20,10" x:Name="mainTabControl" SelectionChanged="MainTabControl_SelectionChanged">
@@ -922,6 +947,12 @@
                                         Padding="10,4" Margin="2,0,5,0" Background="#2E7D32" Foreground="White"
                                         BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
 
+                                <!-- === NOWY PRZYCISK IMPORT Z EXCEL === -->
+                                <Button x:Name="btnImportExcel" Click="BtnImportExcel_Click"
+                                        Content="📥 Import Excel" ToolTip="Importuj specyfikacje z pliku Excel/LibreOffice (kreator)"
+                                        Padding="10,4" Margin="2,0,5,0" Background="#FF5722" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+
                                 <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
 
                                 <!-- Przycisk Otwórz folder -->
@@ -930,13 +961,25 @@
                                         Padding="10,4" Margin="2,0,2,0" Background="#5D4037" Foreground="White"
                                         BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
 
+                                <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
+
+                                <!-- PRZYCISK PDF -->
+                                <Button x:Name="btnGenerujPdf" Click="Button1_Click"
+                                        Content="📄 PDF" ToolTip="Generuj PDF dla wybranego dostawcy (prawy przycisk myszy dla więcej opcji)"
+                                        Padding="12,4" Margin="2,0,2,0" Background="#E53935" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand" FontWeight="Bold" FontSize="12"/>
+                                <Button x:Name="btnGenerujPdfAll" Click="BtnPrintAll_Click"
+                                        Content="📄 Wszystkie PDF" ToolTip="Generuj PDF dla wszystkich dostawców"
+                                        Padding="10,4" Margin="2,0,2,0" Background="#C62828" Foreground="White"
+                                        BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+
                                 <!-- Przycisk Wyślij email -->
                                 <Button x:Name="btnWyslijEmail" Click="BtnWyslijEmail_Click"
                                         Content="📧 Wyślij email" ToolTip="Wyślij specyfikację emailem"
                                         Padding="10,4" Margin="2,0,5,0" Background="#1976D2" Foreground="White"
                                         BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
 
-                                <!-- Checkboxy Opasienie/KlasaB obok LUMEL -->
+                                <!-- Checkboxy Opasienie/KlasaB/Dodatek/Pośrednik obok LUMEL -->
                                 <Border Background="#F5F5F5" CornerRadius="4" Padding="5,2" Margin="5,0">
                                     <StackPanel Orientation="Horizontal">
                                         <CheckBox x:Name="chkShowOpasienie2"
@@ -951,7 +994,21 @@
                                                   FontSize="11"
                                                   VerticalAlignment="Center"
                                                   Checked="ChkShowKlasaB_Changed"
-                                                  Unchecked="ChkShowKlasaB_Changed"/>
+                                                  Unchecked="ChkShowKlasaB_Changed"
+                                                  Margin="0,0,8,0"/>
+                                        <CheckBox x:Name="chkShowDodatek"
+                                                  Content="Dodatek"
+                                                  FontSize="11"
+                                                  VerticalAlignment="Center"
+                                                  Checked="ChkShowDodatek_Changed"
+                                                  Unchecked="ChkShowDodatek_Changed"
+                                                  Margin="0,0,8,0"/>
+                                        <CheckBox x:Name="chkShowPosrednik"
+                                                  Content="Pośrednik"
+                                                  FontSize="11"
+                                                  VerticalAlignment="Center"
+                                                  Checked="ChkShowPosrednik_Changed"
+                                                  Unchecked="ChkShowPosrednik_Changed"/>
                                     </StackPanel>
                                 </Border>
 
@@ -969,30 +1026,6 @@
                                 </Border>
 
                                 <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
-
-                                <!-- Checkbox pokazywania kolumny Pośrednik -->
-                                <Border Background="#E1F5FE" CornerRadius="4" Padding="5,2" Margin="5,0">
-                                    <CheckBox x:Name="chkShowPosrednik"
-                                              Content="🤝 Pokaż Pośrednika"
-                                              FontSize="11"
-                                              VerticalAlignment="Center"
-                                              IsChecked="False"
-                                              Checked="ChkShowPosrednik_Changed"
-                                              Unchecked="ChkShowPosrednik_Changed"
-                                              ToolTip="Zaznacz aby wyświetlić kolumnę Pośrednik. Dane pośredników będą dostępne po skonfigurowaniu tabeli."/>
-                                </Border>
-
-                                <!-- Checkbox pokazywania kolumny Dodatek -->
-                                <Border Background="#E8F5E9" CornerRadius="4" Padding="5,2" Margin="5,0">
-                                    <CheckBox x:Name="chkShowDodatek"
-                                              Content="💰 Pokaż Dodatek"
-                                              FontSize="11"
-                                              VerticalAlignment="Center"
-                                              IsChecked="False"
-                                              Checked="ChkShowDodatek_Changed"
-                                              Unchecked="ChkShowDodatek_Changed"
-                                              ToolTip="Zaznacz aby wyświetlić kolumnę Dodatek do ceny."/>
-                                </Border>
 
                                 <TextBlock x:Name="lblClipboardInfo" Text="" VerticalAlignment="Center"
                                            FontStyle="Italic" Foreground="#757575" Margin="10,0,0,0"/>
@@ -1043,6 +1076,9 @@
                             <!-- === MENU KONTEKSTOWE: Masowe operacje === -->
                             <DataGrid.ContextMenu>
                                 <ContextMenu>
+                                    <MenuItem Header="📄 Generuj PDF dla dostawcy" Click="Button1_Click" FontWeight="Bold"/>
+                                    <MenuItem Header="📄 Generuj PDF dla wszystkich" Click="BtnPrintAll_Click"/>
+                                    <Separator/>
                                     <MenuItem Header="Kopiuj z wiersza powyzej (Ctrl+D)" Click="ContextMenu_CopyFromAbove"/>
                                     <Separator/>
                                     <MenuItem Header="Schowek ustawien cenowych">
@@ -1816,16 +1852,16 @@
               ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
               RowStyle="{StaticResource DataGridRowHoverStyle}"
               EnableRowVirtualization="True">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="*" ElementStyle="{StaticResource NormalStyle}"/>
-                                    <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDek, StringFormat={}{0:N0}}" Width="55" ElementStyle="{StaticResource RightOrangeStyle}" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}"/>
-                                    <DataGridTextColumn Header="Waga" Binding="{Binding WagaDek, StringFormat={}{0:N2}}" Width="55" ElementStyle="{StaticResource RightStyle}"/>
-                                    <DataGridTextColumn Header="KG" Binding="{Binding RazemKg, StringFormat={}{0:N0}}" Width="65" ElementStyle="{StaticResource RightGreenStyle}" HeaderStyle="{StaticResource WagiUbojniHeaderStyle}"/>
-                                    <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat={}{0:N2}}" Width="55" ElementStyle="{StaticResource RightBlueStyle}" HeaderStyle="{StaticResource CenaHeaderStyle}"/>
-                                    <DataGridTextColumn Header="Dod." Binding="{Binding Dodatek, StringFormat={}{0:N2}}" Width="50" ElementStyle="{StaticResource RightStyle}"/>
-                                    <DataGridTextColumn Header="Typ" Binding="{Binding TypCeny}" Width="55" ElementStyle="{StaticResource CenterStyle}"/>
-                                    <DataGridTextColumn Header="Auta" Binding="{Binding Auta}" Width="40" ElementStyle="{StaticResource CenterBoldStyle}"/>
-                                    </DataGrid.Columns>
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Dostawca" Binding="{Binding Dostawca}" Width="*" ElementStyle="{StaticResource NormalStyle}"/>
+                                            <DataGridTextColumn Header="Sztuki" Binding="{Binding SztukiDek, StringFormat={}{0:N0}}" Width="55" ElementStyle="{StaticResource RightOrangeStyle}" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}"/>
+                                            <DataGridTextColumn Header="Waga" Binding="{Binding WagaDek, StringFormat={}{0:N2}}" Width="55" ElementStyle="{StaticResource RightStyle}"/>
+                                            <DataGridTextColumn Header="KG" Binding="{Binding RazemKg, StringFormat={}{0:N0}}" Width="65" ElementStyle="{StaticResource RightGreenStyle}" HeaderStyle="{StaticResource WagiUbojniHeaderStyle}"/>
+                                            <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat={}{0:N2}}" Width="55" ElementStyle="{StaticResource RightBlueStyle}" HeaderStyle="{StaticResource CenaHeaderStyle}"/>
+                                            <DataGridTextColumn Header="Dod." Binding="{Binding Dodatek, StringFormat={}{0:N2}}" Width="50" ElementStyle="{StaticResource RightStyle}"/>
+                                            <DataGridTextColumn Header="Typ" Binding="{Binding TypCeny}" Width="55" ElementStyle="{StaticResource CenterStyle}"/>
+                                            <DataGridTextColumn Header="Auta" Binding="{Binding Auta}" Width="40" ElementStyle="{StaticResource CenterBoldStyle}"/>
+                                        </DataGrid.Columns>
                                     </DataGrid>
 
                                     <Border Grid.Column="1" Background="#E0E0E0" Width="1" HorizontalAlignment="Center" Margin="0,5"/>

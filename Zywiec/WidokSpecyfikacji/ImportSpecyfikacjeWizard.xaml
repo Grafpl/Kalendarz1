@@ -1,0 +1,480 @@
+<Window x:Class="Kalendarz1.Zywiec.WidokSpecyfikacji.ImportSpecyfikacjeWizard"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Kreator importu specyfikacji z Excel/LibreOffice"
+        Height="750" Width="1350"
+        WindowStartupLocation="CenterScreen"
+        Background="#F5F5F5"
+        FontFamily="Segoe UI"
+        ResizeMode="CanResizeWithGrip">
+
+    <Window.Resources>
+        <!-- Style dla przycisków głównych -->
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#1976D2"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="6" 
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#1565C0"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="#BDBDBD"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#E0E0E0"/>
+            <Setter Property="Foreground" Value="#424242"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="6" 
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#BDBDBD"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="SuccessButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+            <Setter Property="Background" Value="#388E3C"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#2E7D32"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="#BDBDBD"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="StepIndicatorStyle" TargetType="Border">
+            <Setter Property="Width" Value="36"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="CornerRadius" Value="18"/>
+            <Setter Property="Background" Value="#E0E0E0"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Nagłówek z krokami -->
+        <Border Grid.Row="0" Background="White" Padding="30,20" BorderThickness="0,0,0,1" BorderBrush="#E0E0E0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Krok 1 -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Border x:Name="step1Border" Style="{StaticResource StepIndicatorStyle}" Background="#1976D2">
+                        <TextBlock Text="1" Foreground="White" FontWeight="Bold" 
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock x:Name="step1Text" Text="Wybór pliku" Margin="10,0,0,0" 
+                               VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#1976D2"/>
+                </StackPanel>
+
+                <!-- Krok 2 -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Border x:Name="step2Border" Style="{StaticResource StepIndicatorStyle}">
+                        <TextBlock Text="2" Foreground="#757575" FontWeight="Bold" 
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock x:Name="step2Text" Text="Podgląd danych" Margin="10,0,0,0" 
+                               VerticalAlignment="Center" Foreground="#757575"/>
+                </StackPanel>
+
+                <!-- Krok 3 -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Border x:Name="step3Border" Style="{StaticResource StepIndicatorStyle}">
+                        <TextBlock Text="3" Foreground="#757575" FontWeight="Bold" 
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock x:Name="step3Text" Text="Mapowanie dostawców" Margin="10,0,0,0" 
+                               VerticalAlignment="Center" Foreground="#757575"/>
+                </StackPanel>
+
+                <!-- Krok 4 -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Border x:Name="step4Border" Style="{StaticResource StepIndicatorStyle}">
+                        <TextBlock Text="4" Foreground="#757575" FontWeight="Bold" 
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock x:Name="step4Text" Text="Import" Margin="10,0,0,0" 
+                               VerticalAlignment="Center" Foreground="#757575"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Zawartość kroków -->
+        <Grid Grid.Row="1" Margin="30,20">
+            <!-- KROK 1: Wybór pliku -->
+            <Grid x:Name="step1Panel" Visibility="Visible">
+                <Border Background="White" CornerRadius="10" Padding="30">
+                    <Border.Effect>
+                        <DropShadowEffect ShadowDepth="2" Opacity="0.1" BlurRadius="10"/>
+                    </Border.Effect>
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <TextBlock Text="📁" FontSize="64" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Wybierz plik Excel lub LibreOffice Calc" 
+                                   FontSize="20" FontWeight="SemiBold" Margin="0,20,0,10"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="Obsługiwane formaty: .xlsx, .xlsm, .xls, .ods" 
+                                   Foreground="#757575" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+                        
+                        <Button x:Name="btnSelectFile" Content="📂 Wybierz plik..." 
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Width="250" Click="BtnSelectFile_Click"/>
+                        
+                        <Border x:Name="selectedFilePanel" Visibility="Collapsed" 
+                                Background="#E8F5E9" CornerRadius="8" Padding="15" Margin="0,20,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Wybrany plik:" FontWeight="SemiBold" Foreground="#388E3C"/>
+                                <TextBlock x:Name="lblSelectedFile" Text="" Margin="0,5,0,0" 
+                                           TextWrapping="Wrap" MaxWidth="500"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Wybór arkusza -->
+                        <StackPanel x:Name="sheetSelectionPanel" Visibility="Collapsed" Margin="0,20,0,0">
+                            <TextBlock Text="Wybierz arkusz do importu:" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                            <ComboBox x:Name="cmbSheets" Width="300" Padding="10,8"
+                                      SelectionChanged="CmbSheets_SelectionChanged">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <TextBlock x:Name="lblSheetInfo" Text="" Margin="0,10,0,0" 
+                                       Foreground="#757575" FontStyle="Italic"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- KROK 2: Podgląd danych -->
+            <Grid x:Name="step2Panel" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Background="White" CornerRadius="10,10,0,0" Padding="20,15">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <StackPanel Grid.Column="0" Orientation="Horizontal">
+                            <TextBlock Text="📅 Data uboju:" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="lblDataUboju" Text="-" Margin="10,0,0,0" 
+                                       VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Foreground="#1976D2"/>
+                        </StackPanel>
+                        
+                        <StackPanel Grid.Column="2" Orientation="Horizontal">
+                            <Border Background="#E3F2FD" CornerRadius="5" Padding="10,5" Margin="0,0,15,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Wierszy:" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="lblRowCount" Text="0" Margin="5,0,0,0" FontWeight="Bold" Foreground="#1976D2"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="#E8F5E9" CornerRadius="5" Padding="10,5">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Dostawców:" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="lblSupplierCount" Text="0" Margin="5,0,0,0" FontWeight="Bold" Foreground="#388E3C"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="1" Background="White" Padding="0">
+                    <DataGrid x:Name="dataGridPreview" 
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False"
+                              CanUserDeleteRows="False"
+                              IsReadOnly="True"
+                              RowHeight="32"
+                              FontSize="12"
+                              GridLinesVisibility="Horizontal"
+                              HorizontalGridLinesBrush="#E0E0E0"
+                              AlternatingRowBackground="#FAFAFA">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Nr" Binding="{Binding NrAuta}" Width="40"/>
+                            <DataGridTextColumn Header="Nr Spec." Binding="{Binding NrSpecyfikacji}" Width="60"/>
+                            <DataGridTextColumn Header="Dostawca (Excel)" Binding="{Binding DostawcaExcel}" Width="200"/>
+                            <DataGridTextColumn Header="Szt.Dek" Binding="{Binding SztukiDek}" Width="65"/>
+                            <DataGridTextColumn Header="Padłe" Binding="{Binding Padle}" Width="50"/>
+                            <DataGridTextColumn Header="CH" Binding="{Binding CH}" Width="45"/>
+                            <DataGridTextColumn Header="NW" Binding="{Binding NW}" Width="45"/>
+                            <DataGridTextColumn Header="ZM" Binding="{Binding ZM}" Width="45"/>
+                            <DataGridTextColumn Header="Brutto H" Binding="{Binding BruttoHodowcy}" Width="75"/>
+                            <DataGridTextColumn Header="Tara H" Binding="{Binding TaraHodowcy}" Width="70"/>
+                            <DataGridTextColumn Header="Brutto U" Binding="{Binding BruttoUbojni}" Width="75"/>
+                            <DataGridTextColumn Header="Tara U" Binding="{Binding TaraUbojni}" Width="70"/>
+                            <DataGridTextColumn Header="LUMEL" Binding="{Binding LUMEL}" Width="60"/>
+                            <DataGridTextColumn Header="Szt.Prod" Binding="{Binding SztukiProdukcja}" Width="65"/>
+                            <DataGridTextColumn Header="KG Prod" Binding="{Binding KilogramyProdukcja, StringFormat=N1}" Width="75"/>
+                            <DataGridTextColumn Header="Typ ceny" Binding="{Binding TypCeny}" Width="90"/>
+                            <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat=N2}" Width="60"/>
+                            <DataGridTextColumn Header="Dodatek" Binding="{Binding Dodatek, StringFormat=N2}" Width="65"/>
+                            <DataGridCheckBoxColumn Header="PiK" Binding="{Binding PiK}" Width="40"/>
+                            <DataGridTextColumn Header="Ubytek" Binding="{Binding Ubytek, StringFormat=P1}" Width="60"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+
+                <Border Grid.Row="2" Background="White" CornerRadius="0,0,10,10" Padding="15">
+                    <TextBlock x:Name="lblPreviewInfo" 
+                               Text="ℹ️ Sprawdź poprawność danych przed przejściem do mapowania dostawców" 
+                               Foreground="#757575" FontStyle="Italic"/>
+                </Border>
+            </Grid>
+
+            <!-- KROK 3: Mapowanie dostawców -->
+            <Grid x:Name="step3Panel" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Background="#FFF3E0" CornerRadius="10" Padding="15" Margin="0,0,0,15">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⚠️" FontSize="18" VerticalAlignment="Center"/>
+                        <TextBlock Text="Przypisz dostawców z Excela do dostawców w bazie oraz wybierz LP z harmonogramu" 
+                                   Margin="10,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Row="1" Background="White" CornerRadius="10" Padding="0">
+                    <Border.Effect>
+                        <DropShadowEffect ShadowDepth="2" Opacity="0.1" BlurRadius="10"/>
+                    </Border.Effect>
+                    <DataGrid x:Name="dataGridMapping" 
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False"
+                              CanUserDeleteRows="False"
+                              RowHeight="45"
+                              FontSize="13"
+                              GridLinesVisibility="Horizontal"
+                              HorizontalGridLinesBrush="#E0E0E0">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Dostawca w Excel" Binding="{Binding DostawcaExcel}" 
+                                                Width="280" IsReadOnly="True">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Padding" Value="10,0"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            
+                            <DataGridTextColumn Header="Ilość" Binding="{Binding IloscWierszy}" 
+                                                Width="55" IsReadOnly="True">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            
+                            <DataGridTemplateColumn Header="Dostawca w bazie (LibraNet)" Width="*">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ListaDostawcow}"
+                                                  SelectedItem="{Binding WybranyDostawca, UpdateSourceTrigger=PropertyChanged}"
+                                                  DisplayMemberPath="DisplayName"
+                                                  IsEditable="True"
+                                                  Padding="8,5"
+                                                  Margin="5"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            
+                            <DataGridTemplateColumn Header="LP Harmonogramu" Width="220">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ListaHarmonogram}"
+                                                  SelectedItem="{Binding WybranyHarmonogram, UpdateSourceTrigger=PropertyChanged}"
+                                                  DisplayMemberPath="DisplayText"
+                                                  Padding="8,5"
+                                                  Margin="5"
+                                                  ToolTip="Wybierz LP z harmonogramu dostaw (opcjonalne)"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            
+                            <DataGridTemplateColumn Header="Status" Width="100">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="4" Padding="8,4"
+                                                Background="{Binding StatusColor}">
+                                            <TextBlock Text="{Binding StatusText}" 
+                                                       HorizontalAlignment="Center"
+                                                       Foreground="White" FontWeight="SemiBold" FontSize="11"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </Grid>
+
+            <!-- KROK 4: Import -->
+            <Grid x:Name="step4Panel" Visibility="Collapsed">
+                <Border Background="White" CornerRadius="10" Padding="30">
+                    <Border.Effect>
+                        <DropShadowEffect ShadowDepth="2" Opacity="0.1" BlurRadius="10"/>
+                    </Border.Effect>
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <!-- Panel przed importem -->
+                        <StackPanel x:Name="preImportPanel">
+                            <TextBlock Text="✅" FontSize="64" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Gotowy do importu!" 
+                                       FontSize="24" FontWeight="Bold" Margin="0,20,0,10"
+                                       HorizontalAlignment="Center" Foreground="#388E3C"/>
+                            
+                            <Border Background="#E8F5E9" CornerRadius="10" Padding="25" Margin="0,20,0,0" MinWidth="400">
+                                <StackPanel>
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Data uboju:" FontWeight="SemiBold"/>
+                                        <TextBlock x:Name="lblSummaryDate" Grid.Column="1" FontWeight="Bold" Foreground="#388E3C"/>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Liczba specyfikacji:"/>
+                                        <TextBlock x:Name="lblSummaryRows" Grid.Column="1" FontWeight="Bold"/>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Liczba dostawców:"/>
+                                        <TextBlock x:Name="lblSummarySuppliers" Grid.Column="1" FontWeight="Bold"/>
+                                    </Grid>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Suma sztuk deklarowanych:"/>
+                                        <TextBlock x:Name="lblSummaryTotal" Grid.Column="1" FontWeight="Bold"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                            
+                            <CheckBox x:Name="chkOverwrite" Content="Nadpisz istniejące dane z tej daty (jeśli istnieją)" 
+                                      Margin="0,20,0,0" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                        
+                        <!-- Panel podczas importu -->
+                        <StackPanel x:Name="importingPanel" Visibility="Collapsed">
+                            <TextBlock Text="⏳" FontSize="64" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Importowanie danych..." 
+                                       FontSize="20" FontWeight="SemiBold" Margin="0,20,0,10"
+                                       HorizontalAlignment="Center"/>
+                            <ProgressBar x:Name="progressBar" Width="400" Height="25" 
+                                         Margin="0,20,0,10" IsIndeterminate="True"/>
+                            <TextBlock x:Name="lblProgress" Text="Przygotowywanie..." 
+                                       HorizontalAlignment="Center" Foreground="#757575"/>
+                        </StackPanel>
+                        
+                        <!-- Panel po imporcie -->
+                        <StackPanel x:Name="postImportPanel" Visibility="Collapsed">
+                            <TextBlock x:Name="lblResultIcon" Text="✅" FontSize="64" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="lblResultTitle" Text="Import zakończony pomyślnie!" 
+                                       FontSize="24" FontWeight="Bold" Margin="0,20,0,10"
+                                       HorizontalAlignment="Center" Foreground="#388E3C"/>
+                            <TextBlock x:Name="lblResultDetails" Text="" 
+                                       HorizontalAlignment="Center" Foreground="#757575" TextWrapping="Wrap"
+                                       MaxWidth="500" TextAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- Stopka z przyciskami -->
+        <Border Grid.Row="2" Background="White" Padding="30,15" BorderThickness="0,1,0,0" BorderBrush="#E0E0E0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button x:Name="btnCancel" Grid.Column="0" Content="Anuluj" 
+                        Style="{StaticResource SecondaryButtonStyle}" Click="BtnCancel_Click"/>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button x:Name="btnPrevious" Content="← Wstecz" 
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Visibility="Collapsed" Margin="0,0,10,0"
+                            Click="BtnPrevious_Click"/>
+                    <Button x:Name="btnNext" Content="Dalej →" 
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            IsEnabled="False" Click="BtnNext_Click"/>
+                    <Button x:Name="btnImport" Content="🚀 Importuj do bazy" 
+                            Style="{StaticResource SuccessButtonStyle}"
+                            Visibility="Collapsed" Click="BtnImport_Click"/>
+                    <Button x:Name="btnClose" Content="Zamknij" 
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Visibility="Collapsed" Click="BtnClose_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

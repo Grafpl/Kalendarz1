@@ -37,7 +37,7 @@ namespace Kalendarz1
     public class NazwaZiD
     {
         static string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
-        
+
         public string GetNameById(string id)
         {
             string name = null;
@@ -567,7 +567,7 @@ ORDER BY k.CreateData DESC, k.QntInCont DESC;
 
 
         public enum DaneKontrahenta
-        {Kod=0, Limit=1, Nazwa=2, NIP=3, KodPocztowy=4, Miejscowosc=5}
+        { Kod = 0, Limit = 1, Nazwa = 2, NIP = 3, KodPocztowy = 4, Miejscowosc = 5 }
 
 
         public string PobierzNazweKolumny(DaneKontrahenta kolumna)
@@ -577,7 +577,7 @@ ORDER BY k.CreateData DESC, k.QntInCont DESC;
                 DaneKontrahenta.Kod => "kod",
                 DaneKontrahenta.Limit => "limitKwota",
                 DaneKontrahenta.Nazwa => "nazwa",
-                DaneKontrahenta.NIP=> "nip",
+                DaneKontrahenta.NIP => "nip",
                 DaneKontrahenta.KodPocztowy => "kodpocz",
                 DaneKontrahenta.Miejscowosc => "miejscowosc",
                 _ => throw new ArgumentException("Nieznana kolumna.")
@@ -590,7 +590,7 @@ ORDER BY k.CreateData DESC, k.QntInCont DESC;
     {
         private readonly string connectionStringSymfonia = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
 
-        internal Dictionary<RozwijanieComboBox.DaneKontrahenta, string> 
+        internal Dictionary<RozwijanieComboBox.DaneKontrahenta, string>
             PobierzDaneOdbiorcy(string id)
         {
             var dane = new Dictionary<RozwijanieComboBox.DaneKontrahenta, string>();
@@ -966,9 +966,15 @@ END";
             using var cmd = new SqlCommand(sql, conn);
             cmd.ExecuteNonQuery();
         }
- 
+
         public string PobierzInformacjeZBazyDanychHodowcowString(string id, string kolumna)
         {
+            // Sprawdź czy id jest null lub puste - jeśli tak, zwróć null bez wykonywania zapytania
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                return null;
+            }
+
             string wartosc = null;
             try
             {
@@ -1404,7 +1410,7 @@ END";
         public void UzupelnijComboBoxHodowcami(ComboBox comboBox)
         {
             string query = "SELECT DISTINCT Name FROM dbo.DOSTAWCY where halt = '0'";
-            
+
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 SqlCommand command = new SqlCommand(query, connection);
@@ -1678,7 +1684,7 @@ END";
             }
         }
 
-       
+
 
         public void UpdateDaneKontaktowe(string idHodowcy, TextBox Phone1, TextBox Info1, TextBox Phone2, TextBox Info2, TextBox Phone3, TextBox Info3, TextBox Email, ComboBox typOsobowosci, ComboBox typOsobowosci2)
         {
@@ -2442,4 +2448,3 @@ END";
 
     }
 }
-
