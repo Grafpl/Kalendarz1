@@ -277,6 +277,7 @@
             <Grid x:Name="step3Panel" Visibility="Collapsed">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
@@ -288,7 +289,66 @@
                     </StackPanel>
                 </Border>
 
-                <Border Grid.Row="1" Background="White" CornerRadius="10" Padding="0">
+                <!-- Panel wyszukiwania harmonogramu -->
+                <Border Grid.Row="1" Background="#E3F2FD" CornerRadius="10" Padding="15" Margin="0,0,0,15">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="300"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <TextBlock Grid.Column="0" Text="🔍 Szukaj w harmonogramie:" 
+                                   VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,10,0"/>
+                        
+                        <TextBox x:Name="txtSearchHarmonogram" 
+                                 Grid.Column="1"
+                                 Padding="10,8"
+                                 FontSize="13"
+                                 ToolTip="Wpisz nazwę dostawcy aby przefiltrować listę harmonogramu"
+                                 TextChanged="TxtSearchHarmonogram_TextChanged"/>
+                        
+                        <TextBlock Grid.Column="2" Text="Znalezione:" 
+                                   VerticalAlignment="Center" Margin="15,0,5,0"/>
+                        
+                        <ComboBox x:Name="cmbFilteredHarmonogram"
+                                  Grid.Column="3"
+                                  DisplayMemberPath="DisplayText"
+                                  Padding="8,5"
+                                  MaxWidth="400"
+                                  ToolTip="Lista pozycji harmonogramu pasujących do wyszukiwania"/>
+                        
+                        <Button x:Name="btnApplyToSelected"
+                                Grid.Column="4"
+                                Content="📋 Przypisz do zaznaczonego"
+                                Click="BtnApplyToSelected_Click"
+                                Background="#4CAF50"
+                                Foreground="White"
+                                FontWeight="SemiBold"
+                                Padding="15,8"
+                                Margin="10,0,0,0"
+                                Cursor="Hand"
+                                BorderThickness="0"
+                                ToolTip="Przypisz wybraną pozycję harmonogramu do zaznaczonego wiersza">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#388E3C"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="2" Background="White" CornerRadius="10" Padding="0">
                     <Border.Effect>
                         <DropShadowEffect ShadowDepth="2" Opacity="0.1" BlurRadius="10"/>
                     </Border.Effect>
@@ -335,15 +395,19 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
                             
-                            <DataGridTemplateColumn Header="LP Harmonogramu" Width="220">
+                            <DataGridTemplateColumn Header="LP Harmonogramu" Width="280">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <ComboBox ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ListaHarmonogram}"
                                                   SelectedItem="{Binding WybranyHarmonogram, UpdateSourceTrigger=PropertyChanged}"
                                                   DisplayMemberPath="DisplayText"
+                                                  IsEditable="True"
+                                                  IsTextSearchEnabled="True"
+                                                  TextSearch.TextPath="DisplayText"
+                                                  StaysOpenOnEdit="True"
                                                   Padding="8,5"
                                                   Margin="5"
-                                                  ToolTip="Wybierz LP z harmonogramu dostaw (opcjonalne)"/>
+                                                  ToolTip="Wpisz nazwę dostawcy aby wyszukać lub wybierz z listy"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>

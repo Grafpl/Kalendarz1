@@ -1376,7 +1376,7 @@ namespace Kalendarz1
                     string query = @"SELECT fc.ID, fc.CarLp, fc.Number, fc.YearNumber, fc.CustomerGID, fc.CustomerRealGID, fc.DeclI1, fc.DeclI2, fc.DeclI3, fc.DeclI4, fc.DeclI5,
                                     fc.LumQnt, fc.ProdQnt, fc.ProdWgt, fc.FullFarmWeight, fc.EmptyFarmWeight, fc.NettoFarmWeight,
                                     fc.FullWeight, fc.EmptyWeight, fc.NettoWeight, fc.Price, fc.Addition, fc.PriceTypeID, fc.IncDeadConf, fc.Loss,
-                                    fc.Opasienie, fc.KlasaB, fc.TerminDni, fc.CalcDate,
+                                    fc.Opasienie, fc.KlasaB, fc.TerminDni, fc.CalcDate, fc.PayWgt,
                                     fc.DriverGID, fc.CarID, fc.TrailerID, fc.Przyjazd,
                                     fc.PoczatekUslugi, fc.Wyjazd, fc.DojazdHodowca, fc.Zaladunek, fc.ZaladunekKoniec, fc.WyjazdHodowca, fc.KoniecUslugi,
                                     fc.ZdjecieTaraPath, fc.ZdjecieBruttoPath,
@@ -1457,7 +1457,11 @@ namespace Kalendarz1
                                 Symfonia = dataTable.Columns.Contains("Symfonia") && row["Symfonia"] != DBNull.Value && Convert.ToBoolean(row["Symfonia"]),
                                 // Ścieżki do zdjęć z ważenia
                                 ZdjecieTaraPath = dataTable.Columns.Contains("ZdjecieTaraPath") ? ZapytaniaSQL.GetValueOrDefault<string>(row, "ZdjecieTaraPath", null)?.Trim() : null,
-                                ZdjecieBruttoPath = dataTable.Columns.Contains("ZdjecieBruttoPath") ? ZapytaniaSQL.GetValueOrDefault<string>(row, "ZdjecieBruttoPath", null)?.Trim() : null
+                                ZdjecieBruttoPath = dataTable.Columns.Contains("ZdjecieBruttoPath") ? ZapytaniaSQL.GetValueOrDefault<string>(row, "ZdjecieBruttoPath", null)?.Trim() : null,
+                                // PayWgt z bazy - kolumna "Do zapł." z PDF
+                                PayWgt = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "PayWgt", 0),
+                                // Odbiorca (Customer) - pobierz nazwę z CustomerRealGID
+                                Odbiorca = GetCustomerName(ZapytaniaSQL.GetValueOrDefault<string>(row, "CustomerRealGID", "-1")?.Trim())
                             };
 
                             specyfikacjeData.Add(specRow);
@@ -6861,6 +6865,38 @@ namespace Kalendarz1
         }
 
         /// <summary>
+        /// Pobiera nazwę odbiorcy (Customer) na podstawie GID
+        /// </summary>
+        private string GetCustomerName(string customerGID)
+        {
+            if (string.IsNullOrWhiteSpace(customerGID) || customerGID == "-1")
+                return "-";
+
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    string query = "SELECT ShortName FROM [LibraNet].[dbo].[Customer] WHERE GID = @GID";
+                    using (SqlCommand cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@GID", customerGID);
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && result != DBNull.Value)
+                        {
+                            return result.ToString()?.Trim() ?? "-";
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Ignoruj błędy
+            }
+            return "-";
+        }
+
+        /// <summary>
         /// Pobiera nazwę osoby która wprowadzała dane do rozliczeń (z ChangeLog)
         /// </summary>
         private string GetWprowadzilNazwa(int farmerCalcId)
@@ -8337,6 +8373,7 @@ namespace Kalendarz1
                             ISNULL(fc.VetNo, '') as NrSwZdrowia,
                             (SELECT TOP 1 AnimNo FROM dbo.Dostawcy WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(fc.CustomerGID))) as NrGospodarstwa,
                             ISNULL(fc.DeclI1, 0) as IloscDek,
+                            ISNULL(fc.LumQnt, 0) as Lumel,
                             ISNULL(fc.CarID, '') as Ciagnik,
                             ISNULL(fc.TrailerID, '') as Naczepa,
                             ISNULL(fc.DeclI2, 0) as Padle,
@@ -8375,6 +8412,7 @@ namespace Kalendarz1
                                     NrSwZdrowia = reader["NrSwZdrowia"] != DBNull.Value ? reader["NrSwZdrowia"].ToString() : "",
                                     NrGospodarstwa = reader["NrGospodarstwa"] != DBNull.Value ? reader["NrGospodarstwa"].ToString() : "",
                                     IloscDek = reader["IloscDek"] != DBNull.Value ? Convert.ToInt32(reader["IloscDek"]) : 0,
+                                    Lumel = reader["Lumel"] != DBNull.Value ? Convert.ToInt32(reader["Lumel"]) : 0,
                                     Ciagnik = reader["Ciagnik"] != DBNull.Value ? reader["Ciagnik"].ToString() : "",
                                     Naczepa = reader["Naczepa"] != DBNull.Value ? reader["Naczepa"].ToString() : "",
                                     Padle = reader["Padle"] != DBNull.Value ? Convert.ToInt32(reader["Padle"]) : 0,
@@ -9185,22 +9223,11 @@ namespace Kalendarz1
 
                     foreach (var d in plachtaData)
                     {
-                        // Oblicz sztuki zdatne: LUMEL - sztuki konfiskaty (Padle + CH + NW + ZM)
-                        int sztukiKonfiskaty = d.Padle + d.Chore + d.NW + d.ZM;
-
-                        // Pobierz LUMEL z danych specyfikacji
-                        int lumel = 0;
-                        if (specyfikacjeDict.TryGetValue(d.NrSpec, out var spec))
-                        {
-                            lumel = spec.LUMEL;
-                        }
-                        else
-                        {
-                            // Jeśli nie ma w specyfikacji, użyj ilości deklarowanej minus konfiskaty
-                            lumel = d.IloscDek - sztukiKonfiskaty;
-                        }
-
-                        int sztukiZdatne = lumel - sztukiKonfiskaty;
+                        // Oblicz sztuki zdatne zgodnie ze wzorem ze specyfikacji PDF:
+                        // Dostarcz.(ARIMR) = LUMEL + Padłe
+                        // Zdatne = Dostarcz - Padłe - Konf = (LUMEL + Padłe) - Padłe - Konf = LUMEL - Konf
+                        // Padłe się kasuje! Więc: Zdatne = LUMEL - (CH + NW + ZM)
+                        int sztukiZdatne = d.Lumel - (d.Chore + d.NW + d.ZM);
                         if (sztukiZdatne < 0) sztukiZdatne = 0;
 
                         sumaSztukZdatnych += sztukiZdatne;
@@ -10567,7 +10594,8 @@ namespace Kalendarz1
                 var row = new PodsumowanieRow
                 {
                     LP = lp++,
-                    HodowcaDrobiu = spec.RealDostawca ?? spec.Dostawca,
+                    HodowcaDrobiu = spec.Dostawca,  // CustomerGID
+                    Odbiorca = spec.Odbiorca ?? "-",
                     SztukiZadeklarowane = spec.SztukiDek,
                     SztukiPadle = spec.Padle,
                     SztukiKonfi = spec.CH + spec.NW + spec.ZM,
@@ -10575,8 +10603,11 @@ namespace Kalendarz1
                     KgPadle = (int)(spec.Padle * spec.SredniaWaga),
                     Lumel = spec.LUMEL,
                     SztukiKonfiskataT = spec.CH + spec.NW + spec.ZM,
+                    // Wzór ze specyfikacji PDF: 
+                    // Dostarcz.(ARIMR) = LUMEL + Padłe
+                    // Zdatne = Dostarcz - Padłe - Konf = LUMEL - Konf (Padłe się kasuje!)
                     SztukiZdatne = spec.LUMEL - (spec.CH + spec.NW + spec.ZM),
-                    IloscKgZywiec = spec.DoZaplaty,
+                    IloscKgZywiec = spec.DoZaplaty,  // Obliczone DoZaplaty - kolumna "Do zapł." z PDF
                     SredniaWagaPrzedUbojem = spec.SredniaWaga,
                     SztukiProdukcjaTuszka = spec.SztukiWybijak,
                     WagaProdukcjaTuszka = spec.KilogramyWybijak,
@@ -10768,10 +10799,10 @@ namespace Kalendarz1
                     subtitle.SpacingAfter = 15;
                     doc.Add(subtitle);
 
-                    // Tabela z czarnymi obramowaniami
-                    PdfPTable table = new PdfPTable(19);
+                    // Tabela z czarnymi obramowaniami (17 kolumn)
+                    PdfPTable table = new PdfPTable(17);
                     table.WidthPercentage = 100;
-                    float[] widths = { 3f, 10f, 5f, 4f, 4f, 4f, 4f, 4f, 4f, 5f, 4f, 4f, 5f, 5f, 5f, 5f, 5f, 5f, 5f };
+                    float[] widths = { 3f, 11f, 5f, 4f, 4f, 4f, 4f, 4f, 4f, 5f, 5f, 4f, 5f, 5f, 5f, 5f, 5f };
                     table.SetWidths(widths);
 
                     // Ustawienie domyślnych obramowań dla tabeli
@@ -10779,7 +10810,7 @@ namespace Kalendarz1
                     table.DefaultCell.BorderColor = BaseColor.BLACK;
 
                     // Nagłówki z jednostkami [szt] i [kg]
-                    string[] headers = { "L.P", "Hodowca Drobiu", "Zadekl.[szt]", "Padłe[szt]", "Konfi[szt]", "Suma[szt]", "Konfi[kg]", "Padłe[kg]", "Suma[kg]", "Wydaj.%", "Lumel[szt]", "KonT[szt]", "Zdatne[szt]", "Żywiec[kg]", "ŚrWaga[kg]", "Prod.[szt]", "Prod.[kg]", "Różn.1", "Różn.2" };
+                    string[] headers = { "L.P", "Hodowca Drobiu", "Zadekl.[szt]", "Padłe[szt]", "Konfi[szt]", "Suma[szt]", "Konfi[kg]", "Padłe[kg]", "Suma[kg]", "Wydaj.%", "Lumel[szt]", "KonT[szt]", "Zdatne[szt]", "Żywiec[kg]", "ŚrWaga[kg]", "Prod.[szt]", "Prod.[kg]" };
                     BaseColor headerColor = new BaseColor(60, 60, 60); // Ciemnoszary, mniej jaskrawy
 
                     foreach (var h in headers)
@@ -10795,9 +10826,9 @@ namespace Kalendarz1
                         table.AddCell(cell);
                     }
 
-                    // Dane - wyższe wiersze
+                    // Dane - wyższe wiersze (pomijamy wiersz SUMA który jest na końcu)
                     float cellPadding = 6f; // Większy padding dla wyższych wierszy
-                    foreach (var row in podsumowanieData)
+                    foreach (var row in podsumowanieData.Where(r => !r.IsSumRow && r.HodowcaDrobiu != "SUMA"))
                     {
                         table.AddCell(new PdfPCell(new Phrase(row.LP.ToString(), fontData)) { HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
                         table.AddCell(new PdfPCell(new Phrase(row.HodowcaDrobiu ?? "-", fontData)) { VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
@@ -10827,38 +10858,38 @@ namespace Kalendarz1
                         table.AddCell(new PdfPCell(new Phrase(row.SredniaWagaPrzedUbojem.ToString("F2"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
                         table.AddCell(new PdfPCell(new Phrase(row.SztukiProdukcjaTuszka.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
                         table.AddCell(new PdfPCell(new Phrase(row.WagaProdukcjaTuszka.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
-                        table.AddCell(new PdfPCell(new Phrase(row.RoznicaSztukZdatneProd.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
-                        table.AddCell(new PdfPCell(new Phrase(row.RoznicaSztukZdatneZadekl.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
                     }
 
-                    // Wiersz sumy - z mniejszym paddingiem
-                    float sumPadding = 4f;
-                    BaseColor sumColor = new BaseColor(200, 200, 200);
-                    PdfPCell sumaCell = new PdfPCell(new Phrase("SUMA:", fontSum));
-                    sumaCell.Colspan = 2;
-                    sumaCell.BackgroundColor = sumColor;
-                    sumaCell.HorizontalAlignment = Element.ALIGN_RIGHT;
-                    sumaCell.VerticalAlignment = Element.ALIGN_MIDDLE;
-                    sumaCell.Padding = sumPadding;
-                    table.AddCell(sumaCell);
+                    // Wiersz sumy - pobierz z istniejącego wiersza SUMA (LP=0) zamiast liczyć ponownie
+                    var sumRowData = podsumowanieData.FirstOrDefault(r => r.IsSumRow || r.HodowcaDrobiu == "SUMA");
+                    if (sumRowData != null)
+                    {
+                        float sumPadding = 4f;
+                        BaseColor sumColor = new BaseColor(200, 200, 200);
+                        PdfPCell sumaCell = new PdfPCell(new Phrase("SUMA:", fontSum));
+                        sumaCell.Colspan = 2;
+                        sumaCell.BackgroundColor = sumColor;
+                        sumaCell.HorizontalAlignment = Element.ALIGN_RIGHT;
+                        sumaCell.VerticalAlignment = Element.ALIGN_MIDDLE;
+                        sumaCell.Padding = sumPadding;
+                        table.AddCell(sumaCell);
 
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiZadeklarowane).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiPadle).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiKonfi).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiSuma).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.KgKonf).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.KgPadle).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.KgSuma).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
-                    table.AddCell(new PdfPCell(new Phrase($"{podsumowanieData.Average(r => r.WydajnoscProcent):F2}%", fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.Lumel).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiKonfiskataT).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiZdatne).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.IloscKgZywiec).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
-                    table.AddCell(new PdfPCell(new Phrase($"{podsumowanieData.Average(r => r.SredniaWagaPrzedUbojem):F2}", fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.SztukiProdukcjaTuszka).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.WagaProdukcjaTuszka).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.RoznicaSztukZdatneProd).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
-                    table.AddCell(new PdfPCell(new Phrase(podsumowanieData.Sum(r => r.RoznicaSztukZdatneZadekl).ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                        table.AddCell(new PdfPCell(new Phrase(sumRowData.SztukiZadeklarowane.ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                        table.AddCell(new PdfPCell(new Phrase(sumRowData.SztukiPadle.ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                        table.AddCell(new PdfPCell(new Phrase(sumRowData.SztukiKonfi.ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                        table.AddCell(new PdfPCell(new Phrase(sumRowData.SztukiSuma.ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                        table.AddCell(new PdfPCell(new Phrase(sumRowData.KgKonf.ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                        table.AddCell(new PdfPCell(new Phrase(sumRowData.KgPadle.ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                        table.AddCell(new PdfPCell(new Phrase(sumRowData.KgSuma.ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                        table.AddCell(new PdfPCell(new Phrase($"{sumRowData.WydajnoscProcent:F2}%", fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                        table.AddCell(new PdfPCell(new Phrase(sumRowData.Lumel.ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                        table.AddCell(new PdfPCell(new Phrase(sumRowData.SztukiKonfiskataT.ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                        table.AddCell(new PdfPCell(new Phrase(sumRowData.SztukiZdatne.ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                        table.AddCell(new PdfPCell(new Phrase(sumRowData.IloscKgZywiec.ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                        table.AddCell(new PdfPCell(new Phrase($"{sumRowData.SredniaWagaPrzedUbojem:F2}", fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                        table.AddCell(new PdfPCell(new Phrase(sumRowData.SztukiProdukcjaTuszka.ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                        table.AddCell(new PdfPCell(new Phrase(sumRowData.WagaProdukcjaTuszka.ToString("N0"), fontSum)) { BackgroundColor = sumColor, HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = sumPadding });
+                    }
 
                     doc.Add(table);
 
@@ -11098,6 +11129,7 @@ namespace Kalendarz1
         // Nowe pola
         private decimal _opasienie;
         private decimal _klasaB;
+        private decimal _payWgt;  // Wartość PayWgt z bazy danych (Do zapł.)
         private int _terminDni;
         private DateTime _dataUboju;
         private bool _symfonia;
@@ -11132,6 +11164,9 @@ namespace Kalendarz1
         private string _zdjecieTaraPath;
         private string _zdjecieBruttoPath;
 
+        // Odbiorca (CustomerRealGid)
+        private string _odbiorca;
+
         public bool IsHighlighted
         {
             get => _isHighlighted;
@@ -11163,6 +11198,12 @@ namespace Kalendarz1
         {
             get => _wydrukowano;
             set { _wydrukowano = value; OnPropertyChanged(nameof(Wydrukowano)); }
+        }
+
+        public string Odbiorca
+        {
+            get => _odbiorca;
+            set { _odbiorca = value; OnPropertyChanged(nameof(Odbiorca)); }
         }
 
         public int ID
@@ -11380,6 +11421,15 @@ namespace Kalendarz1
         {
             get => _klasaB;
             set { _klasaB = value; OnPropertyChanged(nameof(KlasaB)); RecalculateWartosc(); }
+        }
+
+        /// <summary>
+        /// PayWgt z bazy danych - kolumna "Do zapł." z PDF specyfikacji
+        /// </summary>
+        public decimal PayWgt
+        {
+            get => _payWgt;
+            set { _payWgt = value; OnPropertyChanged(nameof(PayWgt)); }
         }
 
         public int TerminDni
@@ -12601,6 +12651,7 @@ namespace Kalendarz1
         }
 
         public int IloscDek { get; set; }  // DeclI1
+        public int Lumel { get; set; }     // LumQnt - LUMEL (Dostarcz./ARIMR)
         public string Ciagnik { get; set; }  // CarID
         public string Naczepa { get; set; }  // TrailerID
 
@@ -12714,6 +12765,7 @@ namespace Kalendarz1
     {
         public int LP { get; set; }
         public string HodowcaDrobiu { get; set; }
+        public string Odbiorca { get; set; }  // CustomerRealGid - nazwa odbiorcy
         public int SztukiZadeklarowane { get; set; }
         public int SztukiPadle { get; set; }
         public int SztukiKonfi { get; set; }

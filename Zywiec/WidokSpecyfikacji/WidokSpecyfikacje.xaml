@@ -3602,38 +3602,6 @@
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
 
-                                    <!-- Różn. szt. Zdat.-Prod. -->
-                                    <DataGridTextColumn Header="Różn.1 [szt]" Binding="{Binding RoznicaSztukZdatneProd, StringFormat={}{0:N0}}" Width="80">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Setter Property="Padding" Value="0,0,8,0"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding RoznicaSztukUjemna}" Value="True">
-                                                        <Setter Property="Foreground" Value="#DC2626"/>
-                                                        <Setter Property="FontWeight" Value="Bold"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-
-                                    <!-- Różn. szt. Zdat.-Zadekl. -->
-                                    <DataGridTextColumn Header="Różn.2 [szt]" Binding="{Binding RoznicaSztukZdatneZadekl, StringFormat={}{0:N0}}" Width="80">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="HorizontalAlignment" Value="Right"/>
-                                                <Setter Property="Padding" Value="0,0,8,0"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding RoznicaSztukZadeklUjemna}" Value="True">
-                                                        <Setter Property="Foreground" Value="#DC2626"/>
-                                                        <Setter Property="FontWeight" Value="Bold"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-
                                     <!-- Hodowca Drobiu (kopia) - tylko w aplikacji, nie w PDF -->
                                     <DataGridTextColumn Header="Hodowca Drobiu" Binding="{Binding HodowcaDrobiu}" Width="*">
                                         <DataGridTextColumn.ElementStyle>

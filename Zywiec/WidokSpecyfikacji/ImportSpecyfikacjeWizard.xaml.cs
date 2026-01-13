@@ -6,6 +6,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Data;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -15,7 +16,7 @@ using System.Windows.Media;
 // Wymagane pakiety NuGet:
 // - ClosedXML (dla xlsx/xlsm)
 // - ExcelDataReader + ExcelDataReader.DataSet (dla xls)
-// Dla plików ODS można użyć biblioteki trzeciej strony lub konwersji
+// Pliki ODS obsługiwane przez wbudowany OdsReader
 
 using ClosedXML.Excel;
 
@@ -35,6 +36,8 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
         private string _selectedSheetName;
         private DateTime _dataUboju;
         private XLWorkbook _workbook;
+        private OdsReader _odsReader;
+        private bool _isOdsFile = false;
         
         // Dane z Excela
         private ObservableCollection<ImportRow> _importData = new ObservableCollection<ImportRow>();
@@ -197,6 +200,73 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
             }
         }
 
+        /// <summary>
+        /// Filtrowanie harmonogramu po wpisanym tekście
+        /// </summary>
+        private void TxtSearchHarmonogram_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            string searchText = txtSearchHarmonogram.Text?.Trim().ToLower() ?? "";
+            
+            if (string.IsNullOrEmpty(searchText))
+            {
+                // Pokaż wszystkie
+                cmbFilteredHarmonogram.ItemsSource = ListaHarmonogram;
+            }
+            else
+            {
+                // Filtruj po nazwie dostawcy
+                var filtered = ListaHarmonogram
+                    .Where(h => h.LP == 0 || // Zawsze pokazuj opcję "(brak)"
+                                h.Dostawca?.ToLower().Contains(searchText) == true ||
+                                h.DisplayText?.ToLower().Contains(searchText) == true)
+                    .ToList();
+                
+                cmbFilteredHarmonogram.ItemsSource = filtered;
+            }
+            
+            // Auto-wybierz pierwszy znaleziony (nie "(brak)")
+            var firstMatch = (cmbFilteredHarmonogram.ItemsSource as IEnumerable<HarmonogramItem>)?
+                .FirstOrDefault(h => h.LP > 0);
+            if (firstMatch != null)
+            {
+                cmbFilteredHarmonogram.SelectedItem = firstMatch;
+            }
+        }
+
+        /// <summary>
+        /// Przypisanie wybranego harmonogramu do zaznaczonego wiersza w DataGrid
+        /// </summary>
+        private void BtnApplyToSelected_Click(object sender, RoutedEventArgs e)
+        {
+            var selectedHarmonogram = cmbFilteredHarmonogram.SelectedItem as HarmonogramItem;
+            if (selectedHarmonogram == null)
+            {
+                MessageBox.Show("Wybierz pozycję z harmonogramu", "Uwaga", 
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var selectedMapping = dataGridMapping.SelectedItem as SupplierMapping;
+            if (selectedMapping == null)
+            {
+                MessageBox.Show("Zaznacz wiersz w tabeli do którego chcesz przypisać harmonogram", "Uwaga", 
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Przypisz harmonogram do wybranego wiersza
+            selectedMapping.WybranyHarmonogram = selectedHarmonogram;
+            
+            // Odśwież DataGrid
+            dataGridMapping.Items.Refresh();
+            
+            // Wyczyść wyszukiwarkę
+            txtSearchHarmonogram.Text = "";
+            
+            MessageBox.Show($"Przypisano LP:{selectedHarmonogram.LP} - {selectedHarmonogram.Dostawca} do {selectedMapping.DostawcaExcel}", 
+                "Przypisano", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
         #endregion
 
         #region Obsługa kroków
@@ -282,6 +352,9 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                     // Przygotuj mapowanie dostawców
                     PrepareSupplierMapping();
                     dataGridMapping.ItemsSource = _supplierMappings;
+                    // Inicjalizuj ComboBox wyszukiwania harmonogramu
+                    cmbFilteredHarmonogram.ItemsSource = ListaHarmonogram;
+                    txtSearchHarmonogram.Text = "";
                     break;
 
                 case 4:
@@ -321,25 +394,38 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
         {
             try
             {
-                // Zamknij poprzedni workbook jeśli otwarty
+                // Zamknij poprzednie workbooki jeśli otwarte
                 _workbook?.Dispose();
+                _odsReader?.Dispose();
+                _workbook = null;
+                _odsReader = null;
 
                 string extension = Path.GetExtension(_selectedFilePath).ToLower();
+                _isOdsFile = (extension == ".ods");
 
-                if (extension == ".ods")
+                if (_isOdsFile)
                 {
-                    MessageBox.Show("Pliki ODS nie są jeszcze obsługiwane.\nProszę zapisać plik jako .xlsx w LibreOffice Calc.",
-                        "Format nieobsługiwany", MessageBoxButton.OK, MessageBoxImage.Information);
-                    return;
+                    // Ładuj plik ODS
+                    _odsReader = new OdsReader(_selectedFilePath);
+
+                    // Pokaż listę arkuszy
+                    cmbSheets.Items.Clear();
+                    foreach (var sheet in _odsReader.Worksheets)
+                    {
+                        cmbSheets.Items.Add(sheet.Name);
+                    }
                 }
-
-                _workbook = new XLWorkbook(_selectedFilePath);
-
-                // Pokaż listę arkuszy
-                cmbSheets.Items.Clear();
-                foreach (var sheet in _workbook.Worksheets)
+                else
                 {
-                    cmbSheets.Items.Add(sheet.Name);
+                    // Ładuj plik Excel (xlsx/xlsm/xls)
+                    _workbook = new XLWorkbook(_selectedFilePath);
+
+                    // Pokaż listę arkuszy
+                    cmbSheets.Items.Clear();
+                    foreach (var sheet in _workbook.Worksheets)
+                    {
+                        cmbSheets.Items.Add(sheet.Name);
+                    }
                 }
 
                 // Domyślnie wybierz "Wpisywałka" jeśli istnieje
@@ -369,13 +455,25 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
 
             try
             {
-                var worksheet = _workbook.Worksheet(_selectedSheetName);
-                int rowCount = CountDataRows(worksheet);
+                int rowCount;
+                bool loadSuccess;
+
+                if (_isOdsFile)
+                {
+                    var worksheet = _odsReader.Worksheet(_selectedSheetName);
+                    rowCount = CountDataRowsOds(worksheet);
+                    lblSheetInfo.Text = $"Arkusz zawiera {rowCount} wierszy z danymi";
+                    loadSuccess = LoadDataFromSheetOds(worksheet);
+                }
+                else
+                {
+                    var worksheet = _workbook.Worksheet(_selectedSheetName);
+                    rowCount = CountDataRows(worksheet);
+                    lblSheetInfo.Text = $"Arkusz zawiera {rowCount} wierszy z danymi";
+                    loadSuccess = LoadDataFromSheet(worksheet);
+                }
                 
-                lblSheetInfo.Text = $"Arkusz zawiera {rowCount} wierszy z danymi";
-                
-                // Spróbuj załadować dane
-                if (LoadDataFromSheet(worksheet))
+                if (loadSuccess)
                 {
                     btnNext.IsEnabled = true;
                     lblSheetInfo.Text += $" | Data uboju: {_dataUboju:dd.MM.yyyy}";
@@ -508,6 +606,14 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                         importRow.TypCeny = NormalizeTypCeny(importRow.TypCeny);
                     }
 
+                    // Jeśli brak wag hodowcy, przepisz z ubojni
+                    if (importRow.BruttoHodowcy == 0 && importRow.TaraHodowcy == 0 
+                        && (importRow.BruttoUbojni > 0 || importRow.TaraUbojni > 0))
+                    {
+                        importRow.BruttoHodowcy = importRow.BruttoUbojni;
+                        importRow.TaraHodowcy = importRow.TaraUbojni;
+                    }
+
                     _importData.Add(importRow);
                 }
 
@@ -520,6 +626,197 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                 return false;
             }
         }
+
+        #region Metody dla plików ODS
+
+        private int CountDataRowsOds(OdsWorksheet worksheet)
+        {
+            int count = 0;
+            for (int row = 3; row <= 50; row++)
+            {
+                var cellB = worksheet.Cell(row, 2); // Kolumna B - nr specyfikacji
+                var cellC = worksheet.Cell(row, 3); // Kolumna C - dostawca
+
+                if (!cellB.IsBlank && !cellC.IsBlank)
+                {
+                    // Pomiń wiersz "Data"
+                    var cellA = worksheet.Cell(row, 1);
+                    if (cellA.ToString()?.ToLower() != "data")
+                    {
+                        count++;
+                    }
+                }
+            }
+            return count;
+        }
+
+        private bool LoadDataFromSheetOds(OdsWorksheet worksheet)
+        {
+            _importData.Clear();
+            _dataUboju = DateTime.Today;
+
+            try
+            {
+                // Znajdź datę uboju (B21 lub wiersz gdzie A = "Data")
+                for (int row = 3; row <= 30; row++)
+                {
+                    var cellA = worksheet.Cell(row, 1);
+                    if (cellA.ToString()?.ToLower() == "data")
+                    {
+                        var cellB = worksheet.Cell(row, 2);
+                        if (cellB.IsDateTime)
+                        {
+                            _dataUboju = cellB.GetDateTime();
+                        }
+                        else if (DateTime.TryParse(cellB.ToString(), out DateTime parsed))
+                        {
+                            _dataUboju = parsed;
+                        }
+                        break;
+                    }
+                }
+
+                // Fallback - sprawdź B21
+                if (_dataUboju == DateTime.Today)
+                {
+                    var cellB21 = worksheet.Cell(21, 2);
+                    if (cellB21.IsDateTime)
+                    {
+                        _dataUboju = cellB21.GetDateTime();
+                    }
+                }
+
+                // Wczytaj dane wierszy
+                for (int row = 3; row <= 50; row++)
+                {
+                    var cellA = worksheet.Cell(row, 1);
+                    var cellB = worksheet.Cell(row, 2);
+                    var cellC = worksheet.Cell(row, 3);
+
+                    // Pomiń jeśli to wiersz daty lub pusty
+                    if (cellA.ToString()?.ToLower() == "data") continue;
+                    if (cellB.IsBlank || string.IsNullOrWhiteSpace(cellB.ToString())) continue;
+                    if (cellC.IsBlank || string.IsNullOrWhiteSpace(cellC.ToString())) continue;
+
+                    var importRow = new ImportRow
+                    {
+                        NrAuta = GetIntValueOds(worksheet.Cell(row, 1)),           // A
+                        NrSpecyfikacji = GetIntValueOds(worksheet.Cell(row, 2)),   // B
+                        DostawcaExcel = worksheet.Cell(row, 3).ToString()?.Trim(), // C
+                        SztukiDek = GetIntValueOds(worksheet.Cell(row, 4)),        // D
+                        Padle = GetIntValueOds(worksheet.Cell(row, 5)),            // E
+                        CH = GetIntValueOds(worksheet.Cell(row, 6)),               // F
+                        NW = GetIntValueOds(worksheet.Cell(row, 7)),               // G
+                        ZM = GetIntValueOds(worksheet.Cell(row, 8)),               // H
+                        BruttoHodowcy = GetDecimalValueOds(worksheet.Cell(row, 9)),  // I
+                        TaraHodowcy = GetDecimalValueOds(worksheet.Cell(row, 10)),   // J
+                        BruttoUbojni = GetDecimalValueOds(worksheet.Cell(row, 11)),  // K
+                        TaraUbojni = GetDecimalValueOds(worksheet.Cell(row, 12)),    // L
+                        LUMEL = GetIntValueOds(worksheet.Cell(row, 13)),           // M
+                        SztukiProdukcja = GetIntValueOds(worksheet.Cell(row, 14)), // N
+                        KilogramyProdukcja = GetDecimalValueOds(worksheet.Cell(row, 15)), // O
+                        TypCeny = worksheet.Cell(row, 16).ToString()?.Trim(),   // P - typ ceny główny
+                        Cena = 0,
+                        Dodatek = GetDecimalValueOds(worksheet.Cell(row, 21)),     // U - dodatek do ceny
+                        PiK = worksheet.Cell(row, 22).ToString()?.ToLower() != "tak", // V - PiK
+                        Ubytek = GetDecimalValueOds(worksheet.Cell(row, 23)),      // W - ubytek
+                        DataUboju = _dataUboju
+                    };
+
+                    // Oblicz cenę
+                    decimal cena1 = GetDecimalValueOds(worksheet.Cell(row, 17)); // Q - cena 1
+                    string typ1 = worksheet.Cell(row, 18).ToString()?.Trim(); // R - typ 1
+                    string typ2 = worksheet.Cell(row, 19).ToString()?.Trim(); // S - typ 2
+                    decimal cena2 = GetDecimalValueOds(worksheet.Cell(row, 20)); // T - cena 2
+
+                    // Jeśli jest cena łączona
+                    if (!string.IsNullOrWhiteSpace(typ2) && cena2 > 0)
+                    {
+                        importRow.Cena = (cena1 + cena2) / 2;
+                        importRow.TypCeny = "łączona";
+                    }
+                    else
+                    {
+                        importRow.Cena = cena1;
+                    }
+
+                    // Normalizuj typ ceny
+                    if (!string.IsNullOrWhiteSpace(importRow.TypCeny))
+                    {
+                        importRow.TypCeny = NormalizeTypCeny(importRow.TypCeny);
+                    }
+
+                    // Jeśli brak wag hodowcy, przepisz z ubojni
+                    if (importRow.BruttoHodowcy == 0 && importRow.TaraHodowcy == 0 
+                        && (importRow.BruttoUbojni > 0 || importRow.TaraUbojni > 0))
+                    {
+                        importRow.BruttoHodowcy = importRow.BruttoUbojni;
+                        importRow.TaraHodowcy = importRow.TaraUbojni;
+                    }
+
+                    _importData.Add(importRow);
+                }
+
+                return _importData.Count > 0;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd parsowania danych ODS:\n{ex.Message}",
+                    "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                return false;
+            }
+        }
+
+        private int GetIntValueOds(OdsCell cell)
+        {
+            if (cell.IsBlank) return 0;
+            
+            if (cell.IsNumber)
+            {
+                return cell.GetInt();
+            }
+            
+            string str = cell.ToString();
+            if (string.IsNullOrWhiteSpace(str)) return 0;
+            
+            // Próba parsowania jako decimal (może być np. "1234.0")
+            if (decimal.TryParse(str, System.Globalization.NumberStyles.Any, 
+                System.Globalization.CultureInfo.InvariantCulture, out decimal decVal))
+            {
+                return (int)Math.Round(decVal);
+            }
+            
+            if (int.TryParse(str, out int intVal))
+                return intVal;
+                
+            return 0;
+        }
+
+        private decimal GetDecimalValueOds(OdsCell cell)
+        {
+            if (cell.IsBlank) return 0;
+            
+            if (cell.IsNumber)
+            {
+                return cell.GetDecimal();
+            }
+            
+            string str = cell.ToString();
+            if (string.IsNullOrWhiteSpace(str)) return 0;
+            
+            // Zamień przecinek na kropkę
+            str = str.Replace(",", ".");
+            
+            if (decimal.TryParse(str, System.Globalization.NumberStyles.Any, 
+                System.Globalization.CultureInfo.InvariantCulture, out decimal decVal))
+            {
+                return decVal;
+            }
+            
+            return 0;
+        }
+
+        #endregion
 
         private string NormalizeTypCeny(string typCeny)
         {
@@ -933,6 +1230,7 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
             if (result == MessageBoxResult.Yes)
             {
                 _workbook?.Dispose();
+                _odsReader?.Dispose();
                 DialogResult = false;
                 Close();
             }
@@ -941,6 +1239,7 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
         private void BtnClose_Click(object sender, RoutedEventArgs e)
         {
             _workbook?.Dispose();
+            _odsReader?.Dispose();
             DialogResult = true;
             Close();
         }
