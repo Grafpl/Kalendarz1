@@ -1022,7 +1022,7 @@
                                         Padding="10,4" Margin="2,0,5,0" Background="#1976D2" Foreground="White"
                                         BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
 
-                                <!-- Checkboxy Opasienie/KlasaB obok LUMEL -->
+                                <!-- Checkboxy kolumn: Opas, Kl.B, Dodatek, Pośrednik -->
                                 <Border Background="#F5F5F5" CornerRadius="4" Padding="5,2" Margin="5,0">
                                     <StackPanel Orientation="Horizontal">
                                         <CheckBox x:Name="chkShowOpasienie2"
@@ -1037,7 +1037,25 @@
                                                   FontSize="11"
                                                   VerticalAlignment="Center"
                                                   Checked="ChkShowKlasaB_Changed"
-                                                  Unchecked="ChkShowKlasaB_Changed"/>
+                                                  Unchecked="ChkShowKlasaB_Changed"
+                                                  Margin="0,0,8,0"/>
+                                        <CheckBox x:Name="chkShowDodatek"
+                                                  Content="💰 Dodatek"
+                                                  FontSize="11"
+                                                  VerticalAlignment="Center"
+                                                  IsChecked="False"
+                                                  Checked="ChkShowDodatek_Changed"
+                                                  Unchecked="ChkShowDodatek_Changed"
+                                                  ToolTip="Zaznacz aby wyświetlić kolumnę Dodatek do ceny."
+                                                  Margin="0,0,8,0"/>
+                                        <CheckBox x:Name="chkShowPosrednik"
+                                                  Content="🤝 Pośrednik"
+                                                  FontSize="11"
+                                                  VerticalAlignment="Center"
+                                                  IsChecked="False"
+                                                  Checked="ChkShowPosrednik_Changed"
+                                                  Unchecked="ChkShowPosrednik_Changed"
+                                                  ToolTip="Zaznacz aby wyświetlić kolumnę Pośrednik."/>
                                     </StackPanel>
                                 </Border>
 
@@ -1052,32 +1070,6 @@
                                               Checked="ChkGroupBySupplier_Changed"
                                               Unchecked="ChkGroupBySupplier_Changed"
                                               ToolTip="Zaznacz aby grupować wiersze według dostawcy. Odznacz aby sortować według LP."/>
-                                </Border>
-
-                                <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
-
-                                <!-- Checkbox pokazywania kolumny Pośrednik -->
-                                <Border Background="#E1F5FE" CornerRadius="4" Padding="5,2" Margin="5,0">
-                                    <CheckBox x:Name="chkShowPosrednik"
-                                              Content="🤝 Pokaż Pośrednika"
-                                              FontSize="11"
-                                              VerticalAlignment="Center"
-                                              IsChecked="False"
-                                              Checked="ChkShowPosrednik_Changed"
-                                              Unchecked="ChkShowPosrednik_Changed"
-                                              ToolTip="Zaznacz aby wyświetlić kolumnę Pośrednik. Dane pośredników będą dostępne po skonfigurowaniu tabeli."/>
-                                </Border>
-
-                                <!-- Checkbox pokazywania kolumny Dodatek -->
-                                <Border Background="#E8F5E9" CornerRadius="4" Padding="5,2" Margin="5,0">
-                                    <CheckBox x:Name="chkShowDodatek"
-                                              Content="💰 Pokaż Dodatek"
-                                              FontSize="11"
-                                              VerticalAlignment="Center"
-                                              IsChecked="False"
-                                              Checked="ChkShowDodatek_Changed"
-                                              Unchecked="ChkShowDodatek_Changed"
-                                              ToolTip="Zaznacz aby wyświetlić kolumnę Dodatek do ceny."/>
                                 </Border>
 
                                 <TextBlock x:Name="lblClipboardInfo" Text="" VerticalAlignment="Center"

@@ -550,16 +550,20 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                             newId = Convert.ToInt32(maxResult);
                     }
 
-                    // Pobierz CustomerRealGID z duplikatu jeśli jest
+                    // Pobierz dane z duplikatu jeśli są
                     string customerRealGid = UstawieniaDoDuplikacji?.CustomerRealGID ?? "";
+                    decimal cena = UstawieniaDoDuplikacji?.Cena ?? 0;
+                    int priceTypeId = UstawieniaDoDuplikacji?.TypCenyID ?? 0;
+                    decimal loss = (UstawieniaDoDuplikacji?.Ubytek ?? 0) / 100m; // Konwersja z % na ułamek
+                    bool incDeadConf = UstawieniaDoDuplikacji?.PIK > 0;
 
                     string query = @"
                         INSERT INTO dbo.FarmerCalc
                         (ID, CalcDate, CarLp, CustomerGID, CustomerRealGID, CarID, TrailerID, DriverGID,
-                         DeclI1, NettoWeight)
+                         DeclI1, NettoWeight, Price, PriceTypeID, Loss, IncDeadConf)
                         VALUES
                         (@ID, @CalcDate, @CarLp, @CustomerGID, @CustomerRealGID, @CarID, @TrailerID, @DriverGID,
-                         0, 0)";
+                         0, 0, @Price, @PriceTypeID, @Loss, @IncDeadConf)";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
@@ -571,6 +575,10 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                         cmd.Parameters.AddWithValue("@CarID", string.IsNullOrEmpty(carId) ? (object)DBNull.Value : carId);
                         cmd.Parameters.AddWithValue("@TrailerID", string.IsNullOrEmpty(trailerId) ? (object)DBNull.Value : trailerId);
                         cmd.Parameters.AddWithValue("@DriverGID", driverGid.HasValue ? (object)driverGid.Value : DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Price", cena);
+                        cmd.Parameters.AddWithValue("@PriceTypeID", priceTypeId);
+                        cmd.Parameters.AddWithValue("@Loss", loss);
+                        cmd.Parameters.AddWithValue("@IncDeadConf", incDeadConf);
 
                         int rows = cmd.ExecuteNonQuery();
                         if (rows > 0)
@@ -632,6 +640,7 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
         public string DostawcaNazwa { get; set; }
         public decimal Cena { get; set; }
         public string TypCeny { get; set; }
+        public int TypCenyID { get; set; }
         public decimal Ubytek { get; set; }
         public decimal PIK { get; set; }
     }
@@ -651,6 +660,7 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
             public string SourceHodowca { get; set; }
             public decimal Cena { get; set; }
             public string TypCeny { get; set; }
+            public int TypCenyID { get; set; }
             public decimal Ubytek { get; set; }
             public bool PiK { get; set; }
             public string CustomerGID { get; set; }
@@ -676,6 +686,7 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                 DostawcaNazwa = data.SourceHodowca,
                 Cena = data.Cena,
                 TypCeny = data.TypCeny,
+                TypCenyID = data.TypCenyID,
                 Ubytek = data.Ubytek,
                 PIK = data.PiK ? 1 : 0
             };

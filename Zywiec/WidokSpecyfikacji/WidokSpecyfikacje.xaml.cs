@@ -5027,13 +5027,16 @@ namespace Kalendarz1
                 }
 
                 string customerRealGID = "";
+                int priceTypeID = 0;
                 try { customerRealGID = zapytaniasql.PobierzInformacjeZBazyDanych<string>(selectedRow.ID, "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID") ?? ""; } catch { }
+                try { priceTypeID = zapytaniasql.PobierzInformacjeZBazyDanych<int>(selectedRow.ID, "[LibraNet].[dbo].[FarmerCalc]", "PriceTypeID"); } catch { }
 
                 var duplicateData = new NowaSpecyfikacjaWindow.DuplicateData
                 {
                     SourceHodowca = selectedRow.Dostawca ?? selectedRow.RealDostawca ?? "-",
                     Cena = selectedRow.Cena,
                     TypCeny = selectedRow.TypCeny ?? "",
+                    TypCenyID = priceTypeID,
                     Ubytek = selectedRow.Ubytek,
                     PiK = selectedRow.PiK,
                     CustomerGID = selectedRow.DostawcaGID ?? "",
