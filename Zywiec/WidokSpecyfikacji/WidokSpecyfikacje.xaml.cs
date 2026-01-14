@@ -6658,10 +6658,10 @@ namespace Kalendarz1
                 string wystawiajacyNazwa = nazwaZiD.GetNameById(App.UserID) ?? App.UserID ?? "---";
 
                 sumCell.AddElement(new Paragraph(" ", new Font(polishFont, 6, Font.NORMAL)));
-                sumCell.AddElement(new Paragraph("PODPIS PRACOWNIKA", new Font(polishFont, 7, Font.BOLD, _pdfCzarnoBialy ? BaseColor.BLACK : greenColor)) { Alignment = Element.ALIGN_LEFT });
-                sumCell.AddElement(new Paragraph($"({wystawiajacyNazwa})", new Font(polishFont, 6, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_LEFT });
+                sumCell.AddElement(new Paragraph("PODPIS PRACOWNIKA", new Font(polishFont, 5, Font.BOLD, _pdfCzarnoBialy ? BaseColor.BLACK : greenColor)) { Alignment = Element.ALIGN_LEFT });
+                sumCell.AddElement(new Paragraph($"({wystawiajacyNazwa})", new Font(polishFont, 5, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_LEFT });
                 sumCell.AddElement(new Paragraph(" ", new Font(polishFont, 3)));
-                sumCell.AddElement(new Paragraph(".............................................", new Font(polishFont, 7, Font.NORMAL)) { Alignment = Element.ALIGN_LEFT });
+                sumCell.AddElement(new Paragraph(".....................................................................", new Font(polishFont, 6, Font.NORMAL)) { Alignment = Element.ALIGN_LEFT });
                 sumCell.AddElement(new Paragraph("data i czytelny podpis", new Font(polishFont, 5, Font.ITALIC, grayColor)) { Alignment = Element.ALIGN_LEFT });
 
                 summaryTable.AddCell(sumCell);
@@ -6748,7 +6748,7 @@ namespace Kalendarz1
                 VerticalAlignment = Element.ALIGN_MIDDLE,
                 Padding = 6,
                 BorderColor = BaseColor.BLACK,
-                BorderWidth = 0.5f
+                BorderWidth = 0.75f
             };
             table.AddCell(cell);
         }
@@ -6767,7 +6767,7 @@ namespace Kalendarz1
                 Padding = 4,
                 MinimumHeight = 22,
                 BorderColor = BaseColor.BLACK,
-                BorderWidth = 0.5f
+                BorderWidth = 0.75f
             };
             table.AddCell(cell);
         }
@@ -6790,7 +6790,7 @@ namespace Kalendarz1
                 Padding = 2,
                 MinimumHeight = 22,
                 BorderColor = BaseColor.BLACK,
-                BorderWidth = 0.5f
+                BorderWidth = 0.75f
             };
 
             // Linia 1: "Dostarczone" (normalna czcionka)
@@ -6815,7 +6815,9 @@ namespace Kalendarz1
                     BackgroundColor = bgColor,
                     HorizontalAlignment = Element.ALIGN_CENTER,
                     VerticalAlignment = Element.ALIGN_MIDDLE,
-                    Padding = 3
+                    Padding = 3,
+                    BorderColor = BaseColor.BLACK,
+                    BorderWidth = 0.75f
                 };
                 table.AddCell(cell);
             }
