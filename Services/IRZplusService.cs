@@ -645,6 +645,7 @@ namespace Kalendarz1.Services
 
                     // Zapytanie zgodne z formatem Excel ARiMR
                     // Dołączamy tabelę PartiaDostawca aby pobrać numer partii produkcyjnej
+                    // Format Partia: YYDDDCCC gdzie YY=rok, DDD=dzień roku, CCC=numer auta
                     var query = @"
                         SELECT
                             fc.ID,
@@ -661,7 +662,9 @@ namespace Kalendarz1.Services
                         FROM dbo.FarmerCalc fc
                         LEFT JOIN dbo.Dostawcy d ON LTRIM(RTRIM(fc.CustomerGID)) = LTRIM(RTRIM(d.ID))
                         LEFT JOIN dbo.PartiaDostawca p ON LTRIM(RTRIM(fc.CustomerGID)) = LTRIM(RTRIM(p.CustomerID))
-                            AND CAST(fc.CalcDate AS DATE) = CAST(p.CreateData AS DATE)
+                            AND p.Partia = RIGHT(CAST(YEAR(fc.CalcDate) AS VARCHAR), 2) +
+                                           RIGHT('000' + CAST(DATEPART(DAYOFYEAR, fc.CalcDate) AS VARCHAR), 3) +
+                                           RIGHT('000' + CAST(fc.CarLp AS VARCHAR), 3)
                         WHERE CAST(fc.CalcDate AS DATE) = @DataUboju
                         ORDER BY fc.CarLp";
 
