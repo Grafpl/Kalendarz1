@@ -663,6 +663,12 @@
                             Style="{StaticResource MainButtonStyle}"
                             Background="#8E44AD"
                             ToolTip="Pokaż historię zmian specyfikacji"/>
+                    <Button Content="📤 IRZplus"
+                            x:Name="btnIRZplus"
+                            Click="BtnIRZplus_Click"
+                            Style="{StaticResource MainButtonStyle}"
+                            Background="#00796B"
+                            ToolTip="Wyślij zgłoszenie do systemu IRZplus ARiMR"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -1127,6 +1133,12 @@
                                     <MenuItem Header="🔄 Odśwież dane" Click="ContextMenu_RefreshData"/>
                                     <Separator/>
                                     <MenuItem Header="📋 Duplikuj ustawienia hodowcy" Click="ContextMenu_DuplicateRow" FontWeight="Bold" Foreground="#B45309"/>
+                                    <Separator/>
+                                    <MenuItem Header="📤 IRZplus - ARiMR" FontWeight="Bold" Foreground="#00796B">
+                                        <MenuItem Header="📤 Wyślij do IRZplus" Click="ContextMenu_IRZplusSend" FontWeight="Bold"/>
+                                        <MenuItem Header="📜 Historia wysyłek" Click="ContextMenu_IRZplusHistory"/>
+                                        <MenuItem Header="⚙️ Ustawienia IRZplus" Click="ContextMenu_IRZplusSettings"/>
+                                    </MenuItem>
                                     <Separator/>
                                     <MenuItem Header="Zdjecia z wazenia">
                                         <MenuItem Header="Podglad zdjecia TARA" Click="ContextMenu_ShowPhotoTara"/>

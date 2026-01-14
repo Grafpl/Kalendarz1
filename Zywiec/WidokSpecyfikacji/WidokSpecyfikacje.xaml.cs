@@ -3904,6 +3904,110 @@ namespace Kalendarz1
             }
         }
 
+        #endregion
+
+        #region === IRZplus - INTEGRACJA Z ARiMR ===
+
+        /// <summary>
+        /// Otwiera okno wysyłki IRZplus dla aktualnie wybranej daty
+        /// </summary>
+        private void BtnIRZplus_Click(object sender, RoutedEventArgs e)
+        {
+            OpenIRZplusPreview();
+        }
+
+        /// <summary>
+        /// Menu kontekstowe - wyślij do IRZplus
+        /// </summary>
+        private void ContextMenu_IRZplusSend(object sender, RoutedEventArgs e)
+        {
+            OpenIRZplusPreview();
+        }
+
+        /// <summary>
+        /// Menu kontekstowe - historia wysyłek IRZplus
+        /// </summary>
+        private void ContextMenu_IRZplusHistory(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var historyWindow = new IRZplusHistoryWindow();
+                historyWindow.Owner = Window.GetWindow(this);
+                historyWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania historii IRZplus: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Menu kontekstowe - ustawienia IRZplus
+        /// </summary>
+        private void ContextMenu_IRZplusSettings(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                using (var service = new Services.IRZplusService())
+                {
+                    var settingsWindow = new IRZplusSettingsWindow(service);
+                    settingsWindow.Owner = Window.GetWindow(this);
+                    settingsWindow.ShowDialog();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania ustawień IRZplus: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Otwiera okno podglądu i wysyłki IRZplus
+        /// </summary>
+        private void OpenIRZplusPreview()
+        {
+            try
+            {
+                if (calDataUboju.SelectedDate == null)
+                {
+                    MessageBox.Show("Wybierz datę uboju przed wysyłką do IRZplus.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                var dataUboju = calDataUboju.SelectedDate.Value;
+
+                // Sprawdź czy są specyfikacje na ten dzień
+                var specyfikacje = dataGrid1.ItemsSource as IEnumerable<SpecyfikacjaRow>;
+                if (specyfikacje == null || !specyfikacje.Any())
+                {
+                    MessageBox.Show($"Brak specyfikacji na dzień {dataUboju:dd.MM.yyyy}.\nDodaj specyfikacje przed wysyłką do IRZplus.",
+                        "Brak danych", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                var previewWindow = new IRZplusPreviewWindow(connectionString, dataUboju);
+                previewWindow.Owner = Window.GetWindow(this);
+
+                if (previewWindow.ShowDialog() == true)
+                {
+                    // Wysyłka zakończona pomyślnie
+                    if (!string.IsNullOrEmpty(previewWindow.NumerZgloszenia))
+                    {
+                        MessageBox.Show($"Zgłoszenie zostało wysłane do IRZplus.\nNumer: {previewWindow.NumerZgloszenia}",
+                            "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania IRZplus: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        #endregion
+
+        #region === HISTORIA ZMIAN ===
+
         /// <summary>
         /// Zwraca czytelną nazwę pola
         /// </summary>
