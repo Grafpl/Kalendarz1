@@ -99,6 +99,11 @@ namespace Kalendarz1
             txtSumaWagi.Text = wybrane.Sum(s => s.WagaNetto).ToString("N2") + " kg";
             txtSumaPadlych.Text = wybrane.Sum(s => s.SztukiPadle).ToString("N0");
 
+            // KG - Do zaplaty, Konfiskat, Padlych
+            txtSumaKgDoZapl.Text = wybrane.Sum(s => s.KgDoZaplaty).ToString("N0") + " kg";
+            txtSumaKgKonfiskat.Text = wybrane.Sum(s => s.KgKonfiskat).ToString("N0") + " kg";
+            txtSumaKgPadlych.Text = wybrane.Sum(s => s.KgPadlych).ToString("N0") + " kg";
+
             btnSend.IsEnabled = wybrane.Count > 0;
         }
 
@@ -532,6 +537,11 @@ namespace Kalendarz1
         public int SztukiKonfiskaty { get; set; }
         public decimal WagaNetto { get; set; }
 
+        // KG - Do zaplaty (PayWgt), Konfiskat, Padlych
+        public decimal KgDoZaplaty { get; set; }
+        public decimal KgKonfiskat { get; set; }
+        public decimal KgPadlych { get; set; }
+
         public bool Wybrana
         {
             get => _wybrana;
@@ -570,6 +580,9 @@ namespace Kalendarz1
             SztukiPadle = source.SztukiPadle;
             SztukiKonfiskaty = source.SztukiKonfiskaty;
             WagaNetto = source.WagaNetto;
+            KgDoZaplaty = source.KgDoZaplaty;
+            KgKonfiskat = source.KgKonfiskat;
+            KgPadlych = source.KgPadlych;
             Wybrana = source.Wybrana;
         }
 

@@ -1477,6 +1477,7 @@ namespace Kalendarz1
                         LoadHarmonogramData(); // Załaduj harmonogram dostaw
                         LoadPdfStatusForAllRows(); // Załaduj status PDF dla wszystkich wierszy
                         AssignSupplierColorsAndGroups(); // Przypisz kolory dostawcom
+                        AutoShowColumnsBasedOnData(); // Auto-pokaż kolumny jeśli dane zawierają wartości
                         UpdateStatus($"Załadowano {dataTable.Rows.Count} rekordów");
                     }
                     else
@@ -4872,6 +4873,41 @@ namespace Kalendarz1
             }
         }
 
+        /// <summary>
+        /// Auto-pokazuje kolumny (Ubytek/Opas, Kl.B, Dodatek, Pośrednik) jeśli jakiekolwiek dane je zawierają
+        /// </summary>
+        private void AutoShowColumnsBasedOnData()
+        {
+            if (specyfikacjeData == null || specyfikacjeData.Count == 0) return;
+
+            // Sprawdź czy którykolwiek wiersz ma wartości w tych polach
+            bool hasUbytek = specyfikacjeData.Any(s => s.Ubytek != 0);
+            bool hasKlasaB = specyfikacjeData.Any(s => s.KlasaB != 0);
+            bool hasDodatek = specyfikacjeData.Any(s => s.Dodatek != 0);
+            bool hasPosrednik = specyfikacjeData.Any(s => s.IdPosrednik.HasValue && s.IdPosrednik.Value > 0);
+
+            // Auto-zaznacz checkboxy jeśli dane zawierają wartości
+            if (hasUbytek && chkShowOpasienie2 != null && chkShowOpasienie2.IsChecked != true)
+            {
+                chkShowOpasienie2.IsChecked = true;
+            }
+
+            if (hasKlasaB && chkShowKlasaB2 != null && chkShowKlasaB2.IsChecked != true)
+            {
+                chkShowKlasaB2.IsChecked = true;
+            }
+
+            if (hasDodatek && chkShowDodatek != null && chkShowDodatek.IsChecked != true)
+            {
+                chkShowDodatek.IsChecked = true;
+            }
+
+            if (hasPosrednik && chkShowPosrednik != null && chkShowPosrednik.IsChecked != true)
+            {
+                chkShowPosrednik.IsChecked = true;
+            }
+        }
+
         // === Checkbox: Grupuj wiersze według dostawcy (Rozliczenia) ===
         private void ChkGroupBySupplierRozliczenia_Changed(object sender, RoutedEventArgs e)
         {
@@ -5910,11 +5946,13 @@ namespace Kalendarz1
         // Helper: Tworzenie komórki z zaokrąglonymi rogami
         private PdfPCell CreateRoundedCell(BaseColor borderColor, BaseColor bgColor, float padding)
         {
+            // W trybie czarno-białym używaj cienkich ramek
+            float borderWidth = _pdfCzarnoBialy ? 0.5f : 1.5f;
             PdfPCell cell = new PdfPCell
             {
                 Border = PdfPCell.BOX,
                 BorderColor = borderColor,
-                BorderWidth = 1.5f,
+                BorderWidth = borderWidth,
                 BackgroundColor = bgColor,
                 Padding = padding,
                 PaddingBottom = padding + 5
@@ -6118,7 +6156,8 @@ namespace Kalendarz1
 
                 // Nabywca (lewa strona)
                 BaseColor buyerBgColor = _pdfCzarnoBialy ? BaseColor.WHITE : new BaseColor(248, 255, 248);
-                PdfPCell buyerCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = greenColor, BorderWidth = 1.5f, Padding = 10, BackgroundColor = buyerBgColor };
+                float borderWidthBox = _pdfCzarnoBialy ? 0.5f : 1.5f;
+                PdfPCell buyerCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = greenColor, BorderWidth = borderWidthBox, Padding = 10, BackgroundColor = buyerBgColor };
                 buyerCell.AddElement(new Paragraph("NABYWCA", new Font(polishFont, 10, Font.BOLD, greenColor)));
                 buyerCell.AddElement(new Paragraph("Ubojnia Drobiu \"Piórkowscy\"", textFontBold));
                 buyerCell.AddElement(new Paragraph("Koziołki 40, 95-061 Dmosin", textFont));
@@ -6168,7 +6207,7 @@ namespace Kalendarz1
 
                 // Tło komórki - białe w trybie B&W
                 BaseColor sellerBgColor = _pdfCzarnoBialy ? BaseColor.WHITE : new BaseColor(255, 253, 248);
-                PdfPCell sellerCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = orangeColor, BorderWidth = 1.5f, Padding = 10, BackgroundColor = sellerBgColor };
+                PdfPCell sellerCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = orangeColor, BorderWidth = borderWidthBox, Padding = 10, BackgroundColor = sellerBgColor };
                 sellerCell.AddElement(new Paragraph("SPRZEDAJĄCY (Hodowca)", new Font(polishFont, 10, Font.BOLD, orangeColor)));
                 sellerCell.AddElement(new Paragraph(sellerName, textFontBold));
                 // CustomerID
@@ -6553,7 +6592,8 @@ namespace Kalendarz1
 
                 // Prawa kolumna - podsumowanie z wyrównanymi wartościami
                 BaseColor sumCellBg = _pdfCzarnoBialy ? BaseColor.WHITE : new BaseColor(245, 255, 245);
-                PdfPCell sumCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = greenColor, BorderWidth = 2f, Padding = 10, BackgroundColor = sumCellBg };
+                float sumBorderWidth = _pdfCzarnoBialy ? 0.5f : 2f;
+                PdfPCell sumCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = greenColor, BorderWidth = sumBorderWidth, Padding = 10, BackgroundColor = sumCellBg };
                 sumCell.AddElement(new Paragraph("PODSUMOWANIE", new Font(polishFont, 10, Font.BOLD, greenColor)));
                 sumCell.AddElement(new Paragraph(" ", new Font(polishFont, 4, Font.NORMAL)));
 
@@ -11411,7 +11451,14 @@ namespace Kalendarz1
                 string monthFolder = selectedDate.Month.ToString("D2");
                 string dayFolder = selectedDate.Day.ToString("D2");
 
-                string folderPath = Path.Combine(defaultPdfPath, yearFolder, monthFolder, dayFolder);
+                // Użyj ścieżki z panelu administracyjnego dla Podsumowań
+                string basePath = GetPodsumowaniePathFromDb();
+                if (string.IsNullOrWhiteSpace(basePath))
+                {
+                    basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ZPSP", "Podsumowania");
+                }
+
+                string folderPath = Path.Combine(basePath, yearFolder, monthFolder, dayFolder);
                 if (!Directory.Exists(folderPath))
                 {
                     Directory.CreateDirectory(folderPath);

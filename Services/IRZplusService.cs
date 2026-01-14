@@ -645,6 +645,7 @@ namespace Kalendarz1.Services
 
                     // Zapytanie zgodne z formatem Excel ARiMR
                     // Pobieramy numer partii z tabeli PartiaDostawca przez PartiaGuid
+                    // Dodano PayWgt (KgDoZaplaty) i LumQnt do obliczenia KG konfiskat/padlych
                     var query = @"
                         SELECT
                             fc.ID,
@@ -657,6 +658,8 @@ namespace Kalendarz1.Services
                             ISNULL(fc.DeclI2, 0) AS SztukiPadle,
                             ISNULL(fc.DeclI3, 0) + ISNULL(fc.DeclI4, 0) + ISNULL(fc.DeclI5, 0) AS SztukiKonfiskaty,
                             ISNULL(fc.NettoWeight, 0) AS WagaNetto,
+                            ISNULL(fc.PayWgt, 0) AS KgDoZaplaty,
+                            ISNULL(fc.LumQnt, 0) AS Lumel,
                             fc.CarLp AS LP
                         FROM dbo.FarmerCalc fc
                         LEFT JOIN dbo.Dostawcy d ON LTRIM(RTRIM(fc.CustomerGID)) = LTRIM(RTRIM(d.ID))
@@ -675,10 +678,19 @@ namespace Kalendarz1.Services
                                 int sztukiWszystkie = reader.IsDBNull(reader.GetOrdinal("SztukiWszystkie")) ? 0 : reader.GetInt32(reader.GetOrdinal("SztukiWszystkie"));
                                 int sztukiPadle = reader.IsDBNull(reader.GetOrdinal("SztukiPadle")) ? 0 : reader.GetInt32(reader.GetOrdinal("SztukiPadle"));
                                 int sztukiKonfiskaty = reader.IsDBNull(reader.GetOrdinal("SztukiKonfiskaty")) ? 0 : reader.GetInt32(reader.GetOrdinal("SztukiKonfiskaty"));
+                                int lumel = reader.IsDBNull(reader.GetOrdinal("Lumel")) ? 0 : reader.GetInt32(reader.GetOrdinal("Lumel"));
+                                decimal wagaNetto = reader.IsDBNull(reader.GetOrdinal("WagaNetto")) ? 0 : reader.GetDecimal(reader.GetOrdinal("WagaNetto"));
+                                decimal kgDoZaplaty = reader.IsDBNull(reader.GetOrdinal("KgDoZaplaty")) ? 0 : reader.GetDecimal(reader.GetOrdinal("KgDoZaplaty"));
 
                                 // Liczba sztuk zdatnych = wszystkie - padłe - konfiskaty
                                 int liczbaSztukZdatnych = sztukiWszystkie - sztukiPadle - sztukiKonfiskaty;
                                 if (liczbaSztukZdatnych < 0) liczbaSztukZdatnych = 0;
+
+                                // Oblicz srednia wage do kalkulacji KG konfiskat i padlych
+                                // Wzor: Śr.waga = Netto / (LUMEL + Padłe)
+                                decimal srWaga = (lumel + sztukiPadle) > 0 ? wagaNetto / (lumel + sztukiPadle) : 0;
+                                decimal kgKonfiskat = Math.Round(sztukiKonfiskaty * srWaga, 0);
+                                decimal kgPadlych = Math.Round(sztukiPadle * srWaga, 0);
 
                                 result.Add(new SpecyfikacjaDoIRZplus
                                 {
@@ -692,7 +704,10 @@ namespace Kalendarz1.Services
                                     SztukiWszystkie = sztukiWszystkie,
                                     SztukiPadle = sztukiPadle,
                                     SztukiKonfiskaty = sztukiKonfiskaty,
-                                    WagaNetto = reader.IsDBNull(reader.GetOrdinal("WagaNetto")) ? 0 : reader.GetDecimal(reader.GetOrdinal("WagaNetto")),
+                                    WagaNetto = wagaNetto,
+                                    KgDoZaplaty = kgDoZaplaty,
+                                    KgKonfiskat = kgKonfiskat,
+                                    KgPadlych = kgPadlych,
                                     TypZdarzenia = "Przybycie do rzeźni i ubój",
                                     KrajWywozu = "PL",
                                     Wybrana = true

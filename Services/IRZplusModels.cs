@@ -320,6 +320,11 @@ namespace Kalendarz1.Services
         public int SztukiPadle { get; set; }       // DeclI2
         public int SztukiKonfiskaty { get; set; } // DeclI3 + DeclI4 + DeclI5
 
+        // KG - do wysylki do ARiMR i odpadow
+        public decimal KgDoZaplaty { get; set; }  // PayWgt - Do zapl.
+        public decimal KgKonfiskat { get; set; }  // KG konfiskat
+        public decimal KgPadlych { get; set; }    // KG padlych
+
         public bool Wybrana { get; set; } = true;
 
         // Dla zgodności wstecznej
