@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Microsoft.Data.SqlClient;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -8,874 +7,399 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.Data.SqlClient;
 
 namespace Kalendarz1.Services
 {
-    /// <summary>
-    /// Serwis integracji z systemem IRZplus ARiMR
-    /// Obsługuje uwierzytelnianie OAuth 2.0 i komunikację REST API
-    /// </summary>
     public class IRZplusService : IDisposable
     {
         private readonly HttpClient _httpClient;
-        private readonly IRZplusSettings _settings;
-        private TokenResponse _currentToken;
-        private readonly string _settingsFilePath;
-        private readonly string _historyDbPath;
-        private bool _disposed = false;
+        private IRZplusSettings _settings;
+        private string _accessToken;
+        private DateTime _tokenExpiry;
 
-        private static readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true,
-            WriteIndented = true
-        };
+        private const string TOKEN_URL = "https://sso.arimr.gov.pl/auth/realms/ewniosekplus/protocol/openid-connect/token";
+        private const string DEFAULT_CLIENT_ID = "aplikacja-irzplus";
+        private const string API_BASE_URL = "https://irz.arimr.gov.pl/irzplus-api";
+
+        private readonly string _settingsPath;
+        private readonly string _historyPath;
 
         public IRZplusService()
         {
             _httpClient = new HttpClient();
             _httpClient.Timeout = TimeSpan.FromSeconds(60);
 
-            _settingsFilePath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "ZPSP", "IRZplus_settings.json");
+            var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var irzPlusFolder = Path.Combine(appData, "ZPSP", "IRZplus");
 
-            _historyDbPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "ZPSP", "IRZplus_history");
+            if (!Directory.Exists(irzPlusFolder))
+                Directory.CreateDirectory(irzPlusFolder);
 
-            _settings = LoadSettings();
-            EnsureDirectoriesExist();
+            _settingsPath = Path.Combine(irzPlusFolder, "settings.json");
+            _historyPath = Path.Combine(irzPlusFolder, "history.json");
+
+            LoadSettings();
         }
 
-        #region Settings Management
-
-        private void EnsureDirectoriesExist()
+        private void LoadSettings()
         {
-            var settingsDir = Path.GetDirectoryName(_settingsFilePath);
-            if (!Directory.Exists(settingsDir))
-                Directory.CreateDirectory(settingsDir);
+            try
+            {
+                if (File.Exists(_settingsPath))
+                {
+                    var json = File.ReadAllText(_settingsPath);
+                    _settings = JsonSerializer.Deserialize<IRZplusSettings>(json);
+                }
+            }
+            catch { }
 
-            if (!Directory.Exists(_historyDbPath))
-                Directory.CreateDirectory(_historyDbPath);
+            if (_settings == null)
+            {
+                _settings = new IRZplusSettings
+                {
+                    NumerUbojni = "10141607",
+                    NazwaUbojni = "Ubojnia Drobiu Piórkowscy",
+                    ClientId = DEFAULT_CLIENT_ID,
+                    ClientSecret = "",
+                    Username = "039806095",
+                    Password = "Jpiorkowski51",
+                    UseTestEnvironment = false,
+                    SaveLocalCopy = true,
+                    AutoSendOnSave = false,
+                    LocalExportPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "IRZplus_Export")
+                };
+            }
 
-            if (!string.IsNullOrEmpty(_settings.LocalExportPath) && !Directory.Exists(_settings.LocalExportPath))
-                Directory.CreateDirectory(_settings.LocalExportPath);
+            if (string.IsNullOrEmpty(_settings.ClientId))
+                _settings.ClientId = DEFAULT_CLIENT_ID;
         }
 
         public IRZplusSettings GetSettings() => _settings;
 
         public void SaveSettings(IRZplusSettings settings)
         {
-            try
-            {
-                // Kopiuj ustawienia
-                _settings.NumerUbojni = settings.NumerUbojni;
-                _settings.NazwaUbojni = settings.NazwaUbojni;
-                _settings.ClientId = settings.ClientId;
-                _settings.ClientSecret = settings.ClientSecret;
-                _settings.Username = settings.Username;
-                _settings.Password = settings.Password;
-                _settings.UseTestEnvironment = settings.UseTestEnvironment;
-                _settings.AutoSendOnSave = settings.AutoSendOnSave;
-                _settings.SaveLocalCopy = settings.SaveLocalCopy;
-                _settings.LocalExportPath = settings.LocalExportPath;
+            _settings = settings;
+            if (string.IsNullOrEmpty(_settings.ClientId))
+                _settings.ClientId = DEFAULT_CLIENT_ID;
 
-                // Zapisz do pliku (zaszyfrowane dane logowania)
-                var settingsToSave = new
-                {
-                    NumerUbojni = _settings.NumerUbojni,
-                    NazwaUbojni = _settings.NazwaUbojni,
-                    ClientId = EncodeCredential(_settings.ClientId),
-                    ClientSecret = EncodeCredential(_settings.ClientSecret),
-                    Username = EncodeCredential(_settings.Username),
-                    Password = EncodeCredential(_settings.Password),
-                    UseTestEnvironment = _settings.UseTestEnvironment,
-                    AutoSendOnSave = _settings.AutoSendOnSave,
-                    SaveLocalCopy = _settings.SaveLocalCopy,
-                    LocalExportPath = _settings.LocalExportPath,
-                    LastSuccessfulSync = _settings.LastSuccessfulSync
-                };
-
-                var json = JsonSerializer.Serialize(settingsToSave, _jsonOptions);
-                File.WriteAllText(_settingsFilePath, json);
-
-                // Wyczyść token po zmianie ustawień
-                _currentToken = null;
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Błąd zapisu ustawień: {ex.Message}", ex);
-            }
+            var json = JsonSerializer.Serialize(_settings, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(_settingsPath, json);
+            _accessToken = null;
+            _tokenExpiry = DateTime.MinValue;
         }
 
-        private IRZplusSettings LoadSettings()
+        private async Task<string> GetAccessTokenAsync()
         {
-            // Domyślne wartości - ZAWSZE używane jeśli plik nie istnieje lub wartość jest pusta
-            const string DEFAULT_CLIENT_ID = "aplikacja-irzplus";
-            const string DEFAULT_USERNAME = "039806095";
-            const string DEFAULT_PASSWORD = "Jpiorkowski51";
+            if (!string.IsNullOrEmpty(_accessToken) && DateTime.Now < _tokenExpiry)
+                return _accessToken;
 
-            try
+            if (string.IsNullOrWhiteSpace(_settings.Username))
+                throw new Exception("Nazwa użytkownika nie jest ustawiona!");
+
+            if (string.IsNullOrWhiteSpace(_settings.Password))
+                throw new Exception("Hasło nie jest ustawione!");
+
+            var clientId = string.IsNullOrEmpty(_settings.ClientId) ? DEFAULT_CLIENT_ID : _settings.ClientId;
+
+            var content = new FormUrlEncodedContent(new[]
             {
-                if (File.Exists(_settingsFilePath))
-                {
-                    var json = File.ReadAllText(_settingsFilePath);
-                    var loaded = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json);
+                new KeyValuePair<string, string>("grant_type", "password"),
+                new KeyValuePair<string, string>("client_id", clientId),
+                new KeyValuePair<string, string>("username", _settings.Username),
+                new KeyValuePair<string, string>("password", _settings.Password)
+            });
 
-                    // Dekoduj wartości i użyj domyślnych jeśli puste
-                    var clientId = DecodeCredential(GetStringValue(loaded, "ClientId", ""));
-                    var username = DecodeCredential(GetStringValue(loaded, "Username", ""));
-                    var password = DecodeCredential(GetStringValue(loaded, "Password", ""));
+            var response = await _httpClient.PostAsync(TOKEN_URL, content);
+            var responseBody = await response.Content.ReadAsStringAsync();
 
-                    return new IRZplusSettings
-                    {
-                        NumerUbojni = GetStringValue(loaded, "NumerUbojni", "10141607"),
-                        NazwaUbojni = GetStringValue(loaded, "NazwaUbojni", "Ubojnia Drobiu Piórkowscy"),
-                        ClientId = string.IsNullOrWhiteSpace(clientId) ? DEFAULT_CLIENT_ID : clientId,
-                        ClientSecret = "", // Zawsze puste - ARiMR nie wymaga
-                        Username = string.IsNullOrWhiteSpace(username) ? DEFAULT_USERNAME : username,
-                        Password = string.IsNullOrWhiteSpace(password) ? DEFAULT_PASSWORD : password,
-                        UseTestEnvironment = GetBoolValue(loaded, "UseTestEnvironment", false), // Domyślnie PRODUKCJA
-                        AutoSendOnSave = GetBoolValue(loaded, "AutoSendOnSave", false),
-                        SaveLocalCopy = GetBoolValue(loaded, "SaveLocalCopy", true),
-                        LocalExportPath = GetStringValue(loaded, "LocalExportPath",
-                            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "IRZplus_Export"))
-                    };
-                }
-            }
-            catch { }
-
-            // Domyślne ustawienia gdy plik nie istnieje
-            return new IRZplusSettings
+            if (!response.IsSuccessStatusCode)
             {
-                ClientId = DEFAULT_CLIENT_ID,
-                Username = DEFAULT_USERNAME,
-                Password = DEFAULT_PASSWORD,
-                LocalExportPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                    "IRZplus_Export")
-            };
-        }
-
-        private string GetStringValue(Dictionary<string, JsonElement> dict, string key, string defaultValue)
-        {
-            if (dict.TryGetValue(key, out var element) && element.ValueKind == JsonValueKind.String)
-                return element.GetString() ?? defaultValue;
-            return defaultValue;
-        }
-
-        private bool GetBoolValue(Dictionary<string, JsonElement> dict, string key, bool defaultValue)
-        {
-            if (dict.TryGetValue(key, out var element))
-            {
-                if (element.ValueKind == JsonValueKind.True) return true;
-                if (element.ValueKind == JsonValueKind.False) return false;
-            }
-            return defaultValue;
-        }
-
-        private string EncodeCredential(string value)
-        {
-            if (string.IsNullOrEmpty(value)) return "";
-            return Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
-        }
-
-        private string DecodeCredential(string encoded)
-        {
-            if (string.IsNullOrEmpty(encoded)) return "";
-            try
-            {
-                return Encoding.UTF8.GetString(Convert.FromBase64String(encoded));
-            }
-            catch { return ""; }
-        }
-
-        #endregion
-
-        #region OAuth 2.0 Authentication
-
-        /// <summary>
-        /// Pobiera token dostępu OAuth 2.0 z serwera ARiMR
-        /// URL: https://sso.arimr.gov.pl/auth/realms/ewniosekplus/protocol/openid-connect/token
-        /// </summary>
-        public async Task<IRZplusResult> AuthenticateAsync()
-        {
-            try
-            {
-                // Walidacja danych logowania
-                if (string.IsNullOrWhiteSpace(_settings.Username))
-                {
-                    return IRZplusResult.Error("Brak nazwy użytkownika! Przejdź do Ustawień IRZplus i wprowadź numer producenta.");
-                }
-
-                if (string.IsNullOrWhiteSpace(_settings.Password))
-                {
-                    return IRZplusResult.Error("Brak hasła! Przejdź do Ustawień IRZplus i wprowadź hasło konta ARiMR.");
-                }
-
-                // Parametry zgodne z dokumentacją ARiMR (02.02.2023)
-                // NIE wysyłamy client_secret - ARiMR go nie wymaga dla aplikacja-irzplus
-                var formData = new Dictionary<string, string>
-                {
-                    { "grant_type", "password" },
-                    { "client_id", _settings.ClientId ?? "aplikacja-irzplus" },
-                    { "username", _settings.Username },
-                    { "password", _settings.Password }
-                };
-
-                var content = new FormUrlEncodedContent(formData);
-                var response = await _httpClient.PostAsync(_settings.TokenEndpoint, content);
-                var responseBody = await response.Content.ReadAsStringAsync();
-
-                if (response.IsSuccessStatusCode)
-                {
-                    _currentToken = JsonSerializer.Deserialize<TokenResponse>(responseBody, _jsonOptions);
-                    _currentToken.ExpirationTime = DateTime.UtcNow.AddSeconds(_currentToken.ExpiresIn);
-                    return IRZplusResult.Ok("Uwierzytelnianie zakończone pomyślnie. Token uzyskany.");
-                }
-
-                // Parsuj błąd z odpowiedzi ARiMR
-                string errorMessage = responseBody;
+                string errorMessage = $"Kod: {(int)response.StatusCode}";
                 try
                 {
-                    using var doc = JsonDocument.Parse(responseBody);
-                    if (doc.RootElement.TryGetProperty("error_description", out var desc))
+                    var errorJson = JsonDocument.Parse(responseBody);
+                    if (errorJson.RootElement.TryGetProperty("error_description", out var desc))
                         errorMessage = desc.GetString();
-                    else if (doc.RootElement.TryGetProperty("error", out var err))
-                        errorMessage = err.GetString();
                 }
                 catch { }
+                throw new Exception($"Błąd autoryzacji ARiMR: {errorMessage}");
+            }
 
-                return IRZplusResult.Error($"Błąd autoryzacji ARiMR: {errorMessage}");
-            }
-            catch (HttpRequestException ex)
-            {
-                return IRZplusResult.Error($"Błąd połączenia z serwerem ARiMR: {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                return IRZplusResult.Error($"Nieoczekiwany błąd: {ex.Message}");
-            }
+            var tokenResponse = JsonSerializer.Deserialize<TokenResponse>(responseBody);
+            _accessToken = tokenResponse.access_token;
+            _tokenExpiry = DateTime.Now.AddSeconds(tokenResponse.expires_in - 60);
+            return _accessToken;
         }
 
-        /// <summary>
-        /// Odświeża token dostępu
-        /// </summary>
-        public async Task<IRZplusResult> RefreshTokenAsync()
-        {
-            try
-            {
-                if (_currentToken == null || string.IsNullOrEmpty(_currentToken.RefreshToken))
-                {
-                    return await AuthenticateAsync();
-                }
-
-                // Parametry zgodne z dokumentacją ARiMR - bez client_secret
-                var formData = new Dictionary<string, string>
-                {
-                    { "grant_type", "refresh_token" },
-                    { "client_id", _settings.ClientId ?? "aplikacja-irzplus" },
-                    { "refresh_token", _currentToken.RefreshToken }
-                };
-
-                var content = new FormUrlEncodedContent(formData);
-                var response = await _httpClient.PostAsync(_settings.TokenEndpoint, content);
-                var responseBody = await response.Content.ReadAsStringAsync();
-
-                if (response.IsSuccessStatusCode)
-                {
-                    _currentToken = JsonSerializer.Deserialize<TokenResponse>(responseBody, _jsonOptions);
-                    _currentToken.ExpirationTime = DateTime.UtcNow.AddSeconds(_currentToken.ExpiresIn);
-                    return IRZplusResult.Ok("Token odświeżony pomyślnie");
-                }
-
-                // Jeśli refresh token wygasł, pełne uwierzytelnianie
-                return await AuthenticateAsync();
-            }
-            catch (Exception ex)
-            {
-                return IRZplusResult.Error($"Błąd odświeżania tokenu: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// Sprawdza i zapewnia ważny token
-        /// </summary>
-        private async Task<bool> EnsureValidTokenAsync()
-        {
-            if (_currentToken == null || _currentToken.IsExpired)
-            {
-                var result = await AuthenticateAsync();
-                return result.Success;
-            }
-            return true;
-        }
-
-        /// <summary>
-        /// Testuje połączenie z API IRZplus
-        /// </summary>
         public async Task<IRZplusResult> TestConnectionAsync()
         {
             try
             {
-                var authResult = await AuthenticateAsync();
-                if (!authResult.Success)
-                    return authResult;
-
-                // Próba pobrania statusu/ping
-                _httpClient.DefaultRequestHeaders.Authorization =
-                    new AuthenticationHeaderValue("Bearer", _currentToken.AccessToken);
-
-                var response = await _httpClient.GetAsync($"{_settings.ApiBaseUrl}/status");
-
-                if (response.IsSuccessStatusCode)
-                {
-                    return IRZplusResult.Ok($"Połączenie z API IRZplus ({(_settings.UseTestEnvironment ? "TEST" : "PROD")}) działa poprawnie");
-                }
-
-                return IRZplusResult.Ok($"Uwierzytelnianie OK. Endpoint status niedostępny ({response.StatusCode})");
+                await GetAccessTokenAsync();
+                return new IRZplusResult { Success = true, Message = "Połączenie OK! Token uzyskany pomyślnie." };
             }
             catch (Exception ex)
             {
-                return IRZplusResult.Error($"Błąd testu połączenia: {ex.Message}");
+                return new IRZplusResult { Success = false, Message = ex.Message };
             }
         }
 
-        public bool IsAuthenticated => _currentToken != null && !_currentToken.IsExpired;
+        public async Task<List<SpecyfikacjaDoIRZplus>> GetSpecyfikacjeAsync(string connectionString, DateTime dataUboju)
+        {
+            var result = new List<SpecyfikacjaDoIRZplus>();
+            using var conn = new SqlConnection(connectionString);
+            await conn.OpenAsync();
 
-        #endregion
+            var sql = @"SELECT fc.ID, fc.CalcDate, fc.CustomerGID, fc.LumQnt, fc.DeclI2, fc.DeclI3, fc.PayWgt, fc.PartiaNumber, d.ShortName as Hodowca, d.IRZPlus
+                FROM dbo.FarmerCalc fc
+                LEFT JOIN dbo.Dostawcy d ON LTRIM(RTRIM(fc.CustomerGID)) = LTRIM(RTRIM(d.ID))
+                WHERE fc.CalcDate = @DataUboju AND ISNULL(fc.LumQnt, 0) > 0
+                ORDER BY d.ShortName";
 
-        #region API Operations
+            using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@DataUboju", dataUboju.Date);
 
-        /// <summary>
-        /// Wysyła zgłoszenie uboju do IRZplus
-        /// </summary>
-        public async Task<IRZplusResult> SendZgloszenieAsync(ZgloszenieZbiorczeRequest request)
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var lumQnt = reader["LumQnt"] != DBNull.Value ? Convert.ToInt32(reader["LumQnt"]) : 0;
+                var declI2 = reader["DeclI2"] != DBNull.Value ? Convert.ToInt32(reader["DeclI2"]) : 0;
+                var declI3 = reader["DeclI3"] != DBNull.Value ? Convert.ToInt32(reader["DeclI3"]) : 0;
+                var payWgt = reader["PayWgt"] != DBNull.Value ? Convert.ToDecimal(reader["PayWgt"]) : 0;
+
+                result.Add(new SpecyfikacjaDoIRZplus
+                {
+                    Id = reader.GetInt32(reader.GetOrdinal("ID")),
+                    Hodowca = reader["Hodowca"]?.ToString()?.Trim() ?? "",
+                    IdHodowcy = reader["CustomerGID"]?.ToString()?.Trim() ?? "",
+                    IRZPlus = reader["IRZPlus"]?.ToString()?.Trim() ?? "",
+                    NumerPartii = reader["PartiaNumber"]?.ToString()?.Trim() ?? "",
+                    LiczbaSztukDrobiu = lumQnt - declI2,
+                    DataZdarzenia = reader.GetDateTime(reader.GetOrdinal("CalcDate")),
+                    SztukiWszystkie = lumQnt,
+                    SztukiPadle = declI2,
+                    SztukiKonfiskaty = declI3,
+                    WagaNetto = payWgt,
+                    KgDoZaplaty = payWgt,
+                    Wybrana = true
+                });
+            }
+            return result;
+        }
+
+        public async Task<IRZplusResult> WyslijZgloszenieAsync(ZgloszenieZbiorczeRequest request)
         {
             try
             {
-                if (!await EnsureValidTokenAsync())
-                {
-                    return IRZplusResult.Error("Nie udało się uzyskać tokenu dostępu");
-                }
+                var token = await GetAccessTokenAsync();
+                if (_settings.SaveLocalCopy) SaveLocalCopy(request, "zgloszenie");
 
-                // Ustaw numer ubojni
-                request.NumerUbojni = _settings.NumerUbojni;
-                request.DataZgloszenia = DateTime.Now.ToString("yyyy-MM-dd");
-
-                var json = JsonSerializer.Serialize(request, _jsonOptions);
-
-                // Zapisz lokalną kopię
-                if (_settings.SaveLocalCopy)
-                {
-                    await SaveLocalCopyAsync(request, json);
-                }
-
-                _httpClient.DefaultRequestHeaders.Authorization =
-                    new AuthenticationHeaderValue("Bearer", _currentToken.AccessToken);
-
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                var json = JsonSerializer.Serialize(request, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await _httpClient.PostAsync($"{_settings.ApiBaseUrl}/zgloszenia/uboj-drobiu", content);
+                var response = await _httpClient.PostAsync($"{API_BASE_URL}/drob/zgloszenie", content);
                 var responseBody = await response.Content.ReadAsStringAsync();
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var apiResponse = JsonSerializer.Deserialize<IRZplusApiResponse>(responseBody, _jsonOptions);
-
-                    // Zapisz do historii
-                    await SaveToHistoryAsync(request, apiResponse, responseBody);
-
-                    _settings.LastSuccessfulSync = DateTime.Now;
-
-                    return new IRZplusResult
+                    SaveHistory(new IRZplusLocalHistory
                     {
-                        Success = true,
-                        Message = $"Zgłoszenie wysłane pomyślnie",
-                        NumerZgloszenia = apiResponse?.NumerZgloszenia,
-                        Warnings = apiResponse?.Warnings ?? new List<string>(),
-                        Timestamp = DateTime.Now
-                    };
+                        DataWyslania = DateTime.Now,
+                        DataUboju = request.DataUboju,
+                        NumerZgloszenia = TryGetNumerZgloszenia(responseBody),
+                        Status = "WYSLANE",
+                        IloscDyspozycji = request.Dyspozycje?.Count ?? 0,
+                        SumaIloscSztuk = request.Dyspozycje?.Sum(d => d.IloscSztuk) ?? 0,
+                        SumaWagaKg = request.Dyspozycje?.Sum(d => d.WagaKg) ?? 0,
+                        RequestJson = json,
+                        ResponseJson = responseBody
+                    });
+                    return new IRZplusResult { Success = true, Message = "Wysłano!", NumerZgloszenia = TryGetNumerZgloszenia(responseBody) };
                 }
-
-                // Obsługa błędów
-                var errorResponse = TryParseErrorResponse(responseBody);
-                return IRZplusResult.Error(
-                    $"Błąd wysyłania: {response.StatusCode}",
-                    errorResponse?.Errors ?? new List<string> { responseBody });
+                return new IRZplusResult { Success = false, Message = $"Błąd: {response.StatusCode}\n{responseBody}" };
             }
-            catch (HttpRequestException ex)
-            {
-                return IRZplusResult.Error($"Błąd połączenia: {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                return IRZplusResult.Error($"Nieoczekiwany błąd: {ex.Message}");
-            }
+            catch (Exception ex) { return new IRZplusResult { Success = false, Message = ex.Message }; }
         }
 
-        /// <summary>
-        /// Pobiera status zgłoszenia
-        /// </summary>
         public async Task<IRZplusResult> GetStatusZgloszeniaAsync(string numerZgloszenia)
         {
             try
             {
-                if (!await EnsureValidTokenAsync())
-                {
-                    return IRZplusResult.Error("Nie udało się uzyskać tokenu dostępu");
-                }
-
-                _httpClient.DefaultRequestHeaders.Authorization =
-                    new AuthenticationHeaderValue("Bearer", _currentToken.AccessToken);
-
-                var response = await _httpClient.GetAsync($"{_settings.ApiBaseUrl}/zgloszenia/{numerZgloszenia}/status");
-                var responseBody = await response.Content.ReadAsStringAsync();
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var status = JsonSerializer.Deserialize<StatusZgloszenia>(responseBody, _jsonOptions);
-                    return new IRZplusResult
-                    {
-                        Success = true,
-                        Message = $"Status: {status?.Status}",
-                        NumerZgloszenia = numerZgloszenia
-                    };
-                }
-
-                return IRZplusResult.Error($"Błąd pobierania statusu: {response.StatusCode}");
+                var token = await GetAccessTokenAsync();
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                var response = await _httpClient.GetAsync($"{API_BASE_URL}/drob/zgloszenie/{numerZgloszenia}/status");
+                var body = await response.Content.ReadAsStringAsync();
+                return new IRZplusResult { Success = response.IsSuccessStatusCode, Message = body };
             }
-            catch (Exception ex)
-            {
-                return IRZplusResult.Error($"Błąd: {ex.Message}");
-            }
+            catch (Exception ex) { return new IRZplusResult { Success = false, Message = ex.Message }; }
         }
 
-        /// <summary>
-        /// Pobiera historię zgłoszeń z API
-        /// </summary>
-        public async Task<HistoriaZgloszen> GetHistoriaAsync(DateTime? dataOd = null, DateTime? dataDo = null, int page = 1, int pageSize = 50)
+        private void SaveLocalCopy(object data, string prefix)
         {
             try
             {
-                if (!await EnsureValidTokenAsync())
-                {
-                    return new HistoriaZgloszen();
-                }
-
-                _httpClient.DefaultRequestHeaders.Authorization =
-                    new AuthenticationHeaderValue("Bearer", _currentToken.AccessToken);
-
-                var queryParams = new List<string>
-                {
-                    $"page={page}",
-                    $"pageSize={pageSize}",
-                    $"numerUbojni={_settings.NumerUbojni}"
-                };
-
-                if (dataOd.HasValue)
-                    queryParams.Add($"dataOd={dataOd.Value:yyyy-MM-dd}");
-                if (dataDo.HasValue)
-                    queryParams.Add($"dataDo={dataDo.Value:yyyy-MM-dd}");
-
-                var url = $"{_settings.ApiBaseUrl}/zgloszenia?{string.Join("&", queryParams)}";
-                var response = await _httpClient.GetAsync(url);
-                var responseBody = await response.Content.ReadAsStringAsync();
-
-                if (response.IsSuccessStatusCode)
-                {
-                    return JsonSerializer.Deserialize<HistoriaZgloszen>(responseBody, _jsonOptions);
-                }
+                var path = _settings.LocalExportPath ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "IRZplus_Export");
+                if (!Directory.Exists(path)) Directory.CreateDirectory(path);
+                File.WriteAllText(Path.Combine(path, $"{prefix}_{DateTime.Now:yyyy-MM-dd_HHmmss}.json"),
+                    JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true }));
             }
             catch { }
-
-            return new HistoriaZgloszen();
         }
 
-        /// <summary>
-        /// Anuluje zgłoszenie
-        /// </summary>
-        public async Task<IRZplusResult> AnulujZgloszenieAsync(string numerZgloszenia, string powod)
+        private void SaveHistory(IRZplusLocalHistory entry)
         {
             try
             {
-                if (!await EnsureValidTokenAsync())
-                {
-                    return IRZplusResult.Error("Nie udało się uzyskać tokenu dostępu");
-                }
-
-                _httpClient.DefaultRequestHeaders.Authorization =
-                    new AuthenticationHeaderValue("Bearer", _currentToken.AccessToken);
-
-                var content = new StringContent(
-                    JsonSerializer.Serialize(new { powod }),
-                    Encoding.UTF8,
-                    "application/json");
-
-                var response = await _httpClient.PostAsync(
-                    $"{_settings.ApiBaseUrl}/zgloszenia/{numerZgloszenia}/anuluj",
-                    content);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    return IRZplusResult.Ok($"Zgłoszenie {numerZgloszenia} zostało anulowane");
-                }
-
-                return IRZplusResult.Error($"Błąd anulowania: {response.StatusCode}");
-            }
-            catch (Exception ex)
-            {
-                return IRZplusResult.Error($"Błąd: {ex.Message}");
-            }
-        }
-
-        private IRZplusApiResponse TryParseErrorResponse(string responseBody)
-        {
-            try
-            {
-                return JsonSerializer.Deserialize<IRZplusApiResponse>(responseBody, _jsonOptions);
-            }
-            catch { return null; }
-        }
-
-        #endregion
-
-        #region Local Storage
-
-        private async Task SaveLocalCopyAsync(ZgloszenieZbiorczeRequest request, string json)
-        {
-            try
-            {
-                var dir = _settings.LocalExportPath ?? _historyDbPath;
-                if (!Directory.Exists(dir))
-                    Directory.CreateDirectory(dir);
-
-                var dataUboju = request.Dyspozycje.FirstOrDefault()?.DataUboju ?? DateTime.Now.ToString("yyyy-MM-dd");
-                var fileName = $"IRZplus_{dataUboju}_{DateTime.Now:HHmmss}.json";
-                var filePath = Path.Combine(dir, fileName);
-
-                await File.WriteAllTextAsync(filePath, json);
-            }
-            catch { /* Ignoruj błędy zapisu lokalnego */ }
-        }
-
-        private async Task SaveToHistoryAsync(ZgloszenieZbiorczeRequest request, IRZplusApiResponse response, string responseJson)
-        {
-            try
-            {
-                var historyEntry = new IRZplusLocalHistory
-                {
-                    DataWyslania = DateTime.Now,
-                    NumerZgloszenia = response?.NumerZgloszenia ?? "N/A",
-                    Status = response?.Status ?? (response?.Success == true ? "WYSLANE" : "BLAD"),
-                    DataUboju = DateTime.TryParse(request.Dyspozycje.FirstOrDefault()?.DataUboju, out var du) ? du : DateTime.Now,
-                    IloscDyspozycji = request.Dyspozycje.Count,
-                    SumaIloscSztuk = request.Dyspozycje.Sum(d => d.IloscSztuk),
-                    SumaWagaKg = request.Dyspozycje.Sum(d => d.WagaKg),
-                    UzytkownikId = App.UserID ?? Environment.UserName,
-                    RequestJson = JsonSerializer.Serialize(request, _jsonOptions),
-                    ResponseJson = responseJson
-                };
-
-                var historyFile = Path.Combine(_historyDbPath, $"history_{DateTime.Now:yyyyMM}.json");
-
-                List<IRZplusLocalHistory> history;
-                if (File.Exists(historyFile))
-                {
-                    var existingJson = await File.ReadAllTextAsync(historyFile);
-                    history = JsonSerializer.Deserialize<List<IRZplusLocalHistory>>(existingJson, _jsonOptions) ?? new List<IRZplusLocalHistory>();
-                }
-                else
-                {
-                    history = new List<IRZplusLocalHistory>();
-                }
-
-                historyEntry.Id = history.Count + 1;
-                history.Add(historyEntry);
-
-                await File.WriteAllTextAsync(historyFile, JsonSerializer.Serialize(history, _jsonOptions));
-            }
-            catch { /* Ignoruj błędy historii */ }
-        }
-
-        /// <summary>
-        /// Pobiera lokalną historię wysyłek
-        /// </summary>
-        public List<IRZplusLocalHistory> GetLocalHistory(DateTime? dataOd = null, DateTime? dataDo = null)
-        {
-            var result = new List<IRZplusLocalHistory>();
-
-            try
-            {
-                var historyFiles = Directory.GetFiles(_historyDbPath, "history_*.json");
-
-                foreach (var file in historyFiles)
-                {
-                    var json = File.ReadAllText(file);
-                    var entries = JsonSerializer.Deserialize<List<IRZplusLocalHistory>>(json, _jsonOptions);
-                    if (entries != null)
-                    {
-                        foreach (var entry in entries)
-                        {
-                            if (dataOd.HasValue && entry.DataUboju < dataOd.Value) continue;
-                            if (dataDo.HasValue && entry.DataUboju > dataDo.Value) continue;
-                            result.Add(entry);
-                        }
-                    }
-                }
+                var history = GetLocalHistory(null, null);
+                history.Insert(0, entry);
+                if (history.Count > 1000) history = history.Take(1000).ToList();
+                File.WriteAllText(_historyPath, JsonSerializer.Serialize(history, new JsonSerializerOptions { WriteIndented = true }));
             }
             catch { }
-
-            return result.OrderByDescending(x => x.DataWyslania).ToList();
         }
 
-        #endregion
-
-        #region Data Conversion
-
-        /// <summary>
-        /// Konwertuje specyfikacje z bazy danych na format IRZplus
-        /// </summary>
-        public ZgloszenieZbiorczeRequest ConvertToZgloszenie(List<SpecyfikacjaDoIRZplus> specyfikacje)
-        {
-            var request = new ZgloszenieZbiorczeRequest
-            {
-                NumerUbojni = _settings.NumerUbojni,
-                DataZgloszenia = DateTime.Now.ToString("yyyy-MM-dd")
-            };
-
-            foreach (var spec in specyfikacje.Where(s => s.Wybrana))
-            {
-                request.Dyspozycje.Add(new DyspozycjaZZSSD
-                {
-                    DataUboju = spec.DataZdarzenia.ToString("yyyy-MM-dd"),
-                    NumerSiedliska = spec.IRZPlus ?? "",
-                    NumerUbojni = _settings.NumerUbojni,
-                    GatunekDrobiu = "KURCZAK",
-                    IloscSztuk = spec.LiczbaSztukDrobiu,
-                    WagaKg = spec.WagaNetto,
-                    IloscPadlych = spec.SztukiPadle,
-                    NumerPartii = spec.NumerPartii ?? "",
-                    NumerDokumentuPrzewozowego = ""
-                });
-            }
-
-            return request;
-        }
-
-        /// <summary>
-        /// Pobiera specyfikacje z bazy danych dla danej daty uboju
-        /// </summary>
-        public async Task<List<SpecyfikacjaDoIRZplus>> GetSpecyfikacjeAsync(string connectionString, DateTime dataUboju)
-        {
-            var result = new List<SpecyfikacjaDoIRZplus>();
-
-            try
-            {
-                using (var connection = new SqlConnection(connectionString))
-                {
-                    await connection.OpenAsync();
-
-                    // Zapytanie zgodne z formatem Excel ARiMR
-                    // Pobieramy numer partii z tabeli PartiaDostawca przez PartiaGuid
-                    // UWAGA: PartiaGuid to UNIQUEIDENTIFIER, pd.guid to VARCHAR(36) - wymagany CAST
-                    // Pełny numer partii = CustomerID + Partia (np. "03726014001")
-                    // Dodano PayWgt (KgDoZaplaty) i LumQnt do obliczenia KG konfiskat/padlych
-                    var query = @"
-                        SELECT
-                            fc.ID,
-                            fc.CalcDate AS DataZdarzenia,
-                            ISNULL(d.ShortName, 'Nieznany') AS Hodowca,
-                            LTRIM(RTRIM(ISNULL(fc.CustomerGID, ''))) AS IdHodowcy,
-                            ISNULL(d.IRZPlus, ISNULL(d.AnimNo, '')) AS IRZPlus,
-                            ISNULL(fc.PartiaNumber, ISNULL(pd.CustomerID, '') + ISNULL(pd.Partia, '')) AS NumerPartii,
-                            ISNULL(fc.DeclI1, 0) AS SztukiWszystkie,
-                            ISNULL(fc.DeclI2, 0) AS SztukiPadle,
-                            ISNULL(fc.DeclI3, 0) + ISNULL(fc.DeclI4, 0) + ISNULL(fc.DeclI5, 0) AS SztukiKonfiskaty,
-                            ISNULL(fc.NettoWeight, 0) AS WagaNetto,
-                            ISNULL(fc.PayWgt, 0) AS KgDoZaplaty,
-                            ISNULL(fc.LumQnt, 0) AS Lumel,
-                            fc.CarLp AS LP,
-                            fc.PartiaGuid
-                        FROM dbo.FarmerCalc fc
-                        LEFT JOIN dbo.Dostawcy d ON LTRIM(RTRIM(fc.CustomerGID)) = LTRIM(RTRIM(d.ID))
-                        LEFT JOIN dbo.PartiaDostawca pd ON CAST(fc.PartiaGuid AS VARCHAR(36)) = pd.guid
-                        WHERE CAST(fc.CalcDate AS DATE) = @DataUboju
-                        ORDER BY fc.CarLp";
-
-                    using (var cmd = new SqlCommand(query, connection))
-                    {
-                        cmd.Parameters.AddWithValue("@DataUboju", dataUboju.Date);
-
-                        using (var reader = await cmd.ExecuteReaderAsync())
-                        {
-                            while (await reader.ReadAsync())
-                            {
-                                int sztukiWszystkie = reader.IsDBNull(reader.GetOrdinal("SztukiWszystkie")) ? 0 : reader.GetInt32(reader.GetOrdinal("SztukiWszystkie"));
-                                int sztukiPadle = reader.IsDBNull(reader.GetOrdinal("SztukiPadle")) ? 0 : reader.GetInt32(reader.GetOrdinal("SztukiPadle"));
-                                int sztukiKonfiskaty = reader.IsDBNull(reader.GetOrdinal("SztukiKonfiskaty")) ? 0 : reader.GetInt32(reader.GetOrdinal("SztukiKonfiskaty"));
-                                int lumel = reader.IsDBNull(reader.GetOrdinal("Lumel")) ? 0 : reader.GetInt32(reader.GetOrdinal("Lumel"));
-                                decimal wagaNetto = reader.IsDBNull(reader.GetOrdinal("WagaNetto")) ? 0 : reader.GetDecimal(reader.GetOrdinal("WagaNetto"));
-                                decimal kgDoZaplaty = reader.IsDBNull(reader.GetOrdinal("KgDoZaplaty")) ? 0 : reader.GetDecimal(reader.GetOrdinal("KgDoZaplaty"));
-
-                                // Liczba sztuk zdatnych = wszystkie - padłe - konfiskaty
-                                int liczbaSztukZdatnych = sztukiWszystkie - sztukiPadle - sztukiKonfiskaty;
-                                if (liczbaSztukZdatnych < 0) liczbaSztukZdatnych = 0;
-
-                                // Oblicz srednia wage do kalkulacji KG konfiskat i padlych
-                                // Wzor: Śr.waga = Netto / (LUMEL + Padłe)
-                                decimal srWaga = (lumel + sztukiPadle) > 0 ? wagaNetto / (lumel + sztukiPadle) : 0;
-                                decimal kgKonfiskat = Math.Round(sztukiKonfiskaty * srWaga, 0);
-                                decimal kgPadlych = Math.Round(sztukiPadle * srWaga, 0);
-
-                                result.Add(new SpecyfikacjaDoIRZplus
-                                {
-                                    Id = reader.GetInt32(reader.GetOrdinal("ID")),
-                                    DataZdarzenia = reader.GetDateTime(reader.GetOrdinal("DataZdarzenia")),
-                                    Hodowca = reader.IsDBNull(reader.GetOrdinal("Hodowca")) ? "Nieznany" : reader.GetString(reader.GetOrdinal("Hodowca")),
-                                    IdHodowcy = reader.IsDBNull(reader.GetOrdinal("IdHodowcy")) ? "" : reader.GetString(reader.GetOrdinal("IdHodowcy")),
-                                    IRZPlus = reader.IsDBNull(reader.GetOrdinal("IRZPlus")) ? "" : reader.GetString(reader.GetOrdinal("IRZPlus")),
-                                    NumerPartii = reader.IsDBNull(reader.GetOrdinal("NumerPartii")) ? "" : reader.GetString(reader.GetOrdinal("NumerPartii")),
-                                    LiczbaSztukDrobiu = liczbaSztukZdatnych,
-                                    SztukiWszystkie = sztukiWszystkie,
-                                    SztukiPadle = sztukiPadle,
-                                    SztukiKonfiskaty = sztukiKonfiskaty,
-                                    WagaNetto = wagaNetto,
-                                    KgDoZaplaty = kgDoZaplaty,
-                                    KgKonfiskat = kgKonfiskat,
-                                    KgPadlych = kgPadlych,
-                                    TypZdarzenia = "Przybycie do rzeźni i ubój",
-                                    KrajWywozu = "PL",
-                                    Wybrana = true
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Błąd pobierania specyfikacji: {ex.Message}", ex);
-            }
-
-            return result;
-        }
-
-        /// <summary>
-        /// Tworzy podsumowanie dla podglądu przed wysyłką
-        /// </summary>
-        public IRZplusPodsumowanie CreatePodsumowanie(List<SpecyfikacjaDoIRZplus> specyfikacje)
-        {
-            var wybrane = specyfikacje.Where(s => s.Wybrana).ToList();
-
-            return new IRZplusPodsumowanie
-            {
-                DataUboju = wybrane.FirstOrDefault()?.DataUboju ?? DateTime.Now,
-                LiczbaSpecyfikacji = wybrane.Count,
-                SumaIloscSztuk = wybrane.Sum(s => s.IloscSztuk),
-                SumaWagaNetto = wybrane.Sum(s => s.WagaNetto),
-                SumaIloscPadlych = wybrane.Sum(s => s.IloscPadlych),
-                Specyfikacje = wybrane
-            };
-        }
-
-        #endregion
-
-        #region Database Logging
-
-        /// <summary>
-        /// Loguje wysyłkę IRZplus do bazy danych
-        /// </summary>
-        public async Task LogToDatabase(string connectionString, ZgloszenieZbiorczeRequest request, IRZplusResult result, string userId, string userName)
+        public List<IRZplusLocalHistory> GetLocalHistory(DateTime? from, DateTime? to)
         {
             try
             {
-                using (var connection = new SqlConnection(connectionString))
-                {
-                    await connection.OpenAsync();
-
-                    // Upewnij się, że tabela istnieje
-                    var createTableQuery = @"
-                        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'IRZplusLog')
-                        CREATE TABLE IRZplusLog (
-                            ID INT IDENTITY(1,1) PRIMARY KEY,
-                            DataWyslania DATETIME NOT NULL,
-                            NumerZgloszenia NVARCHAR(100),
-                            Status NVARCHAR(50),
-                            DataUboju DATE,
-                            IloscDyspozycji INT,
-                            SumaIloscSztuk INT,
-                            SumaWagaKg DECIMAL(18,2),
-                            UzytkownikId NVARCHAR(50),
-                            UzytkownikNazwa NVARCHAR(200),
-                            Uwagi NVARCHAR(MAX),
-                            RequestJson NVARCHAR(MAX),
-                            ResponseMessage NVARCHAR(MAX),
-                            Srodowisko NVARCHAR(10)
-                        )";
-
-                    using (var cmd = new SqlCommand(createTableQuery, connection))
-                    {
-                        await cmd.ExecuteNonQueryAsync();
-                    }
-
-                    // Wstaw log
-                    var insertQuery = @"
-                        INSERT INTO IRZplusLog
-                        (DataWyslania, NumerZgloszenia, Status, DataUboju, IloscDyspozycji,
-                         SumaIloscSztuk, SumaWagaKg, UzytkownikId, UzytkownikNazwa,
-                         Uwagi, RequestJson, ResponseMessage, Srodowisko)
-                        VALUES
-                        (@DataWyslania, @NumerZgloszenia, @Status, @DataUboju, @IloscDyspozycji,
-                         @SumaIloscSztuk, @SumaWagaKg, @UzytkownikId, @UzytkownikNazwa,
-                         @Uwagi, @RequestJson, @ResponseMessage, @Srodowisko)";
-
-                    using (var cmd = new SqlCommand(insertQuery, connection))
-                    {
-                        var dataUboju = DateTime.TryParse(request.Dyspozycje.FirstOrDefault()?.DataUboju, out var du) ? du : DateTime.Now;
-
-                        cmd.Parameters.AddWithValue("@DataWyslania", DateTime.Now);
-                        cmd.Parameters.AddWithValue("@NumerZgloszenia", (object)result.NumerZgloszenia ?? DBNull.Value);
-                        cmd.Parameters.AddWithValue("@Status", result.Success ? "WYSLANE" : "BLAD");
-                        cmd.Parameters.AddWithValue("@DataUboju", dataUboju.Date);
-                        cmd.Parameters.AddWithValue("@IloscDyspozycji", request.Dyspozycje.Count);
-                        cmd.Parameters.AddWithValue("@SumaIloscSztuk", request.Dyspozycje.Sum(d => d.IloscSztuk));
-                        cmd.Parameters.AddWithValue("@SumaWagaKg", request.Dyspozycje.Sum(d => d.WagaKg));
-                        cmd.Parameters.AddWithValue("@UzytkownikId", userId ?? "");
-                        cmd.Parameters.AddWithValue("@UzytkownikNazwa", userName ?? "");
-                        cmd.Parameters.AddWithValue("@Uwagi", result.Message ?? "");
-                        cmd.Parameters.AddWithValue("@RequestJson", JsonSerializer.Serialize(request, _jsonOptions));
-                        cmd.Parameters.AddWithValue("@ResponseMessage", string.Join("; ", result.Errors.Concat(result.Warnings)));
-                        cmd.Parameters.AddWithValue("@Srodowisko", _settings.UseTestEnvironment ? "TEST" : "PROD");
-
-                        await cmd.ExecuteNonQueryAsync();
-                    }
-                }
+                if (!File.Exists(_historyPath)) return new List<IRZplusLocalHistory>();
+                var history = JsonSerializer.Deserialize<List<IRZplusLocalHistory>>(File.ReadAllText(_historyPath)) ?? new List<IRZplusLocalHistory>();
+                if (from.HasValue) history = history.Where(h => h.DataWyslania >= from.Value).ToList();
+                if (to.HasValue) history = history.Where(h => h.DataWyslania <= to.Value.AddDays(1)).ToList();
+                return history.OrderByDescending(h => h.DataWyslania).ToList();
             }
-            catch { /* Nie przerywaj głównej operacji z powodu błędu logowania */ }
+            catch { return new List<IRZplusLocalHistory>(); }
         }
 
-        #endregion
-
-        #region IDisposable
-
-        public void Dispose()
+        private string TryGetNumerZgloszenia(string json)
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!_disposed)
+            try
             {
-                if (disposing)
-                {
-                    _httpClient?.Dispose();
-                }
-                _disposed = true;
+                var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("numerZgloszenia", out var n)) return n.GetString();
+                if (doc.RootElement.TryGetProperty("numer", out var n2)) return n2.GetString();
+                if (doc.RootElement.TryGetProperty("id", out var id)) return id.GetString();
             }
+            catch { }
+            return "N/A";
         }
 
-        #endregion
+        public void Dispose() => _httpClient?.Dispose();
+    }
+
+    public class IRZplusSettings
+    {
+        public string NumerUbojni { get; set; }
+        public string NazwaUbojni { get; set; }
+        public string ClientId { get; set; }
+        public string ClientSecret { get; set; }
+        public string Username { get; set; }
+        public string Password { get; set; }
+        public bool UseTestEnvironment { get; set; }
+        public bool SaveLocalCopy { get; set; }
+        public bool AutoSendOnSave { get; set; }
+        public string LocalExportPath { get; set; }
+    }
+
+    public class IRZplusResult
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; }
+        public string NumerZgloszenia { get; set; }
+        public string ResponseData { get; set; }
+    }
+
+    public class TokenResponse
+    {
+        public string access_token { get; set; }
+        public string token_type { get; set; }
+        public int expires_in { get; set; }
+        public string refresh_token { get; set; }
+    }
+
+    public class SpecyfikacjaDoIRZplus
+    {
+        public int Id { get; set; }
+        public string Hodowca { get; set; }
+        public string IdHodowcy { get; set; }
+        public string IRZPlus { get; set; }
+        public string NumerPartii { get; set; }
+        public int LiczbaSztukDrobiu { get; set; }
+        public string TypZdarzenia { get; set; } = "Przybycie do rzeźni i ubój";
+        public DateTime DataZdarzenia { get; set; }
+        public string KrajWywozu { get; set; } = "PL";
+        public string NrDokArimr { get; set; }
+        public string Przybycie { get; set; }
+        public string Padniecia { get; set; }
+        public int SztukiWszystkie { get; set; }
+        public int SztukiPadle { get; set; }
+        public int SztukiKonfiskaty { get; set; }
+        public decimal WagaNetto { get; set; }
+        public decimal KgDoZaplaty { get; set; }
+        public decimal KgKonfiskat { get; set; }
+        public decimal KgPadlych { get; set; }
+        public bool Wybrana { get; set; }
+    }
+
+    public class ZgloszenieZbiorczeRequest
+    {
+        public string NumerUbojni { get; set; }
+        public DateTime DataUboju { get; set; }
+        public string TypZgloszenia { get; set; }
+        public List<DyspozycjaUboju> Dyspozycje { get; set; }
+    }
+
+    public class DyspozycjaUboju
+    {
+        public string NumerSiedliska { get; set; }
+        public string GatunekDrobiu { get; set; }
+        public int IloscSztuk { get; set; }
+        public decimal WagaKg { get; set; }
+        public int IloscPadlych { get; set; }
+        public string NumerPartii { get; set; }
+    }
+
+    public class IRZplusLocalHistory
+    {
+        public DateTime DataWyslania { get; set; }
+        public DateTime DataUboju { get; set; }
+        public string NumerZgloszenia { get; set; }
+        public string Status { get; set; }
+        public int IloscDyspozycji { get; set; }
+        public int SumaIloscSztuk { get; set; }
+        public decimal SumaWagaKg { get; set; }
+        public string RequestJson { get; set; }
+        public string ResponseJson { get; set; }
+        public string UzytkownikId { get; set; }
+        public string UzytkownikNazwa { get; set; }
+        public string Uwagi { get; set; }
+    }
+
+    public static class KategorieOdpadow
+    {
+        public static List<string> GetRodzajeForKategoria(string kat) => kat switch
+        {
+            "KAT1" => new List<string> { "SRM", "Inne KAT1" },
+            "KAT2" => new List<string> { "Obornik", "Treść przewodu", "Padłe zwierzęta", "Inne KAT2" },
+            "KAT3" => new List<string> { "Pierze", "Krew", "Wnętrzności", "Tłuszcz", "Nogi", "Głowy", "Skóra", "Inne KAT3" },
+            _ => new List<string> { "Inne" }
+        };
+    }
+
+    public class OdpadDoIRZplus
+    {
+        public int Id { get; set; }
+        public DateTime DataWydania { get; set; }
+        public string KategoriaOdpadu { get; set; }
+        public string RodzajOdpadu { get; set; }
+        public decimal IloscKg { get; set; }
+        public string OdbiorcaNazwa { get; set; }
+        public string OdbiorcaNIP { get; set; }
+        public string OdbiorcaWetNr { get; set; }
+        public string NumerDokumentu { get; set; }
+        public string NumerRejestracyjny { get; set; }
+        public string Uwagi { get; set; }
+        public bool Wybrana { get; set; } = true;
     }
 }
