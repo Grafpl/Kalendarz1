@@ -86,8 +86,8 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                         var guidObj = reader.GetValue(0);
                         if (guidObj is Guid g)
                             guidValue = g;
-                        else if (guidObj is string s && Guid.TryParse(s, out var parsed))
-                            guidValue = parsed;
+                        else if (guidObj is string s && Guid.TryParse(s, out var parsedGuid))
+                            guidValue = parsedGuid;
                     }
 
                     _allPartie.Add(new PartiaItem
