@@ -7,6 +7,8 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
+using Microsoft.Data.SqlClient;
 using Kalendarz1.Services;
 
 namespace Kalendarz1
@@ -346,6 +348,81 @@ namespace Kalendarz1
             Close();
         }
 
+        /// <summary>
+        /// Zapisuje numer IRZPlus do tabeli dbo.Dostawcy i aktualizuje wszystkie wiersze z tym dostawca
+        /// </summary>
+        private void BtnSaveIRZPlus_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var button = sender as Button;
+                var row = button?.Tag as SpecyfikacjaDoIRZplusViewModel;
+
+                if (row == null)
+                {
+                    MessageBox.Show("Nie mozna okreslic wiersza.", "Blad",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                string newIRZPlus = row.IRZPlus?.Trim() ?? "";
+                string idHodowcy = row.IdHodowcy?.Trim() ?? "";
+
+                if (string.IsNullOrEmpty(idHodowcy))
+                {
+                    MessageBox.Show("Brak ID hodowcy - nie mozna zapisac.", "Blad",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Zapisz do bazy dbo.Dostawcy
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    var cmd = new SqlCommand(@"
+                        UPDATE dbo.Dostawcy
+                        SET IRZPlus = @IRZPlus
+                        WHERE LTRIM(RTRIM(ID)) = @ID", conn);
+
+                    cmd.Parameters.AddWithValue("@IRZPlus", newIRZPlus);
+                    cmd.Parameters.AddWithValue("@ID", idHodowcy);
+
+                    int affected = cmd.ExecuteNonQuery();
+
+                    if (affected == 0)
+                    {
+                        MessageBox.Show($"Nie znaleziono dostawcy o ID: {idHodowcy}\nSprawdz dane w tabeli Dostawcy.",
+                            "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+                }
+
+                // Aktualizuj wszystkie wiersze z tym samym IdHodowcy
+                foreach (var spec in _specyfikacje.Where(s => s.IdHodowcy?.Trim() == idHodowcy))
+                {
+                    spec.IRZPlus = newIRZPlus;
+                }
+
+                // Odswiez walidacje
+                ValidateData();
+
+                txtStatus.Text = $"Zapisano IRZPlus '{newIRZPlus}' dla hodowcy {row.Hodowca}";
+
+                MessageBox.Show($"Zapisano IRZPlus dla hodowcy:\n\n" +
+                    $"Hodowca: {row.Hodowca}\n" +
+                    $"ID: {idHodowcy}\n" +
+                    $"IRZPlus: {newIRZPlus}\n\n" +
+                    $"Zaktualizowano wszystkie wiersze z tym hodowca.",
+                    "Zapisano", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad zapisu IRZPlus:\n{ex.Message}", "Blad",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         protected override void OnClosed(EventArgs e)
         {
             base.OnClosed(e);
@@ -362,6 +439,7 @@ namespace Kalendarz1
         private string _nrDokArimr;
         private string _przybycie;
         private string _padniecia;
+        private string _irzPlus;
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -373,8 +451,20 @@ namespace Kalendarz1
         // Kolumna C - Id hodowcy
         public string IdHodowcy { get; set; }
 
-        // Kolumna D - IRZ PLUS
-        public string IRZPlus { get; set; }
+        // Kolumna D - IRZ PLUS (edytowalne z zapisem do bazy)
+        public string IRZPlus
+        {
+            get => _irzPlus;
+            set
+            {
+                if (_irzPlus != value)
+                {
+                    _irzPlus = value;
+                    OnPropertyChanged(nameof(IRZPlus));
+                    OnPropertyChanged(nameof(PrzyjetaZDzialalnosci));
+                }
+            }
+        }
 
         // Kolumna E - Numer Partii
         public string NumerPartii { get; set; }

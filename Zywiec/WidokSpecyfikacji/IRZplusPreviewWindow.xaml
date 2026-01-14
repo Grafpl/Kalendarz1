@@ -2,8 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="IRZplus - Podglad i wyslanie zgloszenia"
-        Height="750" Width="1100"
-        MinHeight="600" MinWidth="900"
+        Height="900" Width="1400"
+        MinHeight="700" MinWidth="1200"
         WindowStartupLocation="CenterScreen"
         Background="#F5F5F5">
 
@@ -251,15 +251,39 @@
                 <DataGridTextColumn Header="Hodowca" Binding="{Binding Hodowca}" Width="160" IsReadOnly="True"/>
                 <!-- C: Id na produkcji -->
                 <DataGridTextColumn Header="Id Hodowcy" Binding="{Binding IdHodowcy}" Width="80" IsReadOnly="True"/>
-                <!-- D: IRZ PLUS -->
-                <DataGridTextColumn Header="IRZ PLUS" Binding="{Binding IRZPlus}" Width="130" IsReadOnly="True">
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="FontWeight" Value="Bold"/>
-                            <Setter Property="Foreground" Value="#1565C0"/>
-                        </Style>
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
+                <!-- D: IRZ PLUS - edytowalne z mozliwoscia zapisu do bazy -->
+                <DataGridTemplateColumn Header="IRZ PLUS" Width="180">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="30"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0"
+                                         Text="{Binding IRZPlus, UpdateSourceTrigger=PropertyChanged}"
+                                         FontWeight="Bold"
+                                         Foreground="#1565C0"
+                                         BorderThickness="1"
+                                         BorderBrush="#BBDEFB"
+                                         Padding="4,2"
+                                         VerticalContentAlignment="Center"/>
+                                <Button Grid.Column="1"
+                                        Content="&#x2714;"
+                                        ToolTip="Zapisz IRZPlus do bazy dla tego hodowcy"
+                                        Click="BtnSaveIRZPlus_Click"
+                                        Tag="{Binding}"
+                                        Background="#4CAF50"
+                                        Foreground="White"
+                                        FontWeight="Bold"
+                                        BorderThickness="0"
+                                        Cursor="Hand"
+                                        Width="28"
+                                        Margin="2,0,0,0"/>
+                            </Grid>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <!-- E: Numer Partii -->
                 <DataGridTextColumn Header="Numer Partii" Binding="{Binding NumerPartii}" Width="90" IsReadOnly="True"/>
                 <!-- F: Liczba Sztuk Drobiu (zdatne) -->
