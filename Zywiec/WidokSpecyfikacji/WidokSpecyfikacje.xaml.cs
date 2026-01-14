@@ -1381,7 +1381,7 @@ namespace Kalendarz1
                                     fc.PoczatekUslugi, fc.Wyjazd, fc.DojazdHodowca, fc.Zaladunek, fc.ZaladunekKoniec, fc.WyjazdHodowca, fc.KoniecUslugi,
                                     fc.ZdjecieTaraPath, fc.ZdjecieBruttoPath,
                                     fc.PartiaGuid,
-                                    pd.Partia AS PartiaNumber,
+                                    COALESCE(fc.PartiaNumber, CONCAT(pd.CustomerID, pd.Partia)) AS PartiaNumber,
                                     d.Name AS DriverName
                                     FROM [LibraNet].[dbo].[FarmerCalc] fc
                                     LEFT JOIN [LibraNet].[dbo].[Driver] d ON fc.DriverGID = d.GID
@@ -5818,7 +5818,7 @@ namespace Kalendarz1
                 mainCell.AddElement(new Paragraph(" ", new Font(polishFont, 5, Font.NORMAL)));
 
                 // Główna wartość
-                Paragraph mainValue = new Paragraph($"NETTO: {sumaWartoscShort:N2} zł", new Font(polishFont, 28, Font.BOLD, greenColor));
+                Paragraph mainValue = new Paragraph($"Wart. Netto: {sumaWartoscShort:N2} zł", new Font(polishFont, 28, Font.BOLD, greenColor));
                 mainValue.Alignment = Element.ALIGN_CENTER;
                 mainCell.AddElement(mainValue);
 
@@ -6577,10 +6577,10 @@ namespace Kalendarz1
                 sumCell.AddElement(valuesTable);
                 sumCell.AddElement(new Paragraph(" ", new Font(polishFont, 4, Font.NORMAL)));
 
-                // Box NETTO
+                // Box Wart. Netto
                 PdfPTable wartoscBox = new PdfPTable(1);
                 wartoscBox.WidthPercentage = 100;
-                PdfPCell wartoscCell = new PdfPCell(new Phrase($"NETTO: {sumaWartosc:N2} zł", new Font(polishFont, 14, Font.BOLD, BaseColor.WHITE)));
+                PdfPCell wartoscCell = new PdfPCell(new Phrase($"Wart. Netto: {sumaWartosc:N2} zł", new Font(polishFont, 14, Font.BOLD, BaseColor.WHITE)));
                 wartoscCell.BackgroundColor = greenColor;
                 wartoscCell.HorizontalAlignment = Element.ALIGN_CENTER;
                 wartoscCell.Padding = 8;
