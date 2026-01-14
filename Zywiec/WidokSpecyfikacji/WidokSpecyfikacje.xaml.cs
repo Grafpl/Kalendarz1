@@ -6176,6 +6176,9 @@ namespace Kalendarz1
                 buyerCell.AddElement(new Paragraph("Ubojnia Drobiu \"Piórkowscy\"", textFontBold));
                 buyerCell.AddElement(new Paragraph("Koziołki 40, 95-061 Dmosin", textFont));
                 buyerCell.AddElement(new Paragraph("NIP: 726-162-54-06", textFont));
+                buyerCell.AddElement(new Paragraph("Tel: 46 874 71 70 wew. 109", new Font(polishFont, 8, Font.NORMAL, grayColor)));
+                buyerCell.AddElement(new Paragraph("Kom: 519 325 117, 505 255 682", new Font(polishFont, 8, Font.NORMAL, grayColor)));
+                buyerCell.AddElement(new Paragraph("Email: Zakup@piorkowscy.com.pl", new Font(polishFont, 8, Font.NORMAL, grayColor)));
                 partiesTable.AddCell(buyerCell);
 
                 // Sprzedający (prawa strona)
@@ -6228,11 +6231,6 @@ namespace Kalendarz1
                 if (!string.IsNullOrEmpty(customerRealGID))
                 {
                     sellerCell.AddElement(new Paragraph($"ID: {customerRealGID}", new Font(polishFont, 8, Font.NORMAL, grayColor)));
-                }
-                // Numer partii
-                if (!string.IsNullOrEmpty(partiaNumber))
-                {
-                    sellerCell.AddElement(new Paragraph($"Partia: {partiaNumber}", new Font(polishFont, 8, Font.BOLD, grayColor)));
                 }
                 sellerCell.AddElement(new Paragraph(sellerStreet, textFont));
                 sellerCell.AddElement(new Paragraph($"{sellerKod} {sellerMiejsc}", textFont));
@@ -6632,11 +6630,15 @@ namespace Kalendarz1
                 sumCell.AddElement(valuesTable);
                 sumCell.AddElement(new Paragraph(" ", new Font(polishFont, 4, Font.NORMAL)));
 
-                // Box Wart. Netto
+                // Box Wart. Netto - bez wypełnienia (biały z ramką)
                 PdfPTable wartoscBox = new PdfPTable(1);
                 wartoscBox.WidthPercentage = 100;
-                PdfPCell wartoscCell = new PdfPCell(new Phrase($"Wart. Netto: {sumaWartosc:N2} zł", new Font(polishFont, 14, Font.BOLD, BaseColor.WHITE)));
-                wartoscCell.BackgroundColor = greenColor;
+                BaseColor wartoscBgColor = _pdfCzarnoBialy ? BaseColor.WHITE : BaseColor.WHITE;
+                BaseColor wartoscTextColor = _pdfCzarnoBialy ? BaseColor.BLACK : greenColor;
+                PdfPCell wartoscCell = new PdfPCell(new Phrase($"Wart. Netto: {sumaWartosc:N2} zł", new Font(polishFont, 14, Font.BOLD, wartoscTextColor)));
+                wartoscCell.BackgroundColor = wartoscBgColor;
+                wartoscCell.BorderColor = greenColor;
+                wartoscCell.BorderWidth = _pdfCzarnoBialy ? 0.5f : 1.5f;
                 wartoscCell.HorizontalAlignment = Element.ALIGN_CENTER;
                 wartoscCell.Padding = 8;
                 wartoscBox.AddCell(wartoscCell);
@@ -6651,14 +6653,21 @@ namespace Kalendarz1
                     sumCell.AddElement(terminP);
                 }
 
-                summaryTable.AddCell(sumCell);
-                doc.Add(summaryTable);
-
-                // === PODPIS PRACOWNIKA I INFORMACJE O AUTORACH ===
-                // Pobierz nazwę wystawiającego z App.UserID
+                // === PODPIS PRACOWNIKA - pod Wart. Netto (mała czcionka) ===
                 NazwaZiD nazwaZiD = new NazwaZiD();
                 string wystawiajacyNazwa = nazwaZiD.GetNameById(App.UserID) ?? App.UserID ?? "---";
 
+                sumCell.AddElement(new Paragraph(" ", new Font(polishFont, 6, Font.NORMAL)));
+                sumCell.AddElement(new Paragraph("PODPIS PRACOWNIKA", new Font(polishFont, 7, Font.BOLD, _pdfCzarnoBialy ? BaseColor.BLACK : greenColor)) { Alignment = Element.ALIGN_LEFT });
+                sumCell.AddElement(new Paragraph($"({wystawiajacyNazwa})", new Font(polishFont, 6, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_LEFT });
+                sumCell.AddElement(new Paragraph(" ", new Font(polishFont, 3)));
+                sumCell.AddElement(new Paragraph(".............................................", new Font(polishFont, 7, Font.NORMAL)) { Alignment = Element.ALIGN_LEFT });
+                sumCell.AddElement(new Paragraph("data i czytelny podpis", new Font(polishFont, 5, Font.ITALIC, grayColor)) { Alignment = Element.ALIGN_LEFT });
+
+                summaryTable.AddCell(sumCell);
+                doc.Add(summaryTable);
+
+                // === WYGENEROWAŁ / WPROWADZIŁ / ZWERYFIKOWAŁ - jedna linia na środku ===
                 // Pobierz informacje o autorach z rozliczeń (ChangeLog)
                 string wprowadzilNazwa = GetWprowadzilNazwa(ids[0]);
                 string zaakceptowalNazwa = wystawiajacyNazwa;
@@ -6666,68 +6675,49 @@ namespace Kalendarz1
                 // Pobierz statystyki wprowadzenia/weryfikacji
                 var (wprowadzenia, weryfikacje, total) = GetZatwierdzeniaStats(dzienUbojowy);
 
-                // Tabela z dwoma kolumnami: PODPIS (lewa) | AUTORZY (prawa)
-                PdfPTable footerTable = new PdfPTable(2);
-                footerTable.WidthPercentage = 100;
-                footerTable.SpacingBefore = 12f;
-                footerTable.SetWidths(new float[] { 1.2f, 0.8f });
+                // Przygotuj teksty dla wprowadził/zweryfikował
+                string wprowadzilText = wprowadzilNazwa;
+                string zweryfikowalText = zaakceptowalNazwa;
 
-                // === LEWA KOLUMNA: PODPIS PRACOWNIKA (wyrównany do lewej) ===
-                BaseColor sigBorder = _pdfCzarnoBialy ? BaseColor.BLACK : new BaseColor(200, 200, 200);
-                BaseColor sigBg = BaseColor.WHITE;
-                float sigBorderWidth = _pdfCzarnoBialy ? 0.5f : 1f;
-
-                PdfPCell signatureCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = sigBorder, BorderWidth = sigBorderWidth, Padding = 10, BackgroundColor = sigBg };
-                signatureCell.AddElement(new Paragraph("PODPIS PRACOWNIKA", new Font(polishFont, 8, Font.BOLD, _pdfCzarnoBialy ? BaseColor.BLACK : greenColor)) { Alignment = Element.ALIGN_LEFT });
-                signatureCell.AddElement(new Paragraph($"({wystawiajacyNazwa})", new Font(polishFont, 7, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_LEFT });
-                signatureCell.AddElement(new Paragraph(" ", new Font(polishFont, 6)));
-                signatureCell.AddElement(new Paragraph(".................................................................", new Font(polishFont, 9, Font.NORMAL)) { Alignment = Element.ALIGN_LEFT });
-                signatureCell.AddElement(new Paragraph("data i czytelny podpis", new Font(polishFont, 6, Font.ITALIC, grayColor)) { Alignment = Element.ALIGN_LEFT });
-                footerTable.AddCell(signatureCell);
-
-                // === PRAWA KOLUMNA: WYGENEROWAŁ / WPROWADZIŁ / ZWERYFIKOWAŁ (zbite) ===
-                Font authorLabelFont = new Font(polishFont, 7, Font.BOLD, grayColor);
-                Font authorValueFont = new Font(polishFont, 7, Font.NORMAL, grayColor);
-
-                PdfPCell authorsCell = new PdfPCell { Border = PdfPCell.NO_BORDER, Padding = 5, VerticalAlignment = Element.ALIGN_TOP };
-
-                // Wygenerował
-                authorsCell.AddElement(new Paragraph("Wygenerował:", authorLabelFont) { Alignment = Element.ALIGN_RIGHT });
-                authorsCell.AddElement(new Paragraph(wystawiajacyNazwa, authorValueFont) { Alignment = Element.ALIGN_RIGHT, SpacingAfter = 3 });
-
-                // Wprowadził - z procentami
-                authorsCell.AddElement(new Paragraph("Wprowadził (rozl.):", authorLabelFont) { Alignment = Element.ALIGN_RIGHT });
                 if (wprowadzenia.Count > 0 && total > 0)
                 {
+                    var wprowadzeniaList = new List<string>();
                     foreach (var kv in wprowadzenia)
                     {
                         decimal pct = (decimal)kv.Value / total * 100;
-                        authorsCell.AddElement(new Paragraph($"{kv.Key}: {pct:F0}%", authorValueFont) { Alignment = Element.ALIGN_RIGHT });
+                        wprowadzeniaList.Add($"{kv.Key} {pct:F0}%");
                     }
-                }
-                else
-                {
-                    authorsCell.AddElement(new Paragraph(wprowadzilNazwa, authorValueFont) { Alignment = Element.ALIGN_RIGHT });
+                    wprowadzilText = string.Join(", ", wprowadzeniaList);
                 }
 
-                // Zweryfikował - z procentami
-                authorsCell.AddElement(new Paragraph("Zweryfikował (rozl.):", authorLabelFont) { Alignment = Element.ALIGN_RIGHT, SpacingBefore = 3 });
                 if (weryfikacje.Count > 0 && total > 0)
                 {
+                    var weryfikacjeList = new List<string>();
                     foreach (var kv in weryfikacje)
                     {
                         decimal pct = (decimal)kv.Value / total * 100;
-                        authorsCell.AddElement(new Paragraph($"{kv.Key}: {pct:F0}%", authorValueFont) { Alignment = Element.ALIGN_RIGHT });
+                        weryfikacjeList.Add($"{kv.Key} {pct:F0}%");
                     }
-                }
-                else
-                {
-                    authorsCell.AddElement(new Paragraph(zaakceptowalNazwa, authorValueFont) { Alignment = Element.ALIGN_RIGHT });
+                    zweryfikowalText = string.Join(", ", weryfikacjeList);
                 }
 
-                footerTable.AddCell(authorsCell);
+                // Jedna linia na środku: Wygenerował: X | Wprowadził: Y | Zweryfikował: Z
+                Font footerLabelFont = new Font(polishFont, 6, Font.BOLD, grayColor);
+                Font footerValueFont = new Font(polishFont, 6, Font.NORMAL, grayColor);
 
-                doc.Add(footerTable);
+                Paragraph footerLine = new Paragraph();
+                footerLine.Add(new Chunk("Wygenerował: ", footerLabelFont));
+                footerLine.Add(new Chunk(wystawiajacyNazwa, footerValueFont));
+                footerLine.Add(new Chunk("  |  ", footerValueFont));
+                footerLine.Add(new Chunk("Wprowadził: ", footerLabelFont));
+                footerLine.Add(new Chunk(wprowadzilText, footerValueFont));
+                footerLine.Add(new Chunk("  |  ", footerValueFont));
+                footerLine.Add(new Chunk("Zweryfikował: ", footerLabelFont));
+                footerLine.Add(new Chunk(zweryfikowalText, footerValueFont));
+                footerLine.Alignment = Element.ALIGN_CENTER;
+                footerLine.SpacingBefore = 8f;
+
+                doc.Add(footerLine);
 
                 doc.Close();
             }
