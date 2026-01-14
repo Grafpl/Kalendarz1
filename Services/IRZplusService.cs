@@ -110,6 +110,11 @@ namespace Kalendarz1.Services
 
         private IRZplusSettings LoadSettings()
         {
+            // Domyślne wartości - ZAWSZE używane jeśli plik nie istnieje lub wartość jest pusta
+            const string DEFAULT_CLIENT_ID = "aplikacja-irzplus";
+            const string DEFAULT_USERNAME = "039806095";
+            const string DEFAULT_PASSWORD = "Jpiorkowski51";
+
             try
             {
                 if (File.Exists(_settingsFilePath))
@@ -117,15 +122,20 @@ namespace Kalendarz1.Services
                     var json = File.ReadAllText(_settingsFilePath);
                     var loaded = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json);
 
+                    // Dekoduj wartości i użyj domyślnych jeśli puste
+                    var clientId = DecodeCredential(GetStringValue(loaded, "ClientId", ""));
+                    var username = DecodeCredential(GetStringValue(loaded, "Username", ""));
+                    var password = DecodeCredential(GetStringValue(loaded, "Password", ""));
+
                     return new IRZplusSettings
                     {
                         NumerUbojni = GetStringValue(loaded, "NumerUbojni", "10141607"),
                         NazwaUbojni = GetStringValue(loaded, "NazwaUbojni", "Ubojnia Drobiu Piórkowscy"),
-                        ClientId = DecodeCredential(GetStringValue(loaded, "ClientId", "")),
-                        ClientSecret = DecodeCredential(GetStringValue(loaded, "ClientSecret", "")),
-                        Username = DecodeCredential(GetStringValue(loaded, "Username", "")),
-                        Password = DecodeCredential(GetStringValue(loaded, "Password", "")),
-                        UseTestEnvironment = GetBoolValue(loaded, "UseTestEnvironment", true),
+                        ClientId = string.IsNullOrWhiteSpace(clientId) ? DEFAULT_CLIENT_ID : clientId,
+                        ClientSecret = "", // Zawsze puste - ARiMR nie wymaga
+                        Username = string.IsNullOrWhiteSpace(username) ? DEFAULT_USERNAME : username,
+                        Password = string.IsNullOrWhiteSpace(password) ? DEFAULT_PASSWORD : password,
+                        UseTestEnvironment = GetBoolValue(loaded, "UseTestEnvironment", false), // Domyślnie PRODUKCJA
                         AutoSendOnSave = GetBoolValue(loaded, "AutoSendOnSave", false),
                         SaveLocalCopy = GetBoolValue(loaded, "SaveLocalCopy", true),
                         LocalExportPath = GetStringValue(loaded, "LocalExportPath",
@@ -135,9 +145,12 @@ namespace Kalendarz1.Services
             }
             catch { }
 
-            // Domyślne ustawienia
+            // Domyślne ustawienia gdy plik nie istnieje
             return new IRZplusSettings
             {
+                ClientId = DEFAULT_CLIENT_ID,
+                Username = DEFAULT_USERNAME,
+                Password = DEFAULT_PASSWORD,
                 LocalExportPath = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                     "IRZplus_Export")
