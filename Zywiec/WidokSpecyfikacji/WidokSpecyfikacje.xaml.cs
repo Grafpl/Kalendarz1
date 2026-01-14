@@ -11246,7 +11246,8 @@ namespace Kalendarz1
                 var row = new PodsumowanieRow
                 {
                     LP = lp++,
-                    HodowcaDrobiu = spec.Dostawca,  // CustomerGID
+                    HodowcaDrobiu = spec.Dostawca,  // Nazwa dostawcy
+                    CustomerGID = spec.CustomerGID,  // CustomerGID do wyboru partii
                     Odbiorca = spec.Odbiorca ?? "-",
                     SztukiZadeklarowane = spec.SztukiDek,
                     SztukiPadle = spec.Padle,
@@ -11255,7 +11256,7 @@ namespace Kalendarz1
                     KgPadle = kgPadle,  // Pokazujemy ZAWSZE (informacyjnie)
                     Lumel = spec.LUMEL,
                     SztukiKonfiskataT = spec.CH + spec.NW + spec.ZM,
-                    // Wzór ze specyfikacji PDF: 
+                    // Wzór ze specyfikacji PDF:
                     // Dostarcz.(ARIMR) = LUMEL + Padłe
                     // Zdatne = Dostarcz - Padłe - Konf = LUMEL - Konf (Padłe się kasuje!)
                     SztukiZdatne = spec.LUMEL - (spec.CH + spec.NW + spec.ZM),
@@ -11264,7 +11265,11 @@ namespace Kalendarz1
                     SztukiProdukcjaTuszka = spec.SztukiWybijak,
                     WagaProdukcjaTuszka = spec.KilogramyWybijak,
                     Wprowadzil = GetWprowadzilNazwa(spec.ID),
-                    Zatwierdził = GetZatwierdzilNazwa(spec.ID)
+                    Zatwierdził = GetZatwierdzilNazwa(spec.ID),
+                    // Partia z pierwszej specyfikacji
+                    PartiaGuid = spec.PartiaGuid,
+                    PartiaNumber = spec.PartiaNumber,
+                    SpecyfikacjeIds = new List<int> { spec.ID }
                 };
 
                 // Oblicz wydajność %: (Waga Produkcja / Kg żywiec) * 100
@@ -11827,6 +11832,74 @@ namespace Kalendarz1
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd otwierania poczty:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Obsługa kliknięcia przycisku Partia w wierszu Podsumowania
+        /// Otwiera okno wyboru/tworzenia partii dla danego hodowcy
+        /// </summary>
+        private void BtnPodsumowaniePartia_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is PodsumowanieRow row)
+            {
+                if (row.IsSumRow) return;  // Nie obsługuj wiersza sumy
+
+                try
+                {
+                    DateTime dataUboju = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+                    // Otwórz okno wyboru partii
+                    var partiaWindow = new PartiaSelectWindow(
+                        dataUboju,
+                        row.CustomerGID,
+                        row.HodowcaDrobiu,
+                        row.PartiaGuid);
+                    partiaWindow.Owner = Window.GetWindow(this);
+
+                    if (partiaWindow.ShowDialog() == true)
+                    {
+                        // Zapisz partię do wszystkich specyfikacji dla tego wiersza
+                        using (var conn = new Microsoft.Data.SqlClient.SqlConnection(connectionString))
+                        {
+                            conn.Open();
+                            foreach (int specId in row.SpecyfikacjeIds)
+                            {
+                                using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(
+                                    "UPDATE [LibraNet].[dbo].[FarmerCalc] SET PartiaGuid = @PartiaGuid WHERE ID = @ID", conn))
+                                {
+                                    if (partiaWindow.PartiaRemoved || partiaWindow.SelectedPartiaGuid == null)
+                                    {
+                                        cmd.Parameters.AddWithValue("@PartiaGuid", DBNull.Value);
+                                    }
+                                    else
+                                    {
+                                        cmd.Parameters.AddWithValue("@PartiaGuid", partiaWindow.SelectedPartiaGuid.Value.ToString());
+                                    }
+                                    cmd.Parameters.AddWithValue("@ID", specId);
+                                    cmd.ExecuteNonQuery();
+                                }
+                            }
+                        }
+
+                        // Zaktualizuj wiersz w UI
+                        row.PartiaGuid = partiaWindow.SelectedPartiaGuid;
+                        row.PartiaNumber = partiaWindow.SelectedPartiaNumber;
+
+                        if (partiaWindow.PartiaRemoved)
+                        {
+                            UpdateStatus($"Usunięto partię z {row.HodowcaDrobiu}");
+                        }
+                        else
+                        {
+                            UpdateStatus($"Przypisano partię {partiaWindow.SelectedPartiaNumber} do {row.HodowcaDrobiu}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd przypisywania partii:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
 
@@ -13667,6 +13740,39 @@ public class PodsumowanieRow : INotifyPropertyChanged
     // Informacje o uzytkownikach
     public string Wprowadzil { get; set; } = "-";
     public string Zatwierdził { get; set; } = "-";
+
+    // CustomerGID do wyboru partii
+    public string CustomerGID { get; set; }
+
+    // Partia - powiazanie z PartiaDostawca
+    private Guid? _partiaGuid;
+    public Guid? PartiaGuid
+    {
+        get => _partiaGuid;
+        set
+        {
+            _partiaGuid = value;
+            OnPropertyChanged(nameof(PartiaGuid));
+            OnPropertyChanged(nameof(HasPartia));
+        }
+    }
+
+    private string _partiaNumber;
+    public string PartiaNumber
+    {
+        get => _partiaNumber;
+        set
+        {
+            _partiaNumber = value;
+            OnPropertyChanged(nameof(PartiaNumber));
+            OnPropertyChanged(nameof(HasPartia));
+        }
+    }
+
+    public bool HasPartia => PartiaGuid.HasValue && !string.IsNullOrEmpty(PartiaNumber);
+
+    // Lista ID specyfikacji dla tego wiersza podsumowania
+    public List<int> SpecyfikacjeIds { get; set; } = new List<int>();
 
     public event PropertyChangedEventHandler PropertyChanged;
     protected void OnPropertyChanged(string propertyName)
