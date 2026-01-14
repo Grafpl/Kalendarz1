@@ -4012,17 +4012,20 @@ namespace Kalendarz1
 
                         var cmd = new SqlCommand(@"
                             UPDATE dbo.FarmerCalc
-                            SET PartiaGuid = @PartiaGuid
+                            SET PartiaGuid = @PartiaGuid, PartiaNumber = @PartiaNumber
                             WHERE ID = @ID", conn);
 
                         if (partiaWindow.PartiaRemoved || partiaWindow.SelectedPartiaGuid == null)
                         {
                             cmd.Parameters.AddWithValue("@PartiaGuid", DBNull.Value);
+                            cmd.Parameters.AddWithValue("@PartiaNumber", DBNull.Value);
                         }
                         else
                         {
                             // Zapisujemy jako string dla kompatybilnosci z VARCHAR lub UNIQUEIDENTIFIER
                             cmd.Parameters.AddWithValue("@PartiaGuid", partiaWindow.SelectedPartiaGuid.Value.ToString());
+                            // Zapisz pełny numer partii (CustomerID + Partia)
+                            cmd.Parameters.AddWithValue("@PartiaNumber", partiaWindow.SelectedPartiaNumber ?? (object)DBNull.Value);
                         }
                         cmd.Parameters.AddWithValue("@ID", row.ID);
                         cmd.ExecuteNonQuery();
@@ -10740,6 +10743,10 @@ namespace Kalendarz1
                         IF COL_LENGTH('FarmerCalc', 'ZdjecieBruttoPath') IS NULL
                         BEGIN
                             ALTER TABLE dbo.FarmerCalc ADD ZdjecieBruttoPath NVARCHAR(500) NULL
+                        END;
+                        IF COL_LENGTH('FarmerCalc', 'PartiaNumber') IS NULL
+                        BEGIN
+                            ALTER TABLE dbo.FarmerCalc ADD PartiaNumber NVARCHAR(50) NULL
                         END";
                     using (SqlCommand cmd = new SqlCommand(addColumnsSql, conn))
                     {
@@ -11866,15 +11873,17 @@ namespace Kalendarz1
                             foreach (int specId in row.SpecyfikacjeIds)
                             {
                                 using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(
-                                    "UPDATE [LibraNet].[dbo].[FarmerCalc] SET PartiaGuid = @PartiaGuid WHERE ID = @ID", conn))
+                                    "UPDATE [LibraNet].[dbo].[FarmerCalc] SET PartiaGuid = @PartiaGuid, PartiaNumber = @PartiaNumber WHERE ID = @ID", conn))
                                 {
                                     if (partiaWindow.PartiaRemoved || partiaWindow.SelectedPartiaGuid == null)
                                     {
                                         cmd.Parameters.AddWithValue("@PartiaGuid", DBNull.Value);
+                                        cmd.Parameters.AddWithValue("@PartiaNumber", DBNull.Value);
                                     }
                                     else
                                     {
                                         cmd.Parameters.AddWithValue("@PartiaGuid", partiaWindow.SelectedPartiaGuid.Value.ToString());
+                                        cmd.Parameters.AddWithValue("@PartiaNumber", partiaWindow.SelectedPartiaNumber ?? (object)DBNull.Value);
                                     }
                                     cmd.Parameters.AddWithValue("@ID", specId);
                                     cmd.ExecuteNonQuery();
