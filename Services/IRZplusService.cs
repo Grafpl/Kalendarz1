@@ -644,6 +644,7 @@ namespace Kalendarz1.Services
                     await connection.OpenAsync();
 
                     // Zapytanie zgodne z formatem Excel ARiMR
+                    // Dołączamy tabelę PartiaDostawca aby pobrać numer partii produkcyjnej
                     var query = @"
                         SELECT
                             fc.ID,
@@ -651,13 +652,16 @@ namespace Kalendarz1.Services
                             ISNULL(d.ShortName, 'Nieznany') AS Hodowca,
                             LTRIM(RTRIM(ISNULL(fc.CustomerGID, ''))) AS IdHodowcy,
                             ISNULL(d.IRZPlus, '') AS IRZPlus,
-                            ISNULL(fc.CarLp, 0) AS NumerPartii,
+                            ISNULL(p.Partia, '') AS NumerPartii,
                             ISNULL(fc.DeclI1, 0) AS SztukiWszystkie,
                             ISNULL(fc.DeclI2, 0) AS SztukiPadle,
                             ISNULL(fc.DeclI3, 0) + ISNULL(fc.DeclI4, 0) + ISNULL(fc.DeclI5, 0) AS SztukiKonfiskaty,
-                            ISNULL(fc.NettoWeight, 0) AS WagaNetto
+                            ISNULL(fc.NettoWeight, 0) AS WagaNetto,
+                            fc.CarLp AS LP
                         FROM dbo.FarmerCalc fc
                         LEFT JOIN dbo.Dostawcy d ON LTRIM(RTRIM(fc.CustomerGID)) = LTRIM(RTRIM(d.ID))
+                        LEFT JOIN dbo.PartiaDostawca p ON LTRIM(RTRIM(fc.CustomerGID)) = LTRIM(RTRIM(p.CustomerID))
+                            AND CAST(fc.CalcDate AS DATE) = CAST(p.CreateData AS DATE)
                         WHERE CAST(fc.CalcDate AS DATE) = @DataUboju
                         ORDER BY fc.CarLp";
 
@@ -684,7 +688,7 @@ namespace Kalendarz1.Services
                                     Hodowca = reader.IsDBNull(reader.GetOrdinal("Hodowca")) ? "Nieznany" : reader.GetString(reader.GetOrdinal("Hodowca")),
                                     IdHodowcy = reader.IsDBNull(reader.GetOrdinal("IdHodowcy")) ? "" : reader.GetString(reader.GetOrdinal("IdHodowcy")),
                                     IRZPlus = reader.IsDBNull(reader.GetOrdinal("IRZPlus")) ? "" : reader.GetString(reader.GetOrdinal("IRZPlus")),
-                                    NumerPartii = reader.IsDBNull(reader.GetOrdinal("NumerPartii")) ? "" : reader.GetInt32(reader.GetOrdinal("NumerPartii")).ToString(),
+                                    NumerPartii = reader.IsDBNull(reader.GetOrdinal("NumerPartii")) ? "" : reader.GetString(reader.GetOrdinal("NumerPartii")),
                                     LiczbaSztukDrobiu = liczbaSztukZdatnych,
                                     SztukiWszystkie = sztukiWszystkie,
                                     SztukiPadle = sztukiPadle,
