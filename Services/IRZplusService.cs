@@ -20,7 +20,8 @@ namespace Kalendarz1.Services
 
         private const string TOKEN_URL = "https://sso.arimr.gov.pl/auth/realms/ewniosekplus/protocol/openid-connect/token";
         private const string DEFAULT_CLIENT_ID = "aplikacja-irzplus";
-        private const string API_BASE_URL = "https://irz.arimr.gov.pl/irzplus-api";
+        private const string API_URL_PROD = "https://irz.arimr.gov.pl/api/drob/dokument/api/prod/zurd";
+        private const string API_URL_TEST = "https://irz.arimr.gov.pl/api/drob/dokument/api/test/zurd";
 
         private readonly string _settingsPath;
         private readonly string _historyPath;
@@ -198,7 +199,8 @@ namespace Kalendarz1.Services
                 _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 var json = JsonSerializer.Serialize(request, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await _httpClient.PostAsync($"{API_BASE_URL}/drob/zgloszenie", content);
+                var url = _settings.UseTestEnvironment ? API_URL_TEST : API_URL_PROD;
+                var response = await _httpClient.PostAsync(url, content);
                 var responseBody = await response.Content.ReadAsStringAsync();
 
                 if (response.IsSuccessStatusCode)
@@ -228,7 +230,11 @@ namespace Kalendarz1.Services
             {
                 var token = await GetAccessTokenAsync();
                 _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-                var response = await _httpClient.GetAsync($"{API_BASE_URL}/drob/zgloszenie/{numerZgloszenia}/status");
+                var baseUrl = _settings.UseTestEnvironment
+                    ? "https://irz.arimr.gov.pl/api/drob/dokument/api/test"
+                    : "https://irz.arimr.gov.pl/api/drob/dokument/api/prod";
+                var url = $"{baseUrl}/dokumentyZlozone?numerProducenta={_settings.Username}&numerDokumentu={numerZgloszenia}";
+                var response = await _httpClient.GetAsync(url);
                 var body = await response.Content.ReadAsStringAsync();
                 return new IRZplusResult { Success = response.IsSuccessStatusCode, Message = body };
             }
