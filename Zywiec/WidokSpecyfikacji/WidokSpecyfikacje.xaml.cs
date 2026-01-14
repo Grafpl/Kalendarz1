@@ -6279,7 +6279,7 @@ namespace Kalendarz1
 
                     // Wiersze dla każdej dostawy
                     Font zCellFont = new Font(polishFont, 7, Font.NORMAL);
-                    BaseColor altBg = _pdfCzarnoBialy ? new BaseColor(240, 240, 240) : new BaseColor(245, 247, 250);
+                    BaseColor altBg = _pdfCzarnoBialy ? BaseColor.WHITE : new BaseColor(245, 247, 250);
 
                     for (int idx = 0; idx < ids.Count; idx++)
                     {
@@ -6480,7 +6480,7 @@ namespace Kalendarz1
                     sumaSztZdatne += sztZdatne;
                     sredniaWagaSuma = sumaSztWszystkie > 0 ? sumaNetto / sumaSztWszystkie : 0;
 
-                    BaseColor altRowColor = _pdfCzarnoBialy ? new BaseColor(240, 240, 240) : new BaseColor(248, 248, 248);
+                    BaseColor altRowColor = _pdfCzarnoBialy ? BaseColor.WHITE : new BaseColor(248, 248, 248);
                     BaseColor rowColor = i % 2 == 0 ? BaseColor.WHITE : altRowColor;
 
                     AddStyledTableData(dataTable, smallTextFont, rowColor, (i + 1).ToString(),
@@ -6499,7 +6499,7 @@ namespace Kalendarz1
                 }
 
                 // === WIERSZ SUMY ===
-                BaseColor sumRowColor = _pdfCzarnoBialy ? new BaseColor(200, 200, 200) : new BaseColor(220, 237, 200);
+                BaseColor sumRowColor = _pdfCzarnoBialy ? BaseColor.WHITE : new BaseColor(220, 237, 200);
                 Font sumFont = new Font(polishFont, 7, Font.BOLD);
 
                 // Oblicz średnią cenę
