@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 
@@ -59,11 +60,11 @@ namespace Kalendarz1.Services
             {
                 _settings = new IRZplusSettings
                 {
-                    NumerUbojni = "10141607",
+                    NumerUbojni = "039806095-001",  // Numer działalności rzeźni w IRZplus
                     NazwaUbojni = "Ubojnia Drobiu Piórkowscy",
                     ClientId = DEFAULT_CLIENT_ID,
                     ClientSecret = "",
-                    Username = "039806095",
+                    Username = "039806095",  // Numer producenta
                     Password = "Jpiorkowski51",
                     UseTestEnvironment = false,
                     SaveLocalCopy = true,
@@ -194,14 +195,51 @@ namespace Kalendarz1.Services
             try
             {
                 var token = await GetAccessTokenAsync();
-                if (_settings.SaveLocalCopy) SaveLocalCopy(request, "zgloszenie");
+
+                // Konwertuj stary format na nowy ZURD
+                var dyspozycja = new DyspozycjaZURD
+                {
+                    NumerProducenta = _settings.Username,  // "039806095"
+                    Zgloszenie = new ZgloszenieZURDDTO
+                    {
+                        NumerRzezni = _settings.NumerUbojni,  // "039806095-001"
+                        NumerPartiiUboju = DateTime.Now.ToString("yyDDD") + "001",
+                        Gatunek = new KodOpisDto { Kod = "KURY" },
+                        Pozycje = request.Dyspozycje?.Select((d, idx) => new PozycjaZURDDTO
+                        {
+                            Lp = idx + 1,
+                            NumerIdenPartiiDrobiu = d.NumerSiedliska,  // IRZPlus dostawcy np. "080640491-001"
+                            LiczbaDrobiu = d.IloscSztuk,
+                            TypZdarzenia = new KodOpisDto { Kod = "UR" },
+                            DataZdarzenia = request.DataUboju.ToString("yyyy-MM-dd"),
+                            PrzyjeteZDzialalnosci = d.NumerSiedliska + "-001",  // np. "080640491-001-001"
+                            UbojRytualny = false
+                        }).ToList() ?? new List<PozycjaZURDDTO>()
+                    }
+                };
 
                 _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-                var json = JsonSerializer.Serialize(request, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+
+                var jsonOptions = new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    WriteIndented = true,
+                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+                };
+                var json = JsonSerializer.Serialize(dyspozycja, jsonOptions);
+
+                // Zapisz debug JSON
+                var exportPath = _settings.LocalExportPath ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "IRZplus_Export");
+                if (!Directory.Exists(exportPath)) Directory.CreateDirectory(exportPath);
+                File.WriteAllText(Path.Combine(exportPath, $"debug_{DateTime.Now:yyyyMMdd_HHmmss}.json"), json);
+
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var url = _settings.UseTestEnvironment ? API_URL_TEST : API_URL_PROD;
                 var response = await _httpClient.PostAsync(url, content);
                 var responseBody = await response.Content.ReadAsStringAsync();
+
+                // Zapisz odpowiedź
+                File.WriteAllText(Path.Combine(exportPath, $"response_{DateTime.Now:yyyyMMdd_HHmmss}.json"), responseBody);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -217,9 +255,9 @@ namespace Kalendarz1.Services
                         RequestJson = json,
                         ResponseJson = responseBody
                     });
-                    return new IRZplusResult { Success = true, Message = "Wysłano!", NumerZgloszenia = TryGetNumerZgloszenia(responseBody) };
+                    return new IRZplusResult { Success = true, Message = "Wysłano!", NumerZgloszenia = TryGetNumerZgloszenia(responseBody), ResponseData = responseBody };
                 }
-                return new IRZplusResult { Success = false, Message = $"Błąd: {response.StatusCode}\n{responseBody}" };
+                return new IRZplusResult { Success = false, Message = $"Błąd: {response.StatusCode}\n{responseBody}", ResponseData = responseBody };
             }
             catch (Exception ex) { return new IRZplusResult { Success = false, Message = ex.Message }; }
         }
@@ -324,14 +362,15 @@ namespace Kalendarz1.Services
             long lp = 1;
             foreach (var spec in wybrane)
             {
+                var irzPlus = spec.IRZPlus ?? "";
                 zurd.Zgloszenie.Pozycje.Add(new PozycjaZURDDTO
                 {
                     Lp = lp++,
-                    NumerIdenPartiiDrobiu = spec.IRZPlus ?? "",
+                    NumerIdenPartiiDrobiu = irzPlus,  // np. "080640491-001"
                     LiczbaDrobiu = spec.LiczbaSztukDrobiu,
                     TypZdarzenia = new KodOpisDto { Kod = "UR" }, // UR = ubój w rzeźni
                     DataZdarzenia = spec.DataZdarzenia.ToString("yyyy-MM-dd"),
-                    PrzyjeteZDzialalnosci = spec.IRZPlus ?? "",
+                    PrzyjeteZDzialalnosci = irzPlus + "-001",  // np. "080640491-001-001"
                     UbojRytualny = false
                 });
             }
@@ -353,16 +392,23 @@ namespace Kalendarz1.Services
                 var jsonOptions = new JsonSerializerOptions
                 {
                     PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                    WriteIndented = true
+                    WriteIndented = true,
+                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
                 };
                 var json = JsonSerializer.Serialize(zurd, jsonOptions);
 
-                if (_settings.SaveLocalCopy) SaveLocalCopy(zurd, "zurd");
+                // Zapisz debug JSON
+                var exportPath = _settings.LocalExportPath ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "IRZplus_Export");
+                if (!Directory.Exists(exportPath)) Directory.CreateDirectory(exportPath);
+                File.WriteAllText(Path.Combine(exportPath, $"debug_zurd_{DateTime.Now:yyyyMMdd_HHmmss}.json"), json);
 
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var url = _settings.UseTestEnvironment ? API_URL_TEST : API_URL_PROD;
                 var response = await _httpClient.PostAsync(url, content);
                 var responseBody = await response.Content.ReadAsStringAsync();
+
+                // Zapisz odpowiedź
+                File.WriteAllText(Path.Combine(exportPath, $"response_zurd_{DateTime.Now:yyyyMMdd_HHmmss}.json"), responseBody);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -547,32 +593,58 @@ namespace Kalendarz1.Services
     // ============ NOWE KLASY ARiMR ZURD ============
     public class DyspozycjaZURD
     {
-        public string NumerProducenta { get; set; }
+        [JsonPropertyName("numerProducenta")]
+        public string NumerProducenta { get; set; }  // "039806095"
+
+        [JsonPropertyName("zgloszenie")]
         public ZgloszenieZURDDTO Zgloszenie { get; set; }
     }
 
     public class ZgloszenieZURDDTO
     {
-        public string NumerRzezni { get; set; }
+        [JsonPropertyName("numerRzezni")]
+        public string NumerRzezni { get; set; }  // "039806095-001"
+
+        [JsonPropertyName("numerPartiiUboju")]
         public string NumerPartiiUboju { get; set; }
-        public KodOpisDto Gatunek { get; set; }
+
+        [JsonPropertyName("gatunek")]
+        public KodOpisDto Gatunek { get; set; }  // {"kod": "KURY"}
+
+        [JsonPropertyName("pozycje")]
         public List<PozycjaZURDDTO> Pozycje { get; set; } = new List<PozycjaZURDDTO>();
     }
 
     public class PozycjaZURDDTO
     {
+        [JsonPropertyName("lp")]
         public long Lp { get; set; }
-        public string NumerIdenPartiiDrobiu { get; set; }
+
+        [JsonPropertyName("numerIdenPartiiDrobiu")]
+        public string NumerIdenPartiiDrobiu { get; set; }  // np. "080640491-001"
+
+        [JsonPropertyName("liczbaDrobiu")]
         public int LiczbaDrobiu { get; set; }
-        public KodOpisDto TypZdarzenia { get; set; }
-        public string DataZdarzenia { get; set; }
-        public string PrzyjeteZDzialalnosci { get; set; }
+
+        [JsonPropertyName("typZdarzenia")]
+        public KodOpisDto TypZdarzenia { get; set; }  // {"kod": "UR"}
+
+        [JsonPropertyName("dataZdarzenia")]
+        public string DataZdarzenia { get; set; }  // format "2025-01-13"
+
+        [JsonPropertyName("przyjeteZDzialalnosci")]
+        public string PrzyjeteZDzialalnosci { get; set; }  // np. "080640491-001-001"
+
+        [JsonPropertyName("ubojRytualny")]
         public bool UbojRytualny { get; set; } = false;
     }
 
     public class KodOpisDto
     {
+        [JsonPropertyName("kod")]
         public string Kod { get; set; }
+
+        [JsonPropertyName("opis")]
         public string Opis { get; set; }
     }
 
