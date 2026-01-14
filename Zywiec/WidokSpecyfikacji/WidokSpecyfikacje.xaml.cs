@@ -4874,37 +4874,51 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Auto-pokazuje kolumny (Ubytek/Opas, Kl.B, Dodatek, Pośrednik) jeśli jakiekolwiek dane je zawierają
+        /// Auto-pokazuje/chowa kolumny (Ubytek/Opas, Kl.B, Dodatek, Pośrednik) w zależności od danych.
+        /// Jeśli dane zawierają niezerowe wartości - pokaż kolumnę.
+        /// Jeśli dane nie zawierają wartości - schowaj kolumnę.
         /// </summary>
         private void AutoShowColumnsBasedOnData()
         {
-            if (specyfikacjeData == null || specyfikacjeData.Count == 0) return;
+            if (specyfikacjeData == null || specyfikacjeData.Count == 0)
+            {
+                // Brak danych - schowaj wszystkie auto-kolumny
+                if (chkShowOpasienie2 != null) chkShowOpasienie2.IsChecked = false;
+                if (chkShowKlasaB2 != null) chkShowKlasaB2.IsChecked = false;
+                if (chkShowDodatek != null) chkShowDodatek.IsChecked = false;
+                if (chkShowPosrednik != null) chkShowPosrednik.IsChecked = false;
+                return;
+            }
 
-            // Sprawdź czy którykolwiek wiersz ma wartości w tych polach
-            bool hasUbytek = specyfikacjeData.Any(s => s.Ubytek != 0);
-            bool hasKlasaB = specyfikacjeData.Any(s => s.KlasaB != 0);
-            bool hasDodatek = specyfikacjeData.Any(s => s.Dodatek != 0);
+            // Sprawdź czy którykolwiek wiersz ma NIEZEROWE wartości w tych polach
+            // Dla Ubytek/Opas - nie pokazuj jeśli same zera
+            bool hasUbytek = specyfikacjeData.Any(s => s.Ubytek > 0 || s.Ubytek < 0);
+            bool hasKlasaB = specyfikacjeData.Any(s => s.KlasaB > 0 || s.KlasaB < 0);
+            bool hasDodatek = specyfikacjeData.Any(s => s.Dodatek > 0 || s.Dodatek < 0);
             bool hasPosrednik = specyfikacjeData.Any(s => s.IdPosrednik.HasValue && s.IdPosrednik.Value > 0);
 
-            // Auto-zaznacz checkboxy jeśli dane zawierają wartości
-            if (hasUbytek && chkShowOpasienie2 != null && chkShowOpasienie2.IsChecked != true)
+            // Ubytek/Opas - pokaż tylko jeśli są niezerowe wartości
+            if (chkShowOpasienie2 != null)
             {
-                chkShowOpasienie2.IsChecked = true;
+                chkShowOpasienie2.IsChecked = hasUbytek;
             }
 
-            if (hasKlasaB && chkShowKlasaB2 != null && chkShowKlasaB2.IsChecked != true)
+            // Klasa B - pokaż tylko jeśli są niezerowe wartości
+            if (chkShowKlasaB2 != null)
             {
-                chkShowKlasaB2.IsChecked = true;
+                chkShowKlasaB2.IsChecked = hasKlasaB;
             }
 
-            if (hasDodatek && chkShowDodatek != null && chkShowDodatek.IsChecked != true)
+            // Dodatek - pokaż tylko jeśli są niezerowe wartości
+            if (chkShowDodatek != null)
             {
-                chkShowDodatek.IsChecked = true;
+                chkShowDodatek.IsChecked = hasDodatek;
             }
 
-            if (hasPosrednik && chkShowPosrednik != null && chkShowPosrednik.IsChecked != true)
+            // Pośrednik - pokaż tylko jeśli jest przypisany
+            if (chkShowPosrednik != null)
             {
-                chkShowPosrednik.IsChecked = true;
+                chkShowPosrednik.IsChecked = hasPosrednik;
             }
         }
 
