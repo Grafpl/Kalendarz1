@@ -6254,9 +6254,10 @@ namespace Kalendarz1
                     zaladunkiTable.SetWidths(new float[] { 0.35f, 0.9f, 0.9f, 0.9f, 0.9f, 1.2f, 0.9f, 0.9f, 1.5f });
                     zaladunkiTable.SpacingAfter = 10f;
 
-                    // Nagłówek tabeli - czarny w trybie B&W
-                    BaseColor zHeaderBg = _pdfCzarnoBialy ? BaseColor.BLACK : new BaseColor(52, 73, 94);
-                    Font zHeaderFont = new Font(polishFont, 7, Font.BOLD, BaseColor.WHITE);
+                    // Nagłówek tabeli - w B&W biały z czarnym tekstem i ramką
+                    BaseColor zHeaderBg = _pdfCzarnoBialy ? BaseColor.WHITE : new BaseColor(52, 73, 94);
+                    BaseColor zHeaderTextColor = _pdfCzarnoBialy ? BaseColor.BLACK : BaseColor.WHITE;
+                    Font zHeaderFont = new Font(polishFont, 7, Font.BOLD, zHeaderTextColor);
 
                     PdfPCell hLp = new PdfPCell(new Phrase("Lp", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
                     PdfPCell hPrzyjazd = new PdfPCell(new Phrase("Przyjazd", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
@@ -6653,85 +6654,80 @@ namespace Kalendarz1
                 summaryTable.AddCell(sumCell);
                 doc.Add(summaryTable);
 
-                // === PODPIS PRACOWNIKA (bez podpisu hodowcy) ===
+                // === PODPIS PRACOWNIKA I INFORMACJE O AUTORACH ===
                 // Pobierz nazwę wystawiającego z App.UserID
                 NazwaZiD nazwaZiD = new NazwaZiD();
                 string wystawiajacyNazwa = nazwaZiD.GetNameById(App.UserID) ?? App.UserID ?? "---";
 
-                PdfPTable footerTable = new PdfPTable(1);
-                footerTable.WidthPercentage = 50; // Tylko połowa szerokości, wyśrodkowane
-                footerTable.SpacingBefore = 12f;
-                footerTable.HorizontalAlignment = Element.ALIGN_RIGHT;
-
-                // Podpis Pracownika/Wystawiającego - kompaktowy
-                BaseColor sigBorder = _pdfCzarnoBialy ? BaseColor.GRAY : new BaseColor(200, 200, 200);
-                BaseColor sigBg = _pdfCzarnoBialy ? BaseColor.WHITE : new BaseColor(252, 252, 252);
-                PdfPCell signatureRight = new PdfPCell { Border = PdfPCell.BOX, BorderColor = sigBorder, Padding = 8, BackgroundColor = sigBg };
-                signatureRight.AddElement(new Paragraph("PODPIS PRACOWNIKA", new Font(polishFont, 8, Font.BOLD, greenColor)) { Alignment = Element.ALIGN_CENTER });
-                signatureRight.AddElement(new Paragraph($"({wystawiajacyNazwa})", new Font(polishFont, 7, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_CENTER });
-                signatureRight.AddElement(new Paragraph("............................................................", new Font(polishFont, 9, Font.NORMAL)) { Alignment = Element.ALIGN_CENTER });
-                signatureRight.AddElement(new Paragraph("data i czytelny podpis", new Font(polishFont, 6, Font.ITALIC, grayColor)) { Alignment = Element.ALIGN_CENTER });
-                footerTable.AddCell(signatureRight);
-
-                doc.Add(footerTable);
-
                 // Pobierz informacje o autorach z rozliczeń (ChangeLog)
                 string wprowadzilNazwa = GetWprowadzilNazwa(ids[0]);
-                string zaakceptowalNazwa = wystawiajacyNazwa; // Osoba generująca PDF jako akceptująca
+                string zaakceptowalNazwa = wystawiajacyNazwa;
 
                 // Pobierz statystyki wprowadzenia/weryfikacji
                 var (wprowadzenia, weryfikacje, total) = GetZatwierdzeniaStats(dzienUbojowy);
 
-                // Tabela z informacjami o autorach
-                PdfPTable authorsTable = new PdfPTable(3);
-                authorsTable.WidthPercentage = 100;
-                authorsTable.SpacingBefore = 10f;
-                authorsTable.SetWidths(new float[] { 1f, 1f, 1f });
+                // Tabela z dwoma kolumnami: PODPIS (lewa) | AUTORZY (prawa)
+                PdfPTable footerTable = new PdfPTable(2);
+                footerTable.WidthPercentage = 100;
+                footerTable.SpacingBefore = 12f;
+                footerTable.SetWidths(new float[] { 1.2f, 0.8f });
 
+                // === LEWA KOLUMNA: PODPIS PRACOWNIKA (wyrównany do lewej) ===
+                BaseColor sigBorder = _pdfCzarnoBialy ? BaseColor.BLACK : new BaseColor(200, 200, 200);
+                BaseColor sigBg = BaseColor.WHITE;
+                float sigBorderWidth = _pdfCzarnoBialy ? 0.5f : 1f;
+
+                PdfPCell signatureCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = sigBorder, BorderWidth = sigBorderWidth, Padding = 10, BackgroundColor = sigBg };
+                signatureCell.AddElement(new Paragraph("PODPIS PRACOWNIKA", new Font(polishFont, 8, Font.BOLD, _pdfCzarnoBialy ? BaseColor.BLACK : greenColor)) { Alignment = Element.ALIGN_LEFT });
+                signatureCell.AddElement(new Paragraph($"({wystawiajacyNazwa})", new Font(polishFont, 7, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_LEFT });
+                signatureCell.AddElement(new Paragraph(" ", new Font(polishFont, 6)));
+                signatureCell.AddElement(new Paragraph(".................................................................", new Font(polishFont, 9, Font.NORMAL)) { Alignment = Element.ALIGN_LEFT });
+                signatureCell.AddElement(new Paragraph("data i czytelny podpis", new Font(polishFont, 6, Font.ITALIC, grayColor)) { Alignment = Element.ALIGN_LEFT });
+                footerTable.AddCell(signatureCell);
+
+                // === PRAWA KOLUMNA: WYGENEROWAŁ / WPROWADZIŁ / ZWERYFIKOWAŁ (zbite) ===
                 Font authorLabelFont = new Font(polishFont, 7, Font.BOLD, grayColor);
-                Font authorValueFont = new Font(polishFont, 7, Font.ITALIC, grayColor);
+                Font authorValueFont = new Font(polishFont, 7, Font.NORMAL, grayColor);
+
+                PdfPCell authorsCell = new PdfPCell { Border = PdfPCell.NO_BORDER, Padding = 5, VerticalAlignment = Element.ALIGN_TOP };
 
                 // Wygenerował
-                PdfPCell genCell = new PdfPCell { Border = PdfPCell.NO_BORDER, Padding = 2 };
-                genCell.AddElement(new Paragraph("Wygenerował:", authorLabelFont) { Alignment = Element.ALIGN_CENTER });
-                genCell.AddElement(new Paragraph(wystawiajacyNazwa, authorValueFont) { Alignment = Element.ALIGN_CENTER });
-                authorsTable.AddCell(genCell);
+                authorsCell.AddElement(new Paragraph("Wygenerował:", authorLabelFont) { Alignment = Element.ALIGN_RIGHT });
+                authorsCell.AddElement(new Paragraph(wystawiajacyNazwa, authorValueFont) { Alignment = Element.ALIGN_RIGHT, SpacingAfter = 3 });
 
                 // Wprowadził - z procentami
-                PdfPCell enteredCell = new PdfPCell { Border = PdfPCell.NO_BORDER, Padding = 2 };
-                enteredCell.AddElement(new Paragraph("Wprowadził (rozl.):", authorLabelFont) { Alignment = Element.ALIGN_CENTER });
+                authorsCell.AddElement(new Paragraph("Wprowadził (rozl.):", authorLabelFont) { Alignment = Element.ALIGN_RIGHT });
                 if (wprowadzenia.Count > 0 && total > 0)
                 {
                     foreach (var kv in wprowadzenia)
                     {
                         decimal pct = (decimal)kv.Value / total * 100;
-                        enteredCell.AddElement(new Paragraph($"{kv.Key}: {pct:F0}%", authorValueFont) { Alignment = Element.ALIGN_CENTER });
+                        authorsCell.AddElement(new Paragraph($"{kv.Key}: {pct:F0}%", authorValueFont) { Alignment = Element.ALIGN_RIGHT });
                     }
                 }
                 else
                 {
-                    enteredCell.AddElement(new Paragraph(wprowadzilNazwa, authorValueFont) { Alignment = Element.ALIGN_CENTER });
+                    authorsCell.AddElement(new Paragraph(wprowadzilNazwa, authorValueFont) { Alignment = Element.ALIGN_RIGHT });
                 }
-                authorsTable.AddCell(enteredCell);
 
-                // Zaakceptował/Zweryfikował - z procentami
-                PdfPCell approvedCell = new PdfPCell { Border = PdfPCell.NO_BORDER, Padding = 2 };
-                approvedCell.AddElement(new Paragraph("Zweryfikował (rozl.):", authorLabelFont) { Alignment = Element.ALIGN_CENTER });
+                // Zweryfikował - z procentami
+                authorsCell.AddElement(new Paragraph("Zweryfikował (rozl.):", authorLabelFont) { Alignment = Element.ALIGN_RIGHT, SpacingBefore = 3 });
                 if (weryfikacje.Count > 0 && total > 0)
                 {
                     foreach (var kv in weryfikacje)
                     {
                         decimal pct = (decimal)kv.Value / total * 100;
-                        approvedCell.AddElement(new Paragraph($"{kv.Key}: {pct:F0}%", authorValueFont) { Alignment = Element.ALIGN_CENTER });
+                        authorsCell.AddElement(new Paragraph($"{kv.Key}: {pct:F0}%", authorValueFont) { Alignment = Element.ALIGN_RIGHT });
                     }
                 }
                 else
                 {
-                    approvedCell.AddElement(new Paragraph(zaakceptowalNazwa, authorValueFont) { Alignment = Element.ALIGN_CENTER });
+                    authorsCell.AddElement(new Paragraph(zaakceptowalNazwa, authorValueFont) { Alignment = Element.ALIGN_RIGHT });
                 }
-                authorsTable.AddCell(approvedCell);
 
-                doc.Add(authorsTable);
+                footerTable.AddCell(authorsCell);
+
+                doc.Add(footerTable);
 
                 doc.Close();
             }
@@ -6749,26 +6745,39 @@ namespace Kalendarz1
 
         private void AddColoredMergedHeader(PdfPTable table, string text, Font font, int colspan, BaseColor bgColor)
         {
-            PdfPCell cell = new PdfPCell(new Phrase(text, font))
+            // W trybie B&W używaj białego tła z czarnym tekstem i ramką
+            BaseColor actualBgColor = _pdfCzarnoBialy ? BaseColor.WHITE : bgColor;
+            BaseColor textColor = _pdfCzarnoBialy ? BaseColor.BLACK : BaseColor.WHITE;
+            Font headerFont = new Font(font.BaseFont, font.Size, font.Style, textColor);
+
+            PdfPCell cell = new PdfPCell(new Phrase(text, headerFont))
             {
                 Colspan = colspan,
-                BackgroundColor = bgColor,
+                BackgroundColor = actualBgColor,
                 HorizontalAlignment = Element.ALIGN_CENTER,
                 VerticalAlignment = Element.ALIGN_MIDDLE,
-                Padding = 6
+                Padding = 6,
+                BorderColor = BaseColor.BLACK,
+                BorderWidth = 0.5f
             };
             table.AddCell(cell);
         }
 
         private void AddColoredTableHeader(PdfPTable table, string text, Font font, BaseColor bgColor)
         {
-            PdfPCell cell = new PdfPCell(new Phrase(text, new Font(font.BaseFont, font.Size, font.Style, BaseColor.WHITE)))
+            // W trybie B&W używaj białego tła z czarnym tekstem i ramką
+            BaseColor actualBgColor = _pdfCzarnoBialy ? BaseColor.WHITE : bgColor;
+            BaseColor textColor = _pdfCzarnoBialy ? BaseColor.BLACK : BaseColor.WHITE;
+
+            PdfPCell cell = new PdfPCell(new Phrase(text, new Font(font.BaseFont, font.Size, font.Style, textColor)))
             {
-                BackgroundColor = bgColor,
+                BackgroundColor = actualBgColor,
                 HorizontalAlignment = Element.ALIGN_CENTER,
                 VerticalAlignment = Element.ALIGN_MIDDLE,
                 Padding = 4,
-                MinimumHeight = 22 // Wyższe nagłówki
+                MinimumHeight = 22,
+                BorderColor = BaseColor.BLACK,
+                BorderWidth = 0.5f
             };
             table.AddCell(cell);
         }
@@ -6778,23 +6787,29 @@ namespace Kalendarz1
         /// </summary>
         private void AddDostarczoneHeader(PdfPTable table, Font font, BaseColor bgColor)
         {
+            // W trybie B&W używaj białego tła z czarnym tekstem
+            BaseColor actualBgColor = _pdfCzarnoBialy ? BaseColor.WHITE : bgColor;
+            BaseColor textColor = _pdfCzarnoBialy ? BaseColor.BLACK : BaseColor.WHITE;
+
             // Utwórz komórkę z dwoma liniami tekstu
             PdfPCell cell = new PdfPCell()
             {
-                BackgroundColor = bgColor,
+                BackgroundColor = actualBgColor,
                 HorizontalAlignment = Element.ALIGN_CENTER,
                 VerticalAlignment = Element.ALIGN_MIDDLE,
                 Padding = 2,
-                MinimumHeight = 22
+                MinimumHeight = 22,
+                BorderColor = BaseColor.BLACK,
+                BorderWidth = 0.5f
             };
 
             // Linia 1: "Dostarczone" (normalna czcionka)
-            Paragraph line1 = new Paragraph("Dostarcz.", new Font(font.BaseFont, 6, Font.NORMAL, BaseColor.WHITE));
+            Paragraph line1 = new Paragraph("Dostarcz.", new Font(font.BaseFont, 6, Font.NORMAL, textColor));
             line1.Alignment = Element.ALIGN_CENTER;
             cell.AddElement(line1);
 
             // Linia 2: "(ARIMR)" (pogrubiona)
-            Paragraph line2 = new Paragraph("(ARIMR)", new Font(font.BaseFont, 6, Font.BOLD, BaseColor.WHITE));
+            Paragraph line2 = new Paragraph("(ARIMR)", new Font(font.BaseFont, 6, Font.BOLD, textColor));
             line2.Alignment = Element.ALIGN_CENTER;
             cell.AddElement(line2);
 
