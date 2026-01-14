@@ -88,8 +88,8 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                             CustomerName = reader.IsDBNull(3) ? "" : reader.GetString(3),
                             CreateData = createData,
                             CreateGodzina = createGodzina,
-                            // Pelny numer partii: CustomerID&Partia
-                            FullPartiaNumber = $"{customerIdStr}&{partiaStr}"
+                            // Pelny numer partii: CustomerID + Partia
+                            FullPartiaNumber = $"{customerIdStr}{partiaStr}"
                         });
                     }
                 }
@@ -214,7 +214,7 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                 }
 
                 var newPartia = $"{prefix}{nextNum:000}";
-                var fullPartiaNumber = $"{_customerGID?.Trim()}&{newPartia}";
+                var fullPartiaNumber = $"{_customerGID?.Trim()}{newPartia}";
 
                 var result = MessageBox.Show(
                     $"Utworzyc nowa partie?\n\n" +
@@ -244,7 +244,7 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
 
                 cmdInsert.ExecuteNonQuery();
 
-                // Zwroc pelny numer partii (CustomerID&Partia)
+                // Zwroc pelny numer partii (CustomerID + Partia)
                 SelectedPartiaGuid = newGuid;
                 SelectedPartiaNumber = fullPartiaNumber;
                 DialogResult = true;
@@ -294,7 +294,7 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
             }
 
             SelectedPartiaGuid = selected.Guid;
-            // Zwracamy pelny numer partii (CustomerID&Partia)
+            // Zwracamy pelny numer partii (CustomerID + Partia)
             SelectedPartiaNumber = selected.FullPartiaNumber;
             DialogResult = true;
             Close();
@@ -337,7 +337,7 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
         public DateTime? CreateData { get; set; }
         public TimeSpan? CreateGodzina { get; set; }
 
-        // Pelny numer partii: CustomerID&Partia
+        // Pelny numer partii: CustomerID + Partia (bez separatora)
         public string FullPartiaNumber { get; set; }
 
         // Status zamkniecia z listapartii
