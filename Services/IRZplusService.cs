@@ -293,6 +293,105 @@ namespace Kalendarz1.Services
 
         public void Dispose() => _httpClient?.Dispose();
 
+        // ============ NOWE METODY ZURD (format ARiMR) ============
+
+        /// <summary>
+        /// Konwertuje specyfikacje do formatu ZURD wymaganego przez API ARiMR
+        /// </summary>
+        public DyspozycjaZURD ConvertToZURD(List<SpecyfikacjaDoIRZplus> specyfikacje, string numerPartiiUboju = null)
+        {
+            var wybrane = specyfikacje.Where(s => s.Wybrana).ToList();
+            var dataUboju = wybrane.FirstOrDefault()?.DataZdarzenia ?? DateTime.Now;
+
+            // Numer partii uboju - jeśli nie podany, generuj automatycznie (RRMMDDNNN)
+            if (string.IsNullOrEmpty(numerPartiiUboju))
+            {
+                numerPartiiUboju = $"{dataUboju:yyMMdd}001";
+            }
+
+            var zurd = new DyspozycjaZURD
+            {
+                NumerProducenta = _settings.Username, // numer producenta ARiMR
+                Zgloszenie = new ZgloszenieZURDDTO
+                {
+                    NumerRzezni = _settings.NumerUbojni,
+                    NumerPartiiUboju = numerPartiiUboju,
+                    Gatunek = new KodOpisDto { Kod = "KURY" },
+                    Pozycje = new List<PozycjaZURDDTO>()
+                }
+            };
+
+            long lp = 1;
+            foreach (var spec in wybrane)
+            {
+                zurd.Zgloszenie.Pozycje.Add(new PozycjaZURDDTO
+                {
+                    Lp = lp++,
+                    NumerIdenPartiiDrobiu = spec.IRZPlus ?? "",
+                    LiczbaDrobiu = spec.LiczbaSztukDrobiu,
+                    TypZdarzenia = new KodOpisDto { Kod = "UR" }, // UR = ubój w rzeźni
+                    DataZdarzenia = spec.DataZdarzenia.ToString("yyyy-MM-dd"),
+                    PrzyjeteZDzialalnosci = spec.IRZPlus ?? "",
+                    UbojRytualny = false
+                });
+            }
+
+            return zurd;
+        }
+
+        /// <summary>
+        /// Wysyła zgłoszenie ZURD do API ARiMR
+        /// </summary>
+        public async Task<IRZplusResult> WyslijZURDAsync(DyspozycjaZURD zurd)
+        {
+            try
+            {
+                var token = await GetAccessTokenAsync();
+
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+                var jsonOptions = new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    WriteIndented = true
+                };
+                var json = JsonSerializer.Serialize(zurd, jsonOptions);
+
+                if (_settings.SaveLocalCopy) SaveLocalCopy(zurd, "zurd");
+
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var url = _settings.UseTestEnvironment ? API_URL_TEST : API_URL_PROD;
+                var response = await _httpClient.PostAsync(url, content);
+                var responseBody = await response.Content.ReadAsStringAsync();
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var numerZgloszenia = TryGetNumerZgloszenia(responseBody);
+                    SaveHistory(new IRZplusLocalHistory
+                    {
+                        DataWyslania = DateTime.Now,
+                        DataUboju = DateTime.TryParse(zurd.Zgloszenie.Pozycje.FirstOrDefault()?.DataZdarzenia, out var d) ? d : DateTime.Now,
+                        NumerZgloszenia = numerZgloszenia,
+                        Status = "WYSLANE",
+                        IloscDyspozycji = zurd.Zgloszenie.Pozycje.Count,
+                        SumaIloscSztuk = zurd.Zgloszenie.Pozycje.Sum(p => p.LiczbaDrobiu),
+                        SumaWagaKg = 0,
+                        RequestJson = json,
+                        ResponseJson = responseBody
+                    });
+                    return new IRZplusResult { Success = true, Message = "Wysłano pomyślnie!", NumerZgloszenia = numerZgloszenia, ResponseData = responseBody };
+                }
+
+                return new IRZplusResult { Success = false, Message = $"Błąd {(int)response.StatusCode}: {responseBody}", ResponseData = responseBody };
+            }
+            catch (Exception ex)
+            {
+                return new IRZplusResult { Success = false, Message = ex.Message };
+            }
+        }
+
+        // ============ STARE METODY (dla kompatybilności) ============
+
         // Alias dla kompatybilności z istniejącym kodem
         public Task<IRZplusResult> SendZgloszenieAsync(ZgloszenieZbiorczeRequest request) => WyslijZgloszenieAsync(request);
 
@@ -426,6 +525,7 @@ namespace Kalendarz1.Services
         public bool Wybrana { get; set; }
     }
 
+    // ============ STARE KLASY (dla kompatybilności) ============
     public class ZgloszenieZbiorczeRequest
     {
         public string NumerUbojni { get; set; }
@@ -442,6 +542,38 @@ namespace Kalendarz1.Services
         public decimal WagaKg { get; set; }
         public int IloscPadlych { get; set; }
         public string NumerPartii { get; set; }
+    }
+
+    // ============ NOWE KLASY ARiMR ZURD ============
+    public class DyspozycjaZURD
+    {
+        public string NumerProducenta { get; set; }
+        public ZgloszenieZURDDTO Zgloszenie { get; set; }
+    }
+
+    public class ZgloszenieZURDDTO
+    {
+        public string NumerRzezni { get; set; }
+        public string NumerPartiiUboju { get; set; }
+        public KodOpisDto Gatunek { get; set; }
+        public List<PozycjaZURDDTO> Pozycje { get; set; } = new List<PozycjaZURDDTO>();
+    }
+
+    public class PozycjaZURDDTO
+    {
+        public long Lp { get; set; }
+        public string NumerIdenPartiiDrobiu { get; set; }
+        public int LiczbaDrobiu { get; set; }
+        public KodOpisDto TypZdarzenia { get; set; }
+        public string DataZdarzenia { get; set; }
+        public string PrzyjeteZDzialalnosci { get; set; }
+        public bool UbojRytualny { get; set; } = false;
+    }
+
+    public class KodOpisDto
+    {
+        public string Kod { get; set; }
+        public string Opis { get; set; }
     }
 
     public class IRZplusLocalHistory
