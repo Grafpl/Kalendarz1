@@ -396,12 +396,7 @@ namespace Kalendarz1.Services
         public string Uwagi { get; set; }
     }
 
-    public class ExportResult
-    {
-        public bool Success { get; set; }
-        public string FilePath { get; set; }
-        public string Message { get; set; }
-    }
+    
 
     #endregion
 }
