@@ -182,25 +182,32 @@ namespace Kalendarz1.Services
         #region OAuth 2.0 Authentication
 
         /// <summary>
-        /// Pobiera token dostępu OAuth 2.0
+        /// Pobiera token dostępu OAuth 2.0 z serwera ARiMR
+        /// URL: https://sso.arimr.gov.pl/auth/realms/ewniosekplus/protocol/openid-connect/token
         /// </summary>
         public async Task<IRZplusResult> AuthenticateAsync()
         {
             try
             {
-                if (string.IsNullOrEmpty(_settings.ClientId) || string.IsNullOrEmpty(_settings.ClientSecret))
+                // Walidacja danych logowania
+                if (string.IsNullOrWhiteSpace(_settings.Username))
                 {
-                    return IRZplusResult.Error("Brak danych uwierzytelniających. Skonfiguruj Client ID i Client Secret.");
+                    return IRZplusResult.Error("Brak nazwy użytkownika! Przejdź do Ustawień IRZplus i wprowadź numer producenta.");
                 }
 
+                if (string.IsNullOrWhiteSpace(_settings.Password))
+                {
+                    return IRZplusResult.Error("Brak hasła! Przejdź do Ustawień IRZplus i wprowadź hasło konta ARiMR.");
+                }
+
+                // Parametry zgodne z dokumentacją ARiMR (02.02.2023)
+                // NIE wysyłamy client_secret - ARiMR go nie wymaga dla aplikacja-irzplus
                 var formData = new Dictionary<string, string>
                 {
                     { "grant_type", "password" },
-                    { "client_id", _settings.ClientId },
-                    { "client_secret", _settings.ClientSecret },
+                    { "client_id", _settings.ClientId ?? "aplikacja-irzplus" },
                     { "username", _settings.Username },
-                    { "password", _settings.Password },
-                    { "scope", "irz_api" }
+                    { "password", _settings.Password }
                 };
 
                 var content = new FormUrlEncodedContent(formData);
@@ -211,10 +218,22 @@ namespace Kalendarz1.Services
                 {
                     _currentToken = JsonSerializer.Deserialize<TokenResponse>(responseBody, _jsonOptions);
                     _currentToken.ExpirationTime = DateTime.UtcNow.AddSeconds(_currentToken.ExpiresIn);
-                    return IRZplusResult.Ok("Uwierzytelnianie zakończone pomyślnie");
+                    return IRZplusResult.Ok("Uwierzytelnianie zakończone pomyślnie. Token uzyskany.");
                 }
 
-                return IRZplusResult.Error($"Błąd uwierzytelniania: {response.StatusCode} - {responseBody}");
+                // Parsuj błąd z odpowiedzi ARiMR
+                string errorMessage = responseBody;
+                try
+                {
+                    using var doc = JsonDocument.Parse(responseBody);
+                    if (doc.RootElement.TryGetProperty("error_description", out var desc))
+                        errorMessage = desc.GetString();
+                    else if (doc.RootElement.TryGetProperty("error", out var err))
+                        errorMessage = err.GetString();
+                }
+                catch { }
+
+                return IRZplusResult.Error($"Błąd autoryzacji ARiMR: {errorMessage}");
             }
             catch (HttpRequestException ex)
             {
@@ -238,11 +257,11 @@ namespace Kalendarz1.Services
                     return await AuthenticateAsync();
                 }
 
+                // Parametry zgodne z dokumentacją ARiMR - bez client_secret
                 var formData = new Dictionary<string, string>
                 {
                     { "grant_type", "refresh_token" },
-                    { "client_id", _settings.ClientId },
-                    { "client_secret", _settings.ClientSecret },
+                    { "client_id", _settings.ClientId ?? "aplikacja-irzplus" },
                     { "refresh_token", _currentToken.RefreshToken }
                 };
 

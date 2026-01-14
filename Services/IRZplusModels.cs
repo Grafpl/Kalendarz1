@@ -196,24 +196,33 @@ namespace Kalendarz1.Services
     {
         public string NumerUbojni { get; set; } = "10141607"; // Numer weterynaryjny Piórkowscy
         public string NazwaUbojni { get; set; } = "Ubojnia Drobiu Piórkowscy";
-        public string ClientId { get; set; }
-        public string ClientSecret { get; set; }
-        public string Username { get; set; }
-        public string Password { get; set; }
-        public bool UseTestEnvironment { get; set; } = true;
+        public string NumerProducenta { get; set; } = "039806095"; // Numer producenta ARiMR
+        public string NumerDzialalnosci { get; set; } = "039806095-001"; // Numer działalności
+
+        // Dane logowania OAuth - domyślne wartości produkcyjne
+        public string ClientId { get; set; } = "aplikacja-irzplus"; // Stały client_id ARiMR
+        public string ClientSecret { get; set; } = ""; // NIE UŻYWAĆ - ARiMR nie wymaga
+        public string Username { get; set; } = "039806095"; // Numer producenta jako login
+        public string Password { get; set; } = "Jpiorkowski51"; // Hasło konta ARiMR
+
+        public bool UseTestEnvironment { get; set; } = false; // Domyślnie PRODUKCJA
         public bool AutoSendOnSave { get; set; } = false;
         public bool SaveLocalCopy { get; set; } = true;
         public string LocalExportPath { get; set; }
         public DateTime? LastSuccessfulSync { get; set; }
 
-        // Endpointy API
-        public string TokenEndpoint => UseTestEnvironment
-            ? "https://irz-test.arimr.gov.pl/oauth/token"
-            : "https://irz.arimr.gov.pl/oauth/token";
+        // POPRAWNY URL tokenu OAuth z dokumentacji ARiMR (02.02.2023)
+        // Ten sam URL dla testów i produkcji - różnica tylko w danych logowania
+        public string TokenEndpoint => "https://sso.arimr.gov.pl/auth/realms/ewniosekplus/protocol/openid-connect/token";
 
+        // Endpointy API IRZplus
         public string ApiBaseUrl => UseTestEnvironment
             ? "https://irz-test.arimr.gov.pl/api/v1"
             : "https://irz.arimr.gov.pl/api/v1";
+
+        // Dane testowe (do testów bez wpływu na produkcję)
+        public const string TEST_USERNAME = "api_test_portalirzplus1";
+        public const string TEST_PASSWORD = "api_test_portalirzplus1";
     }
 
     /// <summary>
