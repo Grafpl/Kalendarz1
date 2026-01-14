@@ -11049,13 +11049,18 @@ namespace Kalendarz1
                         cmd.ExecuteNonQuery();
                     }
 
-                    // Pobierz wartości z UI przez FindName
+                    // Pobierz wartości z UI przez FindName (z fallback na zmienne)
                     var txtPlachta = this.FindName("txtDefaultPlachtaPath") as TextBox;
                     var txtPlachtaSave = this.FindName("txtDefaultPlachtaSavePath") as TextBox;
                     var txtPods = this.FindName("txtDefaultPodsumowaniePath") as TextBox;
 
+                    // Debug - sprawdź czy kontrolki zostały znalezione
+                    System.Diagnostics.Debug.WriteLine($"txtPlachta found: {txtPlachta != null}, txtPlachtaSave found: {txtPlachtaSave != null}, txtPods found: {txtPods != null}");
+                    System.Diagnostics.Debug.WriteLine($"_defaultPodsumowaniePath: {_defaultPodsumowaniePath}");
+
                     // Zapisz ścieżkę Płachta (Dla Lekarzy)
-                    string plachtaPath = txtPlachta?.Text?.Trim() ?? defaultPlachtaPath;
+                    string plachtaPath = txtPlachta?.Text?.Trim();
+                    if (string.IsNullOrWhiteSpace(plachtaPath)) plachtaPath = defaultPlachtaPath;
                     if (!string.IsNullOrWhiteSpace(plachtaPath))
                     {
                         defaultPlachtaPath = plachtaPath;
@@ -11095,7 +11100,11 @@ namespace Kalendarz1
                     }
 
                     // Zapisz ścieżkę Podsumowanie
-                    string podsPath = txtPods?.Text?.Trim() ?? _defaultPodsumowaniePath;
+                    string podsPath = txtPods?.Text?.Trim();
+                    if (string.IsNullOrWhiteSpace(podsPath)) podsPath = _defaultPodsumowaniePath;
+
+                    System.Diagnostics.Debug.WriteLine($"Saving PodsumowaniePath: {podsPath}");
+
                     if (!string.IsNullOrWhiteSpace(podsPath))
                     {
                         _defaultPodsumowaniePath = podsPath;
@@ -11112,6 +11121,11 @@ namespace Kalendarz1
                             cmd.Parameters.AddWithValue("@User", user);
                             cmd.ExecuteNonQuery();
                         }
+                        System.Diagnostics.Debug.WriteLine($"PodsumowaniePath saved successfully: {podsPath}");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("PodsumowaniePath was empty - not saved");
                     }
                 }
             }

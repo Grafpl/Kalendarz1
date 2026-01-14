@@ -1217,7 +1217,7 @@
                                     </DataGridTemplateColumn.CellEditingTemplate>
                                 </DataGridTemplateColumn>
 
-                                <DataGridTemplateColumn Header="Dostawca" Width="160" SortMemberPath="Dostawca">
+                                <DataGridTemplateColumn Header="Dostawca" Width="120" SortMemberPath="Dostawca">
                                     <DataGridTemplateColumn.CellStyle>
                                         <Style TargetType="DataGridCell">
                                             <Setter Property="Background" Value="#E8F5E9"/>
@@ -1232,13 +1232,14 @@
                                             </Style.Triggers>
                                         </Style>
                                     </DataGridTemplateColumn.CellStyle>
-                                    <!-- CellTemplate: Wyswietlanie (tylko tekst) -->
+                                    <!-- CellTemplate: Wyswietlanie z zawijaniem tekstu -->
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding Dostawca}"
                                                        VerticalAlignment="Center"
-                                                       Padding="5,0"
-                                                       TextTrimming="CharacterEllipsis"
+                                                       Padding="5,2"
+                                                       TextWrapping="Wrap"
+                                                       FontSize="11"
                                                        Background="Transparent"
                                                        Foreground="Black"/>
                                         </DataTemplate>
