@@ -79,9 +79,20 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                 using var reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
+                    // Guid moze byc UNIQUEIDENTIFIER lub VARCHAR - obslugujemy oba przypadki
+                    Guid guidValue = Guid.Empty;
+                    if (!reader.IsDBNull(0))
+                    {
+                        var guidObj = reader.GetValue(0);
+                        if (guidObj is Guid g)
+                            guidValue = g;
+                        else if (guidObj is string s && Guid.TryParse(s, out var parsed))
+                            guidValue = parsed;
+                    }
+
                     _allPartie.Add(new PartiaItem
                     {
-                        Guid = reader.GetGuid(0),
+                        Guid = guidValue,
                         Partia = reader.IsDBNull(1) ? "" : reader.GetString(1),
                         CustomerID = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
                         CustomerName = reader.IsDBNull(3) ? "" : reader.GetString(3),
@@ -186,7 +197,8 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                     (guid, Partia, CustomerID, CustomerName, CreateData, CreateGodzina)
                     VALUES (@guid, @Partia, @CustomerID, @CustomerName, @CreateData, @CreateGodzina)", conn);
 
-                cmdInsert.Parameters.AddWithValue("@guid", newGuid);
+                // Guid zapisujemy jako string (kolumna moze byc VARCHAR)
+                cmdInsert.Parameters.AddWithValue("@guid", newGuid.ToString());
                 cmdInsert.Parameters.AddWithValue("@Partia", newPartia);
                 cmdInsert.Parameters.AddWithValue("@CustomerID", customerIdInt);
                 cmdInsert.Parameters.AddWithValue("@CustomerName", _customerName ?? "");

@@ -1465,8 +1465,8 @@ namespace Kalendarz1
                                 PayWgt = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "PayWgt", 0),
                                 // Odbiorca (Customer) - pobierz nazwę z CustomerRealGID
                                 Odbiorca = GetCustomerName(ZapytaniaSQL.GetValueOrDefault<string>(row, "CustomerRealGID", "-1")?.Trim()),
-                                // Partia drobiu
-                                PartiaGuid = dataTable.Columns.Contains("PartiaGuid") && row["PartiaGuid"] != DBNull.Value ? (Guid?)row["PartiaGuid"] : null,
+                                // Partia drobiu - obsluga Guid jako UNIQUEIDENTIFIER lub VARCHAR
+                                PartiaGuid = GetPartiaGuidFromRow(dataTable, row),
                                 PartiaNumber = dataTable.Columns.Contains("PartiaNumber") ? ZapytaniaSQL.GetValueOrDefault<string>(row, "PartiaNumber", null)?.Trim() : null
                             };
 
@@ -4021,7 +4021,8 @@ namespace Kalendarz1
                         }
                         else
                         {
-                            cmd.Parameters.AddWithValue("@PartiaGuid", partiaWindow.SelectedPartiaGuid);
+                            // Zapisujemy jako string dla kompatybilnosci z VARCHAR lub UNIQUEIDENTIFIER
+                            cmd.Parameters.AddWithValue("@PartiaGuid", partiaWindow.SelectedPartiaGuid.Value.ToString());
                         }
                         cmd.Parameters.AddWithValue("@ID", row.ID);
                         cmd.ExecuteNonQuery();
@@ -7153,6 +7154,22 @@ namespace Kalendarz1
                 // Ignoruj błędy
             }
             return "-";
+        }
+
+        /// <summary>
+        /// Pobiera PartiaGuid z wiersza - obsluguje UNIQUEIDENTIFIER i VARCHAR
+        /// </summary>
+        private Guid? GetPartiaGuidFromRow(DataTable dataTable, DataRow row)
+        {
+            if (!dataTable.Columns.Contains("PartiaGuid") || row["PartiaGuid"] == DBNull.Value)
+                return null;
+
+            var value = row["PartiaGuid"];
+            if (value is Guid g)
+                return g;
+            if (value is string s && Guid.TryParse(s, out var parsed))
+                return parsed;
+            return null;
         }
 
         /// <summary>
