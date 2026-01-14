@@ -615,15 +615,15 @@ namespace Kalendarz1.Services
             {
                 request.Dyspozycje.Add(new DyspozycjaZZSSD
                 {
-                    DataUboju = spec.DataUboju.ToString("yyyy-MM-dd"),
-                    NumerSiedliska = spec.NumerSiedliska ?? "",
+                    DataUboju = spec.DataZdarzenia.ToString("yyyy-MM-dd"),
+                    NumerSiedliska = spec.IRZPlus ?? "",
                     NumerUbojni = _settings.NumerUbojni,
-                    GatunekDrobiu = spec.GatunekDrobiu ?? "KURCZAK",
-                    IloscSztuk = spec.IloscSztuk,
+                    GatunekDrobiu = "KURCZAK",
+                    IloscSztuk = spec.LiczbaSztukDrobiu,
                     WagaKg = spec.WagaNetto,
-                    IloscPadlych = spec.IloscPadlych,
+                    IloscPadlych = spec.SztukiPadle,
                     NumerPartii = spec.NumerPartii ?? "",
-                    NumerDokumentuPrzewozowego = spec.NumerDokumentuPrzewozowego ?? ""
+                    NumerDokumentuPrzewozowego = ""
                 });
             }
 
@@ -643,17 +643,19 @@ namespace Kalendarz1.Services
                 {
                     await connection.OpenAsync();
 
+                    // Zapytanie zgodne z formatem Excel ARiMR
                     var query = @"
                         SELECT
                             fc.ID,
-                            fc.CalcDate,
-                            ISNULL(d.ShortName, 'Nieznany') AS DostawcaNazwa,
-                            ISNULL(d.AnimNo, '') AS NumerSiedliska,
-                            ISNULL(fc.DeclI1, 0) AS IloscSztuk,
-                            ISNULL(fc.NettoWeight, 0) AS WagaNetto,
-                            ISNULL(fc.DeclI2, 0) AS IloscPadlych,
+                            fc.CalcDate AS DataZdarzenia,
+                            ISNULL(d.ShortName, 'Nieznany') AS Hodowca,
+                            LTRIM(RTRIM(ISNULL(fc.CustomerGID, ''))) AS IdHodowcy,
+                            ISNULL(d.IRZPlus, '') AS IRZPlus,
                             ISNULL(fc.CarLp, 0) AS NumerPartii,
-                            ISNULL(fc.CarID, '') AS NumerRejestracyjny
+                            ISNULL(fc.DeclI1, 0) AS SztukiWszystkie,
+                            ISNULL(fc.DeclI2, 0) AS SztukiPadle,
+                            ISNULL(fc.DeclI3, 0) + ISNULL(fc.DeclI4, 0) + ISNULL(fc.DeclI5, 0) AS SztukiKonfiskaty,
+                            ISNULL(fc.NettoWeight, 0) AS WagaNetto
                         FROM dbo.FarmerCalc fc
                         LEFT JOIN dbo.Dostawcy d ON LTRIM(RTRIM(fc.CustomerGID)) = LTRIM(RTRIM(d.ID))
                         WHERE CAST(fc.CalcDate AS DATE) = @DataUboju
@@ -667,28 +669,29 @@ namespace Kalendarz1.Services
                         {
                             while (await reader.ReadAsync())
                             {
-                                var idOrd = reader.GetOrdinal("ID");
-                                var calcDateOrd = reader.GetOrdinal("CalcDate");
-                                var dostawcaOrd = reader.GetOrdinal("DostawcaNazwa");
-                                var siedliskoOrd = reader.GetOrdinal("NumerSiedliska");
-                                var iloscOrd = reader.GetOrdinal("IloscSztuk");
-                                var wagaOrd = reader.GetOrdinal("WagaNetto");
-                                var padleOrd = reader.GetOrdinal("IloscPadlych");
-                                var partiaOrd = reader.GetOrdinal("NumerPartii");
-                                var rejOrd = reader.GetOrdinal("NumerRejestracyjny");
+                                int sztukiWszystkie = reader.IsDBNull(reader.GetOrdinal("SztukiWszystkie")) ? 0 : reader.GetInt32(reader.GetOrdinal("SztukiWszystkie"));
+                                int sztukiPadle = reader.IsDBNull(reader.GetOrdinal("SztukiPadle")) ? 0 : reader.GetInt32(reader.GetOrdinal("SztukiPadle"));
+                                int sztukiKonfiskaty = reader.IsDBNull(reader.GetOrdinal("SztukiKonfiskaty")) ? 0 : reader.GetInt32(reader.GetOrdinal("SztukiKonfiskaty"));
+
+                                // Liczba sztuk zdatnych = wszystkie - padłe - konfiskaty
+                                int liczbaSztukZdatnych = sztukiWszystkie - sztukiPadle - sztukiKonfiskaty;
+                                if (liczbaSztukZdatnych < 0) liczbaSztukZdatnych = 0;
 
                                 result.Add(new SpecyfikacjaDoIRZplus
                                 {
-                                    Id = reader.GetInt32(idOrd),
-                                    DataUboju = reader.GetDateTime(calcDateOrd),
-                                    DostawcaNazwa = reader.IsDBNull(dostawcaOrd) ? "Nieznany" : reader.GetString(dostawcaOrd),
-                                    NumerSiedliska = reader.IsDBNull(siedliskoOrd) ? "" : reader.GetString(siedliskoOrd),
-                                    IloscSztuk = reader.IsDBNull(iloscOrd) ? 0 : reader.GetInt32(iloscOrd),
-                                    WagaNetto = reader.IsDBNull(wagaOrd) ? 0 : reader.GetDecimal(wagaOrd),
-                                    IloscPadlych = reader.IsDBNull(padleOrd) ? 0 : reader.GetInt32(padleOrd),
-                                    NumerPartii = reader.IsDBNull(partiaOrd) ? "" : reader.GetInt32(partiaOrd).ToString(),
-                                    NumerRejestracyjny = reader.IsDBNull(rejOrd) ? "" : reader.GetString(rejOrd),
-                                    GatunekDrobiu = "KURCZAK",
+                                    Id = reader.GetInt32(reader.GetOrdinal("ID")),
+                                    DataZdarzenia = reader.GetDateTime(reader.GetOrdinal("DataZdarzenia")),
+                                    Hodowca = reader.IsDBNull(reader.GetOrdinal("Hodowca")) ? "Nieznany" : reader.GetString(reader.GetOrdinal("Hodowca")),
+                                    IdHodowcy = reader.IsDBNull(reader.GetOrdinal("IdHodowcy")) ? "" : reader.GetString(reader.GetOrdinal("IdHodowcy")),
+                                    IRZPlus = reader.IsDBNull(reader.GetOrdinal("IRZPlus")) ? "" : reader.GetString(reader.GetOrdinal("IRZPlus")),
+                                    NumerPartii = reader.IsDBNull(reader.GetOrdinal("NumerPartii")) ? "" : reader.GetInt32(reader.GetOrdinal("NumerPartii")).ToString(),
+                                    LiczbaSztukDrobiu = liczbaSztukZdatnych,
+                                    SztukiWszystkie = sztukiWszystkie,
+                                    SztukiPadle = sztukiPadle,
+                                    SztukiKonfiskaty = sztukiKonfiskaty,
+                                    WagaNetto = reader.IsDBNull(reader.GetOrdinal("WagaNetto")) ? 0 : reader.GetDecimal(reader.GetOrdinal("WagaNetto")),
+                                    TypZdarzenia = "Przybycie do rzeźni i ubój",
+                                    KrajWywozu = "PL",
                                     Wybrana = true
                                 });
                             }

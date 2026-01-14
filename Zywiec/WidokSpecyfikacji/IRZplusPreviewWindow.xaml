@@ -245,15 +245,52 @@
             </DataGrid.CellStyle>
 
             <DataGrid.Columns>
-                <DataGridCheckBoxColumn Header="" Binding="{Binding Wybrana, UpdateSourceTrigger=PropertyChanged}" Width="40"/>
-                <DataGridTextColumn Header="LP" Binding="{Binding NumerPartii}" Width="60" IsReadOnly="True"/>
-                <DataGridTextColumn Header="Dostawca" Binding="{Binding DostawcaNazwa}" Width="200" IsReadOnly="True"/>
-                <DataGridTextColumn Header="Numer siedliska" Binding="{Binding NumerSiedliska}" Width="130"/>
-                <DataGridTextColumn Header="Gatunek" Binding="{Binding GatunekDrobiu}" Width="100"/>
-                <DataGridTextColumn Header="Ilosc sztuk" Binding="{Binding IloscSztuk, StringFormat=N0}" Width="100" IsReadOnly="True"/>
-                <DataGridTextColumn Header="Waga netto [kg]" Binding="{Binding WagaNetto, StringFormat=N2}" Width="120" IsReadOnly="True"/>
-                <DataGridTextColumn Header="Padle" Binding="{Binding IloscPadlych}" Width="70" IsReadOnly="True"/>
-                <DataGridTextColumn Header="Nr rej. pojazdu" Binding="{Binding NumerRejestracyjny}" Width="120" IsReadOnly="True"/>
+                <!-- Kolumna wyboru -->
+                <DataGridCheckBoxColumn Header="" Binding="{Binding Wybrana, UpdateSourceTrigger=PropertyChanged}" Width="35"/>
+                <!-- B: Hodowca -->
+                <DataGridTextColumn Header="Hodowca" Binding="{Binding Hodowca}" Width="160" IsReadOnly="True"/>
+                <!-- C: Id na produkcji -->
+                <DataGridTextColumn Header="Id Hodowcy" Binding="{Binding IdHodowcy}" Width="80" IsReadOnly="True"/>
+                <!-- D: IRZ PLUS -->
+                <DataGridTextColumn Header="IRZ PLUS" Binding="{Binding IRZPlus}" Width="130" IsReadOnly="True">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="FontWeight" Value="Bold"/>
+                            <Setter Property="Foreground" Value="#1565C0"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <!-- E: Numer Partii -->
+                <DataGridTextColumn Header="Numer Partii" Binding="{Binding NumerPartii}" Width="90" IsReadOnly="True"/>
+                <!-- F: Liczba Sztuk Drobiu (zdatne) -->
+                <DataGridTextColumn Header="Liczba Sztuk" Binding="{Binding LiczbaSztukDrobiu, StringFormat=N0}" Width="90" IsReadOnly="True">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="FontWeight" Value="Bold"/>
+                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <!-- G: Typ Zdarzenia -->
+                <DataGridTextColumn Header="Typ Zdarzenia" Binding="{Binding TypZdarzenia}" Width="170" IsReadOnly="True"/>
+                <!-- H: Data zdarzenia -->
+                <DataGridTextColumn Header="Data Zdarzenia" Binding="{Binding DataZdarzenia, StringFormat='{}{0:dd-MM-yyyy}'}" Width="100" IsReadOnly="True"/>
+                <!-- I: Kraj Wywozu -->
+                <DataGridTextColumn Header="Kraj" Binding="{Binding KrajWywozu}" Width="50" IsReadOnly="True"/>
+                <!-- J: Przyjete z dzialalnosci (obliczane) -->
+                <DataGridTextColumn Header="Przyjete z dzialalnosci" Binding="{Binding PrzyjetaZDzialalnosci}" Width="160" IsReadOnly="True">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="#388E3C"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <!-- K: nr.dok.Arimr (edytowalne) -->
+                <DataGridTextColumn Header="nr.dok.Arimr" Binding="{Binding NrDokArimr, UpdateSourceTrigger=PropertyChanged}" Width="120"/>
+                <!-- L: przybycie (edytowalne) -->
+                <DataGridTextColumn Header="przybycie" Binding="{Binding Przybycie, UpdateSourceTrigger=PropertyChanged}" Width="120"/>
+                <!-- M: padniecia (edytowalne) -->
+                <DataGridTextColumn Header="padniecia" Binding="{Binding Padniecia, UpdateSourceTrigger=PropertyChanged}" Width="120"/>
             </DataGrid.Columns>
         </DataGrid>
 

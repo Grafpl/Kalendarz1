@@ -93,9 +93,9 @@ namespace Kalendarz1
             var wybrane = _specyfikacje.Where(s => s.Wybrana).ToList();
 
             txtLiczbaDostawcow.Text = wybrane.Count.ToString();
-            txtSumaSztuk.Text = wybrane.Sum(s => s.IloscSztuk).ToString("N0");
+            txtSumaSztuk.Text = wybrane.Sum(s => s.LiczbaSztukDrobiu).ToString("N0");
             txtSumaWagi.Text = wybrane.Sum(s => s.WagaNetto).ToString("N2") + " kg";
-            txtSumaPadlych.Text = wybrane.Sum(s => s.IloscPadlych).ToString("N0");
+            txtSumaPadlych.Text = wybrane.Sum(s => s.SztukiPadle).ToString("N0");
 
             btnSend.IsEnabled = wybrane.Count > 0;
         }
@@ -106,19 +106,14 @@ namespace Kalendarz1
 
             foreach (var spec in _specyfikacje.Where(s => s.Wybrana))
             {
-                if (string.IsNullOrWhiteSpace(spec.NumerSiedliska))
+                if (string.IsNullOrWhiteSpace(spec.IRZPlus))
                 {
-                    warnings.Add($"Brak numeru siedliska dla: {spec.DostawcaNazwa}");
+                    warnings.Add($"Brak numeru IRZ PLUS dla: {spec.Hodowca}");
                 }
 
-                if (spec.IloscSztuk <= 0)
+                if (spec.LiczbaSztukDrobiu <= 0)
                 {
-                    warnings.Add($"Zerowa ilosc sztuk dla: {spec.DostawcaNazwa}");
-                }
-
-                if (spec.WagaNetto <= 0)
-                {
-                    warnings.Add($"Zerowa waga dla: {spec.DostawcaNazwa}");
+                    warnings.Add($"Zerowa liczba sztuk zdatnych dla: {spec.Hodowca}");
                 }
             }
 
@@ -184,7 +179,7 @@ namespace Kalendarz1
                 $"Srodowisko: {envText}\n" +
                 $"Data uboju: {_dataUboju:dd.MM.yyyy}\n" +
                 $"Liczba dostawcow: {wybrane.Count}\n" +
-                $"Suma sztuk: {wybrane.Sum(s => s.IloscSztuk):N0}\n" +
+                $"Suma sztuk zdatnych: {wybrane.Sum(s => s.LiczbaSztukDrobiu):N0}\n" +
                 $"Suma wagi: {wybrane.Sum(s => s.WagaNetto):N2} kg",
                 "Potwierdzenie wysylki",
                 MessageBoxButton.YesNo,
@@ -209,15 +204,21 @@ namespace Kalendarz1
                 var specyfikacje = wybrane.Select(vm => new SpecyfikacjaDoIRZplus
                 {
                     Id = vm.Id,
-                    DataUboju = vm.DataUboju,
-                    DostawcaNazwa = vm.DostawcaNazwa,
-                    NumerSiedliska = vm.NumerSiedliska,
-                    GatunekDrobiu = vm.GatunekDrobiu,
-                    IloscSztuk = vm.IloscSztuk,
-                    WagaNetto = vm.WagaNetto,
-                    IloscPadlych = vm.IloscPadlych,
+                    Hodowca = vm.Hodowca,
+                    IdHodowcy = vm.IdHodowcy,
+                    IRZPlus = vm.IRZPlus,
                     NumerPartii = vm.NumerPartii,
-                    NumerRejestracyjny = vm.NumerRejestracyjny,
+                    LiczbaSztukDrobiu = vm.LiczbaSztukDrobiu,
+                    TypZdarzenia = vm.TypZdarzenia,
+                    DataZdarzenia = vm.DataZdarzenia,
+                    KrajWywozu = vm.KrajWywozu,
+                    NrDokArimr = vm.NrDokArimr,
+                    Przybycie = vm.Przybycie,
+                    Padniecia = vm.Padniecia,
+                    SztukiWszystkie = vm.SztukiWszystkie,
+                    SztukiPadle = vm.SztukiPadle,
+                    SztukiKonfiskaty = vm.SztukiKonfiskaty,
+                    WagaNetto = vm.WagaNetto,
                     Wybrana = true
                 }).ToList();
 
@@ -296,15 +297,18 @@ namespace Kalendarz1
                 var specyfikacje = wybrane.Select(vm => new SpecyfikacjaDoIRZplus
                 {
                     Id = vm.Id,
-                    DataUboju = vm.DataUboju,
-                    DostawcaNazwa = vm.DostawcaNazwa,
-                    NumerSiedliska = vm.NumerSiedliska,
-                    GatunekDrobiu = vm.GatunekDrobiu,
-                    IloscSztuk = vm.IloscSztuk,
-                    WagaNetto = vm.WagaNetto,
-                    IloscPadlych = vm.IloscPadlych,
+                    Hodowca = vm.Hodowca,
+                    IdHodowcy = vm.IdHodowcy,
+                    IRZPlus = vm.IRZPlus,
                     NumerPartii = vm.NumerPartii,
-                    NumerRejestracyjny = vm.NumerRejestracyjny,
+                    LiczbaSztukDrobiu = vm.LiczbaSztukDrobiu,
+                    TypZdarzenia = vm.TypZdarzenia,
+                    DataZdarzenia = vm.DataZdarzenia,
+                    KrajWywozu = vm.KrajWywozu,
+                    SztukiWszystkie = vm.SztukiWszystkie,
+                    SztukiPadle = vm.SztukiPadle,
+                    SztukiKonfiskaty = vm.SztukiKonfiskaty,
+                    WagaNetto = vm.WagaNetto,
                     Wybrana = true
                 }).ToList();
 
@@ -350,24 +354,93 @@ namespace Kalendarz1
     }
 
     /// <summary>
-    /// ViewModel dla specyfikacji z INotifyPropertyChanged
+    /// ViewModel dla specyfikacji - zgodny z formatem Excel ARiMR
     /// </summary>
     public class SpecyfikacjaDoIRZplusViewModel : INotifyPropertyChanged
     {
         private bool _wybrana;
-        private string _numerSiedliska;
-        private string _gatunekDrobiu;
+        private string _nrDokArimr;
+        private string _przybycie;
+        private string _padniecia;
 
         public event PropertyChangedEventHandler PropertyChanged;
 
         public int Id { get; set; }
-        public DateTime DataUboju { get; set; }
-        public string DostawcaNazwa { get; set; }
-        public int IloscSztuk { get; set; }
-        public decimal WagaNetto { get; set; }
-        public int IloscPadlych { get; set; }
+
+        // Kolumna B - Hodowca
+        public string Hodowca { get; set; }
+
+        // Kolumna C - Id hodowcy
+        public string IdHodowcy { get; set; }
+
+        // Kolumna D - IRZ PLUS
+        public string IRZPlus { get; set; }
+
+        // Kolumna E - Numer Partii
         public string NumerPartii { get; set; }
-        public string NumerRejestracyjny { get; set; }
+
+        // Kolumna F - Liczba Sztuk Drobiu (zdatne)
+        public int LiczbaSztukDrobiu { get; set; }
+
+        // Kolumna G - Typ Zdarzenia
+        public string TypZdarzenia { get; set; }
+
+        // Kolumna H - Data Zdarzenia
+        public DateTime DataZdarzenia { get; set; }
+
+        // Kolumna I - Kraj Wywozu
+        public string KrajWywozu { get; set; }
+
+        // Kolumna J - Przyjete z dzialalnosci (obliczane)
+        public string PrzyjetaZDzialalnosci => string.IsNullOrEmpty(IRZPlus) ? "" : IRZPlus + "-001";
+
+        // Kolumna K - nr.dok.Arimr (edytowalne)
+        public string NrDokArimr
+        {
+            get => _nrDokArimr;
+            set
+            {
+                if (_nrDokArimr != value)
+                {
+                    _nrDokArimr = value;
+                    OnPropertyChanged(nameof(NrDokArimr));
+                }
+            }
+        }
+
+        // Kolumna L - przybycie (edytowalne)
+        public string Przybycie
+        {
+            get => _przybycie;
+            set
+            {
+                if (_przybycie != value)
+                {
+                    _przybycie = value;
+                    OnPropertyChanged(nameof(Przybycie));
+                }
+            }
+        }
+
+        // Kolumna M - padniecia (edytowalne)
+        public string Padniecia
+        {
+            get => _padniecia;
+            set
+            {
+                if (_padniecia != value)
+                {
+                    _padniecia = value;
+                    OnPropertyChanged(nameof(Padniecia));
+                }
+            }
+        }
+
+        // Dane pomocnicze
+        public int SztukiWszystkie { get; set; }
+        public int SztukiPadle { get; set; }
+        public int SztukiKonfiskaty { get; set; }
+        public decimal WagaNetto { get; set; }
 
         public bool Wybrana
         {
@@ -382,44 +455,31 @@ namespace Kalendarz1
             }
         }
 
-        public string NumerSiedliska
-        {
-            get => _numerSiedliska;
-            set
-            {
-                if (_numerSiedliska != value)
-                {
-                    _numerSiedliska = value;
-                    OnPropertyChanged(nameof(NumerSiedliska));
-                }
-            }
-        }
-
-        public string GatunekDrobiu
-        {
-            get => _gatunekDrobiu;
-            set
-            {
-                if (_gatunekDrobiu != value)
-                {
-                    _gatunekDrobiu = value;
-                    OnPropertyChanged(nameof(GatunekDrobiu));
-                }
-            }
-        }
+        // Dla kompatybilnosci wstecznej
+        public string DostawcaNazwa => Hodowca;
+        public string NumerSiedliska => IRZPlus;
+        public int IloscSztuk => LiczbaSztukDrobiu;
+        public DateTime DataUboju => DataZdarzenia;
+        public int IloscPadlych => SztukiPadle;
 
         public SpecyfikacjaDoIRZplusViewModel(SpecyfikacjaDoIRZplus source)
         {
             Id = source.Id;
-            DataUboju = source.DataUboju;
-            DostawcaNazwa = source.DostawcaNazwa;
-            NumerSiedliska = source.NumerSiedliska;
-            GatunekDrobiu = source.GatunekDrobiu ?? "KURCZAK";
-            IloscSztuk = source.IloscSztuk;
-            WagaNetto = source.WagaNetto;
-            IloscPadlych = source.IloscPadlych;
+            Hodowca = source.Hodowca;
+            IdHodowcy = source.IdHodowcy;
+            IRZPlus = source.IRZPlus;
             NumerPartii = source.NumerPartii;
-            NumerRejestracyjny = source.NumerRejestracyjny;
+            LiczbaSztukDrobiu = source.LiczbaSztukDrobiu;
+            TypZdarzenia = source.TypZdarzenia ?? "Przybycie do rzeźni i ubój";
+            DataZdarzenia = source.DataZdarzenia;
+            KrajWywozu = source.KrajWywozu ?? "PL";
+            NrDokArimr = source.NrDokArimr;
+            Przybycie = source.Przybycie;
+            Padniecia = source.Padniecia;
+            SztukiWszystkie = source.SztukiWszystkie;
+            SztukiPadle = source.SztukiPadle;
+            SztukiKonfiskaty = source.SztukiKonfiskaty;
+            WagaNetto = source.WagaNetto;
             Wybrana = source.Wybrana;
         }
 

@@ -273,26 +273,64 @@ namespace Kalendarz1.Services
     }
 
     /// <summary>
-    /// Model specyfikacji do wysyłki do IRZplus
+    /// Model specyfikacji do wysyłki do IRZplus - zgodny z formatem ARiMR
     /// </summary>
     public class SpecyfikacjaDoIRZplus
     {
         public int Id { get; set; }
-        public DateTime DataUboju { get; set; }
-        public string DostawcaNazwa { get; set; }
-        public string NumerSiedliska { get; set; }
-        public string GatunekDrobiu { get; set; } = "KURCZAK";
-        public int IloscSztuk { get; set; }
-        public decimal WagaNetto { get; set; }
-        public int IloscPadlych { get; set; }
+
+        // Kolumna B - Hodowca (nazwa)
+        public string Hodowca { get; set; }
+
+        // Kolumna C - Id na produkcji (Id hodowcy w systemie)
+        public string IdHodowcy { get; set; }
+
+        // Kolumna D - IRZ PLUS (numer z tabeli Dostawcy.IRZPlus)
+        public string IRZPlus { get; set; }
+
+        // Kolumna E - Numer Partii
         public string NumerPartii { get; set; }
-        public string NumerDokumentuPrzewozowego { get; set; }
+
+        // Kolumna F - Liczba Sztuk Drobiu (zdatne = DeclI1 - padłe - konfiskaty)
+        public int LiczbaSztukDrobiu { get; set; }
+
+        // Kolumna G - Typ Zdarzenia (zawsze "Przybycie do rzeźni i ubój")
+        public string TypZdarzenia { get; set; } = "Przybycie do rzeźni i ubój";
+
+        // Kolumna H - Data zdarzenia (data uboju)
+        public DateTime DataZdarzenia { get; set; }
+
+        // Kolumna I - Kraj Wywozu (zawsze "PL")
+        public string KrajWywozu { get; set; } = "PL";
+
+        // Kolumna J - Przyjęte z działalności (IRZPlus + "-001")
+        public string PrzyjetaZDzialalnosci => string.IsNullOrEmpty(IRZPlus) ? "" : IRZPlus + "-001";
+
+        // Kolumna K - nr.dok.Arimr (do ręcznego uzupełnienia po wprowadzeniu)
+        public string NrDokArimr { get; set; }
+
+        // Kolumna L - przybycie (do ręcznego uzupełnienia po wprowadzeniu)
+        public string Przybycie { get; set; }
+
+        // Kolumna M - padnięcia (do ręcznego uzupełnienia po wprowadzeniu)
+        public string Padniecia { get; set; }
+
+        // Dane pomocnicze (nie wyświetlane w głównej tabeli)
+        public int SztukiWszystkie { get; set; }  // DeclI1
+        public int SztukiPadle { get; set; }       // DeclI2
+        public int SztukiKonfiskaty { get; set; } // DeclI3 + DeclI4 + DeclI5
+
         public bool Wybrana { get; set; } = true;
 
-        // Dodatkowe informacje
+        // Dla zgodności wstecznej
+        public string DostawcaNazwa { get => Hodowca; set => Hodowca = value; }
+        public string NumerSiedliska { get => IRZPlus; set => IRZPlus = value; }
+        public int IloscSztuk { get => LiczbaSztukDrobiu; set => LiczbaSztukDrobiu = value; }
+        public DateTime DataUboju { get => DataZdarzenia; set => DataZdarzenia = value; }
+        public int IloscPadlych { get => SztukiPadle; set => SztukiPadle = value; }
+        public string GatunekDrobiu { get; set; } = "KURCZAK";
+        public decimal WagaNetto { get; set; }
         public string NumerRejestracyjny { get; set; }
-        public string KlasaA { get; set; }
-        public string KlasaB { get; set; }
     }
 
     /// <summary>
