@@ -29,7 +29,7 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
             _customerName = customerName;
             _dataUboju = dataUboju;
 
-            txtDostawca.Text = $"Dostawca: {customerName} (ID: {customerGID})";
+            txtDostawca.Text = $"Dostawca: {customerName} | Data uboju: {dataUboju:dd.MM.yyyy}";
 
             LoadPartie();
         }
@@ -45,15 +45,17 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
 
                 // UWAGA: Wszystkie kolumny w PartiaDostawca sa VARCHAR!
                 // CustomerID to varchar(10), CreateData to varchar(10), CreateGodzina to varchar(8)
+                // Filtrujemy po dacie uboju (CreateData)
+                string dataUbojuStr = _dataUboju.ToString("yyyy-MM-dd");
+
                 string sql = @"
                     SELECT guid, Partia, CustomerID, CustomerName, CreateData, CreateGodzina
                     FROM dbo.PartiaDostawca
-                    WHERE CustomerID = @CustomerID OR CustomerName LIKE '%' + @CustomerName + '%'
-                    ORDER BY CreateData DESC, CreateGodzina DESC";
+                    WHERE CreateData = @DataUboju
+                    ORDER BY CreateGodzina DESC, Partia DESC";
 
                 using var cmd = new SqlCommand(sql, conn);
-                cmd.Parameters.AddWithValue("@CustomerID", _customerGID?.Trim() ?? "");
-                cmd.Parameters.AddWithValue("@CustomerName", _customerName ?? "");
+                cmd.Parameters.AddWithValue("@DataUboju", dataUbojuStr);
 
                 using var reader = cmd.ExecuteReader();
                 while (reader.Read())
@@ -89,12 +91,12 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                 }
 
                 dgPartie.ItemsSource = _allPartie;
-                txtInfo.Text = $"Znaleziono {_allPartie.Count} partii dla tego dostawcy";
+                txtInfo.Text = $"Znaleziono {_allPartie.Count} partii na dzien {_dataUboju:dd.MM.yyyy}";
 
                 // Jesli brak partii - zaproponuj utworzenie
                 if (_allPartie.Count == 0)
                 {
-                    txtInfo.Text = "Brak partii dla tego dostawcy. Kliknij 'Nowa partia' aby utworzyc.";
+                    txtInfo.Text = $"Brak partii na dzien {_dataUboju:dd.MM.yyyy}. Kliknij 'Nowa partia' aby utworzyc.";
                     btnNowaPartia.Background = System.Windows.Media.Brushes.Orange;
                 }
             }
