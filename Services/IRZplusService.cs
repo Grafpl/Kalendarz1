@@ -66,7 +66,7 @@ namespace Kalendarz1.Services
                     ClientSecret = "",
                     Username = "039806095",  // Numer producenta
                     Password = "Jpiorkowski51",
-                    UseTestEnvironment = false,
+                    UseTestEnvironment = true,  // ŚRODOWISKO TESTOWE
                     SaveLocalCopy = true,
                     AutoSendOnSave = false,
                     LocalExportPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "IRZplus_Export")
@@ -203,7 +203,7 @@ namespace Kalendarz1.Services
                     Zgloszenie = new ZgloszenieZURDDTO
                     {
                         NumerRzezni = _settings.NumerUbojni,  // "039806095-001"
-                        NumerPartiiUboju = DateTime.Now.ToString("yyDDD") + "001",
+                        NumerPartiiUboju = DateTime.Now.ToString("yy") + DateTime.Now.DayOfYear.ToString("000") + "001",
                         Gatunek = new KodOpisDto { Kod = "KURY" },
                         Pozycje = request.Dyspozycje.Select((d, idx) => new PozycjaZURDDTO
                         {
@@ -218,11 +218,12 @@ namespace Kalendarz1.Services
                     }
                 };
 
-                // Serializuj NOWĄ strukturę
+                // Serializuj NOWĄ strukturę (ignoruj null)
                 var json = JsonSerializer.Serialize(dyspozycja, new JsonSerializerOptions
                 {
                     PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                    WriteIndented = true
+                    WriteIndented = true,
+                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
                 });
 
                 // Debug - zapisz JSON do pliku
@@ -642,6 +643,7 @@ namespace Kalendarz1.Services
         public string Kod { get; set; }
 
         [JsonPropertyName("opis")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string Opis { get; set; }
     }
 
