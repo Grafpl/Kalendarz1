@@ -370,22 +370,31 @@ namespace Kalendarz1
                     return;
                 }
 
-                // Konwertuj na model eksportu IRZ
-                var pozycje = wybrane.Select((vm, idx) => new PozycjaEksportuIRZ
-                {
-                    Lp = idx + 1,
-                    NumerPartiiDrobiu = vm.PrzyjetaZDzialalnosci,
-                    TypZdarzenia = TypZdarzeniaZURD.UbojRzezniczy,
-                    LiczbaSztuk = vm.LiczbaSztukDrobiu,
-                    DataZdarzenia = vm.DataZdarzenia,
-                    PrzyjeteZDzialalnosci = vm.PrzyjetaZDzialalnosci,
-                    UbojRytualny = false,
-                    WagaKg = vm.WagaNetto,
-                    LiczbaPadlych = vm.SztukiPadle,
-                    Uwagi = string.IsNullOrEmpty(vm.Hodowca) ? null : $"Hodowca: {vm.Hodowca}"
-                }).ToList();
+                // Uzyj statycznej metody fabrykujacej - kazdy transport/aut staje sie POZYCJA
+                var dialog = IRZplusExportDialog.UtworzZDanych(
+                    dataUboju: _dataUboju,
+                    transporty: wybrane,
+                    mapujNaPozycje: (vm, lp) => new PozycjaZgloszeniaIRZ
+                    {
+                        Lp = lp,
+                        // Numer partii drobiu = numer siedliska hodowcy (np. 038481631-001)
+                        NumerPartiiDrobiu = string.IsNullOrEmpty(vm.IRZPlus) ? "" : vm.IRZPlus + "-001",
+                        TypZdarzenia = TypZdarzeniaZURD.UbojRzezniczy,
+                        LiczbaSztuk = vm.LiczbaSztukDrobiu,
+                        MasaKg = vm.WagaNetto,
+                        DataZdarzenia = vm.DataZdarzenia,
+                        // Przyjete z dzialalnosci = numer dzialalnosci hodowcy (np. 038481631-001-001)
+                        PrzyjeteZDzialalnosci = vm.PrzyjetaZDzialalnosci + "-001",
+                        UbojRytualny = false,
+                        LiczbaPadlych = vm.SztukiPadle,
+                        NumerPartiiWewnetrzny = vm.NumerPartii,
+                        Uwagi = vm.Hodowca
+                    },
+                    numerRzezni: "039806095-001",
+                    numerProducenta: "039806095",
+                    gatunek: GatunekDrobiu.Kury
+                );
 
-                var dialog = new IRZplusExportDialog(_dataUboju, pozycje);
                 dialog.Owner = this;
 
                 if (dialog.ShowDialog() == true && dialog.Sukces)

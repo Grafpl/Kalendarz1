@@ -1,50 +1,16 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Kalendarz1.Models.IRZplus
 {
     /// <summary>
-    /// Typ dokumentu IRZplus
-    /// </summary>
-    public enum TypDokumentuIRZ
-    {
-        /// <summary>ZURD - Zgłoszenie Uboju drobiu w Rzeźni (składa rzeźnia)</summary>
-        ZgloszenieUbojuDrobiu,
-
-        /// <summary>ZSSD - Zgłoszenie Zmiany Stanu Stada Drobiu (składa hodowca)</summary>
-        ZgloszenieZmianyStanuStada
-    }
-
-    /// <summary>
-    /// Typ zdarzenia dla ZURD
-    /// </summary>
-    public static class TypZdarzeniaZURD
-    {
-        public const string UbojRzezniczy = "UR";      // Ubój rzeźniczy
-        public const string UbojRytualny = "URR";      // Ubój rytualny
-        public const string Padniecie = "P";          // Padnięcie w rzeźni
-    }
-
-    /// <summary>
-    /// Typ zdarzenia dla ZSSD
-    /// </summary>
-    public static class TypZdarzeniaZSSD
-    {
-        public const string PrzychodZakup = "PZ";           // Przychód - zakup
-        public const string PrzychodUrodzenie = "PU";       // Przychód - wylęg/urodzenie
-        public const string RozchodSprzedaz = "RS";         // Rozchód - sprzedaż
-        public const string RozchodUboj = "RU";             // Rozchód - przekazanie do uboju
-        public const string Padniecie = "P";                // Padnięcie
-        public const string Strata = "S";                   // Strata (kradzież, ucieczka)
-    }
-
-    /// <summary>
-    /// Gatunek drobiu - kody IRZplus
+    /// Gatunek drobiu - kody zgodne z IRZplus
     /// </summary>
     public static class GatunekDrobiu
     {
         public const string Kury = "KURY";
-        public const string Kurczeta = "KURCZETA";      // Kurczęta brojlery
+        public const string Kurczeta = "KURCZETA";
         public const string Indyki = "INDYKI";
         public const string Kaczki = "KACZKI";
         public const string Gesi = "GESI";
@@ -53,51 +19,167 @@ namespace Kalendarz1.Models.IRZplus
     }
 
     /// <summary>
-    /// Pozycja do eksportu - uniwersalna dla obu typów dokumentów
+    /// Typ zdarzenia dla ZURD (Zgloszenie Uboju w Rzezni)
     /// </summary>
-    public class PozycjaEksportuIRZ
+    public static class TypZdarzeniaZURD
     {
+        public const string UbojRzezniczy = "UR";
+        public const string UbojRytualny = "URR";
+        public const string Padniecie = "P";
+    }
+
+    /// <summary>
+    /// Typ zdarzenia dla ZSSD (Zgloszenie Zmiany Stanu Stada)
+    /// </summary>
+    public static class TypZdarzeniaZSSD
+    {
+        public const string PrzychodZakup = "PZ";
+        public const string PrzychodWyleg = "PU";
+        public const string RozchodSprzedaz = "RS";
+        public const string RozchodUboj = "RU";
+        public const string Padniecie = "P";
+        public const string Strata = "S";
+    }
+
+    /// <summary>
+    /// POZYCJA w zgloszeniu - reprezentuje JEDEN TRANSPORT/AUT
+    /// Kazdy aut z hodowcy to osobna pozycja w tym samym zgloszeniu!
+    /// </summary>
+    public class PozycjaZgloszeniaIRZ
+    {
+        /// <summary>Numer porzadkowy pozycji (1, 2, 3...)</summary>
         public int Lp { get; set; }
-        public string NumerPartiiDrobiu { get; set; }       // Numer identyfikacyjny partii drobiu hodowcy
-        public string TypZdarzenia { get; set; }            // Kod typu zdarzenia (UR, P, RU, itp.)
+
+        /// <summary>Numer identyfikacyjny partii drobiu / numer siedliska hodowcy (np. 038481631-001)</summary>
+        public string NumerPartiiDrobiu { get; set; }
+
+        /// <summary>Typ zdarzenia: UR, URR, P</summary>
+        public string TypZdarzenia { get; set; } = TypZdarzeniaZURD.UbojRzezniczy;
+
+        /// <summary>Liczba sztuk drobiu w tym transporcie</summary>
         public int LiczbaSztuk { get; set; }
+
+        /// <summary>Data zdarzenia (uboju)</summary>
         public DateTime DataZdarzenia { get; set; }
-        public string PrzyjeteZDzialalnosci { get; set; }   // Numer działalności źródłowej
-        public bool UbojRytualny { get; set; }
-        public decimal? WagaKg { get; set; }                // Opcjonalna waga
-        public int? LiczbaPadlych { get; set; }             // Opcjonalna liczba padłych
+
+        /// <summary>Masa drobiu poddanego ubojowi w kg</summary>
+        public decimal MasaKg { get; set; }
+
+        /// <summary>Kod kraju wwozu (puste dla polskich hodowcow)</summary>
+        public string KrajWwozu { get; set; }
+
+        /// <summary>Data kupna/wwozu (puste dla polskich hodowcow)</summary>
+        public DateTime? DataKupnaWwozu { get; set; }
+
+        /// <summary>Numer dzialalnosci z ktorej przyjeto drob (np. 038481631-001-001)</summary>
+        public string PrzyjeteZDzialalnosci { get; set; }
+
+        /// <summary>Czy uboj rytualny</summary>
+        public bool UbojRytualny { get; set; } = false;
+
+        /// <summary>Liczba padlych (opcjonalne - do statystyk)</summary>
+        public int? LiczbaPadlych { get; set; }
+
+        /// <summary>Numer partii wewnetrzny (z systemu ZPSP)</summary>
+        public string NumerPartiiWewnetrzny { get; set; }
+
+        /// <summary>Uwagi dodatkowe</summary>
         public string Uwagi { get; set; }
     }
 
     /// <summary>
-    /// Dane do eksportu ZURD (Zgłoszenie Uboju w Rzeźni)
+    /// ZGLOSZENIE ZURD - Zgloszenie Uboju Drobiu w Rzezni
+    /// JEDNO zgloszenie zawiera WIELE pozycji (transportow/autow)
     /// </summary>
-    public class EksportZURD
+    public class ZgloszenieZURD
     {
-        public string NumerProducenta { get; set; } = "039806095";
+        /// <summary>Gatunek drobiu (KURY, KURCZETA, INDYKI...)</summary>
+        public string Gatunek { get; set; } = GatunekDrobiu.Kury;
+
+        /// <summary>Numer weterynaryjny rzezni z numerem zakladu (np. 039806095-001)</summary>
         public string NumerRzezni { get; set; } = "039806095-001";
+
+        /// <summary>Numer producenta (numer weterynaryjny bez sufixu, np. 039806095)</summary>
+        public string NumerProducenta { get; set; } = "039806095";
+
+        /// <summary>Numer partii uboju - unikalny identyfikator zgloszenia (np. 26014001)</summary>
         public string NumerPartiiUboju { get; set; }
-        public string GatunekKod { get; set; } = "KURY";
+
+        /// <summary>Data uboju</summary>
         public DateTime DataUboju { get; set; }
-        public List<PozycjaEksportuIRZ> Pozycje { get; set; } = new List<PozycjaEksportuIRZ>();
+
+        /// <summary>Lista pozycji - kazdy transport/aut to osobna pozycja</summary>
+        public List<PozycjaZgloszeniaIRZ> Pozycje { get; set; } = new List<PozycjaZgloszeniaIRZ>();
 
         /// <summary>
-        /// Generuje numer partii uboju w formacie RRDDD### (rok + dzień roku + numer)
+        /// Generuje numer partii uboju w formacie RRDDDNNN
+        /// RR = rok (2 cyfry), DDD = dzien roku (001-366), NNN = numer kolejny
         /// </summary>
-        public static string GenerujNumerPartiiUboju(DateTime data, int numer = 1)
+        public static string GenerujNumerPartiiUboju(DateTime data, int numerKolejny = 1)
         {
-            return data.ToString("yy") + data.DayOfYear.ToString("000") + numer.ToString("000");
+            return $"{data:yy}{data.DayOfYear:000}{numerKolejny:000}";
         }
+
+        // Wlasciwosci obliczane
+        public int SumaLiczbaSztuk => Pozycje?.Sum(p => p.LiczbaSztuk) ?? 0;
+        public decimal SumaMasaKg => Pozycje?.Sum(p => p.MasaKg) ?? 0;
+        public int LiczbaPozycji => Pozycje?.Count ?? 0;
+        public int LiczbaHodowcow => Pozycje?.Select(p => p.NumerPartiiDrobiu?.Split('-').FirstOrDefault()).Distinct().Count() ?? 0;
     }
 
     /// <summary>
-    /// Dane do eksportu ZSSD (Zgłoszenie Zmiany Stanu Stada)
+    /// ZGLOSZENIE ZSSD - Zgloszenie Zmiany Stanu Stada Drobiu (dla hodowcy)
     /// </summary>
-    public class EksportZSSD
+    public class ZgloszenieZSSD
     {
-        public string NumerSiedliskaHodowcy { get; set; }
-        public string GatunekKod { get; set; } = "KURY";
+        /// <summary>Numer siedliska hodowcy</summary>
+        public string NumerSiedliska { get; set; }
+
+        /// <summary>Gatunek drobiu</summary>
+        public string Gatunek { get; set; } = GatunekDrobiu.Kury;
+
+        /// <summary>Data zdarzenia</summary>
         public DateTime DataZdarzenia { get; set; }
-        public List<PozycjaEksportuIRZ> Pozycje { get; set; } = new List<PozycjaEksportuIRZ>();
+
+        /// <summary>Lista pozycji</summary>
+        public List<PozycjaZgloszeniaIRZ> Pozycje { get; set; } = new List<PozycjaZgloszeniaIRZ>();
+    }
+
+    // Zachowaj stare klasy dla kompatybilnosci wstecznej
+    [Obsolete("Uzyj PozycjaZgloszeniaIRZ")]
+    public class PozycjaEksportuIRZ : PozycjaZgloszeniaIRZ
+    {
+        // Alias dla starej nazwy WagaKg
+        public decimal? WagaKg
+        {
+            get => MasaKg;
+            set => MasaKg = value ?? 0;
+        }
+    }
+
+    [Obsolete("Uzyj ZgloszenieZURD")]
+    public class EksportZURD : ZgloszenieZURD
+    {
+        public string GatunekKod
+        {
+            get => Gatunek;
+            set => Gatunek = value;
+        }
+    }
+
+    [Obsolete("Uzyj ZgloszenieZSSD")]
+    public class EksportZSSD : ZgloszenieZSSD
+    {
+        public string NumerSiedliskaHodowcy
+        {
+            get => NumerSiedliska;
+            set => NumerSiedliska = value;
+        }
+
+        public string GatunekKod
+        {
+            get => Gatunek;
+            set => Gatunek = value;
+        }
     }
 }

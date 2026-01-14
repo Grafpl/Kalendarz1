@@ -10,169 +10,171 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
     public partial class IRZplusExportDialog : Window
     {
         private readonly IRZplusExportService _exportService;
-        private readonly DateTime _dataUboju;
-        private readonly List<PozycjaEksportuIRZ> _pozycje;
-        private readonly string _numerProducenta;
-        private readonly string _numerRzezni;
+        private readonly ZgloszenieZURD _zgloszenie;
 
         public string WyeksportowanyPlik { get; private set; }
         public bool Sukces { get; private set; }
 
         /// <summary>
-        /// Konstruktor okna eksportu
+        /// Konstruktor - przyjmuje JEDNO zgloszenie z WIELOMA pozycjami
         /// </summary>
-        /// <param name="dataUboju">Data uboju</param>
-        /// <param name="pozycje">Lista pozycji do eksportu</param>
-        /// <param name="numerProducenta">Numer producenta (rzezni)</param>
-        /// <param name="numerRzezni">Numer rzezni</param>
-        public IRZplusExportDialog(
-            DateTime dataUboju,
-            List<PozycjaEksportuIRZ> pozycje,
-            string numerProducenta = "039806095",
-            string numerRzezni = "039806095-001")
+        public IRZplusExportDialog(ZgloszenieZURD zgloszenie)
         {
             InitializeComponent();
 
             _exportService = new IRZplusExportService();
-            _dataUboju = dataUboju;
-            _pozycje = pozycje ?? new List<PozycjaEksportuIRZ>();
-            _numerProducenta = numerProducenta;
-            _numerRzezni = numerRzezni;
+            _zgloszenie = zgloszenie ?? throw new ArgumentNullException(nameof(zgloszenie));
 
             WypelnijPodsumowanie();
+            dgPodglad.ItemsSource = _zgloszenie.Pozycje.OrderBy(p => p.Lp).ToList();
         }
 
         /// <summary>
-        /// Alternatywny konstruktor przyjmujacy dowolna kolekcje z mapowaniem
+        /// Statyczna metoda fabrykujaca - tworzy zgloszenie z listy danych
+        /// Kazdy element listy (transport/aut) staje sie POZYCJA w jednym zgloszeniu
         /// </summary>
         public static IRZplusExportDialog UtworzZDanych<T>(
             DateTime dataUboju,
-            IEnumerable<T> items,
-            Func<T, int, PozycjaEksportuIRZ> mapper,
+            IEnumerable<T> transporty,
+            Func<T, int, PozycjaZgloszeniaIRZ> mapujNaPozycje,
+            string numerRzezni = "039806095-001",
             string numerProducenta = "039806095",
-            string numerRzezni = "039806095-001")
+            string gatunek = "KURY")
         {
-            var pozycje = items.Select((item, idx) => mapper(item, idx + 1)).ToList();
-            return new IRZplusExportDialog(dataUboju, pozycje, numerProducenta, numerRzezni);
+            var pozycje = transporty.Select((t, idx) => mapujNaPozycje(t, idx + 1)).ToList();
+
+            var zgloszenie = new ZgloszenieZURD
+            {
+                Gatunek = gatunek,
+                NumerRzezni = numerRzezni,
+                NumerProducenta = numerProducenta,
+                NumerPartiiUboju = ZgloszenieZURD.GenerujNumerPartiiUboju(dataUboju),
+                DataUboju = dataUboju,
+                Pozycje = pozycje
+            };
+
+            return new IRZplusExportDialog(zgloszenie);
         }
 
         private void WypelnijPodsumowanie()
         {
-            txtDataUboju.Text = _dataUboju.ToString("yyyy-MM-dd (dddd)");
-            txtLiczbaPozycji.Text = _pozycje.Count.ToString("N0");
-            txtSumaSztuk.Text = _pozycje.Sum(p => p.LiczbaSztuk).ToString("N0");
+            txtDataUboju.Text = _zgloszenie.DataUboju.ToString("yyyy-MM-dd (dddd)");
+            txtNumerRzezni.Text = _zgloszenie.NumerRzezni;
+            txtNumerPartii.Text = _zgloszenie.NumerPartiiUboju;
+            txtGatunek.Text = _zgloszenie.Gatunek;
 
-            var sumaWagi = _pozycje.Sum(p => p.WagaKg ?? 0);
-            txtSumaWagi.Text = sumaWagi > 0 ? $"{sumaWagi:N2} kg" : "brak danych";
-
-            var hodowcy = _pozycje
-                .Select(p => p.NumerPartiiDrobiu?.Split('-').FirstOrDefault())
-                .Where(h => !string.IsNullOrEmpty(h))
-                .Distinct()
-                .ToList();
-            txtHodowcy.Text = hodowcy.Count > 0
-                ? $"{hodowcy.Count} ({string.Join(", ", hodowcy.Take(3))}{(hodowcy.Count > 3 ? "..." : "")})"
-                : "brak danych";
+            txtLiczbaPozycji.Text = _zgloszenie.LiczbaPozycji.ToString("N0");
+            txtLiczbaHodowcow.Text = _zgloszenie.LiczbaHodowcow.ToString();
+            txtSumaSztuk.Text = _zgloszenie.SumaLiczbaSztuk.ToString("N0");
+            txtSumaMasa.Text = $"{_zgloszenie.SumaMasaKg:N2} kg";
         }
 
         private void BtnEksportuj_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                string filePath;
+                ExportResult result;
                 string typDokumentu;
 
                 if (rbZURD.IsChecked == true)
                 {
-                    // Eksport ZURD
-                    typDokumentu = "Zgloszenie Uboju Drobiu w Rzezni (ZURD)";
-                    var dane = new EksportZURD
-                    {
-                        NumerProducenta = _numerProducenta,
-                        NumerRzezni = _numerRzezni,
-                        NumerPartiiUboju = EksportZURD.GenerujNumerPartiiUboju(_dataUboju),
-                        GatunekKod = GatunekDrobiu.Kury,
-                        DataUboju = _dataUboju,
-                        Pozycje = _pozycje
-                    };
-
-                    filePath = rbXML.IsChecked == true
-                        ? _exportService.EksportujZURD_XML(dane)
-                        : _exportService.EksportujZURD_CSV(dane);
+                    typDokumentu = "ZURD";
+                    result = rbCSV.IsChecked == true
+                        ? _exportService.EksportujZURD_CSV(_zgloszenie)
+                        : _exportService.EksportujZURD_XML(_zgloszenie);
                 }
                 else
                 {
-                    // Eksport ZSSD - grupuj po hodowcach
-                    typDokumentu = "Zgloszenie Zmiany Stanu Stada Drobiu (ZSSD)";
+                    // Dla ZSSD - grupujemy po hodowcach
+                    typDokumentu = "ZSSD";
 
-                    // Dla ZSSD zmieniamy typ zdarzenia na RU (Rozchod - przekazanie do uboju)
-                    var pozycjeZSSD = _pozycje.Select(p => new PozycjaEksportuIRZ
+                    // Pobierz unikalnych hodowcow
+                    var hodowcy = _zgloszenie.Pozycje
+                        .GroupBy(p => p.NumerPartiiDrobiu?.Split('-').FirstOrDefault() ?? "NIEZNANY")
+                        .ToList();
+
+                    if (hodowcy.Count > 1)
                     {
-                        Lp = p.Lp,
-                        NumerPartiiDrobiu = p.NumerPartiiDrobiu,
-                        TypZdarzenia = TypZdarzeniaZSSD.RozchodUboj,
-                        LiczbaSztuk = p.LiczbaSztuk,
-                        DataZdarzenia = p.DataZdarzenia,
-                        PrzyjeteZDzialalnosci = _numerRzezni, // Dla ZSSD to numer rzezni do ktorej przekazano
-                        WagaKg = p.WagaKg,
-                        Uwagi = $"Przekazane do uboju w rzezni {_numerRzezni}"
-                    }).ToList();
+                        MessageBox.Show(
+                            $"Uwaga: W zgloszeniu jest {hodowcy.Count} roznych hodowcow.\n" +
+                            $"Zostanie wygenerowany plik dla pierwszego hodowcy: {hodowcy.First().Key}\n\n" +
+                            $"Dla pozostalych hodowcow nalezy wygenerowac osobne pliki.",
+                            "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
 
-                    // Pobierz pierwszy numer siedliska jako glowny
-                    var numerSiedliska = _pozycje.FirstOrDefault()?.NumerPartiiDrobiu?.Split('-').FirstOrDefault() ?? "NIEZNANY";
-
-                    var dane = new EksportZSSD
+                    var pierwszyHodowca = hodowcy.First();
+                    var zssd = new ZgloszenieZSSD
                     {
-                        NumerSiedliskaHodowcy = numerSiedliska,
-                        GatunekKod = GatunekDrobiu.Kury,
-                        DataZdarzenia = _dataUboju,
-                        Pozycje = pozycjeZSSD
+                        NumerSiedliska = pierwszyHodowca.Key,
+                        Gatunek = _zgloszenie.Gatunek,
+                        DataZdarzenia = _zgloszenie.DataUboju,
+                        Pozycje = pierwszyHodowca.Select((p, idx) => new PozycjaZgloszeniaIRZ
+                        {
+                            Lp = idx + 1,
+                            TypZdarzenia = TypZdarzeniaZSSD.RozchodUboj,
+                            LiczbaSztuk = p.LiczbaSztuk,
+                            MasaKg = p.MasaKg,
+                            DataZdarzenia = p.DataZdarzenia,
+                            PrzyjeteZDzialalnosci = _zgloszenie.NumerRzezni,
+                            Uwagi = $"Uboj w rzezni {_zgloszenie.NumerRzezni}"
+                        }).ToList()
                     };
 
-                    filePath = rbXML.IsChecked == true
-                        ? _exportService.EksportujZSSD_XML(dane)
-                        : _exportService.EksportujZSSD_CSV(dane);
+                    result = rbCSV.IsChecked == true
+                        ? _exportService.EksportujZSSD_CSV(zssd)
+                        : _exportService.EksportujZSSD_XML(zssd);
                 }
 
-                WyeksportowanyPlik = filePath;
-                Sukces = true;
+                if (result.Success)
+                {
+                    WyeksportowanyPlik = result.FilePath;
+                    Sukces = true;
 
-                // Pokaz raport
-                var raport = _exportService.GenerujRaport(
-                    typDokumentu,
-                    filePath,
-                    _pozycje.Count,
-                    _pozycje.Sum(p => p.LiczbaSztuk),
-                    _dataUboju);
+                    var formatPliku = rbCSV.IsChecked == true ? "CSV" : "XML";
 
-                MessageBox.Show(raport, "Eksport zakonczony", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show(
+                        $"EKSPORT ZAKONCZONY POMYSLNIE\n\n" +
+                        $"Typ: {typDokumentu}\n" +
+                        $"Format: {formatPliku}\n" +
+                        $"Plik: {result.FileName}\n\n" +
+                        $"Pozycji: {_zgloszenie.LiczbaPozycji}\n" +
+                        $"Suma sztuk: {_zgloszenie.SumaLiczbaSztuk:N0}\n" +
+                        $"Suma masa: {_zgloszenie.SumaMasaKg:N2} kg\n\n" +
+                        $"INSTRUKCJA IMPORTU W PORTALU IRZPLUS:\n" +
+                        $"1. Zaloguj sie do portalu IRZplus\n" +
+                        $"2. Przejdz do: Zgloszenie uboju drobiu w rzezni\n" +
+                        $"3. Uzupelnij NAGLOWEK:\n" +
+                        $"   - Gatunek: {_zgloszenie.Gatunek}\n" +
+                        $"   - Numer rzezni: {_zgloszenie.NumerRzezni}\n" +
+                        $"   - Numer partii uboju: {_zgloszenie.NumerPartiiUboju}\n" +
+                        $"4. Kliknij: 'Wczytaj dane z pliku {formatPliku}'\n" +
+                        $"5. Wybierz wygenerowany plik\n" +
+                        $"6. Sprawdz pozycje i zatwierdz zgloszenie",
+                        "Eksport zakonczony",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
 
-                // Otworz folder z zaznaczonym plikiem
-                _exportService.OtworzFolderZPlikiem(filePath);
+                    _exportService.OtworzFolderZPlikiem(result.FilePath);
 
-                DialogResult = true;
-                Close();
+                    DialogResult = true;
+                    Close();
+                }
+                else
+                {
+                    MessageBox.Show($"Blad eksportu:\n\n{result.Message}", "Blad",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show(
-                    $"Blad podczas eksportu:\n\n{ex.Message}\n\n{ex.StackTrace}",
-                    "Blad eksportu",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
+                MessageBox.Show($"Blad:\n\n{ex.Message}\n\n{ex.StackTrace}", "Blad",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private void BtnOtworzFolder_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                _exportService.OtworzFolderEksportu();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Blad: {ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            _exportService.OtworzFolderEksportu();
         }
 
         private void BtnAnuluj_Click(object sender, RoutedEventArgs e)
