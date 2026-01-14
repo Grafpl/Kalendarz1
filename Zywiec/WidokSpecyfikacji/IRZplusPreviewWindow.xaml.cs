@@ -11,6 +11,7 @@ using System.Windows.Controls;
 using Microsoft.Data.SqlClient;
 using Kalendarz1.Services;
 using Kalendarz1.Models.IRZplus;
+using Kalendarz1.Zywiec.WidokSpecyfikacji;
 
 namespace Kalendarz1
 {
