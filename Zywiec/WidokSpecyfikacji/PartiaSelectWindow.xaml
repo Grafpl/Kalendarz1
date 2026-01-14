@@ -61,16 +61,49 @@
                       MouseDoubleClick="DgPartie_DoubleClick"
                       Background="White">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Nr partii" Binding="{Binding Partia}" Width="120">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="FontWeight" Value="Bold"/>
-                                <Setter Property="Foreground" Value="#9C27B0"/>
-                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="Padding" Value="8,0"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
+                    <!-- Nr partii z formatem CustomerID&Partia -->
+                    <DataGridTemplateColumn Header="Nr partii" Width="180">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding FullPartiaNumber}"
+                                           VerticalAlignment="Center" Padding="8,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Foreground" Value="#9C27B0"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsClose}" Value="True">
+                                                    <Setter Property="Foreground" Value="#D32F2F"/>
+                                                    <Setter Property="TextDecorations" Value="Strikethrough"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <!-- Status partii -->
+                    <DataGridTemplateColumn Header="Status" Width="150">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding StatusDisplay}"
+                                           VerticalAlignment="Center" Padding="4,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="#4CAF50"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsClose}" Value="True">
+                                                    <Setter Property="Foreground" Value="#D32F2F"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                     <DataGridTextColumn Header="Data utworzenia"
                         Binding="{Binding CreateData, StringFormat=dd.MM.yyyy}" Width="110">
                         <DataGridTextColumn.ElementStyle>

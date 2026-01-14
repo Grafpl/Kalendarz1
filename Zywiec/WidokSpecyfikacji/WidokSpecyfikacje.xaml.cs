@@ -5552,12 +5552,26 @@ namespace Kalendarz1
                 PdfWriter writer = PdfWriter.GetInstance(doc, fs);
                 doc.Open();
 
-                // Kolory
-                BaseColor greenColor = new BaseColor(92, 138, 58);
-                BaseColor orangeColor = new BaseColor(245, 124, 0);
-                BaseColor blueColor = new BaseColor(25, 118, 210);
-                BaseColor grayColor = new BaseColor(128, 128, 128);
-                BaseColor purpleColor = new BaseColor(142, 68, 173);
+                // Kolory - z opcją czarno-białą
+                BaseColor greenColor, orangeColor, blueColor, grayColor, purpleColor;
+                if (_pdfCzarnoBialy)
+                {
+                    // Tryb czarno-biały
+                    greenColor = new BaseColor(60, 60, 60);
+                    orangeColor = new BaseColor(80, 80, 80);
+                    blueColor = new BaseColor(70, 70, 70);
+                    grayColor = new BaseColor(128, 128, 128);
+                    purpleColor = new BaseColor(90, 90, 90);
+                }
+                else
+                {
+                    // Tryb kolorowy
+                    greenColor = new BaseColor(92, 138, 58);
+                    orangeColor = new BaseColor(245, 124, 0);
+                    blueColor = new BaseColor(25, 118, 210);
+                    grayColor = new BaseColor(128, 128, 128);
+                    purpleColor = new BaseColor(142, 68, 173);
+                }
 
                 // Czcionki
                 BaseFont polishFont;
@@ -5759,7 +5773,7 @@ namespace Kalendarz1
                 mainCell.AddElement(new Paragraph(" ", new Font(polishFont, 5, Font.NORMAL)));
 
                 // Główna wartość
-                Paragraph mainValue = new Paragraph($"DO WYPŁATY: {sumaWartoscShort:N0} zł", new Font(polishFont, 28, Font.BOLD, greenColor));
+                Paragraph mainValue = new Paragraph($"NETTO: {sumaWartoscShort:N2} zł", new Font(polishFont, 28, Font.BOLD, greenColor));
                 mainValue.Alignment = Element.ALIGN_CENTER;
                 mainCell.AddElement(mainValue);
 
@@ -5806,16 +5820,11 @@ namespace Kalendarz1
 
                 doc.Add(detailsTable);
 
-                // === PODPISY (kompaktowe) ===
-                PdfPTable sigTable = new PdfPTable(2);
-                sigTable.WidthPercentage = 100;
-                sigTable.SpacingBefore = 15f; // Mniejszy odstęp
-
-                PdfPCell sig1 = CreateRoundedCell(new BaseColor(200, 200, 200), new BaseColor(252, 252, 252), 8);
-                sig1.AddElement(new Paragraph("PODPIS DOSTAWCY", new Font(polishFont, 8, Font.BOLD, orangeColor)) { Alignment = Element.ALIGN_CENTER });
-                sig1.AddElement(new Paragraph(" \n", textFont));
-                sig1.AddElement(new Paragraph("........................................", textFont) { Alignment = Element.ALIGN_CENTER });
-                sigTable.AddCell(sig1);
+                // === PODPIS PRACOWNIKA (bez podpisu hodowcy) ===
+                PdfPTable sigTable = new PdfPTable(1);
+                sigTable.WidthPercentage = 50;
+                sigTable.SpacingBefore = 15f;
+                sigTable.HorizontalAlignment = Element.ALIGN_RIGHT;
 
                 NazwaZiD nazwaZiD = new NazwaZiD();
                 string wystawiajacyNazwa = nazwaZiD.GetNameById(App.UserID) ?? "---";
@@ -5914,13 +5923,30 @@ namespace Kalendarz1
                 PdfWriter writer = PdfWriter.GetInstance(doc, fs);
                 doc.Open();
 
-                // Kolory firmowe
-                BaseColor greenColor = new BaseColor(92, 138, 58);      // #5C8A3A
-                BaseColor darkGreenColor = new BaseColor(75, 115, 47);  // #4B732F
-                BaseColor lightGreenColor = new BaseColor(200, 230, 201); // #C8E6C9
-                BaseColor orangeColor = new BaseColor(245, 124, 0);     // #F57C00
-                BaseColor blueColor = new BaseColor(25, 118, 210);      // #1976D2
-                BaseColor grayColor = new BaseColor(128, 128, 128);
+                // Kolory firmowe - z opcją czarno-białą
+                BaseColor greenColor, darkGreenColor, lightGreenColor, orangeColor, blueColor, grayColor, purpleColor;
+                if (_pdfCzarnoBialy)
+                {
+                    // Tryb czarno-biały
+                    greenColor = new BaseColor(60, 60, 60);           // Ciemny szary zamiast zielonego
+                    darkGreenColor = new BaseColor(40, 40, 40);       // Bardzo ciemny szary
+                    lightGreenColor = new BaseColor(230, 230, 230);   // Jasny szary
+                    orangeColor = new BaseColor(80, 80, 80);          // Średni szary zamiast pomarańczowego
+                    blueColor = new BaseColor(70, 70, 70);            // Ciemny szary zamiast niebieskiego
+                    grayColor = new BaseColor(128, 128, 128);         // Szary bez zmian
+                    purpleColor = new BaseColor(90, 90, 90);          // Szary zamiast fioletowego
+                }
+                else
+                {
+                    // Tryb kolorowy
+                    greenColor = new BaseColor(92, 138, 58);          // #5C8A3A
+                    darkGreenColor = new BaseColor(75, 115, 47);      // #4B732F
+                    lightGreenColor = new BaseColor(200, 230, 201);   // #C8E6C9
+                    orangeColor = new BaseColor(245, 124, 0);         // #F57C00
+                    blueColor = new BaseColor(25, 118, 210);          // #1976D2
+                    grayColor = new BaseColor(128, 128, 128);
+                    purpleColor = new BaseColor(142, 68, 173);        // Fioletowy
+                }
 
                 // === CZCIONKA Z POLSKIMI ZNAKAMI ===
                 // Próbuj załadować Arial, jeśli nie - użyj systemowej czcionki z polskimi znakami
@@ -6191,8 +6217,7 @@ namespace Kalendarz1
                 PdfPTable dataTable = new PdfPTable(new float[] { 0.3F, 0.6F, 0.6F, 0.65F, 0.5F, 0.4F, 0.45F, 0.45F, 0.45F, 0.55F, 0.5F, 0.5F, 0.5F, 0.5F, 0.35F, 0.55F, 0.4F, 0.65F });
                 dataTable.WidthPercentage = 100;
 
-                // Nagłówki grupowe z kolorami
-                BaseColor purpleColor = new BaseColor(142, 68, 173);
+                // Nagłówki grupowe z kolorami (purpleColor już zdefiniowany powyżej)
                 AddColoredMergedHeader(dataTable, "WAGA [kg]", tytulTablicy, 4, greenColor);
                 AddColoredMergedHeader(dataTable, "ROZLICZENIE SZTUK [szt.]", tytulTablicy, 4, orangeColor);
                 AddColoredMergedHeader(dataTable, "ŚR. WAGA", tytulTablicy, 1, purpleColor);
@@ -6204,22 +6229,22 @@ namespace Kalendarz1
                 AddColoredTableHeader(dataTable, "Tara", smallTextFontBold, darkGreenColor);
                 AddColoredTableHeader(dataTable, "Netto", smallTextFontBold, darkGreenColor);
                 // Nagłówki kolumn - SZTUKI
-                AddDostarczoneHeader(dataTable, smallTextFontBold, new BaseColor(230, 126, 34));
-                AddColoredTableHeader(dataTable, "Padłe", smallTextFontBold, new BaseColor(230, 126, 34));
-                AddColoredTableHeader(dataTable, "Konf.", smallTextFontBold, new BaseColor(230, 126, 34));
-                AddColoredTableHeader(dataTable, "Zdatne", smallTextFontBold, new BaseColor(230, 126, 34));
+                AddDostarczoneHeader(dataTable, smallTextFontBold, orangeColor);
+                AddColoredTableHeader(dataTable, "Padłe", smallTextFontBold, orangeColor);
+                AddColoredTableHeader(dataTable, "Konf.", smallTextFontBold, orangeColor);
+                AddColoredTableHeader(dataTable, "Zdatne", smallTextFontBold, orangeColor);
                 // Nagłówek kolumny - ŚREDNIA WAGA
                 AddColoredTableHeader(dataTable, "kg/szt", smallTextFontBold, purpleColor);
                 // Nagłówki kolumn - KILOGRAMY
-                AddColoredTableHeader(dataTable, "Netto", smallTextFontBold, new BaseColor(41, 128, 185));
-                AddColoredTableHeader(dataTable, "Padłe", smallTextFontBold, new BaseColor(41, 128, 185));
-                AddColoredTableHeader(dataTable, "Konf.", smallTextFontBold, new BaseColor(41, 128, 185));
-                AddColoredTableHeader(dataTable, "Ubytek", smallTextFontBold, new BaseColor(41, 128, 185));
-                AddColoredTableHeader(dataTable, "Opas.", smallTextFontBold, new BaseColor(41, 128, 185));
-                AddColoredTableHeader(dataTable, "Kl.B", smallTextFontBold, new BaseColor(41, 128, 185));
-                AddColoredTableHeader(dataTable, "Do zapł.", smallTextFontBold, new BaseColor(41, 128, 185));
-                AddColoredTableHeader(dataTable, "Cena", smallTextFontBold, new BaseColor(41, 128, 185));
-                AddColoredTableHeader(dataTable, "Wartość", smallTextFontBold, new BaseColor(41, 128, 185));
+                AddColoredTableHeader(dataTable, "Netto", smallTextFontBold, blueColor);
+                AddColoredTableHeader(dataTable, "Padłe", smallTextFontBold, blueColor);
+                AddColoredTableHeader(dataTable, "Konf.", smallTextFontBold, blueColor);
+                AddColoredTableHeader(dataTable, "Ubytek", smallTextFontBold, blueColor);
+                AddColoredTableHeader(dataTable, "Opas.", smallTextFontBold, blueColor);
+                AddColoredTableHeader(dataTable, "Kl.B", smallTextFontBold, blueColor);
+                AddColoredTableHeader(dataTable, "Do zapł.", smallTextFontBold, blueColor);
+                AddColoredTableHeader(dataTable, "Cena", smallTextFontBold, blueColor);
+                AddColoredTableHeader(dataTable, "Wartość", smallTextFontBold, blueColor);
 
                 // Zmienne do sumowania
                 decimal sumaBrutto = 0, sumaTara = 0, sumaNetto = 0, sumaPadleKG = 0, sumaKonfiskatyKG = 0, sumaOpasienieKG = 0, sumaKlasaB = 0;
@@ -6322,7 +6347,7 @@ namespace Kalendarz1
                         klasaB > 0 ? $"-{klasaB:N0}" : "0",
                         doZaplaty.ToString("N0"),
                         cena.ToString("0.00"),
-                        wartosc.ToString("N0"));
+                        wartosc.ToString("N2"));
                 }
 
                 // === WIERSZ SUMY ===
@@ -6344,7 +6369,7 @@ namespace Kalendarz1
                     sumaKlasaB > 0 ? $"-{sumaKlasaB:N0}" : "0",
                     sumaKG.ToString("N0"),
                     avgCenaSum.ToString("0.00"),
-                    sumaWartosc.ToString("N0"));
+                    sumaWartosc.ToString("N2"));
 
                 doc.Add(dataTable);
 
@@ -6419,7 +6444,7 @@ namespace Kalendarz1
                 // 7. Wartość = Kilogramy × Cena
                 Paragraph formula7 = new Paragraph();
                 formula7.Add(new Chunk("Wartość = Do zapł. × Cena: ", legendaBoldFont));
-                formula7.Add(new Chunk($"{sumaKG:N0} × {avgCena:0.00} = {sumaWartosc:N0} zł", legendaFont));
+                formula7.Add(new Chunk($"{sumaKG:N0} × {avgCena:0.00} = {sumaWartosc:N2} zł", legendaFont));
                 formulaCell.AddElement(formula7);
 
                 // Informacja o zaokrągleniach
@@ -6454,10 +6479,10 @@ namespace Kalendarz1
                 sumCell.AddElement(valuesTable);
                 sumCell.AddElement(new Paragraph(" ", new Font(polishFont, 4, Font.NORMAL)));
 
-                // Box DO WYPŁATY
+                // Box NETTO
                 PdfPTable wartoscBox = new PdfPTable(1);
                 wartoscBox.WidthPercentage = 100;
-                PdfPCell wartoscCell = new PdfPCell(new Phrase($"DO WYPŁATY: {sumaWartosc:N0} zł", new Font(polishFont, 14, Font.BOLD, BaseColor.WHITE)));
+                PdfPCell wartoscCell = new PdfPCell(new Phrase($"NETTO: {sumaWartosc:N2} zł", new Font(polishFont, 14, Font.BOLD, BaseColor.WHITE)));
                 wartoscCell.BackgroundColor = greenColor;
                 wartoscCell.HorizontalAlignment = Element.ALIGN_CENTER;
                 wartoscCell.Padding = 8;
@@ -6476,25 +6501,17 @@ namespace Kalendarz1
                 summaryTable.AddCell(sumCell);
                 doc.Add(summaryTable);
 
-                // === PODPISY (kompaktowe) ===
+                // === PODPIS PRACOWNIKA (bez podpisu hodowcy) ===
                 // Pobierz nazwę wystawiającego z App.UserID
                 NazwaZiD nazwaZiD = new NazwaZiD();
                 string wystawiajacyNazwa = nazwaZiD.GetNameById(App.UserID) ?? App.UserID ?? "---";
 
-                PdfPTable footerTable = new PdfPTable(2);
-                footerTable.WidthPercentage = 100;
-                footerTable.SpacingBefore = 12f; // Mniejszy odstęp
-                footerTable.SetWidths(new float[] { 1f, 1f });
+                PdfPTable footerTable = new PdfPTable(1);
+                footerTable.WidthPercentage = 50; // Tylko połowa szerokości, wyśrodkowane
+                footerTable.SpacingBefore = 12f;
+                footerTable.HorizontalAlignment = Element.ALIGN_RIGHT;
 
-                // Podpis Dostawcy (lewa strona) - kompaktowy
-                PdfPCell signatureLeft = new PdfPCell { Border = PdfPCell.BOX, BorderColor = new BaseColor(200, 200, 200), Padding = 8, BackgroundColor = new BaseColor(252, 252, 252) };
-                signatureLeft.AddElement(new Paragraph("PODPIS DOSTAWCY", new Font(polishFont, 8, Font.BOLD, orangeColor)) { Alignment = Element.ALIGN_CENTER });
-                signatureLeft.AddElement(new Paragraph(" ", new Font(polishFont, 8, Font.NORMAL)));
-                signatureLeft.AddElement(new Paragraph("............................................................", new Font(polishFont, 9, Font.NORMAL)) { Alignment = Element.ALIGN_CENTER });
-                signatureLeft.AddElement(new Paragraph("data i czytelny podpis", new Font(polishFont, 6, Font.ITALIC, grayColor)) { Alignment = Element.ALIGN_CENTER });
-                footerTable.AddCell(signatureLeft);
-
-                // Podpis Pracownika/Wystawiającego (prawa strona) - kompaktowy
+                // Podpis Pracownika/Wystawiającego - kompaktowy
                 PdfPCell signatureRight = new PdfPCell { Border = PdfPCell.BOX, BorderColor = new BaseColor(200, 200, 200), Padding = 8, BackgroundColor = new BaseColor(252, 252, 252) };
                 signatureRight.AddElement(new Paragraph("PODPIS PRACOWNIKA", new Font(polishFont, 8, Font.BOLD, greenColor)) { Alignment = Element.ALIGN_CENTER });
                 signatureRight.AddElement(new Paragraph($"({wystawiajacyNazwa})", new Font(polishFont, 7, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_CENTER });

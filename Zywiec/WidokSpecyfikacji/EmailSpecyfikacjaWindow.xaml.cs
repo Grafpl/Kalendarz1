@@ -12,6 +12,8 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
         private int _sztuki;
         private decimal _kilogramy;
         private decimal _wartosc;
+        private int _szabloNumer = 0;
+        private readonly string[] _szablonyWiadomosci;
 
         public EmailSpecyfikacjaWindow(
             string nazwaDostawcy,
@@ -31,7 +33,117 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
             _wartosc = wartosc;
             _sciezkaPDF = sciezkaPDF;
 
+            // Inicjalizacja szablonow wiadomosci
+            _szablonyWiadomosci = PrzygotujSzablony();
+
+            // Losowy wybor poczatkowego szablonu
+            var random = new Random();
+            _szabloNumer = random.Next(0, _szablonyWiadomosci.Length);
+
             UstawDaneFormularza(emailDostawcy);
+        }
+
+        private string[] PrzygotujSzablony()
+        {
+            decimal sredniaWaga = _sztuki > 0 ? _kilogramy / _sztuki : 0;
+
+            return new string[]
+            {
+                // Szablon 1 - Oficjalny
+                $@"Szanowny Panie/Pani,
+
+Mamy przyjemnosc przeslac specyfikacje przyjecia drobiu z dnia {_dataUboju:dd MMMM yyyy}.
+
+PODSUMOWANIE DOSTAWY:
+--------------------------------------------
+  Dostawca:       {_nazwaDostawcy}
+  Data uboju:     {_dataUboju:dd.MM.yyyy}
+  Sztuki:         {_sztuki:N0} szt
+  Kilogramy:      {_kilogramy:N0} kg
+  Srednia waga:   {sredniaWaga:N2} kg/szt
+  NETTO:          {_wartosc:N2} zl
+--------------------------------------------
+
+Szczegolowa specyfikacja znajduje sie w zalaczonym pliku PDF.
+
+W razie pytan prosimy o kontakt.
+
+Z powazaniem,
+Ubojnia Drobiu ""Piorkowscy""
+Koziolki 40, 95-061 Dmosin
+Tel: +48 46 874 68 55",
+
+                // Szablon 2 - Przyjazny
+                $@"Dzien dobry!
+
+Przesylamy rozliczenie za dostarczone kurczaki z dnia {_dataUboju:dd.MM.yyyy}.
+
+Dostawa przebiegla pomyslnie:
+  Przyjeto: {_sztuki:N0} sztuk ({_kilogramy:N0} kg)
+  Srednia waga: {sredniaWaga:N2} kg/szt
+  Kwota netto: {_wartosc:N2} zl
+
+Szczegoly znajduja sie w zalaczonym PDF.
+
+Dziekujemy za wspolprace i zapraszamy ponownie!
+
+Pozdrawiamy serdecznie,
+Zespol Ubojni Piorkowscy",
+
+                // Szablon 3 - Krotki
+                $@"Szanowni Panstwo,
+
+W zalaczeniu specyfikacja z {_dataUboju:dd.MM.yyyy}.
+
+Dane dostawy:
+- Ilosc: {_sztuki:N0} szt / {_kilogramy:N0} kg
+- Netto: {_wartosc:N2} zl
+
+Dziekujemy za wspolprace.
+
+Ubojnia Piorkowscy
+Tel: 46 874 68 55",
+
+                // Szablon 4 - Szczegolowy
+                $@"Witamy serdecznie,
+
+Mamy przyjemnosc poinformowac o zakonczeniu rozliczenia dostawy drobiu.
+
+DATA UBOJU: {_dataUboju:dd MMMM yyyy} ({_dataUboju:dddd})
+
+SZCZEGOLY ROZLICZENIA DLA: {_nazwaDostawcy}
+========================================
+  Liczba sztuk:      {_sztuki:N0}
+  Waga brutto/netto: {_kilogramy:N0} kg
+  Srednia waga:      {sredniaWaga:N2} kg/szt
+
+  RAZEM NETTO:       {_wartosc:N2} zl
+========================================
+
+Pelna specyfikacja dostepna w zalaczonym dokumencie PDF.
+
+Oczekujemy na kolejna dostawe!
+
+Z serdecznymi pozdrowieniami,
+Ubojnia Drobiu Piorkowscy
+Koziolki 40, 95-061 Dmosin",
+
+                // Szablon 5 - Przyjacielski
+                $@"Czesc!
+
+Przesylamy rozliczenie z wczorajszej dostawy ({_dataUboju:dd.MM.yyyy}).
+
+Kurczaki jak zawsze swietne! Przyjelismy {_sztuki:N0} sztuk o lacznej wadze {_kilogramy:N0} kg.
+Srednia waga wyszla {sredniaWaga:N2} kg - bardzo dobry wynik!
+
+Kwota do wyplaty: {_wartosc:N2} zl netto.
+
+Wszystkie szczegoly w zalaczonym PDF.
+
+Dziekujemy i do zobaczenia przy nastepnej dostawie!
+
+Zespol Piorkowscy"
+            };
         }
 
         private void UstawDaneFormularza(string emailDostawcy)
@@ -43,7 +155,7 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
             txtDataUboju.Text = _dataUboju.ToString("dd.MM.yyyy");
             txtSztuki.Text = $"{_sztuki:N0} szt";
             txtKilogramy.Text = $"{_kilogramy:N0} kg";
-            txtWartosc.Text = $"{_wartosc:N0} zl";
+            txtWartosc.Text = $"{_wartosc:N2} zl";
 
             // Email - jesli jest w bazie to wstaw, jesli nie to puste
             txtDo.Text = !string.IsNullOrWhiteSpace(emailDostawcy) ? emailDostawcy : "";
@@ -67,34 +179,19 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
 
         private string GenerujTrescWiadomosci()
         {
-            decimal sredniaWaga = _sztuki > 0 ? _kilogramy / _sztuki : 0;
+            // Zwraca aktualnie wybrany szablon
+            return _szablonyWiadomosci[_szabloNumer];
+        }
 
-            return $@"Szanowny Panie/Pani,
+        private void BtnZmienSzablon_Click(object sender, RoutedEventArgs e)
+        {
+            // Przejdz do nastepnego szablonu (cyklicznie)
+            _szabloNumer = (_szabloNumer + 1) % _szablonyWiadomosci.Length;
+            txtWiadomosc.Text = GenerujTrescWiadomosci();
 
-W zalaczeniu przesylamy specyfikacje przyjecia drobiu z dnia {_dataUboju:dd MMMM yyyy}.
-
-PODSUMOWANIE DOSTAWY:
---------------------------------------------
-  Dostawca:       {_nazwaDostawcy}
-  Data uboju:     {_dataUboju:dd.MM.yyyy}
-  Sztuki:         {_sztuki:N0} szt
-  Kilogramy:      {_kilogramy:N0} kg
-  Srednia waga:   {sredniaWaga:N2} kg/szt
-  DO WYPLATY:     {_wartosc:N0} zl
---------------------------------------------
-
-Szczegolowa specyfikacja znajduje sie w zalaczonym pliku PDF.
-
-W razie pytan prosimy o kontakt.
-
-Z powazaniem,
-Ubojnia Drobiu ""Piorkowscy""
-Koziolki 40, 95-061 Dmosin
-Tel: +48 46 874 68 55
-Email: rozliczenia@piorkowscy.pl
-
----
-Ta wiadomosc zostala wygenerowana automatycznie.";
+            string[] nazwySzablonow = { "Oficjalny", "Przyjazny", "Krotki", "Szczegolowy", "Przyjacielski" };
+            MessageBox.Show($"Zmieniono szablon na: {nazwySzablonow[_szabloNumer]} ({_szabloNumer + 1}/5)",
+                "Szablon zmieniony", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void BtnWyslij_Click(object sender, RoutedEventArgs e)

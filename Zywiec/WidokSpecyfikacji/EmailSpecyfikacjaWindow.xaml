@@ -115,7 +115,7 @@
                             </StackPanel>
 
                             <StackPanel Grid.Column="3">
-                                <TextBlock Text="Do wyplaty:" FontSize="10" Foreground="#666"/>
+                                <TextBlock Text="Netto:" FontSize="10" Foreground="#666"/>
                                 <TextBlock x:Name="txtWartosc" FontSize="14" FontWeight="Bold" Foreground="#D32F2F" Margin="0,3,0,0"/>
                             </StackPanel>
                         </Grid>
@@ -134,7 +134,23 @@
                         <TextBlock Text="Temat:" FontSize="11" Foreground="#666" Margin="0,10,0,3"/>
                         <TextBox x:Name="txtTemat" FontSize="12" Padding="8" />
 
-                        <TextBlock Text="Wiadomosc:" FontSize="11" Foreground="#666" Margin="0,10,0,3"/>
+                        <Grid Margin="0,10,0,3">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Wiadomosc:" FontSize="11" Foreground="#666"/>
+                            <Button Grid.Column="1" Content="Zmien szablon (5 wariantow)" FontSize="10" Padding="8,3"
+                                    Background="#FF9800" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnZmienSzablon_Click">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" CornerRadius="3" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </Grid>
                         <TextBox x:Name="txtWiadomosc"
                                 FontSize="11"
                                 Padding="8"

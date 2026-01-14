@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -43,11 +44,10 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                 using var conn = new SqlConnection(_connectionString);
                 conn.Open();
 
-                // UWAGA: Wszystkie kolumny w PartiaDostawca sa VARCHAR!
-                // CustomerID to varchar(10), CreateData to varchar(10), CreateGodzina to varchar(8)
                 // Filtrujemy po dacie uboju (CreateData)
                 string dataUbojuStr = _dataUboju.ToString("yyyy-MM-dd");
 
+                // Pobierz partie z PartiaDostawca
                 string sql = @"
                     SELECT guid, Partia, CustomerID, CustomerName, CreateData, CreateGodzina
                     FROM dbo.PartiaDostawca
@@ -57,43 +57,53 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                 using var cmd = new SqlCommand(sql, conn);
                 cmd.Parameters.AddWithValue("@DataUboju", dataUbojuStr);
 
-                using var reader = cmd.ExecuteReader();
-                while (reader.Read())
+                var partieTemp = new List<PartiaItem>();
+
+                using (var reader = cmd.ExecuteReader())
                 {
-                    // Wszystko czytamy jako string i parsujemy
-                    string guidStr = reader.IsDBNull(0) ? "" : reader.GetString(0);
-                    Guid guidValue = Guid.Empty;
-                    Guid.TryParse(guidStr, out guidValue);
-
-                    string createDataStr = reader.IsDBNull(4) ? "" : reader.GetString(4);
-                    DateTime? createData = null;
-                    if (DateTime.TryParse(createDataStr, out var parsedDate))
-                        createData = parsedDate;
-
-                    string createGodzinaStr = reader.IsDBNull(5) ? "" : reader.GetString(5);
-                    TimeSpan? createGodzina = null;
-                    if (TimeSpan.TryParse(createGodzinaStr, out var parsedTime))
-                        createGodzina = parsedTime;
-
-                    string customerIdStr = reader.IsDBNull(2) ? "" : reader.GetString(2);
-                    int customerIdInt = 0;
-                    int.TryParse(customerIdStr, out customerIdInt);
-
-                    _allPartie.Add(new PartiaItem
+                    while (reader.Read())
                     {
-                        Guid = guidValue,
-                        Partia = reader.IsDBNull(1) ? "" : reader.GetString(1),
-                        CustomerID = customerIdInt,
-                        CustomerName = reader.IsDBNull(3) ? "" : reader.GetString(3),
-                        CreateData = createData,
-                        CreateGodzina = createGodzina
-                    });
+                        string guidStr = reader.IsDBNull(0) ? "" : reader.GetString(0);
+                        Guid guidValue = Guid.Empty;
+                        Guid.TryParse(guidStr, out guidValue);
+
+                        string createDataStr = reader.IsDBNull(4) ? "" : reader.GetString(4);
+                        DateTime? createData = null;
+                        if (DateTime.TryParse(createDataStr, out var parsedDate))
+                            createData = parsedDate;
+
+                        string createGodzinaStr = reader.IsDBNull(5) ? "" : reader.GetString(5);
+                        TimeSpan? createGodzina = null;
+                        if (TimeSpan.TryParse(createGodzinaStr, out var parsedTime))
+                            createGodzina = parsedTime;
+
+                        string customerIdStr = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                        string partiaStr = reader.IsDBNull(1) ? "" : reader.GetString(1);
+
+                        partieTemp.Add(new PartiaItem
+                        {
+                            Guid = guidValue,
+                            Partia = partiaStr,
+                            CustomerID = customerIdStr,
+                            CustomerName = reader.IsDBNull(3) ? "" : reader.GetString(3),
+                            CreateData = createData,
+                            CreateGodzina = createGodzina,
+                            // Pelny numer partii: CustomerID&Partia
+                            FullPartiaNumber = $"{customerIdStr}&{partiaStr}"
+                        });
+                    }
+                }
+
+                // Sprawdz status zamkniecia w listapartii
+                foreach (var partia in partieTemp)
+                {
+                    CheckPartiaCloseStatus(conn, partia);
+                    _allPartie.Add(partia);
                 }
 
                 dgPartie.ItemsSource = _allPartie;
                 txtInfo.Text = $"Znaleziono {_allPartie.Count} partii na dzien {_dataUboju:dd.MM.yyyy}";
 
-                // Jesli brak partii - zaproponuj utworzenie
                 if (_allPartie.Count == 0)
                 {
                     txtInfo.Text = $"Brak partii na dzien {_dataUboju:dd.MM.yyyy}. Kliknij 'Nowa partia' aby utworzyc.";
@@ -104,6 +114,50 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
             {
                 MessageBox.Show($"Blad ladowania partii:\n{ex.Message}", "Blad",
                     MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Sprawdza w listapartii czy partia jest zamknieta (IsClose = 1)
+        /// </summary>
+        private void CheckPartiaCloseStatus(SqlConnection conn, PartiaItem partia)
+        {
+            try
+            {
+                // Szukamy partii w listapartii po numerze Partia
+                var cmdCheck = new SqlCommand(@"
+                    SELECT IsClose, CalcData, CalcGodzina
+                    FROM dbo.listapartii
+                    WHERE Partia = @Partia", conn);
+                cmdCheck.Parameters.AddWithValue("@Partia", partia.Partia ?? "");
+
+                using var reader = cmdCheck.ExecuteReader();
+                if (reader.Read())
+                {
+                    // IsClose jest smallint, sprawdzamy czy = 1
+                    if (!reader.IsDBNull(0))
+                    {
+                        var isCloseValue = reader.GetInt16(0);
+                        partia.IsClose = (isCloseValue == 1);
+                    }
+
+                    // CalcData i CalcGodzina sa varchar
+                    if (!reader.IsDBNull(1))
+                    {
+                        string calcDataStr = reader.GetString(1);
+                        if (DateTime.TryParse(calcDataStr, out var calcDate))
+                            partia.CalcData = calcDate;
+                    }
+
+                    if (!reader.IsDBNull(2))
+                    {
+                        partia.CalcGodzina = reader.GetString(2);
+                    }
+                }
+            }
+            catch
+            {
+                // Ignoruj bledy sprawdzania statusu
             }
         }
 
@@ -120,7 +174,7 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
             else
             {
                 dgPartie.ItemsSource = _allPartie
-                    .Where(p => (p.Partia?.ToLower().Contains(search) ?? false) ||
+                    .Where(p => (p.FullPartiaNumber?.ToLower().Contains(search) ?? false) ||
                                (p.CustomerName?.ToLower().Contains(search) ?? false))
                     .ToList();
             }
@@ -141,13 +195,11 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                 var year = (today.Year % 100).ToString("00");
                 var prefix = $"{year}{dayOfYear}";
 
-                // Znajdz nastepny numer dla tego dnia
                 int nextNum = 1;
 
                 using var conn = new SqlConnection(_connectionString);
                 conn.Open();
 
-                // Pobierz max numer dla tego dnia
                 var cmdMax = new SqlCommand(@"
                     SELECT MAX(CAST(SUBSTRING(Partia, 6, 3) AS INT))
                     FROM dbo.PartiaDostawca
@@ -162,11 +214,11 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                 }
 
                 var newPartia = $"{prefix}{nextNum:000}";
+                var fullPartiaNumber = $"{_customerGID?.Trim()}&{newPartia}";
 
-                // Potwierdz
                 var result = MessageBox.Show(
                     $"Utworzyc nowa partie?\n\n" +
-                    $"Numer: {newPartia}\n" +
+                    $"Pelny numer: {fullPartiaNumber}\n" +
                     $"Dostawca: {_customerName}\n" +
                     $"Data: {_dataUboju:dd.MM.yyyy}",
                     "Nowa partia",
@@ -176,7 +228,6 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                 if (result != MessageBoxResult.Yes)
                     return;
 
-                // Utworz partie - WSZYSTKIE kolumny sa VARCHAR!
                 var newGuid = Guid.NewGuid();
 
                 var cmdInsert = new SqlCommand(@"
@@ -184,7 +235,6 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                     (guid, Partia, CustomerID, CustomerName, CreateData, CreateGodzina)
                     VALUES (@guid, @Partia, @CustomerID, @CustomerName, @CreateData, @CreateGodzina)", conn);
 
-                // Wszystko zapisujemy jako string (wszystkie kolumny to VARCHAR)
                 cmdInsert.Parameters.AddWithValue("@guid", newGuid.ToString());
                 cmdInsert.Parameters.AddWithValue("@Partia", newPartia);
                 cmdInsert.Parameters.AddWithValue("@CustomerID", _customerGID?.Trim() ?? "");
@@ -194,9 +244,9 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
 
                 cmdInsert.ExecuteNonQuery();
 
-                // Automatycznie wybierz nowa partie
+                // Zwroc pelny numer partii (CustomerID&Partia)
                 SelectedPartiaGuid = newGuid;
-                SelectedPartiaNumber = newPartia;
+                SelectedPartiaNumber = fullPartiaNumber;
                 DialogResult = true;
                 Close();
             }
@@ -227,8 +277,25 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                 return;
             }
 
+            // Ostrzezenie dla zamknietej partii
+            if (selected.IsClose)
+            {
+                var result = MessageBox.Show(
+                    $"UWAGA: Ta partia jest ZAMKNIETA!\n\n" +
+                    $"Partia: {selected.FullPartiaNumber}\n" +
+                    $"Zamknieta: {selected.CalcData:dd.MM.yyyy} o {selected.CalcGodzina}\n\n" +
+                    $"Czy na pewno chcesz ja wybrac?",
+                    "Partia zamknieta",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (result != MessageBoxResult.Yes)
+                    return;
+            }
+
             SelectedPartiaGuid = selected.Guid;
-            SelectedPartiaNumber = selected.Partia;
+            // Zwracamy pelny numer partii (CustomerID&Partia)
+            SelectedPartiaNumber = selected.FullPartiaNumber;
             DialogResult = true;
             Close();
         }
@@ -259,15 +326,30 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
     }
 
     /// <summary>
-    /// Model dla partii
+    /// Model dla partii z informacja o statusie zamkniecia
     /// </summary>
-    public class PartiaItem
+    public class PartiaItem : INotifyPropertyChanged
     {
         public Guid Guid { get; set; }
         public string Partia { get; set; }
-        public int CustomerID { get; set; }
+        public string CustomerID { get; set; }
         public string CustomerName { get; set; }
         public DateTime? CreateData { get; set; }
         public TimeSpan? CreateGodzina { get; set; }
+
+        // Pelny numer partii: CustomerID&Partia
+        public string FullPartiaNumber { get; set; }
+
+        // Status zamkniecia z listapartii
+        public bool IsClose { get; set; }
+        public DateTime? CalcData { get; set; }
+        public string CalcGodzina { get; set; }
+
+        // Wyswietlanie statusu
+        public string StatusDisplay => IsClose
+            ? $"ZAMKNIETA ({CalcData:dd.MM} {CalcGodzina})"
+            : "Otwarta";
+
+        public event PropertyChangedEventHandler PropertyChanged;
     }
 }
