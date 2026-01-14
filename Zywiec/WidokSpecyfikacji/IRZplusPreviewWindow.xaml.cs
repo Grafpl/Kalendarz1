@@ -10,6 +10,7 @@ using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Data.SqlClient;
 using Kalendarz1.Services;
+using Kalendarz1.Models.IRZplus;
 
 namespace Kalendarz1
 {
@@ -351,6 +352,51 @@ namespace Kalendarz1
         {
             DialogResult = false;
             Close();
+        }
+
+        /// <summary>
+        /// Otwiera okno eksportu do pliku XML/CSV - alternatywa gdy API nie dziala
+        /// </summary>
+        private void BtnExportDialog_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var wybrane = _specyfikacje.Where(s => s.Wybrana).ToList();
+                if (wybrane.Count == 0)
+                {
+                    MessageBox.Show("Zaznacz przynajmniej jedna specyfikacje do eksportu.",
+                        "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Konwertuj na model eksportu IRZ
+                var pozycje = wybrane.Select((vm, idx) => new PozycjaEksportuIRZ
+                {
+                    Lp = idx + 1,
+                    NumerPartiiDrobiu = vm.PrzyjetaZDzialalnosci,
+                    TypZdarzenia = TypZdarzeniaZURD.UbojRzezniczy,
+                    LiczbaSztuk = vm.LiczbaSztukDrobiu,
+                    DataZdarzenia = vm.DataZdarzenia,
+                    PrzyjeteZDzialalnosci = vm.PrzyjetaZDzialalnosci,
+                    UbojRytualny = false,
+                    WagaKg = vm.WagaNetto,
+                    LiczbaPadlych = vm.SztukiPadle,
+                    Uwagi = string.IsNullOrEmpty(vm.Hodowca) ? null : $"Hodowca: {vm.Hodowca}"
+                }).ToList();
+
+                var dialog = new IRZplusExportDialog(_dataUboju, pozycje);
+                dialog.Owner = this;
+
+                if (dialog.ShowDialog() == true && dialog.Sukces)
+                {
+                    txtStatus.Text = $"Wyeksportowano do: {System.IO.Path.GetFileName(dialog.WyeksportowanyPlik)}";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad otwierania okna eksportu:\n{ex.Message}",
+                    "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         /// <summary>

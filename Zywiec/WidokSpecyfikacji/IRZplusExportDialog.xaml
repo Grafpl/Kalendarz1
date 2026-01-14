@@ -1,0 +1,161 @@
+<Window x:Class="Kalendarz1.Zywiec.WidokSpecyfikacji.IRZplusExportDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Eksport IRZplus - Wybor formatu i typu dokumentu"
+        Height="550" Width="700"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#F5F5F5">
+
+    <Window.Resources>
+        <Style x:Key="HeaderStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Margin" Value="0,10,0,5"/>
+        </Style>
+        <Style x:Key="InfoStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#666"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style x:Key="RadioStyle" TargetType="RadioButton">
+            <Setter Property="Margin" Value="10,5"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+        <Style x:Key="ButtonStyle" TargetType="Button">
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Naglowek -->
+        <StackPanel Grid.Row="0">
+            <TextBlock Text="Eksport danych do pliku" FontSize="22" FontWeight="Bold" Foreground="#1976D2"/>
+            <TextBlock Style="{StaticResource InfoStyle}" Margin="0,5,0,10">
+                Jesli API IRZplus zwraca blad "Access denied", mozesz wyeksportowac dane do pliku
+                i zaimportowac go recznie w portalu IRZplus.
+            </TextBlock>
+        </StackPanel>
+
+        <!-- Wybor typu dokumentu -->
+        <GroupBox Grid.Row="1" Header="1. Typ dokumentu" Margin="0,10" Padding="10">
+            <StackPanel>
+                <RadioButton x:Name="rbZURD" Style="{StaticResource RadioStyle}" IsChecked="True" GroupName="TypDokumentu">
+                    <StackPanel>
+                        <TextBlock FontWeight="Bold">ZURD - Zgloszenie Uboju Drobiu w Rzezni</TextBlock>
+                        <TextBlock Style="{StaticResource InfoStyle}" Margin="20,2,0,0">
+                            Sklada RZEZNIA. Informuje ARiMR ze ubilismy drob z danej partii hodowcy.
+                        </TextBlock>
+                    </StackPanel>
+                </RadioButton>
+
+                <RadioButton x:Name="rbZSSD" Style="{StaticResource RadioStyle}" GroupName="TypDokumentu">
+                    <StackPanel>
+                        <TextBlock FontWeight="Bold">ZSSD - Zgloszenie Zmiany Stanu Stada Drobiu</TextBlock>
+                        <TextBlock Style="{StaticResource InfoStyle}" Margin="20,2,0,0">
+                            Sklada HODOWCA. Plik dla hodowcy informujacy o przekazaniu drobiu do uboju.
+                        </TextBlock>
+                    </StackPanel>
+                </RadioButton>
+            </StackPanel>
+        </GroupBox>
+
+        <!-- Wybor formatu -->
+        <GroupBox Grid.Row="2" Header="2. Format pliku" Margin="0,10" Padding="10">
+            <StackPanel>
+                <RadioButton x:Name="rbXML" Style="{StaticResource RadioStyle}" IsChecked="True" GroupName="Format">
+                    <StackPanel>
+                        <TextBlock FontWeight="Bold">XML - Zalecany</TextBlock>
+                        <TextBlock Style="{StaticResource InfoStyle}" Margin="20,2,0,0">
+                            Pelna struktura danych, latwy import w portalu IRZplus (przycisk "Import z pliku XML")
+                        </TextBlock>
+                    </StackPanel>
+                </RadioButton>
+
+                <RadioButton x:Name="rbCSV" Style="{StaticResource RadioStyle}" GroupName="Format">
+                    <StackPanel>
+                        <TextBlock FontWeight="Bold">CSV - Alternatywny</TextBlock>
+                        <TextBlock Style="{StaticResource InfoStyle}" Margin="20,2,0,0">
+                            Format tabelaryczny, mozna otworzyc w Excel, import przez "Wczytaj dane z pliku CSV/TXT"
+                        </TextBlock>
+                    </StackPanel>
+                </RadioButton>
+            </StackPanel>
+        </GroupBox>
+
+        <!-- Podsumowanie danych -->
+        <GroupBox Grid.Row="3" Header="3. Podsumowanie danych do eksportu" Margin="0,10" Padding="10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Margin="5">
+                    <Run Text="Data uboju: " FontWeight="Bold"/>
+                    <Run x:Name="txtDataUboju" Text="-"/>
+                </TextBlock>
+                <TextBlock Grid.Row="0" Grid.Column="1" Margin="5">
+                    <Run Text="Liczba pozycji: " FontWeight="Bold"/>
+                    <Run x:Name="txtLiczbaPozycji" Text="-"/>
+                </TextBlock>
+                <TextBlock Grid.Row="1" Grid.Column="0" Margin="5">
+                    <Run Text="Suma sztuk: " FontWeight="Bold"/>
+                    <Run x:Name="txtSumaSztuk" Text="-"/>
+                </TextBlock>
+                <TextBlock Grid.Row="1" Grid.Column="1" Margin="5">
+                    <Run Text="Suma wagi: " FontWeight="Bold"/>
+                    <Run x:Name="txtSumaWagi" Text="-"/>
+                </TextBlock>
+                <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Margin="5">
+                    <Run Text="Hodowcy: " FontWeight="Bold"/>
+                    <Run x:Name="txtHodowcy" Text="-"/>
+                </TextBlock>
+            </Grid>
+        </GroupBox>
+
+        <!-- Info -->
+        <Border Grid.Row="4" Background="#E3F2FD" CornerRadius="5" Padding="15" Margin="0,10">
+            <StackPanel>
+                <TextBlock FontWeight="Bold" Foreground="#1976D2">Po eksporcie:</TextBlock>
+                <TextBlock TextWrapping="Wrap" Margin="0,5,0,0">
+                    1. Plik zostanie zapisany w folderze: Dokumenty\IRZplus_Export\
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap">
+                    2. Folder otworzy sie automatycznie z zaznaczonym plikiem
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap">
+                    3. Zaloguj sie do portalu IRZplus i zaimportuj plik
+                </TextBlock>
+            </StackPanel>
+        </Border>
+
+        <!-- Przyciski -->
+        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button x:Name="btnOtworzFolder" Content="Otworz folder eksportu"
+                    Style="{StaticResource ButtonStyle}" Background="#FFF" Click="BtnOtworzFolder_Click"/>
+            <Button x:Name="btnEksportuj" Content="Eksportuj"
+                    Style="{StaticResource ButtonStyle}" Background="#4CAF50" Foreground="White" Click="BtnEksportuj_Click"/>
+            <Button x:Name="btnAnuluj" Content="Anuluj"
+                    Style="{StaticResource ButtonStyle}" Background="#F44336" Foreground="White" Click="BtnAnuluj_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>
