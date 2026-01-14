@@ -644,8 +644,6 @@ namespace Kalendarz1.Services
                     await connection.OpenAsync();
 
                     // Zapytanie zgodne z formatem Excel ARiMR
-                    // Dołączamy tabelę PartiaDostawca aby pobrać numer partii produkcyjnej
-                    // Format Partia: YYDDDCCC gdzie YY=rok, DDD=dzień roku, CCC=numer auta
                     var query = @"
                         SELECT
                             fc.ID,
@@ -653,7 +651,7 @@ namespace Kalendarz1.Services
                             ISNULL(d.ShortName, 'Nieznany') AS Hodowca,
                             LTRIM(RTRIM(ISNULL(fc.CustomerGID, ''))) AS IdHodowcy,
                             ISNULL(d.IRZPlus, '') AS IRZPlus,
-                            ISNULL(p.Partia, '') AS NumerPartii,
+                            '' AS NumerPartii,
                             ISNULL(fc.DeclI1, 0) AS SztukiWszystkie,
                             ISNULL(fc.DeclI2, 0) AS SztukiPadle,
                             ISNULL(fc.DeclI3, 0) + ISNULL(fc.DeclI4, 0) + ISNULL(fc.DeclI5, 0) AS SztukiKonfiskaty,
@@ -661,10 +659,6 @@ namespace Kalendarz1.Services
                             fc.CarLp AS LP
                         FROM dbo.FarmerCalc fc
                         LEFT JOIN dbo.Dostawcy d ON LTRIM(RTRIM(fc.CustomerGID)) = LTRIM(RTRIM(d.ID))
-                        LEFT JOIN dbo.PartiaDostawca p ON LTRIM(RTRIM(fc.CustomerGID)) = LTRIM(RTRIM(p.CustomerID))
-                            AND p.Partia = RIGHT(CAST(YEAR(fc.CalcDate) AS VARCHAR), 2) +
-                                           RIGHT('000' + CAST(DATEPART(DAYOFYEAR, fc.CalcDate) AS VARCHAR), 3) +
-                                           RIGHT('000' + CAST(fc.CarLp AS VARCHAR), 3)
                         WHERE CAST(fc.CalcDate AS DATE) = @DataUboju
                         ORDER BY fc.CarLp";
 
