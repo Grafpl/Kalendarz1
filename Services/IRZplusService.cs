@@ -647,16 +647,15 @@ namespace Kalendarz1.Services
                         SELECT
                             fc.ID,
                             fc.CalcDate,
-                            ISNULL(k.NAME, 'Nieznany') AS DostawcaNazwa,
-                            ISNULL(k.IRZnumer, '') AS NumerSiedliska,
-                            fc.DeclI1 AS IloscSztuk,
-                            fc.NettoWeight AS WagaNetto,
-                            ISNULL(fc.ConfDead, 0) AS IloscPadlych,
-                            fc.CarLp AS NumerPartii,
-                            ISNULL(c.Nr_Rej, '') AS NumerRejestracyjny
-                        FROM [LibraNet].[dbo].[FarmerCalc] fc
-                        LEFT JOIN [CDN_Ubojnia].[dbo].[Knt_Karty] k ON fc.CustomerGID = k.Knt_GIDnumber
-                        LEFT JOIN [CDN_Ubojnia].[dbo].[Cars] c ON fc.CarID = c.ID
+                            ISNULL(d.ShortName, 'Nieznany') AS DostawcaNazwa,
+                            ISNULL(d.AnimNo, '') AS NumerSiedliska,
+                            ISNULL(fc.DeclI1, 0) AS IloscSztuk,
+                            ISNULL(fc.NettoWeight, 0) AS WagaNetto,
+                            ISNULL(fc.DeclI2, 0) AS IloscPadlych,
+                            ISNULL(fc.CarLp, 0) AS NumerPartii,
+                            ISNULL(fc.CarID, '') AS NumerRejestracyjny
+                        FROM dbo.FarmerCalc fc
+                        LEFT JOIN dbo.Dostawcy d ON LTRIM(RTRIM(fc.CustomerGID)) = LTRIM(RTRIM(d.ID))
                         WHERE CAST(fc.CalcDate AS DATE) = @DataUboju
                         ORDER BY fc.CarLp";
 
@@ -668,17 +667,27 @@ namespace Kalendarz1.Services
                         {
                             while (await reader.ReadAsync())
                             {
+                                var idOrd = reader.GetOrdinal("ID");
+                                var calcDateOrd = reader.GetOrdinal("CalcDate");
+                                var dostawcaOrd = reader.GetOrdinal("DostawcaNazwa");
+                                var siedliskoOrd = reader.GetOrdinal("NumerSiedliska");
+                                var iloscOrd = reader.GetOrdinal("IloscSztuk");
+                                var wagaOrd = reader.GetOrdinal("WagaNetto");
+                                var padleOrd = reader.GetOrdinal("IloscPadlych");
+                                var partiaOrd = reader.GetOrdinal("NumerPartii");
+                                var rejOrd = reader.GetOrdinal("NumerRejestracyjny");
+
                                 result.Add(new SpecyfikacjaDoIRZplus
                                 {
-                                    Id = reader.GetInt32(reader.GetOrdinal("ID")),
-                                    DataUboju = reader.GetDateTime(reader.GetOrdinal("CalcDate")),
-                                    DostawcaNazwa = reader.GetString(reader.GetOrdinal("DostawcaNazwa")),
-                                    NumerSiedliska = reader.GetString(reader.GetOrdinal("NumerSiedliska")),
-                                    IloscSztuk = reader.GetInt32(reader.GetOrdinal("IloscSztuk")),
-                                    WagaNetto = reader.GetDecimal(reader.GetOrdinal("WagaNetto")),
-                                    IloscPadlych = reader.GetInt32(reader.GetOrdinal("IloscPadlych")),
-                                    NumerPartii = reader.IsDBNull(reader.GetOrdinal("NumerPartii")) ? "" : reader.GetInt32(reader.GetOrdinal("NumerPartii")).ToString(),
-                                    NumerRejestracyjny = reader.GetString(reader.GetOrdinal("NumerRejestracyjny")),
+                                    Id = reader.GetInt32(idOrd),
+                                    DataUboju = reader.GetDateTime(calcDateOrd),
+                                    DostawcaNazwa = reader.IsDBNull(dostawcaOrd) ? "Nieznany" : reader.GetString(dostawcaOrd),
+                                    NumerSiedliska = reader.IsDBNull(siedliskoOrd) ? "" : reader.GetString(siedliskoOrd),
+                                    IloscSztuk = reader.IsDBNull(iloscOrd) ? 0 : reader.GetInt32(iloscOrd),
+                                    WagaNetto = reader.IsDBNull(wagaOrd) ? 0 : reader.GetDecimal(wagaOrd),
+                                    IloscPadlych = reader.IsDBNull(padleOrd) ? 0 : reader.GetInt32(padleOrd),
+                                    NumerPartii = reader.IsDBNull(partiaOrd) ? "" : reader.GetInt32(partiaOrd).ToString(),
+                                    NumerRejestracyjny = reader.IsDBNull(rejOrd) ? "" : reader.GetString(rejOrd),
                                     GatunekDrobiu = "KURCZAK",
                                     Wybrana = true
                                 });
