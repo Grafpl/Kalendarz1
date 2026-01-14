@@ -196,7 +196,7 @@ namespace Kalendarz1.Services
             {
                 var token = await GetAccessTokenAsync();
 
-                // Konwertuj stary format na nowy ZURD
+                // PRZEKSZTAŁĆ na strukturę zgodną z API ARiMR
                 var dyspozycja = new DyspozycjaZURD
                 {
                     NumerProducenta = _settings.Username,  // "039806095"
@@ -205,61 +205,58 @@ namespace Kalendarz1.Services
                         NumerRzezni = _settings.NumerUbojni,  // "039806095-001"
                         NumerPartiiUboju = DateTime.Now.ToString("yyDDD") + "001",
                         Gatunek = new KodOpisDto { Kod = "KURY" },
-                        Pozycje = request.Dyspozycje?.Select((d, idx) => new PozycjaZURDDTO
+                        Pozycje = request.Dyspozycje.Select((d, idx) => new PozycjaZURDDTO
                         {
                             Lp = idx + 1,
-                            NumerIdenPartiiDrobiu = d.NumerSiedliska,  // IRZPlus dostawcy np. "080640491-001"
+                            NumerIdenPartiiDrobiu = d.NumerSiedliska,
                             LiczbaDrobiu = d.IloscSztuk,
                             TypZdarzenia = new KodOpisDto { Kod = "UR" },
                             DataZdarzenia = request.DataUboju.ToString("yyyy-MM-dd"),
-                            PrzyjeteZDzialalnosci = d.NumerSiedliska + "-001",  // np. "080640491-001-001"
+                            PrzyjeteZDzialalnosci = d.NumerSiedliska + "-001",
                             UbojRytualny = false
-                        }).ToList() ?? new List<PozycjaZURDDTO>()
+                        }).ToList()
                     }
                 };
 
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-                var jsonOptions = new JsonSerializerOptions
+                // Serializuj NOWĄ strukturę
+                var json = JsonSerializer.Serialize(dyspozycja, new JsonSerializerOptions
                 {
                     PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                    WriteIndented = true,
-                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-                };
-                var json = JsonSerializer.Serialize(dyspozycja, jsonOptions);
+                    WriteIndented = true
+                });
 
-                // Zapisz debug JSON
-                var exportPath = _settings.LocalExportPath ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "IRZplus_Export");
-                if (!Directory.Exists(exportPath)) Directory.CreateDirectory(exportPath);
-                File.WriteAllText(Path.Combine(exportPath, $"debug_{DateTime.Now:yyyyMMdd_HHmmss}.json"), json);
+                // Debug - zapisz JSON do pliku
+                var debugPath = Path.Combine(_settings.LocalExportPath ?? "C:\\temp", $"debug_{DateTime.Now:yyyyMMdd_HHmmss}.json");
+                Directory.CreateDirectory(Path.GetDirectoryName(debugPath));
+                File.WriteAllText(debugPath, json);
 
+                // Wybierz URL
+                var url = _settings.UseTestEnvironment
+                    ? "https://irz.arimr.gov.pl/api/drob/dokument/api/test/zurd"
+                    : "https://irz.arimr.gov.pl/api/drob/dokument/api/prod/zurd";
+
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var url = _settings.UseTestEnvironment ? API_URL_TEST : API_URL_PROD;
+
                 var response = await _httpClient.PostAsync(url, content);
                 var responseBody = await response.Content.ReadAsStringAsync();
 
                 // Zapisz odpowiedź
-                File.WriteAllText(Path.Combine(exportPath, $"response_{DateTime.Now:yyyyMMdd_HHmmss}.json"), responseBody);
+                File.WriteAllText(debugPath.Replace("debug_", "response_"), responseBody);
 
                 if (response.IsSuccessStatusCode)
                 {
-                    SaveHistory(new IRZplusLocalHistory
-                    {
-                        DataWyslania = DateTime.Now,
-                        DataUboju = request.DataUboju,
-                        NumerZgloszenia = TryGetNumerZgloszenia(responseBody),
-                        Status = "WYSLANE",
-                        IloscDyspozycji = request.Dyspozycje?.Count ?? 0,
-                        SumaIloscSztuk = request.Dyspozycje?.Sum(d => d.IloscSztuk) ?? 0,
-                        SumaWagaKg = request.Dyspozycje?.Sum(d => d.WagaKg) ?? 0,
-                        RequestJson = json,
-                        ResponseJson = responseBody
-                    });
-                    return new IRZplusResult { Success = true, Message = "Wysłano!", NumerZgloszenia = TryGetNumerZgloszenia(responseBody), ResponseData = responseBody };
+                    return new IRZplusResult { Success = true, Message = "Wysłano pomyślnie!", ResponseData = responseBody };
                 }
-                return new IRZplusResult { Success = false, Message = $"Błąd: {response.StatusCode}\n{responseBody}", ResponseData = responseBody };
+                else
+                {
+                    return new IRZplusResult { Success = false, Message = $"Błąd: {response.StatusCode}\n{responseBody}" };
+                }
             }
-            catch (Exception ex) { return new IRZplusResult { Success = false, Message = ex.Message }; }
+            catch (Exception ex)
+            {
+                return new IRZplusResult { Success = false, Message = ex.Message };
+            }
         }
 
         public async Task<IRZplusResult> GetStatusZgloszeniaAsync(string numerZgloszenia)
