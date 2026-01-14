@@ -381,9 +381,10 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button Content="Zapisz lokalna kopie" Click="BtnSaveLocal_Click" Style="{StaticResource WarningButtonStyle}"/>
-                    <Button x:Name="btnExportDialog" Content="Eksport do pliku (XML/CSV)" Click="BtnExportDialog_Click" Style="{StaticResource WarningButtonStyle}" ToolTip="Eksportuj dane do pliku XML lub CSV - do recznego importu w portalu IRZplus gdy API nie dziala"/>
-                    <Button x:Name="btnSend" Content="Wyslij do IRZplus" Click="BtnSend_Click" Style="{StaticResource SendButtonStyle}"/>
+                    <Button Content="Zapisz lokalna kopie" Click="BtnSaveLocal_Click" Style="{StaticResource SecondaryButtonStyle}"/>
+                    <Button x:Name="btnExportSingle" Content="Eksport zaznaczonych (pojedynczo)" Click="BtnExportSingle_Click" Style="{StaticResource SendButtonStyle}" ToolTip="ZALECANE: Eksportuj kazdy transport do osobnego pliku CSV - portal IRZplus akceptuje tylko 1 pozycje na zgloszenie!"/>
+                    <Button x:Name="btnExportDialog" Content="Eksport wszystkich (1 plik)" Click="BtnExportDialog_Click" Style="{StaticResource WarningButtonStyle}" ToolTip="Eksportuj wszystkie pozycje do jednego pliku - UWAGA: Portal IRZplus moze nie akceptowac wielu pozycji!"/>
+                    <Button x:Name="btnSend" Content="Wyslij do IRZplus (API)" Click="BtnSend_Click" Style="{StaticResource SecondaryButtonStyle}" ToolTip="Wyslij przez API - obecnie niedostepne (Access denied)"/>
                     <Button Content="Anuluj" Click="BtnCancel_Click" Style="{StaticResource SecondaryButtonStyle}"/>
                 </StackPanel>
             </Grid>

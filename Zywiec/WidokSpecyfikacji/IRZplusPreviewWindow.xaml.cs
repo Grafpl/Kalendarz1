@@ -356,6 +356,142 @@ namespace Kalendarz1
         }
 
         /// <summary>
+        /// Eksportuje kazdy zaznaczony transport do OSOBNEGO pliku CSV.
+        /// Portal IRZplus akceptuje tylko JEDNA pozycje na zgloszenie!
+        /// </summary>
+        private void BtnExportSingle_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var wybrane = _specyfikacje.Where(s => s.Wybrana).ToList();
+                if (wybrane.Count == 0)
+                {
+                    MessageBox.Show("Zaznacz przynajmniej jeden transport do eksportu.",
+                        "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Walidacja - sprawdz czy wszystkie maja numer IRZplus
+                var bezIRZplus = wybrane.Where(s => string.IsNullOrWhiteSpace(s.IRZPlus)).ToList();
+                if (bezIRZplus.Count > 0)
+                {
+                    var nazwy = string.Join("\n", bezIRZplus.Take(5).Select(s => $"  - {s.Hodowca}"));
+                    if (bezIRZplus.Count > 5)
+                        nazwy += $"\n  ... i {bezIRZplus.Count - 5} innych";
+
+                    var result = MessageBox.Show(
+                        $"UWAGA: {bezIRZplus.Count} transport(ow) nie ma numeru IRZplus:\n\n{nazwy}\n\n" +
+                        $"Transporty bez numeru IRZplus zostana POMINIETE.\n\n" +
+                        $"Czy kontynuowac eksport pozostalych {wybrane.Count - bezIRZplus.Count} transportow?",
+                        "Brak numeru IRZplus",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Warning);
+
+                    if (result != MessageBoxResult.Yes)
+                        return;
+
+                    // Usun te bez IRZplus
+                    wybrane = wybrane.Where(s => !string.IsNullOrWhiteSpace(s.IRZPlus)).ToList();
+
+                    if (wybrane.Count == 0)
+                    {
+                        MessageBox.Show("Wszystkie zaznaczone transporty nie maja numeru IRZplus. Nie mozna kontynuowac.",
+                            "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+                }
+
+                // Przygotuj dane do eksportu - mapuj ViewModel na PozycjaZgloszeniaIRZ
+                var transporty = wybrane.Select((vm, idx) => new Models.IRZplus.PozycjaZgloszeniaIRZ
+                {
+                    Lp = idx + 1,
+                    // Numer identyfikacyjny/numer partii = numer IRZplus hodowcy
+                    NumerPartiiDrobiu = vm.IRZPlus,
+                    TypZdarzenia = "UR",  // Uboj rzezniczy
+                    LiczbaSztuk = vm.LiczbaSztukDrobiu,
+                    MasaKg = vm.WagaNetto,
+                    DataZdarzenia = vm.DataZdarzenia,
+                    KrajWwozu = null,  // Puste dla polskich hodowcow
+                    DataKupnaWwozu = null,  // Puste dla polskich hodowcow
+                    // Przyjete z dzialalnosci = numer IRZplus + "-001"
+                    PrzyjeteZDzialalnosci = vm.PrzyjetaZDzialalnosci,
+                    UbojRytualny = false,
+                    LiczbaPadlych = vm.SztukiPadle,
+                    NumerPartiiWewnetrzny = vm.NumerPartii,
+                    Uwagi = vm.Hodowca  // Nazwa hodowcy do komentarzy
+                }).ToList();
+
+                // Eksportuj
+                var exportService = new IRZplusExportService();
+                var results = exportService.EksportujTransportyPojedynczo_CSV(
+                    transporty,
+                    _dataUboju,
+                    "039806095-001",  // Numer rzezni
+                    "KURY");          // Gatunek
+
+                // Podsumowanie
+                var sukces = results.Where(r => r.Success).ToList();
+                var bledy = results.Where(r => !r.Success).ToList();
+
+                var message = new System.Text.StringBuilder();
+                message.AppendLine($"EKSPORT ZAKONCZONY");
+                message.AppendLine($"==================");
+                message.AppendLine();
+                message.AppendLine($"Wyeksportowano: {sukces.Count} plik(ow) CSV");
+                message.AppendLine($"Bledy: {bledy.Count}");
+                message.AppendLine();
+
+                if (sukces.Count > 0)
+                {
+                    var sumaSztuk = transporty.Where((t, i) => results[i].Success).Sum(t => t.LiczbaSztuk);
+                    var sumaMasa = transporty.Where((t, i) => results[i].Success).Sum(t => t.MasaKg);
+
+                    message.AppendLine($"Suma sztuk: {sumaSztuk:N0}");
+                    message.AppendLine($"Suma masa: {sumaMasa:N2} kg");
+                    message.AppendLine();
+                    message.AppendLine($"Folder: {exportService.GetExportPath()}");
+                    message.AppendLine();
+                    message.AppendLine("=== INSTRUKCJA ===");
+                    message.AppendLine("Dla KAZDEGO pliku CSV:");
+                    message.AppendLine("1. Otworz portal IRZplus");
+                    message.AppendLine("2. Dodaj nowe zgloszenie ZURD");
+                    message.AppendLine("3. Uzupelnij naglowek (gatunek, numer rzezni, numer partii)");
+                    message.AppendLine("4. Kliknij 'Wczytaj dane z pliku CSV'");
+                    message.AppendLine("5. Wybierz plik i zapisz zgloszenie");
+                }
+
+                if (bledy.Count > 0)
+                {
+                    message.AppendLine();
+                    message.AppendLine("=== BLEDY ===");
+                    foreach (var blad in bledy.Take(10))
+                    {
+                        message.AppendLine($"- {blad.Message}");
+                    }
+                    if (bledy.Count > 10)
+                        message.AppendLine($"... i {bledy.Count - 10} innych bledow");
+                }
+
+                MessageBox.Show(message.ToString(),
+                    sukces.Count > 0 ? "Eksport zakonczony" : "Blad eksportu",
+                    MessageBoxButton.OK,
+                    sukces.Count > 0 ? MessageBoxImage.Information : MessageBoxImage.Error);
+
+                // Otworz folder z plikami
+                if (sukces.Count > 0)
+                {
+                    exportService.OtworzFolderEksportu();
+                    txtStatus.Text = $"Wyeksportowano {sukces.Count} plikow CSV do folderu IRZplus_Export";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad eksportu:\n{ex.Message}", "Blad",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
         /// Otwiera okno eksportu do pliku XML/CSV - alternatywa gdy API nie dziala
         /// </summary>
         private void BtnExportDialog_Click(object sender, RoutedEventArgs e)

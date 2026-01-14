@@ -336,6 +336,167 @@ namespace Kalendarz1.Services
 
         #endregion
 
+        #region ========== EKSPORT POJEDYNCZYCH TRANSPORTOW ==========
+
+        /// <summary>
+        /// Eksportuje JEDEN transport do pliku CSV zgodnego z portalem IRZplus.
+        ///
+        /// WAZNE: Portal IRZplus akceptuje tylko JEDNA pozycje na zgloszenie!
+        /// Dlatego kazdy transport musi byc w osobnym pliku CSV.
+        ///
+        /// Format pliku:
+        /// - Separator kolumn: srednik (;)
+        /// - Separator dziesietny: przecinek (13565,00)
+        /// - Data: DD-MM-RRRR (np. 12-01-2026)
+        /// - Kodowanie: UTF-8 z BOM
+        /// </summary>
+        public ExportResult EksportujPojedynczyTransport_CSV(
+            PozycjaZgloszeniaIRZ transport,
+            DateTime dataUboju,
+            string numerRzezni = "039806095-001",
+            string gatunek = "KURY",
+            int numerKolejny = 1)
+        {
+            try
+            {
+                // Walidacja danych
+                if (transport == null)
+                    throw new ArgumentNullException(nameof(transport));
+
+                if (string.IsNullOrWhiteSpace(transport.NumerPartiiDrobiu))
+                {
+                    return new ExportResult
+                    {
+                        Success = false,
+                        Message = $"Brak numeru IRZplus dla transportu: {transport.Uwagi}"
+                    };
+                }
+
+                // Nazwa pliku: ZURD_DATA_NUMER-IRZPLUS_GODZINA.csv
+                var numerIrzBezSpecjalnych = transport.NumerPartiiDrobiu.Replace("-", "");
+                var fileName = $"ZURD_{dataUboju:yyyy-MM-dd}_{numerIrzBezSpecjalnych}_{DateTime.Now:HHmmss}_{numerKolejny:000}.csv";
+                var filePath = Path.Combine(_exportPath, fileName);
+
+                // Numer partii uboju - unikalny dla kazdego pliku
+                var numerPartiiUboju = $"{dataUboju:yy}{dataUboju.DayOfYear:000}{numerKolejny:000}";
+
+                var sb = new StringBuilder();
+
+                // === SEKCJA KOMENTARZY Z INSTRUKCJA ===
+                sb.AppendLine("# ============================================");
+                sb.AppendLine("# ZURD - Zgloszenie Uboju Drobiu w Rzezni");
+                sb.AppendLine("# Portal IRZplus - Import CSV");
+                sb.AppendLine("# ============================================");
+                sb.AppendLine($"# Wygenerowano: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                sb.AppendLine($"# ");
+                sb.AppendLine($"# === UZUPELNIJ NAGLOWEK W PORTALU IRZPLUS ===");
+                sb.AppendLine($"# Gatunek: {gatunek}");
+                sb.AppendLine($"# Numer rzezni: {numerRzezni}");
+                sb.AppendLine($"# Numer partii uboju: {numerPartiiUboju}");
+                sb.AppendLine($"# ");
+                sb.AppendLine($"# === DANE TRANSPORTU ===");
+                sb.AppendLine($"# Hodowca: {transport.Uwagi}");
+                sb.AppendLine($"# Numer IRZplus: {transport.NumerPartiiDrobiu}");
+                sb.AppendLine($"# Liczba sztuk: {transport.LiczbaSztuk:N0}");
+                sb.AppendLine($"# Masa: {transport.MasaKg:N2} kg");
+                sb.AppendLine($"# Data uboju: {dataUboju:dd-MM-yyyy}");
+                sb.AppendLine($"# ");
+                sb.AppendLine($"# === INSTRUKCJA IMPORTU ===");
+                sb.AppendLine($"# 1. Zaloguj sie do portalu IRZplus (https://irz.arimr.gov.pl)");
+                sb.AppendLine($"# 2. Menu: Drob > Zgloszenie uboju drobiu w rzezni (ZURD)");
+                sb.AppendLine($"# 3. Kliknij: 'Dodaj zgloszenie'");
+                sb.AppendLine($"# 4. W sekcji NAGLOWEK uzupelnij:");
+                sb.AppendLine($"#    - Gatunek: {gatunek}");
+                sb.AppendLine($"#    - Numer rzezni: {numerRzezni}");
+                sb.AppendLine($"#    - Numer partii uboju: {numerPartiiUboju} (lub dowolny unikalny)");
+                sb.AppendLine($"# 5. Kliknij: 'Wczytaj dane z pliku CSV/TXT'");
+                sb.AppendLine($"# 6. Wybierz TEN plik");
+                sb.AppendLine($"# 7. Sprawdz dane i kliknij 'Zapisz'");
+                sb.AppendLine($"# ============================================");
+                sb.AppendLine();
+
+                // === NAGLOWEK KOLUMN ===
+                sb.AppendLine(string.Join(";", new[]
+                {
+                    "Lp",
+                    "Numer identyfikacyjny/numer partii",
+                    "Typ zdarzenia",
+                    "Liczba sztuk drobiu",
+                    "Data zdarzenia",
+                    "Masa drobiu (kg)",
+                    "Kraj wwozu",
+                    "Data kupna/wwozu",
+                    "Przyjete z dzialalnosci",
+                    "Uboj rytualny"
+                }));
+
+                // === JEDNA POZYCJA - JEDEN TRANSPORT ===
+                sb.AppendLine(string.Join(";", new[]
+                {
+                    "1",                                                          // Lp - zawsze 1
+                    transport.NumerPartiiDrobiu ?? "",                             // Numer identyfikacyjny/numer partii
+                    transport.TypZdarzenia ?? "UR",                                // Typ zdarzenia
+                    transport.LiczbaSztuk.ToString(),                              // Liczba sztuk drobiu
+                    transport.DataZdarzenia.ToString("dd-MM-yyyy"),                // Data zdarzenia (DD-MM-RRRR!)
+                    transport.MasaKg.ToString("N2", _polishCulture),               // Masa drobiu (kg) - przecinek!
+                    transport.KrajWwozu ?? "",                                     // Kraj wwozu (puste dla PL)
+                    transport.DataKupnaWwozu?.ToString("dd-MM-yyyy") ?? "",        // Data kupna/wwozu (puste dla PL)
+                    transport.PrzyjeteZDzialalnosci ?? "",                         // Przyjete z dzialalnosci
+                    transport.UbojRytualny ? "T" : "N"                             // Uboj rytualny
+                }));
+
+                // Zapisz z kodowaniem UTF-8 z BOM (dla polskich znakow)
+                File.WriteAllText(filePath, sb.ToString(), new UTF8Encoding(true));
+
+                return new ExportResult
+                {
+                    Success = true,
+                    FilePath = filePath,
+                    FileName = fileName,
+                    Message = $"Wyeksportowano transport: {transport.Uwagi} ({transport.LiczbaSztuk} szt.)"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ExportResult
+                {
+                    Success = false,
+                    Message = $"Blad eksportu: {ex.Message}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// Eksportuje WIELE transportow - kazdy do OSOBNEGO pliku CSV.
+        /// Zwraca liste wynikow eksportu.
+        /// </summary>
+        public List<ExportResult> EksportujTransportyPojedynczo_CSV(
+            IEnumerable<PozycjaZgloszeniaIRZ> transporty,
+            DateTime dataUboju,
+            string numerRzezni = "039806095-001",
+            string gatunek = "KURY")
+        {
+            var results = new List<ExportResult>();
+            int numerKolejny = 1;
+
+            foreach (var transport in transporty)
+            {
+                var result = EksportujPojedynczyTransport_CSV(
+                    transport,
+                    dataUboju,
+                    numerRzezni,
+                    gatunek,
+                    numerKolejny);
+
+                results.Add(result);
+                numerKolejny++;
+            }
+
+            return results;
+        }
+
+        #endregion
+
         #region ========== Metody pomocnicze ==========
 
         public void OtworzFolderEksportu()
