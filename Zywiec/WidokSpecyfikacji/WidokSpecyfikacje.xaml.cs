@@ -5556,12 +5556,12 @@ namespace Kalendarz1
                 BaseColor greenColor, orangeColor, blueColor, grayColor, purpleColor;
                 if (_pdfCzarnoBialy)
                 {
-                    // Tryb czarno-biały
-                    greenColor = new BaseColor(60, 60, 60);
-                    orangeColor = new BaseColor(80, 80, 80);
-                    blueColor = new BaseColor(70, 70, 70);
-                    grayColor = new BaseColor(128, 128, 128);
-                    purpleColor = new BaseColor(90, 90, 90);
+                    // Tryb czarno-biały - tylko czarny tekst na białym tle
+                    greenColor = BaseColor.BLACK;
+                    orangeColor = BaseColor.BLACK;
+                    blueColor = BaseColor.BLACK;
+                    grayColor = BaseColor.DARK_GRAY;
+                    purpleColor = BaseColor.BLACK;
                 }
                 else
                 {
@@ -5623,7 +5623,8 @@ namespace Kalendarz1
                 infoTable.SpacingAfter = 15f;
 
                 // Nabywca
-                PdfPCell buyerCell = CreateRoundedCell(greenColor, new BaseColor(248, 255, 248), 8);
+                BaseColor buyerBgShort = _pdfCzarnoBialy ? BaseColor.WHITE : new BaseColor(248, 255, 248);
+                PdfPCell buyerCell = CreateRoundedCell(greenColor, buyerBgShort, 8);
                 buyerCell.AddElement(new Paragraph("NABYWCA", new Font(polishFont, 9, Font.BOLD, greenColor)));
                 buyerCell.AddElement(new Paragraph("Ubojnia Drobiu \"Piórkowscy\"", textFontBold));
                 buyerCell.AddElement(new Paragraph("Koziołki 40, 95-061 Dmosin", textFont));
@@ -5634,9 +5635,48 @@ namespace Kalendarz1
                 string sellerKod = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "PostalCode") ?? "";
                 string sellerMiejsc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "City") ?? "";
 
-                PdfPCell sellerCell = CreateRoundedCell(orangeColor, new BaseColor(255, 253, 248), 8);
+                // Pobierz numer partii z PartiaDostawca dla short PDF
+                string partiaNumberShort = "";
+                try
+                {
+                    string partiaGuidStrShort = zapytaniasql.PobierzInformacjeZBazyDanychKonkretneJakiejkolwiek(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "PartiaGuid");
+                    if (!string.IsNullOrEmpty(partiaGuidStrShort))
+                    {
+                        using (var connShort = new Microsoft.Data.SqlClient.SqlConnection(connectionString))
+                        {
+                            connShort.Open();
+                            using (var cmdShort = new Microsoft.Data.SqlClient.SqlCommand(
+                                "SELECT CustomerID, Partia FROM [LibraNet].[dbo].[PartiaDostawca] WHERE guid = @Guid", connShort))
+                            {
+                                cmdShort.Parameters.AddWithValue("@Guid", partiaGuidStrShort);
+                                using (var readerShort = cmdShort.ExecuteReader())
+                                {
+                                    if (readerShort.Read())
+                                    {
+                                        string custIdS = readerShort.IsDBNull(0) ? "" : readerShort.GetString(0).Trim();
+                                        string partiaS = readerShort.IsDBNull(1) ? "" : readerShort.GetString(1).Trim();
+                                        partiaNumberShort = $"{custIdS}{partiaS}";
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { }
+
+                BaseColor sellerBgShort = _pdfCzarnoBialy ? BaseColor.WHITE : new BaseColor(255, 253, 248);
+                PdfPCell sellerCell = CreateRoundedCell(orangeColor, sellerBgShort, 8);
                 sellerCell.AddElement(new Paragraph("SPRZEDAJĄCY", new Font(polishFont, 9, Font.BOLD, orangeColor)));
                 sellerCell.AddElement(new Paragraph(sellerName, textFontBold));
+                // CustomerID i Partia
+                if (!string.IsNullOrEmpty(customerRealGID))
+                {
+                    sellerCell.AddElement(new Paragraph($"ID: {customerRealGID}", new Font(polishFont, 8, Font.NORMAL, grayColor)));
+                }
+                if (!string.IsNullOrEmpty(partiaNumberShort))
+                {
+                    sellerCell.AddElement(new Paragraph($"Partia: {partiaNumberShort}", new Font(polishFont, 8, Font.BOLD, grayColor)));
+                }
                 sellerCell.AddElement(new Paragraph($"{sellerStreet}, {sellerKod} {sellerMiejsc}", textFont));
                 infoTable.AddCell(sellerCell);
 
@@ -5746,7 +5786,8 @@ namespace Kalendarz1
                 mainBox.SpacingBefore = 10f;
                 mainBox.SpacingAfter = 15f;
 
-                PdfPCell mainCell = CreateRoundedCell(greenColor, new BaseColor(245, 255, 245), 15);
+                BaseColor mainCellBg = _pdfCzarnoBialy ? BaseColor.WHITE : new BaseColor(245, 255, 245);
+                PdfPCell mainCell = CreateRoundedCell(greenColor, mainCellBg, 15);
 
                 // Data i numer dokumentu
                 Paragraph dateInfo = new Paragraph($"Data uboju: {strDzienUbojowyPL}  |  Dokument: {strDzienUbojowy}/{ids.Count}  |  Dostaw: {ids.Count}", new Font(polishFont, 9, Font.NORMAL, grayColor));
@@ -5764,7 +5805,8 @@ namespace Kalendarz1
                 }
                 if (!string.IsNullOrEmpty(infoLine))
                 {
-                    Paragraph weatherLine = new Paragraph(infoLine, new Font(polishFont, 8, Font.ITALIC, new BaseColor(100, 100, 100)));
+                    BaseColor weatherColor = _pdfCzarnoBialy ? BaseColor.DARK_GRAY : new BaseColor(100, 100, 100);
+                    Paragraph weatherLine = new Paragraph(infoLine, new Font(polishFont, 8, Font.ITALIC, weatherColor));
                     weatherLine.Alignment = Element.ALIGN_CENTER;
                     mainCell.AddElement(weatherLine);
                 }
@@ -5795,15 +5837,18 @@ namespace Kalendarz1
                 detailsTable.SpacingAfter = 15f;
 
                 // Kolumna 1 - Waga
-                PdfPCell col1 = CreateRoundedCell(new BaseColor(76, 175, 80), new BaseColor(232, 245, 233), 10);
-                col1.AddElement(new Paragraph("WAGA", new Font(polishFont, 10, Font.BOLD, new BaseColor(76, 175, 80))) { Alignment = Element.ALIGN_CENTER });
+                BaseColor col1Border = _pdfCzarnoBialy ? BaseColor.BLACK : new BaseColor(76, 175, 80);
+                BaseColor col1Bg = _pdfCzarnoBialy ? BaseColor.WHITE : new BaseColor(232, 245, 233);
+                PdfPCell col1 = CreateRoundedCell(col1Border, col1Bg, 10);
+                col1.AddElement(new Paragraph("WAGA", new Font(polishFont, 10, Font.BOLD, col1Border)) { Alignment = Element.ALIGN_CENTER });
                 col1.AddElement(new Paragraph($"Brutto: {sumaBrutto:N0} kg", textFont));
                 col1.AddElement(new Paragraph($"Tara: {sumaTara:N0} kg", textFont));
                 col1.AddElement(new Paragraph($"Netto: {sumaNetto:N0} kg", textFontBold));
                 detailsTable.AddCell(col1);
 
                 // Kolumna 2 - Sztuki
-                PdfPCell col2 = CreateRoundedCell(orangeColor, new BaseColor(255, 243, 224), 10);
+                BaseColor col2Bg = _pdfCzarnoBialy ? BaseColor.WHITE : new BaseColor(255, 243, 224);
+                PdfPCell col2 = CreateRoundedCell(orangeColor, col2Bg, 10);
                 col2.AddElement(new Paragraph("SZTUKI", new Font(polishFont, 10, Font.BOLD, orangeColor)) { Alignment = Element.ALIGN_CENTER });
                 col2.AddElement(new Paragraph($"Dostarczono: {sumaSztWszystkie} szt", textFont));
                 col2.AddElement(new Paragraph($"Padłe: {sumaPadle} szt", textFont));
@@ -5811,7 +5856,8 @@ namespace Kalendarz1
                 detailsTable.AddCell(col2);
 
                 // Kolumna 3 - Podsumowanie
-                PdfPCell col3 = CreateRoundedCell(purpleColor, new BaseColor(243, 229, 245), 10);
+                BaseColor col3Bg = _pdfCzarnoBialy ? BaseColor.WHITE : new BaseColor(243, 229, 245);
+                PdfPCell col3 = CreateRoundedCell(purpleColor, col3Bg, 10);
                 col3.AddElement(new Paragraph("PODSUMOWANIE", new Font(polishFont, 10, Font.BOLD, purpleColor)) { Alignment = Element.ALIGN_CENTER });
                 col3.AddElement(new Paragraph($"Śr. waga: {sredniaWagaSuma:N2} kg/szt", textFont));
                 col3.AddElement(new Paragraph($"Cena: {avgCena:0.00} zł/kg", textFont));
@@ -5829,7 +5875,9 @@ namespace Kalendarz1
                 NazwaZiD nazwaZiD = new NazwaZiD();
                 string wystawiajacyNazwa = nazwaZiD.GetNameById(App.UserID) ?? "---";
 
-                PdfPCell sig2 = CreateRoundedCell(new BaseColor(200, 200, 200), new BaseColor(252, 252, 252), 8);
+                BaseColor sig2Border = _pdfCzarnoBialy ? BaseColor.GRAY : new BaseColor(200, 200, 200);
+                BaseColor sig2Bg = _pdfCzarnoBialy ? BaseColor.WHITE : new BaseColor(252, 252, 252);
+                PdfPCell sig2 = CreateRoundedCell(sig2Border, sig2Bg, 8);
                 sig2.AddElement(new Paragraph("PODPIS PRACOWNIKA", new Font(polishFont, 8, Font.BOLD, greenColor)) { Alignment = Element.ALIGN_CENTER });
                 sig2.AddElement(new Paragraph(" \n", textFont));
                 sig2.AddElement(new Paragraph("........................................", textFont) { Alignment = Element.ALIGN_CENTER });
@@ -5927,14 +5975,14 @@ namespace Kalendarz1
                 BaseColor greenColor, darkGreenColor, lightGreenColor, orangeColor, blueColor, grayColor, purpleColor;
                 if (_pdfCzarnoBialy)
                 {
-                    // Tryb czarno-biały
-                    greenColor = new BaseColor(60, 60, 60);           // Ciemny szary zamiast zielonego
-                    darkGreenColor = new BaseColor(40, 40, 40);       // Bardzo ciemny szary
-                    lightGreenColor = new BaseColor(230, 230, 230);   // Jasny szary
-                    orangeColor = new BaseColor(80, 80, 80);          // Średni szary zamiast pomarańczowego
-                    blueColor = new BaseColor(70, 70, 70);            // Ciemny szary zamiast niebieskiego
-                    grayColor = new BaseColor(128, 128, 128);         // Szary bez zmian
-                    purpleColor = new BaseColor(90, 90, 90);          // Szary zamiast fioletowego
+                    // Tryb czarno-biały - tylko czarny tekst na białym tle
+                    greenColor = BaseColor.BLACK;
+                    darkGreenColor = BaseColor.BLACK;
+                    lightGreenColor = BaseColor.WHITE;
+                    orangeColor = BaseColor.BLACK;
+                    blueColor = BaseColor.BLACK;
+                    grayColor = BaseColor.DARK_GRAY;
+                    purpleColor = BaseColor.BLACK;
                 }
                 else
                 {
@@ -6066,7 +6114,8 @@ namespace Kalendarz1
                 partiesTable.SpacingAfter = 12f;
 
                 // Nabywca (lewa strona)
-                PdfPCell buyerCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = greenColor, BorderWidth = 1.5f, Padding = 10, BackgroundColor = new BaseColor(248, 255, 248) };
+                BaseColor buyerBgColor = _pdfCzarnoBialy ? BaseColor.WHITE : new BaseColor(248, 255, 248);
+                PdfPCell buyerCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = greenColor, BorderWidth = 1.5f, Padding = 10, BackgroundColor = buyerBgColor };
                 buyerCell.AddElement(new Paragraph("NABYWCA", new Font(polishFont, 10, Font.BOLD, greenColor)));
                 buyerCell.AddElement(new Paragraph("Ubojnia Drobiu \"Piórkowscy\"", textFontBold));
                 buyerCell.AddElement(new Paragraph("Koziołki 40, 95-061 Dmosin", textFont));
@@ -6079,15 +6128,56 @@ namespace Kalendarz1
                 string sellerKod = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "PostalCode") ?? "";
                 string sellerMiejsc = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "City") ?? "";
 
+                // Pobierz numer partii z PartiaDostawca
+                string partiaNumber = "";
+                try
+                {
+                    string partiaGuidStr = zapytaniasql.PobierzInformacjeZBazyDanychKonkretneJakiejkolwiek(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "PartiaGuid");
+                    if (!string.IsNullOrEmpty(partiaGuidStr))
+                    {
+                        using (var conn = new Microsoft.Data.SqlClient.SqlConnection(connectionString))
+                        {
+                            conn.Open();
+                            using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(
+                                "SELECT CustomerID, Partia FROM [LibraNet].[dbo].[PartiaDostawca] WHERE guid = @Guid", conn))
+                            {
+                                cmd.Parameters.AddWithValue("@Guid", partiaGuidStr);
+                                using (var reader = cmd.ExecuteReader())
+                                {
+                                    if (reader.Read())
+                                    {
+                                        string custId = reader.IsDBNull(0) ? "" : reader.GetString(0).Trim();
+                                        string partia = reader.IsDBNull(1) ? "" : reader.GetString(1).Trim();
+                                        partiaNumber = $"{custId}{partia}";
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { }
+
                 // Pobierz termin zapłaty z FarmerCalc (TerminDni), lub domyślny z Dostawcy
                 int? terminDniFromCalc = zapytaniasql.PobierzInformacjeZBazyDanych<int?>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "TerminDni");
                 int terminZaplatyDni = terminDniFromCalc ?? zapytaniasql.GetTerminZaplaty(customerRealGID);
 
                 DateTime terminPlatnosci = dzienUbojowy.AddDays(terminZaplatyDni);
 
-                PdfPCell sellerCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = orangeColor, BorderWidth = 1.5f, Padding = 10, BackgroundColor = new BaseColor(255, 253, 248) };
+                // Tło komórki - białe w trybie B&W
+                BaseColor sellerBgColor = _pdfCzarnoBialy ? BaseColor.WHITE : new BaseColor(255, 253, 248);
+                PdfPCell sellerCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = orangeColor, BorderWidth = 1.5f, Padding = 10, BackgroundColor = sellerBgColor };
                 sellerCell.AddElement(new Paragraph("SPRZEDAJĄCY (Hodowca)", new Font(polishFont, 10, Font.BOLD, orangeColor)));
                 sellerCell.AddElement(new Paragraph(sellerName, textFontBold));
+                // CustomerID
+                if (!string.IsNullOrEmpty(customerRealGID))
+                {
+                    sellerCell.AddElement(new Paragraph($"ID: {customerRealGID}", new Font(polishFont, 8, Font.NORMAL, grayColor)));
+                }
+                // Numer partii
+                if (!string.IsNullOrEmpty(partiaNumber))
+                {
+                    sellerCell.AddElement(new Paragraph($"Partia: {partiaNumber}", new Font(polishFont, 8, Font.BOLD, grayColor)));
+                }
                 sellerCell.AddElement(new Paragraph(sellerStreet, textFont));
                 sellerCell.AddElement(new Paragraph($"{sellerKod} {sellerMiejsc}", textFont));
                 sellerCell.AddElement(new Paragraph(wagaTyp, textFont));
@@ -6098,7 +6188,8 @@ namespace Kalendarz1
                 // === MINI TABELA ZAŁADUNKÓW I POGODY ===
                 if (ids.Count > 0)
                 {
-                    Paragraph zaladunkiTitle = new Paragraph("INFORMACJE O DOSTAWACH", new Font(polishFont, 9, Font.BOLD, new BaseColor(52, 73, 94)));
+                    BaseColor titleColor = _pdfCzarnoBialy ? BaseColor.BLACK : new BaseColor(52, 73, 94);
+                    Paragraph zaladunkiTitle = new Paragraph("INFORMACJE O DOSTAWACH", new Font(polishFont, 9, Font.BOLD, titleColor));
                     zaladunkiTitle.SpacingAfter = 4f;
                     doc.Add(zaladunkiTitle);
 
@@ -6107,8 +6198,8 @@ namespace Kalendarz1
                     zaladunkiTable.SetWidths(new float[] { 0.35f, 0.9f, 0.9f, 0.9f, 0.9f, 1.2f, 0.9f, 0.9f, 1.5f });
                     zaladunkiTable.SpacingAfter = 10f;
 
-                    // Nagłówek tabeli
-                    BaseColor zHeaderBg = new BaseColor(52, 73, 94);
+                    // Nagłówek tabeli - czarny w trybie B&W
+                    BaseColor zHeaderBg = _pdfCzarnoBialy ? BaseColor.BLACK : new BaseColor(52, 73, 94);
                     Font zHeaderFont = new Font(polishFont, 7, Font.BOLD, BaseColor.WHITE);
 
                     PdfPCell hLp = new PdfPCell(new Phrase("Lp", zHeaderFont)) { BackgroundColor = zHeaderBg, HorizontalAlignment = Element.ALIGN_CENTER, Padding = 3 };
@@ -6132,7 +6223,7 @@ namespace Kalendarz1
 
                     // Wiersze dla każdej dostawy
                     Font zCellFont = new Font(polishFont, 7, Font.NORMAL);
-                    BaseColor altBg = new BaseColor(245, 247, 250);
+                    BaseColor altBg = _pdfCzarnoBialy ? new BaseColor(240, 240, 240) : new BaseColor(245, 247, 250);
 
                     for (int idx = 0; idx < ids.Count; idx++)
                     {
@@ -6333,7 +6424,8 @@ namespace Kalendarz1
                     sumaSztZdatne += sztZdatne;
                     sredniaWagaSuma = sumaSztWszystkie > 0 ? sumaNetto / sumaSztWszystkie : 0;
 
-                    BaseColor rowColor = i % 2 == 0 ? BaseColor.WHITE : new BaseColor(248, 248, 248);
+                    BaseColor altRowColor = _pdfCzarnoBialy ? new BaseColor(240, 240, 240) : new BaseColor(248, 248, 248);
+                    BaseColor rowColor = i % 2 == 0 ? BaseColor.WHITE : altRowColor;
 
                     AddStyledTableData(dataTable, smallTextFont, rowColor, (i + 1).ToString(),
                         wagaBrutto.ToString("N0"), wagaTara.ToString("N0"), wagaNetto.ToString("N0"),
@@ -6351,7 +6443,7 @@ namespace Kalendarz1
                 }
 
                 // === WIERSZ SUMY ===
-                BaseColor sumRowColor = new BaseColor(220, 237, 200);
+                BaseColor sumRowColor = _pdfCzarnoBialy ? new BaseColor(200, 200, 200) : new BaseColor(220, 237, 200);
                 Font sumFont = new Font(polishFont, 7, Font.BOLD);
 
                 // Oblicz średnią cenę
@@ -6384,7 +6476,9 @@ namespace Kalendarz1
                 summaryTable.SpacingBefore = 8f;
 
                 // Lewa kolumna - wzory i obliczenia w jednej linii
-                PdfPCell formulaCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = new BaseColor(220, 220, 220), Padding = 8, BackgroundColor = new BaseColor(252, 252, 252) };
+                BaseColor formulaBorder = _pdfCzarnoBialy ? BaseColor.GRAY : new BaseColor(220, 220, 220);
+                BaseColor formulaBg = _pdfCzarnoBialy ? BaseColor.WHITE : new BaseColor(252, 252, 252);
+                PdfPCell formulaCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = formulaBorder, Padding = 8, BackgroundColor = formulaBg };
                 formulaCell.AddElement(new Paragraph("SPOSÓB OBLICZENIA:", new Font(polishFont, 9, Font.BOLD, BaseColor.DARK_GRAY)));
 
                 // 1. Waga Netto = Brutto - Tara
@@ -6455,7 +6549,8 @@ namespace Kalendarz1
                 summaryTable.AddCell(formulaCell);
 
                 // Prawa kolumna - podsumowanie z wyrównanymi wartościami
-                PdfPCell sumCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = greenColor, BorderWidth = 2f, Padding = 10, BackgroundColor = new BaseColor(245, 255, 245) };
+                BaseColor sumCellBg = _pdfCzarnoBialy ? BaseColor.WHITE : new BaseColor(245, 255, 245);
+                PdfPCell sumCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = greenColor, BorderWidth = 2f, Padding = 10, BackgroundColor = sumCellBg };
                 sumCell.AddElement(new Paragraph("PODSUMOWANIE", new Font(polishFont, 10, Font.BOLD, greenColor)));
                 sumCell.AddElement(new Paragraph(" ", new Font(polishFont, 4, Font.NORMAL)));
 
@@ -6466,7 +6561,7 @@ namespace Kalendarz1
 
                 // Średnia waga
                 valuesTable.AddCell(new PdfPCell(new Phrase("Średnia waga:", new Font(polishFont, 9, Font.NORMAL, grayColor))) { Border = PdfPCell.NO_BORDER, PaddingBottom = 3 });
-                valuesTable.AddCell(new PdfPCell(new Phrase($"{sredniaWagaSuma:N2} kg/szt", new Font(polishFont, 9, Font.BOLD, new BaseColor(142, 68, 173)))) { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_RIGHT, PaddingBottom = 3 });
+                valuesTable.AddCell(new PdfPCell(new Phrase($"{sredniaWagaSuma:N2} kg/szt", new Font(polishFont, 9, Font.BOLD, purpleColor))) { Border = PdfPCell.NO_BORDER, HorizontalAlignment = Element.ALIGN_RIGHT, PaddingBottom = 3 });
 
                 // Suma kilogramów
                 valuesTable.AddCell(new PdfPCell(new Phrase("Suma kilogramów:", new Font(polishFont, 9, Font.NORMAL, grayColor))) { Border = PdfPCell.NO_BORDER, PaddingBottom = 3 });
@@ -6512,7 +6607,9 @@ namespace Kalendarz1
                 footerTable.HorizontalAlignment = Element.ALIGN_RIGHT;
 
                 // Podpis Pracownika/Wystawiającego - kompaktowy
-                PdfPCell signatureRight = new PdfPCell { Border = PdfPCell.BOX, BorderColor = new BaseColor(200, 200, 200), Padding = 8, BackgroundColor = new BaseColor(252, 252, 252) };
+                BaseColor sigBorder = _pdfCzarnoBialy ? BaseColor.GRAY : new BaseColor(200, 200, 200);
+                BaseColor sigBg = _pdfCzarnoBialy ? BaseColor.WHITE : new BaseColor(252, 252, 252);
+                PdfPCell signatureRight = new PdfPCell { Border = PdfPCell.BOX, BorderColor = sigBorder, Padding = 8, BackgroundColor = sigBg };
                 signatureRight.AddElement(new Paragraph("PODPIS PRACOWNIKA", new Font(polishFont, 8, Font.BOLD, greenColor)) { Alignment = Element.ALIGN_CENTER });
                 signatureRight.AddElement(new Paragraph($"({wystawiajacyNazwa})", new Font(polishFont, 7, Font.NORMAL, grayColor)) { Alignment = Element.ALIGN_CENTER });
                 signatureRight.AddElement(new Paragraph("............................................................", new Font(polishFont, 9, Font.NORMAL)) { Alignment = Element.ALIGN_CENTER });
