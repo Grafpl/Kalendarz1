@@ -11247,7 +11247,7 @@ namespace Kalendarz1
                 {
                     LP = lp++,
                     HodowcaDrobiu = spec.Dostawca,  // Nazwa dostawcy
-                    CustomerGID = spec.CustomerGID,  // CustomerGID do wyboru partii
+                    CustomerGID = spec.DostawcaGID,  // DostawcaGID do wyboru partii
                     Odbiorca = spec.Odbiorca ?? "-",
                     SztukiZadeklarowane = spec.SztukiDek,
                     SztukiPadle = spec.Padle,
@@ -11851,10 +11851,10 @@ namespace Kalendarz1
 
                     // Otwórz okno wyboru partii
                     var partiaWindow = new PartiaSelectWindow(
-                        dataUboju,
+                        connectionString,
                         row.CustomerGID,
                         row.HodowcaDrobiu,
-                        row.PartiaGuid);
+                        dataUboju);
                     partiaWindow.Owner = Window.GetWindow(this);
 
                     if (partiaWindow.ShowDialog() == true)
