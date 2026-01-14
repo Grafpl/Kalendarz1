@@ -43,61 +43,48 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                 using var conn = new SqlConnection(_connectionString);
                 conn.Open();
 
-                // Probuj pobrac CustomerID jako int (jesli GID jest liczbowy)
-                int? customerIdInt = null;
-                if (int.TryParse(_customerGID?.Trim(), out int parsed))
-                {
-                    customerIdInt = parsed;
-                }
+                // UWAGA: Wszystkie kolumny w PartiaDostawca sa VARCHAR!
+                // CustomerID to varchar(10), CreateData to varchar(10), CreateGodzina to varchar(8)
+                string sql = @"
+                    SELECT guid, Partia, CustomerID, CustomerName, CreateData, CreateGodzina
+                    FROM dbo.PartiaDostawca
+                    WHERE CustomerID = @CustomerID OR CustomerName LIKE '%' + @CustomerName + '%'
+                    ORDER BY CreateData DESC, CreateGodzina DESC";
 
-                string sql;
-                SqlCommand cmd;
-
-                if (customerIdInt.HasValue)
-                {
-                    // CustomerGID jest liczbowy - szukaj po CustomerID
-                    sql = @"
-                        SELECT guid, Partia, CustomerID, CustomerName, CreateData, CreateGodzina
-                        FROM dbo.PartiaDostawca
-                        WHERE CustomerID = @CustomerID
-                        ORDER BY CreateData DESC, CreateGodzina DESC";
-                    cmd = new SqlCommand(sql, conn);
-                    cmd.Parameters.AddWithValue("@CustomerID", customerIdInt.Value);
-                }
-                else
-                {
-                    // CustomerGID nie jest liczbowy - szukaj po nazwie lub wszystkie
-                    sql = @"
-                        SELECT guid, Partia, CustomerID, CustomerName, CreateData, CreateGodzina
-                        FROM dbo.PartiaDostawca
-                        WHERE CustomerName LIKE '%' + @CustomerName + '%'
-                        ORDER BY CreateData DESC, CreateGodzina DESC";
-                    cmd = new SqlCommand(sql, conn);
-                    cmd.Parameters.AddWithValue("@CustomerName", _customerName ?? "");
-                }
+                using var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@CustomerID", _customerGID?.Trim() ?? "");
+                cmd.Parameters.AddWithValue("@CustomerName", _customerName ?? "");
 
                 using var reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
-                    // Guid moze byc UNIQUEIDENTIFIER lub VARCHAR - obslugujemy oba przypadki
+                    // Wszystko czytamy jako string i parsujemy
+                    string guidStr = reader.IsDBNull(0) ? "" : reader.GetString(0);
                     Guid guidValue = Guid.Empty;
-                    if (!reader.IsDBNull(0))
-                    {
-                        var guidObj = reader.GetValue(0);
-                        if (guidObj is Guid g)
-                            guidValue = g;
-                        else if (guidObj is string s && Guid.TryParse(s, out var parsedGuid))
-                            guidValue = parsedGuid;
-                    }
+                    Guid.TryParse(guidStr, out guidValue);
+
+                    string createDataStr = reader.IsDBNull(4) ? "" : reader.GetString(4);
+                    DateTime? createData = null;
+                    if (DateTime.TryParse(createDataStr, out var parsedDate))
+                        createData = parsedDate;
+
+                    string createGodzinaStr = reader.IsDBNull(5) ? "" : reader.GetString(5);
+                    TimeSpan? createGodzina = null;
+                    if (TimeSpan.TryParse(createGodzinaStr, out var parsedTime))
+                        createGodzina = parsedTime;
+
+                    string customerIdStr = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                    int customerIdInt = 0;
+                    int.TryParse(customerIdStr, out customerIdInt);
 
                     _allPartie.Add(new PartiaItem
                     {
                         Guid = guidValue,
                         Partia = reader.IsDBNull(1) ? "" : reader.GetString(1),
-                        CustomerID = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                        CustomerID = customerIdInt,
                         CustomerName = reader.IsDBNull(3) ? "" : reader.GetString(3),
-                        CreateData = reader.IsDBNull(4) ? (DateTime?)null : reader.GetDateTime(4),
-                        CreateGodzina = reader.IsDBNull(5) ? (TimeSpan?)null : reader.GetTimeSpan(5)
+                        CreateData = createData,
+                        CreateGodzina = createGodzina
                     });
                 }
 
@@ -187,23 +174,21 @@ namespace Kalendarz1.Zywiec.WidokSpecyfikacji
                 if (result != MessageBoxResult.Yes)
                     return;
 
-                // Utworz partie
+                // Utworz partie - WSZYSTKIE kolumny sa VARCHAR!
                 var newGuid = Guid.NewGuid();
-                int customerIdInt = 0;
-                int.TryParse(_customerGID?.Trim(), out customerIdInt);
 
                 var cmdInsert = new SqlCommand(@"
                     INSERT INTO dbo.PartiaDostawca
                     (guid, Partia, CustomerID, CustomerName, CreateData, CreateGodzina)
                     VALUES (@guid, @Partia, @CustomerID, @CustomerName, @CreateData, @CreateGodzina)", conn);
 
-                // Guid zapisujemy jako string (kolumna moze byc VARCHAR)
+                // Wszystko zapisujemy jako string (wszystkie kolumny to VARCHAR)
                 cmdInsert.Parameters.AddWithValue("@guid", newGuid.ToString());
                 cmdInsert.Parameters.AddWithValue("@Partia", newPartia);
-                cmdInsert.Parameters.AddWithValue("@CustomerID", customerIdInt);
+                cmdInsert.Parameters.AddWithValue("@CustomerID", _customerGID?.Trim() ?? "");
                 cmdInsert.Parameters.AddWithValue("@CustomerName", _customerName ?? "");
-                cmdInsert.Parameters.AddWithValue("@CreateData", DateTime.Today);
-                cmdInsert.Parameters.AddWithValue("@CreateGodzina", DateTime.Now.TimeOfDay);
+                cmdInsert.Parameters.AddWithValue("@CreateData", DateTime.Today.ToString("yyyy-MM-dd"));
+                cmdInsert.Parameters.AddWithValue("@CreateGodzina", DateTime.Now.ToString("HH:mm:ss"));
 
                 cmdInsert.ExecuteNonQuery();
 
