@@ -3968,16 +3968,16 @@ namespace Kalendarz1
         {
             try
             {
-                if (calDataUboju.SelectedDate == null)
+                if (dateTimePicker1.SelectedDate == null)
                 {
                     MessageBox.Show("Wybierz datę uboju przed wysyłką do IRZplus.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                var dataUboju = calDataUboju.SelectedDate.Value;
+                var dataUboju = dateTimePicker1.SelectedDate.Value;
 
                 // Sprawdź czy są specyfikacje na ten dzień
-                var specyfikacje = dataGrid1.ItemsSource as IEnumerable<SpecyfikacjaRow>;
+                var specyfikacje = dataGridView1.ItemsSource as IEnumerable<SpecyfikacjaRow>;
                 if (specyfikacje == null || !specyfikacje.Any())
                 {
                     MessageBox.Show($"Brak specyfikacji na dzień {dataUboju:dd.MM.yyyy}.\nDodaj specyfikacje przed wysyłką do IRZplus.",
