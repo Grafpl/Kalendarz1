@@ -1334,6 +1334,57 @@
                                     </DataGridTemplateColumn.CellEditingTemplate>
                                 </DataGridTemplateColumn>
 
+                                <!-- Kolumna Partia z przyciskiem wyboru -->
+                                <DataGridTemplateColumn Header="Partia" Width="130">
+                                    <DataGridTemplateColumn.HeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource DataGridHeaderStyle}">
+                                            <Setter Property="Background" Value="#9C27B0"/>
+                                            <Setter Property="Foreground" Value="White"/>
+                                            <Setter Property="ToolTip" Value="Numer partii drobiu (wymagany do IRZplus)"/>
+                                        </Style>
+                                    </DataGridTemplateColumn.HeaderStyle>
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="28"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0"
+                                                           Text="{Binding PartiaNumber}"
+                                                           VerticalAlignment="Center"
+                                                           Padding="5,0"
+                                                           FontWeight="SemiBold">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#9C27B0"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasPartia}" Value="False">
+                                                                    <Setter Property="Foreground" Value="#BDBDBD"/>
+                                                                    <Setter Property="Text" Value="brak"/>
+                                                                    <Setter Property="FontStyle" Value="Italic"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <Button Grid.Column="1"
+                                                        Content="..."
+                                                        Width="26" Height="22"
+                                                        Click="BtnWybierzPartie_Click"
+                                                        Tag="{Binding}"
+                                                        ToolTip="Wybierz lub utworz partie"
+                                                        Background="#E1BEE7"
+                                                        BorderThickness="1"
+                                                        BorderBrush="#9C27B0"
+                                                        Cursor="Hand"
+                                                        FontSize="12"
+                                                        FontWeight="Bold"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
                                 <DataGridTemplateColumn Header="Szt.Dek" Width="65" HeaderStyle="{StaticResource DeklaracjeHeaderStyle}">
                                     <DataGridTemplateColumn.CellStyle>
                                         <Style TargetType="DataGridCell">

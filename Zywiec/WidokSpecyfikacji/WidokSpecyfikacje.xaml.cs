@@ -1380,9 +1380,12 @@ namespace Kalendarz1
                                     fc.DriverGID, fc.CarID, fc.TrailerID, fc.Przyjazd,
                                     fc.PoczatekUslugi, fc.Wyjazd, fc.DojazdHodowca, fc.Zaladunek, fc.ZaladunekKoniec, fc.WyjazdHodowca, fc.KoniecUslugi,
                                     fc.ZdjecieTaraPath, fc.ZdjecieBruttoPath,
+                                    fc.PartiaGuid,
+                                    pd.Partia AS PartiaNumber,
                                     d.Name AS DriverName
                                     FROM [LibraNet].[dbo].[FarmerCalc] fc
                                     LEFT JOIN [LibraNet].[dbo].[Driver] d ON fc.DriverGID = d.GID
+                                    LEFT JOIN [LibraNet].[dbo].[PartiaDostawca] pd ON fc.PartiaGuid = pd.guid
                                     WHERE fc.CalcDate = @SelectedDate
                                     ORDER BY fc.CarLP";
 
@@ -1461,7 +1464,10 @@ namespace Kalendarz1
                                 // PayWgt z bazy - kolumna "Do zapł." z PDF
                                 PayWgt = ZapytaniaSQL.GetValueOrDefault<decimal>(row, "PayWgt", 0),
                                 // Odbiorca (Customer) - pobierz nazwę z CustomerRealGID
-                                Odbiorca = GetCustomerName(ZapytaniaSQL.GetValueOrDefault<string>(row, "CustomerRealGID", "-1")?.Trim())
+                                Odbiorca = GetCustomerName(ZapytaniaSQL.GetValueOrDefault<string>(row, "CustomerRealGID", "-1")?.Trim()),
+                                // Partia drobiu
+                                PartiaGuid = dataTable.Columns.Contains("PartiaGuid") && row["PartiaGuid"] != DBNull.Value ? (Guid?)row["PartiaGuid"] : null,
+                                PartiaNumber = dataTable.Columns.Contains("PartiaNumber") ? ZapytaniaSQL.GetValueOrDefault<string>(row, "PartiaNumber", null)?.Trim() : null
                             };
 
                             specyfikacjeData.Add(specRow);
@@ -3958,6 +3964,88 @@ namespace Kalendarz1
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd otwierania ustawień IRZplus: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Obsluga przycisku wyboru partii dla specyfikacji
+        /// </summary>
+        private void BtnWybierzPartie_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var button = sender as Button;
+                var row = button?.Tag as SpecyfikacjaRow;
+
+                if (row == null)
+                {
+                    // Alternatywna metoda - z DataContext
+                    row = (sender as FrameworkElement)?.DataContext as SpecyfikacjaRow;
+                }
+
+                if (row == null)
+                {
+                    MessageBox.Show("Nie mozna okreslic wiersza specyfikacji.", "Blad",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Pobierz date uboju
+                DateTime dataUboju = row.DataUboju != default ? row.DataUboju :
+                    (dateTimePicker1.SelectedDate ?? DateTime.Today);
+
+                // Otworz okno wyboru partii
+                var partiaWindow = new PartiaSelectWindow(
+                    connectionString,
+                    row.DostawcaGID ?? "",
+                    row.Dostawca,
+                    dataUboju);
+
+                partiaWindow.Owner = Window.GetWindow(this);
+
+                if (partiaWindow.ShowDialog() == true)
+                {
+                    // Zapisz partie do bazy
+                    using (var conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+
+                        var cmd = new SqlCommand(@"
+                            UPDATE dbo.FarmerCalc
+                            SET PartiaGuid = @PartiaGuid
+                            WHERE ID = @ID", conn);
+
+                        if (partiaWindow.PartiaRemoved || partiaWindow.SelectedPartiaGuid == null)
+                        {
+                            cmd.Parameters.AddWithValue("@PartiaGuid", DBNull.Value);
+                        }
+                        else
+                        {
+                            cmd.Parameters.AddWithValue("@PartiaGuid", partiaWindow.SelectedPartiaGuid);
+                        }
+                        cmd.Parameters.AddWithValue("@ID", row.ID);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Zaktualizuj wiersz w UI
+                    row.PartiaGuid = partiaWindow.SelectedPartiaGuid;
+                    row.PartiaNumber = partiaWindow.SelectedPartiaNumber;
+
+                    // Informacja
+                    if (partiaWindow.PartiaRemoved)
+                    {
+                        statusLabel.Text = $"Usunieto partie z wiersza {row.Dostawca}";
+                    }
+                    else
+                    {
+                        statusLabel.Text = $"Przypisano partie {partiaWindow.SelectedPartiaNumber} do {row.Dostawca}";
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad przypisywania partii:\n{ex.Message}", "Blad",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -11706,6 +11794,10 @@ public class SpecyfikacjaRow : INotifyPropertyChanged
     // Odbiorca (CustomerRealGid)
     private string _odbiorca;
 
+    // Partia drobiu (powiazanie z PartiaDostawca)
+    private Guid? _partiaGuid;
+    private string _partiaNumber;
+
     public bool IsHighlighted
     {
         get => _isHighlighted;
@@ -11744,6 +11836,31 @@ public class SpecyfikacjaRow : INotifyPropertyChanged
         get => _odbiorca;
         set { _odbiorca = value; OnPropertyChanged(nameof(Odbiorca)); }
     }
+
+    // Partia - GUID i numer partii
+    public Guid? PartiaGuid
+    {
+        get => _partiaGuid;
+        set
+        {
+            _partiaGuid = value;
+            OnPropertyChanged(nameof(PartiaGuid));
+            OnPropertyChanged(nameof(HasPartia));
+        }
+    }
+
+    public string PartiaNumber
+    {
+        get => _partiaNumber;
+        set
+        {
+            _partiaNumber = value;
+            OnPropertyChanged(nameof(PartiaNumber));
+            OnPropertyChanged(nameof(HasPartia));
+        }
+    }
+
+    public bool HasPartia => PartiaGuid.HasValue && !string.IsNullOrEmpty(PartiaNumber);
 
     public int ID
     {
