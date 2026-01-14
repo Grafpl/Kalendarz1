@@ -3969,6 +3969,23 @@ namespace Kalendarz1
         }
 
         /// <summary>
+        /// Otwiera okno zgłaszania wydania odpadów poubojowych (UPPZ)
+        /// </summary>
+        private void BtnOdpady_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var odpadyWindow = new IRZplusOdpadyWindow();
+                odpadyWindow.Owner = Window.GetWindow(this);
+                odpadyWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd otwierania okna odpadów: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
         /// Obsluga przycisku wyboru partii dla specyfikacji
         /// </summary>
         private void BtnWybierzPartie_Click(object sender, RoutedEventArgs e)

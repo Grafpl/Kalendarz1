@@ -645,6 +645,8 @@ namespace Kalendarz1.Services
 
                     // Zapytanie zgodne z formatem Excel ARiMR
                     // Pobieramy numer partii z tabeli PartiaDostawca przez PartiaGuid
+                    // UWAGA: PartiaGuid to UNIQUEIDENTIFIER, pd.guid to VARCHAR(36) - wymagany CAST
+                    // Pełny numer partii = CustomerID + Partia (np. "03726014001")
                     // Dodano PayWgt (KgDoZaplaty) i LumQnt do obliczenia KG konfiskat/padlych
                     var query = @"
                         SELECT
@@ -652,18 +654,19 @@ namespace Kalendarz1.Services
                             fc.CalcDate AS DataZdarzenia,
                             ISNULL(d.ShortName, 'Nieznany') AS Hodowca,
                             LTRIM(RTRIM(ISNULL(fc.CustomerGID, ''))) AS IdHodowcy,
-                            ISNULL(d.IRZPlus, '') AS IRZPlus,
-                            ISNULL(pd.Partia, '') AS NumerPartii,
+                            ISNULL(d.IRZPlus, ISNULL(d.AnimNo, '')) AS IRZPlus,
+                            ISNULL(fc.PartiaNumber, ISNULL(pd.CustomerID, '') + ISNULL(pd.Partia, '')) AS NumerPartii,
                             ISNULL(fc.DeclI1, 0) AS SztukiWszystkie,
                             ISNULL(fc.DeclI2, 0) AS SztukiPadle,
                             ISNULL(fc.DeclI3, 0) + ISNULL(fc.DeclI4, 0) + ISNULL(fc.DeclI5, 0) AS SztukiKonfiskaty,
                             ISNULL(fc.NettoWeight, 0) AS WagaNetto,
                             ISNULL(fc.PayWgt, 0) AS KgDoZaplaty,
                             ISNULL(fc.LumQnt, 0) AS Lumel,
-                            fc.CarLp AS LP
+                            fc.CarLp AS LP,
+                            fc.PartiaGuid
                         FROM dbo.FarmerCalc fc
                         LEFT JOIN dbo.Dostawcy d ON LTRIM(RTRIM(fc.CustomerGID)) = LTRIM(RTRIM(d.ID))
-                        LEFT JOIN dbo.PartiaDostawca pd ON fc.PartiaGuid = pd.guid
+                        LEFT JOIN dbo.PartiaDostawca pd ON CAST(fc.PartiaGuid AS VARCHAR(36)) = pd.guid
                         WHERE CAST(fc.CalcDate AS DATE) = @DataUboju
                         ORDER BY fc.CarLp";
 

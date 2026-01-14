@@ -669,6 +669,12 @@
                             Style="{StaticResource MainButtonStyle}"
                             Background="#00796B"
                             ToolTip="Wyślij zgłoszenie do systemu IRZplus ARiMR"/>
+                    <Button Content="🗑️ Odpady"
+                            x:Name="btnOdpady"
+                            Click="BtnOdpady_Click"
+                            Style="{StaticResource MainButtonStyle}"
+                            Background="#FF5722"
+                            ToolTip="Zgłoś wydanie odpadów poubojowych (UPPZ)"/>
                 </StackPanel>
             </Grid>
         </Border>

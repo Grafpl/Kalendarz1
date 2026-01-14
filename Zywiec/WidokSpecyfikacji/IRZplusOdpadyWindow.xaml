@@ -1,0 +1,260 @@
+<Window x:Class="Kalendarz1.Zywiec.WidokSpecyfikacji.IRZplusOdpadyWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="IRZplus - Zgłoszenie wydania odpadów poubojowych"
+        Height="700" Width="1100"
+        MinHeight="600" MinWidth="900"
+        WindowStartupLocation="CenterScreen"
+        Background="#F5F5F5">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- NAGŁÓWEK -->
+        <Border Grid.Row="0" Background="#FF5722" Padding="20,15">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="Zgłoszenie wydania odpadów poubojowych"
+                               FontSize="22" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock Text="Uboczne produkty pochodzenia zwierzęcego (UPPZ) - KAT1, KAT2, KAT3"
+                               FontSize="13" Foreground="#FFCCBC" Margin="0,3,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border x:Name="borderEnv" Background="Orange" CornerRadius="4" Padding="15,8">
+                        <TextBlock x:Name="txtEnvironment" Text="TESTOWE" FontWeight="Bold" Foreground="White"/>
+                    </Border>
+                    <Button Content="Ustawienia" Width="100" Height="35" Margin="10,0,0,0"
+                            Click="BtnSettings_Click" ToolTip="Ustawienia IRZplus"
+                            Background="#D84315" Foreground="White" BorderThickness="0"
+                            FontSize="12" Cursor="Hand"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- PANEL WYBORU DATY I KATEGORII -->
+        <Border Grid.Row="1" Background="White" Padding="20,15" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,30,0">
+                    <TextBlock Text="Data wydania:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,10,0"/>
+                    <DatePicker x:Name="dateWydania" Width="130" SelectedDateChanged="DateWydania_Changed"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,30,0">
+                    <TextBlock Text="Kategoria:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,10,0"/>
+                    <ComboBox x:Name="cmbKategoria" Width="280" SelectionChanged="CmbKategoria_Changed">
+                        <ComboBoxItem Content="KAT1 - Materiał szczególnego ryzyka (SRM)" Tag="KAT1"/>
+                        <ComboBoxItem Content="KAT2 - Obornik, treść przewodu, padłe" Tag="KAT2"/>
+                        <ComboBoxItem Content="KAT3 - Pierze, krew, tłuszcz, wnętrzności" Tag="KAT3" IsSelected="True"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <Button Grid.Column="4" Content="+ Dodaj pozycję" Click="BtnDodajPozycje_Click"
+                        Padding="15,8" Background="#4CAF50" Foreground="White"
+                        BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+            </Grid>
+        </Border>
+
+        <!-- LISTA ODPADÓW -->
+        <DataGrid Grid.Row="2" x:Name="dgOdpady"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  SelectionMode="Single"
+                  Margin="20,15"
+                  GridLinesVisibility="Horizontal"
+                  HorizontalGridLinesBrush="#EEEEEE"
+                  AlternatingRowBackground="#FFF8F5"
+                  RowBackground="White"
+                  RowHeight="38"
+                  Background="White"
+                  BorderBrush="#E0E0E0"
+                  BorderThickness="1">
+
+            <DataGrid.ColumnHeaderStyle>
+                <Style TargetType="DataGridColumnHeader">
+                    <Setter Property="Background" Value="#FF5722"/>
+                    <Setter Property="Foreground" Value="White"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                    <Setter Property="Padding" Value="10,8"/>
+                    <Setter Property="BorderBrush" Value="#E64A19"/>
+                    <Setter Property="BorderThickness" Value="0,0,1,0"/>
+                </Style>
+            </DataGrid.ColumnHeaderStyle>
+
+            <DataGrid.Columns>
+                <DataGridCheckBoxColumn Header="" Binding="{Binding Wybrana, UpdateSourceTrigger=PropertyChanged}" Width="35"/>
+
+                <DataGridTextColumn Header="Kategoria" Binding="{Binding KategoriaOdpadu}" Width="70" IsReadOnly="True">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="FontWeight" Value="Bold"/>
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+                <DataGridComboBoxColumn Header="Rodzaj odpadu" Width="140"
+                    SelectedItemBinding="{Binding RodzajOdpadu, UpdateSourceTrigger=PropertyChanged}"
+                    x:Name="colRodzaj"/>
+
+                <DataGridTextColumn Header="Ilość [kg]" Binding="{Binding IloscKg, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}" Width="90">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="FontWeight" Value="Bold"/>
+                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                            <Setter Property="Foreground" Value="#E64A19"/>
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="Padding" Value="0,0,5,0"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                    <DataGridTextColumn.EditingElementStyle>
+                        <Style TargetType="TextBox">
+                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                        </Style>
+                    </DataGridTextColumn.EditingElementStyle>
+                </DataGridTextColumn>
+
+                <DataGridTextColumn Header="Odbiorca" Binding="{Binding OdbiorcaNazwa, UpdateSourceTrigger=PropertyChanged}" Width="180">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="Padding" Value="5,0"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+                <DataGridTextColumn Header="NIP odbiorcy" Binding="{Binding OdbiorcaNIP, UpdateSourceTrigger=PropertyChanged}" Width="110">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="Padding" Value="5,0"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+                <DataGridTextColumn Header="Nr wet. odb." Binding="{Binding OdbiorcaWetNr, UpdateSourceTrigger=PropertyChanged}" Width="100">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="Padding" Value="5,0"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+                <DataGridTextColumn Header="Nr dokumentu" Binding="{Binding NumerDokumentu, UpdateSourceTrigger=PropertyChanged}" Width="110">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="Padding" Value="5,0"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+                <DataGridTextColumn Header="Nr rej. poj." Binding="{Binding NumerRejestracyjny, UpdateSourceTrigger=PropertyChanged}" Width="90">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="Padding" Value="5,0"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+                <DataGridTemplateColumn Header="" Width="40">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button Content="X" Click="BtnUsunPozycje_Click" Tag="{Binding}"
+                                    Width="25" Height="25" Background="#FFCDD2"
+                                    Foreground="#C62828" BorderThickness="0" Cursor="Hand"
+                                    ToolTip="Usuń pozycję"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- PODSUMOWANIE -->
+        <Border Grid.Row="3" Background="#FBE9E7" Padding="20,15" Margin="20,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Podsumowanie:" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,20,0"/>
+                    <Border Background="#FFCCBC" CornerRadius="4" Padding="12,6" Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Pozycji: " Foreground="#BF360C"/>
+                            <TextBlock x:Name="txtLiczbaPozycji" Text="0" FontWeight="Bold" Foreground="#BF360C"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#FFCCBC" CornerRadius="4" Padding="12,6" Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Suma KG: " Foreground="#BF360C"/>
+                            <TextBlock x:Name="txtSumaKg" Text="0.00" FontWeight="Bold" Foreground="#BF360C"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#FFCCBC" CornerRadius="4" Padding="12,6">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="KAT3: " Foreground="#BF360C"/>
+                            <TextBlock x:Name="txtSumaKat3" Text="0.00 kg" FontWeight="Bold" Foreground="#BF360C"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <TextBlock Grid.Column="1" x:Name="txtStatus" Text="Gotowe"
+                           VerticalAlignment="Center" Foreground="#757575"/>
+            </Grid>
+        </Border>
+
+        <!-- PRZYCISKI -->
+        <Border Grid.Row="4" Background="#ECEFF1" Padding="20,15">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="Historia wydań" Click="BtnHistoria_Click"
+                            Padding="15,10" Background="#607D8B" Foreground="White"
+                            BorderThickness="0" Cursor="Hand" Margin="0,0,10,0"/>
+                    <Button Content="Wczytaj szablon" Click="BtnWczytajSzablon_Click"
+                            Padding="15,10" Background="#78909C" Foreground="White"
+                            BorderThickness="0" Cursor="Hand"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Content="Zapisz lokalnie" Click="BtnZapiszLokalnie_Click"
+                            Padding="15,10" Background="#FFA726" Foreground="White"
+                            BorderThickness="0" Cursor="Hand" Margin="0,0,10,0"/>
+                    <Button x:Name="btnWyslij" Content="WYŚLIJ DO IRZplus" Click="BtnWyslij_Click"
+                            Padding="20,10" Background="#FF5722" Foreground="White"
+                            FontWeight="Bold" BorderThickness="0" Cursor="Hand" Margin="0,0,10,0"/>
+                    <Button Content="Zamknij" Click="BtnZamknij_Click"
+                            Padding="15,10" Background="#9E9E9E" Foreground="White"
+                            BorderThickness="0" Cursor="Hand"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

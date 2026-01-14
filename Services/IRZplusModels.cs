@@ -393,4 +393,165 @@ namespace Kalendarz1.Services
     }
 
     #endregion
+
+    #region Odpady - Uboczne Produkty Pochodzenia Zwierzęcego (UPPZ)
+
+    /// <summary>
+    /// Model odpadu/ubocznego produktu pochodzenia zwierzęcego do zgłoszenia IRZplus
+    /// Kategorie: KAT1, KAT2, KAT3
+    /// </summary>
+    public class OdpadDoIRZplus : System.ComponentModel.INotifyPropertyChanged
+    {
+        private bool _wybrana = true;
+        private string _kategoriaOdpadu;
+        private string _rodzajOdpadu;
+        private decimal _iloscKg;
+        private string _odbiorcaNazwa;
+        private string _odbiorcaNIP;
+        private string _odbiorcaWetNr;
+        private string _numerDokumentu;
+        private string _numerRejestracyjny;
+        private string _uwagi;
+
+        public int Id { get; set; }
+        public DateTime DataWydania { get; set; }
+
+        public string KategoriaOdpadu
+        {
+            get => _kategoriaOdpadu;
+            set { _kategoriaOdpadu = value; OnPropertyChanged(nameof(KategoriaOdpadu)); }
+        }
+
+        public string RodzajOdpadu
+        {
+            get => _rodzajOdpadu;
+            set { _rodzajOdpadu = value; OnPropertyChanged(nameof(RodzajOdpadu)); }
+        }
+
+        public decimal IloscKg
+        {
+            get => _iloscKg;
+            set { _iloscKg = value; OnPropertyChanged(nameof(IloscKg)); }
+        }
+
+        public string OdbiorcaNazwa
+        {
+            get => _odbiorcaNazwa;
+            set { _odbiorcaNazwa = value; OnPropertyChanged(nameof(OdbiorcaNazwa)); }
+        }
+
+        public string OdbiorcaNIP
+        {
+            get => _odbiorcaNIP;
+            set { _odbiorcaNIP = value; OnPropertyChanged(nameof(OdbiorcaNIP)); }
+        }
+
+        public string OdbiorcaWetNr
+        {
+            get => _odbiorcaWetNr;
+            set { _odbiorcaWetNr = value; OnPropertyChanged(nameof(OdbiorcaWetNr)); }
+        }
+
+        public string NumerDokumentu
+        {
+            get => _numerDokumentu;
+            set { _numerDokumentu = value; OnPropertyChanged(nameof(NumerDokumentu)); }
+        }
+
+        public string NumerRejestracyjny
+        {
+            get => _numerRejestracyjny;
+            set { _numerRejestracyjny = value; OnPropertyChanged(nameof(NumerRejestracyjny)); }
+        }
+
+        public string Uwagi
+        {
+            get => _uwagi;
+            set { _uwagi = value; OnPropertyChanged(nameof(Uwagi)); }
+        }
+
+        public bool Wybrana
+        {
+            get => _wybrana;
+            set { _wybrana = value; OnPropertyChanged(nameof(Wybrana)); }
+        }
+
+        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string propertyName) =>
+            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));
+    }
+
+    /// <summary>
+    /// Kategorie odpadów poubojowych zgodne z rozporządzeniem (WE) nr 1069/2009
+    /// </summary>
+    public static class KategorieOdpadow
+    {
+        public const string KAT1 = "KAT1";  // Materiał szczególnego ryzyka (SRM)
+        public const string KAT2 = "KAT2";  // Obornik, treść przewodu pokarmowego
+        public const string KAT3 = "KAT3";  // Uboczne produkty nadające się do przetworzenia
+
+        public static readonly Dictionary<string, string> Opisy = new()
+        {
+            { "KAT1", "Materiał szczególnego ryzyka (SRM)" },
+            { "KAT2", "Obornik, treść przewodu pokarmowego, padłe zwierzęta" },
+            { "KAT3", "Uboczne produkty nadające się do przetworzenia (pierze, krew, tłuszcz)" }
+        };
+
+        public static readonly List<string> RodzajeKAT1 = new()
+        {
+            "Materiał SRM",
+            "Produkty z BSE",
+            "Inne KAT1"
+        };
+
+        public static readonly List<string> RodzajeKAT2 = new()
+        {
+            "Obornik",
+            "Treść przewodu pokarmowego",
+            "Padłe zwierzęta",
+            "Konfiskaty weterynaryjne",
+            "Inne KAT2"
+        };
+
+        public static readonly List<string> RodzajeKAT3 = new()
+        {
+            "Pierze",
+            "Krew",
+            "Wnętrzności",
+            "Tłuszcz",
+            "Nogi",
+            "Głowy",
+            "Skóra",
+            "Kości",
+            "Odpadki mięsne",
+            "Inne KAT3"
+        };
+
+        public static List<string> GetRodzajeForKategoria(string kategoria)
+        {
+            return kategoria switch
+            {
+                KAT1 => RodzajeKAT1,
+                KAT2 => RodzajeKAT2,
+                KAT3 => RodzajeKAT3,
+                _ => RodzajeKAT3
+            };
+        }
+    }
+
+    /// <summary>
+    /// Model odbiorcy odpadów
+    /// </summary>
+    public class OdbiorcaOdpadow
+    {
+        public int Id { get; set; }
+        public string Nazwa { get; set; }
+        public string NIP { get; set; }
+        public string NumerWeterynaryjny { get; set; }
+        public string Adres { get; set; }
+        public string Telefon { get; set; }
+        public bool Aktywny { get; set; } = true;
+    }
+
+    #endregion
 }
