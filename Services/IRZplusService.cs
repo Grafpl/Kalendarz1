@@ -286,6 +286,82 @@ namespace Kalendarz1.Services
         }
 
         public void Dispose() => _httpClient?.Dispose();
+
+        // Alias dla kompatybilności z istniejącym kodem
+        public Task<IRZplusResult> SendZgloszenieAsync(ZgloszenieZbiorczeRequest request) => WyslijZgloszenieAsync(request);
+
+        public ZgloszenieZbiorczeRequest ConvertToZgloszenie(List<SpecyfikacjaDoIRZplus> specyfikacje)
+        {
+            var request = new ZgloszenieZbiorczeRequest
+            {
+                NumerUbojni = _settings.NumerUbojni,
+                DataUboju = specyfikacje.FirstOrDefault()?.DataZdarzenia ?? DateTime.Now,
+                TypZgloszenia = "UBOJ_DROBIU",
+                Dyspozycje = new List<DyspozycjaUboju>()
+            };
+
+            foreach (var spec in specyfikacje.Where(s => s.Wybrana))
+            {
+                request.Dyspozycje.Add(new DyspozycjaUboju
+                {
+                    NumerSiedliska = spec.IRZPlus ?? "",
+                    GatunekDrobiu = "KURCZAK",
+                    IloscSztuk = spec.LiczbaSztukDrobiu,
+                    WagaKg = spec.WagaNetto,
+                    IloscPadlych = spec.SztukiPadle,
+                    NumerPartii = spec.NumerPartii ?? ""
+                });
+            }
+
+            return request;
+        }
+
+        public async Task LogToDatabase(string connectionString, ZgloszenieZbiorczeRequest request, IRZplusResult result, string userId, string userName)
+        {
+            try
+            {
+                using var conn = new SqlConnection(connectionString);
+                await conn.OpenAsync();
+
+                var createTableSql = @"
+                    IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'IRZplusLog')
+                    CREATE TABLE IRZplusLog (
+                        ID INT IDENTITY(1,1) PRIMARY KEY,
+                        DataWyslania DATETIME NOT NULL,
+                        NumerZgloszenia NVARCHAR(100),
+                        Status NVARCHAR(50),
+                        DataUboju DATE,
+                        IloscDyspozycji INT,
+                        SumaIloscSztuk INT,
+                        SumaWagaKg DECIMAL(18,2),
+                        UzytkownikId NVARCHAR(50),
+                        UzytkownikNazwa NVARCHAR(200),
+                        Uwagi NVARCHAR(MAX)
+                    )";
+
+                using (var cmd = new SqlCommand(createTableSql, conn))
+                    await cmd.ExecuteNonQueryAsync();
+
+                var insertSql = @"
+                    INSERT INTO IRZplusLog (DataWyslania, NumerZgloszenia, Status, DataUboju, IloscDyspozycji, SumaIloscSztuk, SumaWagaKg, UzytkownikId, UzytkownikNazwa, Uwagi)
+                    VALUES (@DataWyslania, @NumerZgloszenia, @Status, @DataUboju, @IloscDyspozycji, @SumaIloscSztuk, @SumaWagaKg, @UzytkownikId, @UzytkownikNazwa, @Uwagi)";
+
+                using var insertCmd = new SqlCommand(insertSql, conn);
+                insertCmd.Parameters.AddWithValue("@DataWyslania", DateTime.Now);
+                insertCmd.Parameters.AddWithValue("@NumerZgloszenia", (object)result.NumerZgloszenia ?? DBNull.Value);
+                insertCmd.Parameters.AddWithValue("@Status", result.Success ? "WYSLANE" : "BLAD");
+                insertCmd.Parameters.AddWithValue("@DataUboju", request.DataUboju.Date);
+                insertCmd.Parameters.AddWithValue("@IloscDyspozycji", request.Dyspozycje?.Count ?? 0);
+                insertCmd.Parameters.AddWithValue("@SumaIloscSztuk", request.Dyspozycje?.Sum(d => d.IloscSztuk) ?? 0);
+                insertCmd.Parameters.AddWithValue("@SumaWagaKg", request.Dyspozycje?.Sum(d => d.WagaKg) ?? 0);
+                insertCmd.Parameters.AddWithValue("@UzytkownikId", userId ?? "");
+                insertCmd.Parameters.AddWithValue("@UzytkownikNazwa", userName ?? "");
+                insertCmd.Parameters.AddWithValue("@Uwagi", result.Message ?? "");
+
+                await insertCmd.ExecuteNonQueryAsync();
+            }
+            catch { /* Nie przerywaj głównej operacji */ }
+        }
     }
 
     public class IRZplusSettings
@@ -308,6 +384,8 @@ namespace Kalendarz1.Services
         public string Message { get; set; }
         public string NumerZgloszenia { get; set; }
         public string ResponseData { get; set; }
+        public List<string> Warnings { get; set; } = new List<string>();
+        public List<string> Errors { get; set; } = new List<string>();
     }
 
     public class TokenResponse
