@@ -1,4 +1,5 @@
 ﻿using Kalendarz1.Services;
+using Kalendarz1.Spotkania.Services;
 using System;
 using System.IO;
 using System.Reflection;
@@ -10,6 +11,28 @@ namespace Kalendarz1
     {
         public static string UserID { get; set; }
         public static string UserFullName { get; set; }
+
+        /// <summary>
+        /// Uruchamia globalny serwis powiadomień o spotkaniach
+        /// Wywoływane po zalogowaniu użytkownika
+        /// </summary>
+        public static void StartNotyfikacjeService()
+        {
+            if (!string.IsNullOrEmpty(UserID))
+            {
+                var service = NotyfikacjeManager.GetInstance(UserID);
+                service.Start();
+            }
+        }
+
+        /// <summary>
+        /// Zatrzymuje serwis powiadomień
+        /// Wywoływane przy wylogowaniu lub zamknięciu aplikacji
+        /// </summary>
+        public static void StopNotyfikacjeService()
+        {
+            NotyfikacjeManager.Shutdown();
+        }
 
         // === ITEXTSHARP WORKAROUND ===
         // Inicjalizacja iTextSharp rozwiązuje problem NullReferenceException

@@ -1,0 +1,412 @@
+<Window x:Class="Kalendarz1.Spotkania.Views.SpotkaniaGlowneWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Centrum Spotkań" Height="800" Width="1400"
+        WindowStartupLocation="CenterScreen"
+        Background="#F5F5F5">
+
+    <Window.Resources>
+        <!-- Style przycisków -->
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Background" Value="#2196F3"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="20,12"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#1976D2"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#1565C0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
+            <Setter Property="Background" Value="#607D8B"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#546E7A"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
+            <Setter Property="Background" Value="#F44336"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#D32F2F"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="SuccessButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
+            <Setter Property="Background" Value="#4CAF50"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#43A047"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Style kart -->
+        <Style x:Key="CardBorder" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="8" ShadowDepth="1" Opacity="0.15" Color="#000000"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Style TabControl -->
+        <Style TargetType="TabItem">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Border" Background="Transparent" Padding="16,10" Margin="0,0,4,0" CornerRadius="6,6,0,0">
+                            <ContentPresenter ContentSource="Header" HorizontalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#E3F2FD"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Nagłówek -->
+        <Border Grid.Row="0" Background="#1976D2" Padding="20">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Centrum Spotkań" FontSize="24" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+
+                    <!-- Dzwonek powiadomień -->
+                    <Button x:Name="BtnNotyfikacje" Margin="30,0,0,0" Background="Transparent"
+                            BorderThickness="0" Cursor="Hand" Click="BtnNotyfikacje_Click"
+                            ToolTip="Powiadomienia">
+                        <Grid>
+                            <TextBlock Text="🔔" FontSize="24"/>
+                            <Border x:Name="BadgeNotyfikacje" Background="#F44336" CornerRadius="10"
+                                    Padding="6,2" Margin="12,-8,-8,0" HorizontalAlignment="Right"
+                                    VerticalAlignment="Top" Visibility="Collapsed">
+                                <TextBlock x:Name="TxtLicznikNotyfikacji" Text="0" FontSize="11"
+                                           Foreground="White" FontWeight="Bold"/>
+                            </Border>
+                        </Grid>
+                    </Button>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="BtnFireflies" Content="🎙️ Fireflies.ai" Style="{StaticResource SecondaryButton}"
+                            Margin="0,0,10,0" Click="BtnFireflies_Click"/>
+                    <Button x:Name="BtnNoweSpotkanie" Content="+ Nowe spotkanie" Style="{StaticResource SuccessButton}"
+                            Click="BtnNoweSpotkanie_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Główna zawartość -->
+        <Grid Grid.Row="1" Margin="20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="320"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Panel lewy - Nadchodzące spotkania -->
+            <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,10,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0">
+                        <TextBlock Text="📅 Nadchodzące spotkania" FontSize="16" FontWeight="SemiBold"
+                                   Foreground="#1976D2" Margin="0,0,0,15"/>
+
+                        <ComboBox x:Name="CmbZakresNadchodzace" SelectedIndex="0" Margin="0,0,0,10"
+                                  SelectionChanged="CmbZakresNadchodzace_Changed">
+                            <ComboBoxItem Content="Dzisiaj"/>
+                            <ComboBoxItem Content="Ten tydzień"/>
+                            <ComboBoxItem Content="Ten miesiąc"/>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <ListBox x:Name="ListaNadchodzace" Grid.Row="1" BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             SelectionChanged="ListaNadchodzace_SelectionChanged">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{Binding Kolor, Converter={x:Null}}"
+                                        CornerRadius="6" Padding="12" Margin="0,4">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="#E3F2FD"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding CzyDzisiaj}" Value="True">
+                                                    <Setter Property="Background" Value="#FFF3E0"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <TextBlock Grid.Row="0" Text="{Binding Tytul}" FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis" FontSize="13"/>
+                                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,4,0,0">
+                                            <TextBlock Text="{Binding DataDisplay}" FontSize="12" Foreground="#666"/>
+                                            <TextBlock Text=" • " Foreground="#999"/>
+                                            <TextBlock Text="{Binding TypSpotkania}" FontSize="12" Foreground="#666"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,4,0,0">
+                                            <TextBlock Text="👥 " FontSize="11"/>
+                                            <TextBlock Text="{Binding UczestnicyDisplay}" FontSize="11" Foreground="#888"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <!-- Panel prawy - Zakładki -->
+            <TabControl x:Name="TabGlowny" Grid.Column="1" Background="Transparent" BorderThickness="0">
+
+                <!-- Zakładka: Wszystkie spotkania -->
+                <TabItem Header="📋 Wszystkie spotkania">
+                    <Border Style="{StaticResource CardBorder}" Margin="0,10,0,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Filtry -->
+                            <Grid Grid.Row="0" Margin="0,0,0,15">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                                    <TextBlock Text="Od:" FontSize="12" Foreground="#666" Margin="0,0,0,4"/>
+                                    <DatePicker x:Name="DpOdDaty" Width="130"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Margin="0,0,15,0">
+                                    <TextBlock Text="Do:" FontSize="12" Foreground="#666" Margin="0,0,0,4"/>
+                                    <DatePicker x:Name="DpDoDaty" Width="130"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2" Margin="0,0,15,0">
+                                    <TextBlock Text="Typ:" FontSize="12" Foreground="#666" Margin="0,0,0,4"/>
+                                    <ComboBox x:Name="CmbTypFiltr" Width="120" SelectedIndex="0">
+                                        <ComboBoxItem Content="Wszystkie"/>
+                                        <ComboBoxItem Content="Zespół"/>
+                                        <ComboBoxItem Content="Odbiorca"/>
+                                        <ComboBoxItem Content="Hodowca"/>
+                                        <ComboBoxItem Content="Online"/>
+                                    </ComboBox>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="3" Margin="0,0,15,0">
+                                    <TextBlock Text="Status:" FontSize="12" Foreground="#666" Margin="0,0,0,4"/>
+                                    <ComboBox x:Name="CmbStatusFiltr" Width="130" SelectedIndex="0">
+                                        <ComboBoxItem Content="Wszystkie"/>
+                                        <ComboBoxItem Content="Zaplanowane"/>
+                                        <ComboBoxItem Content="Zakończone"/>
+                                        <ComboBoxItem Content="Anulowane"/>
+                                    </ComboBox>
+                                </StackPanel>
+
+                                <CheckBox x:Name="ChkMojeSpotkania" Grid.Column="4" Content="Tylko moje spotkania"
+                                          VerticalAlignment="Bottom" Margin="0,0,0,8"/>
+
+                                <Button Grid.Column="5" Content="🔍 Filtruj" Style="{StaticResource ActionButton}"
+                                        VerticalAlignment="Bottom" Click="BtnFiltruj_Click"/>
+                            </Grid>
+
+                            <!-- Lista spotkań -->
+                            <DataGrid x:Name="GridSpotkania" Grid.Row="1" AutoGenerateColumns="False"
+                                      IsReadOnly="True" SelectionMode="Single"
+                                      GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                                      BorderThickness="1" BorderBrush="#E0E0E0"
+                                      RowBackground="White" AlternatingRowBackground="#FAFAFA"
+                                      MouseDoubleClick="GridSpotkania_DoubleClick">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Data" Binding="{Binding DataDisplay}" Width="120"/>
+                                    <DataGridTextColumn Header="Tytuł" Binding="{Binding Tytul}" Width="*"/>
+                                    <DataGridTextColumn Header="Typ" Binding="{Binding TypSpotkania}" Width="90"/>
+                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100"/>
+                                    <DataGridTextColumn Header="Organizator" Binding="{Binding OrganizatorNazwa}" Width="140"/>
+                                    <DataGridTextColumn Header="Uczestnicy" Binding="{Binding UczestnicyDisplay}" Width="80"/>
+                                    <DataGridTemplateColumn Header="Akcje" Width="120">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Button Content="📝" ToolTip="Notatka" Padding="6,2" Margin="2"
+                                                            Visibility="{Binding MaNotatke, Converter={x:Null}}"
+                                                            Click="BtnNotatka_Click" Tag="{Binding SpotkaniID}"/>
+                                                    <Button Content="🎙️" ToolTip="Transkrypcja" Padding="6,2" Margin="2"
+                                                            Visibility="{Binding MaTranskrypcje, Converter={x:Null}}"
+                                                            Click="BtnTranskrypcja_Click" Tag="{Binding SpotkaniID}"/>
+                                                    <Button Content="🔗" ToolTip="Link do spotkania" Padding="6,2" Margin="2"
+                                                            Visibility="{Binding MaLink, Converter={x:Null}}"
+                                                            Click="BtnLink_Click" Tag="{Binding SpotkaniID}"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <!-- Przyciski akcji -->
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+                                <Button x:Name="BtnPodglad" Content="👁️ Podgląd" Style="{StaticResource SecondaryButton}"
+                                        Margin="0,0,10,0" Click="BtnPodglad_Click"/>
+                                <Button x:Name="BtnEdytuj" Content="✏️ Edytuj" Style="{StaticResource ActionButton}"
+                                        Margin="0,0,10,0" Click="BtnEdytuj_Click"/>
+                                <Button x:Name="BtnAnuluj" Content="❌ Anuluj" Style="{StaticResource DangerButton}"
+                                        Click="BtnAnuluj_Click"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </TabItem>
+
+                <!-- Zakładka: Notatki ze spotkań -->
+                <TabItem Header="📝 Notatki">
+                    <Border Style="{StaticResource CardBorder}" Margin="0,10,0,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,15">
+                                <Button Content="📄 Otwórz moduł notatek" Style="{StaticResource ActionButton}"
+                                        Click="BtnOtworzNotatki_Click"/>
+                                <TextBlock Text="   Zarządzaj wszystkimi notatkami ze spotkań w dedykowanym module"
+                                           VerticalAlignment="Center" Foreground="#666"/>
+                            </StackPanel>
+
+                            <DataGrid x:Name="GridNotatki" Grid.Row="1" AutoGenerateColumns="False"
+                                      IsReadOnly="True" SelectionMode="Single"
+                                      GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                                      BorderThickness="1" BorderBrush="#E0E0E0">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Data" Binding="{Binding DataSpotkania, StringFormat=dd.MM.yyyy}" Width="100"/>
+                                    <DataGridTextColumn Header="Typ" Binding="{Binding TypSpotkania}" Width="90"/>
+                                    <DataGridTextColumn Header="Temat" Binding="{Binding Temat}" Width="*"/>
+                                    <DataGridTextColumn Header="Twórca" Binding="{Binding TworcaNazwa}" Width="140"/>
+                                    <DataGridTextColumn Header="Kontrahent" Binding="{Binding KontrahentNazwa}" Width="150"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
+                </TabItem>
+
+                <!-- Zakładka: Transkrypcje Fireflies -->
+                <TabItem Header="🎙️ Transkrypcje">
+                    <Border Style="{StaticResource CardBorder}" Margin="0,10,0,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,15">
+                                <Button x:Name="BtnSynchronizuj" Content="🔄 Synchronizuj z Fireflies"
+                                        Style="{StaticResource ActionButton}" Click="BtnSynchronizuj_Click"/>
+                                <TextBlock x:Name="TxtStatusSync" Text="" VerticalAlignment="Center"
+                                           Margin="15,0,0,0" Foreground="#666"/>
+                                <ProgressBar x:Name="ProgressSync" Width="200" Height="20"
+                                             Margin="15,0,0,0" Visibility="Collapsed"/>
+                            </StackPanel>
+
+                            <DataGrid x:Name="GridTranskrypcje" Grid.Row="1" AutoGenerateColumns="False"
+                                      IsReadOnly="True" SelectionMode="Single"
+                                      GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                                      BorderThickness="1" BorderBrush="#E0E0E0"
+                                      MouseDoubleClick="GridTranskrypcje_DoubleClick">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Data" Binding="{Binding DataSpotkaniaDisplay}" Width="120"/>
+                                    <DataGridTextColumn Header="Tytuł" Binding="{Binding Tytul}" Width="*"/>
+                                    <DataGridTextColumn Header="Czas trwania" Binding="{Binding CzasTrwaniaDisplay}" Width="90"/>
+                                    <DataGridTextColumn Header="Uczestnicy" Binding="{Binding LiczbaUczestnikow}" Width="80"/>
+                                    <DataGridTemplateColumn Header="Powiązane" Width="100">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="📅" Visibility="{Binding MaSpotkanie, Converter={x:Null}}" ToolTip="Powiązane ze spotkaniem"/>
+                                                    <TextBlock Text="📝" Visibility="{Binding MaNotatke, Converter={x:Null}}" ToolTip="Powiązane z notatką"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+                                <Button x:Name="BtnEdytujTranskrypcje" Content="✏️ Edytuj transkrypcję" Style="{StaticResource SuccessButton}"
+                                        Margin="0,0,10,0" Click="BtnEdytujTranskrypcje_Click"/>
+                                <Button Content="📋 Utwórz notatkę z transkrypcji" Style="{StaticResource ActionButton}"
+                                        Margin="0,0,10,0" Click="BtnUtworzNotatkeZTranskrypcji_Click"/>
+                                <Button Content="🔗 Powiąż ze spotkaniem" Style="{StaticResource SecondaryButton}"
+                                        Click="BtnPowiazTranskrypcje_Click"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </TabItem>
+
+            </TabControl>
+        </Grid>
+    </Grid>
+</Window>
