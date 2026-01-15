@@ -417,109 +417,6 @@
                     </DataGrid.Columns>
                 </DataGrid>
 
-                <!-- Widok 4 kamer -->
-                <Grid x:Name="viewCameras" Visibility="Collapsed" Background="#121212">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <!-- Kamera 1 - Wjazd -->
-                    <Border Grid.Row="0" Grid.Column="0" Background="#1E1E2E" CornerRadius="12" Margin="5" BorderBrush="#333" BorderThickness="2">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                            <Border Grid.Row="0" Background="#252530" CornerRadius="10,10,0,0" Padding="10,6">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="🎥" FontSize="20" Margin="0,0,8,0"/>
-                                    <TextBlock Text="KAMERA 1 - WJAZD" FontSize="16" FontWeight="Bold" Foreground="White"/>
-                                </StackPanel>
-                            </Border>
-                            <Border Grid.Row="1" Background="Black" Margin="5" CornerRadius="8" ClipToBounds="True">
-                                <Grid>
-                                    <Image x:Name="cameraImage1" Stretch="Uniform"/>
-                                    <TextBlock x:Name="cameraStatus1" Text="Ładowanie..." FontSize="18" Foreground="Gray"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Grid>
-                            </Border>
-                        </Grid>
-                    </Border>
-
-                    <!-- Kamera 2 - Wyjazd -->
-                    <Border Grid.Row="0" Grid.Column="1" Background="#1E1E2E" CornerRadius="12" Margin="5" BorderBrush="#333" BorderThickness="2">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                            <Border Grid.Row="0" Background="#252530" CornerRadius="10,10,0,0" Padding="10,6">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="🎥" FontSize="20" Margin="0,0,8,0"/>
-                                    <TextBlock Text="KAMERA 2 - WYJAZD" FontSize="16" FontWeight="Bold" Foreground="White"/>
-                                </StackPanel>
-                            </Border>
-                            <Border Grid.Row="1" Background="Black" Margin="5" CornerRadius="8" ClipToBounds="True">
-                                <Grid>
-                                    <Image x:Name="cameraImage2" Stretch="Uniform"/>
-                                    <TextBlock x:Name="cameraStatus2" Text="Ładowanie..." FontSize="18" Foreground="Gray"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Grid>
-                            </Border>
-                        </Grid>
-                    </Border>
-
-                    <!-- Kamera 3 - Waga -->
-                    <Border Grid.Row="1" Grid.Column="0" Background="#1E1E2E" CornerRadius="12" Margin="5" BorderBrush="#333" BorderThickness="2">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                            <Border Grid.Row="0" Background="#252530" CornerRadius="10,10,0,0" Padding="10,6">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="🎥" FontSize="20" Margin="0,0,8,0"/>
-                                    <TextBlock Text="KAMERA 3 - WAGA" FontSize="16" FontWeight="Bold" Foreground="White"/>
-                                </StackPanel>
-                            </Border>
-                            <Border Grid.Row="1" Background="Black" Margin="5" CornerRadius="8" ClipToBounds="True">
-                                <Grid>
-                                    <Image x:Name="cameraImage3" Stretch="Uniform"/>
-                                    <TextBlock x:Name="cameraStatus3" Text="Ładowanie..." FontSize="18" Foreground="Gray"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Grid>
-                            </Border>
-                        </Grid>
-                    </Border>
-
-                    <!-- Kamera 4 - Parking -->
-                    <Border Grid.Row="1" Grid.Column="1" Background="#1E1E2E" CornerRadius="12" Margin="5" BorderBrush="#333" BorderThickness="2">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                            <Border Grid.Row="0" Background="#252530" CornerRadius="10,10,0,0" Padding="10,6">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="🎥" FontSize="20" Margin="0,0,8,0"/>
-                                    <TextBlock Text="KAMERA 4 - PARKING" FontSize="16" FontWeight="Bold" Foreground="White"/>
-                                </StackPanel>
-                            </Border>
-                            <Border Grid.Row="1" Background="Black" Margin="5" CornerRadius="8" ClipToBounds="True">
-                                <Grid>
-                                    <Image x:Name="cameraImage4" Stretch="Uniform"/>
-                                    <TextBlock x:Name="cameraStatus4" Text="Ładowanie..." FontSize="18" Foreground="Gray"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Grid>
-                            </Border>
-                        </Grid>
-                    </Border>
-                </Grid>
 
                 <!-- Przyciski dla ODPADY -->
                 <StackPanel x:Name="panelButtonsLeft" VerticalAlignment="Bottom" HorizontalAlignment="Right" 
@@ -680,7 +577,7 @@
         </Grid>
 
         <!-- Prawa strona - panel wagi -->
-        <Border Grid.Column="1" Background="#16161D" BorderBrush="#333" BorderThickness="2,0,0,0">
+        <Border x:Name="panelRight" Grid.Column="1" Background="#16161D" BorderBrush="#333" BorderThickness="2,0,0,0">
             <Grid Margin="10">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -915,6 +812,59 @@
         <!-- Ukryte pola na wartości wagi -->
         <TextBlock x:Name="txtBrutto" Visibility="Collapsed" Text="0"/>
         <TextBlock x:Name="txtTara" Visibility="Collapsed" Text="0"/>
+
+        <!-- Widok 4 kamer - pełny ekran -->
+        <Grid x:Name="viewCameras" Visibility="Collapsed" Grid.ColumnSpan="2" Background="Black">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Kamera 1 - Wjazd -->
+            <Grid Grid.Row="0" Grid.Column="0" Background="Black">
+                <Image x:Name="cameraImage1" Stretch="Uniform"/>
+                <TextBlock x:Name="cameraStatus1" Text="Ładowanie..." FontSize="24" Foreground="#555"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Text="WJAZD" FontSize="14" FontWeight="Bold" Foreground="#89B4FA"
+                           HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8,5,0,0" Opacity="0.7"/>
+            </Grid>
+
+            <!-- Kamera 2 - Wyjazd -->
+            <Grid Grid.Row="0" Grid.Column="1" Background="Black">
+                <Image x:Name="cameraImage2" Stretch="Uniform"/>
+                <TextBlock x:Name="cameraStatus2" Text="Ładowanie..." FontSize="24" Foreground="#555"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Text="WYJAZD" FontSize="14" FontWeight="Bold" Foreground="#89B4FA"
+                           HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8,5,0,0" Opacity="0.7"/>
+            </Grid>
+
+            <!-- Kamera 3 - Waga -->
+            <Grid Grid.Row="1" Grid.Column="0" Background="Black">
+                <Image x:Name="cameraImage3" Stretch="Uniform"/>
+                <TextBlock x:Name="cameraStatus3" Text="Ładowanie..." FontSize="24" Foreground="#555"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Text="WAGA" FontSize="14" FontWeight="Bold" Foreground="#89B4FA"
+                           HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8,5,0,0" Opacity="0.7"/>
+            </Grid>
+
+            <!-- Kamera 4 - Parking -->
+            <Grid Grid.Row="1" Grid.Column="1" Background="Black">
+                <Image x:Name="cameraImage4" Stretch="Uniform"/>
+                <TextBlock x:Name="cameraStatus4" Text="Ładowanie..." FontSize="24" Foreground="#555"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Text="PARKING" FontSize="14" FontWeight="Bold" Foreground="#89B4FA"
+                           HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8,5,0,0" Opacity="0.7"/>
+            </Grid>
+
+            <!-- Separator pionowy -->
+            <Border Grid.RowSpan="2" Grid.Column="0" HorizontalAlignment="Right" Width="1" Background="#333"/>
+            <!-- Separator poziomy -->
+            <Border Grid.Row="0" Grid.ColumnSpan="2" VerticalAlignment="Bottom" Height="1" Background="#333"/>
+        </Grid>
 
         <!-- Overlay klawiatury ekranowej -->
         <Grid x:Name="KeyboardOverlay" Visibility="Collapsed" Grid.ColumnSpan="2" Background="#90000000" 

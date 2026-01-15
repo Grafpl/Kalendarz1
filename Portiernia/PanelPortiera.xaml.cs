@@ -687,6 +687,7 @@ namespace Kalendarz1
                     panelEditCar.Visibility = Visibility.Collapsed;
                     btnScanAvilog.Visibility = Visibility.Visible;
                     btnPrintAvilog.Visibility = Visibility.Visible;
+                    panelRight.Visibility = Visibility.Visible;
                     LoadDostawy();
                 }
                 else if (rb.Name == "rbOdpady")
@@ -703,6 +704,7 @@ namespace Kalendarz1
                     panelEditCar.Visibility = Visibility.Visible;
                     btnScanAvilog.Visibility = Visibility.Collapsed;
                     btnPrintAvilog.Visibility = Visibility.Collapsed;
+                    panelRight.Visibility = Visibility.Visible;
                     btnKrew.IsChecked = true;
                     LoadOdbiorcyDlaTowar(aktualnyTowar);
                     LoadDostawy();
@@ -724,10 +726,13 @@ namespace Kalendarz1
             viewCameras.Visibility = Visibility.Visible;
             panelButtonsLeft.Visibility = Visibility.Collapsed;
             panelCommodity.Visibility = Visibility.Collapsed;
-            panelReadOnlyCar.Visibility = Visibility.Visible;
+            panelReadOnlyCar.Visibility = Visibility.Collapsed;
             panelEditCar.Visibility = Visibility.Collapsed;
             btnScanAvilog.Visibility = Visibility.Collapsed;
             btnPrintAvilog.Visibility = Visibility.Collapsed;
+
+            // Schowaj prawy panel - pełny ekran dla kamer
+            panelRight.Visibility = Visibility.Collapsed;
 
             // Uruchom strumienie 4 kamer
             StartCameraViewStream();
