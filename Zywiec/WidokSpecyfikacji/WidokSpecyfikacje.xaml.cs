@@ -873,6 +873,9 @@ namespace Kalendarz1
                 int index = transportData.IndexOf(selectedTransportRow);
                 if (index > 0)
                 {
+                    int oldLp = index + 1;
+                    int newLp = index;
+
                     // Przesuń w Transport
                     transportData.Move(index, index - 1);
                     UpdateTransportNrNumbers();
@@ -882,6 +885,9 @@ namespace Kalendarz1
                     SyncSpecyfikacjeOrderFromTransport();
                     // Odśwież Płachtę
                     RefreshPlachtaFromSpecyfikacje();
+
+                    // Zapisz do historii zmian
+                    RecordChange(selectedTransportRow.ID, "TRANSPORT_MOVE_UP", "LP", oldLp.ToString(), newLp.ToString());
                 }
             }
         }
@@ -893,6 +899,9 @@ namespace Kalendarz1
                 int index = transportData.IndexOf(selectedTransportRow);
                 if (index < transportData.Count - 1)
                 {
+                    int oldLp = index + 1;
+                    int newLp = index + 2;
+
                     // Przesuń w Transport
                     transportData.Move(index, index + 1);
                     UpdateTransportNrNumbers();
@@ -902,6 +911,9 @@ namespace Kalendarz1
                     SyncSpecyfikacjeOrderFromTransport();
                     // Odśwież Płachtę
                     RefreshPlachtaFromSpecyfikacje();
+
+                    // Zapisz do historii zmian
+                    RecordChange(selectedTransportRow.ID, "TRANSPORT_MOVE_DOWN", "LP", oldLp.ToString(), newLp.ToString());
                 }
             }
         }
@@ -1479,6 +1491,7 @@ namespace Kalendarz1
                         LoadPdfStatusForAllRows(); // Załaduj status PDF dla wszystkich wierszy
                         AssignSupplierColorsAndGroups(); // Przypisz kolory dostawcom
                         AutoShowColumnsBasedOnData(); // Auto-pokaż kolumny jeśli dane zawierają wartości
+                        LoadSpecyfikacjeZatwierdzenia(); // Załaduj status wprowadzenia/weryfikacji
                         UpdateStatus($"Załadowano {dataTable.Rows.Count} rekordów");
                     }
                     else
@@ -1583,12 +1596,23 @@ namespace Kalendarz1
                 return;
             }
 
+            // BLOKADA: Sprawdź czy wiersz jest wprowadzony (zatwierdzony)
+            if (selected.JestWprowadzony)
+            {
+                MessageBox.Show($"Nie można przesunąć wiersza - został już wprowadzony przez: {selected.ZatwierdzonePrzez}\n\nWiersz o statusie 'wprowadzone' jest zablokowany przed zmianami.",
+                    "Blokada edycji", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             int currentIndex = specyfikacjeData.IndexOf(selected);
             if (currentIndex <= 0)
             {
                 UpdateStatus("Wiersz jest już na górze");
                 return;
             }
+
+            int oldLp = currentIndex + 1;
+            int newLp = currentIndex;
 
             // Przesuń wiersz w górę
             specyfikacjeData.Move(currentIndex, currentIndex - 1);
@@ -1600,6 +1624,9 @@ namespace Kalendarz1
             // Synchronizuj Transport i Płachtę
             RefreshTransportFromSpecyfikacje();
             RefreshPlachtaFromSpecyfikacje();
+
+            // Zapisz do historii zmian
+            RecordChange(selected.ID, "MOVE_UP", "LP", oldLp.ToString(), newLp.ToString());
 
             UpdateStatus($"Przesunięto wiersz LP {selected.Nr} w górę");
         }
@@ -1615,12 +1642,23 @@ namespace Kalendarz1
                 return;
             }
 
+            // BLOKADA: Sprawdź czy wiersz jest wprowadzony (zatwierdzony)
+            if (selected.JestWprowadzony)
+            {
+                MessageBox.Show($"Nie można przesunąć wiersza - został już wprowadzony przez: {selected.ZatwierdzonePrzez}\n\nWiersz o statusie 'wprowadzone' jest zablokowany przed zmianami.",
+                    "Blokada edycji", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             int currentIndex = specyfikacjeData.IndexOf(selected);
             if (currentIndex < 0 || currentIndex >= specyfikacjeData.Count - 1)
             {
                 UpdateStatus("Wiersz jest już na dole");
                 return;
             }
+
+            int oldLp = currentIndex + 1;
+            int newLp = currentIndex + 2;
 
             // Przesuń wiersz w dół
             specyfikacjeData.Move(currentIndex, currentIndex + 1);
@@ -1632,6 +1670,9 @@ namespace Kalendarz1
             // Synchronizuj Transport i Płachtę
             RefreshTransportFromSpecyfikacje();
             RefreshPlachtaFromSpecyfikacje();
+
+            // Zapisz do historii zmian
+            RecordChange(selected.ID, "MOVE_DOWN", "LP", oldLp.ToString(), newLp.ToString());
 
             UpdateStatus($"Przesunięto wiersz LP {selected.Nr} w dół");
         }
@@ -4826,6 +4867,61 @@ namespace Kalendarz1
         }
 
         // === Przypisz kolory dostawcom i oznacz granice grup ===
+        /// <summary>
+        /// Ładuje status wprowadzenia/weryfikacji dla wszystkich wierszy specyfikacji
+        /// Status pochodzi z tabeli RozliczeniaZatwierdzenia i służy do blokowania edycji
+        /// </summary>
+        private void LoadSpecyfikacjeZatwierdzenia()
+        {
+            DateTime selectedDate = dateTimePicker1.SelectedDate ?? DateTime.Today;
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // Sprawdź czy tabela istnieje
+                    string checkTable = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'RozliczeniaZatwierdzenia'";
+                    using (SqlCommand checkCmd = new SqlCommand(checkTable, conn))
+                    {
+                        int exists = (int)checkCmd.ExecuteScalar();
+                        if (exists == 0) return;
+                    }
+
+                    string query = @"
+                        SELECT FarmerCalcID, Zatwierdzony, ZatwierdzonePrzez, Zweryfikowany, ZweryfikowanePrzez
+                        FROM [dbo].[RozliczeniaZatwierdzenia]
+                        WHERE CalcDate = @CalcDate";
+
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@CalcDate", selectedDate.Date);
+
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                int fcId = reader.GetInt32(0);
+                                var row = specyfikacjeData.FirstOrDefault(r => r.ID == fcId);
+                                if (row != null)
+                                {
+                                    row.Zatwierdzony = reader.GetBoolean(1);
+                                    row.ZatwierdzonePrzez = reader.IsDBNull(2) ? null : reader.GetString(2);
+                                    row.Zweryfikowany = reader.GetBoolean(3);
+                                    row.ZweryfikowanePrzez = reader.IsDBNull(4) ? null : reader.GetString(4);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd ładowania statusu zatwierdzeń dla specyfikacji: {ex.Message}");
+            }
+        }
+
         private void AssignSupplierColorsAndGroups()
         {
             if (specyfikacjeData == null || specyfikacjeData.Count == 0) return;
@@ -4909,16 +5005,15 @@ namespace Kalendarz1
             }
 
             // Sprawdź czy którykolwiek wiersz ma NIEZEROWE wartości w tych polach
-            // Dla Ubytek/Opas - nie pokazuj jeśli same zera
-            bool hasUbytek = specyfikacjeData.Any(s => s.Ubytek > 0 || s.Ubytek < 0);
+            bool hasOpasienie = specyfikacjeData.Any(s => s.Opasienie > 0 || s.Opasienie < 0);
             bool hasKlasaB = specyfikacjeData.Any(s => s.KlasaB > 0 || s.KlasaB < 0);
             bool hasDodatek = specyfikacjeData.Any(s => s.Dodatek > 0 || s.Dodatek < 0);
             bool hasPosrednik = specyfikacjeData.Any(s => s.IdPosrednik.HasValue && s.IdPosrednik.Value > 0);
 
-            // Ubytek/Opas - pokaż tylko jeśli są niezerowe wartości
+            // Opasienie - pokaż tylko jeśli są niezerowe wartości
             if (chkShowOpasienie2 != null)
             {
-                chkShowOpasienie2.IsChecked = hasUbytek;
+                chkShowOpasienie2.IsChecked = hasOpasienie;
             }
 
             // Klasa B - pokaż tylko jeśli są niezerowe wartości
@@ -5951,7 +6046,7 @@ namespace Kalendarz1
                 PdfPCell sig2 = CreateRoundedCell(sig2Border, sig2Bg, 8);
                 sig2.AddElement(new Paragraph("PODPIS PRACOWNIKA", new Font(polishFont, 8, Font.BOLD, greenColor)) { Alignment = Element.ALIGN_CENTER });
                 sig2.AddElement(new Paragraph(" \n", textFont));
-                sig2.AddElement(new Paragraph("........................................", textFont) { Alignment = Element.ALIGN_CENTER });
+                sig2.AddElement(new Paragraph(".........................................................................", textFont) { Alignment = Element.ALIGN_CENTER });
                 sigTable.AddCell(sig2);
 
                 doc.Add(sigTable);
@@ -6200,6 +6295,7 @@ namespace Kalendarz1
                 partiesTable.AddCell(buyerCell);
 
                 // Sprzedający (prawa strona)
+                string customerGID = zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerGID");
                 string customerRealGID = zapytaniasql.PobierzInformacjeZBazyDanych<string>(ids[0], "[LibraNet].[dbo].[FarmerCalc]", "CustomerRealGID");
                 string sellerStreet = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "Address") ?? "";
                 string sellerKod = zapytaniasql.PobierzInformacjeZBazyDanychHodowcowString(customerRealGID, "PostalCode") ?? "";
@@ -6245,10 +6341,10 @@ namespace Kalendarz1
                 PdfPCell sellerCell = new PdfPCell { Border = PdfPCell.BOX, BorderColor = orangeColor, BorderWidth = borderWidthBox, Padding = 10, BackgroundColor = sellerBgColor };
                 sellerCell.AddElement(new Paragraph("SPRZEDAJĄCY (Hodowca)", new Font(polishFont, 10, Font.BOLD, orangeColor)));
                 sellerCell.AddElement(new Paragraph(sellerName, textFontBold));
-                // CustomerID
-                if (!string.IsNullOrEmpty(customerRealGID))
+                // CustomerGID (ID hodowcy)
+                if (!string.IsNullOrEmpty(customerGID))
                 {
-                    sellerCell.AddElement(new Paragraph($"ID: {customerRealGID}", new Font(polishFont, 8, Font.NORMAL, grayColor)));
+                    sellerCell.AddElement(new Paragraph($"ID Hodowcy: {customerGID}", new Font(polishFont, 8, Font.BOLD, grayColor)));
                 }
                 sellerCell.AddElement(new Paragraph(sellerStreet, textFont));
                 sellerCell.AddElement(new Paragraph($"{sellerKod} {sellerMiejsc}", textFont));
@@ -6904,6 +7000,14 @@ namespace Kalendarz1
             {
                 ShakeWindow();
                 UpdateStatus("Nie zaznaczono wiersza do usunięcia");
+                return;
+            }
+
+            // BLOKADA: Sprawdź czy wiersz jest wprowadzony (zatwierdzony)
+            if (selectedRow.JestWprowadzony)
+            {
+                MessageBox.Show($"Nie można usunąć wiersza - został już wprowadzony przez: {selectedRow.ZatwierdzonePrzez}\n\nWiersz o statusie 'wprowadzone' jest zablokowany przed zmianami.",
+                    "Blokada edycji", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -7759,8 +7863,8 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
-            // Sprawdź blokadę edycji
-            if (!CheckEditingAllowed(row.DataUboju)) return;
+            // Sprawdź blokadę edycji (uwzględnia status wprowadzenia)
+            if (!CheckEditingAllowed(row)) return;
 
             // Pobierz starą wartość
             string oldValue = "";
@@ -7868,8 +7972,8 @@ namespace Kalendarz1
             var row = checkBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
-            // Sprawdź blokadę edycji
-            if (!CheckEditingAllowed(row.DataUboju))
+            // Sprawdź blokadę edycji (uwzględnia status wprowadzenia)
+            if (!CheckEditingAllowed(row))
             {
                 // Przywróć poprzednią wartość
                 checkBox.IsChecked = !row.PiK;
@@ -7919,8 +8023,8 @@ namespace Kalendarz1
             if (e.RemovedItems.Count > 0)
                 oldValue = e.RemovedItems[0]?.ToString() ?? "";
 
-            // Sprawdź blokadę edycji
-            if (!string.IsNullOrEmpty(oldValue) && !CheckEditingAllowed(row.DataUboju))
+            // Sprawdź blokadę edycji (uwzględnia status wprowadzenia)
+            if (!string.IsNullOrEmpty(oldValue) && !CheckEditingAllowed(row))
             {
                 // Przywróć poprzednią wartość
                 comboBox.SelectedItem = oldValue;
@@ -8929,6 +9033,9 @@ namespace Kalendarz1
                 int index = plachtaData.IndexOf(selectedPlachtaRow);
                 if (index > 0)
                 {
+                    int oldLp = index + 1;
+                    int newLp = index;
+
                     plachtaData.Move(index, index - 1);
                     UpdatePlachtaLpNumbers();
                     dataGridPlachta.SelectedItem = selectedPlachtaRow;
@@ -8936,6 +9043,9 @@ namespace Kalendarz1
                     // Synchronizuj z specyfikacjeData i Transport
                     SyncSpecyfikacjeOrderFromPlachta();
                     RefreshTransportFromSpecyfikacje();
+
+                    // Zapisz do historii zmian
+                    RecordChange(selectedPlachtaRow.ID, "PLACHTA_MOVE_UP", "LP", oldLp.ToString(), newLp.ToString());
                 }
             }
         }
@@ -8947,6 +9057,9 @@ namespace Kalendarz1
                 int index = plachtaData.IndexOf(selectedPlachtaRow);
                 if (index < plachtaData.Count - 1)
                 {
+                    int oldLp = index + 1;
+                    int newLp = index + 2;
+
                     plachtaData.Move(index, index + 1);
                     UpdatePlachtaLpNumbers();
                     dataGridPlachta.SelectedItem = selectedPlachtaRow;
@@ -8954,6 +9067,9 @@ namespace Kalendarz1
                     // Synchronizuj z specyfikacjeData i Transport
                     SyncSpecyfikacjeOrderFromPlachta();
                     RefreshTransportFromSpecyfikacje();
+
+                    // Zapisz do historii zmian
+                    RecordChange(selectedPlachtaRow.ID, "PLACHTA_MOVE_DOWN", "LP", oldLp.ToString(), newLp.ToString());
                 }
             }
         }
@@ -10755,6 +10871,33 @@ namespace Kalendarz1
             return false;
         }
 
+        /// <summary>
+        /// Sprawdza czy edycja wiersza jest dozwolona (uwzględnia status wprowadzenia)
+        /// </summary>
+        /// <param name="row">Wiersz specyfikacji do sprawdzenia</param>
+        /// <returns>True jeśli edycja dozwolona</returns>
+        private bool CheckEditingAllowed(SpecyfikacjaRow row)
+        {
+            if (row == null) return false;
+
+            // Sprawdź czy wiersz jest wprowadzony (zatwierdzony) - blokada statusowa
+            if (row.JestWprowadzony)
+            {
+                MessageBox.Show(
+                    $"Edycja wiersza jest zablokowana - został już wprowadzony.\n\n" +
+                    $"Wprowadził: {row.ZatwierdzonePrzez}\n\n" +
+                    "Wiersz o statusie 'wprowadzone' nie może być modyfikowany.\n" +
+                    "Chroni to dane przed zmianami podczas weryfikacji.",
+                    "Blokada - wiersz wprowadzony",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return false;
+            }
+
+            // Sprawdź blokadę czasową
+            return CheckEditingAllowed(row.DataUboju);
+        }
+
         private void EnsureSymfoniaColumnExists()
         {
             try
@@ -11494,10 +11637,23 @@ namespace Kalendarz1
 
                 // Użyj ścieżki z panelu administracyjnego dla Podsumowań
                 string basePath = GetPodsumowaniePathFromDb();
+                System.Diagnostics.Debug.WriteLine($"Podsumowanie PDF basePath from DB: '{basePath}'");
+
+                // Jeśli nie znaleziono w bazie, spróbuj z prywatnej zmiennej
+                if (string.IsNullOrWhiteSpace(basePath))
+                {
+                    basePath = _defaultPodsumowaniePath;
+                    System.Diagnostics.Debug.WriteLine($"Using _defaultPodsumowaniePath: '{basePath}'");
+                }
+
+                // Ostateczny fallback na folder Dokumenty
                 if (string.IsNullOrWhiteSpace(basePath))
                 {
                     basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ZPSP", "Podsumowania");
+                    System.Diagnostics.Debug.WriteLine($"Using fallback MyDocuments: '{basePath}'");
                 }
+
+                System.Diagnostics.Debug.WriteLine($"Final Podsumowanie PDF basePath: '{basePath}'");
 
                 string folderPath = Path.Combine(basePath, yearFolder, monthFolder, dayFolder);
                 if (!Directory.Exists(folderPath))
@@ -12190,6 +12346,12 @@ public class SpecyfikacjaRow : INotifyPropertyChanged
     private Guid? _partiaGuid;
     private string _partiaNumber;
 
+    // Status wprowadzenia/weryfikacji (blokada edycji)
+    private bool _zatwierdzony;
+    private string _zatwierdzonePrzez;
+    private bool _zweryfikowany;
+    private string _zweryfikowanePrzez;
+
     public bool IsHighlighted
     {
         get => _isHighlighted;
@@ -12689,6 +12851,76 @@ public class SpecyfikacjaRow : INotifyPropertyChanged
     }
 
     public string PdfStatus => HasPdf ? "✓" : "";
+
+    // === STATUS WPROWADZENIA/WERYFIKACJI (BLOKADA EDYCJI) ===
+
+    /// <summary>
+    /// Czy wiersz został wprowadzony (zatwierdzony)
+    /// Po zatwierdzeniu wiersz jest zablokowany do edycji
+    /// </summary>
+    public bool Zatwierdzony
+    {
+        get => _zatwierdzony;
+        set
+        {
+            _zatwierdzony = value;
+            OnPropertyChanged(nameof(Zatwierdzony));
+            OnPropertyChanged(nameof(JestWprowadzony));
+            OnPropertyChanged(nameof(IsEditable));
+            OnPropertyChanged(nameof(JestZablokowany));
+        }
+    }
+
+    /// <summary>
+    /// Kto wprowadził (zatwierdził) wiersz
+    /// </summary>
+    public string ZatwierdzonePrzez
+    {
+        get => _zatwierdzonePrzez;
+        set { _zatwierdzonePrzez = value; OnPropertyChanged(nameof(ZatwierdzonePrzez)); }
+    }
+
+    /// <summary>
+    /// Czy wiersz został zweryfikowany
+    /// </summary>
+    public bool Zweryfikowany
+    {
+        get => _zweryfikowany;
+        set
+        {
+            _zweryfikowany = value;
+            OnPropertyChanged(nameof(Zweryfikowany));
+            OnPropertyChanged(nameof(JestWprowadzony));
+            OnPropertyChanged(nameof(IsEditable));
+            OnPropertyChanged(nameof(JestZablokowany));
+        }
+    }
+
+    /// <summary>
+    /// Kto zweryfikował wiersz
+    /// </summary>
+    public string ZweryfikowanePrzez
+    {
+        get => _zweryfikowanePrzez;
+        set { _zweryfikowanePrzez = value; OnPropertyChanged(nameof(ZweryfikowanePrzez)); }
+    }
+
+    /// <summary>
+    /// Czy wiersz jest wprowadzony (zatwierdzony) - blokuje edycję
+    /// Używane do ochrony danych przed zmianami podczas weryfikacji
+    /// </summary>
+    public bool JestWprowadzony => Zatwierdzony;
+
+    /// <summary>
+    /// Czy wiersz jest w pełni zablokowany (zatwierdzony I zweryfikowany)
+    /// </summary>
+    public bool JestZablokowany => Zatwierdzony && Zweryfikowany;
+
+    /// <summary>
+    /// Czy wiersz można edytować - false gdy Zatwierdzony jest true
+    /// Bindowane do IsEnabled w kontrolkach UI
+    /// </summary>
+    public bool IsEditable => !Zatwierdzony;
 
     public event PropertyChangedEventHandler PropertyChanged;
 
@@ -13653,7 +13885,7 @@ public class RozliczenieRow : INotifyPropertyChanged
     public bool Zatwierdzony
     {
         get => _zatwierdzony;
-        set { _zatwierdzony = value; OnPropertyChanged(nameof(Zatwierdzony)); OnPropertyChanged(nameof(JestZablokowany)); }
+        set { _zatwierdzony = value; OnPropertyChanged(nameof(Zatwierdzony)); OnPropertyChanged(nameof(JestZablokowany)); OnPropertyChanged(nameof(JestWprowadzony)); OnPropertyChanged(nameof(IsEditable)); }
     }
 
     public string ZatwierdzonePrzez { get; set; }
@@ -13664,16 +13896,28 @@ public class RozliczenieRow : INotifyPropertyChanged
     public bool Zweryfikowany
     {
         get => _zweryfikowany;
-        set { _zweryfikowany = value; OnPropertyChanged(nameof(Zweryfikowany)); OnPropertyChanged(nameof(JestZablokowany)); }
+        set { _zweryfikowany = value; OnPropertyChanged(nameof(Zweryfikowany)); OnPropertyChanged(nameof(JestZablokowany)); OnPropertyChanged(nameof(JestWprowadzony)); OnPropertyChanged(nameof(IsEditable)); }
     }
 
     public string ZweryfikowanePrzez { get; set; }
     public DateTime? DataWeryfikacji { get; set; }
 
     /// <summary>
-    /// Wiersz jest zablokowany gdy zarówno Zatwierdzony jak i Zweryfikowany są true
+    /// Wiersz jest w pełni zablokowany gdy zarówno Zatwierdzony jak i Zweryfikowany są true
     /// </summary>
     public bool JestZablokowany => Zatwierdzony && Zweryfikowany;
+
+    /// <summary>
+    /// Wiersz jest wprowadzony (zatwierdzony) - blokuje edycję dla wszystkich
+    /// Chroni przed zmianami podczas weryfikacji
+    /// </summary>
+    public bool JestWprowadzony => Zatwierdzony;
+
+    /// <summary>
+    /// Czy wiersz można edytować - false gdy Zatwierdzony jest true
+    /// Używane do blokowania edycji w UI
+    /// </summary>
+    public bool IsEditable => !Zatwierdzony;
 
     // === GRUPOWANIE: Właściwość dla separatora grupy ===
     private bool _isFirstInGroup;
