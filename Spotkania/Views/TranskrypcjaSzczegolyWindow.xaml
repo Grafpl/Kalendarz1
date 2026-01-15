@@ -225,12 +225,30 @@
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
 
+                                                <!-- Przycisk odtwarzania -->
+                                                <Button Grid.Column="0" Content="▶️" Width="36" Height="36"
+                                                        Background="{Binding KolorMowcy}" Foreground="White"
+                                                        FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center"
+                                                        Click="BtnOdsluchajMowce_Click" Tag="{Binding}"
+                                                        ToolTip="Odsłuchaj próbkę głosu tego mówcy w Fireflies">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border Background="{TemplateBinding Background}"
+                                                                    CornerRadius="18" Cursor="Hand">
+                                                                <ContentPresenter HorizontalAlignment="Center"
+                                                                                  VerticalAlignment="Center"/>
+                                                            </Border>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+
                                                 <!-- Kolor i nazwa mowcy -->
-                                                <Border Grid.Column="0" Background="{Binding KolorMowcy}" CornerRadius="4"
+                                                <Border Grid.Column="1" Background="{Binding KolorMowcy}" CornerRadius="4"
                                                         Padding="10,6" Margin="0,0,10,0" VerticalAlignment="Center">
                                                     <StackPanel>
                                                         <TextBlock Text="{Binding DisplayFireflies}" FontWeight="Bold"
@@ -241,7 +259,7 @@
                                                 </Border>
 
                                                 <!-- ComboBox z pracownikami -->
-                                                <Grid Grid.Column="1" VerticalAlignment="Center">
+                                                <Grid Grid.Column="2" VerticalAlignment="Center">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto"/>
                                                         <ColumnDefinition Width="*"/>
@@ -283,7 +301,7 @@
                                                 </Grid>
 
                                                 <!-- Badge auto-mapowania lub sugestii -->
-                                                <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="8,0,0,0" VerticalAlignment="Center">
+                                                <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="8,0,0,0" VerticalAlignment="Center">
                                                     <!-- Badge auto-mapowania -->
                                                     <Border Background="{Binding AutoMapowanieBadgeTlo}" CornerRadius="10"
                                                             Padding="8,4" Visibility="{Binding AutoMapowanieBadgeWidocznosc}"

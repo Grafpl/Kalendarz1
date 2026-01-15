@@ -214,7 +214,7 @@ namespace Kalendarz1.Spotkania.Views
             var grupyMowcow = _zdaniaApi
                 .GroupBy(z => new { z.SpeakerId, z.SpeakerName })
                 .Select((g, idx) => {
-                    var zdania = g.ToList();
+                    var zdania = g.OrderBy(z => z.StartTime).ToList();
                     double czasMowienia = 0;
                     foreach (var z in zdania)
                     {
@@ -228,6 +228,7 @@ namespace Kalendarz1.Spotkania.Views
                         LiczbaWypowiedzi = zdania.Count,
                         CzasMowienia = czasMowienia,
                         PrzykladowaWypowiedz = zdania.FirstOrDefault()?.Text ?? "",
+                        PierwszyCzas = zdania.FirstOrDefault()?.StartTime ?? 0,
                         KolorIndex = idx
                     };
                 })
@@ -249,6 +250,7 @@ namespace Kalendarz1.Spotkania.Views
                     PrzykladowaWypowiedz = g.PrzykladowaWypowiedz.Length > 120
                         ? g.PrzykladowaWypowiedz.Substring(0, 120) + "..."
                         : g.PrzykladowaWypowiedz,
+                    PierwszyCzas = g.PierwszyCzas,
                     KolorMowcy = new SolidColorBrush((Color)ColorConverter.ConvertFromString(KoloryMowcow[kolorIdx])),
                     TloKolor = new SolidColorBrush((Color)ColorConverter.ConvertFromString(KoloryTla[kolorIdx])),
                     DostepniPracownicy = _pracownicy
@@ -899,6 +901,52 @@ namespace Kalendarz1.Spotkania.Views
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnOdsluchajMowce_Click(object sender, RoutedEventArgs e)
+        {
+            var btn = sender as Button;
+            var mowca = btn?.Tag as MowcaMapowanieDisplay;
+            if (mowca == null) return;
+
+            // Otwórz Fireflies w przeglądarce z timestampem
+            if (!string.IsNullOrEmpty(_transkrypcja?.TranskrypcjaUrl))
+            {
+                var url = _transkrypcja.TranskrypcjaUrl;
+
+                // Dodaj timestamp do URL (Fireflies format: ?t=sekund)
+                if (mowca.PierwszyCzas > 0)
+                {
+                    var separator = url.Contains("?") ? "&" : "?";
+                    url = $"{url}{separator}t={Math.Floor(mowca.PierwszyCzas)}";
+                }
+
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = url,
+                        UseShellExecute = true
+                    });
+
+                    TxtStatusMapowania.Text = $"▶️ Odtwarzanie: {mowca.DisplayFireflies} (od {TimeSpan.FromSeconds(mowca.PierwszyCzas):mm\\:ss})";
+                    StatusMapowania.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E3F2FD"));
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Nie można otworzyć przeglądarki: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            else
+            {
+                // Brak URL - pokaż komunikat z przykładową wypowiedzią
+                var msg = $"🔊 {mowca.DisplayFireflies}\n\n" +
+                          $"Przykładowa wypowiedź:\n\"{mowca.PrzykladowaWypowiedz}\"\n\n" +
+                          $"⏱️ Czas mówienia: {mowca.CzasMowieniaDisplay}\n" +
+                          $"📊 Udział w rozmowie: {mowca.ProcentCzasu:F0}%";
+
+                MessageBox.Show(msg, "Próbka mówcy", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
@@ -1935,6 +1983,9 @@ namespace Kalendarz1.Spotkania.Views
         public double CzasMowienia { get; set; }
         public double ProcentCzasu { get; set; }
         public string? PrzykladowaWypowiedz { get; set; }
+
+        // Timestamp pierwszej wypowiedzi (w sekundach) - do odtwarzania
+        public double PierwszyCzas { get; set; }
 
         public string? PrzypisanyUserID
         {
