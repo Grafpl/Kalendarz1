@@ -1120,6 +1120,7 @@
                       RowStyle="{StaticResource DataGridRowHoverStyle}"
                       CellEditEnding="DataGridView1_CellEditEnding"
                       PreparingCellForEdit="DataGridView1_PreparingCellForEdit"
+                      BeginningEdit="DataGridView1_BeginningEdit"
                       SelectionChanged="DataGridView1_SelectionChanged"
                       CurrentCellChanged="DataGridView1_CurrentCellChanged"
                       PreviewKeyDown="DataGridView1_PreviewKeyDown"
@@ -1259,6 +1260,9 @@
                                                          Background="White"
                                                          Padding="4,2"
                                                          VerticalContentAlignment="Center"
+                                                         IsReadOnly="{Binding JestWprowadzony}"
+                                                         Focusable="{Binding IsEditable}"
+                                                         IsHitTestVisible="{Binding IsEditable}"
                                                          TextChanged="SupplierTextBox_TextChanged"
                                                          PreviewKeyDown="SupplierTextBox_PreviewKeyDown"
                                                          LostFocus="SupplierTextBox_LostFocus"
@@ -1405,6 +1409,8 @@
                                          Style="{StaticResource NumericTextBoxStyle}"
                                          FontWeight="SemiBold"
                                          IsReadOnly="{Binding JestWprowadzony}"
+                                         Focusable="{Binding IsEditable}"
+                                         IsHitTestVisible="{Binding IsEditable}"
                                          GotFocus="SztukiDek_GotFocus"
                                          LostFocus="SztukiDek_LostFocus"/>
                                         </DataTemplate>
@@ -1424,6 +1430,8 @@
                                          Style="{StaticResource NumericTextBoxStyle}"
                                          Foreground="#BF360C"
                                          IsReadOnly="{Binding JestWprowadzony}"
+                                         Focusable="{Binding IsEditable}"
+                                         IsHitTestVisible="{Binding IsEditable}"
                                          GotFocus="Padle_GotFocus"
                                          LostFocus="Padle_LostFocus"/>
                                         </DataTemplate>
@@ -1442,6 +1450,8 @@
                                             <TextBox Text="{Binding CH, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                          Style="{StaticResource NumericTextBoxStyle}"
                                          IsReadOnly="{Binding JestWprowadzony}"
+                                         Focusable="{Binding IsEditable}"
+                                         IsHitTestVisible="{Binding IsEditable}"
                                          GotFocus="CH_GotFocus"
                                          LostFocus="CH_LostFocus"/>
                                         </DataTemplate>
@@ -1460,6 +1470,8 @@
                                             <TextBox Text="{Binding NW, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                          Style="{StaticResource NumericTextBoxStyle}"
                                          IsReadOnly="{Binding JestWprowadzony}"
+                                         Focusable="{Binding IsEditable}"
+                                         IsHitTestVisible="{Binding IsEditable}"
                                          GotFocus="NW_GotFocus"
                                          LostFocus="NW_LostFocus"/>
                                         </DataTemplate>
@@ -1478,6 +1490,8 @@
                                             <TextBox Text="{Binding ZM, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                          Style="{StaticResource NumericTextBoxStyle}"
                                          IsReadOnly="{Binding JestWprowadzony}"
+                                         Focusable="{Binding IsEditable}"
+                                         IsHitTestVisible="{Binding IsEditable}"
                                          GotFocus="ZM_GotFocus"
                                          LostFocus="ZM_LostFocus"/>
                                         </DataTemplate>
@@ -1498,6 +1512,8 @@
                                          FontWeight="Bold"
                                          Foreground="#7B1FA2"
                                          IsReadOnly="{Binding JestWprowadzony}"
+                                         Focusable="{Binding IsEditable}"
+                                         IsHitTestVisible="{Binding IsEditable}"
                                          GotFocus="LUMEL_GotFocus"
                                          LostFocus="LUMEL_LostFocus"/>
                                         </DataTemplate>
@@ -1633,6 +1649,8 @@
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
                                                      IsReadOnly="{Binding JestWprowadzony}"
+                                                     Focusable="{Binding IsEditable}"
+                                                     IsHitTestVisible="{Binding IsEditable}"
                                                      KeyDown="Cena_KeyDown"
                                                      GotFocus="Cena_GotFocus"
                                                      LostFocus="Cena_LostFocus"/>
@@ -1654,6 +1672,8 @@
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
                                                      IsReadOnly="{Binding JestWprowadzony}"
+                                                     Focusable="{Binding IsEditable}"
+                                                     IsHitTestVisible="{Binding IsEditable}"
                                                      KeyDown="Dodatek_KeyDown"
                                                      GotFocus="Dodatek_GotFocus"
                                                      LostFocus="Dodatek_LostFocus"/>
@@ -1761,6 +1781,8 @@
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
                                                      IsReadOnly="{Binding JestWprowadzony}"
+                                                     Focusable="{Binding IsEditable}"
+                                                     IsHitTestVisible="{Binding IsEditable}"
                                                      KeyDown="Ubytek_KeyDown"
                                                      GotFocus="Ubytek_GotFocus"
                                                      LostFocus="Ubytek_LostFocus"/>
@@ -1798,6 +1820,8 @@
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
                                                      IsReadOnly="{Binding JestWprowadzony}"
+                                                     Focusable="{Binding IsEditable}"
+                                                     IsHitTestVisible="{Binding IsEditable}"
                                                      GotFocus="Opasienie_GotFocus"
                                                      LostFocus="Opasienie_LostFocus"/>
                                         </DataTemplate>
@@ -1815,6 +1839,8 @@
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
                                                      IsReadOnly="{Binding JestWprowadzony}"
+                                                     Focusable="{Binding IsEditable}"
+                                                     IsHitTestVisible="{Binding IsEditable}"
                                                      GotFocus="KlasaB_GotFocus"
                                                      LostFocus="KlasaB_LostFocus"/>
                                         </DataTemplate>

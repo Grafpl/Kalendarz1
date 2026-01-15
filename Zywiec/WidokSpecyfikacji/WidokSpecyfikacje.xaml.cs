@@ -2787,6 +2787,20 @@ namespace Kalendarz1
             return null;
         }
 
+        // === BLOKADA EDYCJI: Anuluj wejście w tryb edycji dla wierszy "wprowadzonych" ===
+        private void DataGridView1_BeginningEdit(object sender, DataGridBeginningEditEventArgs e)
+        {
+            var row = e.Row.Item as SpecyfikacjaRow;
+            if (row != null && row.JestWprowadzony)
+            {
+                // Całkowicie anuluj wejście w tryb edycji
+                e.Cancel = true;
+
+                // Pokaż informację tylko raz (nie przy każdej próbie)
+                UpdateStatus($"Wiersz LP {row.Nr} jest zablokowany - status 'wprowadzony'");
+            }
+        }
+
         // === NATYCHMIASTOWA EDYCJA: Zaznacz całą zawartość komórki przy rozpoczęciu edycji ===
         private void DataGridView1_PreparingCellForEdit(object sender, DataGridPreparingCellForEditEventArgs e)
         {
