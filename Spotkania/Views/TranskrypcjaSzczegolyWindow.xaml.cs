@@ -910,7 +910,7 @@ namespace Kalendarz1.Spotkania.Views
             var mowca = btn?.Tag as MowcaMapowanieDisplay;
             if (mowca == null) return;
 
-            // Otwórz Fireflies w przeglądarce z timestampem
+            // Otwórz wbudowany odtwarzacz
             if (!string.IsNullOrEmpty(_transkrypcja?.TranskrypcjaUrl))
             {
                 var url = _transkrypcja.TranskrypcjaUrl;
@@ -922,21 +922,7 @@ namespace Kalendarz1.Spotkania.Views
                     url = $"{url}{separator}t={Math.Floor(mowca.PierwszyCzas)}";
                 }
 
-                try
-                {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = url,
-                        UseShellExecute = true
-                    });
-
-                    TxtStatusMapowania.Text = $"▶️ Odtwarzanie: {mowca.DisplayFireflies} (od {TimeSpan.FromSeconds(mowca.PierwszyCzas):mm\\:ss})";
-                    StatusMapowania.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E3F2FD"));
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Nie można otworzyć przeglądarki: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                PokazOdtwarzaczFireflies(url, mowca);
             }
             else
             {
@@ -948,6 +934,198 @@ namespace Kalendarz1.Spotkania.Views
 
                 MessageBox.Show(msg, "Próbka mówcy", MessageBoxButton.OK, MessageBoxImage.Information);
             }
+        }
+
+        private Window? _odtwarzaczWindow = null;
+
+        private void PokazOdtwarzaczFireflies(string url, MowcaMapowanieDisplay mowca)
+        {
+            // Jeśli okno już istnieje, zamknij je
+            if (_odtwarzaczWindow != null && _odtwarzaczWindow.IsLoaded)
+            {
+                _odtwarzaczWindow.Close();
+            }
+
+            _odtwarzaczWindow = new Window
+            {
+                Title = $"🔊 Odsłuchaj: {mowca.DisplayFireflies}",
+                Width = 900,
+                Height = 650,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1a1a2e"))
+            };
+
+            var mainGrid = new Grid();
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            // Header z info o mówcy
+            var headerPanel = new Border
+            {
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#16213e")),
+                Padding = new Thickness(15, 12, 15, 12)
+            };
+            var headerStack = new StackPanel { Orientation = Orientation.Horizontal };
+
+            // Avatar mówcy
+            var avatar = new Border
+            {
+                Width = 45,
+                Height = 45,
+                CornerRadius = new CornerRadius(22.5),
+                Background = mowca.KolorMowcy,
+                Margin = new Thickness(0, 0, 12, 0)
+            };
+            var avatarText = new TextBlock
+            {
+                Text = "▶",
+                FontSize = 18,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            avatar.Child = avatarText;
+            headerStack.Children.Add(avatar);
+
+            // Info
+            var infoStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            infoStack.Children.Add(new TextBlock
+            {
+                Text = mowca.DisplayFireflies,
+                FontSize = 16,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White
+            });
+            infoStack.Children.Add(new TextBlock
+            {
+                Text = $"Od {TimeSpan.FromSeconds(mowca.PierwszyCzas):mm\\:ss} | {mowca.StatystykiDisplay}",
+                FontSize = 12,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#aaa"))
+            });
+            headerStack.Children.Add(infoStack);
+
+            // Przycisk zamknij i przypisz
+            var buttonsStack = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(20, 0, 0, 0)
+            };
+
+            if (!mowca.JestPrzypisany)
+            {
+                var btnPrzypisz = new Button
+                {
+                    Content = "✓ Przypisz tego mówcę",
+                    Padding = new Thickness(15, 8, 15, 8),
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4CAF50")),
+                    Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0),
+                    FontWeight = FontWeights.SemiBold,
+                    Margin = new Thickness(0, 0, 10, 0),
+                    Cursor = System.Windows.Input.Cursors.Hand
+                };
+                btnPrzypisz.Click += (s, ev) =>
+                {
+                    _odtwarzaczWindow?.Close();
+                    // Focus na ComboBox tego mówcy
+                    TxtStatusMapowania.Text = $"Wybierz pracownika dla: {mowca.DisplayFireflies}";
+                    StatusMapowania.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFF8E1"));
+                };
+                buttonsStack.Children.Add(btnPrzypisz);
+            }
+
+            headerStack.Children.Add(buttonsStack);
+            headerPanel.Child = headerStack;
+            Grid.SetRow(headerPanel, 0);
+            mainGrid.Children.Add(headerPanel);
+
+            // WebBrowser z Fireflies
+            var webBrowser = new System.Windows.Controls.WebBrowser();
+            webBrowser.Navigated += (s, ev) =>
+            {
+                // Ukryj scrollbary i błędy JavaScript
+                try
+                {
+                    dynamic doc = webBrowser.Document;
+                    if (doc != null)
+                    {
+                        doc.body.style.overflow = "hidden";
+                    }
+                }
+                catch { }
+            };
+            Grid.SetRow(webBrowser, 1);
+            mainGrid.Children.Add(webBrowser);
+
+            // Footer z przyciskami
+            var footerPanel = new Border
+            {
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#16213e")),
+                Padding = new Thickness(15, 10, 15, 10)
+            };
+            var footerStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+
+            var btnOtworzPrzegladarke = new Button
+            {
+                Content = "🌐 Otwórz w przeglądarce",
+                Padding = new Thickness(12, 6, 12, 6),
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#455a64")),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Margin = new Thickness(0, 0, 10, 0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            btnOtworzPrzegladarke.Click += (s, ev) =>
+            {
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = url,
+                        UseShellExecute = true
+                    });
+                }
+                catch { }
+            };
+            footerStack.Children.Add(btnOtworzPrzegladarke);
+
+            var btnZamknij = new Button
+            {
+                Content = "Zamknij",
+                Padding = new Thickness(15, 6, 15, 6),
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#607D8B")),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            btnZamknij.Click += (s, ev) => _odtwarzaczWindow?.Close();
+            footerStack.Children.Add(btnZamknij);
+
+            footerPanel.Child = footerStack;
+            Grid.SetRow(footerPanel, 2);
+            mainGrid.Children.Add(footerPanel);
+
+            _odtwarzaczWindow.Content = mainGrid;
+
+            // Nawiguj do URL
+            try
+            {
+                webBrowser.Navigate(new Uri(url));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Nie można załadować strony: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            TxtStatusMapowania.Text = $"▶️ Odtwarzanie: {mowca.DisplayFireflies}";
+            StatusMapowania.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E3F2FD"));
+
+            _odtwarzaczWindow.Show();
         }
 
         #endregion
