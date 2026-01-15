@@ -161,7 +161,7 @@
             </Setter>
         </Style>
 
-        <!-- Styl DataGrid - zoptymalizowany pod dotyk -->
+        <!-- Styl DataGrid -->
         <Style x:Key="MyDataGridStyle" TargetType="DataGrid">
             <Setter Property="Background" Value="#161621"/>
             <Setter Property="Foreground" Value="White"/>
@@ -172,114 +172,26 @@
             <Setter Property="HorizontalGridLinesBrush" Value="#333"/>
             <Setter Property="FontSize" Value="22"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="RowHeight" Value="100"/>
+            <Setter Property="RowHeight" Value="85"/>
             <Setter Property="CanUserAddRows" Value="False"/>
             <Setter Property="AutoGenerateColumns" Value="False"/>
             <Setter Property="SelectionMode" Value="Single"/>
             <Setter Property="IsReadOnly" Value="True"/>
         </Style>
 
-        <!-- Styl ComboBox dla dotykowego interfejsu -->
-        <Style x:Key="TouchComboBoxStyle" TargetType="ComboBox">
-            <Setter Property="Background" Value="#2A2A3A"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="FontSize" Value="15"/>
-            <Setter Property="Height" Value="70"/>
-            <Setter Property="Padding" Value="12,8"/>
-            <Setter Property="BorderBrush" Value="#444"/>
-            <Setter Property="BorderThickness" Value="2"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ComboBox">
-                        <Grid>
-                            <Border x:Name="border" Background="{TemplateBinding Background}"
-                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                    CornerRadius="8">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="40"/>
-                                    </Grid.ColumnDefinitions>
-                                    <ContentPresenter Grid.Column="0"
-                                                      Content="{TemplateBinding SelectionBoxItem}"
-                                                      ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
-                                                      VerticalAlignment="Center"
-                                                      HorizontalAlignment="Left"
-                                                      Margin="{TemplateBinding Padding}"/>
-                                    <Border Grid.Column="1" Background="#333" CornerRadius="0,6,6,0">
-                                        <TextBlock Text="▼" FontSize="14" Foreground="#888"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Border>
-                                </Grid>
-                            </Border>
-                            <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}"
-                                   Placement="Bottom" AllowsTransparency="True">
-                                <Border Background="#1E1E2E" BorderBrush="#555" BorderThickness="2"
-                                        CornerRadius="8" Margin="0,4,0,0">
-                                    <ScrollViewer MaxHeight="400">
-                                        <ItemsPresenter/>
-                                    </ScrollViewer>
-                                </Border>
-                            </Popup>
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="BorderBrush" Value="#FFA726"/>
-                            </Trigger>
-                            <Trigger Property="IsDropDownOpen" Value="True">
-                                <Setter TargetName="border" Property="BorderBrush" Value="#FFA726"/>
-                                <Setter TargetName="border" Property="Background" Value="#353545"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Styl ComboBoxItem dla dotykowego interfejsu -->
-        <Style x:Key="TouchComboBoxItemStyle" TargetType="ComboBoxItem">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Padding" Value="15,12"/>
-            <Setter Property="FontSize" Value="16"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ComboBoxItem">
-                        <Border x:Name="itemBorder" Background="{TemplateBinding Background}"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="itemBorder" Property="Background" Value="#3A3A4A"/>
-                            </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="itemBorder" Property="Background" Value="#FFA726"/>
-                                <Setter Property="Foreground" Value="Black"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Styl nagłówka kolumny - większy dla dotyku -->
+        <!-- Styl nagłówka kolumny -->
         <Style TargetType="DataGridColumnHeader">
             <Setter Property="Background" Value="#252530"/>
             <Setter Property="Foreground" Value="{DynamicResource ThemeColor}"/>
-            <Setter Property="Padding" Value="12,0"/>
-            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="FontSize" Value="16"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Height" Value="60"/>
+            <Setter Property="Height" Value="50"/>
         </Style>
 
-        <!-- Styl komórki - większy padding dla dotyku -->
+        <!-- Styl komórki -->
         <Style TargetType="DataGridCell">
-            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="Padding" Value="6,0"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -445,49 +357,49 @@
                         </ContextMenu>
                     </DataGrid.ContextMenu>
                     <DataGrid.Columns>
-                        <DataGridTemplateColumn Header="" Width="60">
+                        <DataGridTemplateColumn Header="" Width="50">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Ellipse Width="30" Height="30" HorizontalAlignment="Center" Fill="{Binding StatusColor}"/>
+                                    <Ellipse Width="22" Height="22" HorizontalAlignment="Center" Fill="{Binding StatusColor}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
                         <DataGridTextColumn Header="GODZ." Binding="{Binding GodzinaPrzyjazdu}" Width="80"/>
-                        <DataGridTemplateColumn Header="TOWAR" Width="200">
+                        <DataGridTemplateColumn Header="TOWAR" Width="160">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <ComboBox x:Name="cbTowarInGrid" SelectedValue="{Binding TowarKod, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                               SelectedValuePath="Tag" SelectionChanged="CbTowarInGrid_SelectionChanged"
-                                              Tag="{Binding}" Style="{StaticResource TouchComboBoxStyle}"
-                                              ItemContainerStyle="{StaticResource TouchComboBoxItemStyle}">
+                                              Tag="{Binding}" Background="#252530" Foreground="White" FontWeight="Bold"
+                                              BorderBrush="#444" Height="38" FontSize="13" Padding="4,0">
                                         <ComboBoxItem Tag="KREW">
                                             <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="❤" FontSize="22" Foreground="#FF5555" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                                                <TextBlock Text="KREW" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                <TextBlock Text="❤" FontSize="18" Foreground="#FF5555" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="KREW" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </ComboBoxItem>
                                         <ComboBoxItem Tag="LAPY">
                                             <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="🐾" FontSize="22" Foreground="#FFD54F" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                                                <TextBlock Text="ŁAPY" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                <TextBlock Text="🐾" FontSize="18" Foreground="#FFD54F" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="LAPY" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </ComboBoxItem>
                                         <ComboBoxItem Tag="JELITA">
                                             <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="➰" FontSize="22" Foreground="#A1887F" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                                                <TextBlock Text="JELITA" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                <TextBlock Text="➰" FontSize="18" Foreground="#A1887F" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="JELITA" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </ComboBoxItem>
                                         <ComboBoxItem Tag="PIORA">
                                             <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="~" FontSize="26" Foreground="#BDBDBD" FontStyle="Italic" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                                                <TextBlock Text="PIÓRA" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                <TextBlock Text="~" FontSize="20" Foreground="#BDBDBD" FontStyle="Italic" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="PIORA" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </ComboBoxItem>
                                         <ComboBoxItem Tag="ODPADY">
                                             <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="♻" FontSize="22" Foreground="#AB47BC" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                                                <TextBlock Text="ODPADY" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                <TextBlock Text="♻" FontSize="18" Foreground="#AB47BC" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="ODPADY" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </ComboBoxItem>
                                     </ComboBox>
@@ -930,7 +842,7 @@
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="HD" FontSize="16" FontWeight="Bold" Foreground="#888"
                                                            VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                                <TextBlock x:Name="streamTxt" Text="GŁÓWNY STRUMIEŃ" FontSize="14" FontWeight="Bold"
+                                                <TextBlock x:Name="streamTxt" Text="GŁÓWNY" FontSize="14" FontWeight="Bold"
                                                            Foreground="#888" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </Border>
@@ -980,10 +892,18 @@
 
             <!-- Obszar kamery -->
             <Grid Grid.Row="1" Background="Black">
-                <Image x:Name="cameraViewImage" Stretch="Uniform"/>
-                <TextBlock x:Name="cameraViewStatus" Text="Łączenie z kamerą..." FontSize="28" Foreground="#555"
+                <Image x:Name="cameraImage1" Stretch="Uniform"/>
+                <TextBlock x:Name="cameraStatus1" Text="Łączenie z kamerą..." FontSize="28" Foreground="#555"
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Grid>
+
+            <!-- Ukryte elementy dla kompatybilności z kodem -->
+            <Image x:Name="cameraImage2" Visibility="Collapsed"/>
+            <Image x:Name="cameraImage3" Visibility="Collapsed"/>
+            <Image x:Name="cameraImage4" Visibility="Collapsed"/>
+            <TextBlock x:Name="cameraStatus2" Visibility="Collapsed"/>
+            <TextBlock x:Name="cameraStatus3" Visibility="Collapsed"/>
+            <TextBlock x:Name="cameraStatus4" Visibility="Collapsed"/>
         </Grid>
 
         <!-- Overlay klawiatury ekranowej -->

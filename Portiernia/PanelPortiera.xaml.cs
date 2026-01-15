@@ -2501,8 +2501,8 @@ namespace Kalendarz1
         private void StartCameraViewStream()
         {
             cameraViewActive = true;
-            cameraViewStatus.Text = "Łączenie z kamerą...";
-            cameraViewImage.Source = null;
+            cameraStatus1.Text = "Łączenie z kamerą...";
+            cameraImage1.Source = null;
 
             // Reset FPS
             frameCount = 0;
@@ -2510,8 +2510,8 @@ namespace Kalendarz1
             lblCameraFps.Text = "-- FPS";
             lblStreamInfo.Text = useMainStream ? "1920x1080" : "640x480";
 
-            // Timer do odświeżania kamery co 100ms (10 FPS target)
-            cameraViewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+            // Timer do odświeżania kamery co 150ms
+            cameraViewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
             cameraViewTimer.Tick += async (s, e) => await RefreshCameraViewImage();
             cameraViewTimer.Start();
 
@@ -2577,8 +2577,8 @@ namespace Kalendarz1
                                             bitmap.EndInit();
                                             bitmap.Freeze();
 
-                                            cameraViewImage.Source = bitmap;
-                                            cameraViewStatus.Text = "";
+                                            cameraImage1.Source = bitmap;
+                                            cameraStatus1.Text = "";
 
                                             // Oblicz FPS
                                             frameCount++;
@@ -2602,7 +2602,7 @@ namespace Kalendarz1
                         Dispatcher.Invoke(() =>
                         {
                             if (cameraViewActive)
-                                cameraViewStatus.Text = "Brak połączenia z kamerą";
+                                cameraStatus1.Text = "Brak połączenia z kamerą";
                         });
                     }
                 }
@@ -2612,7 +2612,7 @@ namespace Kalendarz1
                 Dispatcher.Invoke(() =>
                 {
                     if (cameraViewActive)
-                        cameraViewStatus.Text = $"Błąd: {ex.Message}";
+                        cameraStatus1.Text = $"Błąd: {ex.Message}";
                 });
             }
         }
