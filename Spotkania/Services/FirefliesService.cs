@@ -704,6 +704,201 @@ namespace Kalendarz1.Spotkania.Services
 
         #endregion
 
+        #region Mutacje Fireflies API
+
+        /// <summary>
+        /// Aktualizuje tytuł spotkania w Fireflies.ai
+        /// </summary>
+        public async Task<(bool Success, string Message)> AktualizujTytulWFireflies(string transcriptId, string nowyTytul)
+        {
+            if (string.IsNullOrWhiteSpace(_apiKey))
+            {
+                var config = await PobierzKonfiguracje();
+                if (string.IsNullOrWhiteSpace(config?.ApiKey))
+                    return (false, "Brak skonfigurowanego klucza API Fireflies");
+            }
+
+            try
+            {
+                string mutation = @"
+                    mutation UpdateMeetingTitle($input: UpdateMeetingTitleInput!) {
+                        updateMeetingTitle(input: $input) {
+                            title
+                        }
+                    }";
+
+                var variables = new Dictionary<string, object>
+                {
+                    {
+                        "input", new Dictionary<string, object>
+                        {
+                            { "id", transcriptId },
+                            { "title", nowyTytul }
+                        }
+                    }
+                };
+
+                var response = await WykonajZapytanieGraphQL<UpdateMeetingTitleResponse>(mutation, variables);
+
+                if (response.HasErrors)
+                {
+                    return (false, $"Błąd API: {response.Errors?[0].Message}");
+                }
+
+                return (true, "Tytuł zaktualizowany w Fireflies.ai");
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Błąd: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Pobiera surowe zdania z transkrypcji (sentences) z API
+        /// </summary>
+        public async Task<List<FirefliesSentenceDto>> PobierzZdaniaTranskrypcji(string transcriptId)
+        {
+            if (string.IsNullOrWhiteSpace(_apiKey))
+            {
+                var config = await PobierzKonfiguracje();
+                if (string.IsNullOrWhiteSpace(config?.ApiKey))
+                    throw new InvalidOperationException("Brak skonfigurowanego klucza API Fireflies");
+            }
+
+            try
+            {
+                string query = @"
+                    query Transcript($transcriptId: String!) {
+                        transcript(id: $transcriptId) {
+                            sentences {
+                                index
+                                text
+                                speaker_id
+                                speaker_name
+                                start_time
+                                end_time
+                            }
+                        }
+                    }";
+
+                var variables = new Dictionary<string, object> { { "transcriptId", transcriptId } };
+                var response = await WykonajZapytanieGraphQL<TranscriptQueryResponse>(query, variables);
+
+                if (response.HasErrors)
+                {
+                    throw new Exception($"Błąd API: {response.Errors?[0].Message}");
+                }
+
+                return response.Data?.Transcript?.Sentences ?? new List<FirefliesSentenceDto>();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Błąd pobierania zdań: {ex.Message}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Zapisuje mapowanie mówców do bazy danych
+        /// </summary>
+        public async Task ZapiszMapowanieMowcow(long transkrypcjaId, List<MowcaMapowanie> mapowania)
+        {
+            using var conn = new SqlConnection(CONNECTION_STRING);
+            await conn.OpenAsync();
+
+            // Serializuj mapowania do JSON
+            var mapowaniaJson = JsonSerializer.Serialize(mapowania.Select(m => new
+            {
+                speakerId = m.SpeakerId,
+                speakerName = m.SpeakerNameFireflies,
+                userId = m.PrzypisanyUserID,
+                userName = m.PrzypisanyUserName
+            }).ToList());
+
+            string sql = @"UPDATE FirefliesTranskrypcje
+                          SET MapowanieMowcow = @Mapowania, DataModyfikacji = GETDATE()
+                          WHERE TranskrypcjaID = @ID";
+
+            using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@Mapowania", mapowaniaJson);
+            cmd.Parameters.AddWithValue("@ID", transkrypcjaId);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        /// <summary>
+        /// Pobiera mapowanie mówców z bazy danych
+        /// </summary>
+        public async Task<List<MowcaMapowanie>> PobierzMapowanieMowcow(long transkrypcjaId)
+        {
+            using var conn = new SqlConnection(CONNECTION_STRING);
+            await conn.OpenAsync();
+
+            // Sprawdź czy kolumna istnieje
+            try
+            {
+                string sql = @"SELECT MapowanieMowcow FROM FirefliesTranskrypcje WHERE TranskrypcjaID = @ID";
+                using var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@ID", transkrypcjaId);
+
+                var result = await cmd.ExecuteScalarAsync();
+                if (result == null || result == DBNull.Value)
+                    return new List<MowcaMapowanie>();
+
+                var json = result.ToString();
+                var mapowania = JsonSerializer.Deserialize<List<MowcaMapowanieJson>>(json!);
+
+                return mapowania?.Select(m => new MowcaMapowanie
+                {
+                    SpeakerId = m.speakerId,
+                    SpeakerNameFireflies = m.speakerName,
+                    PrzypisanyUserID = m.userId,
+                    PrzypisanyUserName = m.userName
+                }).ToList() ?? new List<MowcaMapowanie>();
+            }
+            catch
+            {
+                // Kolumna może nie istnieć - dodaj ją
+                try
+                {
+                    string alterSql = "ALTER TABLE FirefliesTranskrypcje ADD MapowanieMowcow NVARCHAR(MAX)";
+                    using var alterCmd = new SqlCommand(alterSql, conn);
+                    await alterCmd.ExecuteNonQueryAsync();
+                }
+                catch { /* Kolumna już istnieje */ }
+
+                return new List<MowcaMapowanie>();
+            }
+        }
+
+        /// <summary>
+        /// Aktualizuje transkrypcję w bazie (tytuł, podsumowanie, słowa kluczowe)
+        /// </summary>
+        public async Task AktualizujTranskrypcjeWBazie(long transkrypcjaId, string tytul, string? podsumowanie,
+            List<string>? slowaKluczowe, string? uczestnicyJson)
+        {
+            using var conn = new SqlConnection(CONNECTION_STRING);
+            await conn.OpenAsync();
+
+            string sql = @"UPDATE FirefliesTranskrypcje SET
+                          Tytul = @Tytul,
+                          Podsumowanie = @Podsumowanie,
+                          SlowKluczowe = @Slowa,
+                          Uczestnicy = @Uczestnicy,
+                          DataModyfikacji = GETDATE()
+                          WHERE TranskrypcjaID = @ID";
+
+            using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@ID", transkrypcjaId);
+            cmd.Parameters.AddWithValue("@Tytul", tytul);
+            cmd.Parameters.AddWithValue("@Podsumowanie", (object?)podsumowanie ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@Slowa", slowaKluczowe != null ? JsonSerializer.Serialize(slowaKluczowe) : DBNull.Value);
+            cmd.Parameters.AddWithValue("@Uczestnicy", (object?)uczestnicyJson ?? DBNull.Value);
+
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        #endregion
+
         #region Pomocnicze
 
         /// <summary>
@@ -761,6 +956,43 @@ namespace Kalendarz1.Spotkania.Services
             public string? userId { get; set; }
         }
 
+        private class MowcaMapowanieJson
+        {
+            public int? speakerId { get; set; }
+            public string? speakerName { get; set; }
+            public string? userId { get; set; }
+            public string? userName { get; set; }
+        }
+
         #endregion
+    }
+
+    /// <summary>
+    /// Model mapowania mówcy z Fireflies na użytkownika systemu
+    /// </summary>
+    public class MowcaMapowanie
+    {
+        public int? SpeakerId { get; set; }
+        public string? SpeakerNameFireflies { get; set; }
+        public string? PrzypisanyUserID { get; set; }
+        public string? PrzypisanyUserName { get; set; }
+
+        public string DisplayFireflies => SpeakerNameFireflies ?? $"Mówca {SpeakerId}";
+        public string DisplaySystem => string.IsNullOrEmpty(PrzypisanyUserName) ? "(Nie przypisano)" : PrzypisanyUserName;
+    }
+
+    /// <summary>
+    /// Response dla mutacji updateMeetingTitle
+    /// </summary>
+    public class UpdateMeetingTitleResponse
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("updateMeetingTitle")]
+        public UpdateMeetingTitleResult? UpdateMeetingTitle { get; set; }
+    }
+
+    public class UpdateMeetingTitleResult
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("title")]
+        public string? Title { get; set; }
     }
 }

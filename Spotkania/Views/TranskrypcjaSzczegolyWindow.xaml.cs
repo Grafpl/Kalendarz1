@@ -21,11 +21,26 @@ namespace Kalendarz1.Spotkania.Views
         private readonly FirefliesService _firefliesService;
         private readonly string _firefliesId;
         private long _transkrypcjaId;
-        private FirefliesTranskrypcja? _transkrypcja;
 
-        private ObservableCollection<UczestnikMapowanie> _uczestnicy = new();
+        // Dane
+        private FirefliesTranskrypcja? _transkrypcja;
+        private FirefliesTranscriptDto? _transkrypcjaApi;
+        private List<FirefliesSentenceDto> _zdaniaApi = new();
+
+        // Kolekcje do wyswietlania
+        private ObservableCollection<MowcaMapowanieDisplay> _mowcy = new();
         private ObservableCollection<ZdanieDisplay> _zdania = new();
         private List<PracownikItem> _pracownicy = new();
+
+        // Kolory dla mowcow
+        private static readonly string[] KoloryMowcow = {
+            "#2196F3", "#4CAF50", "#FF9800", "#9C27B0", "#F44336",
+            "#00BCD4", "#795548", "#607D8B", "#E91E63", "#3F51B5"
+        };
+        private static readonly string[] KoloryTla = {
+            "#E3F2FD", "#E8F5E9", "#FFF3E0", "#F3E5F5", "#FFEBEE",
+            "#E0F7FA", "#EFEBE9", "#ECEFF1", "#FCE4EC", "#E8EAF6"
+        };
 
         public TranskrypcjaSzczegolyWindow(string firefliesId, long transkrypcjaId = 0)
         {
@@ -35,42 +50,64 @@ namespace Kalendarz1.Spotkania.Views
             _transkrypcjaId = transkrypcjaId;
 
             TxtFirefliesId.Text = $"Fireflies ID: {firefliesId}";
-            ListaUczestnikow.ItemsSource = _uczestnicy;
+            ListaMowcow.ItemsSource = _mowcy;
             ListaZdan.ItemsSource = _zdania;
 
             Loaded += async (s, e) => await LoadDataAsync();
         }
 
+        #region Ladowanie danych
+
         private async Task LoadDataAsync()
         {
             try
             {
-                // Pobierz listę pracowników
+                UstawStatus("Ladowanie danych...");
+
+                // 1. Pobierz liste pracownikow
                 await PobierzPracownikow();
 
-                // Pobierz dane transkrypcji
+                // 2. Pobierz dane transkrypcji z bazy (jesli istnieje)
                 if (_transkrypcjaId > 0)
                 {
                     _transkrypcja = await _firefliesService.PobierzTranskrypcjeZBazyPoId(_transkrypcjaId);
                 }
 
-                if (_transkrypcja == null)
+                // 3. Pobierz zdania z API (dla mapowania mowcow)
+                UstawStatus("Pobieranie zdań z Fireflies...");
+                try
                 {
-                    // Pobierz z API jeśli nie ma w bazie
-                    await OdswiezZApi();
+                    _zdaniaApi = await _firefliesService.PobierzZdaniaTranskrypcji(_firefliesId);
+                    _transkrypcjaApi = await _firefliesService.PobierzSzczegolyTranskrypcji(_firefliesId);
                 }
-                else
+                catch (Exception ex)
                 {
-                    WypelnijFormularz();
+                    System.Diagnostics.Debug.WriteLine($"Blad pobierania z API: {ex.Message}");
                 }
 
-                // Pobierz spotkania i notatki do comboboxów
+                // 4. Wypelnij formularz
+                WypelnijFormularz();
+
+                // 5. Wykryj mowcow z zdan
+                WykryjMowcowZZdan();
+
+                // 6. Wypelnij zdania (transkrypcje)
+                WypelnijZdania();
+
+                // 7. Pobierz spotkania i notatki do comboboxow
                 await PobierzSpotkaniaINotatki();
+
+                // 8. Zaladuj zapisane mapowania
+                await ZaladujZapisaneMapowania();
+
+                UstawStatus("");
+                UstawSyncStatus(true);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd ładowania danych: {ex.Message}", "Błąd",
+                MessageBox.Show($"Blad ladowania danych: {ex.Message}", "Blad",
                     MessageBoxButton.OK, MessageBoxImage.Error);
+                UstawStatus($"Blad: {ex.Message}");
             }
         }
 
@@ -103,166 +140,170 @@ namespace Kalendarz1.Spotkania.Views
 
         private void WypelnijFormularz()
         {
-            if (_transkrypcja == null) return;
-
-            TxtTytul.Text = _transkrypcja.Tytul ?? "";
-            TxtData.Text = _transkrypcja.DataSpotkaniaDisplay;
-            TxtCzasTrwania.Text = _transkrypcja.CzasTrwaniaDisplay;
-            TxtOrganizator.Text = _transkrypcja.HostEmail ?? "Nieznany";
-            TxtPodsumowanie.Text = _transkrypcja.Podsumowanie ?? "";
-            TxtSlowaKluczowe.Text = _transkrypcja.SlowKluczowe != null
-                ? string.Join(", ", _transkrypcja.SlowKluczowe)
-                : "";
-
-            // Wypełnij uczestników
-            _uczestnicy.Clear();
-            foreach (var u in _transkrypcja.Uczestnicy)
+            // Najpierw probuj dane z API, potem z bazy
+            if (_transkrypcjaApi != null)
             {
-                _uczestnicy.Add(new UczestnikMapowanie
+                TxtTytul.Text = _transkrypcjaApi.Title ?? "";
+                TxtData.Text = _transkrypcjaApi.DateAsDateTime?.ToString("dd.MM.yyyy HH:mm") ?? "---";
+                TxtCzasTrwania.Text = FormatujCzas(_transkrypcjaApi.Duration);
+                TxtOrganizator.Text = _transkrypcjaApi.EmailOrganizatora ?? "Nieznany";
+                TxtPodsumowanie.Text = _transkrypcjaApi.Summary?.Overview ?? "";
+                TxtSlowaKluczowe.Text = _transkrypcjaApi.Summary?.Keywords != null
+                    ? string.Join(", ", _transkrypcjaApi.Summary.Keywords) : "";
+            }
+            else if (_transkrypcja != null)
+            {
+                TxtTytul.Text = _transkrypcja.Tytul ?? "";
+                TxtData.Text = _transkrypcja.DataSpotkaniaDisplay;
+                TxtCzasTrwania.Text = _transkrypcja.CzasTrwaniaDisplay;
+                TxtOrganizator.Text = _transkrypcja.HostEmail ?? "Nieznany";
+                TxtPodsumowanie.Text = _transkrypcja.Podsumowanie ?? "";
+                TxtSlowaKluczowe.Text = _transkrypcja.SlowKluczowe != null
+                    ? string.Join(", ", _transkrypcja.SlowKluczowe) : "";
+            }
+        }
+
+        private void WykryjMowcowZZdan()
+        {
+            _mowcy.Clear();
+
+            if (_zdaniaApi == null || _zdaniaApi.Count == 0)
+            {
+                TxtLiczbaMowcow.Text = "(0)";
+                return;
+            }
+
+            // Grupuj po speaker_id i speaker_name
+            var grupyMowcow = _zdaniaApi
+                .GroupBy(z => new { z.SpeakerId, z.SpeakerName })
+                .Select((g, idx) => new
                 {
-                    NazwaWFireflies = u.Nazwa,
-                    EmailWFireflies = u.Email,
-                    SpeakerId = u.SpeakerId,
-                    PrzypisanyUserID = u.PrzypisanyUserID,
+                    SpeakerId = g.Key.SpeakerId,
+                    SpeakerName = g.Key.SpeakerName,
+                    LiczbaWypowiedzi = g.Count(),
+                    PrzykladowaWypowiedz = g.FirstOrDefault()?.Text ?? "",
+                    KolorIndex = idx
+                })
+                .OrderByDescending(m => m.LiczbaWypowiedzi)
+                .ToList();
+
+            foreach (var g in grupyMowcow)
+            {
+                var kolorIdx = g.KolorIndex % KoloryMowcow.Length;
+
+                _mowcy.Add(new MowcaMapowanieDisplay
+                {
+                    SpeakerId = g.SpeakerId,
+                    SpeakerNameFireflies = g.SpeakerName ?? $"Mowca {g.SpeakerId}",
+                    LiczbaWypowiedzi = g.LiczbaWypowiedzi,
+                    PrzykladowaWypowiedz = g.PrzykladowaWypowiedz.Length > 100
+                        ? g.PrzykladowaWypowiedz.Substring(0, 100) + "..."
+                        : g.PrzykladowaWypowiedz,
+                    KolorMowcy = new SolidColorBrush((Color)ColorConverter.ConvertFromString(KoloryMowcow[kolorIdx])),
+                    TloKolor = new SolidColorBrush((Color)ColorConverter.ConvertFromString(KoloryTla[kolorIdx])),
                     DostepniPracownicy = _pracownicy
                 });
             }
 
-            // Jeśli brak uczestników, dodaj z emaili
-            if (_uczestnicy.Count == 0 && !string.IsNullOrEmpty(_transkrypcja.HostEmail))
-            {
-                _uczestnicy.Add(new UczestnikMapowanie
-                {
-                    NazwaWFireflies = _transkrypcja.HostEmail,
-                    EmailWFireflies = _transkrypcja.HostEmail,
-                    DostepniPracownicy = _pracownicy
-                });
-            }
-
-            // Wypełnij zdania transkrypcji
-            WypelnijZdania();
+            TxtLiczbaMowcow.Text = $"({_mowcy.Count})";
         }
 
         private void WypelnijZdania()
         {
             _zdania.Clear();
 
-            if (_transkrypcja?.Transkrypcja == null) return;
-
-            // Parse transkrypcji
-            var lines = _transkrypcja.Transkrypcja.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            int index = 0;
-
-            // Kolory dla różnych mówców
-            var kolory = new[] { "#E3F2FD", "#FFF3E0", "#E8F5E9", "#FCE4EC", "#F3E5F5" };
-            var kolorMowcy = new Dictionary<string, (string Tlo, string Tekst)>();
-
-            foreach (var line in lines)
+            if (_zdaniaApi != null && _zdaniaApi.Count > 0)
             {
-                var zdanie = new ZdanieDisplay { Index = index++ };
+                // Wypelnij z API
+                foreach (var z in _zdaniaApi.OrderBy(x => x.Index))
+                {
+                    var mowca = _mowcy.FirstOrDefault(m =>
+                        m.SpeakerId == z.SpeakerId && m.SpeakerNameFireflies == (z.SpeakerName ?? $"Mowca {z.SpeakerId}"));
 
-                // Parse format: [Speaker]: Text
-                var colonIndex = line.IndexOf(']');
-                if (colonIndex > 0 && line.StartsWith("["))
-                {
-                    zdanie.Mowca = line.Substring(1, colonIndex - 1);
-                    zdanie.Tekst = line.Substring(colonIndex + 2).Trim();
-                }
-                else
-                {
-                    zdanie.Tekst = line;
-                }
-
-                // Przypisz kolor dla mówcy
-                if (!string.IsNullOrEmpty(zdanie.Mowca))
-                {
-                    if (!kolorMowcy.ContainsKey(zdanie.Mowca))
+                    _zdania.Add(new ZdanieDisplay
                     {
-                        var idx = kolorMowcy.Count % kolory.Length;
-                        kolorMowcy[zdanie.Mowca] = (kolory[idx], "#1976D2");
+                        Index = z.Index ?? 0,
+                        SpeakerId = z.SpeakerId,
+                        Mowca = z.SpeakerName ?? $"Mowca {z.SpeakerId}",
+                        Tekst = z.Text ?? "",
+                        StartTime = z.StartTime ?? 0,
+                        TloKolor = mowca?.TloKolor ?? new SolidColorBrush(Colors.White),
+                        MowcaKolor = mowca?.KolorMowcy ?? new SolidColorBrush(Colors.Gray)
+                    });
+                }
+            }
+            else if (_transkrypcja?.Transkrypcja != null)
+            {
+                // Wypelnij z bazy (stary format tekstowy)
+                var lines = _transkrypcja.Transkrypcja.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                int idx = 0;
+
+                foreach (var line in lines)
+                {
+                    var zdanie = new ZdanieDisplay { Index = idx++ };
+
+                    // Parse format: [Speaker]: Text
+                    var colonIndex = line.IndexOf(']');
+                    if (colonIndex > 0 && line.StartsWith("["))
+                    {
+                        zdanie.Mowca = line.Substring(1, colonIndex - 1);
+                        zdanie.Tekst = line.Substring(colonIndex + 2).Trim();
+                    }
+                    else
+                    {
+                        zdanie.Tekst = line;
                     }
 
-                    zdanie.TloKolor = new SolidColorBrush((Color)ColorConverter.ConvertFromString(kolorMowcy[zdanie.Mowca].Tlo));
-                    zdanie.MowcaKolor = new SolidColorBrush((Color)ColorConverter.ConvertFromString(kolorMowcy[zdanie.Mowca].Tekst));
+                    _zdania.Add(zdanie);
                 }
-
-                _zdania.Add(zdanie);
             }
 
             TxtLiczbaZdan.Text = $"({_zdania.Count} wypowiedzi)";
         }
 
-        private async Task OdswiezZApi()
+        private async Task ZaladujZapisaneMapowania()
         {
+            if (_transkrypcjaId <= 0) return;
+
             try
             {
-                BtnOdswiez.IsEnabled = false;
-                BtnOdswiez.Content = "⏳ Pobieranie...";
+                var mapowania = await _firefliesService.PobierzMapowanieMowcow(_transkrypcjaId);
 
-                var dto = await _firefliesService.PobierzSzczegolyTranskrypcji(_firefliesId);
-                if (dto == null)
+                foreach (var m in mapowania)
                 {
-                    MessageBox.Show("Nie udało się pobrać danych z API.", "Błąd",
-                        MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
+                    var mowca = _mowcy.FirstOrDefault(x =>
+                        x.SpeakerId == m.SpeakerId ||
+                        x.SpeakerNameFireflies == m.SpeakerNameFireflies);
 
-                // Konwertuj DTO na model
-                _transkrypcja = new FirefliesTranskrypcja
-                {
-                    FirefliesID = dto.Id ?? _firefliesId,
-                    Tytul = dto.Title,
-                    DataSpotkania = dto.DateAsDateTime,
-                    CzasTrwaniaSekundy = (int)(dto.Duration ?? 0),
-                    HostEmail = dto.EmailOrganizatora,
-                    TranskrypcjaUrl = dto.TranscriptUrl,
-                    Podsumowanie = dto.Summary?.Overview
-                };
-
-                // Uczestnicy z sentences
-                if (dto.Sentences != null)
-                {
-                    var mowcy = dto.Sentences
-                        .Where(s => !string.IsNullOrEmpty(s.SpeakerName) || s.SpeakerId.HasValue)
-                        .Select(s => new { s.SpeakerName, s.SpeakerId })
-                        .Distinct()
-                        .ToList();
-
-                    foreach (var m in mowcy)
+                    if (mowca != null && !string.IsNullOrEmpty(m.PrzypisanyUserID))
                     {
-                        _transkrypcja.Uczestnicy.Add(new FirefliesUczestnik
-                        {
-                            SpeakerId = m.SpeakerId?.ToString(),
-                            DisplayName = m.SpeakerName
-                        });
+                        mowca.PrzypisanyUserID = m.PrzypisanyUserID;
+                        mowca.PrzypisanyUserName = m.PrzypisanyUserName;
                     }
-
-                    // Zbuduj transkrypcję
-                    var sb = new System.Text.StringBuilder();
-                    foreach (var s in dto.Sentences)
-                    {
-                        sb.AppendLine($"[{s.SpeakerName ?? s.SpeakerId?.ToString() ?? "?"}]: {s.Text}");
-                    }
-                    _transkrypcja.Transkrypcja = sb.ToString();
                 }
 
-                // Słowa kluczowe
-                if (dto.Summary?.Keywords != null)
-                {
-                    _transkrypcja.SlowKluczowe = dto.Summary.Keywords;
-                }
-
-                WypelnijFormularz();
+                // Aktualizuj zdania z mapowaniami
+                AktualizujZdaniazMapowaniami();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd pobierania z API: {ex.Message}", "Błąd",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Diagnostics.Debug.WriteLine($"Blad ladowania mapowan: {ex.Message}");
             }
-            finally
+        }
+
+        private void AktualizujZdaniazMapowaniami()
+        {
+            foreach (var zdanie in _zdania)
             {
-                BtnOdswiez.IsEnabled = true;
-                BtnOdswiez.Content = "🔄 Odśwież z API";
+                var mowca = _mowcy.FirstOrDefault(m =>
+                    m.SpeakerId == zdanie.SpeakerId ||
+                    m.SpeakerNameFireflies == zdanie.Mowca);
+
+                if (mowca != null && !string.IsNullOrEmpty(mowca.PrzypisanyUserID))
+                {
+                    var pracownik = _pracownicy.FirstOrDefault(p => p.UserID == mowca.PrzypisanyUserID);
+                    zdanie.MowcaSystemowy = pracownik?.DisplayName ?? "";
+                }
             }
         }
 
@@ -274,7 +315,7 @@ namespace Kalendarz1.Spotkania.Views
                 await conn.OpenAsync();
 
                 // Spotkania
-                var spotkania = new List<SpotkanieComboItem> { new() { SpotkaniID = 0, TytulDisplay = "(Brak powiązania)" } };
+                var spotkania = new List<SpotkanieComboItem> { new() { SpotkaniID = 0, TytulDisplay = "(Brak powiazania)" } };
 
                 string sqlS = @"SELECT TOP 100 SpotkaniID, Tytul, DataRozpoczecia
                                FROM Spotkania ORDER BY DataRozpoczecia DESC";
@@ -286,7 +327,7 @@ namespace Kalendarz1.Spotkania.Views
                         spotkania.Add(new SpotkanieComboItem
                         {
                             SpotkaniID = readerS.GetInt64(0),
-                            TytulDisplay = $"{readerS.GetDateTime(2):dd.MM.yyyy} - {(readerS.IsDBNull(1) ? "Bez tytułu" : readerS.GetString(1))}"
+                            TytulDisplay = $"{readerS.GetDateTime(2):dd.MM.yyyy} - {(readerS.IsDBNull(1) ? "Bez tytulu" : readerS.GetString(1))}"
                         });
                     }
                 }
@@ -295,7 +336,7 @@ namespace Kalendarz1.Spotkania.Views
                 CmbSpotkanie.SelectedIndex = 0;
 
                 // Notatki
-                var notatki = new List<NotatkaComboItem> { new() { NotatkaID = 0, TematDisplay = "(Brak powiązania)" } };
+                var notatki = new List<NotatkaComboItem> { new() { NotatkaID = 0, TematDisplay = "(Brak powiazania)" } };
 
                 string sqlN = @"SELECT TOP 100 NotatkaID, Temat, DataSpotkania
                                FROM NotatkiZeSpotkan ORDER BY DataSpotkania DESC";
@@ -316,7 +357,7 @@ namespace Kalendarz1.Spotkania.Views
                 CmbNotatka.ItemsSource = notatki;
                 CmbNotatka.SelectedIndex = 0;
 
-                // Ustaw aktualne powiązania
+                // Ustaw aktualne powiazania
                 if (_transkrypcja?.SpotkaniID.HasValue == true)
                 {
                     var spotkanie = spotkania.FirstOrDefault(s => s.SpotkaniID == _transkrypcja.SpotkaniID);
@@ -331,9 +372,13 @@ namespace Kalendarz1.Spotkania.Views
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Błąd pobierania powiązań: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Blad pobierania powiazan: {ex.Message}");
             }
         }
+
+        #endregion
+
+        #region Event Handlers
 
         private void BtnOtworzFireflies_Click(object sender, RoutedEventArgs e)
         {
@@ -348,30 +393,131 @@ namespace Kalendarz1.Spotkania.Views
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Nie udało się otworzyć przeglądarki: {ex.Message}", "Błąd",
+                MessageBox.Show($"Nie udalo sie otworzyc przegladarki: {ex.Message}", "Blad",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private async void BtnOdswiez_Click(object sender, RoutedEventArgs e)
         {
-            await OdswiezZApi();
-        }
+            BtnOdswiez.IsEnabled = false;
+            BtnOdswiez.Content = "Ladowanie...";
 
-        private void BtnZapiszUczestnika_Click(object sender, RoutedEventArgs e)
-        {
-            // Zapisywane będzie razem z całym formularzem
-            MessageBox.Show("Przypisanie zostanie zapisane po kliknięciu 'Zapisz zmiany'.", "Info",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-
-        private void BtnDodajUczestnika_Click(object sender, RoutedEventArgs e)
-        {
-            _uczestnicy.Add(new UczestnikMapowanie
+            try
             {
-                NazwaWFireflies = "Nowy uczestnik",
-                DostepniPracownicy = _pracownicy
-            });
+                _zdaniaApi = await _firefliesService.PobierzZdaniaTranskrypcji(_firefliesId);
+                _transkrypcjaApi = await _firefliesService.PobierzSzczegolyTranskrypcji(_firefliesId);
+
+                WypelnijFormularz();
+                WykryjMowcowZZdan();
+                WypelnijZdania();
+                await ZaladujZapisaneMapowania();
+
+                UstawSyncStatus(true);
+                MessageBox.Show("Dane odswieżone z Fireflies.ai", "Sukces",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad pobierania z API: {ex.Message}", "Blad",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                BtnOdswiez.IsEnabled = true;
+                BtnOdswiez.Content = "Odswiez z API";
+            }
+        }
+
+        private async void BtnSyncTytul_Click(object sender, RoutedEventArgs e)
+        {
+            var nowyTytul = TxtTytul.Text.Trim();
+            if (string.IsNullOrEmpty(nowyTytul))
+            {
+                MessageBox.Show("Podaj tytul spotkania", "Blad", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            BtnSyncTytul.IsEnabled = false;
+            UstawStatus("Synchronizacja tytulu z Fireflies...");
+
+            try
+            {
+                var (success, message) = await _firefliesService.AktualizujTytulWFireflies(_firefliesId, nowyTytul);
+
+                if (success)
+                {
+                    UstawSyncStatus(true);
+                    MessageBox.Show("Tytul zaktualizowany w Fireflies.ai!", "Sukces",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    UstawSyncStatus(false, message);
+                    MessageBox.Show($"Blad synchronizacji: {message}", "Blad",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                UstawSyncStatus(false, ex.Message);
+                MessageBox.Show($"Blad: {ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                BtnSyncTytul.IsEnabled = true;
+                UstawStatus("");
+            }
+        }
+
+        private async void BtnZapiszMapowanie_Click(object sender, RoutedEventArgs e)
+        {
+            if (_transkrypcjaId <= 0)
+            {
+                // Najpierw zapisz transkrypcje do bazy
+                await ZapiszDoLocalnejBazy();
+            }
+
+            try
+            {
+                UstawStatus("Zapisywanie mapowania mowcow...");
+
+                var mapowania = _mowcy.Select(m => new MowcaMapowanie
+                {
+                    SpeakerId = m.SpeakerId,
+                    SpeakerNameFireflies = m.SpeakerNameFireflies,
+                    PrzypisanyUserID = m.PrzypisanyUserID,
+                    PrzypisanyUserName = _pracownicy.FirstOrDefault(p => p.UserID == m.PrzypisanyUserID)?.DisplayName
+                }).ToList();
+
+                await _firefliesService.ZapiszMapowanieMowcow(_transkrypcjaId, mapowania);
+
+                // Aktualizuj wyswietlanie zdan
+                AktualizujZdaniazMapowaniami();
+                ListaZdan.Items.Refresh();
+
+                UstawStatus("Mapowanie zapisane");
+                MessageBox.Show("Mapowanie mowcow zostalo zapisane.", "Sukces",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad zapisywania mapowania: {ex.Message}", "Blad",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                UstawStatus($"Blad: {ex.Message}");
+            }
+        }
+
+        private void ChkPokazNazwySystemowe_Changed(object sender, RoutedEventArgs e)
+        {
+            var pokazSystemowe = ChkPokazNazwySystemowe.IsChecked == true;
+
+            foreach (var zdanie in _zdania)
+            {
+                zdanie.PokazNazweSystemowa = pokazSystemowe;
+            }
+
+            ListaZdan.Items.Refresh();
         }
 
         private async void BtnPowiazSpotkanie_Click(object sender, RoutedEventArgs e)
@@ -379,7 +525,7 @@ namespace Kalendarz1.Spotkania.Views
             var spotkanie = CmbSpotkanie.SelectedItem as SpotkanieComboItem;
             if (spotkanie == null || spotkanie.SpotkaniID == 0)
             {
-                MessageBox.Show("Wybierz spotkanie do powiązania.", "Info",
+                MessageBox.Show("Wybierz spotkanie do powiazania.", "Info",
                     MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
@@ -387,7 +533,7 @@ namespace Kalendarz1.Spotkania.Views
             if (_transkrypcjaId > 0)
             {
                 await _firefliesService.PowiazTranskrypcjeZeSpotkaniem(_transkrypcjaId, spotkanie.SpotkaniID);
-                MessageBox.Show("Powiązano ze spotkaniem.", "Sukces",
+                MessageBox.Show("Powiazano ze spotkaniem.", "Sukces",
                     MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
@@ -397,7 +543,7 @@ namespace Kalendarz1.Spotkania.Views
             var notatka = CmbNotatka.SelectedItem as NotatkaComboItem;
             if (notatka == null || notatka.NotatkaID == 0)
             {
-                MessageBox.Show("Wybierz notatkę do powiązania.", "Info",
+                MessageBox.Show("Wybierz notatke do powiazania.", "Info",
                     MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
@@ -405,22 +551,15 @@ namespace Kalendarz1.Spotkania.Views
             if (_transkrypcjaId > 0)
             {
                 await _firefliesService.PowiazTranskrypcjeZNotatka(_transkrypcjaId, notatka.NotatkaID);
-                MessageBox.Show("Powiązano z notatką.", "Sukces",
+                MessageBox.Show("Powiazano z notatka.", "Sukces",
                     MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
-        private void BtnUtworzNotatke_Click(object sender, RoutedEventArgs e)
-        {
-            // TODO: Implementacja tworzenia notatki
-            MessageBox.Show("Funkcja tworzenia notatki z transkrypcji będzie dostępna wkrótce.", "Info",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-
         private async void BtnUsun_Click(object sender, RoutedEventArgs e)
         {
-            var result = MessageBox.Show("Czy na pewno chcesz usunąć tę transkrypcję z bazy danych?\n\nNie wpłynie to na dane w Fireflies.ai.",
-                "Potwierdź usunięcie", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            var result = MessageBox.Show("Czy na pewno chcesz usunac te transkrypcje z bazy danych?\n\nNie wplynie to na dane w Fireflies.ai.",
+                "Potwierdz usuniecie", MessageBoxButton.YesNo, MessageBoxImage.Warning);
 
             if (result != MessageBoxResult.Yes) return;
 
@@ -434,15 +573,101 @@ namespace Kalendarz1.Spotkania.Views
                 cmd.Parameters.AddWithValue("@ID", _transkrypcjaId);
                 await cmd.ExecuteNonQueryAsync();
 
-                MessageBox.Show("Transkrypcja została usunięta.", "Sukces",
+                MessageBox.Show("Transkrypcja zostala usunieta.", "Sukces",
                     MessageBoxButton.OK, MessageBoxImage.Information);
                 DialogResult = true;
                 Close();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Błąd usuwania: {ex.Message}", "Błąd",
+                MessageBox.Show($"Blad usuwania: {ex.Message}", "Blad",
                     MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void BtnZapiszWszystko_Click(object sender, RoutedEventArgs e)
+        {
+            BtnZapiszWszystko.IsEnabled = false;
+            UstawStatus("Zapisywanie i synchronizacja...");
+
+            try
+            {
+                // 1. Zapisz lokalnie
+                await ZapiszDoLocalnejBazy();
+
+                // 2. Sync tytul do Fireflies
+                var nowyTytul = TxtTytul.Text.Trim();
+                if (!string.IsNullOrEmpty(nowyTytul))
+                {
+                    var (success, message) = await _firefliesService.AktualizujTytulWFireflies(_firefliesId, nowyTytul);
+                    if (!success)
+                    {
+                        MessageBox.Show($"Dane zapisane lokalnie, ale blad sync z Fireflies: {message}",
+                            "Ostrzezenie", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+                }
+
+                // 3. Zapisz mapowanie
+                var mapowania = _mowcy.Select(m => new MowcaMapowanie
+                {
+                    SpeakerId = m.SpeakerId,
+                    SpeakerNameFireflies = m.SpeakerNameFireflies,
+                    PrzypisanyUserID = m.PrzypisanyUserID,
+                    PrzypisanyUserName = _pracownicy.FirstOrDefault(p => p.UserID == m.PrzypisanyUserID)?.DisplayName
+                }).ToList();
+
+                await _firefliesService.ZapiszMapowanieMowcow(_transkrypcjaId, mapowania);
+
+                UstawSyncStatus(true);
+                UstawStatus("Wszystko zapisane!");
+                MessageBox.Show("Wszystkie zmiany zostaly zapisane i zsynchronizowane.", "Sukces",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                DialogResult = true;
+            }
+            catch (Exception ex)
+            {
+                UstawSyncStatus(false, ex.Message);
+                MessageBox.Show($"Blad: {ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                BtnZapiszWszystko.IsEnabled = true;
+            }
+        }
+
+        private async void BtnZapiszLokalnie_Click(object sender, RoutedEventArgs e)
+        {
+            BtnZapiszLokalnie.IsEnabled = false;
+            UstawStatus("Zapisywanie lokalnie...");
+
+            try
+            {
+                await ZapiszDoLocalnejBazy();
+
+                // Zapisz mapowanie
+                var mapowania = _mowcy.Select(m => new MowcaMapowanie
+                {
+                    SpeakerId = m.SpeakerId,
+                    SpeakerNameFireflies = m.SpeakerNameFireflies,
+                    PrzypisanyUserID = m.PrzypisanyUserID,
+                    PrzypisanyUserName = _pracownicy.FirstOrDefault(p => p.UserID == m.PrzypisanyUserID)?.DisplayName
+                }).ToList();
+
+                await _firefliesService.ZapiszMapowanieMowcow(_transkrypcjaId, mapowania);
+
+                UstawStatus("Zapisano lokalnie");
+                MessageBox.Show("Zmiany zostaly zapisane lokalnie.", "Sukces",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                DialogResult = true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad zapisywania: {ex.Message}", "Blad",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                BtnZapiszLokalnie.IsEnabled = true;
             }
         }
 
@@ -452,95 +677,109 @@ namespace Kalendarz1.Spotkania.Views
             Close();
         }
 
-        private async void BtnZapisz_Click(object sender, RoutedEventArgs e)
+        #endregion
+
+        #region Pomocnicze
+
+        private async Task ZapiszDoLocalnejBazy()
         {
-            try
+            var slowa = TxtSlowaKluczowe.Text.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim()).ToList();
+
+            // Przygotuj uczestnikow JSON
+            var uczestnicyJson = JsonSerializer.Serialize(_mowcy.Select(m => new
             {
+                nazwa = m.SpeakerNameFireflies,
+                speakerId = m.SpeakerId?.ToString(),
+                userId = m.PrzypisanyUserID,
+                userName = _pracownicy.FirstOrDefault(p => p.UserID == m.PrzypisanyUserID)?.DisplayName
+            }).ToList());
+
+            if (_transkrypcjaId > 0)
+            {
+                await _firefliesService.AktualizujTranskrypcjeWBazie(
+                    _transkrypcjaId,
+                    TxtTytul.Text,
+                    TxtPodsumowanie.Text,
+                    slowa,
+                    uczestnicyJson);
+            }
+            else
+            {
+                // Wstaw nowa transkrypcje
                 using var conn = new SqlConnection(CONNECTION_STRING);
                 await conn.OpenAsync();
 
-                // Przygotuj dane uczestników do JSON
-                var uczestnicyJson = JsonSerializer.Serialize(_uczestnicy.Select(u => new
-                {
-                    nazwa = u.NazwaWFireflies,
-                    email = u.EmailWFireflies,
-                    speakerId = u.SpeakerId,
-                    userId = u.PrzypisanyUserID
-                }).ToList());
+                // Zbuduj transkrypcje tekstowa
+                var transkrypcjaTekst = string.Join("\n",
+                    _zdania.Select(z => $"[{z.Mowca}]: {z.Tekst}"));
 
-                // Słowa kluczowe
-                var slowa = TxtSlowaKluczowe.Text.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                    .Select(s => s.Trim()).ToList();
-                var slowaJson = JsonSerializer.Serialize(slowa);
+                string sql = @"INSERT INTO FirefliesTranskrypcje
+                    (FirefliesID, Tytul, DataSpotkania, CzasTrwaniaSekundy, Uczestnicy, HostEmail,
+                     Transkrypcja, TranskrypcjaUrl, Podsumowanie, SlowKluczowe, StatusImportu, DataImportu)
+                VALUES
+                    (@FirefliesID, @Tytul, @DataSpotkania, @CzasTrwania, @Uczestnicy, @HostEmail,
+                     @Transkrypcja, @TranskrypcjaUrl, @Podsumowanie, @Slowa, 'Reczny', GETDATE());
+                SELECT SCOPE_IDENTITY();";
 
-                if (_transkrypcjaId > 0)
-                {
-                    // Aktualizuj istniejący rekord
-                    string sql = @"UPDATE FirefliesTranskrypcje SET
-                        Tytul = @Tytul,
-                        Podsumowanie = @Podsumowanie,
-                        SlowKluczowe = @Slowa,
-                        Uczestnicy = @Uczestnicy,
-                        DataModyfikacji = GETDATE()
-                    WHERE TranskrypcjaID = @ID";
+                using var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@FirefliesID", _firefliesId);
+                cmd.Parameters.AddWithValue("@Tytul", TxtTytul.Text);
+                cmd.Parameters.AddWithValue("@DataSpotkania", (object?)_transkrypcjaApi?.DateAsDateTime ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@CzasTrwania", _transkrypcjaApi?.Duration ?? 0);
+                cmd.Parameters.AddWithValue("@Uczestnicy", uczestnicyJson);
+                cmd.Parameters.AddWithValue("@HostEmail", (object?)_transkrypcjaApi?.EmailOrganizatora ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@Transkrypcja", transkrypcjaTekst);
+                cmd.Parameters.AddWithValue("@TranskrypcjaUrl", (object?)_transkrypcjaApi?.TranscriptUrl ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@Podsumowanie", (object?)TxtPodsumowanie.Text ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@Slowa", JsonSerializer.Serialize(slowa));
 
-                    using var cmd = new SqlCommand(sql, conn);
-                    cmd.Parameters.AddWithValue("@ID", _transkrypcjaId);
-                    cmd.Parameters.AddWithValue("@Tytul", TxtTytul.Text);
-                    cmd.Parameters.AddWithValue("@Podsumowanie", (object?)TxtPodsumowanie.Text ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@Slowa", slowaJson);
-                    cmd.Parameters.AddWithValue("@Uczestnicy", uczestnicyJson);
-
-                    await cmd.ExecuteNonQueryAsync();
-                }
-                else
-                {
-                    // Wstaw nowy rekord
-                    string sql = @"INSERT INTO FirefliesTranskrypcje
-                        (FirefliesID, Tytul, DataSpotkania, CzasTrwaniaSekundy, Uczestnicy, HostEmail,
-                         Transkrypcja, TranskrypcjaUrl, Podsumowanie, SlowKluczowe, StatusImportu, DataImportu)
-                    VALUES
-                        (@FirefliesID, @Tytul, @DataSpotkania, @CzasTrwania, @Uczestnicy, @HostEmail,
-                         @Transkrypcja, @TranskrypcjaUrl, @Podsumowanie, @Slowa, 'Ręczny', GETDATE());
-                    SELECT SCOPE_IDENTITY();";
-
-                    using var cmd = new SqlCommand(sql, conn);
-                    cmd.Parameters.AddWithValue("@FirefliesID", _firefliesId);
-                    cmd.Parameters.AddWithValue("@Tytul", TxtTytul.Text);
-                    cmd.Parameters.AddWithValue("@DataSpotkania", (object?)_transkrypcja?.DataSpotkania ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@CzasTrwania", _transkrypcja?.CzasTrwaniaSekundy ?? 0);
-                    cmd.Parameters.AddWithValue("@Uczestnicy", uczestnicyJson);
-                    cmd.Parameters.AddWithValue("@HostEmail", (object?)_transkrypcja?.HostEmail ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@Transkrypcja", (object?)_transkrypcja?.Transkrypcja ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@TranskrypcjaUrl", (object?)_transkrypcja?.TranskrypcjaUrl ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@Podsumowanie", (object?)TxtPodsumowanie.Text ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@Slowa", slowaJson);
-
-                    var newId = await cmd.ExecuteScalarAsync();
-                    _transkrypcjaId = Convert.ToInt64(newId);
-                }
-
-                MessageBox.Show("Zmiany zostały zapisane.", "Sukces",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-                DialogResult = true;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Błąd zapisywania: {ex.Message}", "Błąd",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                var newId = await cmd.ExecuteScalarAsync();
+                _transkrypcjaId = Convert.ToInt64(newId);
             }
         }
+
+        private void UstawStatus(string tekst)
+        {
+            TxtStatusZapisu.Text = tekst;
+        }
+
+        private void UstawSyncStatus(bool zsynchronizowane, string? blad = null)
+        {
+            if (zsynchronizowane)
+            {
+                BadgeSync.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4CAF50"));
+                TxtSyncStatus.Text = "Zsynchronizowane";
+            }
+            else
+            {
+                BadgeSync.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF9800"));
+                TxtSyncStatus.Text = blad != null ? $"Blad: {blad}" : "Niezapisane";
+            }
+        }
+
+        private string FormatujCzas(double? sekundy)
+        {
+            if (!sekundy.HasValue) return "---";
+            var ts = TimeSpan.FromSeconds(sekundy.Value);
+            if (ts.TotalHours >= 1)
+                return $"{(int)ts.TotalHours}h {ts.Minutes}min";
+            return $"{ts.Minutes}min {ts.Seconds}s";
+        }
+
+        #endregion
     }
 
     #region Helper Classes
 
-    public class UczestnikMapowanie : INotifyPropertyChanged
+    public class MowcaMapowanieDisplay : INotifyPropertyChanged
     {
         private string? _przypisanyUserID;
 
-        public string? NazwaWFireflies { get; set; }
-        public string? EmailWFireflies { get; set; }
-        public string? SpeakerId { get; set; }
+        public int? SpeakerId { get; set; }
+        public string? SpeakerNameFireflies { get; set; }
+        public int LiczbaWypowiedzi { get; set; }
+        public string? PrzykladowaWypowiedz { get; set; }
 
         public string? PrzypisanyUserID
         {
@@ -548,7 +787,14 @@ namespace Kalendarz1.Spotkania.Views
             set { _przypisanyUserID = value; OnPropertyChanged(); }
         }
 
+        public string? PrzypisanyUserName { get; set; }
+
         public List<PracownikItem> DostepniPracownicy { get; set; } = new();
+
+        public SolidColorBrush KolorMowcy { get; set; } = new SolidColorBrush(Colors.Gray);
+        public SolidColorBrush TloKolor { get; set; } = new SolidColorBrush(Colors.White);
+
+        public string DisplayFireflies => SpeakerNameFireflies ?? $"Mowca {SpeakerId}";
 
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string? name = null)
@@ -562,18 +808,34 @@ namespace Kalendarz1.Spotkania.Views
         public string? Email { get; set; }
     }
 
-    public class ZdanieDisplay
+    public class ZdanieDisplay : INotifyPropertyChanged
     {
+        private bool _pokazNazweSystemowa;
+
         public int Index { get; set; }
+        public int? SpeakerId { get; set; }
         public string? Mowca { get; set; }
         public string? Tekst { get; set; }
         public double StartTime { get; set; }
+        public string? MowcaSystemowy { get; set; }
+
+        public bool PokazNazweSystemowa
+        {
+            get => _pokazNazweSystemowa;
+            set { _pokazNazweSystemowa = value; OnPropertyChanged(); OnPropertyChanged(nameof(MowcaSystemowyVisibility)); }
+        }
 
         public string CzasDisplay => TimeSpan.FromSeconds(StartTime).ToString(@"mm\:ss");
         public string MowcaDisplay => Mowca ?? "?";
+        public Visibility MowcaSystemowyVisibility =>
+            PokazNazweSystemowa && !string.IsNullOrEmpty(MowcaSystemowy) ? Visibility.Visible : Visibility.Collapsed;
 
         public SolidColorBrush TloKolor { get; set; } = new SolidColorBrush(Colors.White);
         public SolidColorBrush MowcaKolor { get; set; } = new SolidColorBrush(Colors.Gray);
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string? name = null)
+            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 
     public class SpotkanieComboItem
