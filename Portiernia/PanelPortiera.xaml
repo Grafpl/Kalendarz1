@@ -809,57 +809,93 @@
         <TextBlock x:Name="txtBrutto" Visibility="Collapsed" Text="0"/>
         <TextBlock x:Name="txtTara" Visibility="Collapsed" Text="0"/>
 
-        <!-- Widok 4 kamer - pełny ekran -->
+        <!-- Widok pojedynczej kamery - pełny ekran z przełącznikiem strumienia -->
         <Grid x:Name="viewCameras" Visibility="Collapsed" Grid.Row="0" Grid.ColumnSpan="2" Background="Black">
             <Grid.RowDefinitions>
-                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
 
-            <!-- Kamera 1 - Wjazd -->
-            <Grid Grid.Row="0" Grid.Column="0" Background="Black">
-                <Image x:Name="cameraImage1" Stretch="Uniform"/>
-                <TextBlock x:Name="cameraStatus1" Text="Ładowanie..." FontSize="24" Foreground="#555"
+            <!-- Pasek górny z przełącznikiem strumienia -->
+            <Border Grid.Row="0" Background="#1A1A24" Padding="15,10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Etykieta kamery -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="🎥" FontSize="24" Margin="0,0,10,0"/>
+                        <TextBlock Text="KAMERA WJAZD" FontSize="20" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Przełącznik strumienia na środku -->
+                    <Border Grid.Column="1" Background="#252530" CornerRadius="10" HorizontalAlignment="Center" Padding="5">
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton x:Name="rbMainStream" GroupName="CameraStream" IsChecked="True"
+                                         Click="StreamSwitch_Click" Cursor="Hand">
+                                <RadioButton.Template>
+                                    <ControlTemplate TargetType="RadioButton">
+                                        <Border x:Name="streamBrd" Background="Transparent" CornerRadius="8" Padding="20,10">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="HD" FontSize="16" FontWeight="Bold" Foreground="#888"
+                                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <TextBlock x:Name="streamTxt" Text="GŁÓWNY STRUMIEŃ" FontSize="14" FontWeight="Bold"
+                                                           Foreground="#888" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="streamBrd" Property="Background" Value="#4CAF50"/>
+                                                <Setter TargetName="streamTxt" Property="Foreground" Value="White"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </RadioButton.Template>
+                            </RadioButton>
+                            <RadioButton x:Name="rbSubStream" GroupName="CameraStream"
+                                         Click="StreamSwitch_Click" Cursor="Hand">
+                                <RadioButton.Template>
+                                    <ControlTemplate TargetType="RadioButton">
+                                        <Border x:Name="streamBrd" Background="Transparent" CornerRadius="8" Padding="20,10">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="SD" FontSize="16" FontWeight="Bold" Foreground="#888"
+                                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <TextBlock x:Name="streamTxt" Text="PODSTRUMIEŃ" FontSize="14" FontWeight="Bold"
+                                                           Foreground="#888" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="streamBrd" Property="Background" Value="#2196F3"/>
+                                                <Setter TargetName="streamTxt" Property="Foreground" Value="White"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </RadioButton.Template>
+                            </RadioButton>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Status po prawej -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock x:Name="lblStreamInfo" Text="1920x1080" FontSize="14" Foreground="#666"
+                                   VerticalAlignment="Center" Margin="0,0,15,0"/>
+                        <Border Background="#333" CornerRadius="5" Padding="10,5">
+                            <TextBlock x:Name="lblCameraFps" Text="-- FPS" FontSize="14" Foreground="#89B4FA" FontWeight="Bold"/>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Obszar kamery -->
+            <Grid Grid.Row="1" Background="Black">
+                <Image x:Name="cameraViewImage" Stretch="Uniform"/>
+                <TextBlock x:Name="cameraViewStatus" Text="Łączenie z kamerą..." FontSize="28" Foreground="#555"
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <TextBlock Text="WJAZD" FontSize="14" FontWeight="Bold" Foreground="#89B4FA"
-                           HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8,5,0,0" Opacity="0.7"/>
             </Grid>
-
-            <!-- Kamera 2 - Wyjazd -->
-            <Grid Grid.Row="0" Grid.Column="1" Background="Black">
-                <Image x:Name="cameraImage2" Stretch="Uniform"/>
-                <TextBlock x:Name="cameraStatus2" Text="Ładowanie..." FontSize="24" Foreground="#555"
-                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <TextBlock Text="WYJAZD" FontSize="14" FontWeight="Bold" Foreground="#89B4FA"
-                           HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8,5,0,0" Opacity="0.7"/>
-            </Grid>
-
-            <!-- Kamera 3 - Waga -->
-            <Grid Grid.Row="1" Grid.Column="0" Background="Black">
-                <Image x:Name="cameraImage3" Stretch="Uniform"/>
-                <TextBlock x:Name="cameraStatus3" Text="Ładowanie..." FontSize="24" Foreground="#555"
-                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <TextBlock Text="WAGA" FontSize="14" FontWeight="Bold" Foreground="#89B4FA"
-                           HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8,5,0,0" Opacity="0.7"/>
-            </Grid>
-
-            <!-- Kamera 4 - Parking -->
-            <Grid Grid.Row="1" Grid.Column="1" Background="Black">
-                <Image x:Name="cameraImage4" Stretch="Uniform"/>
-                <TextBlock x:Name="cameraStatus4" Text="Ładowanie..." FontSize="24" Foreground="#555"
-                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <TextBlock Text="PARKING" FontSize="14" FontWeight="Bold" Foreground="#89B4FA"
-                           HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8,5,0,0" Opacity="0.7"/>
-            </Grid>
-
-            <!-- Separator pionowy -->
-            <Border Grid.RowSpan="2" Grid.Column="0" HorizontalAlignment="Right" Width="1" Background="#333"/>
-            <!-- Separator poziomy -->
-            <Border Grid.Row="0" Grid.ColumnSpan="2" VerticalAlignment="Bottom" Height="1" Background="#333"/>
         </Grid>
 
         <!-- Overlay klawiatury ekranowej -->

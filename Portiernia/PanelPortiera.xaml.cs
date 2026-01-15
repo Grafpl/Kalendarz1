@@ -110,10 +110,12 @@ namespace Kalendarz1
         private DateTime lastActivityTime = DateTime.Now;
         private const int INACTIVITY_MINUTES = 6;
 
-        // Kamery - 4 strumienie
+        // Kamera - pojedynczy widok z wyborem strumienia
         private DispatcherTimer cameraViewTimer;
         private bool cameraViewActive = false;
-        private string[] CAMERA_IPS = { "192.168.0.76", "192.168.0.77", "192.168.0.78", "192.168.0.79" };
+        private bool useMainStream = true; // true = główny strumień (101), false = podstrumień (102)
+        private int frameCount = 0;
+        private DateTime lastFpsUpdate = DateTime.Now;
 
         public ObservableCollection<Odbiorca> ListaOdbiorcow { get; set; } = new ObservableCollection<Odbiorca>();
 
@@ -2482,27 +2484,39 @@ namespace Kalendarz1
 
         #endregion
 
-        #region WIDOK 4 KAMER (ZAKŁADKA)
+        #region WIDOK KAMERY (ZAKŁADKA)
+
+        private void StreamSwitch_Click(object sender, RoutedEventArgs e)
+        {
+            useMainStream = rbMainStream.IsChecked == true;
+
+            // Aktualizuj etykietę rozdzielczości
+            lblStreamInfo.Text = useMainStream ? "1920x1080" : "640x480";
+
+            // Zresetuj licznik FPS
+            frameCount = 0;
+            lastFpsUpdate = DateTime.Now;
+        }
 
         private void StartCameraViewStream()
         {
             cameraViewActive = true;
-            cameraStatus1.Text = "Łączenie...";
-            cameraStatus2.Text = "Łączenie...";
-            cameraStatus3.Text = "Łączenie...";
-            cameraStatus4.Text = "Łączenie...";
-            cameraImage1.Source = null;
-            cameraImage2.Source = null;
-            cameraImage3.Source = null;
-            cameraImage4.Source = null;
+            cameraViewStatus.Text = "Łączenie z kamerą...";
+            cameraViewImage.Source = null;
 
-            // Timer do odświeżania 4 kamer co 500ms
-            cameraViewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
-            cameraViewTimer.Tick += async (s, e) => await RefreshAllCameraImages();
+            // Reset FPS
+            frameCount = 0;
+            lastFpsUpdate = DateTime.Now;
+            lblCameraFps.Text = "-- FPS";
+            lblStreamInfo.Text = useMainStream ? "1920x1080" : "640x480";
+
+            // Timer do odświeżania kamery co 100ms (10 FPS target)
+            cameraViewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+            cameraViewTimer.Tick += async (s, e) => await RefreshCameraViewImage();
             cameraViewTimer.Start();
 
             // Pierwsze pobranie od razu
-            _ = RefreshAllCameraImages();
+            _ = RefreshCameraViewImage();
         }
 
         private void StopCameraViewStream()
@@ -2515,37 +2529,23 @@ namespace Kalendarz1
             }
         }
 
-        private async Task RefreshAllCameraImages()
+        private async Task RefreshCameraViewImage()
         {
             if (!cameraViewActive) return;
 
-            // Odśwież wszystkie 4 kamery równolegle
-            var tasks = new List<Task>
-            {
-                RefreshSingleCameraImage(0, cameraImage1, cameraStatus1),
-                RefreshSingleCameraImage(1, cameraImage2, cameraStatus2),
-                RefreshSingleCameraImage(2, cameraImage3, cameraStatus3),
-                RefreshSingleCameraImage(3, cameraImage4, cameraStatus4)
-            };
-
-            await Task.WhenAll(tasks);
-        }
-
-        private async Task RefreshSingleCameraImage(int cameraIndex, System.Windows.Controls.Image imageControl, TextBlock statusControl)
-        {
-            if (!cameraViewActive || cameraIndex >= CAMERA_IPS.Length) return;
-
-            string ip = CAMERA_IPS[cameraIndex];
-
             try
             {
+                // Wybierz kanał w zależności od wybranego strumienia
+                // 101 = główny strumień (main stream, HD)
+                // 102 = podstrumień (sub stream, SD)
+                string channel = useMainStream ? "101" : "102";
+
                 string[] endpoints = new string[]
                 {
-                    $"http://{ip}/ISAPI/Streaming/channels/101/picture",
-                    $"http://{ip}/ISAPI/Streaming/channels/1/picture",
-                    $"http://{ip}/Streaming/channels/1/picture",
-                    $"http://{ip}/cgi-bin/snapshot.cgi",
-                    $"http://{ip}/snap.jpg"
+                    $"http://{CAMERA_IP}/ISAPI/Streaming/channels/{channel}/picture",
+                    $"http://{CAMERA_IP}/Streaming/channels/{channel}/picture",
+                    $"http://{CAMERA_IP}/cgi-bin/snapshot.cgi?channel={channel}",
+                    $"http://{CAMERA_IP}/snap.jpg"
                 };
 
                 using (var handler = new HttpClientHandler())
@@ -2577,8 +2577,19 @@ namespace Kalendarz1
                                             bitmap.EndInit();
                                             bitmap.Freeze();
 
-                                            imageControl.Source = bitmap;
-                                            statusControl.Text = "";
+                                            cameraViewImage.Source = bitmap;
+                                            cameraViewStatus.Text = "";
+
+                                            // Oblicz FPS
+                                            frameCount++;
+                                            var elapsed = (DateTime.Now - lastFpsUpdate).TotalSeconds;
+                                            if (elapsed >= 1.0)
+                                            {
+                                                int fps = (int)(frameCount / elapsed);
+                                                lblCameraFps.Text = $"{fps} FPS";
+                                                frameCount = 0;
+                                                lastFpsUpdate = DateTime.Now;
+                                            }
                                         });
                                         return;
                                     }
@@ -2591,7 +2602,7 @@ namespace Kalendarz1
                         Dispatcher.Invoke(() =>
                         {
                             if (cameraViewActive)
-                                statusControl.Text = "Brak połączenia";
+                                cameraViewStatus.Text = "Brak połączenia z kamerą";
                         });
                     }
                 }
@@ -2601,7 +2612,7 @@ namespace Kalendarz1
                 Dispatcher.Invoke(() =>
                 {
                     if (cameraViewActive)
-                        statusControl.Text = $"Błąd: {ex.Message}";
+                        cameraViewStatus.Text = $"Błąd: {ex.Message}";
                 });
             }
         }
