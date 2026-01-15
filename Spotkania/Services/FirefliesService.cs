@@ -580,6 +580,47 @@ namespace Kalendarz1.Spotkania.Services
             if (!reader.IsDBNull(reader.GetOrdinal("NotatkaID")))
                 t.NotatkaID = reader.GetInt64(reader.GetOrdinal("NotatkaID"));
 
+            // Parse Uczestnicy JSON - może być lista stringów lub lista obiektów
+            if (!reader.IsDBNull(reader.GetOrdinal("Uczestnicy")))
+            {
+                try
+                {
+                    var uczestnicyJson = reader.GetString(reader.GetOrdinal("Uczestnicy"));
+
+                    // Spróbuj najpierw jako listę obiektów (nowy format)
+                    try
+                    {
+                        var uczestnicyObiekty = JsonSerializer.Deserialize<List<UczestnikJson>>(uczestnicyJson);
+                        if (uczestnicyObiekty != null)
+                        {
+                            foreach (var u in uczestnicyObiekty)
+                            {
+                                t.Uczestnicy.Add(new FirefliesUczestnik
+                                {
+                                    DisplayName = u.nazwa,
+                                    Email = u.email,
+                                    SpeakerId = u.speakerId,
+                                    PrzypisanyUserID = u.userId
+                                });
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Spróbuj jako prostą listę stringów (stary format)
+                        var uczestnicyLista = JsonSerializer.Deserialize<List<string>>(uczestnicyJson);
+                        if (uczestnicyLista != null)
+                        {
+                            foreach (var nazwa in uczestnicyLista)
+                            {
+                                t.Uczestnicy.Add(new FirefliesUczestnik { DisplayName = nazwa });
+                            }
+                        }
+                    }
+                }
+                catch { }
+            }
+
             // Parse JSON fields
             if (!reader.IsDBNull(reader.GetOrdinal("AkcjeDoDziałania")))
             {
@@ -703,6 +744,21 @@ namespace Kalendarz1.Spotkania.Services
 
             return JsonSerializer.Deserialize<GraphQLResponse<T>>(responseJson, options)
                 ?? new GraphQLResponse<T>();
+        }
+
+        #endregion
+
+        #region Helper Classes
+
+        /// <summary>
+        /// Klasa pomocnicza do deserializacji uczestników z JSON
+        /// </summary>
+        private class UczestnikJson
+        {
+            public string? nazwa { get; set; }
+            public string? email { get; set; }
+            public string? speakerId { get; set; }
+            public string? userId { get; set; }
         }
 
         #endregion

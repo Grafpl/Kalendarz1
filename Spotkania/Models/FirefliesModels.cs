@@ -237,6 +237,7 @@ namespace Kalendarz1.Spotkania.Models
         public string? SpeakerId { get; set; }
         public string? Email { get; set; }
         public string? DisplayName { get; set; }
+        public string? PrzypisanyUserID { get; set; } // Mapowanie na UserID z systemu
 
         public string Nazwa => DisplayName ?? Email ?? SpeakerId ?? "Nieznany";
     }

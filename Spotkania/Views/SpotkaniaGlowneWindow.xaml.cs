@@ -408,9 +408,31 @@ namespace Kalendarz1.Spotkania.Views
         {
             if (GridTranskrypcje.SelectedItem is FirefliesTranskrypcjaListItem item)
             {
-                var window = new PodgladTranskrypcji(item.TranskrypcjaID);
-                window.Owner = this;
-                window.ShowDialog();
+                OtworzEdytorTranskrypcji(item);
+            }
+        }
+
+        private void BtnEdytujTranskrypcje_Click(object sender, RoutedEventArgs e)
+        {
+            if (GridTranskrypcje.SelectedItem is FirefliesTranskrypcjaListItem item)
+            {
+                OtworzEdytorTranskrypcji(item);
+            }
+            else
+            {
+                MessageBox.Show("Wybierz transkrypcję z listy.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void OtworzEdytorTranskrypcji(FirefliesTranskrypcjaListItem item)
+        {
+            var window = new TranskrypcjaSzczegolyWindow(item.FirefliesID, item.TranskrypcjaID);
+            window.Owner = this;
+
+            if (window.ShowDialog() == true)
+            {
+                // Odśwież listę po zapisaniu zmian
+                _ = LoadTranskrypcjeAsync();
             }
         }
 
