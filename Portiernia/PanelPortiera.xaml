@@ -259,11 +259,78 @@
     <Grid Background="#121212">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="440"/>
+            <ColumnDefinition x:Name="colPanelWagi" Width="440"/>
         </Grid.ColumnDefinitions>
 
+        <!-- WIDOK KAMERY - pełna szerokość (nad innymi elementami) -->
+        <Grid x:Name="viewCameraFullscreen" Grid.ColumnSpan="2" Visibility="Collapsed" Background="Black">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Obraz z kamery - pełna szerokość -->
+            <Border Grid.Row="0" Background="Black">
+                <Grid>
+                    <Image x:Name="cameraViewImage" Stretch="Uniform"/>
+                    <TextBlock x:Name="cameraViewStatus" Text="Łączenie z kamerą..."
+                               FontSize="28" Foreground="Gray"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+
+            <!-- Mini pasek SD/HD -->
+            <Border Grid.Row="1" Background="#1A1A24" Padding="10,5">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <RadioButton x:Name="rbCameraSD" GroupName="CameraQuality" IsChecked="True"
+                                 Click="CameraQuality_Click" Height="32" Margin="0,0,5,0" Cursor="Hand">
+                        <RadioButton.Template>
+                            <ControlTemplate TargetType="RadioButton">
+                                <Border x:Name="border" Background="#252530" CornerRadius="6" Padding="12,4" BorderThickness="2" BorderBrush="#444">
+                                    <TextBlock Text="SD" FontSize="13" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#2196F3"/>
+                                        <Setter TargetName="border" Property="BorderBrush" Value="#2196F3"/>
+                                    </Trigger>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="BorderBrush" Value="#FFA726"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </RadioButton.Template>
+                    </RadioButton>
+                    <RadioButton x:Name="rbCameraHD" GroupName="CameraQuality"
+                                 Click="CameraQuality_Click" Height="32" Cursor="Hand">
+                        <RadioButton.Template>
+                            <ControlTemplate TargetType="RadioButton">
+                                <Border x:Name="border" Background="#252530" CornerRadius="6" Padding="12,4" BorderThickness="2" BorderBrush="#444">
+                                    <TextBlock Text="HD" FontSize="13" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#4CAF50"/>
+                                        <Setter TargetName="border" Property="BorderBrush" Value="#4CAF50"/>
+                                    </Trigger>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="BorderBrush" Value="#FFA726"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </RadioButton.Template>
+                    </RadioButton>
+                    <TextBlock x:Name="lblCameraFps" Text="-- FPS" FontSize="13" Foreground="#4CAF50"
+                               FontWeight="Bold" VerticalAlignment="Center" Margin="20,0,0,0"/>
+                    <TextBlock x:Name="lblCameraResolution" Text="" FontSize="11" Foreground="#666"
+                               VerticalAlignment="Center" Margin="10,0,0,0"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
         <!-- Lewa strona -->
-        <Grid Grid.Column="0">
+        <Grid x:Name="panelLewy" Grid.Column="0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
@@ -378,9 +445,13 @@
                                               IsEnabled="{Binding CanEditTowar}"
                                               Height="50" VerticalContentAlignment="Center" Padding="10,0"
                                               BorderThickness="1" BorderBrush="#444" Cursor="Hand">
+                                        <ComboBox.Resources>
+                                            <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#252530"/>
+                                            <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#3D3D5C"/>
+                                        </ComboBox.Resources>
                                         <ComboBox.Style>
                                             <Style TargetType="ComboBox">
-                                                <Setter Property="Background" Value="#1E1E2E"/>
+                                                <Setter Property="Background" Value="#252530"/>
                                                 <Setter Property="Foreground" Value="White"/>
                                                 <Setter Property="FontSize" Value="13"/>
                                                 <Setter Property="FontWeight" Value="Bold"/>
@@ -394,31 +465,47 @@
                                                 </Style.Triggers>
                                             </Style>
                                         </ComboBox.Style>
-                                        <ComboBoxItem Tag="KREW" Background="#1E1E2E" Foreground="White">
+                                        <ComboBox.ItemContainerStyle>
+                                            <Style TargetType="ComboBoxItem">
+                                                <Setter Property="Background" Value="#252530"/>
+                                                <Setter Property="Foreground" Value="White"/>
+                                                <Setter Property="Padding" Value="8,6"/>
+                                                <Setter Property="BorderThickness" Value="0"/>
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsHighlighted" Value="True">
+                                                        <Setter Property="Background" Value="#3D3D5C"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#3D3D5C"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </ComboBox.ItemContainerStyle>
+                                        <ComboBoxItem Tag="KREW">
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="❤" FontSize="18" Margin="0,0,8,0" Foreground="#FF5555"/>
                                                 <TextBlock Text="KREW" VerticalAlignment="Center" Foreground="#FF5555"/>
                                             </StackPanel>
                                         </ComboBoxItem>
-                                        <ComboBoxItem Tag="LAPY" Background="#1E1E2E" Foreground="White">
+                                        <ComboBoxItem Tag="LAPY">
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="🐾" FontSize="18" Margin="0,0,8,0"/>
                                                 <TextBlock Text="ŁAPY" VerticalAlignment="Center" Foreground="#FFD54F"/>
                                             </StackPanel>
                                         </ComboBoxItem>
-                                        <ComboBoxItem Tag="JELITA" Background="#1E1E2E" Foreground="White">
+                                        <ComboBoxItem Tag="JELITA">
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="➰" FontSize="18" Margin="0,0,8,0" Foreground="#A1887F"/>
                                                 <TextBlock Text="JELITA" VerticalAlignment="Center" Foreground="#A1887F"/>
                                             </StackPanel>
                                         </ComboBoxItem>
-                                        <ComboBoxItem Tag="PIORA" Background="#1E1E2E" Foreground="White">
+                                        <ComboBoxItem Tag="PIORA">
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="~" FontSize="22" Margin="0,0,8,0" FontWeight="Bold" Foreground="#BDBDBD"/>
                                                 <TextBlock Text="PIÓRA" VerticalAlignment="Center" Foreground="#BDBDBD"/>
                                             </StackPanel>
                                         </ComboBoxItem>
-                                        <ComboBoxItem Tag="ODPADY" Background="#1E1E2E" Foreground="White">
+                                        <ComboBoxItem Tag="ODPADY">
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="♻" FontSize="18" Margin="0,0,8,0" Foreground="#AB47BC"/>
                                                 <TextBlock Text="ODPADY" VerticalAlignment="Center" Foreground="#AB47BC"/>
@@ -435,74 +522,6 @@
                         <DataGridTextColumn Header="NETTO" Binding="{Binding NettoDisplay}" Width="130"/>
                     </DataGrid.Columns>
                 </DataGrid>
-
-                <!-- Widok KAMERY (pełnoekranowy) -->
-                <Grid x:Name="viewCamera" Visibility="Collapsed">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-
-                    <!-- Obraz z kamery - pełna szerokość bez obramowań -->
-                    <Border Grid.Row="0" Background="Black">
-                        <Grid x:Name="cameraViewContainer">
-                            <Image x:Name="cameraViewImage" Stretch="Uniform"/>
-                            <TextBlock x:Name="cameraViewStatus" Text="Łączenie z kamerą..."
-                                       FontSize="28" Foreground="Gray"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Grid>
-                    </Border>
-
-                    <!-- Pasek info kamery -->
-                    <Border Grid.Row="1" Background="#1E1E2E" Padding="15,10">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <!-- Przełącznik jakości SD/HD -->
-                            <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                <TextBlock Text="JAKOŚĆ:" Foreground="#888" FontWeight="Bold"
-                                           VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <RadioButton x:Name="rbCameraSD" GroupName="CameraQuality" IsChecked="True"
-                                             Click="CameraQuality_Click" Style="{StaticResource ModeRadioStyle}"
-                                             Height="40" MinWidth="100">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="SD" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
-                                        <TextBlock Text=" 640x480" FontSize="10" Foreground="#888" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </RadioButton>
-                                <RadioButton x:Name="rbCameraHD" GroupName="CameraQuality"
-                                             Click="CameraQuality_Click" Style="{StaticResource ModeRadioStyle}"
-                                             Height="40" MinWidth="120" Margin="5,0,0,0">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="HD" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
-                                        <TextBlock Text=" 1920x1080" FontSize="10" Foreground="#888" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </RadioButton>
-                            </StackPanel>
-
-                            <!-- Info o statusie -->
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
-                                <TextBlock x:Name="lblCameraFps" Text="-- FPS" FontSize="16" Foreground="#4CAF50"
-                                           FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,20,0"/>
-                                <TextBlock x:Name="lblCameraResolution" Text="---" FontSize="14" Foreground="#888"
-                                           VerticalAlignment="Center"/>
-                            </StackPanel>
-
-                            <!-- Przycisk pełnoekranowy overlay (opcjonalnie) -->
-                            <Button Grid.Column="2" Click="BtnCameraOverlay_Click"
-                                    Style="{StaticResource ActionButtonStyle}" Height="40" Width="120">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="🔍" FontSize="16" Margin="0,0,5,0"/>
-                                    <TextBlock Text="ZOOM" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </Button>
-                        </Grid>
-                    </Border>
-                </Grid>
 
                 <!-- Przyciski dla ODPADY -->
                 <StackPanel x:Name="panelButtonsLeft" VerticalAlignment="Bottom" HorizontalAlignment="Right" 

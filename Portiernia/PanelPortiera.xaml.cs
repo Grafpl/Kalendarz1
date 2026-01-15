@@ -701,14 +701,15 @@ namespace Kalendarz1
                 {
                     aktualnyTryb = "Avilog";
                     this.Resources["ThemeColor"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFA726"));
+                    viewCameraFullscreen.Visibility = Visibility.Collapsed;
+                    panelLewy.Visibility = Visibility.Visible;
+                    panelWagi.Visibility = Visibility.Visible;
                     viewTiles.Visibility = Visibility.Visible;
                     gridTable.Visibility = Visibility.Collapsed;
-                    viewCamera.Visibility = Visibility.Collapsed;
                     panelButtonsLeft.Visibility = Visibility.Collapsed;
                     panelCommodity.Visibility = Visibility.Collapsed;
                     panelReadOnlyCar.Visibility = Visibility.Visible;
                     panelEditCar.Visibility = Visibility.Collapsed;
-                    panelWagi.Visibility = Visibility.Visible;
                     LoadDostawyAvilog();
                 }
                 else if (rb.Name == "rbOdpady")
@@ -716,14 +717,15 @@ namespace Kalendarz1
                     aktualnyTryb = "Odpady";
                     aktualnyTowar = "KREW";
                     UpdateThemeColor(aktualnyTowar);
+                    viewCameraFullscreen.Visibility = Visibility.Collapsed;
+                    panelLewy.Visibility = Visibility.Visible;
+                    panelWagi.Visibility = Visibility.Visible;
                     viewTiles.Visibility = Visibility.Collapsed;
                     gridTable.Visibility = Visibility.Visible;
-                    viewCamera.Visibility = Visibility.Collapsed;
                     panelButtonsLeft.Visibility = Visibility.Visible;
                     panelCommodity.Visibility = Visibility.Visible;
                     panelReadOnlyCar.Visibility = Visibility.Collapsed;
                     panelEditCar.Visibility = Visibility.Visible;
-                    panelWagi.Visibility = Visibility.Visible;
                     btnKrew.IsChecked = true;
                     LoadOdbiorcyDlaTowar(aktualnyTowar);
                     LoadDostawyOdpady();
@@ -732,14 +734,10 @@ namespace Kalendarz1
                 {
                     aktualnyTryb = "Kamery";
                     this.Resources["ThemeColor"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2196F3"));
-                    viewTiles.Visibility = Visibility.Collapsed;
-                    gridTable.Visibility = Visibility.Collapsed;
-                    viewCamera.Visibility = Visibility.Visible;
-                    panelButtonsLeft.Visibility = Visibility.Collapsed;
-                    panelCommodity.Visibility = Visibility.Collapsed;
-                    panelReadOnlyCar.Visibility = Visibility.Collapsed;
-                    panelEditCar.Visibility = Visibility.Collapsed;
-                    panelWagi.Visibility = Visibility.Collapsed; // Ukryj panel wagi w trybie kamery
+                    // Ukryj wszystkie panele i pokaż kamerę na pełen ekran
+                    panelLewy.Visibility = Visibility.Collapsed;
+                    panelWagi.Visibility = Visibility.Collapsed;
+                    viewCameraFullscreen.Visibility = Visibility.Visible;
 
                     // Zatrzymaj timer nieaktywności w trybie KAMERY
                     inactivityTimer?.Stop();
