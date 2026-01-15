@@ -695,9 +695,11 @@ namespace Kalendarz1
                             ISNULL(dr.[Name], '') as KierowcaNazwa, fc.CarID, fc.TrailerID, fc.SztPoj,
                             ISNULL(fc.FullWeight, 0) as Brutto, ISNULL(fc.EmptyWeight, 0) as Tara,
                             ISNULL(fc.NettoWeight, 0) as Netto, fc.Przyjazd, fc.GodzinaTara, fc.GodzinaBrutto,
-                            fc.ZdjecieTaraPath, fc.ZdjecieBruttoPath
-                        FROM dbo.FarmerCalc fc 
+                            fc.ZdjecieTaraPath, fc.ZdjecieBruttoPath,
+                            ISNULL(rz.Zatwierdzony, 0) as Zatwierdzony, rz.ZatwierdzonePrzez
+                        FROM dbo.FarmerCalc fc
                         LEFT JOIN dbo.Driver dr ON fc.DriverGID = dr.GID
+                        LEFT JOIN dbo.RozliczeniaZatwierdzenia rz ON fc.ID = rz.SpecyfikacjaID AND rz.DataUboju = CAST(fc.CalcDate AS DATE)
                         WHERE CAST(fc.CalcDate AS DATE) = @Data
                         ORDER BY fc.Przyjazd ASC, fc.ID";
 
@@ -730,7 +732,9 @@ namespace Kalendarz1
                                         GodzinaTaraDisplay = godzTara?.ToString("HH:mm") ?? "-",
                                         GodzinaBruttoDisplay = godzBrutto?.ToString("HH:mm") ?? "-",
                                         ZdjecieTaraPath = r["ZdjecieTaraPath"]?.ToString(),
-                                        ZdjecieBruttoPath = r["ZdjecieBruttoPath"]?.ToString()
+                                        ZdjecieBruttoPath = r["ZdjecieBruttoPath"]?.ToString(),
+                                        Zatwierdzony = r["Zatwierdzony"] != DBNull.Value && Convert.ToBoolean(r["Zatwierdzony"]),
+                                        ZatwierdzonePrzez = r["ZatwierdzonePrzez"]?.ToString()
                                     };
                                     d.NrRejestracyjny = $"{d.CarID} {d.TrailerID}";
                                     dostawy.Add(d);
@@ -1184,6 +1188,17 @@ namespace Kalendarz1
             bool jestZmiana = (brutto != originalBrutto) || (tara != originalTara);
             if (!jestZmiana && brutto == 0 && tara == 0) return;
 
+            // Sprawdź blokadę edycji (status "wprowadzony")
+            if (aktualnyTryb == "Avilog" && WybranaDostwa != null && WybranaDostwa.JestWprowadzony)
+            {
+                MessageBox.Show($"Nie można zapisać wagi - transport jest już wprowadzony do rozliczenia.\n\n" +
+                    $"Pojazd: {WybranaDostwa.CarID} {WybranaDostwa.TrailerID}\n" +
+                    $"Wprowadził: {WybranaDostwa.ZatwierdzonePrzez}\n\n" +
+                    $"Aby zmienić wagę, należy najpierw cofnąć status w zakładce Rozliczenia.",
+                    "Blokada edycji - transport wprowadzony", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             bool success = false;
 
             if (aktualnyTryb == "Avilog")
@@ -1207,6 +1222,15 @@ namespace Kalendarz1
                 PlaySound(true);
                 if (selectedCardBorder != null)
                     AnimateSuccess(selectedCardBorder);
+
+                // Pokaż MessageBox z potwierdzeniem zapisu
+                string typWagi = (tara > 0 && brutto == 0) ? "TARA" : (brutto > 0 ? "BRUTTO" : "WAGA");
+                string pojazd = aktualnyTryb == "Avilog"
+                    ? $"{WybranaDostwa?.CarID} {WybranaDostwa?.TrailerID}"
+                    : txtEditRejestracja.Text.Trim();
+                int wartoscWagi = (tara > 0 && brutto == 0) ? tara : brutto;
+                MessageBox.Show($"Zapisano wagę {typWagi}!\n\nPojazd: {pojazd}\nWaga: {wartoscWagi:N0} kg",
+                    "Zapisano", MessageBoxButton.OK, MessageBoxImage.Information);
 
                 // Drukuj paragon tylko jeśli checkbox jest zaznaczony
                 if (chkAutoPrint.IsChecked == true)
@@ -3384,6 +3408,12 @@ namespace Kalendarz1
         // Ścieżki do zdjęć z ważenia
         public string ZdjecieTaraPath { get; set; }
         public string ZdjecieBruttoPath { get; set; }
+
+        // Status wprowadzenia (blokada edycji wag)
+        public bool Zatwierdzony { get; set; }
+        public string ZatwierdzonePrzez { get; set; }
+        public bool JestWprowadzony => Zatwierdzony;
+        public bool IsEditable => !Zatwierdzony;
 
         private int _brutto;
         public int Brutto

@@ -501,32 +501,17 @@
                             <TextBlock Text="KAMERA" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    
-                    <!-- Przycisk ALPR - rozpoznawanie tablic -->
-                    <Button Grid.Column="4" Click="BtnScanPlate_Click" HorizontalAlignment="Left" Margin="130,0,0,0"
-                            Height="50" Width="100" ToolTip="Rozpoznaj tablicę rejestracyjną z kamery">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border Background="#2E7D32" CornerRadius="8" Cursor="Hand">
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <TextBlock Text="🚗" FontSize="18" Margin="0,0,5,0"/>
-                                        <TextBlock Text="ALPR" FontSize="14" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Border>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
 
                     <!-- Przełącznik trybów -->
                     <StackPanel Grid.Column="5" Orientation="Horizontal" Margin="10,0">
-                        <RadioButton x:Name="rbAvilog" GroupName="Mode" IsChecked="True" Click="ZmienTryb_Click" 
+                        <RadioButton x:Name="rbAvilog" GroupName="Mode" IsChecked="True" Click="ZmienTryb_Click"
                                      Style="{StaticResource ModeRadioStyle}" Height="50">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#x1F414;" FontSize="22" Margin="0,0,6,0"/>
                                 <TextBlock Text="AVILOG" FontSize="15" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </RadioButton>
-                        <RadioButton x:Name="rbOdpady" GroupName="Mode" Click="ZmienTryb_Click" 
+                        <RadioButton x:Name="rbOdpady" GroupName="Mode" Click="ZmienTryb_Click"
                                      Style="{StaticResource ModeRadioStyle}" Height="50" MinWidth="240">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#x2764;" FontSize="22" Margin="0,0,6,0" Foreground="#FF5555"/>
@@ -534,16 +519,6 @@
                             </StackPanel>
                         </RadioButton>
                     </StackPanel>
-
-                    <!-- Status drukarki -->
-                    <Border Grid.Column="5" Background="#1A1A24" CornerRadius="8" Padding="10,5" Margin="10,0" 
-                            VerticalAlignment="Center" HorizontalAlignment="Left">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock x:Name="lblPrinterIcon" Text="🖨️" FontSize="18" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                            <TextBlock x:Name="lblPrinterStatus" Text="" FontSize="12" Foreground="#888" 
-                                       VerticalAlignment="Center" MaxWidth="200" TextTrimming="CharacterEllipsis"/>
-                        </StackPanel>
-                    </Border>
 
                     <!-- Przycisk odśwież -->
                     <Button Grid.Column="6" Click="BtnRefresh_Click" Background="Transparent" BorderThickness="0" 
@@ -726,13 +701,9 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
 
                     <!-- Przycisk zapisz -->
-                    <Button Grid.Row="0" Grid.Column="0" x:Name="btnZapisz" Click="BtnZapisz_Click" Height="60" Margin="0,0,5,0" Cursor="Hand">
+                    <Button Grid.Row="0" x:Name="btnZapisz" Click="BtnZapisz_Click" Height="60" Cursor="Hand">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border x:Name="saveBrd" Background="#4CAF50" CornerRadius="12">
@@ -748,25 +719,8 @@
                         </Button.Template>
                     </Button>
 
-                    <!-- Przycisk drukuj wagę -->
-                    <Button Grid.Row="0" Grid.Column="1" x:Name="btnDrukujWage" Click="BtnDrukujWage_Click" Height="60" Width="60" Cursor="Hand"
-                            ToolTip="Drukuj wagę na drukarce PICCO">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border x:Name="printBrd" Background="#1976D2" CornerRadius="12">
-                                    <TextBlock Text="🖨️" FontSize="28" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="printBrd" Property="Background" Value="#2196F3"/>
-                                    </Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
-
                     <!-- Checkbox automatycznego druku paragonu -->
-                    <CheckBox Grid.Row="1" Grid.ColumnSpan="2" x:Name="chkAutoPrint" IsChecked="True"
+                    <CheckBox Grid.Row="1" x:Name="chkAutoPrint" IsChecked="True"
                               Margin="0,8,0,0" HorizontalAlignment="Center" Cursor="Hand"
                               ToolTip="Automatycznie drukuj paragon po zatwierdzeniu wagi">
                         <StackPanel Orientation="Horizontal">

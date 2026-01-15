@@ -4647,6 +4647,14 @@ namespace Kalendarz1
 
             if (row != null)
             {
+                // Sprawdź blokadę edycji
+                if (row.JestWprowadzony)
+                {
+                    MessageBox.Show($"Nie można otworzyć AVILOG - wiersz LP {row.Nr} jest zablokowany.\n\nStatus: wprowadzony\nWprowadził: {row.ZatwierdzonePrzez}",
+                        "Blokada edycji", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
                 try
                 {
                     WidokAvilog avilogForm = new WidokAvilog(row.ID);

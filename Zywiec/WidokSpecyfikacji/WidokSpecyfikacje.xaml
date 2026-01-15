@@ -1390,7 +1390,8 @@
                                                         BorderBrush="#9C27B0"
                                                         Cursor="Hand"
                                                         FontSize="12"
-                                                        FontWeight="Bold"/>
+                                                        FontWeight="Bold"
+                                                        IsEnabled="{Binding IsEditable}"/>
                                             </Grid>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -1611,7 +1612,10 @@
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBox Text="{Binding SztukiWybijak, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
-                                                     Style="{StaticResource NumericTextBoxStyle}"/>
+                                                     Style="{StaticResource NumericTextBoxStyle}"
+                                                     IsReadOnly="{Binding JestWprowadzony}"
+                                                     Focusable="{Binding IsEditable}"
+                                                     IsHitTestVisible="{Binding IsEditable}"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -1628,7 +1632,10 @@
                                             <TextBox Text="{Binding KilogramyWybijak, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                                      Style="{StaticResource NumericTextBoxStyle}"
                                                      TextAlignment="Right"
-                                                     Padding="0,0,8,0"/>
+                                                     Padding="0,0,8,0"
+                                                     IsReadOnly="{Binding JestWprowadzony}"
+                                                     Focusable="{Binding IsEditable}"
+                                                     IsHitTestVisible="{Binding IsEditable}"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
