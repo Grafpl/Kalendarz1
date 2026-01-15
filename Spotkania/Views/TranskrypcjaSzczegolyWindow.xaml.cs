@@ -924,6 +924,656 @@ namespace Kalendarz1.Spotkania.Views
             PokazOdtwarzaczZFragmentami(audioUrl, transcriptUrl, mowca, fragmenty);
         }
 
+        #region B8: Tryb szybkiego mapowania
+
+        /// <summary>
+        /// B8: Wizard szybkiego mapowania mówców - krok po kroku, Enter = następny
+        /// </summary>
+        private void BtnSzybkieMapowanie_Click(object sender, RoutedEventArgs e)
+        {
+            var nieprzypisani = _mowcy.Where(m => !m.JestPrzypisany).ToList();
+            if (nieprzypisani.Count == 0)
+            {
+                MessageBox.Show("Wszyscy mówcy są już przypisani!", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            PokazWizardMapowania(nieprzypisani, 0);
+        }
+
+        private void PokazWizardMapowania(List<MowcaMapowanieDisplay> mowcy, int index)
+        {
+            if (index >= mowcy.Count)
+            {
+                MessageBox.Show($"Gotowe! Przypisano {mowcy.Count} mówców.", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                ListaMowcow.Items.Refresh();
+                AktualizujStatusMapowania();
+                if (_transkrypcjaId > 0) _ = ZapiszMapowaniaDoDb();
+                return;
+            }
+
+            var mowca = mowcy[index];
+            var pozostalo = mowcy.Count - index;
+
+            var dialog = new Window
+            {
+                Title = $"⚡ Szybkie mapowanie ({index + 1}/{mowcy.Count})",
+                Width = 600,
+                Height = 480,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1a1a2e")),
+                ResizeMode = ResizeMode.NoResize
+            };
+
+            var mainStack = new StackPanel { Margin = new Thickness(25) };
+
+            // Nagłówek postępu
+            var progressPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 20) };
+            var progressBar = new ProgressBar { Width = 200, Height = 6, Value = (index + 1) * 100.0 / mowcy.Count, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4CAF50")) };
+            progressPanel.Children.Add(progressBar);
+            progressPanel.Children.Add(new TextBlock { Text = $"  {pozostalo} pozostało", Foreground = Brushes.Gray, VerticalAlignment = VerticalAlignment.Center });
+            mainStack.Children.Add(progressPanel);
+
+            // Karta mówcy
+            var mowcaCard = new Border
+            {
+                Background = mowca.TloKolor,
+                CornerRadius = new CornerRadius(12),
+                Padding = new Thickness(20),
+                Margin = new Thickness(0, 0, 0, 20)
+            };
+            var mowcaStack = new StackPanel();
+
+            var headerRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
+            var avatar = new Border { Width = 50, Height = 50, CornerRadius = new CornerRadius(25), Background = mowca.KolorMowcy };
+            avatar.Child = new TextBlock { Text = "🎤", FontSize = 22, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            headerRow.Children.Add(avatar);
+
+            var infoStack = new StackPanel { Margin = new Thickness(15, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            infoStack.Children.Add(new TextBlock { Text = mowca.DisplayFireflies, FontSize = 20, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#333")) });
+            infoStack.Children.Add(new TextBlock { Text = mowca.StatystykiDisplay, FontSize = 12, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#666")) });
+            headerRow.Children.Add(infoStack);
+            mowcaStack.Children.Add(headerRow);
+
+            // Przykładowa wypowiedź
+            var przykladBorder = new Border { Background = Brushes.White, CornerRadius = new CornerRadius(6), Padding = new Thickness(12), Margin = new Thickness(0, 8, 0, 0) };
+            przykladBorder.Child = new TextBlock
+            {
+                Text = $"„{mowca.PrzykladowaWypowiedz}"",
+                FontStyle = FontStyles.Italic,
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#555")),
+                MaxHeight = 60
+            };
+            mowcaStack.Children.Add(przykladBorder);
+
+            mowcaCard.Child = mowcaStack;
+            mainStack.Children.Add(mowcaCard);
+
+            // ComboBox z pracownikami
+            var selectLabel = new TextBlock { Text = "Wybierz pracownika:", Foreground = Brushes.White, FontSize = 14, Margin = new Thickness(0, 0, 0, 8) };
+            mainStack.Children.Add(selectLabel);
+
+            var comboBox = new ComboBox
+            {
+                ItemsSource = _pracownicy,
+                DisplayMemberPath = "DisplayName",
+                SelectedValuePath = "UserID",
+                FontSize = 16,
+                Padding = new Thickness(12, 10, 12, 10),
+                Margin = new Thickness(0, 0, 0, 20)
+            };
+
+            // Sugestia jeśli jest
+            if (mowca.NajlepszaSugestia != null)
+            {
+                var sugestia = mowca.NajlepszaSugestia;
+                var pracownikSugestia = _pracownicy.FirstOrDefault(p => p.UserID == sugestia.UserID);
+                if (pracownikSugestia != null)
+                {
+                    comboBox.SelectedItem = pracownikSugestia;
+                    var sugestiaBadge = new TextBlock
+                    {
+                        Text = $"💡 Sugestia: {sugestia.UserName} ({sugestia.Pewnosc:F0}%)",
+                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFC107")),
+                        FontSize = 12,
+                        Margin = new Thickness(0, -15, 0, 10)
+                    };
+                    mainStack.Children.Add(sugestiaBadge);
+                }
+            }
+
+            mainStack.Children.Add(comboBox);
+
+            // Przyciski
+            var btnPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+
+            var btnPominBtn = new Button
+            {
+                Content = "Pomiń (Esc)",
+                Padding = new Thickness(20, 12, 20, 12),
+                Margin = new Thickness(0, 0, 10, 0),
+                Background = Brushes.DimGray,
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                FontSize = 14
+            };
+
+            var btnDalejBtn = new Button
+            {
+                Content = index < mowcy.Count - 1 ? "Dalej (Enter) →" : "Zakończ ✓",
+                Padding = new Thickness(25, 12, 25, 12),
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4CAF50")),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                FontSize = 14,
+                FontWeight = FontWeights.Bold
+            };
+
+            btnPominBtn.Click += (s, ev) =>
+            {
+                dialog.Close();
+                PokazWizardMapowania(mowcy, index + 1);
+            };
+
+            btnDalejBtn.Click += (s, ev) =>
+            {
+                var selected = comboBox.SelectedItem as PracownikItem;
+                if (selected != null && !string.IsNullOrEmpty(selected.UserID))
+                {
+                    mowca.PrzypisanyUserID = selected.UserID;
+                    mowca.PrzypisanyUserName = selected.DisplayName;
+                    mowca.ZrodloMapowania = "reczne";
+                    mowca.MaSugestie = false;
+                    AktualizujZdaniaMowcy(mowca);
+                }
+                dialog.Close();
+                PokazWizardMapowania(mowcy, index + 1);
+            };
+
+            btnPanel.Children.Add(btnPominBtn);
+            btnPanel.Children.Add(btnDalejBtn);
+            mainStack.Children.Add(btnPanel);
+
+            dialog.Content = mainStack;
+
+            // Skróty klawiszowe
+            dialog.PreviewKeyDown += (s, ev) =>
+            {
+                if (ev.Key == Key.Enter)
+                {
+                    btnDalejBtn.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    ev.Handled = true;
+                }
+                else if (ev.Key == Key.Escape)
+                {
+                    btnPominBtn.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    ev.Handled = true;
+                }
+            };
+
+            dialog.Loaded += (s, ev) => comboBox.Focus();
+            dialog.ShowDialog();
+        }
+
+        #endregion
+
+        #region C11: Podsumowanie wg osób
+
+        /// <summary>
+        /// C11: Podsumowanie co powiedział każdy uczestnik
+        /// </summary>
+        private void BtnPodsumowanieNaMowce_Click(object sender, RoutedEventArgs e)
+        {
+            if (_zdaniaApi == null || _zdaniaApi.Count == 0)
+            {
+                MessageBox.Show("Brak danych transkrypcji do analizy.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var dialog = new Window
+            {
+                Title = "👤 Podsumowanie wg uczestników",
+                Width = 900,
+                Height = 700,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F5F5F5"))
+            };
+
+            var mainGrid = new Grid();
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            // Nagłówek
+            var header = new Border { Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1976D2")), Padding = new Thickness(20, 15, 20, 15) };
+            var headerStack = new StackPanel();
+            headerStack.Children.Add(new TextBlock { Text = "Co powiedział każdy uczestnik?", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = Brushes.White });
+            headerStack.Children.Add(new TextBlock { Text = $"{_mowcy.Count} uczestników • {_zdaniaApi.Count} wypowiedzi", FontSize = 12, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#B3E5FC")) });
+            header.Child = headerStack;
+            Grid.SetRow(header, 0);
+            mainGrid.Children.Add(header);
+
+            // Scroll z kartami mówców
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Margin = new Thickness(20) };
+            var cardsStack = new StackPanel();
+
+            foreach (var mowca in _mowcy.OrderByDescending(m => m.CzasMowienia))
+            {
+                var fragmenty = _zdaniaApi.Where(z => z.SpeakerName == mowca.SpeakerNameFireflies).OrderBy(z => z.StartTime).ToList();
+                if (fragmenty.Count == 0) continue;
+
+                var card = new Border
+                {
+                    Background = Brushes.White,
+                    CornerRadius = new CornerRadius(8),
+                    Margin = new Thickness(0, 0, 0, 15),
+                    Padding = new Thickness(20),
+                    Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 8, ShadowDepth = 1, Opacity = 0.15 }
+                };
+
+                var cardStack = new StackPanel();
+
+                // Nagłówek mówcy
+                var mowcaHeader = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
+                var colorBadge = new Border { Width = 8, Height = 40, CornerRadius = new CornerRadius(4), Background = mowca.KolorMowcy, Margin = new Thickness(0, 0, 12, 0) };
+                mowcaHeader.Children.Add(colorBadge);
+
+                var mowcaInfo = new StackPanel();
+                var displayName = !string.IsNullOrEmpty(mowca.PrzypisanyUserName) ? mowca.PrzypisanyUserName : mowca.DisplayFireflies;
+                mowcaInfo.Children.Add(new TextBlock { Text = displayName, FontSize = 16, FontWeight = FontWeights.Bold });
+                mowcaInfo.Children.Add(new TextBlock { Text = mowca.StatystykiDisplay, FontSize = 11, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#666")) });
+                mowcaHeader.Children.Add(mowcaInfo);
+                cardStack.Children.Add(mowcaHeader);
+
+                // Analiza tematów - grupuj po słowach kluczowych
+                var tematy = AnalizujTematyMowcy(fragmenty);
+                if (tematy.Count > 0)
+                {
+                    var tematyPanel = new WrapPanel { Margin = new Thickness(0, 0, 0, 12) };
+                    foreach (var temat in tematy.Take(5))
+                    {
+                        var chip = new Border
+                        {
+                            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E3F2FD")),
+                            CornerRadius = new CornerRadius(12),
+                            Padding = new Thickness(10, 4, 10, 4),
+                            Margin = new Thickness(0, 0, 6, 6)
+                        };
+                        chip.Child = new TextBlock { Text = temat, FontSize = 11, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1976D2")) };
+                        tematyPanel.Children.Add(chip);
+                    }
+                    cardStack.Children.Add(tematyPanel);
+                }
+
+                // Kluczowe wypowiedzi
+                var kluczowe = WybierzKluczoweWypowiedzi(fragmenty, 3);
+                foreach (var wypowiedz in kluczowe)
+                {
+                    var wypBorder = new Border
+                    {
+                        Background = mowca.TloKolor,
+                        CornerRadius = new CornerRadius(6),
+                        Padding = new Thickness(12),
+                        Margin = new Thickness(0, 0, 0, 8)
+                    };
+                    var wypStack = new StackPanel();
+                    wypStack.Children.Add(new TextBlock { Text = $"⏱ {TimeSpan.FromSeconds(wypowiedz.StartTime):mm\\:ss}", FontSize = 10, Foreground = Brushes.Gray });
+                    wypStack.Children.Add(new TextBlock { Text = wypowiedz.Text, TextWrapping = TextWrapping.Wrap, FontSize = 13 });
+                    wypBorder.Child = wypStack;
+                    cardStack.Children.Add(wypBorder);
+                }
+
+                // Statystyki
+                var statsPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
+                var pytaniaCount = fragmenty.Count(f => f.Text?.Contains("?") == true);
+                var akcjeCount = fragmenty.Count(f => CzyWypowiedzZawieraAkcje(f.Text));
+
+                if (pytaniaCount > 0)
+                {
+                    statsPanel.Children.Add(new TextBlock { Text = $"❓ {pytaniaCount} pytań", FontSize = 11, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF9800")), Margin = new Thickness(0, 0, 15, 0) });
+                }
+                if (akcjeCount > 0)
+                {
+                    statsPanel.Children.Add(new TextBlock { Text = $"✅ {akcjeCount} akcji", FontSize = 11, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4CAF50")) });
+                }
+                if (statsPanel.Children.Count > 0)
+                    cardStack.Children.Add(statsPanel);
+
+                card.Child = cardStack;
+                cardsStack.Children.Add(card);
+            }
+
+            scroll.Content = cardsStack;
+            Grid.SetRow(scroll, 1);
+            mainGrid.Children.Add(scroll);
+
+            // Przyciski na dole
+            var footer = new Border { Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FAFAFA")), Padding = new Thickness(20, 15, 20, 15) };
+            var footerStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            var btnKopiuj = new Button { Content = "📋 Kopiuj", Padding = new Thickness(15, 8, 15, 8), Margin = new Thickness(0, 0, 10, 0), Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2196F3")), Foreground = Brushes.White, BorderThickness = new Thickness(0) };
+            var btnZamknij = new Button { Content = "Zamknij", Padding = new Thickness(15, 8, 15, 8), Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#607D8B")), Foreground = Brushes.White, BorderThickness = new Thickness(0) };
+
+            btnKopiuj.Click += (s, ev) =>
+            {
+                var sb = new StringBuilder();
+                sb.AppendLine("PODSUMOWANIE WG UCZESTNIKÓW");
+                sb.AppendLine(new string('=', 50));
+                sb.AppendLine();
+
+                foreach (var mowca in _mowcy.OrderByDescending(m => m.CzasMowienia))
+                {
+                    var fragmenty = _zdaniaApi.Where(z => z.SpeakerName == mowca.SpeakerNameFireflies).ToList();
+                    if (fragmenty.Count == 0) continue;
+
+                    var displayName = !string.IsNullOrEmpty(mowca.PrzypisanyUserName) ? mowca.PrzypisanyUserName : mowca.DisplayFireflies;
+                    sb.AppendLine($"### {displayName} ({mowca.StatystykiDisplay})");
+                    sb.AppendLine();
+
+                    var kluczowe = WybierzKluczoweWypowiedzi(fragmenty, 3);
+                    foreach (var wyp in kluczowe)
+                    {
+                        sb.AppendLine($"  • {wyp.Text}");
+                    }
+                    sb.AppendLine();
+                }
+
+                Clipboard.SetText(sb.ToString());
+                MessageBox.Show("Skopiowano do schowka!", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+            };
+
+            btnZamknij.Click += (s, ev) => dialog.Close();
+
+            footerStack.Children.Add(btnKopiuj);
+            footerStack.Children.Add(btnZamknij);
+            footer.Child = footerStack;
+            Grid.SetRow(footer, 2);
+            mainGrid.Children.Add(footer);
+
+            dialog.Content = mainGrid;
+            dialog.Show();
+        }
+
+        private List<string> AnalizujTematyMowcy(List<FirefliesSentenceDto> fragmenty)
+        {
+            var tematy = new Dictionary<string, int>();
+            var slowaKluczowe = new[] { "projekt", "spotkanie", "termin", "budżet", "klient", "zespół", "raport", "prezentacja", "deadline", "zadanie", "problem", "rozwiązanie", "plan", "harmonogram", "koszt", "umowa", "oferta", "analiza", "test", "produkt", "usługa", "wdrożenie", "szkolenie", "dokumentacja" };
+
+            foreach (var frag in fragmenty)
+            {
+                if (string.IsNullOrEmpty(frag.Text)) continue;
+                var tekstLower = frag.Text.ToLower();
+
+                foreach (var slowo in slowaKluczowe)
+                {
+                    if (tekstLower.Contains(slowo))
+                    {
+                        if (!tematy.ContainsKey(slowo))
+                            tematy[slowo] = 0;
+                        tematy[slowo]++;
+                    }
+                }
+            }
+
+            return tematy.OrderByDescending(t => t.Value).Select(t => t.Key).ToList();
+        }
+
+        private List<FirefliesSentenceDto> WybierzKluczoweWypowiedzi(List<FirefliesSentenceDto> fragmenty, int limit)
+        {
+            // Priorytetyzuj: pytania, akcje, długie wypowiedzi
+            return fragmenty
+                .Where(f => !string.IsNullOrEmpty(f.Text) && f.Text.Length > 30)
+                .OrderByDescending(f =>
+                {
+                    int score = f.Text!.Length / 20;
+                    if (f.Text.Contains("?")) score += 5;
+                    if (CzyWypowiedzZawieraAkcje(f.Text)) score += 3;
+                    return score;
+                })
+                .Take(limit)
+                .OrderBy(f => f.StartTime)
+                .ToList();
+        }
+
+        private bool CzyWypowiedzZawieraAkcje(string? tekst)
+        {
+            if (string.IsNullOrEmpty(tekst)) return false;
+            var lower = tekst.ToLower();
+            return lower.Contains("trzeba") || lower.Contains("musimy") || lower.Contains("należy") ||
+                   lower.Contains("zrobimy") || lower.Contains("przygotować") || lower.Contains("wysłać") ||
+                   lower.Contains("sprawdzić") || lower.Contains("ustalić");
+        }
+
+        #endregion
+
+        #region D13: Merge mówców
+
+        /// <summary>
+        /// D13: Łączenie mówców jako ta sama osoba
+        /// </summary>
+        private async void BtnMergeMowcow_Click(object sender, RoutedEventArgs e)
+        {
+            if (_mowcy.Count < 2)
+            {
+                MessageBox.Show("Potrzebujesz co najmniej 2 mówców do połączenia.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var dialog = new Window
+            {
+                Title = "🔗 Połącz mówców",
+                Width = 550,
+                Height = 500,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F5F5F5"))
+            };
+
+            var mainStack = new StackPanel { Margin = new Thickness(20) };
+
+            mainStack.Children.Add(new TextBlock
+            {
+                Text = "Zaznacz mówców, którzy są tą samą osobą:",
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Margin = new Thickness(0, 0, 0, 15)
+            });
+
+            mainStack.Children.Add(new TextBlock
+            {
+                Text = "Fireflies czasem rozdziela jedną osobę na kilku mówców. Możesz ich połączyć.",
+                FontSize = 11,
+                Foreground = Brushes.Gray,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 15)
+            });
+
+            // Lista mówców z checkboxami
+            var listPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 20) };
+            var checkboxes = new List<(CheckBox cb, MowcaMapowanieDisplay mowca)>();
+
+            foreach (var mowca in _mowcy)
+            {
+                var row = new Border
+                {
+                    Background = Brushes.White,
+                    CornerRadius = new CornerRadius(6),
+                    Padding = new Thickness(12),
+                    Margin = new Thickness(0, 0, 0, 8)
+                };
+
+                var rowStack = new StackPanel { Orientation = Orientation.Horizontal };
+                var cb = new CheckBox { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
+
+                var colorBadge = new Border
+                {
+                    Width = 8,
+                    Height = 30,
+                    CornerRadius = new CornerRadius(4),
+                    Background = mowca.KolorMowcy,
+                    Margin = new Thickness(0, 0, 12, 0)
+                };
+
+                var infoStack = new StackPanel();
+                infoStack.Children.Add(new TextBlock { Text = mowca.DisplayFireflies, FontWeight = FontWeights.SemiBold });
+                infoStack.Children.Add(new TextBlock { Text = mowca.StatystykiDisplay, FontSize = 11, Foreground = Brushes.Gray });
+
+                rowStack.Children.Add(cb);
+                rowStack.Children.Add(colorBadge);
+                rowStack.Children.Add(infoStack);
+                row.Child = rowStack;
+                listPanel.Children.Add(row);
+
+                checkboxes.Add((cb, mowca));
+            }
+
+            var scroll = new ScrollViewer { MaxHeight = 250, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            scroll.Content = listPanel;
+            mainStack.Children.Add(scroll);
+
+            // Wybór docelowego pracownika
+            mainStack.Children.Add(new TextBlock { Text = "Przypisz wszystkich do pracownika:", FontSize = 12, Margin = new Thickness(0, 0, 0, 8) });
+
+            var comboBox = new ComboBox
+            {
+                ItemsSource = _pracownicy,
+                DisplayMemberPath = "DisplayName",
+                SelectedValuePath = "UserID",
+                FontSize = 14,
+                Padding = new Thickness(10, 8, 10, 8),
+                Margin = new Thickness(0, 0, 0, 20)
+            };
+            mainStack.Children.Add(comboBox);
+
+            // Przyciski
+            var btnPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            var btnAnuluj = new Button { Content = "Anuluj", Padding = new Thickness(15, 8, 15, 8), Background = Brushes.DimGray, Foreground = Brushes.White, BorderThickness = new Thickness(0), Margin = new Thickness(0, 0, 10, 0) };
+            var btnPolacz = new Button { Content = "🔗 Połącz", Padding = new Thickness(20, 8, 20, 8), Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4CAF50")), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontWeight = FontWeights.Bold };
+
+            btnAnuluj.Click += (s, ev) => dialog.Close();
+            btnPolacz.Click += async (s, ev) =>
+            {
+                var zaznaczeni = checkboxes.Where(c => c.cb.IsChecked == true).Select(c => c.mowca).ToList();
+                if (zaznaczeni.Count < 2)
+                {
+                    MessageBox.Show("Zaznacz co najmniej 2 mówców do połączenia.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                var selected = comboBox.SelectedItem as PracownikItem;
+                if (selected == null || string.IsNullOrEmpty(selected.UserID))
+                {
+                    MessageBox.Show("Wybierz pracownika do przypisania.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Przypisz wszystkich zaznaczonych do tego samego pracownika
+                foreach (var mowca in zaznaczeni)
+                {
+                    mowca.PrzypisanyUserID = selected.UserID;
+                    mowca.PrzypisanyUserName = selected.DisplayName;
+                    mowca.ZrodloMapowania = "merge";
+                    mowca.MaSugestie = false;
+                    AktualizujZdaniaMowcy(mowca);
+                }
+
+                if (_transkrypcjaId > 0)
+                {
+                    await ZapiszMapowaniaDoDb();
+                }
+
+                ListaMowcow.Items.Refresh();
+                AktualizujStatusMapowania();
+
+                MessageBox.Show($"Połączono {zaznaczeni.Count} mówców jako: {selected.DisplayName}", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                dialog.Close();
+            };
+
+            btnPanel.Children.Add(btnAnuluj);
+            btnPanel.Children.Add(btnPolacz);
+            mainStack.Children.Add(btnPanel);
+
+            dialog.Content = mainStack;
+            dialog.ShowDialog();
+        }
+
+        #endregion
+
+        #region D14: Profil głosowy (w odtwarzaczu)
+
+        /// <summary>
+        /// D14: Zapisz profil głosowy pracownika - wywoływane z odtwarzacza
+        /// </summary>
+        private async Task ZapiszProfilGlosowy(MowcaMapowanieDisplay mowca, double startTime, double endTime)
+        {
+            if (string.IsNullOrEmpty(mowca.PrzypisanyUserID))
+            {
+                MessageBox.Show("Najpierw przypisz mówcę do pracownika.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                using var conn = new SqlConnection(CONNECTION_STRING);
+                await conn.OpenAsync();
+
+                // Upewnij się że tabela istnieje
+                string createTable = @"
+                    IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'FirefliesProfileGlosowe')
+                    BEGIN
+                        CREATE TABLE FirefliesProfileGlosowe (
+                            ID INT IDENTITY(1,1) PRIMARY KEY,
+                            UserID NVARCHAR(50) NOT NULL,
+                            UserName NVARCHAR(200),
+                            FirefliesTranscriptID NVARCHAR(100),
+                            SpeakerName NVARCHAR(200),
+                            StartTime FLOAT,
+                            EndTime FLOAT,
+                            Tekst NVARCHAR(MAX),
+                            AudioUrl NVARCHAR(500),
+                            TranscriptUrl NVARCHAR(500),
+                            DataUtworzenia DATETIME DEFAULT GETDATE()
+                        );
+                    END";
+                using (var cmdCreate = new SqlCommand(createTable, conn))
+                    await cmdCreate.ExecuteNonQueryAsync();
+
+                // Znajdź fragment do zapisania
+                var fragment = _zdaniaApi.FirstOrDefault(z =>
+                    z.SpeakerName == mowca.SpeakerNameFireflies &&
+                    Math.Abs(z.StartTime - startTime) < 1);
+
+                // Zapisz profil
+                string sql = @"INSERT INTO FirefliesProfileGlosowe
+                    (UserID, UserName, FirefliesTranscriptID, SpeakerName, StartTime, EndTime, Tekst, AudioUrl, TranscriptUrl)
+                    VALUES (@UserID, @UserName, @FID, @Speaker, @Start, @End, @Tekst, @Audio, @Transcript)";
+
+                using var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@UserID", mowca.PrzypisanyUserID);
+                cmd.Parameters.AddWithValue("@UserName", (object?)mowca.PrzypisanyUserName ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@FID", _firefliesId);
+                cmd.Parameters.AddWithValue("@Speaker", (object?)mowca.SpeakerNameFireflies ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@Start", startTime);
+                cmd.Parameters.AddWithValue("@End", endTime);
+                cmd.Parameters.AddWithValue("@Tekst", (object?)fragment?.Text ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@Audio", (object?)_transkrypcjaApi?.AudioUrl ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@Transcript", (object?)_transkrypcjaApi?.TranscriptUrl ?? DBNull.Value);
+
+                await cmd.ExecuteNonQueryAsync();
+
+                MessageBox.Show($"Zapisano profil głosowy dla: {mowca.PrzypisanyUserName}\nFragment: {TimeSpan.FromSeconds(startTime):mm\\:ss} - {TimeSpan.FromSeconds(endTime):mm\\:ss}",
+                    "Profil zapisany", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd zapisu profilu: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        #endregion
+
         private Window? _odtwarzaczWindow = null;
         private MediaElement? _mediaElement = null;
         private System.Windows.Threading.DispatcherTimer? _playerTimer = null;
@@ -1212,6 +1862,29 @@ namespace Kalendarz1.Spotkania.Views
                     TxtStatusMapowania.Text = $"Wybierz pracownika dla: {mowca.DisplayFireflies}";
                 };
                 btnPanel.Children.Add(btnAssign);
+            }
+            else
+            {
+                // D14: Przycisk zapisu profilu głosowego (tylko jeśli mówca jest przypisany)
+                var btnSaveProfile = new Button
+                {
+                    Content = "💾 Zapisz profil głosu",
+                    Padding = new Thickness(15, 10, 15, 10),
+                    Margin = new Thickness(5),
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#9C27B0")),
+                    Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0),
+                    ToolTip = "Zapisz ten fragment jako próbkę głosu pracownika"
+                };
+                btnSaveProfile.Click += async (s, ev) =>
+                {
+                    if (_currentFragmenty != null && _currentFragmentIndex < _currentFragmenty.Count)
+                    {
+                        var frag = _currentFragmenty[_currentFragmentIndex];
+                        await ZapiszProfilGlosowy(mowca, frag.StartTime, frag.EndTime);
+                    }
+                };
+                btnPanel.Children.Add(btnSaveProfile);
             }
 
             var btnClose = new Button
