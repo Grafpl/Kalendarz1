@@ -250,19 +250,26 @@ namespace Kalendarz1.Spotkania.Views
 
                 foreach (var m in mapowania)
                 {
+                    // Szukaj mowcy po SpeakerId LUB po nazwie
                     var mowca = _mowcy.FirstOrDefault(x =>
-                        x.SpeakerId == m.SpeakerId ||
-                        x.SpeakerNameFireflies == m.SpeakerNameFireflies);
+                        (m.SpeakerId.HasValue && x.SpeakerId == m.SpeakerId) ||
+                        (!string.IsNullOrEmpty(m.SpeakerNameFireflies) && x.SpeakerNameFireflies == m.SpeakerNameFireflies));
 
                     if (mowca != null && !string.IsNullOrEmpty(m.PrzypisanyUserID))
                     {
+                        // Ustaw przypisanie bez wywolywania PropertyChanged (jeszcze nie ma UI)
                         mowca.PrzypisanyUserID = m.PrzypisanyUserID;
                         mowca.PrzypisanyUserName = m.PrzypisanyUserName;
+
+                        System.Diagnostics.Debug.WriteLine($"Zaladowano mapowanie: {mowca.SpeakerNameFireflies} -> {m.PrzypisanyUserName}");
                     }
                 }
 
                 // Odswiez liste mowcow
                 ListaMowcow.Items.Refresh();
+
+                // Aktualizuj status
+                AktualizujStatusMapowania();
             }
             catch (Exception ex)
             {
@@ -394,7 +401,7 @@ namespace Kalendarz1.Spotkania.Views
 
         private async void CmbMowca_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (!_autoZapisMapowan) return;
+            if (!_isInitialized) return;
 
             var cmb = sender as ComboBox;
             var mowca = cmb?.Tag as MowcaMapowanieDisplay;
@@ -404,26 +411,45 @@ namespace Kalendarz1.Spotkania.Views
             var selectedItem = cmb?.SelectedItem as PracownikItem;
             if (selectedItem != null)
             {
-                mowca.PrzypisanyUserName = selectedItem.DisplayName;
+                mowca.PrzypisanyUserName = selectedItem.UserID == "" ? null : selectedItem.DisplayName;
+            }
+            else
+            {
+                mowca.PrzypisanyUserName = null;
             }
 
-            // Aktualizuj zdania
+            // Aktualizuj zdania w transkrypcji
             AktualizujZdaniaMowcy(mowca);
 
-            // Auto-zapisz jesli wlaczone
-            if (_autoZapisMapowan && _transkrypcjaId > 0)
+            // Aktualizuj status
+            AktualizujStatusMapowania();
+
+            // Auto-zapisz do bazy
+            if (_transkrypcjaId > 0)
             {
-                await ZapiszMapowaniaDoDb();
-                UstawStatus("Mapowanie zapisane automatycznie");
-                await Task.Delay(1500);
-                UstawStatus("");
+                try
+                {
+                    await ZapiszMapowaniaDoDb();
+                    TxtStatusMapowania.Text = $"Zapisano: {mowca.DisplayFireflies} = {mowca.PrzypisanyUserName ?? "(brak)"}";
+                    StatusMapowania.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E8F5E9"));
+                }
+                catch (Exception ex)
+                {
+                    TxtStatusMapowania.Text = $"Blad zapisu: {ex.Message}";
+                    StatusMapowania.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFEBEE"));
+                }
             }
+
+            // Odswiez liste mowcow aby pokazac zmiane ramki
+            ListaMowcow.Items.Refresh();
         }
 
         private void AktualizujZdaniaMowcy(MowcaMapowanieDisplay mowca)
         {
+            if (_zdania == null) return;
+
             foreach (var z in _zdania.Where(x =>
-                x.SpeakerId == mowca.SpeakerId ||
+                (mowca.SpeakerId.HasValue && x.SpeakerId == mowca.SpeakerId) ||
                 x.MowcaFireflies == mowca.SpeakerNameFireflies))
             {
                 if (!string.IsNullOrEmpty(mowca.PrzypisanyUserID))
@@ -440,12 +466,107 @@ namespace Kalendarz1.Spotkania.Views
             ListaZdan.Items.Refresh();
         }
 
-        private void BtnAutoZapisz_Click(object sender, RoutedEventArgs e)
+        private void AktualizujStatusMapowania()
         {
-            _autoZapisMapowan = !_autoZapisMapowan;
-            BtnAutoZapisz.Background = new SolidColorBrush(
-                (Color)ColorConverter.ConvertFromString(_autoZapisMapowan ? "#4CAF50" : "#9E9E9E"));
-            BtnAutoZapisz.Content = _autoZapisMapowan ? "Auto-zapisz" : "Reczny zapis";
+            var przypisanych = _mowcy.Count(m => m.JestPrzypisany);
+            var wszystkich = _mowcy.Count;
+
+            if (przypisanych == 0)
+            {
+                TxtStatusMapowania.Text = "Wybierz pracownikow z list rozwijanych";
+                StatusMapowania.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E3F2FD"));
+            }
+            else if (przypisanych == wszystkich)
+            {
+                TxtStatusMapowania.Text = $"Wszyscy mowcy przypisani ({przypisanych}/{wszystkich})";
+                StatusMapowania.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E8F5E9"));
+            }
+            else
+            {
+                TxtStatusMapowania.Text = $"Przypisano {przypisanych} z {wszystkich} mowcow";
+                StatusMapowania.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFF3E0"));
+            }
+        }
+
+        private async void BtnAutoDopasuj_Click(object sender, RoutedEventArgs e)
+        {
+            int dopasowano = 0;
+
+            foreach (var mowca in _mowcy.Where(m => !m.JestPrzypisany))
+            {
+                // Szukaj pracownika po nazwisku
+                var nazwaFireflies = mowca.SpeakerNameFireflies?.ToLower() ?? "";
+
+                // Pomijamy ogolne nazwy jak "Speaker 1"
+                if (nazwaFireflies.StartsWith("speaker") || nazwaFireflies.StartsWith("mowca"))
+                    continue;
+
+                // Szukaj najlepszego dopasowania
+                var najlepszyPracownik = _pracownicy
+                    .Where(p => !string.IsNullOrEmpty(p.UserID))
+                    .FirstOrDefault(p =>
+                    {
+                        var nazwaPracownika = p.DisplayName?.ToLower() ?? "";
+                        // Pelne dopasowanie
+                        if (nazwaPracownika == nazwaFireflies) return true;
+                        // Zawiera nazwe
+                        if (nazwaPracownika.Contains(nazwaFireflies) || nazwaFireflies.Contains(nazwaPracownika)) return true;
+                        // Sprawdz poszczegolne slowa
+                        var slowaFireflies = nazwaFireflies.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                        var slowaPracownika = nazwaPracownika.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                        return slowaFireflies.Any(sf => slowaPracownika.Any(sp => sp.Contains(sf) || sf.Contains(sp)));
+                    });
+
+                if (najlepszyPracownik != null)
+                {
+                    mowca.PrzypisanyUserID = najlepszyPracownik.UserID;
+                    mowca.PrzypisanyUserName = najlepszyPracownik.DisplayName;
+                    AktualizujZdaniaMowcy(mowca);
+                    dopasowano++;
+                }
+            }
+
+            if (dopasowano > 0)
+            {
+                // Zapisz do bazy
+                if (_transkrypcjaId > 0)
+                {
+                    await ZapiszMapowaniaDoDb();
+                }
+                TxtStatusMapowania.Text = $"Automatycznie dopasowano {dopasowano} mowcow";
+                StatusMapowania.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E8F5E9"));
+            }
+            else
+            {
+                TxtStatusMapowania.Text = "Nie znaleziono automatycznych dopasowan. Przypisz recznie.";
+                StatusMapowania.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFF3E0"));
+            }
+
+            ListaMowcow.Items.Refresh();
+            AktualizujStatusMapowania();
+        }
+
+        private async void BtnWyczyscMapowania_Click(object sender, RoutedEventArgs e)
+        {
+            if (MessageBox.Show("Usunac wszystkie przypisania mowcow?", "Potwierdz",
+                MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+                return;
+
+            foreach (var mowca in _mowcy)
+            {
+                mowca.PrzypisanyUserID = null;
+                mowca.PrzypisanyUserName = null;
+                AktualizujZdaniaMowcy(mowca);
+            }
+
+            if (_transkrypcjaId > 0)
+            {
+                await ZapiszMapowaniaDoDb();
+            }
+
+            TxtStatusMapowania.Text = "Wyczyszczono wszystkie przypisania";
+            StatusMapowania.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E3F2FD"));
+            ListaMowcow.Items.Refresh();
         }
 
         #endregion
@@ -1200,13 +1321,22 @@ namespace Kalendarz1.Spotkania.Views
         public string? PrzypisanyUserID
         {
             get => _przypisanyUserID;
-            set { _przypisanyUserID = value; OnPropertyChanged(); OnPropertyChanged(nameof(StatusPrzypisania)); OnPropertyChanged(nameof(StatusTlo)); OnPropertyChanged(nameof(StatusKolor)); }
+            set
+            {
+                _przypisanyUserID = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(StatusPrzypisania));
+                OnPropertyChanged(nameof(StatusTlo));
+                OnPropertyChanged(nameof(StatusKolor));
+                OnPropertyChanged(nameof(JestPrzypisany));
+                OnPropertyChanged(nameof(RamkaBrush));
+            }
         }
 
         public string? PrzypisanyUserName
         {
             get => _przypisanyUserName;
-            set { _przypisanyUserName = value; OnPropertyChanged(); }
+            set { _przypisanyUserName = value; OnPropertyChanged(); OnPropertyChanged(nameof(StatusPrzypisania)); }
         }
 
         public List<PracownikItem> DostepniPracownicy { get; set; } = new();
@@ -1214,9 +1344,17 @@ namespace Kalendarz1.Spotkania.Views
         public SolidColorBrush KolorMowcy { get; set; } = new SolidColorBrush(Colors.Gray);
         public SolidColorBrush TloKolor { get; set; } = new SolidColorBrush(Colors.White);
 
+        // Podstawowe wyswietlanie
         public string DisplayFireflies => SpeakerNameFireflies ?? $"Mowca {SpeakerId}";
         public string CzasMowieniaDisplay => TimeSpan.FromSeconds(CzasMowienia).ToString(@"mm\:ss");
         public string ProcentCzasuDisplay => $"({ProcentCzasu:F0}%)";
+
+        // Nowe wlasciwosci dla uproszczonego UI
+        public string StatystykiDisplay => $"{LiczbaWypowiedzi} wyp. | {CzasMowieniaDisplay} ({ProcentCzasu:F0}%)";
+        public bool JestPrzypisany => !string.IsNullOrEmpty(PrzypisanyUserID);
+
+        public SolidColorBrush RamkaBrush => new SolidColorBrush(
+            (Color)ColorConverter.ConvertFromString(JestPrzypisany ? "#4CAF50" : "#E0E0E0"));
 
         public string StatusPrzypisania => string.IsNullOrEmpty(PrzypisanyUserID)
             ? "Nie przypisano"

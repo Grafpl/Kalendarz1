@@ -181,94 +181,93 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Mapowanie mowcow ze statystykami -->
+                    <!-- Mapowanie mowcow - UPROSZCZONE -->
                     <Border Style="{StaticResource CardBorder}" Margin="0,0,0,15">
                         <StackPanel>
-                            <Grid Margin="0,0,0,12">
+                            <Grid Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                    <TextBlock Text="Mapowanie mowcow" Style="{StaticResource SectionHeader}" Margin="0"/>
+                                    <TextBlock Text="Przypisz mowcow" Style="{StaticResource SectionHeader}" Margin="0"/>
                                     <TextBlock x:Name="TxtLiczbaMowcow" Text="(0)" FontSize="13" Foreground="#666"
                                                VerticalAlignment="Center" Margin="10,0,0,0"/>
                                 </StackPanel>
-                                <Button Grid.Column="1" Content="Auto-zapisz" Style="{StaticResource BtnSmall}"
-                                        Background="#4CAF50" x:Name="BtnAutoZapisz" Click="BtnAutoZapisz_Click"
-                                        ToolTip="Wlacz/wylacz automatyczny zapis mapowan"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <Button Content="Auto-dopasuj" Style="{StaticResource BtnSmall}"
+                                            Background="#FF9800" Margin="0,0,5,0"
+                                            Click="BtnAutoDopasuj_Click" ToolTip="Sprobuj automatycznie dopasowac mowcow po nazwie"/>
+                                    <Button Content="Wyczysc" Style="{StaticResource BtnSmall}"
+                                            Background="#9E9E9E" Click="BtnWyczyscMapowania_Click"
+                                            ToolTip="Usun wszystkie przypisania"/>
+                                </StackPanel>
                             </Grid>
 
-                            <TextBlock Text="Przypisz mowcow do pracownikow - zmiany zapisuja sie automatycznie:"
-                                       FontSize="12" Foreground="#666" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                            <TextBlock Text="Wybierz pracownika z listy dla kazdego mowcy:"
+                                       FontSize="12" Foreground="#666" Margin="0,0,0,10"/>
 
                             <ItemsControl x:Name="ListaMowcow">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="6"
-                                                Padding="12" Margin="0,0,0,8" Background="{Binding TloKolor}">
+                                        <Border BorderBrush="{Binding RamkaBrush}" BorderThickness="2" CornerRadius="6"
+                                                Padding="10" Margin="0,0,0,6" Background="{Binding TloKolor}">
                                             <Grid>
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                </Grid.RowDefinitions>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
 
-                                                <!-- Nazwa z Fireflies + statystyki -->
-                                                <Grid Grid.Row="0" Margin="0,0,0,8">
+                                                <!-- Kolor i nazwa mowcy -->
+                                                <Border Grid.Column="0" Background="{Binding KolorMowcy}" CornerRadius="4"
+                                                        Padding="10,6" Margin="0,0,10,0" VerticalAlignment="Center">
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding DisplayFireflies}" FontWeight="Bold"
+                                                                   Foreground="White" FontSize="13"/>
+                                                        <TextBlock Text="{Binding StatystykiDisplay}" FontSize="10"
+                                                                   Foreground="#FFFFFFCC"/>
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <!-- ComboBox z pracownikami -->
+                                                <Grid Grid.Column="1" VerticalAlignment="Center">
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                                        <Border Background="{Binding KolorMowcy}" CornerRadius="4" Padding="8,4">
-                                                            <TextBlock Text="{Binding DisplayFireflies}" FontWeight="SemiBold"
-                                                                       Foreground="White" FontSize="13"/>
-                                                        </Border>
-                                                    </StackPanel>
-                                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                                        <TextBlock Text="{Binding LiczbaWypowiedzi, StringFormat='{}{0} wyp.'}"
-                                                                   FontSize="11" Foreground="#666" VerticalAlignment="Center"/>
-                                                        <TextBlock Text=" | " Foreground="#CCC" VerticalAlignment="Center"/>
-                                                        <TextBlock Text="{Binding CzasMowieniaDisplay}"
-                                                                   FontSize="11" Foreground="#666" VerticalAlignment="Center"/>
-                                                        <TextBlock Text="{Binding ProcentCzasuDisplay}"
-                                                                   FontSize="11" Foreground="#888" VerticalAlignment="Center" Margin="5,0,0,0"/>
-                                                    </StackPanel>
-                                                </Grid>
-
-                                                <!-- Przypisany pracownik -->
-                                                <StackPanel Grid.Row="1">
-                                                    <TextBlock Text="Przypisz do pracownika:" FontSize="12" Foreground="#666" Margin="0,0,0,4"/>
-                                                    <ComboBox ItemsSource="{Binding DostepniPracownicy}"
-                                                              SelectedValue="{Binding PrzypisanyUserID, Mode=TwoWay}"
+                                                    <TextBlock Grid.Column="0" Text="=" FontSize="18" Foreground="#999"
+                                                               VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                    <ComboBox Grid.Column="1"
+                                                              ItemsSource="{Binding DostepniPracownicy}"
+                                                              SelectedValue="{Binding PrzypisanyUserID, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                               SelectedValuePath="UserID"
                                                               DisplayMemberPath="DisplayName"
-                                                              FontSize="13" Padding="8,6"
+                                                              FontSize="14" Padding="10,8"
                                                               SelectionChanged="CmbMowca_SelectionChanged"
-                                                              Tag="{Binding}"/>
-                                                </StackPanel>
-
-                                                <!-- Przykladowa wypowiedz -->
-                                                <StackPanel Grid.Row="2" Margin="0,8,0,0">
-                                                    <TextBlock Text="Przyklad wypowiedzi:" FontSize="11" Foreground="#888"/>
-                                                    <TextBlock Text="{Binding PrzykladowaWypowiedz}" FontSize="11" Foreground="#666"
-                                                               TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="36"
-                                                               FontStyle="Italic"/>
-                                                </StackPanel>
-
-                                                <!-- Status przypisania -->
-                                                <Border Grid.Row="3" Margin="0,8,0,0" Padding="6,4" CornerRadius="4"
-                                                        Background="{Binding StatusTlo}">
-                                                    <TextBlock Text="{Binding StatusPrzypisania}" FontSize="11"
-                                                               Foreground="{Binding StatusKolor}"/>
-                                                </Border>
+                                                              Tag="{Binding}">
+                                                        <ComboBox.Style>
+                                                            <Style TargetType="ComboBox">
+                                                                <Setter Property="Background" Value="White"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding JestPrzypisany}" Value="True">
+                                                                        <Setter Property="Background" Value="#E8F5E9"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </ComboBox.Style>
+                                                    </ComboBox>
+                                                </Grid>
                                             </Grid>
                                         </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
+
+                            <!-- Status mapowania -->
+                            <Border x:Name="StatusMapowania" Background="#E3F2FD" CornerRadius="4" Padding="10" Margin="0,8,0,0">
+                                <TextBlock x:Name="TxtStatusMapowania" Text="Wybierz pracownikow z list rozwijanych"
+                                           FontSize="12" Foreground="#1976D2" TextWrapping="Wrap"/>
+                            </Border>
                         </StackPanel>
                     </Border>
 
