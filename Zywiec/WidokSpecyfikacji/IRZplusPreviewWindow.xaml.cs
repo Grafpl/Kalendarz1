@@ -378,13 +378,15 @@ namespace Kalendarz1
                     {
                         Lp = lp,
                         // Numer partii drobiu = numer siedliska hodowcy (np. 038481631-001)
-                        NumerPartiiDrobiu = string.IsNullOrEmpty(vm.IRZPlus) ? "" : vm.IRZPlus + "-001",
+                        // IRZPlus juz zawiera pelny numer - NIE DODAWAC -001!
+                        NumerPartiiDrobiu = vm.IRZPlus ?? "",
                         TypZdarzenia = TypZdarzeniaZURD.UbojRzezniczy,
                         LiczbaSztuk = vm.LiczbaSztukDrobiu,
                         MasaKg = vm.WagaNetto,
                         DataZdarzenia = vm.DataZdarzenia,
-                        // Przyjete z dzialalnosci = numer dzialalnosci hodowcy (np. 038481631-001-001)
-                        PrzyjeteZDzialalnosci = vm.PrzyjetaZDzialalnosci + "-001",
+                        // Przyjete z dzialalnosci = numer siedliska hodowcy (np. 038481631-001)
+                        // PrzyjetaZDzialalnosci juz zawiera pelny numer - NIE DODAWAC -001!
+                        PrzyjeteZDzialalnosci = vm.PrzyjetaZDzialalnosci,
                         UbojRytualny = false,
                         LiczbaPadlych = vm.SztukiPadle,
                         NumerPartiiWewnetrzny = vm.NumerPartii,
@@ -542,8 +544,9 @@ namespace Kalendarz1
         // Kolumna I - Kraj Wywozu
         public string KrajWywozu { get; set; }
 
-        // Kolumna J - Przyjete z dzialalnosci (obliczane)
-        public string PrzyjetaZDzialalnosci => string.IsNullOrEmpty(IRZPlus) ? "" : IRZPlus + "-001";
+        // Kolumna J - Przyjete z dzialalnosci (numer siedliska hodowcy)
+        // IRZPlus juz zawiera pelny numer np. "038481631-001" - NIE DODAWAC -001!
+        public string PrzyjetaZDzialalnosci => IRZPlus ?? "";
 
         // Kolumna K - nr.dok.Arimr (edytowalne)
         public string NrDokArimr

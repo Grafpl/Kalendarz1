@@ -212,7 +212,8 @@ namespace Kalendarz1.Services
                             LiczbaDrobiu = d.IloscSztuk,
                             TypZdarzenia = new KodOpisDto { Kod = "UR" },
                             DataZdarzenia = request.DataUboju.ToString("yyyy-MM-dd"),
-                            PrzyjeteZDzialalnosci = d.NumerSiedliska + "-001",
+                            // NumerSiedliska juz zawiera pelny numer np. "038481631-001" - NIE DODAWAC -001!
+                        PrzyjeteZDzialalnosci = d.NumerSiedliska,
                             UbojRytualny = false
                         }).ToList()
                     }
@@ -368,7 +369,8 @@ namespace Kalendarz1.Services
                     LiczbaDrobiu = spec.LiczbaSztukDrobiu,
                     TypZdarzenia = new KodOpisDto { Kod = "UR" }, // UR = ubój w rzeźni
                     DataZdarzenia = spec.DataZdarzenia.ToString("yyyy-MM-dd"),
-                    PrzyjeteZDzialalnosci = irzPlus + "-001",  // np. "080640491-001-001"
+                    // irzPlus juz zawiera pelny numer np. "080640491-001" - NIE DODAWAC -001!
+                    PrzyjeteZDzialalnosci = irzPlus,
                     UbojRytualny = false
                 });
             }
@@ -631,7 +633,7 @@ namespace Kalendarz1.Services
         public string DataZdarzenia { get; set; }  // format "2025-01-13"
 
         [JsonPropertyName("przyjeteZDzialalnosci")]
-        public string PrzyjeteZDzialalnosci { get; set; }  // np. "080640491-001-001"
+        public string PrzyjeteZDzialalnosci { get; set; }  // np. "080640491-001" (pelny numer siedliska)
 
         [JsonPropertyName("ubojRytualny")]
         public bool UbojRytualny { get; set; } = false;
