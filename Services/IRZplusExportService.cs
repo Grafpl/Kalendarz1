@@ -611,6 +611,382 @@ namespace Kalendarz1.Services
         public string GetExportPath() => _exportPath;
 
         #endregion
+
+        #region ========== DEBUG - Narzedzia diagnostyczne ==========
+
+        /// <summary>
+        /// Generuje TESTOWY plik CSV z przykladowymi danymi do weryfikacji formatu.
+        /// Uzyj tej metody do sprawdzenia czy format CSV jest poprawny przed eksportem prawdziwych danych.
+        /// </summary>
+        public ExportResult GenerujTestowyCSV()
+        {
+            try
+            {
+                var timestamp = DateTime.Now.ToString("HHmmss");
+                var fileName = $"TEST_ZURD_{DateTime.Now:yyyyMMdd}_{timestamp}.csv";
+                var filePath = Path.Combine(_exportPath, fileName);
+
+                var csv = new StringBuilder();
+
+                // Naglowek
+                csv.AppendLine("Lp;Numer identyfikacyjny/numer partii;Typ zdarzenia;Liczba sztuk drobiu;Data zdarzenia;Masa drobiu poddanego ubojowi (kg);Kraj wwozu;Data kupna/wwozu;Przyjęte z działalności;Ubój rytualny");
+
+                // Przykladowe dane testowe
+                var dataTest = DateTime.Now.ToString("dd-MM-yyyy");
+                csv.AppendLine($"1;{NUMER_RZEZNI};UR;4173;{dataTest};13851;;{dataTest};068736945-001;N");
+
+                File.WriteAllText(filePath, csv.ToString(), new UTF8Encoding(true));
+
+                // Wygeneruj tez plik z analiza
+                var debugFileName = $"DEBUG_TEST_{timestamp}.txt";
+                var debugFilePath = Path.Combine(_exportPath, debugFileName);
+                var debug = GenerujRaportDebug(csv.ToString(), fileName);
+                File.WriteAllText(debugFilePath, debug, new UTF8Encoding(true));
+
+                return new ExportResult
+                {
+                    Success = true,
+                    FilePath = filePath,
+                    FileName = fileName,
+                    Message = $"Wygenerowano testowy plik CSV: {fileName}\nRaport debug: {debugFileName}"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ExportResult
+                {
+                    Success = false,
+                    Message = $"Blad generowania testowego CSV: {ex.Message}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// Waliduje zawartosc pliku CSV i zwraca raport z bledami.
+        /// </summary>
+        public string WalidujPlikCSV(string filePath)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("╔════════════════════════════════════════════════════════════════╗");
+            sb.AppendLine("║              WALIDACJA PLIKU CSV DLA IRZPLUS                   ║");
+            sb.AppendLine("╚════════════════════════════════════════════════════════════════╝");
+            sb.AppendLine();
+
+            if (!File.Exists(filePath))
+            {
+                sb.AppendLine($"[BLAD] Plik nie istnieje: {filePath}");
+                return sb.ToString();
+            }
+
+            sb.AppendLine($"Plik: {Path.GetFileName(filePath)}");
+            sb.AppendLine($"Sciezka: {filePath}");
+            sb.AppendLine();
+
+            var lines = File.ReadAllLines(filePath, Encoding.UTF8);
+            var errors = new List<string>();
+            var warnings = new List<string>();
+
+            // Pomijamy linie komentarzy (#)
+            var dataLines = lines.Where(l => !l.StartsWith("#") && !string.IsNullOrWhiteSpace(l)).ToList();
+
+            if (dataLines.Count == 0)
+            {
+                errors.Add("Plik jest pusty lub zawiera tylko komentarze");
+            }
+            else
+            {
+                // Sprawdz naglowek
+                var header = dataLines[0];
+                sb.AppendLine("─────────────────────────────────────────────────────────────────");
+                sb.AppendLine("NAGLOWEK CSV:");
+                sb.AppendLine("─────────────────────────────────────────────────────────────────");
+                sb.AppendLine(header);
+                sb.AppendLine();
+
+                var expectedHeader = "Lp;Numer identyfikacyjny/numer partii;Typ zdarzenia;Liczba sztuk drobiu;Data zdarzenia;Masa drobiu poddanego ubojowi (kg);Kraj wwozu;Data kupna/wwozu;Przyjęte z działalności;Ubój rytualny";
+                if (header != expectedHeader)
+                {
+                    warnings.Add("Naglowek rozni sie od oczekiwanego!");
+                    sb.AppendLine("[OSTRZEZENIE] Oczekiwany naglowek:");
+                    sb.AppendLine(expectedHeader);
+                    sb.AppendLine();
+                }
+
+                // Sprawdz dane
+                for (int i = 1; i < dataLines.Count; i++)
+                {
+                    var line = dataLines[i];
+                    var cols = line.Split(';');
+
+                    sb.AppendLine($"─────────────────────────────────────────────────────────────────");
+                    sb.AppendLine($"WIERSZ {i} (pozycja {i}):");
+                    sb.AppendLine($"─────────────────────────────────────────────────────────────────");
+                    sb.AppendLine($"RAW: {line}");
+                    sb.AppendLine();
+
+                    if (cols.Length != 10)
+                    {
+                        errors.Add($"Wiersz {i}: Nieprawidlowa liczba kolumn ({cols.Length} zamiast 10)");
+                        continue;
+                    }
+
+                    // Analiza kazdej kolumny
+                    var kolumny = new[]
+                    {
+                        ("Lp", cols[0]),
+                        ("Numer identyfikacyjny/numer partii", cols[1]),
+                        ("Typ zdarzenia", cols[2]),
+                        ("Liczba sztuk drobiu", cols[3]),
+                        ("Data zdarzenia", cols[4]),
+                        ("Masa drobiu (kg)", cols[5]),
+                        ("Kraj wwozu", cols[6]),
+                        ("Data kupna/wwozu", cols[7]),
+                        ("Przyjete z dzialalnosci", cols[8]),
+                        ("Uboj rytualny", cols[9])
+                    };
+
+                    foreach (var (nazwa, wartosc) in kolumny)
+                    {
+                        var status = "OK";
+                        var uwaga = "";
+
+                        // Walidacje specyficzne
+                        if (nazwa == "Numer identyfikacyjny/numer partii")
+                        {
+                            if (wartosc != NUMER_RZEZNI)
+                            {
+                                status = "BLAD?";
+                                uwaga = $" (oczekiwano: {NUMER_RZEZNI})";
+                            }
+                        }
+                        else if (nazwa == "Masa drobiu (kg)")
+                        {
+                            if (wartosc.Contains(" "))
+                            {
+                                status = "BLAD!";
+                                uwaga = " (ZAWIERA SPACJE - portal nie zaakceptuje!)";
+                                errors.Add($"Wiersz {i}: Masa zawiera spacje: '{wartosc}'");
+                            }
+                            else if (wartosc.Contains(",") || wartosc.Contains("."))
+                            {
+                                status = "BLAD!";
+                                uwaga = " (ZAWIERA SEPARATOR DZIESIETNY - portal wymaga liczby calkowitej!)";
+                                errors.Add($"Wiersz {i}: Masa zawiera separator dziesietny: '{wartosc}'");
+                            }
+                            else if (!int.TryParse(wartosc, out _))
+                            {
+                                status = "BLAD!";
+                                uwaga = " (NIE JEST LICZBA CALKOWITA!)";
+                                errors.Add($"Wiersz {i}: Masa nie jest liczba calkowita: '{wartosc}'");
+                            }
+                        }
+                        else if (nazwa == "Data kupna/wwozu")
+                        {
+                            if (string.IsNullOrEmpty(wartosc))
+                            {
+                                status = "BLAD!";
+                                uwaga = " (PUSTE - portal wymaga wypelnienia!)";
+                                errors.Add($"Wiersz {i}: Data kupna/wwozu jest pusta");
+                            }
+                        }
+                        else if (nazwa == "Data zdarzenia")
+                        {
+                            if (!System.Text.RegularExpressions.Regex.IsMatch(wartosc, @"^\d{2}-\d{2}-\d{4}$"))
+                            {
+                                status = "BLAD!";
+                                uwaga = " (Nieprawidlowy format - oczekiwano DD-MM-RRRR)";
+                                errors.Add($"Wiersz {i}: Nieprawidlowy format daty: '{wartosc}'");
+                            }
+                        }
+                        else if (nazwa == "Typ zdarzenia")
+                        {
+                            if (wartosc != "UR" && wartosc != "BD")
+                            {
+                                status = "OSTRZEZENIE";
+                                uwaga = " (Nieznany typ - oczekiwano UR lub BD)";
+                                warnings.Add($"Wiersz {i}: Nieznany typ zdarzenia: '{wartosc}'");
+                            }
+                        }
+
+                        sb.AppendLine($"  [{status,-10}] {nazwa,-35}: \"{wartosc}\"{uwaga}");
+                    }
+                    sb.AppendLine();
+                }
+            }
+
+            // Podsumowanie
+            sb.AppendLine("═════════════════════════════════════════════════════════════════");
+            sb.AppendLine("PODSUMOWANIE WALIDACJI:");
+            sb.AppendLine("═════════════════════════════════════════════════════════════════");
+
+            if (errors.Count == 0 && warnings.Count == 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("  ✓ PLIK CSV JEST POPRAWNY - MOZNA IMPORTOWAC DO PORTALU IRZPLUS");
+                sb.AppendLine();
+            }
+            else
+            {
+                if (errors.Count > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine($"BLEDY ({errors.Count}):");
+                    foreach (var err in errors)
+                    {
+                        sb.AppendLine($"  ✗ {err}");
+                    }
+                }
+
+                if (warnings.Count > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine($"OSTRZEZENIA ({warnings.Count}):");
+                    foreach (var warn in warnings)
+                    {
+                        sb.AppendLine($"  ! {warn}");
+                    }
+                }
+            }
+
+            sb.AppendLine();
+            sb.AppendLine($"Walidacja wykonana: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Generuje szczegolowy raport debug dla zawartosci CSV.
+        /// </summary>
+        private string GenerujRaportDebug(string csvContent, string fileName)
+        {
+            var sb = new StringBuilder();
+
+            sb.AppendLine("╔════════════════════════════════════════════════════════════════════════════╗");
+            sb.AppendLine("║                    RAPORT DEBUG - EKSPORT CSV IRZPLUS                      ║");
+            sb.AppendLine("╚════════════════════════════════════════════════════════════════════════════╝");
+            sb.AppendLine();
+            sb.AppendLine($"Data generowania:    {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            sb.AppendLine($"Plik CSV:            {fileName}");
+            sb.AppendLine($"Stale uzyte w eksporcie:");
+            sb.AppendLine($"  NUMER_RZEZNI:      {NUMER_RZEZNI}");
+            sb.AppendLine($"  NUMER_PRODUCENTA:  {NUMER_PRODUCENTA}");
+            sb.AppendLine($"  GATUNEK:           {GATUNEK}");
+            sb.AppendLine();
+
+            sb.AppendLine("────────────────────────────────────────────────────────────────────────────────");
+            sb.AppendLine("SUROWA ZAWARTOSC CSV:");
+            sb.AppendLine("────────────────────────────────────────────────────────────────────────────────");
+            sb.AppendLine(csvContent);
+            sb.AppendLine("────────────────────────────────────────────────────────────────────────────────");
+            sb.AppendLine();
+
+            sb.AppendLine("ANALIZA BAJTOW (dla weryfikacji kodowania):");
+            var bytes = Encoding.UTF8.GetBytes(csvContent);
+            sb.AppendLine($"  Rozmiar:           {bytes.Length} bajtow");
+            sb.AppendLine($"  Kodowanie:         UTF-8 z BOM");
+
+            // Sprawdz BOM
+            if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+            {
+                sb.AppendLine($"  BOM:               OBECNY (EF BB BF)");
+            }
+            else
+            {
+                sb.AppendLine($"  BOM:               BRAK (moze byc problem z polskimi znakami!)");
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("OCZEKIWANY FORMAT KOLUMN W PORTALU IRZPLUS:");
+            sb.AppendLine("────────────────────────────────────────────────────────────────────────────────");
+            sb.AppendLine("| Kol | Nazwa                                | Przyklad         | Uwagi        |");
+            sb.AppendLine("|-----|--------------------------------------|------------------|--------------|");
+            sb.AppendLine("| 1   | Lp                                   | 1                | zawsze \"1\"   |");
+            sb.AppendLine($"| 2   | Numer identyfikacyjny/numer partii   | {NUMER_RZEZNI}   | nr rzezni!   |");
+            sb.AppendLine("| 3   | Typ zdarzenia                        | UR               | UR lub BD    |");
+            sb.AppendLine("| 4   | Liczba sztuk drobiu                  | 4173             | calkowita    |");
+            sb.AppendLine("| 5   | Data zdarzenia                       | 12-01-2026       | DD-MM-RRRR   |");
+            sb.AppendLine("| 6   | Masa drobiu poddanego ubojowi (kg)   | 13851            | BEZ SPACJI!  |");
+            sb.AppendLine("| 7   | Kraj wwozu                           | (puste)          | dla PL       |");
+            sb.AppendLine("| 8   | Data kupna/wwozu                     | 12-01-2026       | NIE PUSTE!   |");
+            sb.AppendLine("| 9   | Przyjete z dzialalnosci              | 068736945-001    | nr hodowcy   |");
+            sb.AppendLine("| 10  | Uboj rytualny                        | N                | N lub T      |");
+            sb.AppendLine("────────────────────────────────────────────────────────────────────────────────");
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Zapisuje log eksportu do pliku tekstowego.
+        /// </summary>
+        public void ZapiszLogEksportu(ExportResult result, string dodatkoweInfo = null)
+        {
+            try
+            {
+                var logFileName = $"LOG_EKSPORT_{DateTime.Now:yyyyMMdd}.txt";
+                var logFilePath = Path.Combine(_exportPath, logFileName);
+
+                var log = new StringBuilder();
+                log.AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}]");
+                log.AppendLine($"  Status:  {(result.Success ? "SUKCES" : "BLAD")}");
+                log.AppendLine($"  Plik:    {result.FileName ?? "(brak)"}");
+                log.AppendLine($"  Message: {result.Message}");
+                if (!string.IsNullOrEmpty(dodatkoweInfo))
+                {
+                    log.AppendLine($"  Info:    {dodatkoweInfo}");
+                }
+                log.AppendLine();
+
+                File.AppendAllText(logFilePath, log.ToString(), new UTF8Encoding(true));
+            }
+            catch
+            {
+                // Ignoruj bledy logowania
+            }
+        }
+
+        /// <summary>
+        /// Wyswietla okno diagnostyczne z informacjami o eksporcie (tylko Windows).
+        /// </summary>
+        public string PobierzDiagnostyke()
+        {
+            var sb = new StringBuilder();
+
+            sb.AppendLine("╔════════════════════════════════════════════════════════════════╗");
+            sb.AppendLine("║              DIAGNOSTYKA SERWISU IRZPLUS EXPORT                ║");
+            sb.AppendLine("╚════════════════════════════════════════════════════════════════╝");
+            sb.AppendLine();
+            sb.AppendLine($"Folder eksportu:     {_exportPath}");
+            sb.AppendLine($"Folder istnieje:     {Directory.Exists(_exportPath)}");
+            sb.AppendLine();
+            sb.AppendLine("STALE:");
+            sb.AppendLine($"  NUMER_RZEZNI:      {NUMER_RZEZNI}");
+            sb.AppendLine($"  NUMER_PRODUCENTA:  {NUMER_PRODUCENTA}");
+            sb.AppendLine($"  GATUNEK:           {GATUNEK}");
+            sb.AppendLine();
+
+            // Lista ostatnich plikow
+            if (Directory.Exists(_exportPath))
+            {
+                var files = Directory.GetFiles(_exportPath, "*.csv")
+                    .Select(f => new FileInfo(f))
+                    .OrderByDescending(f => f.CreationTime)
+                    .Take(10)
+                    .ToList();
+
+                sb.AppendLine($"OSTATNIE PLIKI CSV ({files.Count}):");
+                foreach (var file in files)
+                {
+                    sb.AppendLine($"  {file.CreationTime:yyyy-MM-dd HH:mm:ss} | {file.Length,8} B | {file.Name}");
+                }
+            }
+
+            sb.AppendLine();
+            sb.AppendLine($"Diagnostyka wykonana: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+
+            return sb.ToString();
+        }
+
+        #endregion
     }
 
     /// <summary>
