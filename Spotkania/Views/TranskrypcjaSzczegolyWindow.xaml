@@ -110,9 +110,14 @@
 
                 <StackPanel Grid.Column="0">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Edytor transkrypcji" FontSize="22" FontWeight="Bold" Foreground="White"/>
+                        <TextBlock Text="Edytor transkrypcji" FontSize="22" FontWeight="Bold" Foreground="White"
+                                   ToolTip="Skroty: Ctrl+S=Zapisz, Ctrl+F=Szukaj, Ctrl+R=Odswiez, Ctrl+G=Idz do czasu, Ctrl++/-=Czcionka, Esc=Wyczysc"/>
                         <Border x:Name="BadgeSync" Background="#4CAF50" CornerRadius="4" Padding="8,4" Margin="15,0,0,0" VerticalAlignment="Center">
                             <TextBlock x:Name="TxtSyncStatus" Text="Zsynchronizowane" FontSize="11" Foreground="White"/>
+                        </Border>
+                        <Border Background="#64B5F6" CornerRadius="4" Padding="8,4" Margin="10,0,0,0" VerticalAlignment="Center"
+                                ToolTip="Skroty klawiaturowe: Ctrl+S=Zapisz, Ctrl+F=Szukaj, Ctrl+R=Odswiez, Ctrl+G=Idz do czasu, Ctrl++/-=Zmien czcionke, Esc=Wyczysc szukanie, Home/End=Poczatek/Koniec">
+                            <TextBlock Text="?" FontSize="11" Foreground="White" FontWeight="Bold"/>
                         </Border>
                     </StackPanel>
                     <TextBlock x:Name="TxtFirefliesId" Text="Fireflies ID: ---" FontSize="12" Foreground="#B3E5FC" Margin="0,4,0,0"/>
@@ -341,10 +346,18 @@
                         </StackPanel>
 
                         <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <Button Content="-" Style="{StaticResource BtnSmall}" Width="30" Margin="0,0,2,0"
+                                    Click="BtnZmniejszCzcionke_Click" ToolTip="Zmniejsz czcionke (Ctrl+-)"/>
+                            <Button Content="+" Style="{StaticResource BtnSmall}" Width="30" Margin="0,0,8,0"
+                                    Click="BtnZwiekszCzcionke_Click" ToolTip="Zwieksz czcionke (Ctrl++)"/>
+                            <Button Content="Idz do" Style="{StaticResource BtnSmall}" Margin="0,0,5,0"
+                                    Click="BtnIdzDoMowcy_Click" ToolTip="Idz do mowcy / Ctrl+G idz do czasu"/>
                             <Button Content="Kopiuj" Style="{StaticResource BtnSmall}" Margin="0,0,5,0"
                                     Click="BtnKopiujTranskrypcje_Click" ToolTip="Kopiuj do schowka"/>
                             <Button Content="Eksport" Style="{StaticResource BtnSmall}" Margin="0,0,5,0"
-                                    Click="BtnEksportuj_Click" ToolTip="Eksportuj transkrypcje"/>
+                                    Click="BtnEksportuj_Click" ToolTip="Eksportuj do schowka (TXT/CSV/HTML)"/>
+                            <Button Content="Zapisz" Style="{StaticResource BtnSmall}" Margin="0,0,5,0"
+                                    Background="#4CAF50" Click="BtnZapiszDoPliku_Click" ToolTip="Zapisz do pliku (TXT/CSV/HTML)"/>
                             <Button Content="Filtruj" Style="{StaticResource BtnSmall}"
                                     Click="BtnFiltruj_Click" ToolTip="Filtruj po mowcy"/>
                         </StackPanel>

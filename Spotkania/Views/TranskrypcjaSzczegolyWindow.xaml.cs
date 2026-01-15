@@ -10,7 +10,9 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
+using Microsoft.Win32;
 using Kalendarz1.Spotkania.Models;
 using Kalendarz1.Spotkania.Services;
 
@@ -41,6 +43,8 @@ namespace Kalendarz1.Spotkania.Views
         private string _filtrMowcy = "";
         private string _filtrTekst = "";
         private double _calkowityCzas = 0;
+        private double _fontSize = 13;
+        private bool _isInitialized = false;
 
         // Kolory
         private static readonly string[] KoloryMowcow = {
@@ -63,7 +67,15 @@ namespace Kalendarz1.Spotkania.Views
             ListaMowcow.ItemsSource = _mowcy;
             ListaZdan.ItemsSource = _zdania;
 
-            Loaded += async (s, e) => await LoadDataAsync();
+            // Skroty klawiaturowe
+            KeyDown += Window_KeyDown;
+            PreviewKeyDown += Window_PreviewKeyDown;
+
+            Loaded += async (s, e) =>
+            {
+                await LoadDataAsync();
+                _isInitialized = true;
+            };
         }
 
         #region Ladowanie danych
@@ -442,6 +454,7 @@ namespace Kalendarz1.Spotkania.Views
 
         private void ChkUzyjNazwSystemowych_Changed(object sender, RoutedEventArgs e)
         {
+            if (_zdania == null || _zdania.Count == 0) return;
             _uzyjNazwSystemowych = ChkUzyjNazwSystemowych.IsChecked == true;
             foreach (var z in _zdania) z.UzyjNazwySystemowej = _uzyjNazwSystemowych;
             ListaZdan.Items.Refresh();
@@ -449,6 +462,7 @@ namespace Kalendarz1.Spotkania.Views
 
         private void ChkPokazCzasy_Changed(object sender, RoutedEventArgs e)
         {
+            if (_zdania == null || _zdania.Count == 0) return;
             _pokazCzasy = ChkPokazCzasy.IsChecked == true;
             foreach (var z in _zdania) z.PokazCzas = _pokazCzasy;
             ListaZdan.Items.Refresh();
@@ -456,7 +470,8 @@ namespace Kalendarz1.Spotkania.Views
 
         private void TxtSzukaj_TextChanged(object sender, TextChangedEventArgs e)
         {
-            _filtrTekst = TxtSzukaj.Text.ToLower();
+            if (_zdania == null || _zdania.Count == 0) return;
+            _filtrTekst = TxtSzukaj.Text?.ToLower() ?? "";
             FiltrujZdania();
         }
 
@@ -494,6 +509,7 @@ namespace Kalendarz1.Spotkania.Views
 
         private void FiltrujZdania()
         {
+            if (_zdania == null || _zdania.Count == 0) return;
             foreach (var z in _zdania)
             {
                 bool pasujeTekst = string.IsNullOrEmpty(_filtrTekst) ||
@@ -583,6 +599,345 @@ namespace Kalendarz1.Spotkania.Views
 
             Clipboard.SetText(sb.ToString());
             MessageBox.Show($"Eksport {format.ToUpper()} skopiowany do schowka!", "Eksport", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        #endregion
+
+        #region Skroty klawiaturowe
+
+        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            // Ctrl+S - Zapisz
+            if (e.Key == Key.S && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                e.Handled = true;
+                BtnZapiszWszystko_Click(null, null);
+            }
+            // Ctrl+F - Szukaj
+            else if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                e.Handled = true;
+                TxtSzukaj.Focus();
+                TxtSzukaj.SelectAll();
+            }
+            // Ctrl+R - Odswiez
+            else if (e.Key == Key.R && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                e.Handled = true;
+                BtnOdswiez_Click(null, null);
+            }
+            // Ctrl+G - Idz do czasu
+            else if (e.Key == Key.G && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                e.Handled = true;
+                PokazDialogIdzDoCzasu();
+            }
+            // Escape - Wyczysc szukanie
+            else if (e.Key == Key.Escape)
+            {
+                if (!string.IsNullOrEmpty(TxtSzukaj.Text))
+                {
+                    TxtSzukaj.Text = "";
+                    _filtrTekst = "";
+                    _filtrMowcy = "";
+                    FiltrujZdania();
+                    e.Handled = true;
+                }
+            }
+            // Ctrl+Plus - Powieksz czcionke
+            else if ((e.Key == Key.Add || e.Key == Key.OemPlus) && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                e.Handled = true;
+                ZmienRozmiarCzcionki(2);
+            }
+            // Ctrl+Minus - Pomniejsz czcionke
+            else if ((e.Key == Key.Subtract || e.Key == Key.OemMinus) && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                e.Handled = true;
+                ZmienRozmiarCzcionki(-2);
+            }
+            // Ctrl+0 - Resetuj rozmiar czcionki
+            else if (e.Key == Key.D0 && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                e.Handled = true;
+                _fontSize = 13;
+                AktualizujRozmiarCzcionki();
+            }
+        }
+
+        private void Window_KeyDown(object sender, KeyEventArgs e)
+        {
+            // Home - Idz na poczatek
+            if (e.Key == Key.Home && Keyboard.Modifiers == ModifierKeys.None)
+            {
+                if (ListaZdan.Items.Count > 0)
+                {
+                    ListaZdan.ScrollIntoView(ListaZdan.Items[0]);
+                }
+            }
+            // End - Idz na koniec
+            else if (e.Key == Key.End && Keyboard.Modifiers == ModifierKeys.None)
+            {
+                if (ListaZdan.Items.Count > 0)
+                {
+                    ListaZdan.ScrollIntoView(ListaZdan.Items[ListaZdan.Items.Count - 1]);
+                }
+            }
+        }
+
+        #endregion
+
+        #region Nawigacja i rozmiar czcionki
+
+        private void PokazDialogIdzDoCzasu()
+        {
+            var dialog = new Window
+            {
+                Title = "Idz do czasu",
+                Width = 300,
+                Height = 150,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize
+            };
+
+            var panel = new StackPanel { Margin = new Thickness(15) };
+            panel.Children.Add(new TextBlock { Text = "Podaj czas (mm:ss lub sekundy):", Margin = new Thickness(0, 0, 0, 10) });
+
+            var txtCzas = new TextBox { FontSize = 14, Padding = new Thickness(5) };
+            panel.Children.Add(txtCzas);
+
+            var btnPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 15, 0, 0) };
+            var btnOk = new Button { Content = "Idz", Width = 80, Margin = new Thickness(5, 0, 0, 0) };
+            var btnAnuluj = new Button { Content = "Anuluj", Width = 80 };
+
+            btnOk.Click += (s, e) =>
+            {
+                if (SprobujPrzejscDoCzasu(txtCzas.Text))
+                    dialog.Close();
+            };
+            btnAnuluj.Click += (s, e) => dialog.Close();
+
+            btnPanel.Children.Add(btnAnuluj);
+            btnPanel.Children.Add(btnOk);
+            panel.Children.Add(btnPanel);
+
+            dialog.Content = panel;
+            txtCzas.Focus();
+            dialog.ShowDialog();
+        }
+
+        private bool SprobujPrzejscDoCzasu(string czasTekst)
+        {
+            double sekundy = 0;
+
+            // Probuj parsowac mm:ss
+            if (czasTekst.Contains(":"))
+            {
+                var parts = czasTekst.Split(':');
+                if (parts.Length == 2 && int.TryParse(parts[0], out int min) && int.TryParse(parts[1], out int sek))
+                {
+                    sekundy = min * 60 + sek;
+                }
+                else
+                {
+                    MessageBox.Show("Niepoprawny format czasu. Uzyj mm:ss lub liczby sekund.", "Blad", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return false;
+                }
+            }
+            else if (!double.TryParse(czasTekst, out sekundy))
+            {
+                MessageBox.Show("Niepoprawny format czasu. Uzyj mm:ss lub liczby sekund.", "Blad", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+
+            // Znajdz zdanie najblizsze temu czasowi
+            var zdanie = _zdania.OrderBy(z => Math.Abs(z.StartTime - sekundy)).FirstOrDefault();
+            if (zdanie != null)
+            {
+                ListaZdan.ScrollIntoView(zdanie);
+                ListaZdan.SelectedItem = zdanie;
+                return true;
+            }
+
+            return false;
+        }
+
+        private void BtnIdzDoMowcy_Click(object sender, RoutedEventArgs e)
+        {
+            var menu = new ContextMenu();
+            foreach (var m in _mowcy)
+            {
+                var nazwa = !string.IsNullOrEmpty(m.PrzypisanyUserName) ? m.PrzypisanyUserName : m.DisplayFireflies;
+                var menuItem = new MenuItem { Header = nazwa, Tag = m.SpeakerId };
+                menuItem.Click += (s, ev) =>
+                {
+                    var speakerId = (s as MenuItem)?.Tag as int?;
+                    if (speakerId.HasValue)
+                    {
+                        var zdanie = _zdania.FirstOrDefault(z => z.SpeakerId == speakerId.Value);
+                        if (zdanie != null)
+                        {
+                            ListaZdan.ScrollIntoView(zdanie);
+                            ListaZdan.SelectedItem = zdanie;
+                        }
+                    }
+                };
+                menu.Items.Add(menuItem);
+            }
+            menu.IsOpen = true;
+        }
+
+        private void ZmienRozmiarCzcionki(double delta)
+        {
+            _fontSize = Math.Max(10, Math.Min(24, _fontSize + delta));
+            AktualizujRozmiarCzcionki();
+        }
+
+        private void AktualizujRozmiarCzcionki()
+        {
+            ListaZdan.FontSize = _fontSize;
+            UstawStatus($"Rozmiar czcionki: {_fontSize}pt");
+        }
+
+        private void BtnZwiekszCzcionke_Click(object sender, RoutedEventArgs e)
+        {
+            ZmienRozmiarCzcionki(2);
+        }
+
+        private void BtnZmniejszCzcionke_Click(object sender, RoutedEventArgs e)
+        {
+            ZmienRozmiarCzcionki(-2);
+        }
+
+        #endregion
+
+        #region Eksport do pliku
+
+        private void BtnZapiszDoPliku_Click(object sender, RoutedEventArgs e)
+        {
+            var menu = new ContextMenu();
+            menu.Items.Add(new MenuItem { Header = "Zapisz jako TXT...", Tag = "txt" });
+            menu.Items.Add(new MenuItem { Header = "Zapisz jako CSV...", Tag = "csv" });
+            menu.Items.Add(new MenuItem { Header = "Zapisz jako HTML...", Tag = "html" });
+
+            foreach (MenuItem item in menu.Items.OfType<MenuItem>())
+            {
+                item.Click += (s, ev) => ZapiszDoPliku((s as MenuItem)?.Tag?.ToString() ?? "txt");
+            }
+
+            menu.IsOpen = true;
+        }
+
+        private void ZapiszDoPliku(string format)
+        {
+            var dialog = new SaveFileDialog();
+            var tytulBezowy = TxtTytul.Text?.Replace(":", "").Replace("/", "-").Replace("\\", "-") ?? "transkrypcja";
+
+            switch (format)
+            {
+                case "csv":
+                    dialog.Filter = "CSV files (*.csv)|*.csv";
+                    dialog.DefaultExt = ".csv";
+                    break;
+                case "html":
+                    dialog.Filter = "HTML files (*.html)|*.html";
+                    dialog.DefaultExt = ".html";
+                    break;
+                default:
+                    dialog.Filter = "Text files (*.txt)|*.txt";
+                    dialog.DefaultExt = ".txt";
+                    break;
+            }
+
+            dialog.FileName = $"{tytulBezowy}_{DateTime.Now:yyyy-MM-dd}";
+
+            if (dialog.ShowDialog() == true)
+            {
+                var sb = new StringBuilder();
+
+                switch (format)
+                {
+                    case "csv":
+                        sb.AppendLine("Czas,Mowca,Tekst");
+                        foreach (var z in _zdania.Where(x => x.Widocznosc == Visibility.Visible))
+                        {
+                            var mowca = _uzyjNazwSystemowych && !string.IsNullOrEmpty(z.MowcaSystemowy)
+                                ? z.MowcaSystemowy : z.MowcaFireflies;
+                            sb.AppendLine($"\"{z.CzasDisplay}\",\"{mowca}\",\"{z.Tekst?.Replace("\"", "\"\"")}\"");
+                        }
+                        break;
+
+                    case "html":
+                        sb.AppendLine("<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>");
+                        sb.AppendLine("body { font-family: 'Segoe UI', sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; }");
+                        sb.AppendLine("h1 { color: #1976D2; } .meta { color: #666; margin-bottom: 20px; }");
+                        sb.AppendLine("table { width: 100%; border-collapse: collapse; }");
+                        sb.AppendLine("th { background: #1976D2; color: white; padding: 10px; text-align: left; }");
+                        sb.AppendLine("td { padding: 8px; border-bottom: 1px solid #ddd; }");
+                        sb.AppendLine("tr:hover { background: #f5f5f5; }");
+                        sb.AppendLine(".speaker { font-weight: bold; white-space: nowrap; }");
+                        sb.AppendLine(".time { color: #666; font-size: 0.9em; }");
+                        sb.AppendLine("</style></head><body>");
+                        sb.AppendLine($"<h1>{TxtTytul.Text}</h1>");
+                        sb.AppendLine($"<p class=\"meta\">Data: {TxtData.Text} | Czas trwania: {TxtCzasTrwania.Text} | Organizator: {TxtOrganizator.Text}</p>");
+
+                        if (!string.IsNullOrEmpty(TxtPodsumowanie.Text))
+                        {
+                            sb.AppendLine($"<h3>Podsumowanie</h3><p>{TxtPodsumowanie.Text}</p>");
+                        }
+
+                        sb.AppendLine("<h3>Transkrypcja</h3>");
+                        sb.AppendLine("<table><tr><th>Czas</th><th>Mowca</th><th>Tekst</th></tr>");
+                        foreach (var z in _zdania.Where(x => x.Widocznosc == Visibility.Visible))
+                        {
+                            var mowca = _uzyjNazwSystemowych && !string.IsNullOrEmpty(z.MowcaSystemowy)
+                                ? z.MowcaSystemowy : z.MowcaFireflies;
+                            sb.AppendLine($"<tr><td class=\"time\">{z.CzasDisplay}</td><td class=\"speaker\">{mowca}</td><td>{System.Net.WebUtility.HtmlEncode(z.Tekst)}</td></tr>");
+                        }
+                        sb.AppendLine("</table></body></html>");
+                        break;
+
+                    default:
+                        sb.AppendLine($"TRANSKRYPCJA: {TxtTytul.Text}");
+                        sb.AppendLine($"Data: {TxtData.Text}");
+                        sb.AppendLine($"Czas trwania: {TxtCzasTrwania.Text}");
+                        sb.AppendLine($"Organizator: {TxtOrganizator.Text}");
+                        sb.AppendLine(new string('=', 60));
+
+                        if (!string.IsNullOrEmpty(TxtPodsumowanie.Text))
+                        {
+                            sb.AppendLine();
+                            sb.AppendLine("PODSUMOWANIE:");
+                            sb.AppendLine(TxtPodsumowanie.Text);
+                            sb.AppendLine(new string('-', 60));
+                        }
+
+                        sb.AppendLine();
+                        sb.AppendLine("TRANSKRYPCJA:");
+                        sb.AppendLine();
+
+                        foreach (var z in _zdania.Where(x => x.Widocznosc == Visibility.Visible))
+                        {
+                            var mowca = _uzyjNazwSystemowych && !string.IsNullOrEmpty(z.MowcaSystemowy)
+                                ? z.MowcaSystemowy : z.MowcaFireflies;
+                            sb.AppendLine($"[{z.CzasDisplay}] {mowca}:");
+                            sb.AppendLine($"  {z.Tekst}");
+                            sb.AppendLine();
+                        }
+                        break;
+                }
+
+                try
+                {
+                    System.IO.File.WriteAllText(dialog.FileName, sb.ToString(), Encoding.UTF8);
+                    MessageBox.Show($"Zapisano do pliku:\n{dialog.FileName}", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Blad zapisu: {ex.Message}", "Blad", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
         }
 
         #endregion
