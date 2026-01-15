@@ -257,20 +257,17 @@
     </Window.Resources>
 
     <Grid Background="#121212">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="440"/>
+            <ColumnDefinition x:Name="colRight" Width="440"/>
         </Grid.ColumnDefinitions>
 
-        <!-- Lewa strona -->
-        <Grid Grid.Column="0">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-
-            <!-- Główny obszar -->
-            <Grid Grid.Row="0" Margin="10">
+        <!-- Lewa strona - główny obszar -->
+        <Grid Grid.Row="0" Grid.Column="0" Margin="10">
                 <!-- Widok kafelków AVILOG -->
                 <ScrollViewer x:Name="viewTiles" VerticalScrollBarVisibility="Auto">
                     <ItemsControl x:Name="listDostawy">
@@ -453,9 +450,10 @@
                     </Button>
                 </StackPanel>
             </Grid>
+        </Grid>
 
-            <!-- Dolny panel nawigacji -->
-            <Border Grid.Row="1" Background="#181820" Padding="12,10" BorderThickness="0,2,0,0" BorderBrush="#333">
+        <!-- Dolny panel nawigacji -->
+        <Border Grid.Row="1" Grid.ColumnSpan="2" Background="#181820" Padding="12,10" BorderThickness="0,2,0,0" BorderBrush="#333">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -574,10 +572,9 @@
                     </Border>
                 </Grid>
             </Border>
-        </Grid>
 
         <!-- Prawa strona - panel wagi -->
-        <Border x:Name="panelRight" Grid.Column="1" Background="#16161D" BorderBrush="#333" BorderThickness="2,0,0,0">
+        <Border x:Name="panelRight" Grid.Row="0" Grid.Column="1" Background="#16161D" BorderBrush="#333" BorderThickness="2,0,0,0">
             <Grid Margin="10">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -814,7 +811,7 @@
         <TextBlock x:Name="txtTara" Visibility="Collapsed" Text="0"/>
 
         <!-- Widok 4 kamer - pełny ekran -->
-        <Grid x:Name="viewCameras" Visibility="Collapsed" Grid.ColumnSpan="2" Background="Black">
+        <Grid x:Name="viewCameras" Visibility="Collapsed" Grid.Row="0" Grid.ColumnSpan="2" Background="Black">
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="*"/>
@@ -867,7 +864,7 @@
         </Grid>
 
         <!-- Overlay klawiatury ekranowej -->
-        <Grid x:Name="KeyboardOverlay" Visibility="Collapsed" Grid.ColumnSpan="2" Background="#90000000" 
+        <Grid x:Name="KeyboardOverlay" Visibility="Collapsed" Grid.RowSpan="2" Grid.ColumnSpan="2" Background="#90000000" 
               MouseLeftButtonUp="KeyboardOverlay_Click">
             <Border VerticalAlignment="Bottom" Background="#F5101018" BorderBrush="#FFA726" BorderThickness="0,3,0,0" 
                     Padding="20" MouseLeftButtonUp="KeyboardPanel_Click">
@@ -948,7 +945,7 @@
         </Grid>
 
         <!-- Overlay PIN -->
-        <Grid x:Name="PasswordOverlay" Visibility="Collapsed" Grid.ColumnSpan="2" Background="#E0000000">
+        <Grid x:Name="PasswordOverlay" Visibility="Collapsed" Grid.RowSpan="2" Grid.ColumnSpan="2" Background="#E0000000">
             <Border Background="#1E1E2E" CornerRadius="20" Padding="40" VerticalAlignment="Center" HorizontalAlignment="Center" Width="400">
                 <StackPanel>
                     <TextBlock Text="PODAJ KOD PIN" FontSize="28" FontWeight="Bold" Foreground="White" 
@@ -997,7 +994,7 @@
         </Grid>
         
         <!-- Overlay KAMERA -->
-        <Grid x:Name="CameraOverlay" Visibility="Collapsed" Grid.ColumnSpan="2" Background="#F0000000" 
+        <Grid x:Name="CameraOverlay" Visibility="Collapsed" Grid.RowSpan="2" Grid.ColumnSpan="2" Background="#F0000000" 
               MouseLeftButtonUp="CameraOverlay_Click">
             <Border Background="#1E1E2E" CornerRadius="15" Padding="15" 
                     VerticalAlignment="Stretch" HorizontalAlignment="Stretch" 
