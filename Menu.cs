@@ -5,6 +5,7 @@ using Kalendarz1.Opakowania.Views;
 using Kalendarz1.Reklamacje;
 using Kalendarz1.KontrolaGodzin;
 using Kalendarz1.Zywiec.RaportyStatystyki;
+using Kalendarz1.Spotkania.Views;
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
@@ -160,7 +161,8 @@ namespace Kalendarz1
                 [38] = "PanelFaktur",
                 [39] = "PanelPortiera",
                 [40] = "PanelLekarza",
-                [41] = "KontrolaGodzin"  // <-- NOWY MODUŁ
+                [41] = "KontrolaGodzin",
+                [42] = "CentrumSpotkan"  // <-- CENTRUM SPOTKAŃ
             };
 
             for (int i = 0; i < accessString.Length && i < accessMap.Count; i++)
@@ -206,7 +208,7 @@ namespace Kalendarz1
                 "ListaOfert", "DashboardOfert",
                 "PanelReklamacji", "ReklamacjeJakosc", "RaportyHodowcow",
                 "AdminPermissions", "AnalizaPrzychodu", "PanelPortiera", "PanelLekarza",
-                "KontrolaGodzin"  // <-- NOWY MODUŁ
+                "KontrolaGodzin", "CentrumSpotkan"  // <-- CENTRUM SPOTKAŃ
             };
         }
 
@@ -505,6 +507,11 @@ namespace Kalendarz1
                         "Zestawienie wyników finansowych firmy - przychody, koszty, marże i rentowność",
                         Color.FromArgb(176, 190, 197), // Jasny szaroniebieski #B0BEC5
                         () => new WidokSprzeZakup(), "💼"),
+
+                    new MenuItemConfig("CentrumSpotkan", "Centrum Spotkań",
+                        "Kompleksowe zarządzanie spotkaniami, powiadomienia, integracja Fireflies.ai, notatki ze spotkań",
+                        Color.FromArgb(25, 118, 210), // Niebieski #1976D2
+                        () => new Kalendarz1.Spotkania.Views.SpotkaniaGlowneWindow(App.UserID), "📅"),
 
                     new MenuItemConfig("NotatkiZeSpotkan", "Notatki Służbowe",
                         "Rejestr notatek ze spotkań biznesowych, ustaleń i zadań do wykonania",

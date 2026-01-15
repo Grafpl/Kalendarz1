@@ -47,11 +47,19 @@ namespace Kalendarz1
             {
                 App.UserID = username;
                 App.UserFullName = GetUserFullName(username) ?? username;
+
+                // Uruchom serwis powiadomień o spotkaniach
+                App.StartNotyfikacjeService();
+
                 try
                 {
                     this.Hide();
                     MENU menuWindow = new MENU();
-                    menuWindow.FormClosed += (s, args) => Application.Current.Shutdown();
+                    menuWindow.FormClosed += (s, args) =>
+                    {
+                        App.StopNotyfikacjeService(); // Zatrzymaj serwis przy zamknięciu
+                        Application.Current.Shutdown();
+                    };
                     menuWindow.Show();
                 }
                 catch (Exception ex)

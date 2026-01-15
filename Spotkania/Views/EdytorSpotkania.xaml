@@ -1,0 +1,267 @@
+<Window x:Class="Kalendarz1.Spotkania.Views.EdytorSpotkania"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Nowe spotkanie" Height="750" Width="900"
+        WindowStartupLocation="CenterOwner"
+        Background="#F5F5F5">
+
+    <Window.Resources>
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Foreground" Value="#424242"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
+
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Background" Value="#2196F3"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="24,12"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#1976D2"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
+            <Setter Property="Background" Value="#9E9E9E"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Nagłówek -->
+        <Border Grid.Row="0" Background="#1976D2" Padding="20,15">
+            <TextBlock x:Name="TxtTytulOkna" Text="Nowe spotkanie" FontSize="20" FontWeight="Bold" Foreground="White"/>
+        </Border>
+
+        <!-- Formularz -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="25">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="300"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Lewa kolumna - główne dane -->
+                <StackPanel Grid.Column="0" Margin="0,0,20,0">
+
+                    <!-- Typ spotkania -->
+                    <TextBlock Text="Typ spotkania" Style="{StaticResource FieldLabel}"/>
+                    <Grid Margin="0,0,0,20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <RadioButton x:Name="RbZespol" Grid.Column="0" Content="👥 Zespół" GroupName="Typ"
+                                     IsChecked="True" Checked="TypSpotkania_Changed"/>
+                        <RadioButton x:Name="RbOdbiorca" Grid.Column="1" Content="🏢 Odbiorca" GroupName="Typ"
+                                     Checked="TypSpotkania_Changed"/>
+                        <RadioButton x:Name="RbHodowca" Grid.Column="2" Content="🐔 Hodowca" GroupName="Typ"
+                                     Checked="TypSpotkania_Changed"/>
+                        <RadioButton x:Name="RbOnline" Grid.Column="3" Content="💻 Online" GroupName="Typ"
+                                     Checked="TypSpotkania_Changed"/>
+                    </Grid>
+
+                    <!-- Tytuł -->
+                    <TextBlock Text="Tytuł spotkania *" Style="{StaticResource FieldLabel}"/>
+                    <TextBox x:Name="TxtTytul" FontSize="16" Padding="12,10" Margin="0,0,0,15"/>
+
+                    <!-- Kontrahent (widoczny tylko dla Odbiorca/Hodowca) -->
+                    <StackPanel x:Name="PanelKontrahent" Visibility="Collapsed" Margin="0,0,0,15">
+                        <TextBlock x:Name="LblKontrahent" Text="Kontrahent *" Style="{StaticResource FieldLabel}"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox x:Name="CmbKontrahent" Grid.Column="0" IsEditable="True"
+                                      DisplayMemberPath="Nazwa" SelectedValuePath="ID"
+                                      FontSize="14" Padding="10,8"/>
+                            <Button Grid.Column="1" Content="🔍" Padding="12,8" Margin="5,0,0,0"
+                                    Click="BtnSzukajKontrahenta_Click"/>
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- Data i czas -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                            <TextBlock Text="Data spotkania *" Style="{StaticResource FieldLabel}"/>
+                            <DatePicker x:Name="DpData" FontSize="14"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                            <TextBlock Text="Godzina *" Style="{StaticResource FieldLabel}"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <ComboBox x:Name="CmbGodzina" Grid.Column="0" FontSize="14"/>
+                                <TextBlock Grid.Column="1" Text=":" VerticalAlignment="Center" Margin="5,0"/>
+                                <ComboBox x:Name="CmbMinuta" Grid.Column="2" FontSize="14"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Czas trwania" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox x:Name="CmbCzasTrwania" FontSize="14" SelectedIndex="2">
+                                <ComboBoxItem Content="15 min"/>
+                                <ComboBoxItem Content="30 min"/>
+                                <ComboBoxItem Content="1 godzina"/>
+                                <ComboBoxItem Content="1.5 godziny"/>
+                                <ComboBoxItem Content="2 godziny"/>
+                                <ComboBoxItem Content="3 godziny"/>
+                                <ComboBoxItem Content="Cały dzień"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Lokalizacja / Link -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                            <TextBlock Text="Lokalizacja" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="TxtLokalizacja" FontSize="14" Padding="10,8"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Link do spotkania (Zoom, Teams, Meet)" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="TxtLink" FontSize="14" Padding="10,8"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Opis -->
+                    <TextBlock Text="Opis / Agenda" Style="{StaticResource FieldLabel}"/>
+                    <TextBox x:Name="TxtOpis" FontSize="14" Padding="10" Height="100"
+                             AcceptsReturn="True" TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto" Margin="0,0,0,15"/>
+
+                    <!-- Priorytet i kolor -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                            <TextBlock Text="Priorytet" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox x:Name="CmbPriorytet" FontSize="14" SelectedIndex="1">
+                                <ComboBoxItem Content="⚪ Niski"/>
+                                <ComboBoxItem Content="🟢 Normalny"/>
+                                <ComboBoxItem Content="🟠 Wysoki"/>
+                                <ComboBoxItem Content="🔴 Pilny"/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Kolor w kalendarzu" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox x:Name="CmbKolor" FontSize="14" SelectedIndex="0">
+                                <ComboBoxItem Content="🔵 Niebieski" Tag="#2196F3"/>
+                                <ComboBoxItem Content="🟢 Zielony" Tag="#4CAF50"/>
+                                <ComboBoxItem Content="🟠 Pomarańczowy" Tag="#FF9800"/>
+                                <ComboBoxItem Content="🔴 Czerwony" Tag="#F44336"/>
+                                <ComboBoxItem Content="🟣 Fioletowy" Tag="#9C27B0"/>
+                                <ComboBoxItem Content="🩵 Turkusowy" Tag="#00BCD4"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Przypomnienia -->
+                    <TextBlock Text="Przypomnienia" Style="{StaticResource FieldLabel}"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                        <CheckBox x:Name="Chk24h" Content="24h przed" IsChecked="True" Margin="0,0,20,0"/>
+                        <CheckBox x:Name="Chk1h" Content="1h przed" IsChecked="True" Margin="0,0,20,0"/>
+                        <CheckBox x:Name="Chk15m" Content="15 min przed" IsChecked="True" Margin="0,0,20,0"/>
+                        <CheckBox x:Name="Chk5m" Content="5 min przed" Margin="0,0,0,0"/>
+                    </StackPanel>
+
+                </StackPanel>
+
+                <!-- Prawa kolumna - uczestnicy -->
+                <Border Grid.Column="1" Background="White" CornerRadius="8" Padding="15">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="5" ShadowDepth="1" Opacity="0.1"/>
+                    </Border.Effect>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0">
+                            <TextBlock Text="👥 Uczestnicy spotkania" FontSize="15" FontWeight="SemiBold"
+                                       Foreground="#1976D2" Margin="0,0,0,10"/>
+                            <TextBlock Text="Zaznacz osoby, które mają wziąć udział w spotkaniu"
+                                       FontSize="12" Foreground="#666" Margin="0,0,0,15"/>
+
+                            <CheckBox x:Name="ChkWszyscy" Content="Zaznacz wszystkich"
+                                      Checked="ChkWszyscy_Checked" Unchecked="ChkWszyscy_Unchecked"
+                                      Margin="0,0,0,10"/>
+
+                            <Separator Margin="0,0,0,10"/>
+                        </StackPanel>
+
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <StackPanel x:Name="PanelUczestnicy">
+                                <!-- Checkboxy uczestników będą generowane dynamicznie -->
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+            </Grid>
+        </ScrollViewer>
+
+        <!-- Przyciski na dole -->
+        <Border Grid.Row="2" Background="White" Padding="20,15"
+                BorderThickness="0,1,0,0" BorderBrush="#E0E0E0">
+            <Grid>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                    <TextBlock Text="* Pola wymagane" FontSize="12" Foreground="#999" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="BtnAnuluj" Content="Anuluj" Style="{StaticResource SecondaryButton}"
+                            Margin="0,0,10,0" Click="BtnAnuluj_Click"/>
+                    <Button x:Name="BtnZapisz" Content="💾 Zapisz spotkanie" Style="{StaticResource ActionButton}"
+                            Click="BtnZapisz_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

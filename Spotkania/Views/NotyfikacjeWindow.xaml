@@ -1,0 +1,71 @@
+<Window x:Class="Kalendarz1.Spotkania.Views.NotyfikacjeWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Powiadomienia" Height="600" Width="500"
+        WindowStartupLocation="CenterOwner"
+        Background="#F5F5F5">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Nagłówek -->
+        <Border Grid.Row="0" Background="#1976D2" Padding="20,15">
+            <Grid>
+                <TextBlock Text="🔔 Powiadomienia" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                <Button x:Name="BtnOznaczWszystkie" Content="Oznacz wszystkie jako przeczytane"
+                        HorizontalAlignment="Right" Background="Transparent" Foreground="White"
+                        BorderThickness="0" Cursor="Hand" Click="BtnOznaczWszystkie_Click"/>
+            </Grid>
+        </Border>
+
+        <!-- Lista powiadomień -->
+        <ListBox x:Name="ListaNotyfikacji" Grid.Row="1" BorderThickness="0"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                 SelectionChanged="ListaNotyfikacji_SelectionChanged">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Border Padding="15" Margin="5" CornerRadius="8" Background="{Binding KolorTla}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" Text="{Binding Ikona}" FontSize="24"
+                                       VerticalAlignment="Center" Margin="0,0,15,0"/>
+
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="{Binding Tytul}" FontWeight="SemiBold" FontSize="14"
+                                           TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding Tresc}" FontSize="12" Foreground="#666"
+                                           TextWrapping="Wrap" Margin="0,5,0,0"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <TextBlock Text="{Binding CzasOdUtworzenia}" FontSize="11" Foreground="#999"/>
+                                    <TextBlock Text=" • " Foreground="#CCC"/>
+                                    <TextBlock Text="{Binding CzasDoSpotkania}" FontSize="11" Foreground="#1976D2"
+                                               FontWeight="Medium"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                <Ellipse Width="10" Height="10" Fill="#2196F3"
+                                         Visibility="{Binding CzyPrzeczytana, Converter={x:Null}}"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!-- Stopka -->
+        <Border Grid.Row="2" Background="White" Padding="15" BorderThickness="0,1,0,0" BorderBrush="#E0E0E0">
+            <Button Content="Zamknij" HorizontalAlignment="Right" Padding="20,10"
+                    Click="BtnZamknij_Click"/>
+        </Border>
+    </Grid>
+</Window>
