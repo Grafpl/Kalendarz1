@@ -2431,8 +2431,8 @@ namespace Kalendarz1
             cameraFrameCount = 0;
             lastCameraFrameTime = DateTime.Now;
 
-            // Timer - SD: 200ms (5 FPS), HD: 100ms (10 FPS)
-            int interval = cameraHdMode ? 100 : 200;
+            // Timer - SD: 50ms (~15 FPS), HD: 40ms (~20 FPS)
+            int interval = cameraHdMode ? 40 : 50;
             cameraViewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(interval) };
             cameraViewTimer.Tick += async (s, e) => await RefreshCameraViewImage();
             cameraViewTimer.Start();
