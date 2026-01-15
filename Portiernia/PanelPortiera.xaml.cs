@@ -708,8 +708,6 @@ namespace Kalendarz1
                     panelCommodity.Visibility = Visibility.Collapsed;
                     panelReadOnlyCar.Visibility = Visibility.Visible;
                     panelEditCar.Visibility = Visibility.Collapsed;
-                    btnScanAvilog.Visibility = Visibility.Visible;
-                    btnPrintAvilog.Visibility = Visibility.Visible;
                     LoadDostawyAvilog();
                 }
                 else if (rb.Name == "rbOdpady")
@@ -724,8 +722,6 @@ namespace Kalendarz1
                     panelCommodity.Visibility = Visibility.Visible;
                     panelReadOnlyCar.Visibility = Visibility.Collapsed;
                     panelEditCar.Visibility = Visibility.Visible;
-                    btnScanAvilog.Visibility = Visibility.Collapsed;
-                    btnPrintAvilog.Visibility = Visibility.Collapsed;
                     btnKrew.IsChecked = true;
                     LoadOdbiorcyDlaTowar(aktualnyTowar);
                     LoadDostawyOdpady();
@@ -741,8 +737,6 @@ namespace Kalendarz1
                     panelCommodity.Visibility = Visibility.Collapsed;
                     panelReadOnlyCar.Visibility = Visibility.Collapsed;
                     panelEditCar.Visibility = Visibility.Collapsed;
-                    btnScanAvilog.Visibility = Visibility.Collapsed;
-                    btnPrintAvilog.Visibility = Visibility.Collapsed;
 
                     // Zatrzymaj timer nieaktywności w trybie KAMERY
                     inactivityTimer?.Stop();

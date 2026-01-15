@@ -369,44 +369,59 @@
                         </DataGridTemplateColumn>
                         <DataGridTextColumn Header="GODZ." Binding="{Binding GodzinaPrzyjazdu}" Width="80"/>
                         <!-- ComboBox wyboru towaru zamiast ikony -->
-                        <DataGridTemplateColumn Header="TOWAR" Width="140">
+                        <DataGridTemplateColumn Header="TOWAR" Width="145">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <ComboBox SelectedValue="{Binding Towar, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                               SelectedValuePath="Tag"
                                               SelectionChanged="TowarComboBox_SelectionChanged"
                                               IsEnabled="{Binding CanEditTowar}"
-                                              Background="#252530" Foreground="White" FontSize="14" FontWeight="Bold"
-                                              Height="40" VerticalContentAlignment="Center" Padding="8,0"
-                                              BorderThickness="0">
-                                        <ComboBoxItem Tag="KREW">
+                                              Height="50" VerticalContentAlignment="Center" Padding="10,0"
+                                              BorderThickness="1" BorderBrush="#444" Cursor="Hand">
+                                        <ComboBox.Style>
+                                            <Style TargetType="ComboBox">
+                                                <Setter Property="Background" Value="#1E1E2E"/>
+                                                <Setter Property="Foreground" Value="White"/>
+                                                <Setter Property="FontSize" Value="13"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsEnabled" Value="False">
+                                                        <Setter Property="Opacity" Value="0.5"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="BorderBrush" Value="#FFA726"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </ComboBox.Style>
+                                        <ComboBoxItem Tag="KREW" Background="#1E1E2E" Foreground="White">
                                             <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="❤️" FontSize="18" Margin="0,0,6,0"/>
-                                                <TextBlock Text="KREW" VerticalAlignment="Center"/>
+                                                <TextBlock Text="❤" FontSize="18" Margin="0,0,8,0" Foreground="#FF5555"/>
+                                                <TextBlock Text="KREW" VerticalAlignment="Center" Foreground="#FF5555"/>
                                             </StackPanel>
                                         </ComboBoxItem>
-                                        <ComboBoxItem Tag="LAPY">
+                                        <ComboBoxItem Tag="LAPY" Background="#1E1E2E" Foreground="White">
                                             <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="🐾" FontSize="18" Margin="0,0,6,0"/>
-                                                <TextBlock Text="ŁAPY" VerticalAlignment="Center"/>
+                                                <TextBlock Text="🐾" FontSize="18" Margin="0,0,8,0"/>
+                                                <TextBlock Text="ŁAPY" VerticalAlignment="Center" Foreground="#FFD54F"/>
                                             </StackPanel>
                                         </ComboBoxItem>
-                                        <ComboBoxItem Tag="JELITA">
+                                        <ComboBoxItem Tag="JELITA" Background="#1E1E2E" Foreground="White">
                                             <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="➰" FontSize="18" Margin="0,0,6,0"/>
-                                                <TextBlock Text="JELITA" VerticalAlignment="Center"/>
+                                                <TextBlock Text="➰" FontSize="18" Margin="0,0,8,0" Foreground="#A1887F"/>
+                                                <TextBlock Text="JELITA" VerticalAlignment="Center" Foreground="#A1887F"/>
                                             </StackPanel>
                                         </ComboBoxItem>
-                                        <ComboBoxItem Tag="PIORA">
+                                        <ComboBoxItem Tag="PIORA" Background="#1E1E2E" Foreground="White">
                                             <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="~" FontSize="20" Margin="0,0,6,0" FontStyle="Italic"/>
-                                                <TextBlock Text="PIÓRA" VerticalAlignment="Center"/>
+                                                <TextBlock Text="~" FontSize="22" Margin="0,0,8,0" FontWeight="Bold" Foreground="#BDBDBD"/>
+                                                <TextBlock Text="PIÓRA" VerticalAlignment="Center" Foreground="#BDBDBD"/>
                                             </StackPanel>
                                         </ComboBoxItem>
-                                        <ComboBoxItem Tag="ODPADY">
+                                        <ComboBoxItem Tag="ODPADY" Background="#1E1E2E" Foreground="White">
                                             <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="♻️" FontSize="18" Margin="0,0,6,0"/>
-                                                <TextBlock Text="ODPADY" VerticalAlignment="Center"/>
+                                                <TextBlock Text="♻" FontSize="18" Margin="0,0,8,0" Foreground="#AB47BC"/>
+                                                <TextBlock Text="ODPADY" VerticalAlignment="Center" Foreground="#AB47BC"/>
                                             </StackPanel>
                                         </ComboBoxItem>
                                     </ComboBox>
@@ -581,32 +596,6 @@
                         </DatePicker>
                     </Border>
 
-                    <!-- Przyciski SKAN i DRUKUJ dla AVILOG -->
-                    <Button x:Name="btnScanAvilog" Grid.Column="2" Click="BtnScan_Click" 
-                            Style="{StaticResource ActionButtonStyle}" Height="50" Width="100" Margin="0,0,5,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#x1F4F7;" FontSize="20" Margin="0,0,5,0"/>
-                            <TextBlock Text="SKAN" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                    <Button x:Name="btnPrintAvilog" Grid.Column="3" Click="BtnPrint_Click" 
-                            Style="{StaticResource ActionButtonStyle}" Height="50" Width="110" Margin="0,0,5,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#x1F5B6;" FontSize="20" Margin="0,0,5,0"/>
-                            <TextBlock Text="DRUKUJ" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                    
-                    <!-- Przycisk KAMERA (overlay) - przeniesiony do Column 4 -->
-                    <Button x:Name="btnCameraOverlayBottom" Grid.Column="4" Click="BtnCamera_Click" HorizontalAlignment="Left"
-                            Style="{StaticResource ActionButtonStyle}" Height="50" Width="100" Margin="0,0,5,0"
-                            ToolTip="Otwórz podgląd kamery z zoom">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="🔍" FontSize="18" Margin="0,0,5,0"/>
-                            <TextBlock Text="ZOOM" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-
                     <!-- Przełącznik trybów: AVILOG / ODPADY / KAMERY -->
                     <StackPanel Grid.Column="5" Orientation="Horizontal" Margin="10,0">
                         <RadioButton x:Name="rbAvilog" GroupName="Mode" IsChecked="True" Click="ZmienTryb_Click"
@@ -632,26 +621,16 @@
                         </RadioButton>
                     </StackPanel>
 
-                    <!-- Status drukarki -->
-                    <Border Grid.Column="5" Background="#1A1A24" CornerRadius="8" Padding="10,5" Margin="10,0" 
-                            VerticalAlignment="Center" HorizontalAlignment="Left">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock x:Name="lblPrinterIcon" Text="🖨️" FontSize="18" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                            <TextBlock x:Name="lblPrinterStatus" Text="" FontSize="12" Foreground="#888" 
-                                       VerticalAlignment="Center" MaxWidth="200" TextTrimming="CharacterEllipsis"/>
-                        </StackPanel>
-                    </Border>
-
                     <!-- Przycisk odśwież -->
-                    <Button Grid.Column="6" Click="BtnRefresh_Click" Background="Transparent" BorderThickness="0" 
+                    <Button Grid.Column="6" Click="BtnRefresh_Click" Background="Transparent" BorderThickness="0"
                             Margin="10,0" Width="50" Height="50" Cursor="Hand">
                         <TextBlock Text="&#x1F504;" FontSize="26" Foreground="White"/>
                     </Button>
 
                     <!-- Zegar -->
-                    <Border Grid.Column="8" Background="Black" CornerRadius="10" Padding="16,0" Height="50" 
+                    <Border Grid.Column="8" Background="Black" CornerRadius="10" Padding="16,0" Height="50"
                             BorderBrush="#FFA726" BorderThickness="2">
-                        <TextBlock x:Name="lblTime" Text="12:00" FontSize="26" FontWeight="Black" 
+                        <TextBlock x:Name="lblTime" Text="12:00" FontSize="26" FontWeight="Black"
                                    Foreground="#FFA726" VerticalAlignment="Center"/>
                     </Border>
                 </Grid>
