@@ -348,8 +348,14 @@ namespace Kalendarz1.Spotkania.Models
         [JsonPropertyName("host_email")]
         public string? HostEmail { get; set; }
 
+        [JsonPropertyName("organizer_email")]
+        public string? OrganizerEmail { get; set; }
+
         [JsonPropertyName("participants")]
         public List<string>? Participants { get; set; }
+
+        // Właściwość pomocnicza - zwraca host lub organizer email
+        public string? EmailOrganizatora => HostEmail ?? OrganizerEmail;
 
         [JsonPropertyName("sentences")]
         public List<FirefliesSentenceDto>? Sentences { get; set; }

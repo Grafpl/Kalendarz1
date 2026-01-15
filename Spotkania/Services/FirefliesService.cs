@@ -194,20 +194,20 @@ namespace Kalendarz1.Spotkania.Services
 
             try
             {
+                // Uproszczone zapytanie - zgodne z dokumentacją API Fireflies
                 string query = @"
-                    query Transcripts($limit: Int) {
-                        transcripts(limit: $limit) {
+                    query Transcripts {
+                        transcripts {
                             id
                             title
                             date
                             duration
-                            transcript_url
-                            host_email
+                            organizer_email
                             participants
                         }
                     }";
 
-                var variables = new Dictionary<string, object> { { "limit", limit } };
+                var variables = new Dictionary<string, object>();
 
                 var response = await WykonajZapytanieGraphQL<TranscriptsQueryResponse>(query, variables);
 
