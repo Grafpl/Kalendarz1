@@ -887,7 +887,7 @@ namespace Kalendarz1
                     RefreshPlachtaFromSpecyfikacje();
 
                     // Zapisz do historii zmian
-                    RecordChange(selectedTransportRow.ID, "TRANSPORT_MOVE_UP", "LP", oldLp.ToString(), newLp.ToString());
+                    RecordChange(selectedTransportRow.SpecyfikacjaID, "TRANSPORT_MOVE_UP", "LP", oldLp.ToString(), newLp.ToString());
                 }
             }
         }
@@ -913,7 +913,7 @@ namespace Kalendarz1
                     RefreshPlachtaFromSpecyfikacje();
 
                     // Zapisz do historii zmian
-                    RecordChange(selectedTransportRow.ID, "TRANSPORT_MOVE_DOWN", "LP", oldLp.ToString(), newLp.ToString());
+                    RecordChange(selectedTransportRow.SpecyfikacjaID, "TRANSPORT_MOVE_DOWN", "LP", oldLp.ToString(), newLp.ToString());
                 }
             }
         }
