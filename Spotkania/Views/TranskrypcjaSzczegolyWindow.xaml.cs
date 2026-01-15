@@ -121,10 +121,13 @@ namespace Kalendarz1.Spotkania.Views
                 // 6. Zaladuj zapisane mapowania PRZED wypelnieniem zdan
                 await ZaladujZapisaneMapowania();
 
-                // 7. Wypelnij zdania
+                // 7. Auto-dopasuj mówców z globalnej bazy wiedzy (jeśli brak zapisanych mapowań)
+                await AutoDopasujMowcowZGlobalnejBazy();
+
+                // 8. Wypelnij zdania
                 WypelnijZdania();
 
-                // 8. Pobierz powiazania
+                // 9. Pobierz powiazania
                 await PobierzSpotkaniaINotatki();
 
                 UstawStatus("");
@@ -337,6 +340,7 @@ namespace Kalendarz1.Spotkania.Views
                         // Ustaw przypisanie bez wywolywania PropertyChanged (jeszcze nie ma UI)
                         mowca.PrzypisanyUserID = m.PrzypisanyUserID;
                         mowca.PrzypisanyUserName = m.PrzypisanyUserName;
+                        mowca.ZrodloMapowania = "zapisane";
 
                         System.Diagnostics.Debug.WriteLine($"Zaladowano mapowanie: {mowca.SpeakerNameFireflies} -> {m.PrzypisanyUserName}");
                     }
@@ -351,6 +355,71 @@ namespace Kalendarz1.Spotkania.Views
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Blad mapowan: {ex.Message}");
+            }
+        }
+
+        private async Task AutoDopasujMowcowZGlobalnejBazy()
+        {
+            int autoDopasowano = 0;
+            int sugestii = 0;
+
+            try
+            {
+                foreach (var mowca in _mowcy.Where(m => !m.JestPrzypisany))
+                {
+                    // Pobierz sugestie z globalnej bazy
+                    var sugestie = await _firefliesService.PobierzSugestieMapowan(mowca.SpeakerNameFireflies);
+
+                    if (sugestie.Count > 0)
+                    {
+                        var najlepsza = sugestie.First();
+                        mowca.Sugestie = sugestie;
+
+                        // Auto-przypisz tylko jeśli pewność >= 70% i dopasowanie >= 80%
+                        if (najlepsza.Pewnosc >= 70 && najlepsza.Dopasowanie >= 80)
+                        {
+                            mowca.PrzypisanyUserID = najlepsza.UserID;
+                            mowca.PrzypisanyUserName = najlepsza.UserName;
+                            mowca.ZrodloMapowania = "auto";
+                            mowca.PewnoscMapowania = najlepsza.Pewnosc;
+                            mowca.LiczbaUzycMapowania = najlepsza.LiczbaUzyc;
+                            autoDopasowano++;
+
+                            System.Diagnostics.Debug.WriteLine($"Auto-dopasowano: {mowca.SpeakerNameFireflies} -> {najlepsza.UserName} ({najlepsza.Pewnosc}%)");
+                        }
+                        else
+                        {
+                            // Ma sugestie ale nie wystarczająco pewne - pokaż jako sugestię
+                            mowca.MaSugestie = true;
+                            sugestii++;
+                        }
+                    }
+                }
+
+                // Odswiez UI
+                ListaMowcow.Items.Refresh();
+                AktualizujStatusMapowania();
+
+                // Pokaż informację o auto-dopasowaniu
+                if (autoDopasowano > 0 || sugestii > 0)
+                {
+                    var msg = new StringBuilder();
+                    if (autoDopasowano > 0)
+                        msg.Append($"🤖 Auto-dopasowano {autoDopasowano} mówców. ");
+                    if (sugestii > 0)
+                        msg.Append($"💡 {sugestii} sugestii do sprawdzenia.");
+
+                    TxtStatusMapowania.Text = msg.ToString();
+                    StatusMapowania.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(
+                        autoDopasowano > 0 ? "#E3F2FD" : "#FFF8E1"));
+                }
+
+                // Pokaż przycisk sugestii jeśli są
+                AktualizujPrzyciskSugestii();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Blad auto-dopasowania: {ex.Message}");
             }
         }
 
@@ -518,10 +587,17 @@ namespace Kalendarz1.Spotkania.Views
             if (selectedItem != null)
             {
                 mowca.PrzypisanyUserName = selectedItem.UserID == "" ? null : selectedItem.DisplayName;
+                // Oznacz jako ręczne mapowanie (użytkownik sam wybrał)
+                if (!string.IsNullOrEmpty(selectedItem.UserID))
+                {
+                    mowca.ZrodloMapowania = "reczne";
+                    mowca.MaSugestie = false; // Skoro przypisano, nie pokazuj już sugestii
+                }
             }
             else
             {
                 mowca.PrzypisanyUserName = null;
+                mowca.ZrodloMapowania = "";
             }
 
             // Aktualizuj zdania w transkrypcji
@@ -529,6 +605,7 @@ namespace Kalendarz1.Spotkania.Views
 
             // Aktualizuj status
             AktualizujStatusMapowania();
+            AktualizujPrzyciskSugestii();
 
             // Auto-zapisz do bazy
             if (_transkrypcjaId > 0)
@@ -536,7 +613,7 @@ namespace Kalendarz1.Spotkania.Views
                 try
                 {
                     await ZapiszMapowaniaDoDb();
-                    TxtStatusMapowania.Text = $"Zapisano: {mowca.DisplayFireflies} = {mowca.PrzypisanyUserName ?? "(brak)"}";
+                    TxtStatusMapowania.Text = $"✓ Zapisano: {mowca.DisplayFireflies} → {mowca.PrzypisanyUserName ?? "(brak)"}";
                     StatusMapowania.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E8F5E9"));
                 }
                 catch (Exception ex)
@@ -548,6 +625,16 @@ namespace Kalendarz1.Spotkania.Views
 
             // Odswiez liste mowcow aby pokazac zmiane ramki
             ListaMowcow.Items.Refresh();
+        }
+
+        private void AktualizujPrzyciskSugestii()
+        {
+            var mowcyZSugestiami = _mowcy.Count(m => m.MaSugestie && !m.JestPrzypisany);
+            BtnZastosujSugestie.Visibility = mowcyZSugestiami > 0 ? Visibility.Visible : Visibility.Collapsed;
+            if (mowcyZSugestiami > 0)
+            {
+                BtnZastosujSugestie.Content = $"💡 Sugestie ({mowcyZSugestiami})";
+            }
         }
 
         private void AktualizujZdaniaMowcy(MowcaMapowanieDisplay mowca)
@@ -673,6 +760,146 @@ namespace Kalendarz1.Spotkania.Views
             TxtStatusMapowania.Text = "Wyczyszczono wszystkie przypisania";
             StatusMapowania.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E3F2FD"));
             ListaMowcow.Items.Refresh();
+            AktualizujPrzyciskSugestii();
+        }
+
+        private async void BtnZastosujSugestie_Click(object sender, RoutedEventArgs e)
+        {
+            int zastosowano = 0;
+
+            foreach (var mowca in _mowcy.Where(m => m.MaSugestie && !m.JestPrzypisany && m.NajlepszaSugestia != null))
+            {
+                var sugestia = mowca.NajlepszaSugestia!;
+                mowca.PrzypisanyUserID = sugestia.UserID;
+                mowca.PrzypisanyUserName = sugestia.UserName;
+                mowca.ZrodloMapowania = "sugestia";
+                mowca.PewnoscMapowania = sugestia.Pewnosc;
+                mowca.LiczbaUzycMapowania = sugestia.LiczbaUzyc;
+                mowca.MaSugestie = false;
+                AktualizujZdaniaMowcy(mowca);
+                zastosowano++;
+            }
+
+            if (zastosowano > 0 && _transkrypcjaId > 0)
+            {
+                await ZapiszMapowaniaDoDb();
+            }
+
+            TxtStatusMapowania.Text = $"💡 Zastosowano {zastosowano} sugestii z bazy wiedzy";
+            StatusMapowania.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E3F2FD"));
+            ListaMowcow.Items.Refresh();
+            AktualizujStatusMapowania();
+            AktualizujPrzyciskSugestii();
+        }
+
+        private async void BtnPokazBazeGlosow_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var mapowania = await _firefliesService.PobierzWszystkieGlobalneMapowania();
+
+                var dialog = new Window
+                {
+                    Title = "📚 Baza wiedzy o głosach",
+                    Width = 700,
+                    Height = 500,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    Owner = this,
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F5F5F5"))
+                };
+
+                var mainPanel = new Grid();
+                mainPanel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                mainPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+                mainPanel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+                // Header
+                var headerPanel = new StackPanel { Margin = new Thickness(15, 15, 15, 10) };
+                headerPanel.Children.Add(new TextBlock
+                {
+                    Text = "System uczy się Twoich przypisań mówców",
+                    FontSize = 16,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#333"))
+                });
+                headerPanel.Children.Add(new TextBlock
+                {
+                    Text = $"Zapisano {mapowania.Count} wzorców głosów",
+                    FontSize = 12,
+                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#666")),
+                    Margin = new Thickness(0, 5, 0, 0)
+                });
+                Grid.SetRow(headerPanel, 0);
+                mainPanel.Children.Add(headerPanel);
+
+                // Lista
+                var listView = new ListView
+                {
+                    Margin = new Thickness(15, 0, 15, 15),
+                    Background = Brushes.White
+                };
+
+                var gridView = new GridView();
+                gridView.Columns.Add(new GridViewColumn { Header = "Głos z Fireflies", DisplayMemberBinding = new System.Windows.Data.Binding("OriginalPattern"), Width = 180 });
+                gridView.Columns.Add(new GridViewColumn { Header = "Pracownik", DisplayMemberBinding = new System.Windows.Data.Binding("UserName"), Width = 180 });
+                gridView.Columns.Add(new GridViewColumn { Header = "Użyć", DisplayMemberBinding = new System.Windows.Data.Binding("LiczbaUzyc"), Width = 60 });
+                gridView.Columns.Add(new GridViewColumn { Header = "Pewność", DisplayMemberBinding = new System.Windows.Data.Binding("PewnoscDisplay"), Width = 80 });
+                listView.View = gridView;
+                listView.ItemsSource = mapowania;
+
+                Grid.SetRow(listView, 1);
+                mainPanel.Children.Add(listView);
+
+                // Przyciski
+                var buttonPanel = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    Margin = new Thickness(15, 0, 15, 15)
+                };
+
+                var btnUsun = new Button
+                {
+                    Content = "🗑️ Wyczyść bazę",
+                    Padding = new Thickness(15, 8, 15, 8),
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F44336")),
+                    Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0),
+                    Margin = new Thickness(0, 0, 10, 0)
+                };
+                btnUsun.Click += async (s, ev) =>
+                {
+                    if (MessageBox.Show("Usunąć całą bazę wiedzy o głosach?\nSystem będzie musiał uczyć się od nowa.",
+                        "Potwierdź", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+                    {
+                        await _firefliesService.ResetujGlobalneMapowania();
+                        dialog.Close();
+                        MessageBox.Show("Baza wiedzy została wyczyszczona.", "Gotowe", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                };
+                buttonPanel.Children.Add(btnUsun);
+
+                var btnZamknij = new Button
+                {
+                    Content = "Zamknij",
+                    Padding = new Thickness(15, 8, 15, 8),
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#607D8B")),
+                    Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0)
+                };
+                btnZamknij.Click += (s, ev) => dialog.Close();
+                buttonPanel.Children.Add(btnZamknij);
+
+                Grid.SetRow(buttonPanel, 2);
+                mainPanel.Children.Add(buttonPanel);
+
+                dialog.Content = mainPanel;
+                dialog.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         #endregion
@@ -1697,6 +1924,10 @@ namespace Kalendarz1.Spotkania.Views
     {
         private string? _przypisanyUserID;
         private string? _przypisanyUserName;
+        private string _zrodloMapowania = ""; // "auto", "zapisane", "reczne"
+        private bool _maSugestie;
+        private double _pewnoscMapowania;
+        private int _liczbaUzycMapowania;
 
         public int? SpeakerId { get; set; }
         public string? SpeakerNameFireflies { get; set; }
@@ -1717,6 +1948,8 @@ namespace Kalendarz1.Spotkania.Views
                 OnPropertyChanged(nameof(StatusKolor));
                 OnPropertyChanged(nameof(JestPrzypisany));
                 OnPropertyChanged(nameof(RamkaBrush));
+                OnPropertyChanged(nameof(AutoMapowanieBadge));
+                OnPropertyChanged(nameof(AutoMapowanieBadgeWidocznosc));
             }
         }
 
@@ -1725,6 +1958,51 @@ namespace Kalendarz1.Spotkania.Views
             get => _przypisanyUserName;
             set { _przypisanyUserName = value; OnPropertyChanged(); OnPropertyChanged(nameof(StatusPrzypisania)); }
         }
+
+        // Właściwości dla auto-mapowania
+        public string ZrodloMapowania
+        {
+            get => _zrodloMapowania;
+            set
+            {
+                _zrodloMapowania = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(AutoMapowanieBadge));
+                OnPropertyChanged(nameof(AutoMapowanieBadgeWidocznosc));
+                OnPropertyChanged(nameof(AutoMapowanieBadgeTlo));
+            }
+        }
+
+        public bool MaSugestie
+        {
+            get => _maSugestie;
+            set
+            {
+                _maSugestie = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(SugestiaBadgeWidocznosc));
+            }
+        }
+
+        public double PewnoscMapowania
+        {
+            get => _pewnoscMapowania;
+            set
+            {
+                _pewnoscMapowania = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(AutoMapowanieBadge));
+            }
+        }
+
+        public int LiczbaUzycMapowania
+        {
+            get => _liczbaUzycMapowania;
+            set { _liczbaUzycMapowania = value; OnPropertyChanged(); }
+        }
+
+        public List<GlobalMapowanieSugestia> Sugestie { get; set; } = new();
+        public GlobalMapowanieSugestia? NajlepszaSugestia => Sugestie.FirstOrDefault();
 
         public List<PracownikItem> DostepniPracownicy { get; set; } = new();
 
@@ -1743,15 +2021,70 @@ namespace Kalendarz1.Spotkania.Views
         public SolidColorBrush RamkaBrush => new SolidColorBrush(
             (Color)ColorConverter.ConvertFromString(JestPrzypisany ? "#4CAF50" : "#E0E0E0"));
 
-        public string StatusPrzypisania => string.IsNullOrEmpty(PrzypisanyUserID)
-            ? "Nie przypisano"
-            : $"Przypisano: {PrzypisanyUserName}";
+        public string StatusPrzypisania
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(PrzypisanyUserID))
+                    return MaSugestie ? "💡 Mamy sugestię!" : "Nie przypisano";
+
+                var status = $"Przypisano: {PrzypisanyUserName}";
+                if (ZrodloMapowania == "auto")
+                    status = $"🤖 Auto: {PrzypisanyUserName} ({PewnoscMapowania:F0}%)";
+                return status;
+            }
+        }
+
+        // Badge dla auto-mapowania
+        public string AutoMapowanieBadge
+        {
+            get
+            {
+                if (ZrodloMapowania == "auto")
+                    return $"🤖 {PewnoscMapowania:F0}%";
+                if (ZrodloMapowania == "sugestia")
+                    return $"💡 {PewnoscMapowania:F0}%";
+                if (ZrodloMapowania == "zapisane")
+                    return "💾";
+                if (ZrodloMapowania == "reczne")
+                    return "✓";
+                return "";
+            }
+        }
+
+        public Visibility AutoMapowanieBadgeWidocznosc =>
+            !string.IsNullOrEmpty(ZrodloMapowania) && JestPrzypisany ? Visibility.Visible : Visibility.Collapsed;
+
+        public SolidColorBrush AutoMapowanieBadgeTlo
+        {
+            get
+            {
+                if (ZrodloMapowania == "auto")
+                    return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2196F3"));
+                if (ZrodloMapowania == "sugestia")
+                    return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFC107"));
+                if (ZrodloMapowania == "zapisane")
+                    return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4CAF50"));
+                if (ZrodloMapowania == "reczne")
+                    return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#9C27B0"));
+                return new SolidColorBrush(Colors.Gray);
+            }
+        }
+
+        public Visibility SugestiaBadgeWidocznosc =>
+            MaSugestie && !JestPrzypisany ? Visibility.Visible : Visibility.Collapsed;
 
         public SolidColorBrush StatusTlo => new SolidColorBrush(
-            (Color)ColorConverter.ConvertFromString(string.IsNullOrEmpty(PrzypisanyUserID) ? "#FFF3E0" : "#E8F5E9"));
+            (Color)ColorConverter.ConvertFromString(
+                string.IsNullOrEmpty(PrzypisanyUserID)
+                    ? (MaSugestie ? "#FFF8E1" : "#FFF3E0")
+                    : (ZrodloMapowania == "auto" ? "#E3F2FD" : "#E8F5E9")));
 
         public SolidColorBrush StatusKolor => new SolidColorBrush(
-            (Color)ColorConverter.ConvertFromString(string.IsNullOrEmpty(PrzypisanyUserID) ? "#E65100" : "#2E7D32"));
+            (Color)ColorConverter.ConvertFromString(
+                string.IsNullOrEmpty(PrzypisanyUserID)
+                    ? (MaSugestie ? "#F57F17" : "#E65100")
+                    : (ZrodloMapowania == "auto" ? "#1565C0" : "#2E7D32")));
 
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

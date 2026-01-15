@@ -199,17 +199,23 @@
                                                VerticalAlignment="Center" Margin="10,0,0,0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                    <Button Content="Auto-dopasuj" Style="{StaticResource BtnSmall}"
+                                    <Button x:Name="BtnZastosujSugestie" Content="💡 Sugestie" Style="{StaticResource BtnSmall}"
+                                            Background="#FFC107" Margin="0,0,5,0" Visibility="Collapsed"
+                                            Click="BtnZastosujSugestie_Click" ToolTip="Zastosuj wszystkie sugestie z bazy wiedzy"/>
+                                    <Button Content="🔍 Dopasuj" Style="{StaticResource BtnSmall}"
                                             Background="#FF9800" Margin="0,0,5,0"
                                             Click="BtnAutoDopasuj_Click" ToolTip="Sprobuj automatycznie dopasowac mowcow po nazwie"/>
-                                    <Button Content="Wyczysc" Style="{StaticResource BtnSmall}"
-                                            Background="#9E9E9E" Click="BtnWyczyscMapowania_Click"
+                                    <Button Content="📚 Baza" Style="{StaticResource BtnSmall}"
+                                            Background="#607D8B" Margin="0,0,5,0"
+                                            Click="BtnPokazBazeGlosow_Click" ToolTip="Pokaz baze nauczonej wiedzy o glosach"/>
+                                    <Button Content="🗑️" Style="{StaticResource BtnSmall}"
+                                            Background="#9E9E9E" Width="35" Click="BtnWyczyscMapowania_Click"
                                             ToolTip="Usun wszystkie przypisania"/>
                                 </StackPanel>
                             </Grid>
 
-                            <TextBlock Text="Wybierz pracownika z listy dla kazdego mowcy:"
-                                       FontSize="12" Foreground="#666" Margin="0,0,0,10"/>
+                            <TextBlock x:Name="TxtInfoMapowania" Text="System uczy sie Twoich przypisań i automatycznie sugeruje je w przyszlosci"
+                                       FontSize="11" Foreground="#888" FontStyle="Italic" Margin="0,0,0,8"/>
 
                             <ItemsControl x:Name="ListaMowcow">
                                 <ItemsControl.ItemTemplate>
@@ -220,6 +226,7 @@
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
 
                                                 <!-- Kolor i nazwa mowcy -->
@@ -274,6 +281,23 @@
                                                         </ComboBox.Style>
                                                     </ComboBox>
                                                 </Grid>
+
+                                                <!-- Badge auto-mapowania lub sugestii -->
+                                                <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="8,0,0,0" VerticalAlignment="Center">
+                                                    <!-- Badge auto-mapowania -->
+                                                    <Border Background="{Binding AutoMapowanieBadgeTlo}" CornerRadius="10"
+                                                            Padding="8,4" Visibility="{Binding AutoMapowanieBadgeWidocznosc}"
+                                                            ToolTip="Automatycznie dopasowane na podstawie poprzednich mapowań">
+                                                        <TextBlock Text="{Binding AutoMapowanieBadge}" FontSize="11"
+                                                                   Foreground="White" FontWeight="SemiBold"/>
+                                                    </Border>
+                                                    <!-- Badge sugestii -->
+                                                    <Border Background="#FFC107" CornerRadius="10"
+                                                            Padding="8,4" Visibility="{Binding SugestiaBadgeWidocznosc}"
+                                                            ToolTip="Mamy sugestię dopasowania - sprawdź listę!">
+                                                        <TextBlock Text="💡" FontSize="11"/>
+                                                    </Border>
+                                                </StackPanel>
                                             </Grid>
                                         </Border>
                                     </DataTemplate>
