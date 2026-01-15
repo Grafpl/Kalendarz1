@@ -1027,6 +1027,334 @@ namespace Kalendarz1.Services
             return sb.ToString();
         }
 
+        /// <summary>
+        /// DEBUGGER: Pokazuje dokladna zawartosc pliku CSV bajt po bajcie.
+        /// Uzyj gdy import nie dziala - pokaze dokladnie co jest w pliku.
+        /// </summary>
+        public string DebugPokarzZawartoscCSV(string filePath)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("╔═══════════════════════════════════════════════════════════════════════════════╗");
+            sb.AppendLine("║                    DEBUG: ZAWARTOSC PLIKU CSV                                  ║");
+            sb.AppendLine("╚═══════════════════════════════════════════════════════════════════════════════╝");
+            sb.AppendLine();
+
+            if (!File.Exists(filePath))
+            {
+                sb.AppendLine($"BLAD: Plik nie istnieje: {filePath}");
+                return sb.ToString();
+            }
+
+            var fileInfo = new FileInfo(filePath);
+            sb.AppendLine($"Plik:     {fileInfo.Name}");
+            sb.AppendLine($"Sciezka:  {filePath}");
+            sb.AppendLine($"Rozmiar:  {fileInfo.Length} bajtow");
+            sb.AppendLine($"Utworzony: {fileInfo.CreationTime:yyyy-MM-dd HH:mm:ss}");
+            sb.AppendLine();
+
+            // Odczytaj bajty
+            var bytes = File.ReadAllBytes(filePath);
+
+            // Sprawdz BOM
+            sb.AppendLine("─── ANALIZA BOM (Byte Order Mark) ───");
+            if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+            {
+                sb.AppendLine("BOM: UTF-8 (EF BB BF) - OK");
+            }
+            else if (bytes.Length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE)
+            {
+                sb.AppendLine("BOM: UTF-16 LE (FF FE) - MOZE BYC PROBLEM!");
+            }
+            else if (bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF)
+            {
+                sb.AppendLine("BOM: UTF-16 BE (FE FF) - MOZE BYC PROBLEM!");
+            }
+            else
+            {
+                sb.AppendLine("BOM: BRAK - plik bez BOM");
+            }
+            sb.AppendLine();
+
+            // Odczytaj jako tekst
+            var content = File.ReadAllText(filePath, Encoding.UTF8);
+            var lines = content.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+
+            sb.AppendLine($"─── LICZBA LINII: {lines.Length} ───");
+            sb.AppendLine();
+
+            for (int i = 0; i < lines.Length && i < 10; i++)
+            {
+                var line = lines[i];
+                sb.AppendLine($"LINIA {i + 1} (dlugosc: {line.Length} znakow):");
+                sb.AppendLine($"  [{line}]");
+
+                // Pokaz kolumny
+                var cols = line.Split(';');
+                sb.AppendLine($"  Kolumn: {cols.Length}");
+                for (int j = 0; j < cols.Length; j++)
+                {
+                    sb.AppendLine($"    [{j + 1}] = \"{cols[j]}\"");
+                }
+                sb.AppendLine();
+            }
+
+            if (lines.Length > 10)
+            {
+                sb.AppendLine($"... i {lines.Length - 10} wiecej linii");
+            }
+
+            sb.AppendLine();
+            sb.AppendLine($"Debug wykonany: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// DEBUGGER: Analizuje obiekt ZgloszenieZURD PRZED eksportem.
+        /// Pokazuje wszystkie dane ktore beda eksportowane.
+        /// </summary>
+        public string DebugAnalizujZgloszenie(ZgloszenieZURD zgloszenie)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("╔═══════════════════════════════════════════════════════════════════════════════╗");
+            sb.AppendLine("║                    DEBUG: ANALIZA ZGLOSZENIA ZURD                              ║");
+            sb.AppendLine("╚═══════════════════════════════════════════════════════════════════════════════╝");
+            sb.AppendLine();
+
+            if (zgloszenie == null)
+            {
+                sb.AppendLine("BLAD: Zgloszenie jest NULL!");
+                return sb.ToString();
+            }
+
+            sb.AppendLine("─── DANE NAGLOWKOWE ───");
+            sb.AppendLine($"  Gatunek:           {zgloszenie.Gatunek ?? "(NULL)"}");
+            sb.AppendLine($"  NumerRzezni:       {zgloszenie.NumerRzezni ?? "(NULL)"}");
+            sb.AppendLine($"  NumerProducenta:   {zgloszenie.NumerProducenta ?? "(NULL)"}");
+            sb.AppendLine($"  NumerPartiiUboju:  {zgloszenie.NumerPartiiUboju ?? "(NULL)"}");
+            sb.AppendLine($"  DataUboju:         {zgloszenie.DataUboju:yyyy-MM-dd}");
+            sb.AppendLine();
+
+            sb.AppendLine("─── STATYSTYKI ───");
+            sb.AppendLine($"  LiczbaPozycji:     {zgloszenie.LiczbaPozycji}");
+            sb.AppendLine($"  LiczbaHodowcow:    {zgloszenie.LiczbaHodowcow}");
+            sb.AppendLine($"  SumaLiczbaSztuk:   {zgloszenie.SumaLiczbaSztuk}");
+            sb.AppendLine($"  SumaMasaKg:        {zgloszenie.SumaMasaKg:N2}");
+            sb.AppendLine();
+
+            sb.AppendLine("─── POZYCJE (transporty) ───");
+            if (zgloszenie.Pozycje == null)
+            {
+                sb.AppendLine("  BLAD: Pozycje = NULL!");
+            }
+            else if (zgloszenie.Pozycje.Count == 0)
+            {
+                sb.AppendLine("  UWAGA: Brak pozycji (pusta lista)!");
+            }
+            else
+            {
+                foreach (var poz in zgloszenie.Pozycje.OrderBy(p => p.Lp))
+                {
+                    sb.AppendLine($"  --- Pozycja {poz.Lp} ---");
+                    sb.AppendLine($"    NumerPartiiDrobiu:      {poz.NumerPartiiDrobiu ?? "(NULL)"}");
+                    sb.AppendLine($"    TypZdarzenia:           {poz.TypZdarzenia ?? "(NULL)"}");
+                    sb.AppendLine($"    LiczbaSztuk:            {poz.LiczbaSztuk}");
+                    sb.AppendLine($"    MasaKg:                 {poz.MasaKg:N2} -> po zaokr: {(int)Math.Round(poz.MasaKg)}");
+                    sb.AppendLine($"    DataZdarzenia:          {poz.DataZdarzenia:yyyy-MM-dd} -> format: {poz.DataZdarzenia:dd-MM-yyyy}");
+                    sb.AppendLine($"    KrajWwozu:              {poz.KrajWwozu ?? "(NULL/puste)"}");
+                    sb.AppendLine($"    DataKupnaWwozu:         {(poz.DataKupnaWwozu.HasValue ? poz.DataKupnaWwozu.Value.ToString("dd-MM-yyyy") : "(NULL)")}");
+                    sb.AppendLine($"    PrzyjeteZDzialalnosci:  {poz.PrzyjeteZDzialalnosci ?? "(NULL)"}");
+                    sb.AppendLine($"      -> po normalizacji:   {NormalizujNumerSiedliska(poz.PrzyjeteZDzialalnosci)}");
+                    sb.AppendLine($"    UbojRytualny:           {poz.UbojRytualny} -> {(poz.UbojRytualny ? "T" : "N")}");
+                    sb.AppendLine($"    Uwagi:                  {poz.Uwagi ?? "(NULL)"}");
+                    sb.AppendLine();
+                }
+            }
+
+            sb.AppendLine($"Debug wykonany: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// DEBUGGER: Generuje CSV do stringa (bez zapisu do pliku) i pokazuje wynik.
+        /// Uzywaj do sprawdzenia co DOKLADNIE bedzie w pliku CSV.
+        /// </summary>
+        public string DebugGenerujCSVDoStringa(ZgloszenieZURD zgloszenie)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("╔═══════════════════════════════════════════════════════════════════════════════╗");
+            sb.AppendLine("║                    DEBUG: PODGLAD CSV (bez zapisu)                             ║");
+            sb.AppendLine("╚═══════════════════════════════════════════════════════════════════════════════╝");
+            sb.AppendLine();
+
+            if (zgloszenie == null || zgloszenie.Pozycje == null)
+            {
+                sb.AppendLine("BLAD: Zgloszenie lub pozycje sa NULL!");
+                return sb.ToString();
+            }
+
+            // Generuj CSV dokladnie tak jak w eksporcie
+            var csv = new StringBuilder();
+            csv.AppendLine("Lp;Numer identyfikacyjny/numer partii;Typ zdarzenia;Liczba sztuk drobiu;Data zdarzenia;Masa drobiu poddanego ubojowi (kg);Kraj wwozu;Data kupna/wwozu;Przyjęte z działalności;Ubój rytualny");
+
+            foreach (var poz in zgloszenie.Pozycje.OrderBy(p => p.Lp))
+            {
+                var dataZdarzeniaStr = poz.DataZdarzenia.ToString("dd-MM-yyyy");
+                var masaStr = ((int)Math.Round(poz.MasaKg)).ToString(CultureInfo.InvariantCulture);
+                var numerSiedliska = NormalizujNumerSiedliska(poz.PrzyjeteZDzialalnosci);
+
+                csv.AppendLine(string.Join(";", new[]
+                {
+                    poz.Lp.ToString(),
+                    NUMER_RZEZNI,
+                    poz.TypZdarzenia ?? "UR",
+                    poz.LiczbaSztuk.ToString(),
+                    dataZdarzeniaStr,
+                    masaStr,
+                    poz.KrajWwozu ?? "",
+                    dataZdarzeniaStr,
+                    numerSiedliska,
+                    poz.UbojRytualny ? "T" : "N"
+                }));
+            }
+
+            sb.AppendLine("─── ZAWARTOSC CSV (dokladnie to co bedzie w pliku) ───");
+            sb.AppendLine();
+            sb.AppendLine(csv.ToString());
+            sb.AppendLine("─── KONIEC CSV ───");
+            sb.AppendLine();
+
+            // Analiza
+            var csvLines = csv.ToString().Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+            sb.AppendLine($"Liczba linii w CSV: {csvLines.Length}");
+            sb.AppendLine($"  - 1 linia naglowka");
+            sb.AppendLine($"  - {csvLines.Length - 1} linii danych");
+            sb.AppendLine();
+
+            // Sprawdz pierwszy wiersz danych
+            if (csvLines.Length > 1)
+            {
+                var firstDataLine = csvLines[1];
+                var cols = firstDataLine.Split(';');
+                sb.AppendLine("─── ANALIZA PIERWSZEGO WIERSZA DANYCH ───");
+                sb.AppendLine($"Liczba kolumn: {cols.Length} (oczekiwano: 10)");
+
+                var expectedCols = new[]
+                {
+                    ("Lp", "1"),
+                    ("Nr identyfikacyjny", NUMER_RZEZNI),
+                    ("Typ zdarzenia", "UR"),
+                    ("Liczba sztuk", "liczba"),
+                    ("Data zdarzenia", "DD-MM-RRRR"),
+                    ("Masa", "liczba calkowita"),
+                    ("Kraj wwozu", "puste"),
+                    ("Data kupna", "DD-MM-RRRR"),
+                    ("Przyjete z dzial.", "NNN-NNN"),
+                    ("Uboj rytualny", "N lub T")
+                };
+
+                for (int i = 0; i < Math.Min(cols.Length, expectedCols.Length); i++)
+                {
+                    var (nazwa, oczekiwane) = expectedCols[i];
+                    var actual = cols[i];
+                    var status = "?";
+
+                    // Proste walidacje
+                    if (i == 1 && actual == NUMER_RZEZNI) status = "OK";
+                    else if (i == 2 && (actual == "UR" || actual == "BD")) status = "OK";
+                    else if (i == 5 && int.TryParse(actual, out _) && !actual.Contains(" ") && !actual.Contains(",")) status = "OK";
+                    else if (i == 6 && string.IsNullOrEmpty(actual)) status = "OK";
+                    else if ((i == 4 || i == 7) && System.Text.RegularExpressions.Regex.IsMatch(actual, @"^\d{2}-\d{2}-\d{4}$")) status = "OK";
+                    else if (i == 9 && (actual == "N" || actual == "T")) status = "OK";
+                    else if (i == 0 || i == 3 || i == 8) status = "?";
+
+                    sb.AppendLine($"  [{i + 1}] {nazwa,-20}: \"{actual}\" ({oczekiwane}) [{status}]");
+                }
+            }
+
+            sb.AppendLine();
+            sb.AppendLine($"Debug wykonany: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// DEBUGGER: Zapisuje pelny raport diagnostyczny do pliku.
+        /// Uzywaj gdy cos nie dziala - wygeneruj raport i wklej tutaj.
+        /// </summary>
+        public string DebugZapiszPelnyRaport(ZgloszenieZURD zgloszenie = null, string csvFilePath = null)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("╔═══════════════════════════════════════════════════════════════════════════════╗");
+            sb.AppendLine("║              PELNY RAPORT DIAGNOSTYCZNY IRZPLUS EXPORT                         ║");
+            sb.AppendLine("║                    (wklej ten raport do Claude)                                ║");
+            sb.AppendLine("╚═══════════════════════════════════════════════════════════════════════════════╝");
+            sb.AppendLine();
+            sb.AppendLine($"Data raportu: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            sb.AppendLine();
+
+            // Diagnostyka ogolna
+            sb.AppendLine("═══════════════════════════════════════════════════════════════════════════════");
+            sb.AppendLine("CZESC 1: KONFIGURACJA");
+            sb.AppendLine("═══════════════════════════════════════════════════════════════════════════════");
+            sb.AppendLine(PobierzDiagnostyke());
+            sb.AppendLine();
+
+            // Analiza zgloszenia
+            if (zgloszenie != null)
+            {
+                sb.AppendLine("═══════════════════════════════════════════════════════════════════════════════");
+                sb.AppendLine("CZESC 2: ANALIZA ZGLOSZENIA");
+                sb.AppendLine("═══════════════════════════════════════════════════════════════════════════════");
+                sb.AppendLine(DebugAnalizujZgloszenie(zgloszenie));
+                sb.AppendLine();
+
+                sb.AppendLine("═══════════════════════════════════════════════════════════════════════════════");
+                sb.AppendLine("CZESC 3: PODGLAD CSV");
+                sb.AppendLine("═══════════════════════════════════════════════════════════════════════════════");
+                sb.AppendLine(DebugGenerujCSVDoStringa(zgloszenie));
+                sb.AppendLine();
+            }
+
+            // Analiza pliku CSV
+            if (!string.IsNullOrEmpty(csvFilePath) && File.Exists(csvFilePath))
+            {
+                sb.AppendLine("═══════════════════════════════════════════════════════════════════════════════");
+                sb.AppendLine("CZESC 4: ANALIZA PLIKU CSV");
+                sb.AppendLine("═══════════════════════════════════════════════════════════════════════════════");
+                sb.AppendLine(DebugPokarzZawartoscCSV(csvFilePath));
+                sb.AppendLine();
+
+                sb.AppendLine("═══════════════════════════════════════════════════════════════════════════════");
+                sb.AppendLine("CZESC 5: WALIDACJA CSV");
+                sb.AppendLine("═══════════════════════════════════════════════════════════════════════════════");
+                sb.AppendLine(WalidujPlikCSV(csvFilePath));
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("═══════════════════════════════════════════════════════════════════════════════");
+            sb.AppendLine("KONIEC RAPORTU");
+            sb.AppendLine("═══════════════════════════════════════════════════════════════════════════════");
+
+            // Zapisz do pliku
+            try
+            {
+                var reportFileName = $"DEBUG_RAPORT_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
+                var reportFilePath = Path.Combine(_exportPath, reportFileName);
+                File.WriteAllText(reportFilePath, sb.ToString(), new UTF8Encoding(true));
+
+                sb.AppendLine();
+                sb.AppendLine($"Raport zapisany do: {reportFilePath}");
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"Blad zapisu raportu: {ex.Message}");
+            }
+
+            return sb.ToString();
+        }
+
         #endregion
     }
 
