@@ -113,7 +113,7 @@ namespace Kalendarz1
         // Kamera - pojedynczy widok z wyborem strumienia
         private DispatcherTimer cameraViewTimer;
         private bool cameraViewActive = false;
-        private bool useMainStream = true; // true = główny strumień (101), false = podstrumień (102)
+        private bool useMainStream = false; // true = główny strumień (101), false = podstrumień (102) - domyślnie SD
         private int frameCount = 0;
         private DateTime lastFpsUpdate = DateTime.Now;
 
