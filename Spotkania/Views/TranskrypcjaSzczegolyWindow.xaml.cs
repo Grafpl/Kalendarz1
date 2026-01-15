@@ -222,11 +222,11 @@ namespace Kalendarz1.Spotkania.Views
 
                     _zdania.Add(new ZdanieDisplay
                     {
-                        Index = z.Index ?? 0,
+                        Index = z.Index,
                         SpeakerId = z.SpeakerId,
                         Mowca = z.SpeakerName ?? $"Mowca {z.SpeakerId}",
                         Tekst = z.Text ?? "",
-                        StartTime = z.StartTime ?? 0,
+                        StartTime = z.StartTime,
                         TloKolor = mowca?.TloKolor ?? new SolidColorBrush(Colors.White),
                         MowcaKolor = mowca?.KolorMowcy ?? new SolidColorBrush(Colors.Gray)
                     });
