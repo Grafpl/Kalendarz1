@@ -385,6 +385,45 @@
                     </DataGrid.Columns>
                 </DataGrid>
 
+                <!-- Widok kamer -->
+                <Grid x:Name="viewCameras" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Nagłówek z przełącznikiem strumienia -->
+                    <Border Grid.Row="0" Background="#1E1E2E" CornerRadius="10" Padding="15" Margin="5">
+                        <Grid>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                                <TextBlock Text="🎥" FontSize="24" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="PODGLĄD KAMER" FontSize="20" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <TextBlock Text="Strumień:" FontSize="14" Foreground="#AAA" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <RadioButton x:Name="rbSubStream" GroupName="Stream" IsChecked="True" Click="StreamSwitch_Click"
+                                             Content="SD (640x480)" Foreground="White" FontSize="14" Margin="0,0,15,0"/>
+                                <RadioButton x:Name="rbMainStream" GroupName="Stream" Click="StreamSwitch_Click"
+                                             Content="HD (1920x1080)" Foreground="White" FontSize="14"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <TextBlock x:Name="lblCameraFpsView" Text="-- FPS" FontSize="14" Foreground="#89B4FA" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                                <TextBlock x:Name="lblStreamInfoView" Text="640x480" FontSize="14" Foreground="#888" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Obraz z kamery -->
+                    <Border Grid.Row="1" Background="Black" CornerRadius="10" Margin="5" ClipToBounds="True">
+                        <Grid>
+                            <Image x:Name="cameraImageView" Stretch="Uniform"/>
+                            <TextBlock x:Name="cameraStatusView" Text="Kliknij KAMERY aby uruchomić podgląd"
+                                       FontSize="22" Foreground="Gray"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+
                 <!-- Przyciski dla ODPADY -->
                 <StackPanel x:Name="panelButtonsLeft" VerticalAlignment="Bottom" HorizontalAlignment="Right"
                             Orientation="Horizontal" Visibility="Collapsed" Margin="0,0,20,20">
@@ -533,6 +572,13 @@
                                 <TextBlock Text="KREW / JELITA / LAPY / PIORA" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </RadioButton>
+                        <RadioButton x:Name="rbKamery" GroupName="Mode" Click="ZmienTryb_Click"
+                                     Style="{StaticResource ModeRadioStyle}" Height="50">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#x1F3A5;" FontSize="22" Margin="0,0,6,0" Foreground="#89B4FA"/>
+                                <TextBlock Text="KAMERY" FontSize="15" FontWeight="Bold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
                     </StackPanel>
 
                     <!-- Status drukarki -->
@@ -574,7 +620,7 @@
         <TextBlock x:Name="lblStreamInfo" Visibility="Collapsed"/>
 
         <!-- Prawa strona - panel wagi -->
-        <Border Grid.Column="1" Background="#16161D" BorderBrush="#333" BorderThickness="2,0,0,0">
+        <Border x:Name="panelRight" Grid.Column="1" Background="#16161D" BorderBrush="#333" BorderThickness="2,0,0,0">
             <Grid Margin="10">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -628,18 +674,18 @@
                                                     ToolTip="Skanuj tablicę z kamery" Cursor="Hand">
                                                 <Button.Template>
                                                     <ControlTemplate TargetType="Button">
-                                                        <Border x:Name="border" Background="#2E7D32" CornerRadius="8">
+                                                        <Border x:Name="scanBtnBorder" Background="#2E7D32" CornerRadius="8">
                                                             <TextBlock Text="📷" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                         </Border>
                                                         <ControlTemplate.Triggers>
                                                             <Trigger Property="IsMouseOver" Value="True">
-                                                                <Setter TargetName="border" Property="Background" Value="#43A047"/>
+                                                                <Setter TargetName="scanBtnBorder" Property="Background" Value="#43A047"/>
                                                             </Trigger>
                                                             <Trigger Property="IsPressed" Value="True">
-                                                                <Setter TargetName="border" Property="Background" Value="#1B5E20"/>
+                                                                <Setter TargetName="scanBtnBorder" Property="Background" Value="#1B5E20"/>
                                                             </Trigger>
                                                             <Trigger Property="IsEnabled" Value="False">
-                                                                <Setter TargetName="border" Property="Background" Value="#555"/>
+                                                                <Setter TargetName="scanBtnBorder" Property="Background" Value="#555"/>
                                                             </Trigger>
                                                         </ControlTemplate.Triggers>
                                                     </ControlTemplate>
