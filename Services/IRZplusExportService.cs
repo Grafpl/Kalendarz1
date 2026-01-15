@@ -391,37 +391,35 @@ namespace Kalendarz1.Services
 
                 var sb = new StringBuilder();
 
-                // === NAGLOWEK KOLUMN - DOKLADNIE JAK W PORTALU IRZPLUS ===
-                // KOLEJNOSC ZGODNA Z FORMULARZEM PORTALU!
-                // BEZ kolumny "Lp" - portal jej nie ma!
-                sb.AppendLine(string.Join(";", new[]
-                {
-                    "Numer identyfikacyjny/numer partii",  // 1. NUMER RZEZNI!
-                    "Liczba sztuk drobiu",                  // 2.
-                    "Masa drobiu poddanego ubojowi (kg)",   // 3.
-                    "Typ zdarzenia",                        // 4.
-                    "Data zdarzenia",                       // 5.
-                    "Kraj wwozu",                           // 6.
-                    "Data kupna/wwozu",                     // 7.
-                    "Przyjęte z działalności",              // 8. NUMER HODOWCY!
-                    "Ubój rytualny"                         // 9.
-                }));
+                // === BEZ NAGLOWKA! Portal IRZplus NIE oczekuje naglowka kolumn! ===
+                // Jesli dodamy naglowek, portal wczyta go jako pierwsza pozycje z danymi!
 
                 // === JEDNA POZYCJA - JEDEN TRANSPORT ===
-                // WAZNE MAPOWANIE:
-                // - "Numer identyfikacyjny/numer partii" = NUMER RZEZNI (staly: 039806095-001)
-                // - "Przyjete z dzialalnosci" = NUMER SIEDLISKA HODOWCY (np. 068736945-001)
+                // KOLEJNOSC KOLUMN (z formularza portalu):
+                // 1. Numer identyfikacyjny/numer partii = NUMER RZEZNI
+                // 2. Liczba sztuk drobiu
+                // 3. Masa drobiu poddanego ubojowi (kg) - LICZBA CALKOWITA bez spacji!
+                // 4. Typ zdarzenia = UR
+                // 5. Data zdarzenia = DD-MM-RRRR
+                // 6. Kraj wwozu = puste dla PL
+                // 7. Data kupna/wwozu = ta sama co data zdarzenia
+                // 8. Przyjete z dzialalnosci = NUMER HODOWCY
+                // 9. Uboj rytualny = N lub T
+
+                var dataZdarzeniaStr = transport.DataZdarzenia.ToString("dd-MM-yyyy");
+                var masaCalkowita = ((int)Math.Round(transport.MasaKg)).ToString(); // Bez spacji, bez miejsc dziesietnych!
+
                 sb.AppendLine(string.Join(";", new[]
                 {
-                    numerRzezni,                                               // 1. Numer identyfikacyjny = NUMER RZEZNI!
-                    transport.LiczbaSztuk.ToString(),                          // 2. Liczba sztuk drobiu
-                    transport.MasaKg.ToString("N2", _polishCulture),           // 3. Masa drobiu (kg) - z przecinkiem!
-                    transport.TypZdarzenia ?? "UR",                            // 4. Typ zdarzenia
-                    transport.DataZdarzenia.ToString("dd-MM-yyyy"),            // 5. Data zdarzenia (DD-MM-RRRR)
-                    transport.KrajWwozu ?? "",                                 // 6. Kraj wwozu (puste dla PL)
-                    transport.DataKupnaWwozu?.ToString("dd-MM-yyyy") ?? "",    // 7. Data kupna/wwozu
-                    numerHodowcy,                                              // 8. Przyjete z dzialalnosci = NUMER HODOWCY!
-                    transport.UbojRytualny ? "T" : "N"                         // 9. Uboj rytualny
+                    numerRzezni,                          // 1. Numer identyfikacyjny = NUMER RZEZNI
+                    transport.LiczbaSztuk.ToString(),     // 2. Liczba sztuk drobiu
+                    masaCalkowita,                        // 3. Masa drobiu (kg) - LICZBA CALKOWITA!
+                    transport.TypZdarzenia ?? "UR",       // 4. Typ zdarzenia
+                    dataZdarzeniaStr,                     // 5. Data zdarzenia
+                    transport.KrajWwozu ?? "",            // 6. Kraj wwozu (puste dla PL)
+                    dataZdarzeniaStr,                     // 7. Data kupna/wwozu = TA SAMA DATA!
+                    numerHodowcy,                         // 8. Przyjete z dzialalnosci = NUMER HODOWCY
+                    transport.UbojRytualny ? "T" : "N"    // 9. Uboj rytualny
                 }));
 
                 // Zapisz z kodowaniem UTF-8 z BOM (dla polskich znakow)
