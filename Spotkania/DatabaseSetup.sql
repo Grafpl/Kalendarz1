@@ -185,7 +185,7 @@ BEGIN
         -- Ustawienia synchronizacji
         AutoImportNotatek BIT DEFAULT 1,
         AutoSynchronizacja BIT DEFAULT 1,
-        InterwálSynchronizacjiMin INT DEFAULT 15,
+        InterwalSynchronizacjiMin INT DEFAULT 15,
 
         -- Filtry importu
         ImportujOdDaty DATETIME,
