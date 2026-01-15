@@ -21,6 +21,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using System.Drawing.Printing;
 using System.Diagnostics;
+using Outlook = Microsoft.Office.Interop.Outlook;
 using Kalendarz.Zywiec.WidokSpecyfikacji;
 using Kalendarz1.Zywiec.WidokSpecyfikacji;
 
@@ -6941,6 +6942,8 @@ namespace Kalendarz1
                     // Usuń z kolekcji
                     specyfikacjeData.Remove(selectedRow);
                     UpdateRowNumbers();
+                    // Zapisz nową kolejność LP do bazy danych
+                    _ = SaveAllRowPositionsAsync();
                     UpdateStatistics();
                     UpdateStatus($"Usunięto wiersz. Ctrl+Z aby cofnąć.");
                     selectedRow = null;
@@ -11558,19 +11561,19 @@ namespace Kalendarz1
                     subtitle.SpacingAfter = 10;
                     doc.Add(subtitle);
 
-                    // Tabela z czarnymi obramowaniami (17 kolumn) - trochę węższa
-                    PdfPTable table = new PdfPTable(17);
+                    // Tabela z czarnymi obramowaniami (18 kolumn) - z kolumną Partia
+                    PdfPTable table = new PdfPTable(18);
                     table.WidthPercentage = 96;
-                    // Zmniejszone kolumny kg (Konfi[kg], Padłe[kg], Suma[kg])
-                    float[] widths = { 3f, 11f, 5f, 4f, 4f, 4f, 3.5f, 3.5f, 3.5f, 5f, 5f, 4f, 5f, 5.5f, 5f, 5f, 5.5f };
+                    // Zmniejszone kolumny kg (Konfi[kg], Padłe[kg], Suma[kg]) + kolumna Partia
+                    float[] widths = { 3f, 10f, 6f, 4.5f, 4f, 4f, 4f, 3.5f, 3.5f, 3.5f, 5f, 5f, 4f, 5f, 5.5f, 5f, 5f, 5.5f };
                     table.SetWidths(widths);
 
                     // Ustawienie domyślnych obramowań dla tabeli
                     table.DefaultCell.BorderWidth = 1;
                     table.DefaultCell.BorderColor = BaseColor.BLACK;
 
-                    // Nagłówki z jednostkami w osobnych liniach
-                    string[] headers = { "L.P", "Hodowca\nDrobiu", "Zadekl.\n[szt]", "Padłe\n[szt]", "Konfi\n[szt]", "Suma\n[szt]", "Konfi\n[kg]", "Padłe\n[kg]", "Suma\n[kg]", "Wydaj.\n[%]", "Lumel\n[szt]", "KonT\n[szt]", "Zdatne\n[szt]", "Żywiec\n[kg]", "ŚrWaga\n[kg]", "Prod.\n[szt]", "Prod.\n[kg]" };
+                    // Nagłówki z jednostkami w osobnych liniach (z Partią)
+                    string[] headers = { "L.P", "Hodowca\nDrobiu", "Partia", "Zadekl.\n[szt]", "Padłe\n[szt]", "Konfi\n[szt]", "Suma\n[szt]", "Konfi\n[kg]", "Padłe\n[kg]", "Suma\n[kg]", "Wydaj.\n[%]", "Lumel\n[szt]", "KonT\n[szt]", "Zdatne\n[szt]", "Żywiec\n[kg]", "ŚrWaga\n[kg]", "Prod.\n[szt]", "Prod.\n[kg]" };
                     BaseColor headerColor = new BaseColor(60, 60, 60); // Ciemnoszary
 
                     foreach (var h in headers)
@@ -11592,6 +11595,13 @@ namespace Kalendarz1
                     {
                         table.AddCell(new PdfPCell(new Phrase(row.LP.ToString(), fontData)) { HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
                         table.AddCell(new PdfPCell(new Phrase(row.HodowcaDrobiu ?? "-", fontData)) { VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
+                        // Kolumna Partia - z kolorowym tłem jeśli jest przypisana
+                        var partiaCell = new PdfPCell(new Phrase(row.PartiaNumber ?? "-", fontData));
+                        partiaCell.HorizontalAlignment = Element.ALIGN_CENTER;
+                        partiaCell.VerticalAlignment = Element.ALIGN_MIDDLE;
+                        partiaCell.Padding = cellPadding;
+                        if (row.HasPartia) partiaCell.BackgroundColor = new BaseColor(187, 222, 251); // Jasnoniebieski gdy przypisana
+                        table.AddCell(partiaCell);
                         table.AddCell(new PdfPCell(new Phrase(row.SztukiZadeklarowane.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding, BackgroundColor = new BaseColor(255, 224, 178) });
                         table.AddCell(new PdfPCell(new Phrase(row.SztukiPadle.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
                         table.AddCell(new PdfPCell(new Phrase(row.SztukiKonfi.ToString("N0"), fontData)) { HorizontalAlignment = Element.ALIGN_RIGHT, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
@@ -11627,7 +11637,7 @@ namespace Kalendarz1
                         float sumPadding = 4f;
                         BaseColor sumColor = new BaseColor(200, 200, 200);
                         PdfPCell sumaCell = new PdfPCell(new Phrase("SUMA:", fontSum));
-                        sumaCell.Colspan = 2;
+                        sumaCell.Colspan = 3; // L.P + Hodowca + Partia
                         sumaCell.BackgroundColor = sumColor;
                         sumaCell.HorizontalAlignment = Element.ALIGN_RIGHT;
                         sumaCell.VerticalAlignment = Element.ALIGN_MIDDLE;
@@ -11908,23 +11918,95 @@ namespace Kalendarz1
                              $"Pozdrawiam,\n" +
                              $"UBOJNIA DROBIU \"PIÓRKOWSCY\"";
 
-                // Otwórz domyślnego klienta poczty
-                string mailto = $"mailto:?subject={Uri.EscapeDataString(subject)}&body={Uri.EscapeDataString(body)}";
+                // Znajdź najnowszy PDF Podsumowania dla tej daty
+                string pdfPath = FindLatestPodsumowaniePdf(selectedDate);
 
-                Process.Start(new ProcessStartInfo
+                try
                 {
-                    FileName = mailto,
-                    UseShellExecute = true
-                });
+                    // Probuj otworzyć Outlook z załącznikiem
+                    var outlookApp = new Outlook.Application();
+                    var mailItem = (Outlook.MailItem)outlookApp.CreateItem(Outlook.OlItemType.olMailItem);
 
-                UpdateStatus("Otwarto klienta poczty - załącz PDF ręcznie");
-                MessageBox.Show("Otworzyłem domyślnego klienta poczty.\n\nPamiętaj o załączeniu pliku PDF podsumowania ręcznie!\n\n(Najpierw zapisz PDF przyciskiem 'Zapisz Podsumowanie')",
-                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                    mailItem.Subject = subject;
+                    mailItem.Body = body;
+
+                    // Dodaj PDF jako załącznik jeśli istnieje
+                    if (!string.IsNullOrEmpty(pdfPath) && File.Exists(pdfPath))
+                    {
+                        mailItem.Attachments.Add(pdfPath, Outlook.OlAttachmentType.olByValue, 1, Path.GetFileName(pdfPath));
+                    }
+
+                    mailItem.Display(false);
+
+                    UpdateStatus("Otwarto Outlook z gotową wiadomością");
+                    MessageBox.Show(
+                        $"Otwarto Microsoft Outlook z gotową wiadomością.\n\n" +
+                        (File.Exists(pdfPath) ? $"Załącznik PDF: Dodany automatycznie\n({Path.GetFileName(pdfPath)})\n\n" : "UWAGA: Nie znaleziono pliku PDF!\nWygeneruj PDF przed wysłaniem.\n\n") +
+                        $"Sprawdź wiadomość i kliknij Wyślij.",
+                        "Email gotowy",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+                catch (Exception outlookEx)
+                {
+                    // Fallback na mailto
+                    System.Diagnostics.Debug.WriteLine($"Outlook error: {outlookEx.Message}");
+
+                    string mailto = $"mailto:?subject={Uri.EscapeDataString(subject)}&body={Uri.EscapeDataString(body)}";
+                    Process.Start(new ProcessStartInfo { FileName = mailto, UseShellExecute = true });
+
+                    if (!string.IsNullOrEmpty(pdfPath) && File.Exists(pdfPath))
+                    {
+                        Clipboard.SetText(pdfPath);
+                    }
+
+                    UpdateStatus("Otwarto klienta poczty - załącz PDF ręcznie");
+                    MessageBox.Show(
+                        "Outlook nie jest dostępny - otwarto domyślnego klienta poczty.\n\n" +
+                        "Pamiętaj o załączeniu pliku PDF ręcznie!\n\n" +
+                        (File.Exists(pdfPath) ? $"Ścieżka PDF skopiowana do schowka:\n{pdfPath}" : "(Najpierw zapisz PDF przyciskiem 'Zapisz Podsumowanie')"),
+                        "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd otwierania poczty:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        /// <summary>
+        /// Szuka najnowszego pliku PDF Podsumowania dla danej daty
+        /// </summary>
+        private string FindLatestPodsumowaniePdf(DateTime dataUboju)
+        {
+            try
+            {
+                string basePath = GetPodsumowaniePathFromDb();
+                if (string.IsNullOrWhiteSpace(basePath))
+                {
+                    basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ZPSP", "Podsumowania");
+                }
+
+                string folderPath = Path.Combine(basePath, dataUboju.Year.ToString(), dataUboju.Month.ToString("D2"), dataUboju.Day.ToString("D2"));
+
+                if (Directory.Exists(folderPath))
+                {
+                    // Znajdź najnowszy plik PDF z danego dnia
+                    var pdfFiles = Directory.GetFiles(folderPath, $"Podsumowanie_{dataUboju:yyyy-MM-dd}*.pdf")
+                        .OrderByDescending(f => File.GetCreationTime(f))
+                        .ToList();
+
+                    if (pdfFiles.Any())
+                    {
+                        return pdfFiles.First();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error finding PDF: {ex.Message}");
+            }
+            return null;
         }
 
         /// <summary>

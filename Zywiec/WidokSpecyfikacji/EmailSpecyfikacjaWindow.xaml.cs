@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Windows;
+using Outlook = Microsoft.Office.Interop.Outlook;
 
 namespace Kalendarz1.Zywiec.WidokSpecyfikacji
 {
@@ -202,29 +203,20 @@ Zespol Piorkowscy"
                 string temat = txtTemat.Text;
                 string tresc = txtWiadomosc.Text;
 
-                // Jesli jest email - otworz klienta pocztowego
+                // Jesli jest email - otworz Outlook z załącznikiem
                 if (!string.IsNullOrWhiteSpace(email))
                 {
-                    string mailto = $"mailto:{email}?subject={Uri.EscapeDataString(temat)}&body={Uri.EscapeDataString(tresc)}";
-
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(mailto)
+                    try
                     {
-                        UseShellExecute = true
-                    });
-
-                    // Skopiuj sciezke PDF do schowka
-                    if (File.Exists(_sciezkaPDF))
-                    {
-                        Clipboard.SetText(_sciezkaPDF);
+                        // Probuj otworzyc przez Outlook
+                        OtworzOutlookZZalacznikiem(email, temat, tresc);
                     }
-
-                    MessageBox.Show(
-                        $"Otwarto domyslny klient email.\n\n" +
-                        $"WAZNE: Dolacz recznie plik PDF jako zalacznik.\n\n" +
-                        $"Sciezka do pliku PDF zostala skopiowana do schowka:\n{_sciezkaPDF}",
-                        "Informacja",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
+                    catch (Exception outlookEx)
+                    {
+                        // Fallback na mailto jesli Outlook nie jest dostepny
+                        System.Diagnostics.Debug.WriteLine($"Outlook error: {outlookEx.Message}");
+                        OtworzMailtoFallback(email, temat, tresc);
+                    }
                 }
                 else
                 {
@@ -248,6 +240,58 @@ Zespol Piorkowscy"
                 MessageBox.Show($"Blad: {ex.Message}", "Blad",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private void OtworzOutlookZZalacznikiem(string email, string temat, string tresc)
+        {
+            var outlookApp = new Outlook.Application();
+            var mailItem = (Outlook.MailItem)outlookApp.CreateItem(Outlook.OlItemType.olMailItem);
+
+            mailItem.To = email;
+            mailItem.Subject = temat;
+            mailItem.Body = tresc;
+
+            // Dodaj PDF jako zalacznik jesli istnieje
+            if (File.Exists(_sciezkaPDF))
+            {
+                mailItem.Attachments.Add(_sciezkaPDF, Outlook.OlAttachmentType.olByValue, 1, Path.GetFileName(_sciezkaPDF));
+            }
+
+            // Wyswietl okno wiadomosci (nie wysylaj automatycznie)
+            mailItem.Display(false);
+
+            MessageBox.Show(
+                $"Otwarto Microsoft Outlook z gotowa wiadomoscia.\n\n" +
+                $"Odbiorca: {email}\n" +
+                (File.Exists(_sciezkaPDF) ? $"Zalacznik PDF: Dodany automatycznie\n\n" : "UWAGA: Plik PDF nie istnieje!\n\n") +
+                $"Sprawdz wiadomosc i kliknij Wyslij.",
+                "Email gotowy",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+
+        private void OtworzMailtoFallback(string email, string temat, string tresc)
+        {
+            string mailto = $"mailto:{email}?subject={Uri.EscapeDataString(temat)}&body={Uri.EscapeDataString(tresc)}";
+
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(mailto)
+            {
+                UseShellExecute = true
+            });
+
+            // Skopiuj sciezke PDF do schowka
+            if (File.Exists(_sciezkaPDF))
+            {
+                Clipboard.SetText(_sciezkaPDF);
+            }
+
+            MessageBox.Show(
+                $"Outlook nie jest dostepny - otwarto domyslny klient email.\n\n" +
+                $"WAZNE: Dolacz recznie plik PDF jako zalacznik.\n\n" +
+                $"Sciezka do pliku PDF zostala skopiowana do schowka:\n{_sciezkaPDF}",
+                "Informacja",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
         }
 
         private void BtnKopiuj_Click(object sender, RoutedEventArgs e)
