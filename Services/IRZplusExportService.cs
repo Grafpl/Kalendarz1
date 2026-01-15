@@ -49,49 +49,22 @@ namespace Kalendarz1.Services
         #region ========== ZURD - Zgloszenie Uboju Drobiu w Rzezni ==========
 
         /// <summary>
-        /// Eksportuje ZURD do pliku CSV zgodnego z importem w portalu IRZplus
-        /// Format: JEDNO zgloszenie, WIELE pozycji (autow/transportow)
+        /// Eksportuje ZURD do pliku CSV zgodnego z importem w portalu IRZplus.
+        /// WAZNE: Plik CSV jest CZYSTY - tylko naglowek i dane, BEZ komentarzy!
+        /// Portal IRZplus nie obsluguje komentarzy w pliku CSV.
         /// </summary>
         public ExportResult EksportujZURD_CSV(ZgloszenieZURD zgloszenie)
         {
             try
             {
-                var fileName = $"ZURD_{zgloszenie.DataUboju:yyyy-MM-dd}_{DateTime.Now:HHmmss}.csv";
+                var fileName = $"ZURD_{zgloszenie.DataUboju:yyyyMMdd}_{DateTime.Now:HHmmss}.csv";
                 var filePath = Path.Combine(_exportPath, fileName);
 
-                var sb = new StringBuilder();
+                var csv = new StringBuilder();
 
-                // === SEKCJA NAGLOWKOWA (metadane - komentarze) ===
-                sb.AppendLine("# ============================================");
-                sb.AppendLine("# ZURD - Zgloszenie Uboju Drobiu w Rzezni");
-                sb.AppendLine("# Portal IRZplus - Import CSV");
-                sb.AppendLine("# ============================================");
-                sb.AppendLine($"# Wygenerowano: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-                sb.AppendLine($"# ");
-                sb.AppendLine($"# NAGLOWEK ZGLOSZENIA:");
-                sb.AppendLine($"# Gatunek: {zgloszenie.Gatunek}");
-                sb.AppendLine($"# Numer rzezni: {zgloszenie.NumerRzezni}");
-                sb.AppendLine($"# Numer partii uboju: {zgloszenie.NumerPartiiUboju}");
-                sb.AppendLine($"# Data uboju: {zgloszenie.DataUboju:yyyy-MM-dd}");
-                sb.AppendLine($"# ");
-                sb.AppendLine($"# STATYSTYKI:");
-                sb.AppendLine($"# Liczba pozycji (autow): {zgloszenie.LiczbaPozycji}");
-                sb.AppendLine($"# Liczba hodowcow: {zgloszenie.LiczbaHodowcow}");
-                sb.AppendLine($"# Suma sztuk: {zgloszenie.SumaLiczbaSztuk:N0}");
-                sb.AppendLine($"# Suma masa: {zgloszenie.SumaMasaKg:N2} kg");
-                sb.AppendLine($"# ");
-                sb.AppendLine($"# INSTRUKCJA IMPORTU:");
-                sb.AppendLine($"# 1. Zaloguj sie do portalu IRZplus");
-                sb.AppendLine($"# 2. Przejdz do: Zgloszenie uboju drobiu w rzezni");
-                sb.AppendLine($"# 3. Uzupelnij naglowek (gatunek, numer rzezni, numer partii)");
-                sb.AppendLine($"# 4. Kliknij: Wczytaj dane z pliku CSV/TXT");
-                sb.AppendLine($"# 5. Wybierz ten plik");
-                sb.AppendLine($"# ============================================");
-                sb.AppendLine();
-
-                // === NAGLOWEK KOLUMN ===
-                // Dokladnie takie nazwy jak w portalu IRZplus!
-                sb.AppendLine("Lp;Numer identyfikacyjny/numer partii;Typ zdarzenia;Liczba sztuk drobiu;Data zdarzenia;Masa drobiu poddanego ubojowi (kg);Kraj wwozu;Data kupna/wwozu;Przyjęte z działalności;Ubój rytualny");
+                // === NAGLOWEK KOLUMN (PIERWSZA LINIA!) ===
+                // UWAGA: Bez komentarzy! Portal nie obsluguje komentarzy!
+                csv.AppendLine("Lp;Numer identyfikacyjny/numer partii;Typ zdarzenia;Liczba sztuk drobiu;Data zdarzenia;Masa drobiu poddanego ubojowi (kg);Kraj wwozu;Data kupna/wwozu;Przyjęte z działalności;Ubój rytualny");
 
                 // === POZYCJE (kazdy aut/transport to osobna linia) ===
                 foreach (var poz in zgloszenie.Pozycje.OrderBy(p => p.Lp))
@@ -99,27 +72,32 @@ namespace Kalendarz1.Services
                     // Data zdarzenia w formacie DD-MM-RRRR
                     var dataZdarzeniaStr = poz.DataZdarzenia.ToString("dd-MM-yyyy");
 
-                    // Masa jako liczba calkowita BEZ separatorow tysiecy, BEZ czesci dziesietnej
-                    // Portal IRZplus wymaga formatu: "13851" (nie "13 851.00" ani "13851,00")
+                    // Masa jako liczba calkowita BEZ separatorow tysiecy
                     var masaStr = ((int)Math.Round(poz.MasaKg)).ToString(CultureInfo.InvariantCulture);
 
-                    sb.AppendLine(string.Join(";", new[]
+                    // Numer siedliska hodowcy - usun podwojne -001 jesli wystepuje
+                    var numerSiedliska = NormalizujNumerSiedliska(poz.PrzyjeteZDzialalnosci);
+
+                    csv.AppendLine(string.Join(";", new[]
                     {
                         poz.Lp.ToString(),                            // Kol 1: Lp
-                        NUMER_RZEZNI,                                  // Kol 2: Nr identyfikacyjny = NUMER RZEZNI (stala!)
-                        poz.TypZdarzenia ?? "UR",                      // Kol 3: Typ zdarzenia = "UR"
+                        NUMER_RZEZNI,                                  // Kol 2: Nr identyfikacyjny = NUMER RZEZNI
+                        poz.TypZdarzenia ?? "UR",                      // Kol 3: Typ zdarzenia
                         poz.LiczbaSztuk.ToString(),                    // Kol 4: Liczba sztuk
-                        dataZdarzeniaStr,                              // Kol 5: Data zdarzenia = "DD-MM-RRRR"
-                        masaStr,                                       // Kol 6: Masa = liczba calkowita BEZ spacji!
-                        poz.KrajWwozu ?? "",                           // Kol 7: Kraj wwozu = puste dla PL
-                        dataZdarzeniaStr,                              // Kol 8: Data kupna = taka sama jak data zdarzenia (WYMAGANE!)
-                        poz.PrzyjeteZDzialalnosci ?? "",               // Kol 9: Przyjete z dzial. = numer siedliska hodowcy
-                        poz.UbojRytualny ? "T" : "N"                   // Kol 10: Uboj rytualny = "N" lub "T"
+                        dataZdarzeniaStr,                              // Kol 5: Data zdarzenia
+                        masaStr,                                       // Kol 6: Masa (liczba calkowita!)
+                        poz.KrajWwozu ?? "",                           // Kol 7: Kraj wwozu
+                        dataZdarzeniaStr,                              // Kol 8: Data kupna = data zdarzenia
+                        numerSiedliska,                                // Kol 9: Przyjete z dzialalnosci
+                        poz.UbojRytualny ? "T" : "N"                   // Kol 10: Uboj rytualny
                     }));
                 }
 
-                // Zapisz z kodowaniem UTF-8 z BOM (dla polskich znakow)
-                File.WriteAllText(filePath, sb.ToString(), new UTF8Encoding(true));
+                // Zapisz z kodowaniem UTF-8 z BOM
+                File.WriteAllText(filePath, csv.ToString(), new UTF8Encoding(true));
+
+                // Zapisz osobny plik z instrukcja
+                ZapiszInstrukcjeImportu(zgloszenie, filePath);
 
                 return new ExportResult
                 {
@@ -136,6 +114,66 @@ namespace Kalendarz1.Services
                     Success = false,
                     Message = $"Blad eksportu CSV: {ex.Message}"
                 };
+            }
+        }
+
+        /// <summary>
+        /// Normalizuje numer siedliska do formatu NNNNNNNNN-NNN.
+        /// Usuwa podwojne "-001" jesli wystepuje (np. "068736945-001-001" -> "068736945-001").
+        /// </summary>
+        private string NormalizujNumerSiedliska(string numer)
+        {
+            if (string.IsNullOrEmpty(numer))
+                return "";
+
+            // Usun biale znaki
+            numer = numer.Trim();
+
+            // Sprawdz czy ma za duzo segmentow (np. 068736945-001-001 lub 068736945-001-001-001)
+            var parts = numer.Split('-');
+            if (parts.Length > 2)
+            {
+                // Zostaw tylko pierwsze dwa segmenty: NNNNNNNNN-NNN
+                return $"{parts[0]}-{parts[1]}";
+            }
+
+            return numer;
+        }
+
+        /// <summary>
+        /// Zapisuje plik z instrukcja importu (osobny plik TXT).
+        /// </summary>
+        private void ZapiszInstrukcjeImportu(ZgloszenieZURD zgloszenie, string csvFilePath)
+        {
+            try
+            {
+                var instrukcjaPath = Path.ChangeExtension(csvFilePath, ".INSTRUKCJA.txt");
+                var sb = new StringBuilder();
+
+                sb.AppendLine("╔══════════════════════════════════════════════════════════════════════════╗");
+                sb.AppendLine("║           INSTRUKCJA IMPORTU DO PORTALU IRZPLUS                          ║");
+                sb.AppendLine("╚══════════════════════════════════════════════════════════════════════════╝");
+                sb.AppendLine();
+                sb.AppendLine("PRZED IMPORTEM WYPELNIJ RECZNIE W PORTALU:");
+                sb.AppendLine("─────────────────────────────────────────────────────────────────────────────");
+                sb.AppendLine($"  Gatunek:              {GATUNEK}");
+                sb.AppendLine($"  Numer rzeźni:         {NUMER_RZEZNI}");
+                sb.AppendLine($"  Numer partii uboju:   {zgloszenie.NumerPartiiUboju}");
+                sb.AppendLine("─────────────────────────────────────────────────────────────────────────────");
+                sb.AppendLine();
+                sb.AppendLine($"Data uboju: {zgloszenie.DataUboju:dd.MM.yyyy}");
+                sb.AppendLine($"Liczba pozycji: {zgloszenie.LiczbaPozycji}");
+                sb.AppendLine($"Suma sztuk: {zgloszenie.SumaLiczbaSztuk:N0}");
+                sb.AppendLine($"Suma masa: {zgloszenie.SumaMasaKg:N0} kg");
+                sb.AppendLine();
+                sb.AppendLine($"Plik CSV: {Path.GetFileName(csvFilePath)}");
+                sb.AppendLine($"Wygenerowano: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+
+                File.WriteAllText(instrukcjaPath, sb.ToString(), new UTF8Encoding(true));
+            }
+            catch
+            {
+                // Ignoruj bledy zapisu instrukcji
             }
         }
 
@@ -275,6 +313,9 @@ namespace Kalendarz1.Services
 
             try
             {
+                // Normalizuj numer siedliska (usun podwojne -001 jesli wystepuje)
+                numerSiedliskaHodowcy = NormalizujNumerSiedliska(numerSiedliskaHodowcy);
+
                 // Generuj numer partii uboju w formacie RRDDDNNN
                 var numerPartiiUboju = ZgloszenieZURD.GenerujNumerPartiiUboju(dataUboju);
 
@@ -296,25 +337,25 @@ namespace Kalendarz1.Services
                 // Masa jako liczba calkowita BEZ separatorow
                 var masaStr = ((int)Math.Round(masaKg)).ToString(CultureInfo.InvariantCulture);
 
-                // === BUDUJ CSV ===
+                // === BUDUJ CSV (CZYSTY - bez komentarzy!) ===
                 var csv = new StringBuilder();
 
-                // Naglowek CSV
+                // Naglowek CSV (pierwsza linia!)
                 csv.AppendLine("Lp;Numer identyfikacyjny/numer partii;Typ zdarzenia;Liczba sztuk drobiu;Data zdarzenia;Masa drobiu poddanego ubojowi (kg);Kraj wwozu;Data kupna/wwozu;Przyjęte z działalności;Ubój rytualny");
 
                 // Dane - JEDNA linia (jeden transport)
                 csv.AppendLine(string.Join(";", new[]
                 {
-                    "1",                                // Kol 1: Lp - zawsze "1" dla pojedynczego transportu
-                    NUMER_RZEZNI,                       // Kol 2: Nr identyfikacyjny = NUMER RZEZNI (stala!)
-                    "UR",                               // Kol 3: Typ zdarzenia = "UR" (Przybycie do rzezni i uboj)
+                    "1",                                // Kol 1: Lp
+                    NUMER_RZEZNI,                       // Kol 2: Nr identyfikacyjny = NUMER RZEZNI
+                    "UR",                               // Kol 3: Typ zdarzenia
                     liczbaSztuk.ToString(),             // Kol 4: Liczba sztuk
                     dataZdarzeniaStr,                   // Kol 5: Data zdarzenia
-                    masaStr,                            // Kol 6: Masa = liczba calkowita BEZ spacji!
-                    "",                                 // Kol 7: Kraj wwozu = puste dla polskich hodowcow
-                    dataZdarzeniaStr,                   // Kol 8: Data kupna = taka sama jak data zdarzenia (WYMAGANE!)
-                    numerSiedliskaHodowcy,              // Kol 9: Przyjete z dzial. = numer siedliska hodowcy
-                    "N"                                 // Kol 10: Uboj rytualny = "N"
+                    masaStr,                            // Kol 6: Masa (liczba calkowita!)
+                    "",                                 // Kol 7: Kraj wwozu
+                    dataZdarzeniaStr,                   // Kol 8: Data kupna = data zdarzenia
+                    numerSiedliskaHodowcy,              // Kol 9: Przyjete z dzialalnosci
+                    "N"                                 // Kol 10: Uboj rytualny
                 }));
 
                 // Zapisz CSV z UTF-8 BOM
