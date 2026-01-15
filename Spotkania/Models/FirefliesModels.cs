@@ -397,24 +397,15 @@ namespace Kalendarz1.Spotkania.Models
     }
 
     /// <summary>
-    /// DTO podsumowania z API
+    /// DTO podsumowania z API (uproszczone - tylko pola dostępne bez Business plan)
     /// </summary>
     public class FirefliesSummaryDto
     {
         [JsonPropertyName("keywords")]
         public List<string>? Keywords { get; set; }
 
-        [JsonPropertyName("action_items")]
-        public List<string>? ActionItems { get; set; }
-
         [JsonPropertyName("overview")]
         public string? Overview { get; set; }
-
-        [JsonPropertyName("shorthand_bullet")]
-        public List<string>? ShorthandBullet { get; set; }
-
-        [JsonPropertyName("outline")]
-        public List<string>? Outline { get; set; }
     }
 
     /// <summary>

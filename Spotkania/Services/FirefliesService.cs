@@ -248,6 +248,7 @@ namespace Kalendarz1.Spotkania.Services
 
             try
             {
+                // Uproszczone zapytanie - bez problematycznych pól summary
                 string query = @"
                     query Transcript($transcriptId: String!) {
                         transcript(id: $transcriptId) {
@@ -256,7 +257,7 @@ namespace Kalendarz1.Spotkania.Services
                             date
                             duration
                             transcript_url
-                            host_email
+                            organizer_email
                             participants
                             sentences {
                                 index
@@ -268,10 +269,7 @@ namespace Kalendarz1.Spotkania.Services
                             }
                             summary {
                                 keywords
-                                action_items
                                 overview
-                                shorthand_bullet
-                                outline
                             }
                         }
                     }";
@@ -430,14 +428,12 @@ namespace Kalendarz1.Spotkania.Services
             cmd.Parameters.AddWithValue("@Transkrypcja", (object?)transkrypcjaTekst ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@TranskrypcjaUrl", (object?)dto.TranscriptUrl ?? DBNull.Value);
 
-            // Summary
+            // Summary - tylko dostępne pola
             cmd.Parameters.AddWithValue("@Podsumowanie", (object?)dto.Summary?.Overview ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@Akcje", dto.Summary?.ActionItems != null
-                ? JsonSerializer.Serialize(dto.Summary.ActionItems) : DBNull.Value);
+            cmd.Parameters.AddWithValue("@Akcje", DBNull.Value); // Pominięte - wymaga business plan
             cmd.Parameters.AddWithValue("@Slowa", dto.Summary?.Keywords != null
                 ? JsonSerializer.Serialize(dto.Summary.Keywords) : DBNull.Value);
-            cmd.Parameters.AddWithValue("@Kroki", dto.Summary?.ShorthandBullet != null
-                ? JsonSerializer.Serialize(dto.Summary.ShorthandBullet) : DBNull.Value);
+            cmd.Parameters.AddWithValue("@Kroki", DBNull.Value); // Pominięte - wymaga business plan
 
             await cmd.ExecuteNonQueryAsync();
         }
