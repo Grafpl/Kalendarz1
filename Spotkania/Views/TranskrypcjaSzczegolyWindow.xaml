@@ -124,6 +124,10 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button x:Name="BtnTrybCiemny" Content="🌙" Style="{StaticResource BtnSecondary}"
+                            Width="40" Margin="0,0,10,0" Click="BtnTrybCiemny_Click" ToolTip="Przelacz tryb ciemny/jasny"/>
+                    <Button x:Name="BtnWidokKolumnowy" Content="▥" Style="{StaticResource BtnSecondary}"
+                            Width="40" Margin="0,0,10,0" Click="BtnWidokKolumnowy_Click" ToolTip="Widok kolumnowy mowcow"/>
                     <Button x:Name="BtnOtworzFireflies" Content="Otworz w Fireflies" Style="{StaticResource BtnSecondary}"
                             Margin="0,0,10,0" Click="BtnOtworzFireflies_Click"/>
                     <Button x:Name="BtnOdswiez" Content="Odswiez z API" Style="{StaticResource BtnWarning}"
@@ -241,10 +245,23 @@
                                                               ItemsSource="{Binding DostepniPracownicy}"
                                                               SelectedValue="{Binding PrzypisanyUserID, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                               SelectedValuePath="UserID"
-                                                              DisplayMemberPath="DisplayName"
                                                               FontSize="14" Padding="10,8"
                                                               SelectionChanged="CmbMowca_SelectionChanged"
                                                               Tag="{Binding}">
+                                                        <ComboBox.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <Border Width="28" Height="28" CornerRadius="14"
+                                                                            Background="{Binding KolorTla}" Margin="0,0,8,0"
+                                                                            Visibility="{Binding InicjalyWidocznosc}">
+                                                                        <TextBlock Text="{Binding Inicjaly}" FontSize="11"
+                                                                                   Foreground="White" FontWeight="Bold"
+                                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                    </Border>
+                                                                    <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
+                                                                </StackPanel>
+                                                            </DataTemplate>
+                                                        </ComboBox.ItemTemplate>
                                                         <ComboBox.Style>
                                                             <Style TargetType="ComboBox">
                                                                 <Setter Property="Background" Value="White"/>
@@ -370,25 +387,33 @@
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Grid.Column="0" Orientation="Horizontal">
-                            <CheckBox x:Name="ChkUzyjNazwSystemowych" Content="Uzywaj nazw z systemu zamiast Fireflies"
+                            <CheckBox x:Name="ChkUzyjNazwSystemowych" Content="Nazwy systemowe"
                                       IsChecked="True" VerticalAlignment="Center"
                                       Checked="ChkUzyjNazwSystemowych_Changed" Unchecked="ChkUzyjNazwSystemowych_Changed"/>
-                            <CheckBox x:Name="ChkPokazCzasy" Content="Pokaz czasy" IsChecked="True"
-                                      Margin="15,0,0,0" VerticalAlignment="Center"
+                            <CheckBox x:Name="ChkPokazCzasy" Content="Czasy" IsChecked="True"
+                                      Margin="10,0,0,0" VerticalAlignment="Center"
                                       Checked="ChkPokazCzasy_Changed" Unchecked="ChkPokazCzasy_Changed"/>
+                            <Border Background="#E0E0E0" Width="1" Height="20" Margin="15,0"/>
+                            <!-- Filtry emocji -->
+                            <TextBlock Text="Filtr:" VerticalAlignment="Center" Foreground="#666" Margin="0,0,8,0"/>
+                            <Button x:Name="BtnFiltrPytania" Content="❓ Pytania" Style="{StaticResource BtnSmall}"
+                                    Background="#9E9E9E" Margin="0,0,5,0" Click="BtnFiltrPytania_Click"
+                                    ToolTip="Pokaz tylko pytania"/>
+                            <Button x:Name="BtnFiltrWazne" Content="⚠️ Wazne" Style="{StaticResource BtnSmall}"
+                                    Background="#9E9E9E" Margin="0,0,5,0" Click="BtnFiltrWazne_Click"
+                                    ToolTip="Pokaz wazne fragmenty (liczby, daty, nazwy)"/>
+                            <Button x:Name="BtnFiltrAkcje" Content="✅ Akcje" Style="{StaticResource BtnSmall}"
+                                    Background="#9E9E9E" Click="BtnFiltrAkcje_Click"
+                                    ToolTip="Pokaz zadania do wykonania"/>
                         </StackPanel>
 
-                        <Grid Grid.Column="1">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="200"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBox x:Name="TxtSzukaj" Grid.Column="0" Padding="8,6"
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <TextBox x:Name="TxtSzukaj" Width="180" Padding="8,6"
                                      Tag="Szukaj w transkrypcji..." FontSize="12"
                                      TextChanged="TxtSzukaj_TextChanged"/>
-                            <Button Grid.Column="1" Content="X" Padding="8,6" Margin="5,0,0,0"
-                                    Click="BtnWyczyscSzukaj_Click" ToolTip="Wyczysc wyszukiwanie"/>
-                        </Grid>
+                            <Button Content="X" Padding="8,6" Margin="5,0,0,0"
+                                    Click="BtnWyczyscSzukaj_Click" ToolTip="Wyczysc wyszukiwanie i filtry"/>
+                        </StackPanel>
                     </Grid>
 
                     <!-- Lista zdan -->

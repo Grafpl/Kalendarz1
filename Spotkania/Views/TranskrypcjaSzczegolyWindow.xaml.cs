@@ -46,6 +46,11 @@ namespace Kalendarz1.Spotkania.Views
         private double _fontSize = 13;
         private bool _isInitialized = false;
 
+        // Nowe ustawienia
+        private bool _trybCiemny = false;
+        private string _filtrEmocji = ""; // "pytania", "wazne", "akcje", ""
+        private bool _widokKolumnowy = false;
+
         // Kolory
         private static readonly string[] KoloryMowcow = {
             "#2196F3", "#4CAF50", "#FF9800", "#9C27B0", "#F44336",
@@ -702,6 +707,8 @@ namespace Kalendarz1.Spotkania.Views
             TxtSzukaj.Text = "";
             _filtrTekst = "";
             _filtrMowcy = "";
+            _filtrEmocji = "";
+            ResetujPrzyciskiFiltrow();
             FiltrujZdania();
         }
 
@@ -741,10 +748,289 @@ namespace Kalendarz1.Spotkania.Views
                 bool pasujeMowca = string.IsNullOrEmpty(_filtrMowcy) ||
                     z.MowcaFireflies == _filtrMowcy;
 
-                z.Widocznosc = pasujeTekst && pasujeMowca ? Visibility.Visible : Visibility.Collapsed;
+                bool pasujeEmocja = SprawdzFiltrEmocji(z.Tekst);
+
+                z.Widocznosc = pasujeTekst && pasujeMowca && pasujeEmocja ? Visibility.Visible : Visibility.Collapsed;
             }
 
             ListaZdan.Items.Refresh();
+        }
+
+        private bool SprawdzFiltrEmocji(string? tekst)
+        {
+            if (string.IsNullOrEmpty(_filtrEmocji)) return true;
+            if (string.IsNullOrEmpty(tekst)) return false;
+
+            var tekstLower = tekst.ToLower();
+
+            switch (_filtrEmocji)
+            {
+                case "pytania":
+                    return tekst.Contains("?") ||
+                           tekstLower.Contains("czy ") ||
+                           tekstLower.Contains("jak ") ||
+                           tekstLower.Contains("co ") ||
+                           tekstLower.Contains("gdzie ") ||
+                           tekstLower.Contains("kiedy ") ||
+                           tekstLower.Contains("dlaczego ") ||
+                           tekstLower.Contains("ile ");
+
+                case "wazne":
+                    // Liczby, daty, kwoty, nazwy wlasne
+                    return System.Text.RegularExpressions.Regex.IsMatch(tekst, @"\d+") ||
+                           tekstLower.Contains("ważn") ||
+                           tekstLower.Contains("kluczow") ||
+                           tekstLower.Contains("termin") ||
+                           tekstLower.Contains("deadline") ||
+                           tekstLower.Contains("pilne") ||
+                           tekstLower.Contains("priorytet") ||
+                           tekstLower.Contains("zł") ||
+                           tekstLower.Contains("euro") ||
+                           tekstLower.Contains("procent") ||
+                           tekstLower.Contains("%");
+
+                case "akcje":
+                    return tekstLower.Contains("trzeba") ||
+                           tekstLower.Contains("musimy") ||
+                           tekstLower.Contains("należy") ||
+                           tekstLower.Contains("zrobimy") ||
+                           tekstLower.Contains("zrobić") ||
+                           tekstLower.Contains("wykonać") ||
+                           tekstLower.Contains("przygotować") ||
+                           tekstLower.Contains("wysłać") ||
+                           tekstLower.Contains("sprawdzić") ||
+                           tekstLower.Contains("ustalić") ||
+                           tekstLower.Contains("umówić") ||
+                           tekstLower.Contains("action") ||
+                           tekstLower.Contains("todo") ||
+                           tekstLower.Contains("task");
+
+                default:
+                    return true;
+            }
+        }
+
+        private void ResetujPrzyciskiFiltrow()
+        {
+            var szaryKolor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#9E9E9E"));
+            BtnFiltrPytania.Background = szaryKolor;
+            BtnFiltrWazne.Background = szaryKolor;
+            BtnFiltrAkcje.Background = szaryKolor;
+        }
+
+        private void UstawAktywnyFiltr(Button aktywny)
+        {
+            ResetujPrzyciskiFiltrow();
+            aktywny.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2196F3"));
+        }
+
+        private void BtnFiltrPytania_Click(object sender, RoutedEventArgs e)
+        {
+            if (_filtrEmocji == "pytania")
+            {
+                _filtrEmocji = "";
+                ResetujPrzyciskiFiltrow();
+            }
+            else
+            {
+                _filtrEmocji = "pytania";
+                UstawAktywnyFiltr(BtnFiltrPytania);
+            }
+            FiltrujZdania();
+        }
+
+        private void BtnFiltrWazne_Click(object sender, RoutedEventArgs e)
+        {
+            if (_filtrEmocji == "wazne")
+            {
+                _filtrEmocji = "";
+                ResetujPrzyciskiFiltrow();
+            }
+            else
+            {
+                _filtrEmocji = "wazne";
+                UstawAktywnyFiltr(BtnFiltrWazne);
+            }
+            FiltrujZdania();
+        }
+
+        private void BtnFiltrAkcje_Click(object sender, RoutedEventArgs e)
+        {
+            if (_filtrEmocji == "akcje")
+            {
+                _filtrEmocji = "";
+                ResetujPrzyciskiFiltrow();
+            }
+            else
+            {
+                _filtrEmocji = "akcje";
+                UstawAktywnyFiltr(BtnFiltrAkcje);
+            }
+            FiltrujZdania();
+        }
+
+        #endregion
+
+        #region Tryb ciemny i widok kolumnowy
+
+        private void BtnTrybCiemny_Click(object sender, RoutedEventArgs e)
+        {
+            _trybCiemny = !_trybCiemny;
+            ZastosujTrybKolorow();
+        }
+
+        private void ZastosujTrybKolorow()
+        {
+            if (_trybCiemny)
+            {
+                // Tryb ciemny
+                this.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E1E1E"));
+                BtnTrybCiemny.Content = "☀️";
+
+                // Aktualizuj karty
+                foreach (var child in FindVisualChildren<Border>(this))
+                {
+                    if (child.Background is SolidColorBrush brush && brush.Color == Colors.White)
+                    {
+                        child.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2D2D2D"));
+                    }
+                }
+
+                // Aktualizuj teksty
+                foreach (var tb in FindVisualChildren<TextBlock>(this))
+                {
+                    if (tb.Foreground is SolidColorBrush brush)
+                    {
+                        var color = brush.Color.ToString();
+                        if (color == "#FF333333" || color == "#FF666666")
+                        {
+                            tb.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CCCCCC"));
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // Tryb jasny - przywroc oryginalne kolory
+                this.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F5F5F5"));
+                BtnTrybCiemny.Content = "🌙";
+
+                // Wymaga ponownego zaladowania okna dla pelnego efektu
+                // Na razie odswiezamy podstawowe elementy
+            }
+        }
+
+        private void BtnWidokKolumnowy_Click(object sender, RoutedEventArgs e)
+        {
+            _widokKolumnowy = !_widokKolumnowy;
+
+            if (_widokKolumnowy)
+            {
+                BtnWidokKolumnowy.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4CAF50"));
+                PokazWidokKolumnowy();
+            }
+            else
+            {
+                BtnWidokKolumnowy.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#607D8B"));
+                // Powrot do normalnego widoku - odswiez liste
+                ListaZdan.Items.Refresh();
+            }
+        }
+
+        private void PokazWidokKolumnowy()
+        {
+            // Otworz nowe okno z widokiem kolumnowym
+            var dialog = new Window
+            {
+                Title = "Widok kolumnowy - rozmowa",
+                Width = 1200,
+                Height = 800,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F5F5F5"))
+            };
+
+            var mainGrid = new Grid();
+            var columnCount = Math.Min(_mowcy.Count, 4);
+            for (int i = 0; i < columnCount; i++)
+            {
+                mainGrid.ColumnDefinitions.Add(new ColumnDefinition());
+            }
+
+            for (int i = 0; i < columnCount && i < _mowcy.Count; i++)
+            {
+                var mowca = _mowcy.ElementAt(i);
+                var column = new StackPanel { Margin = new Thickness(10) };
+
+                // Naglowek kolumny
+                var header = new Border
+                {
+                    Background = mowca.KolorMowcy,
+                    CornerRadius = new CornerRadius(6),
+                    Padding = new Thickness(10),
+                    Margin = new Thickness(0, 0, 0, 10)
+                };
+                var headerText = new TextBlock
+                {
+                    Text = !string.IsNullOrEmpty(mowca.PrzypisanyUserName) ? mowca.PrzypisanyUserName : mowca.DisplayFireflies,
+                    Foreground = Brushes.White,
+                    FontWeight = FontWeights.Bold,
+                    FontSize = 14,
+                    TextAlignment = TextAlignment.Center
+                };
+                header.Child = headerText;
+                column.Children.Add(header);
+
+                // Wypowiedzi mowcy
+                var scrollViewer = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+                var wypowiedziPanel = new StackPanel();
+
+                foreach (var z in _zdania.Where(x => x.MowcaFireflies == mowca.SpeakerNameFireflies || x.SpeakerId == mowca.SpeakerId))
+                {
+                    var border = new Border
+                    {
+                        Background = new SolidColorBrush(Colors.White),
+                        CornerRadius = new CornerRadius(4),
+                        Padding = new Thickness(8),
+                        Margin = new Thickness(0, 0, 0, 5)
+                    };
+                    var textBlock = new TextBlock
+                    {
+                        Text = z.Tekst,
+                        TextWrapping = TextWrapping.Wrap,
+                        FontSize = 12
+                    };
+                    border.Child = textBlock;
+                    wypowiedziPanel.Children.Add(border);
+                }
+
+                scrollViewer.Content = wypowiedziPanel;
+                column.Children.Add(scrollViewer);
+
+                Grid.SetColumn(column, i);
+                mainGrid.Children.Add(column);
+            }
+
+            dialog.Content = mainGrid;
+            dialog.Show();
+        }
+
+        private static IEnumerable<T> FindVisualChildren<T>(DependencyObject parent) where T : DependencyObject
+        {
+            if (parent == null) yield break;
+
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T typedChild)
+                {
+                    yield return typedChild;
+                }
+                foreach (var grandChild in FindVisualChildren<T>(child))
+                {
+                    yield return grandChild;
+                }
+            }
         }
 
         private void BtnKopiujTranskrypcje_Click(object sender, RoutedEventArgs e)
@@ -1473,8 +1759,39 @@ namespace Kalendarz1.Spotkania.Views
 
     public class PracownikItem
     {
+        private static readonly string[] KoloryAvatarow = {
+            "#2196F3", "#4CAF50", "#FF9800", "#9C27B0", "#F44336",
+            "#00BCD4", "#795548", "#607D8B", "#E91E63", "#3F51B5"
+        };
+
         public string UserID { get; set; } = "";
         public string DisplayName { get; set; } = "";
+
+        public string Inicjaly
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(DisplayName) || string.IsNullOrEmpty(UserID))
+                    return "";
+                var parts = DisplayName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 2)
+                    return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+                return DisplayName.Length >= 2 ? DisplayName.Substring(0, 2).ToUpper() : DisplayName.ToUpper();
+            }
+        }
+
+        public SolidColorBrush KolorTla
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(UserID)) return new SolidColorBrush(Colors.Transparent);
+                var hash = UserID.GetHashCode();
+                var idx = Math.Abs(hash) % KoloryAvatarow.Length;
+                return new SolidColorBrush((Color)ColorConverter.ConvertFromString(KoloryAvatarow[idx]));
+            }
+        }
+
+        public Visibility InicjalyWidocznosc => string.IsNullOrEmpty(UserID) ? Visibility.Collapsed : Visibility.Visible;
     }
 
     public class ZdanieDisplay : INotifyPropertyChanged
