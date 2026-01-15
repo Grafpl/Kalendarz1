@@ -226,7 +226,7 @@
                         <BeginStoryboard>
                             <Storyboard>
                                 <ColorAnimation Storyboard.TargetProperty="(DataGridRow.Background).(SolidColorBrush.Color)"
-                                                From="#5A5A80" To="#3D3D5C" Duration="0:0:0.4" 
+                                                From="#5A5A80" To="#3D3D5C" Duration="0:0:0.4"
                                                 AutoReverse="True" RepeatBehavior="2x"/>
                             </Storyboard>
                         </BeginStoryboard>
@@ -257,17 +257,20 @@
     </Window.Resources>
 
     <Grid Background="#121212">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition x:Name="colRight" Width="440"/>
+            <ColumnDefinition Width="440"/>
         </Grid.ColumnDefinitions>
 
-        <!-- Lewa strona - główny obszar -->
-        <Grid Grid.Row="0" Grid.Column="0" Margin="10">
+        <!-- Lewa strona -->
+        <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Główny obszar -->
+            <Grid Grid.Row="0" Margin="10">
                 <!-- Widok kafelków AVILOG -->
                 <ScrollViewer x:Name="viewTiles" VerticalScrollBarVisibility="Auto">
                     <ItemsControl x:Name="listDostawy">
@@ -278,8 +281,8 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border x:Name="cardBorder" CornerRadius="12" Margin="5" Padding="10" BorderThickness="3" 
-                                        Cursor="Hand" MouseLeftButtonUp="Dostawa_Click" MouseRightButtonUp="Dostawa_RightClick" 
+                                <Border x:Name="cardBorder" CornerRadius="12" Margin="5" Padding="10" BorderThickness="3"
+                                        Cursor="Hand" MouseLeftButtonUp="Dostawa_Click" MouseRightButtonUp="Dostawa_RightClick"
                                         Tag="{Binding}" MinHeight="155"
                                         Background="{Binding CardBackground}" BorderBrush="{Binding CardBorderBrush}">
                                     <Border.ContextMenu>
@@ -304,14 +307,14 @@
                                                 <Border Background="#333" CornerRadius="4" Padding="6,1" Margin="0,0,6,0">
                                                     <TextBlock Text="{Binding Lp}" Foreground="White" FontWeight="Bold" FontSize="13"/>
                                                 </Border>
-                                                <TextBlock Text="{Binding GodzinaPrzyjazdu}" FontSize="18" FontWeight="Bold" 
+                                                <TextBlock Text="{Binding GodzinaPrzyjazdu}" FontSize="18" FontWeight="Bold"
                                                            Foreground="{DynamicResource ThemeColor}" VerticalAlignment="Center"/>
                                                 <TextBlock Text=" • " FontSize="14" Foreground="#666" VerticalAlignment="Center"/>
                                                 <TextBlock Text="{Binding KierowcaNazwa}" FontSize="14" FontWeight="Bold"
                                                            Foreground="#EEE" VerticalAlignment="Center"/>
                                             </StackPanel>
-                                            <TextBlock Text="{Binding HodowcaNazwa}" HorizontalAlignment="Right" 
-                                                       Foreground="#FF8A80" FontSize="14" FontWeight="Bold" 
+                                            <TextBlock Text="{Binding HodowcaNazwa}" HorizontalAlignment="Right"
+                                                       Foreground="#FF8A80" FontSize="14" FontWeight="Bold"
                                                        TextTrimming="CharacterEllipsis" MaxWidth="150"/>
                                         </Grid>
 
@@ -365,44 +368,12 @@
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
                         <DataGridTextColumn Header="GODZ." Binding="{Binding GodzinaPrzyjazdu}" Width="80"/>
-                        <DataGridTemplateColumn Header="TOWAR" Width="160">
+                        <DataGridTemplateColumn Header="" Width="55">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox x:Name="cbTowarInGrid" SelectedValue="{Binding TowarKod, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                              SelectedValuePath="Tag" SelectionChanged="CbTowarInGrid_SelectionChanged"
-                                              Tag="{Binding}" Background="#252530" Foreground="White" FontWeight="Bold"
-                                              BorderBrush="#444" Height="38" FontSize="13" Padding="4,0">
-                                        <ComboBoxItem Tag="KREW">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="❤" FontSize="18" Foreground="#FF5555" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                                                <TextBlock Text="KREW" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </ComboBoxItem>
-                                        <ComboBoxItem Tag="LAPY">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="🐾" FontSize="18" Foreground="#FFD54F" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                                                <TextBlock Text="LAPY" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </ComboBoxItem>
-                                        <ComboBoxItem Tag="JELITA">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="➰" FontSize="18" Foreground="#A1887F" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                                                <TextBlock Text="JELITA" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </ComboBoxItem>
-                                        <ComboBoxItem Tag="PIORA">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="~" FontSize="20" Foreground="#BDBDBD" FontStyle="Italic" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                                                <TextBlock Text="PIORA" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </ComboBoxItem>
-                                        <ComboBoxItem Tag="ODPADY">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="♻" FontSize="18" Foreground="#AB47BC" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                                                <TextBlock Text="ODPADY" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </ComboBoxItem>
-                                    </ComboBox>
+                                    <TextBlock Text="{Binding TowarIcon}" FontSize="32" FontWeight="Bold"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Foreground="{Binding TowarColor}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -414,19 +385,18 @@
                     </DataGrid.Columns>
                 </DataGrid>
 
-
                 <!-- Przyciski dla ODPADY -->
-                <StackPanel x:Name="panelButtonsLeft" VerticalAlignment="Bottom" HorizontalAlignment="Right" 
+                <StackPanel x:Name="panelButtonsLeft" VerticalAlignment="Bottom" HorizontalAlignment="Right"
                             Orientation="Horizontal" Visibility="Collapsed" Margin="0,0,20,20">
-                    <Button x:Name="btnScanOdpady" Width="80" Height="80" Margin="0,0,10,0" 
+                    <Button x:Name="btnScanOdpady" Width="80" Height="80" Margin="0,0,10,0"
                             Click="BtnScan_Click" Style="{StaticResource ActionButtonStyle}">
                         <TextBlock Text="&#x1F4F7;" FontSize="32"/>
                     </Button>
-                    <Button x:Name="btnPrintOdpady" Width="80" Height="80" Margin="0,0,10,0" 
+                    <Button x:Name="btnPrintOdpady" Width="80" Height="80" Margin="0,0,10,0"
                             Click="BtnPrint_Click" Style="{StaticResource ActionButtonStyle}">
                         <TextBlock Text="&#x1F5B6;" FontSize="32"/>
                     </Button>
-                    <Button x:Name="btnDelete" Width="80" Height="80" Margin="0,0,10,0" 
+                    <Button x:Name="btnDelete" Width="80" Height="80" Margin="0,0,10,0"
                             Click="BtnDelete_Click" IsEnabled="False">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
@@ -451,8 +421,8 @@
                 </StackPanel>
             </Grid>
 
-        <!-- Dolny panel nawigacji -->
-        <Border Grid.Row="1" Grid.ColumnSpan="2" Background="#181820" Padding="12,10" BorderThickness="0,2,0,0" BorderBrush="#333">
+            <!-- Dolny panel nawigacji -->
+            <Border Grid.Row="1" Background="#181820" Padding="12,10" BorderThickness="0,2,0,0" BorderBrush="#333">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -471,7 +441,7 @@
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border Background="#2A1010" CornerRadius="8" BorderBrush="#800" BorderThickness="2">
-                                    <TextBlock Text="X" FontSize="24" Foreground="#FF5555" FontWeight="Bold" 
+                                    <TextBlock Text="X" FontSize="24" Foreground="#FF5555" FontWeight="Bold"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                             </ControlTemplate>
@@ -479,11 +449,11 @@
                     </Button>
 
                     <!-- DatePicker z ciemnym stylem -->
-                    <Border Grid.Column="1" Background="#FFA726" CornerRadius="8" BorderBrush="#FFA726" 
+                    <Border Grid.Column="1" Background="#FFA726" CornerRadius="8" BorderBrush="#FFA726"
                             BorderThickness="2" Padding="4,2" Margin="0,0,10,0">
-                        <DatePicker x:Name="dpDate" SelectedDate="{Binding SelectedDate, Mode=TwoWay}" 
-                                    SelectedDateChanged="DatePicker_SelectedDateChanged" 
-                                    Width="145" Height="44" FontSize="18" FontWeight="Bold" 
+                        <DatePicker x:Name="dpDate" SelectedDate="{Binding SelectedDate, Mode=TwoWay}"
+                                    SelectedDateChanged="DatePicker_SelectedDateChanged"
+                                    Width="145" Height="44" FontSize="18" FontWeight="Bold"
                                     Background="#FFA726" BorderThickness="0" Foreground="Black">
                             <DatePicker.Resources>
                                 <Style TargetType="DatePickerTextBox">
@@ -494,7 +464,7 @@
                                     <Setter Property="Control.Template">
                                         <Setter.Value>
                                             <ControlTemplate>
-                                                <TextBox x:Name="PART_TextBox" 
+                                                <TextBox x:Name="PART_TextBox"
                                                          Text="{Binding Path=SelectedDate, RelativeSource={RelativeSource AncestorType=DatePicker}, StringFormat='{}{0:dd.MM.yyyy}'}"
                                                          Foreground="Black" Background="Transparent" BorderThickness="0"
                                                          FontSize="18" FontWeight="Bold" VerticalContentAlignment="Center"
@@ -508,21 +478,21 @@
                     </Border>
 
                     <!-- Przyciski SKAN i DRUKUJ dla AVILOG -->
-                    <Button x:Name="btnScanAvilog" Grid.Column="2" Click="BtnScan_Click" 
+                    <Button x:Name="btnScanAvilog" Grid.Column="2" Click="BtnScan_Click"
                             Style="{StaticResource ActionButtonStyle}" Height="50" Width="100" Margin="0,0,5,0">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#x1F4F7;" FontSize="20" Margin="0,0,5,0"/>
                             <TextBlock Text="SKAN" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="btnPrintAvilog" Grid.Column="3" Click="BtnPrint_Click" 
+                    <Button x:Name="btnPrintAvilog" Grid.Column="3" Click="BtnPrint_Click"
                             Style="{StaticResource ActionButtonStyle}" Height="50" Width="110" Margin="0,0,5,0">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#x1F5B6;" FontSize="20" Margin="0,0,5,0"/>
                             <TextBlock Text="DRUKUJ" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    
+
                     <!-- Przycisk KAMERA -->
                     <Button Grid.Column="4" Click="BtnCamera_Click" HorizontalAlignment="Left"
                             Style="{StaticResource ActionButtonStyle}" Height="50" Width="120" Margin="0,0,5,0">
@@ -530,6 +500,21 @@
                             <TextBlock Text="&#x1F3A5;" FontSize="20" Margin="0,0,5,0"/>
                             <TextBlock Text="KAMERA" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
                         </StackPanel>
+                    </Button>
+
+                    <!-- Przycisk ALPR - rozpoznawanie tablic -->
+                    <Button Grid.Column="4" Click="BtnScanPlate_Click" HorizontalAlignment="Left" Margin="130,0,0,0"
+                            Height="50" Width="100" ToolTip="Rozpoznaj tablicę rejestracyjną z kamery">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="#2E7D32" CornerRadius="8" Cursor="Hand">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock Text="🚗" FontSize="18" Margin="0,0,5,0"/>
+                                        <TextBlock Text="ALPR" FontSize="14" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
                     </Button>
 
                     <!-- Przełącznik trybów -->
@@ -548,32 +533,48 @@
                                 <TextBlock Text="KREW / JELITA / LAPY / PIORA" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </RadioButton>
-                        <RadioButton x:Name="rbKamery" GroupName="Mode" Click="ZmienTryb_Click"
-                                     Style="{StaticResource ModeRadioStyle}" Height="50">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#x1F3A5;" FontSize="22" Margin="0,0,6,0" Foreground="#89B4FA"/>
-                                <TextBlock Text="KAMERY" FontSize="15" FontWeight="Bold" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </RadioButton>
                     </StackPanel>
 
+                    <!-- Status drukarki -->
+                    <Border Grid.Column="5" Background="#1A1A24" CornerRadius="8" Padding="10,5" Margin="10,0"
+                            VerticalAlignment="Center" HorizontalAlignment="Left">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="lblPrinterIcon" Text="🖨️" FontSize="18" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBlock x:Name="lblPrinterStatus" Text="" FontSize="12" Foreground="#888"
+                                       VerticalAlignment="Center" MaxWidth="200" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                    </Border>
+
                     <!-- Przycisk odśwież -->
-                    <Button Grid.Column="6" Click="BtnRefresh_Click" Background="Transparent" BorderThickness="0" 
+                    <Button Grid.Column="6" Click="BtnRefresh_Click" Background="Transparent" BorderThickness="0"
                             Margin="10,0" Width="50" Height="50" Cursor="Hand">
                         <TextBlock Text="&#x1F504;" FontSize="26" Foreground="White"/>
                     </Button>
 
                     <!-- Zegar -->
-                    <Border Grid.Column="8" Background="Black" CornerRadius="10" Padding="16,0" Height="50" 
+                    <Border Grid.Column="8" Background="Black" CornerRadius="10" Padding="16,0" Height="50"
                             BorderBrush="#FFA726" BorderThickness="2">
-                        <TextBlock x:Name="lblTime" Text="12:00" FontSize="26" FontWeight="Black" 
+                        <TextBlock x:Name="lblTime" Text="12:00" FontSize="26" FontWeight="Black"
                                    Foreground="#FFA726" VerticalAlignment="Center"/>
                     </Border>
                 </Grid>
             </Border>
+        </Grid>
+
+        <!-- Ukryte elementy kamery dla kompatybilności z kodem -->
+        <Image x:Name="cameraImage1" Visibility="Collapsed"/>
+        <Image x:Name="cameraImage2" Visibility="Collapsed"/>
+        <Image x:Name="cameraImage3" Visibility="Collapsed"/>
+        <Image x:Name="cameraImage4" Visibility="Collapsed"/>
+        <TextBlock x:Name="cameraStatus1" Visibility="Collapsed"/>
+        <TextBlock x:Name="cameraStatus2" Visibility="Collapsed"/>
+        <TextBlock x:Name="cameraStatus3" Visibility="Collapsed"/>
+        <TextBlock x:Name="cameraStatus4" Visibility="Collapsed"/>
+        <TextBlock x:Name="lblCameraFps" Visibility="Collapsed"/>
+        <TextBlock x:Name="lblStreamInfo" Visibility="Collapsed"/>
 
         <!-- Prawa strona - panel wagi -->
-        <Border x:Name="panelRight" Grid.Row="0" Grid.Column="1" Background="#16161D" BorderBrush="#333" BorderThickness="2,0,0,0">
+        <Border Grid.Column="1" Background="#16161D" BorderBrush="#333" BorderThickness="2,0,0,0">
             <Grid Margin="10">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -585,7 +586,7 @@
                 </Grid.RowDefinitions>
 
                 <!-- Panel informacji o pojeździe -->
-                <Border Grid.Row="0" Background="#1E1E2E" CornerRadius="12" Padding="10" Margin="0,0,0,5" 
+                <Border Grid.Row="0" Background="#1E1E2E" CornerRadius="12" Padding="10" Margin="0,0,0,5"
                         BorderBrush="#444" BorderThickness="1">
                     <StackPanel>
                         <Grid>
@@ -596,11 +597,11 @@
                                     <TextBlock Text="  " FontSize="28"/>
                                     <TextBlock x:Name="lblWybranaNaczepa" Text="---" FontSize="28" FontWeight="Black" Foreground="#FFA726"/>
                                 </StackPanel>
-                                <TextBlock x:Name="lblWybranyKierowca" Text="Wybierz pojazd" FontSize="22" FontWeight="Bold" 
+                                <TextBlock x:Name="lblWybranyKierowca" Text="Wybierz pojazd" FontSize="22" FontWeight="Bold"
                                            Foreground="#EEE" HorizontalAlignment="Center" Margin="0,4,0,0"/>
-                                <TextBlock x:Name="lblWybranyHodowca" Text="" FontSize="16" Foreground="#FF8A80" 
+                                <TextBlock x:Name="lblWybranyHodowca" Text="" FontSize="16" Foreground="#FF8A80"
                                            FontWeight="Bold" HorizontalAlignment="Center" Margin="0,2,0,0"/>
-                                <TextBlock x:Name="lblWybranaGodzina" Text="" FontSize="13" Foreground="#888" 
+                                <TextBlock x:Name="lblWybranaGodzina" Text="" FontSize="13" Foreground="#888"
                                            HorizontalAlignment="Center" Margin="0,2,0,0"/>
                             </StackPanel>
 
@@ -667,35 +668,35 @@
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <RadioButton Grid.Row="0" Grid.Column="0" GroupName="C" x:Name="btnKrew" 
+                    <RadioButton Grid.Row="0" Grid.Column="0" GroupName="C" x:Name="btnKrew"
                                  Style="{StaticResource CommodityRadioStyle}" Click="BtnCommodity_Click" IsChecked="True" Height="55">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                             <TextBlock Text="&#x2764;" FontSize="22" Margin="0,0,5,0" Foreground="#FF5555"/>
                             <TextBlock Text="KREW" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
                         </StackPanel>
                     </RadioButton>
-                    <RadioButton Grid.Row="0" Grid.Column="1" GroupName="C" x:Name="btnLapy" 
+                    <RadioButton Grid.Row="0" Grid.Column="1" GroupName="C" x:Name="btnLapy"
                                  Style="{StaticResource CommodityRadioStyle}" Click="BtnCommodity_Click" Height="55">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                             <TextBlock Text="&#x1F43E;" FontSize="22" Margin="0,0,5,0" Foreground="#FFD54F"/>
                             <TextBlock Text="LAPY" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
                         </StackPanel>
                     </RadioButton>
-                    <RadioButton Grid.Row="0" Grid.Column="2" GroupName="C" x:Name="btnJelita" 
+                    <RadioButton Grid.Row="0" Grid.Column="2" GroupName="C" x:Name="btnJelita"
                                  Style="{StaticResource CommodityRadioStyle}" Click="BtnCommodity_Click" Height="55">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                             <TextBlock Text="&#x27B0;" FontSize="22" Margin="0,0,5,0" Foreground="#A1887F"/>
                             <TextBlock Text="JELITA" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
                         </StackPanel>
                     </RadioButton>
-                    <RadioButton Grid.Row="1" Grid.Column="0" GroupName="C" x:Name="btnPiora" 
+                    <RadioButton Grid.Row="1" Grid.Column="0" GroupName="C" x:Name="btnPiora"
                                  Style="{StaticResource CommodityRadioStyle}" Click="BtnCommodity_Click" Height="55">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                             <TextBlock Text="~" FontSize="26" Margin="0,0,5,0" Foreground="#BDBDBD" FontStyle="Italic"/>
                             <TextBlock Text="PIORA" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
                         </StackPanel>
                     </RadioButton>
-                    <RadioButton Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" GroupName="C" x:Name="btnOdpady" 
+                    <RadioButton Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" GroupName="C" x:Name="btnOdpady"
                                  Style="{StaticResource CommodityRadioStyle}" Click="BtnCommodity_Click" Height="55">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                             <TextBlock Text="&#x267B;" FontSize="22" Margin="0,0,5,0" Foreground="#AB47BC"/>
@@ -725,9 +726,9 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <RadioButton x:Name="radioTara" Content="TARA (puste)" IsChecked="True" Click="Mode_Click" 
+                    <RadioButton x:Name="radioTara" Content="TARA (puste)" IsChecked="True" Click="Mode_Click"
                                  GroupName="WT" Margin="0,0,3,0" Style="{StaticResource WeightToggleStyle}"/>
-                    <RadioButton x:Name="radioBrutto" Content="BRUTTO (pelne)" Click="Mode_Click" 
+                    <RadioButton x:Name="radioBrutto" Content="BRUTTO (pelne)" Click="Mode_Click"
                                  GroupName="WT" Grid.Column="1" Margin="3,0,0,0" Style="{StaticResource WeightToggleStyle}"/>
                 </Grid>
 
@@ -736,11 +737,14 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
                     <!-- Przycisk zapisz -->
-                    <Button Grid.Row="0" x:Name="btnZapisz" Click="BtnZapisz_Click" Height="60" Cursor="Hand">
+                    <Button Grid.Row="0" Grid.Column="0" x:Name="btnZapisz" Click="BtnZapisz_Click" Height="60" Margin="0,0,5,0" Cursor="Hand">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border x:Name="saveBrd" Background="#4CAF50" CornerRadius="12">
@@ -756,8 +760,25 @@
                         </Button.Template>
                     </Button>
 
+                    <!-- Przycisk drukuj wagę -->
+                    <Button Grid.Row="0" Grid.Column="1" x:Name="btnDrukujWage" Click="BtnDrukujWage_Click" Height="60" Width="60" Cursor="Hand"
+                            ToolTip="Drukuj wagę na drukarce PICCO">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="printBrd" Background="#1976D2" CornerRadius="12">
+                                    <TextBlock Text="🖨️" FontSize="28" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="printBrd" Property="Background" Value="#2196F3"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+
                     <!-- Checkbox automatycznego druku paragonu -->
-                    <CheckBox Grid.Row="1" x:Name="chkAutoPrint" IsChecked="True"
+                    <CheckBox Grid.Row="1" Grid.ColumnSpan="2" x:Name="chkAutoPrint" IsChecked="True"
                               Margin="0,8,0,0" HorizontalAlignment="Center" Cursor="Hand"
                               ToolTip="Automatycznie drukuj paragon po zatwierdzeniu wagi">
                         <StackPanel Orientation="Horizontal">
@@ -766,14 +787,6 @@
                                        VerticalAlignment="Center" FontWeight="SemiBold"/>
                         </StackPanel>
                     </CheckBox>
-
-                    <!-- Status drukarki -->
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5,0,0">
-                        <TextBlock x:Name="lblPrinterIcon" Text="🖨️" FontSize="14" Foreground="#888888"
-                                   VerticalAlignment="Center" Margin="0,0,6,0"/>
-                        <TextBlock x:Name="lblPrinterStatus" Text="" FontSize="12" Foreground="#888888"
-                                   VerticalAlignment="Center" FontWeight="SemiBold"/>
-                    </StackPanel>
                 </Grid>
 
                 <!-- Numpad -->
@@ -809,113 +822,16 @@
         <TextBlock x:Name="txtBrutto" Visibility="Collapsed" Text="0"/>
         <TextBlock x:Name="txtTara" Visibility="Collapsed" Text="0"/>
 
-        <!-- Widok pojedynczej kamery - pełny ekran z przełącznikiem strumienia -->
-        <Grid x:Name="viewCameras" Visibility="Collapsed" Grid.Row="0" Grid.ColumnSpan="2" Background="Black">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-
-            <!-- Pasek górny z przełącznikiem strumienia -->
-            <Border Grid.Row="0" Background="#1A1A24" Padding="15,10">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-
-                    <!-- Etykieta kamery -->
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="🎥" FontSize="24" Margin="0,0,10,0"/>
-                        <TextBlock Text="KAMERA WJAZD" FontSize="20" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
-                    </StackPanel>
-
-                    <!-- Przełącznik strumienia na środku -->
-                    <Border Grid.Column="1" Background="#252530" CornerRadius="10" HorizontalAlignment="Center" Padding="5">
-                        <StackPanel Orientation="Horizontal">
-                            <RadioButton x:Name="rbMainStream" GroupName="CameraStream"
-                                         Click="StreamSwitch_Click" Cursor="Hand">
-                                <RadioButton.Template>
-                                    <ControlTemplate TargetType="RadioButton">
-                                        <Border x:Name="streamBrd" Background="Transparent" CornerRadius="8" Padding="20,10">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="HD" FontSize="16" FontWeight="Bold" Foreground="#888"
-                                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                                <TextBlock x:Name="streamTxt" Text="GŁÓWNY" FontSize="14" FontWeight="Bold"
-                                                           Foreground="#888" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsChecked" Value="True">
-                                                <Setter TargetName="streamBrd" Property="Background" Value="#4CAF50"/>
-                                                <Setter TargetName="streamTxt" Property="Foreground" Value="White"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </RadioButton.Template>
-                            </RadioButton>
-                            <RadioButton x:Name="rbSubStream" GroupName="CameraStream" IsChecked="True"
-                                         Click="StreamSwitch_Click" Cursor="Hand">
-                                <RadioButton.Template>
-                                    <ControlTemplate TargetType="RadioButton">
-                                        <Border x:Name="streamBrd" Background="Transparent" CornerRadius="8" Padding="20,10">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="SD" FontSize="16" FontWeight="Bold" Foreground="#888"
-                                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                                <TextBlock x:Name="streamTxt" Text="PODSTRUMIEŃ" FontSize="14" FontWeight="Bold"
-                                                           Foreground="#888" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsChecked" Value="True">
-                                                <Setter TargetName="streamBrd" Property="Background" Value="#2196F3"/>
-                                                <Setter TargetName="streamTxt" Property="Foreground" Value="White"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </RadioButton.Template>
-                            </RadioButton>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Status po prawej -->
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock x:Name="lblStreamInfo" Text="640x480" FontSize="14" Foreground="#666"
-                                   VerticalAlignment="Center" Margin="0,0,15,0"/>
-                        <Border Background="#333" CornerRadius="5" Padding="10,5">
-                            <TextBlock x:Name="lblCameraFps" Text="-- FPS" FontSize="14" Foreground="#89B4FA" FontWeight="Bold"/>
-                        </Border>
-                    </StackPanel>
-                </Grid>
-            </Border>
-
-            <!-- Obszar kamery -->
-            <Grid Grid.Row="1" Background="Black">
-                <Image x:Name="cameraImage1" Stretch="Uniform"/>
-                <TextBlock x:Name="cameraStatus1" Text="Łączenie z kamerą..." FontSize="28" Foreground="#555"
-                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Grid>
-
-            <!-- Ukryte elementy dla kompatybilności z kodem -->
-            <Image x:Name="cameraImage2" Visibility="Collapsed"/>
-            <Image x:Name="cameraImage3" Visibility="Collapsed"/>
-            <Image x:Name="cameraImage4" Visibility="Collapsed"/>
-            <TextBlock x:Name="cameraStatus2" Visibility="Collapsed"/>
-            <TextBlock x:Name="cameraStatus3" Visibility="Collapsed"/>
-            <TextBlock x:Name="cameraStatus4" Visibility="Collapsed"/>
-        </Grid>
-
         <!-- Overlay klawiatury ekranowej -->
-        <Grid x:Name="KeyboardOverlay" Visibility="Collapsed" Grid.RowSpan="2" Grid.ColumnSpan="2" Background="#90000000" 
+        <Grid x:Name="KeyboardOverlay" Visibility="Collapsed" Grid.ColumnSpan="2" Background="#90000000"
               MouseLeftButtonUp="KeyboardOverlay_Click">
-            <Border VerticalAlignment="Bottom" Background="#F5101018" BorderBrush="#FFA726" BorderThickness="0,3,0,0" 
+            <Border VerticalAlignment="Bottom" Background="#F5101018" BorderBrush="#FFA726" BorderThickness="0,3,0,0"
                     Padding="20" MouseLeftButtonUp="KeyboardPanel_Click">
                 <StackPanel>
                     <Grid Margin="0,0,0,15">
-                        <TextBlock Text="WPISZ NUMER REJESTRACYJNY" Foreground="#FFA726" FontWeight="Bold" 
+                        <TextBlock Text="WPISZ NUMER REJESTRACYJNY" Foreground="#FFA726" FontWeight="Bold"
                                    HorizontalAlignment="Center" FontSize="24"/>
-                        <Button HorizontalAlignment="Right" Click="CloseKeyboard_Click" Background="Transparent" 
+                        <Button HorizontalAlignment="Right" Click="CloseKeyboard_Click" Background="Transparent"
                                 BorderThickness="0" Width="50" Height="50">
                             <TextBlock Text="X" Foreground="White" FontSize="30" FontWeight="Bold"/>
                         </Button>
@@ -977,7 +893,7 @@
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border Background="#4CAF50" CornerRadius="12">
-                                    <TextBlock Text="GOTOWE" FontSize="28" FontWeight="Black" Foreground="White" 
+                                    <TextBlock Text="GOTOWE" FontSize="28" FontWeight="Black" Foreground="White"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                             </ControlTemplate>
@@ -988,13 +904,13 @@
         </Grid>
 
         <!-- Overlay PIN -->
-        <Grid x:Name="PasswordOverlay" Visibility="Collapsed" Grid.RowSpan="2" Grid.ColumnSpan="2" Background="#E0000000">
+        <Grid x:Name="PasswordOverlay" Visibility="Collapsed" Grid.ColumnSpan="2" Background="#E0000000">
             <Border Background="#1E1E2E" CornerRadius="20" Padding="40" VerticalAlignment="Center" HorizontalAlignment="Center" Width="400">
                 <StackPanel>
-                    <TextBlock Text="PODAJ KOD PIN" FontSize="28" FontWeight="Bold" Foreground="White" 
+                    <TextBlock Text="PODAJ KOD PIN" FontSize="28" FontWeight="Bold" Foreground="White"
                                HorizontalAlignment="Center" Margin="0,0,0,20"/>
                     <Border Background="Black" CornerRadius="10" Padding="20,12" Margin="0,0,0,20">
-                        <TextBlock x:Name="txtPinDisplay" Text="____" FontSize="40" FontWeight="Bold" 
+                        <TextBlock x:Name="txtPinDisplay" Text="____" FontSize="40" FontWeight="Bold"
                                    Foreground="#FFA726" HorizontalAlignment="Center" FontFamily="Consolas"/>
                     </Border>
                     <Grid>
@@ -1026,7 +942,7 @@
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border Background="#333" CornerRadius="10">
-                                    <TextBlock Text="ANULUJ" FontSize="18" FontWeight="Bold" Foreground="#888" 
+                                    <TextBlock Text="ANULUJ" FontSize="18" FontWeight="Bold" Foreground="#888"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                             </ControlTemplate>
@@ -1035,12 +951,12 @@
                 </StackPanel>
             </Border>
         </Grid>
-        
+
         <!-- Overlay KAMERA -->
-        <Grid x:Name="CameraOverlay" Visibility="Collapsed" Grid.RowSpan="2" Grid.ColumnSpan="2" Background="#F0000000" 
+        <Grid x:Name="CameraOverlay" Visibility="Collapsed" Grid.ColumnSpan="2" Background="#F0000000"
               MouseLeftButtonUp="CameraOverlay_Click">
-            <Border Background="#1E1E2E" CornerRadius="15" Padding="15" 
-                    VerticalAlignment="Stretch" HorizontalAlignment="Stretch" 
+            <Border Background="#1E1E2E" CornerRadius="15" Padding="15"
+                    VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
                     Margin="30" MouseLeftButtonUp="CameraPanel_Click">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -1048,7 +964,7 @@
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    
+
                     <!-- Nagłówek -->
                     <Grid Grid.Row="0" Margin="0,0,0,10">
                         <StackPanel Orientation="Horizontal">
@@ -1056,7 +972,7 @@
                             <TextBlock Text="PODGLĄD KAMERY - WJAZD" FontSize="26" FontWeight="Bold" Foreground="White"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <TextBlock x:Name="txtZoomLevel" Text="100%" FontSize="18" Foreground="#89B4FA" 
+                            <TextBlock x:Name="txtZoomLevel" Text="100%" FontSize="18" Foreground="#89B4FA"
                                        VerticalAlignment="Center" Margin="0,0,10,0"/>
                         </StackPanel>
                         <Button HorizontalAlignment="Right" Click="CameraClose_Click" Cursor="Hand" Width="50" Height="50">
@@ -1070,10 +986,10 @@
                             </Button.Template>
                         </Button>
                     </Grid>
-                    
+
                     <!-- Obraz z kamery z możliwością zoom i pan -->
                     <Border Grid.Row="1" Background="Black" CornerRadius="10" ClipToBounds="True">
-                        <Grid x:Name="cameraContainer" MouseWheel="CameraZoom_MouseWheel" 
+                        <Grid x:Name="cameraContainer" MouseWheel="CameraZoom_MouseWheel"
                               MouseLeftButtonDown="CameraImage_MouseLeftButtonDown"
                               MouseLeftButtonUp="CameraImage_MouseLeftButtonUp"
                               MouseMove="CameraImage_MouseMove"
@@ -1090,7 +1006,7 @@
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
-                    
+
                     <!-- Pasek narzędzi zoom -->
                     <Border Grid.Row="2" Background="#2A2A3E" CornerRadius="10" Margin="0,10,0,0" Padding="15">
                         <Grid>
@@ -1099,7 +1015,7 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            
+
                             <!-- Przyciski zoom po lewej -->
                             <StackPanel Grid.Column="0" Orientation="Horizontal">
                                 <Button Click="CameraZoomOut_Click" Width="60" Height="50" Margin="0,0,10,0" ToolTip="Oddal (-)">
@@ -1112,7 +1028,7 @@
                                         </ControlTemplate>
                                     </Button.Template>
                                 </Button>
-                                
+
                                 <Button Click="CameraZoomIn_Click" Width="60" Height="50" Margin="0,0,10,0" ToolTip="Przybliż (+)">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
@@ -1123,7 +1039,7 @@
                                         </ControlTemplate>
                                     </Button.Template>
                                 </Button>
-                                
+
                                 <Button Click="CameraZoomReset_Click" Width="80" Height="50" Margin="0,0,20,0" ToolTip="Resetuj widok">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
@@ -1134,7 +1050,7 @@
                                         </ControlTemplate>
                                     </Button.Template>
                                 </Button>
-                                
+
                                 <!-- Szybkie poziomy zoom -->
                                 <Button Click="CameraZoom50_Click" Width="55" Height="50" Margin="0,0,5,0" ToolTip="50%">
                                     <Button.Template>
@@ -1177,12 +1093,12 @@
                                     </Button.Template>
                                 </Button>
                             </StackPanel>
-                            
+
                             <!-- Info po środku -->
-                            <TextBlock Grid.Column="1" Text="Scroll = zoom | Przeciągnij = przesuń" 
-                                       FontSize="14" Foreground="#666" 
+                            <TextBlock Grid.Column="1" Text="Scroll = zoom | Przeciągnij = przesuń"
+                                       FontSize="14" Foreground="#666"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            
+
                             <!-- Przyciski ALPR po prawej -->
                             <StackPanel Grid.Column="2" Orientation="Horizontal">
                                 <!-- Wgraj zdjęcie z dysku -->
@@ -1198,7 +1114,7 @@
                                         </ControlTemplate>
                                     </Button.Template>
                                 </Button>
-                                
+
                                 <!-- Skanuj z kamery -->
                                 <Button Click="BtnScanPlateInCameraWindow_Click" Width="140" Height="50" ToolTip="Rozpoznaj tablicę z kamery na żywo">
                                     <Button.Template>
