@@ -349,6 +349,7 @@ namespace Kalendarz1.Services
         /// - Separator dziesietny: przecinek (13565,00)
         /// - Data: DD-MM-RRRR (np. 12-01-2026)
         /// - Kodowanie: UTF-8 z BOM
+        /// - BEZ KOMENTARZY - portal nie obsluguje linii z #
         /// </summary>
         public ExportResult EksportujPojedynczyTransport_CSV(
             PozycjaZgloszeniaIRZ transport,
@@ -372,9 +373,9 @@ namespace Kalendarz1.Services
                     };
                 }
 
-                // Nazwa pliku: ZURD_DATA_NUMER-IRZPLUS_GODZINA.csv
+                // Nazwa pliku: ZURD_DATA_NUMER-IRZPLUS_NR.csv
                 var numerIrzBezSpecjalnych = transport.NumerPartiiDrobiu.Replace("-", "");
-                var fileName = $"ZURD_{dataUboju:yyyy-MM-dd}_{numerIrzBezSpecjalnych}_{DateTime.Now:HHmmss}_{numerKolejny:000}.csv";
+                var fileName = $"ZURD_{dataUboju:yyyy-MM-dd}_{numerIrzBezSpecjalnych}_{numerKolejny:000}.csv";
                 var filePath = Path.Combine(_exportPath, fileName);
 
                 // Numer partii uboju - unikalny dla kazdego pliku
@@ -382,40 +383,9 @@ namespace Kalendarz1.Services
 
                 var sb = new StringBuilder();
 
-                // === SEKCJA KOMENTARZY Z INSTRUKCJA ===
-                sb.AppendLine("# ============================================");
-                sb.AppendLine("# ZURD - Zgloszenie Uboju Drobiu w Rzezni");
-                sb.AppendLine("# Portal IRZplus - Import CSV");
-                sb.AppendLine("# ============================================");
-                sb.AppendLine($"# Wygenerowano: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-                sb.AppendLine($"# ");
-                sb.AppendLine($"# === UZUPELNIJ NAGLOWEK W PORTALU IRZPLUS ===");
-                sb.AppendLine($"# Gatunek: {gatunek}");
-                sb.AppendLine($"# Numer rzezni: {numerRzezni}");
-                sb.AppendLine($"# Numer partii uboju: {numerPartiiUboju}");
-                sb.AppendLine($"# ");
-                sb.AppendLine($"# === DANE TRANSPORTU ===");
-                sb.AppendLine($"# Hodowca: {transport.Uwagi}");
-                sb.AppendLine($"# Numer IRZplus: {transport.NumerPartiiDrobiu}");
-                sb.AppendLine($"# Liczba sztuk: {transport.LiczbaSztuk:N0}");
-                sb.AppendLine($"# Masa: {transport.MasaKg:N2} kg");
-                sb.AppendLine($"# Data uboju: {dataUboju:dd-MM-yyyy}");
-                sb.AppendLine($"# ");
-                sb.AppendLine($"# === INSTRUKCJA IMPORTU ===");
-                sb.AppendLine($"# 1. Zaloguj sie do portalu IRZplus (https://irz.arimr.gov.pl)");
-                sb.AppendLine($"# 2. Menu: Drob > Zgloszenie uboju drobiu w rzezni (ZURD)");
-                sb.AppendLine($"# 3. Kliknij: 'Dodaj zgloszenie'");
-                sb.AppendLine($"# 4. W sekcji NAGLOWEK uzupelnij:");
-                sb.AppendLine($"#    - Gatunek: {gatunek}");
-                sb.AppendLine($"#    - Numer rzezni: {numerRzezni}");
-                sb.AppendLine($"#    - Numer partii uboju: {numerPartiiUboju} (lub dowolny unikalny)");
-                sb.AppendLine($"# 5. Kliknij: 'Wczytaj dane z pliku CSV/TXT'");
-                sb.AppendLine($"# 6. Wybierz TEN plik");
-                sb.AppendLine($"# 7. Sprawdz dane i kliknij 'Zapisz'");
-                sb.AppendLine($"# ============================================");
-                sb.AppendLine();
-
-                // === NAGLOWEK KOLUMN ===
+                // === NAGLOWEK KOLUMN - DOKLADNIE JAK W PORTALU IRZPLUS ===
+                // UWAGA: Portal NIE obsluguje komentarzy (linii z #)!
+                // Nazwy kolumn musza byc IDENTYCZNE jak w portalu, z polskimi znakami!
                 sb.AppendLine(string.Join(";", new[]
                 {
                     "Lp",
@@ -423,11 +393,11 @@ namespace Kalendarz1.Services
                     "Typ zdarzenia",
                     "Liczba sztuk drobiu",
                     "Data zdarzenia",
-                    "Masa drobiu (kg)",
+                    "Masa drobiu poddanego ubojowi (kg)",
                     "Kraj wwozu",
                     "Data kupna/wwozu",
-                    "Przyjete z dzialalnosci",
-                    "Uboj rytualny"
+                    "Przyjęte z działalności",
+                    "Ubój rytualny"
                 }));
 
                 // === JEDNA POZYCJA - JEDEN TRANSPORT ===
@@ -448,12 +418,56 @@ namespace Kalendarz1.Services
                 // Zapisz z kodowaniem UTF-8 z BOM (dla polskich znakow)
                 File.WriteAllText(filePath, sb.ToString(), new UTF8Encoding(true));
 
+                // === ZAPISZ INSTRUKCJE DO OSOBNEGO PLIKU TXT ===
+                var instrukcjaFileName = $"INSTRUKCJA_{dataUboju:yyyy-MM-dd}_{numerIrzBezSpecjalnych}_{numerKolejny:000}.txt";
+                var instrukcjaFilePath = Path.Combine(_exportPath, instrukcjaFileName);
+                var instrukcja = new StringBuilder();
+                instrukcja.AppendLine("============================================");
+                instrukcja.AppendLine("ZURD - Zgloszenie Uboju Drobiu w Rzezni");
+                instrukcja.AppendLine("Portal IRZplus - Instrukcja importu");
+                instrukcja.AppendLine("============================================");
+                instrukcja.AppendLine($"Wygenerowano: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                instrukcja.AppendLine();
+                instrukcja.AppendLine("=== DANE DO UZUPELNIENIA W NAGLOWKU ===");
+                instrukcja.AppendLine($"Gatunek: {gatunek}");
+                instrukcja.AppendLine($"Numer rzezni: {numerRzezni}");
+                instrukcja.AppendLine($"Numer partii uboju: {numerPartiiUboju}");
+                instrukcja.AppendLine();
+                instrukcja.AppendLine("=== DANE TRANSPORTU ===");
+                instrukcja.AppendLine($"Hodowca: {transport.Uwagi}");
+                instrukcja.AppendLine($"Numer IRZplus: {transport.NumerPartiiDrobiu}");
+                instrukcja.AppendLine($"Liczba sztuk: {transport.LiczbaSztuk:N0}");
+                instrukcja.AppendLine($"Masa: {transport.MasaKg:N2} kg");
+                instrukcja.AppendLine($"Data uboju: {dataUboju:dd-MM-yyyy}");
+                instrukcja.AppendLine();
+                instrukcja.AppendLine("=== INSTRUKCJA IMPORTU ===");
+                instrukcja.AppendLine("1. Zaloguj sie do portalu IRZplus (https://irz.arimr.gov.pl)");
+                instrukcja.AppendLine("2. Menu: Drob > Zgloszenie uboju drobiu w rzezni (ZURD)");
+                instrukcja.AppendLine("3. Kliknij: 'Dodaj zgloszenie'");
+                instrukcja.AppendLine("4. W sekcji NAGLOWEK uzupelnij:");
+                instrukcja.AppendLine($"   - Gatunek: {gatunek}");
+                instrukcja.AppendLine($"   - Numer rzezni: {numerRzezni}");
+                instrukcja.AppendLine($"   - Numer partii uboju: {numerPartiiUboju}");
+                instrukcja.AppendLine("5. Kliknij: 'Wczytaj dane z pliku CSV/TXT'");
+                instrukcja.AppendLine($"6. Wybierz plik: {fileName}");
+                instrukcja.AppendLine("7. Sprawdz dane i kliknij 'Zapisz'");
+                instrukcja.AppendLine("============================================");
+                File.WriteAllText(instrukcjaFilePath, instrukcja.ToString(), new UTF8Encoding(true));
+
                 return new ExportResult
                 {
                     Success = true,
                     FilePath = filePath,
                     FileName = fileName,
-                    Message = $"Wyeksportowano transport: {transport.Uwagi} ({transport.LiczbaSztuk} szt.)"
+                    Message = $"Wyeksportowano transport: {transport.Uwagi} ({transport.LiczbaSztuk} szt.)",
+                    // Dodatkowe info o instrukcji
+                    AdditionalInfo = new Dictionary<string, string>
+                    {
+                        { "NumerPartiiUboju", numerPartiiUboju },
+                        { "InstrukcjaFile", instrukcjaFilePath },
+                        { "Gatunek", gatunek },
+                        { "NumerRzezni", numerRzezni }
+                    }
                 };
             }
             catch (Exception ex)
@@ -530,5 +544,6 @@ namespace Kalendarz1.Services
         public string FilePath { get; set; }
         public string FileName { get; set; }
         public string Message { get; set; }
+        public Dictionary<string, string> AdditionalInfo { get; set; }
     }
 }

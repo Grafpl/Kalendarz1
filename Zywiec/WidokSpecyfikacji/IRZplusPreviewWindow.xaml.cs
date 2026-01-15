@@ -451,13 +451,26 @@ namespace Kalendarz1
                     message.AppendLine();
                     message.AppendLine($"Folder: {exportService.GetExportPath()}");
                     message.AppendLine();
+                    message.AppendLine("=== WYGENEROWANE PLIKI ===");
+                    foreach (var r in sukces.Take(10))
+                    {
+                        var nrPartii = r.AdditionalInfo?.ContainsKey("NumerPartiiUboju") == true
+                            ? r.AdditionalInfo["NumerPartiiUboju"]
+                            : "?";
+                        message.AppendLine($"- {r.FileName} (partia: {nrPartii})");
+                    }
+                    if (sukces.Count > 10)
+                        message.AppendLine($"  ... i {sukces.Count - 10} innych plikow");
+                    message.AppendLine();
                     message.AppendLine("=== INSTRUKCJA ===");
-                    message.AppendLine("Dla KAZDEGO pliku CSV:");
-                    message.AppendLine("1. Otworz portal IRZplus");
-                    message.AppendLine("2. Dodaj nowe zgloszenie ZURD");
-                    message.AppendLine("3. Uzupelnij naglowek (gatunek, numer rzezni, numer partii)");
-                    message.AppendLine("4. Kliknij 'Wczytaj dane z pliku CSV'");
-                    message.AppendLine("5. Wybierz plik i zapisz zgloszenie");
+                    message.AppendLine("Dla KAZDEGO pliku CSV w portalu IRZplus:");
+                    message.AppendLine("1. Dodaj nowe zgloszenie ZURD");
+                    message.AppendLine("2. Uzupelnij naglowek:");
+                    message.AppendLine("   - Gatunek: KURY");
+                    message.AppendLine("   - Numer rzezni: 039806095-001");
+                    message.AppendLine("   - Numer partii: z pliku INSTRUKCJA_*.txt");
+                    message.AppendLine("3. Kliknij 'Wczytaj dane z pliku CSV'");
+                    message.AppendLine("4. Wybierz plik i zapisz zgloszenie");
                 }
 
                 if (bledy.Count > 0)
