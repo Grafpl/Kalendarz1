@@ -7900,6 +7900,9 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Sprawdź blokadę edycji (uwzględnia status wprowadzenia)
+            if (!CheckEditingAllowed(row)) return;
+
             // Pobierz starą wartość
             string oldValue = "";
             string key = $"Dodatek_{row.ID}";
@@ -7933,6 +7936,9 @@ namespace Kalendarz1
 
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
+
+            // Sprawdź blokadę edycji (uwzględnia status wprowadzenia)
+            if (!CheckEditingAllowed(row)) return;
 
             // Pobierz starą wartość
             string oldValue = "";
@@ -8001,6 +8007,13 @@ namespace Kalendarz1
             var row = checkBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Sprawdź blokadę edycji (uwzględnia status wprowadzenia)
+            if (!CheckEditingAllowed(row))
+            {
+                checkBox.IsChecked = !row.Symfonia;
+                return;
+            }
+
             // Zapisz do bazy
             SaveFieldToDatabase(row.ID, "Symfonia", row.Symfonia);
             UpdateStatus($"Zapisano Symfonia: {(row.Symfonia ? "TAK" : "NIE")} dla LP {row.Nr}");
@@ -8060,6 +8073,9 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Sprawdź blokadę edycji (uwzględnia status wprowadzenia)
+            if (!CheckEditingAllowed(row)) return;
+
             // Pobierz starą wartość
             string oldValue = "";
             string key = $"Opasienie_{row.ID}";
@@ -8093,6 +8109,9 @@ namespace Kalendarz1
 
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
+
+            // Sprawdź blokadę edycji (uwzględnia status wprowadzenia)
+            if (!CheckEditingAllowed(row)) return;
 
             // Pobierz starą wartość
             string oldValue = "";
@@ -8128,6 +8147,9 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Sprawdź blokadę edycji (uwzględnia status wprowadzenia)
+            if (!CheckEditingAllowed(row)) return;
+
             // Pobierz starą wartość
             string oldValue = "";
             string key = $"LUMEL_{row.ID}";
@@ -8161,6 +8183,9 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Sprawdź blokadę edycji (uwzględnia status wprowadzenia)
+            if (!CheckEditingAllowed(row)) return;
+
             // Pobierz starą wartość
             string oldValue = "";
             string key = $"SztukiDek_{row.ID}";
@@ -8193,6 +8218,9 @@ namespace Kalendarz1
 
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
+
+            // Sprawdź blokadę edycji (uwzględnia status wprowadzenia)
+            if (!CheckEditingAllowed(row)) return;
 
             // Pobierz starą wartość
             string oldValue = "";
@@ -8257,6 +8285,9 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Sprawdź blokadę edycji (uwzględnia status wprowadzenia)
+            if (!CheckEditingAllowed(row)) return;
+
             // Pobierz starą wartość z TextBox PRZED aktualizacją bindingu
             string oldValueFromTextBox = textBox.Text;
 
@@ -8296,6 +8327,9 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Sprawdź blokadę edycji (uwzględnia status wprowadzenia)
+            if (!CheckEditingAllowed(row)) return;
+
             // Pobierz starą wartość
             string oldValue = "";
             string key = $"CH_{row.ID}";
@@ -8329,6 +8363,9 @@ namespace Kalendarz1
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
 
+            // Sprawdź blokadę edycji (uwzględnia status wprowadzenia)
+            if (!CheckEditingAllowed(row)) return;
+
             // Pobierz starą wartość
             string oldValue = "";
             string key = $"NW_{row.ID}";
@@ -8361,6 +8398,9 @@ namespace Kalendarz1
 
             var row = textBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
+
+            // Sprawdź blokadę edycji (uwzględnia status wprowadzenia)
+            if (!CheckEditingAllowed(row)) return;
 
             // Pobierz starą wartość
             string oldValue = "";
