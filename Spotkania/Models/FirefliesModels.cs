@@ -381,7 +381,7 @@ namespace Kalendarz1.Spotkania.Models
         public string? Text { get; set; }
 
         [JsonPropertyName("speaker_id")]
-        public string? SpeakerId { get; set; }
+        public int? SpeakerId { get; set; } // API zwraca int, nie string
 
         [JsonPropertyName("speaker_name")]
         public string? SpeakerName { get; set; }
@@ -391,6 +391,9 @@ namespace Kalendarz1.Spotkania.Models
 
         [JsonPropertyName("end_time")]
         public double EndTime { get; set; }
+
+        // Właściwość pomocnicza - speaker_id jako string
+        public string? SpeakerIdString => SpeakerId?.ToString();
     }
 
     /// <summary>
