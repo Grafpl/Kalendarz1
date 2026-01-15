@@ -432,10 +432,15 @@ namespace Kalendarz1.Spotkania.Models
         public string? Name { get; set; }
 
         [JsonPropertyName("minutes_consumed")]
-        public int? MinutesConsumed { get; set; }
+        public double? MinutesConsumed { get; set; }
 
         [JsonPropertyName("is_admin")]
         public bool? IsAdmin { get; set; }
+
+        // Właściwość pomocnicza do wyświetlania
+        public string MinutesConsumedDisplay => MinutesConsumed.HasValue
+            ? $"{MinutesConsumed.Value:F0}"
+            : "0";
     }
 
     #endregion

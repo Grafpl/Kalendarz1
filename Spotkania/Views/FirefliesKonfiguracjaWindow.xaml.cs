@@ -124,7 +124,7 @@ namespace Kalendarz1.Spotkania.Views
                         PanelKonto.Visibility = Visibility.Visible;
                         TxtKontoInfo.Text = $"Email: {user.Email}\n" +
                                            $"Nazwa: {user.Name}\n" +
-                                           $"Wykorzystane minuty: {user.MinutesConsumed}";
+                                           $"Wykorzystane minuty: {user.MinutesConsumedDisplay}";
                     }
                 }
                 else
