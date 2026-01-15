@@ -1,7 +1,7 @@
 <Window x:Class="Kalendarz1.Spotkania.Views.TranskrypcjaSzczegolyWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Edytor transkrypcji" Height="900" Width="1400"
+        Title="Edytor transkrypcji" Height="950" Width="1500"
         WindowStartupLocation="CenterOwner"
         Background="#F5F5F5">
 
@@ -80,6 +80,11 @@
             </Style.Triggers>
         </Style>
 
+        <Style x:Key="BtnSmall" TargetType="Button" BasedOn="{StaticResource BtnPrimary}">
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+
         <Style x:Key="SectionHeader" TargetType="TextBlock">
             <Setter Property="FontSize" Value="15"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -95,7 +100,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Naglowek z tytulem i sync status -->
+        <!-- Naglowek -->
         <Border Grid.Row="0" Background="#1976D2" Padding="20,16">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -125,11 +130,11 @@
         <!-- Glowna zawartosc -->
         <Grid Grid.Row="1" Margin="20">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="380"/>
+                <ColumnDefinition Width="400"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Panel lewy - Informacje i mapowanie mowcow -->
+            <!-- Panel lewy -->
             <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="0,0,15,0">
 
@@ -171,16 +176,25 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Mapowanie mowcow - KLUCZOWA FUNKCJA -->
+                    <!-- Mapowanie mowcow ze statystykami -->
                     <Border Style="{StaticResource CardBorder}" Margin="0,0,0,15">
                         <StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                                <TextBlock Text="Mapowanie mowcow" Style="{StaticResource SectionHeader}" Margin="0"/>
-                                <TextBlock x:Name="TxtLiczbaMowcow" Text="(0)" FontSize="13" Foreground="#666"
-                                           VerticalAlignment="Center" Margin="10,0,0,0"/>
-                            </StackPanel>
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                    <TextBlock Text="Mapowanie mowcow" Style="{StaticResource SectionHeader}" Margin="0"/>
+                                    <TextBlock x:Name="TxtLiczbaMowcow" Text="(0)" FontSize="13" Foreground="#666"
+                                               VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                </StackPanel>
+                                <Button Grid.Column="1" Content="Auto-zapisz" Style="{StaticResource BtnSmall}"
+                                        Background="#4CAF50" x:Name="BtnAutoZapisz" Click="BtnAutoZapisz_Click"
+                                        ToolTip="Wlacz/wylacz automatyczny zapis mapowan"/>
+                            </Grid>
 
-                            <TextBlock Text="Przypisz mowcow z transkrypcji do pracownikow systemu:"
+                            <TextBlock Text="Przypisz mowcow do pracownikow - zmiany zapisuja sie automatycznie:"
                                        FontSize="12" Foreground="#666" TextWrapping="Wrap" Margin="0,0,0,12"/>
 
                             <ItemsControl x:Name="ListaMowcow">
@@ -193,17 +207,31 @@
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
                                                 </Grid.RowDefinitions>
 
-                                                <!-- Nazwa z Fireflies -->
-                                                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-                                                    <Border Background="{Binding KolorMowcy}" CornerRadius="4" Padding="8,4">
-                                                        <TextBlock Text="{Binding DisplayFireflies}" FontWeight="SemiBold"
-                                                                   Foreground="White" FontSize="13"/>
-                                                    </Border>
-                                                    <TextBlock Text="{Binding LiczbaWypowiedzi, StringFormat=' ({0} wypowiedzi)'}"
-                                                               FontSize="12" Foreground="#666" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                                                </StackPanel>
+                                                <!-- Nazwa z Fireflies + statystyki -->
+                                                <Grid Grid.Row="0" Margin="0,0,0,8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                                        <Border Background="{Binding KolorMowcy}" CornerRadius="4" Padding="8,4">
+                                                            <TextBlock Text="{Binding DisplayFireflies}" FontWeight="SemiBold"
+                                                                       Foreground="White" FontSize="13"/>
+                                                        </Border>
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding LiczbaWypowiedzi, StringFormat='{}{0} wyp.'}"
+                                                                   FontSize="11" Foreground="#666" VerticalAlignment="Center"/>
+                                                        <TextBlock Text=" | " Foreground="#CCC" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding CzasMowieniaDisplay}"
+                                                                   FontSize="11" Foreground="#666" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding ProcentCzasuDisplay}"
+                                                                   FontSize="11" Foreground="#888" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                                                    </StackPanel>
+                                                </Grid>
 
                                                 <!-- Przypisany pracownik -->
                                                 <StackPanel Grid.Row="1">
@@ -212,24 +240,30 @@
                                                               SelectedValue="{Binding PrzypisanyUserID, Mode=TwoWay}"
                                                               SelectedValuePath="UserID"
                                                               DisplayMemberPath="DisplayName"
-                                                              FontSize="13" Padding="8,6"/>
+                                                              FontSize="13" Padding="8,6"
+                                                              SelectionChanged="CmbMowca_SelectionChanged"
+                                                              Tag="{Binding}"/>
                                                 </StackPanel>
 
                                                 <!-- Przykladowa wypowiedz -->
                                                 <StackPanel Grid.Row="2" Margin="0,8,0,0">
-                                                    <TextBlock Text="Przyklad:" FontSize="11" Foreground="#888"/>
+                                                    <TextBlock Text="Przyklad wypowiedzi:" FontSize="11" Foreground="#888"/>
                                                     <TextBlock Text="{Binding PrzykladowaWypowiedz}" FontSize="11" Foreground="#666"
-                                                               TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="40"/>
+                                                               TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="36"
+                                                               FontStyle="Italic"/>
                                                 </StackPanel>
+
+                                                <!-- Status przypisania -->
+                                                <Border Grid.Row="3" Margin="0,8,0,0" Padding="6,4" CornerRadius="4"
+                                                        Background="{Binding StatusTlo}">
+                                                    <TextBlock Text="{Binding StatusPrzypisania}" FontSize="11"
+                                                               Foreground="{Binding StatusKolor}"/>
+                                                </Border>
                                             </Grid>
                                         </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
-
-                            <Button x:Name="BtnZapiszMapowanie" Content="Zapisz mapowanie mowcow"
-                                    Style="{StaticResource BtnSuccess}" Margin="0,10,0,0"
-                                    Click="BtnZapiszMapowanie_Click"/>
                         </StackPanel>
                     </Border>
 
@@ -238,7 +272,7 @@
                         <StackPanel>
                             <TextBlock Text="Podsumowanie AI" Style="{StaticResource SectionHeader}"/>
                             <TextBox x:Name="TxtPodsumowanie" AcceptsReturn="True" TextWrapping="Wrap"
-                                     MinHeight="100" MaxHeight="200" FontSize="13" Padding="10"/>
+                                     MinHeight="80" MaxHeight="150" FontSize="13" Padding="10"/>
                         </StackPanel>
                     </Border>
 
@@ -246,9 +280,7 @@
                     <Border Style="{StaticResource CardBorder}" Margin="0,0,0,15">
                         <StackPanel>
                             <TextBlock Text="Slowa kluczowe" Style="{StaticResource SectionHeader}"/>
-                            <TextBox x:Name="TxtSlowaKluczowe" TextWrapping="Wrap" FontSize="13" Padding="10"
-                                     ToolTip="Oddziel slowa przecinkami"/>
-                            <TextBlock Text="Oddziel slowa przecinkami" FontSize="11" Foreground="#888" Margin="0,4,0,0"/>
+                            <TextBox x:Name="TxtSlowaKluczowe" TextWrapping="Wrap" FontSize="13" Padding="10"/>
                         </StackPanel>
                     </Border>
 
@@ -266,7 +298,7 @@
                                 <ComboBox x:Name="CmbSpotkanie" Grid.Column="0" FontSize="13" Padding="8,6"
                                           DisplayMemberPath="TytulDisplay" SelectedValuePath="SpotkaniID"/>
                                 <Button Content="Powiaz" Grid.Column="1" Padding="10,6" Margin="8,0,0,0"
-                                        ToolTip="Powiaz" Click="BtnPowiazSpotkanie_Click"/>
+                                        Click="BtnPowiazSpotkanie_Click"/>
                             </Grid>
 
                             <TextBlock Text="Powiaz z notatka:" FontSize="12" Foreground="#666" Margin="0,0,0,4"/>
@@ -278,7 +310,7 @@
                                 <ComboBox x:Name="CmbNotatka" Grid.Column="0" FontSize="13" Padding="8,6"
                                           DisplayMemberPath="TematDisplay" SelectedValuePath="NotatkaID"/>
                                 <Button Content="Powiaz" Grid.Column="1" Padding="10,6" Margin="8,0,0,0"
-                                        ToolTip="Powiaz" Click="BtnPowiazNotatke_Click"/>
+                                        Click="BtnPowiazNotatke_Click"/>
                             </Grid>
                         </StackPanel>
                     </Border>
@@ -291,35 +323,80 @@
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
-                        <TextBlock Text="Transkrypcja" Style="{StaticResource SectionHeader}" Margin="0"/>
-                        <TextBlock x:Name="TxtLiczbaZdan" Text="(0 wypowiedzi)" FontSize="13" Foreground="#666"
-                                   VerticalAlignment="Center" Margin="10,0,0,0"/>
-                        <CheckBox x:Name="ChkPokazNazwySystemowe" Content="Pokaz nazwy z systemu"
-                                  Margin="20,0,0,0" VerticalAlignment="Center"
-                                  Checked="ChkPokazNazwySystemowe_Changed" Unchecked="ChkPokazNazwySystemowe_Changed"/>
-                    </StackPanel>
+                    <!-- Naglowek transkrypcji -->
+                    <Grid Grid.Row="0" Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
 
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal">
+                            <TextBlock Text="Transkrypcja" Style="{StaticResource SectionHeader}" Margin="0"/>
+                            <TextBlock x:Name="TxtLiczbaZdan" Text="(0 wypowiedzi)" FontSize="13" Foreground="#666"
+                                       VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <Button Content="Kopiuj" Style="{StaticResource BtnSmall}" Margin="0,0,5,0"
+                                    Click="BtnKopiujTranskrypcje_Click" ToolTip="Kopiuj do schowka"/>
+                            <Button Content="Eksport" Style="{StaticResource BtnSmall}" Margin="0,0,5,0"
+                                    Click="BtnEksportuj_Click" ToolTip="Eksportuj transkrypcje"/>
+                            <Button Content="Filtruj" Style="{StaticResource BtnSmall}"
+                                    Click="BtnFiltruj_Click" ToolTip="Filtruj po mowcy"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Opcje wyswietlania i wyszukiwanie -->
+                    <Grid Grid.Row="1" Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Orientation="Horizontal">
+                            <CheckBox x:Name="ChkUzyjNazwSystemowych" Content="Uzywaj nazw z systemu zamiast Fireflies"
+                                      IsChecked="True" VerticalAlignment="Center"
+                                      Checked="ChkUzyjNazwSystemowych_Changed" Unchecked="ChkUzyjNazwSystemowych_Changed"/>
+                            <CheckBox x:Name="ChkPokazCzasy" Content="Pokaz czasy" IsChecked="True"
+                                      Margin="15,0,0,0" VerticalAlignment="Center"
+                                      Checked="ChkPokazCzasy_Changed" Unchecked="ChkPokazCzasy_Changed"/>
+                        </StackPanel>
+
+                        <Grid Grid.Column="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="200"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="TxtSzukaj" Grid.Column="0" Padding="8,6"
+                                     Tag="Szukaj w transkrypcji..." FontSize="12"
+                                     TextChanged="TxtSzukaj_TextChanged"/>
+                            <Button Grid.Column="1" Content="X" Padding="8,6" Margin="5,0,0,0"
+                                    Click="BtnWyczyscSzukaj_Click" ToolTip="Wyczysc wyszukiwanie"/>
+                        </Grid>
+                    </Grid>
+
+                    <!-- Lista zdan -->
+                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                         <ItemsControl x:Name="ListaZdan">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Background="{Binding TloKolor}" CornerRadius="6" Padding="12" Margin="0,0,0,6">
+                                    <Border Background="{Binding TloKolor}" CornerRadius="6" Padding="12" Margin="0,0,0,6"
+                                            Visibility="{Binding Widocznosc}">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
 
-                                            <StackPanel Grid.Column="0" MinWidth="140" Margin="0,0,12,0">
-                                                <TextBlock Text="{Binding CzasDisplay}" FontSize="11" Foreground="#888"/>
-                                                <TextBlock Text="{Binding MowcaDisplay}" FontWeight="SemiBold"
+                                            <StackPanel Grid.Column="0" MinWidth="150" Margin="0,0,12,0">
+                                                <TextBlock Text="{Binding CzasDisplay}" FontSize="11" Foreground="#888"
+                                                           Visibility="{Binding CzasWidocznosc}"/>
+                                                <TextBlock Text="{Binding MowcaWyswietlany}" FontWeight="SemiBold"
                                                            Foreground="{Binding MowcaKolor}" FontSize="13"/>
-                                                <TextBlock Text="{Binding MowcaSystemowy}" FontSize="11" Foreground="#4CAF50"
-                                                           Visibility="{Binding MowcaSystemowyVisibility}"/>
                                             </StackPanel>
 
                                             <TextBlock Grid.Column="1" Text="{Binding Tekst}" TextWrapping="Wrap"
@@ -335,7 +412,7 @@
 
         </Grid>
 
-        <!-- Dolny panel z przyciskami -->
+        <!-- Dolny panel -->
         <Border Grid.Row="2" Background="#FAFAFA" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0" Padding="20,15">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -353,13 +430,13 @@
                            Foreground="#666" VerticalAlignment="Center" HorizontalAlignment="Center"/>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
-                    <Button x:Name="BtnZapiszWszystko" Content="Zapisz wszystko + Sync do Fireflies"
+                    <Button x:Name="BtnZapiszWszystko" Content="Zapisz wszystko + Sync"
                             Style="{StaticResource BtnSuccess}" Margin="0,0,10,0"
                             Click="BtnZapiszWszystko_Click"/>
                     <Button x:Name="BtnZapiszLokalnie" Content="Zapisz lokalnie"
                             Style="{StaticResource BtnPrimary}" Margin="0,0,10,0"
                             Click="BtnZapiszLokalnie_Click"/>
-                    <Button x:Name="BtnAnuluj" Content="Anuluj" Style="{StaticResource BtnSecondary}"
+                    <Button x:Name="BtnAnuluj" Content="Zamknij" Style="{StaticResource BtnSecondary}"
                             Click="BtnAnuluj_Click"/>
                 </StackPanel>
             </Grid>
