@@ -638,7 +638,7 @@
         </Grid>
 
         <!-- Prawa strona - panel wagi -->
-        <Border Grid.Column="1" Background="#16161D" BorderBrush="#333" BorderThickness="2,0,0,0">
+        <Border x:Name="panelWagi" Grid.Column="1" Background="#16161D" BorderBrush="#333" BorderThickness="2,0,0,0">
             <Grid Margin="10">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>

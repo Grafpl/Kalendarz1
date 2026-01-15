@@ -708,6 +708,7 @@ namespace Kalendarz1
                     panelCommodity.Visibility = Visibility.Collapsed;
                     panelReadOnlyCar.Visibility = Visibility.Visible;
                     panelEditCar.Visibility = Visibility.Collapsed;
+                    panelWagi.Visibility = Visibility.Visible;
                     LoadDostawyAvilog();
                 }
                 else if (rb.Name == "rbOdpady")
@@ -722,6 +723,7 @@ namespace Kalendarz1
                     panelCommodity.Visibility = Visibility.Visible;
                     panelReadOnlyCar.Visibility = Visibility.Collapsed;
                     panelEditCar.Visibility = Visibility.Visible;
+                    panelWagi.Visibility = Visibility.Visible;
                     btnKrew.IsChecked = true;
                     LoadOdbiorcyDlaTowar(aktualnyTowar);
                     LoadDostawyOdpady();
@@ -737,6 +739,7 @@ namespace Kalendarz1
                     panelCommodity.Visibility = Visibility.Collapsed;
                     panelReadOnlyCar.Visibility = Visibility.Collapsed;
                     panelEditCar.Visibility = Visibility.Collapsed;
+                    panelWagi.Visibility = Visibility.Collapsed; // Ukryj panel wagi w trybie kamery
 
                     // Zatrzymaj timer nieaktywności w trybie KAMERY
                     inactivityTimer?.Stop();
@@ -3504,42 +3507,12 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Aktualizuje status drukarki na pasku
+        /// Aktualizuje status drukarki (UI usunięte - metoda zachowana dla kompatybilności)
         /// </summary>
         private void UpdatePrinterStatus(string status, bool isError = false)
         {
-            Dispatcher.Invoke(() =>
-            {
-                if (lblPrinterStatus != null)
-                {
-                    lblPrinterStatus.Text = status;
-                    lblPrinterStatus.Foreground = isError 
-                        ? new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FF5555"))
-                        : new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#4CAF50"));
-                }
-                if (lblPrinterIcon != null)
-                {
-                    lblPrinterIcon.Foreground = isError
-                        ? new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FF5555"))
-                        : new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#4CAF50"));
-                }
-            });
-
-            // Wyczyść status po 5 sekundach
-            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
-            timer.Tick += (s, e) =>
-            {
-                timer.Stop();
-                Dispatcher.Invoke(() =>
-                {
-                    if (lblPrinterStatus != null)
-                    {
-                        lblPrinterStatus.Text = "";
-                        lblPrinterIcon.Foreground = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#888888"));
-                    }
-                });
-            };
-            timer.Start();
+            // Status drukarki usunięty z UI - logowanie do Debug
+            Debug.WriteLine($"[DRUKARKA] Status: {status} (error={isError})");
         }
 
         /// <summary>
