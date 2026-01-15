@@ -54,7 +54,8 @@ namespace Kalendarz1
         private const string FIRMA_REGON = "750045476";
         private const string FIRMA_TEL = "(46) 874 71 70";
 
-        private ObservableCollection<DostawaPortiera> dostawy;
+        private ObservableCollection<DostawaPortiera> dostawy;        // Kolekcja dla Avilog
+        private ObservableCollection<DostawaPortiera> dostawyOdpady; // Kolekcja dla Odpady
         private DostawaPortiera _wybranaDostwa;
         private Border selectedCardBorder = null;
         private DataGridRow selectedGridRow = null;
@@ -131,8 +132,9 @@ namespace Kalendarz1
             DataContext = this;
 
             dostawy = new ObservableCollection<DostawaPortiera>();
+            dostawyOdpady = new ObservableCollection<DostawaPortiera>();
             listDostawy.ItemsSource = dostawy;
-            gridTable.ItemsSource = dostawy;
+            gridTable.ItemsSource = dostawyOdpady;
             cbOdbiorcy.ItemsSource = ListaOdbiorcow;
             cbOdbiorcy.DisplayMemberPath = "Nazwa";
 
@@ -759,7 +761,11 @@ namespace Kalendarz1
                     selectedGridRow = null;
                 }
 
-                dostawy.Clear();
+                // Czyść odpowiednią kolekcję w zależności od trybu
+                if (aktualnyTryb == "Avilog")
+                    dostawy.Clear();
+                else
+                    dostawyOdpady.Clear();
 
                 using (var conn = new SqlConnection(connectionString))
                 {
@@ -837,7 +843,7 @@ namespace Kalendarz1
                                     var godzTara = r["GodzinaTara"] != DBNull.Value ? Convert.ToDateTime(r["GodzinaTara"]) : (DateTime?)null;
                                     var godzBrutto = r["GodzinaBrutto"] != DBNull.Value ? Convert.ToDateTime(r["GodzinaBrutto"]) : (DateTime?)null;
 
-                                    dostawy.Add(new DostawaPortiera
+                                    dostawyOdpady.Add(new DostawaPortiera
                                     {
                                         ID = Convert.ToInt64(r["ID"]),
                                         GodzinaPrzyjazdu = r["Godzina"]?.ToString() ?? "",
@@ -1664,8 +1670,8 @@ namespace Kalendarz1
                 HodowcaNazwa = "(nowy wpis)"
             };
 
-            // Dodaj do listy aby był widoczny w tabeli
-            dostawy.Insert(0, nowyWpis);
+            // Dodaj do listy aby był widoczny w tabeli (w trybie Odpady)
+            dostawyOdpady.Insert(0, nowyWpis);
 
             // Zaznacz nowy wiersz
             WybranaDostwa = nowyWpis;
