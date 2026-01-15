@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Data.SqlClient;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -916,49 +917,17 @@ namespace Kalendarz1.Spotkania.Views
                 .OrderBy(z => z.StartTime)
                 .ToList();
 
-            // Sprawdź czy mamy audio URL
+            // Sprawdź dostępne URLe
             var audioUrl = _transkrypcjaApi?.AudioUrl;
             var transcriptUrl = _transkrypcja?.TranskrypcjaUrl ?? _transkrypcjaApi?.TranscriptUrl;
 
-            if (!string.IsNullOrEmpty(audioUrl))
-            {
-                // Natywny odtwarzacz audio
-                PokazNatywnyOdtwarzacz(audioUrl, transcriptUrl, mowca, fragmenty);
-            }
-            else if (!string.IsNullOrEmpty(transcriptUrl))
-            {
-                // Fallback - otwórz w przeglądarce zewnętrznej
-                var url = transcriptUrl;
-                if (mowca.PierwszyCzas > 0)
-                {
-                    var separator = url.Contains("?") ? "&" : "?";
-                    url = $"{url}{separator}t={Math.Floor(mowca.PierwszyCzas)}";
-                }
-                try
-                {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = url,
-                        UseShellExecute = true
-                    });
-                    TxtStatusMapowania.Text = $"▶️ Otwarto w przeglądarce: {mowca.DisplayFireflies}";
-                }
-                catch { }
-            }
-            else
-            {
-                // Brak URL - pokaż komunikat z przykładową wypowiedzią
-                var msg = $"🔊 {mowca.DisplayFireflies}\n\n" +
-                          $"Przykładowa wypowiedź:\n\"{mowca.PrzykladowaWypowiedz}\"\n\n" +
-                          $"⏱️ Czas mówienia: {mowca.CzasMowieniaDisplay}\n" +
-                          $"📊 Udział w rozmowie: {mowca.ProcentCzasu:F0}%";
-
-                MessageBox.Show(msg, "Próbka mówcy", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
+            // Zawsze pokaż odtwarzacz z listą fragmentów
+            PokazOdtwarzaczZFragmentami(audioUrl, transcriptUrl, mowca, fragmenty);
         }
 
         private Window? _odtwarzaczWindow = null;
         private MediaElement? _mediaElement = null;
+        private System.Windows.Controls.WebBrowser? _webBrowser = null;
         private System.Windows.Threading.DispatcherTimer? _playerTimer = null;
         private Slider? _seekSlider = null;
         private TextBlock? _timeDisplay = null;
@@ -966,415 +935,7 @@ namespace Kalendarz1.Spotkania.Views
         private bool _isDraggingSlider = false;
         private ListBox? _fragmentsList = null;
         private List<FirefliesSentenceDto>? _currentFragmenty = null;
-
-        private void PokazNatywnyOdtwarzacz(string audioUrl, string? transcriptUrl, MowcaMapowanieDisplay mowca, List<FirefliesSentenceDto> fragmenty)
-        {
-            // Zamknij poprzednie okno
-            if (_odtwarzaczWindow != null && _odtwarzaczWindow.IsLoaded)
-            {
-                _playerTimer?.Stop();
-                _mediaElement?.Stop();
-                _odtwarzaczWindow.Close();
-            }
-
-            _currentFragmenty = fragmenty;
-
-            _odtwarzaczWindow = new Window
-            {
-                Title = $"🎧 {mowca.DisplayFireflies} - Odtwarzacz",
-                Width = 700,
-                Height = 550,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                Owner = this,
-                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1a1a2e"))
-            };
-
-            var mainGrid = new Grid();
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Header
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Lista fragmentów
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Kontrolki
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Footer
-
-            // ===== HEADER =====
-            var headerPanel = new Border
-            {
-                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#16213e")),
-                Padding = new Thickness(15, 12, 15, 12)
-            };
-            var headerGrid = new Grid();
-            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            // Avatar
-            var avatar = new Border
-            {
-                Width = 50,
-                Height = 50,
-                CornerRadius = new CornerRadius(25),
-                Background = mowca.KolorMowcy,
-                Margin = new Thickness(0, 0, 12, 0)
-            };
-            avatar.Child = new TextBlock
-            {
-                Text = "🎧",
-                FontSize = 20,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            Grid.SetColumn(avatar, 0);
-            headerGrid.Children.Add(avatar);
-
-            // Info
-            var infoStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            infoStack.Children.Add(new TextBlock
-            {
-                Text = mowca.DisplayFireflies,
-                FontSize = 18,
-                FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White
-            });
-            infoStack.Children.Add(new TextBlock
-            {
-                Text = $"📊 {fragmenty.Count} fragmentów | {mowca.StatystykiDisplay}",
-                FontSize = 12,
-                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#aaa")),
-                Margin = new Thickness(0, 3, 0, 0)
-            });
-            Grid.SetColumn(infoStack, 1);
-            headerGrid.Children.Add(infoStack);
-
-            // Przycisk przypisz
-            if (!mowca.JestPrzypisany)
-            {
-                var btnPrzypisz = new Button
-                {
-                    Content = "✓ Przypisz",
-                    Padding = new Thickness(12, 8, 12, 8),
-                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4CAF50")),
-                    Foreground = Brushes.White,
-                    BorderThickness = new Thickness(0),
-                    FontWeight = FontWeights.SemiBold,
-                    Cursor = System.Windows.Input.Cursors.Hand
-                };
-                btnPrzypisz.Click += (s, ev) =>
-                {
-                    _playerTimer?.Stop();
-                    _mediaElement?.Stop();
-                    _odtwarzaczWindow?.Close();
-                    TxtStatusMapowania.Text = $"Wybierz pracownika dla: {mowca.DisplayFireflies}";
-                    StatusMapowania.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFF8E1"));
-                };
-                Grid.SetColumn(btnPrzypisz, 2);
-                headerGrid.Children.Add(btnPrzypisz);
-            }
-
-            headerPanel.Child = headerGrid;
-            Grid.SetRow(headerPanel, 0);
-            mainGrid.Children.Add(headerPanel);
-
-            // ===== LISTA FRAGMENTÓW =====
-            var fragmentsPanel = new Border
-            {
-                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0f0f23")),
-                Margin = new Thickness(0)
-            };
-            var fragmentsContainer = new Grid();
-            fragmentsContainer.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            fragmentsContainer.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-
-            // Nagłówek listy
-            var listHeader = new TextBlock
-            {
-                Text = $"▼ Fragmenty mówcy (kliknij aby przeskoczyć)",
-                FontSize = 11,
-                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#888")),
-                Margin = new Thickness(12, 8, 12, 5)
-            };
-            Grid.SetRow(listHeader, 0);
-            fragmentsContainer.Children.Add(listHeader);
-
-            // Lista fragmentów
-            _fragmentsList = new ListBox
-            {
-                Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0),
-                Margin = new Thickness(5, 0, 5, 5),
-                SelectionMode = SelectionMode.Single
-            };
-
-            foreach (var frag in fragmenty)
-            {
-                var item = new ListBoxItem
-                {
-                    Tag = frag,
-                    Padding = new Thickness(10, 8, 10, 8),
-                    Margin = new Thickness(0, 2, 0, 2),
-                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1e1e3f")),
-                    Cursor = System.Windows.Input.Cursors.Hand
-                };
-
-                var itemGrid = new Grid();
-                itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-                var timeText = new TextBlock
-                {
-                    Text = $"{TimeSpan.FromSeconds(frag.StartTime):mm\\:ss}",
-                    FontSize = 11,
-                    FontWeight = FontWeights.Bold,
-                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64B5F6")),
-                    Width = 45,
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                Grid.SetColumn(timeText, 0);
-                itemGrid.Children.Add(timeText);
-
-                var textContent = new TextBlock
-                {
-                    Text = frag.Text?.Length > 80 ? frag.Text.Substring(0, 80) + "..." : frag.Text,
-                    FontSize = 12,
-                    Foreground = Brushes.White,
-                    TextWrapping = TextWrapping.NoWrap,
-                    TextTrimming = TextTrimming.CharacterEllipsis,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(8, 0, 0, 0)
-                };
-                Grid.SetColumn(textContent, 1);
-                itemGrid.Children.Add(textContent);
-
-                item.Content = itemGrid;
-                item.MouseDoubleClick += FragmentItem_DoubleClick;
-                item.Selected += FragmentItem_Selected;
-                _fragmentsList.Items.Add(item);
-            }
-
-            Grid.SetRow(_fragmentsList, 1);
-            fragmentsContainer.Children.Add(_fragmentsList);
-            fragmentsPanel.Child = fragmentsContainer;
-            Grid.SetRow(fragmentsPanel, 1);
-            mainGrid.Children.Add(fragmentsPanel);
-
-            // ===== KONTROLKI ODTWARZACZA =====
-            var controlsPanel = new Border
-            {
-                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#16213e")),
-                Padding = new Thickness(15, 12, 15, 12)
-            };
-            var controlsStack = new StackPanel();
-
-            // Slider + czas
-            var sliderGrid = new Grid { Margin = new Thickness(0, 0, 0, 10) };
-            sliderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            sliderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            _seekSlider = new Slider
-            {
-                Minimum = 0,
-                Maximum = 100,
-                Value = 0,
-                Height = 20,
-                Margin = new Thickness(0, 0, 10, 0),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            _seekSlider.PreviewMouseDown += (s, ev) => _isDraggingSlider = true;
-            _seekSlider.PreviewMouseUp += SeekSlider_MouseUp;
-            _seekSlider.ValueChanged += SeekSlider_ValueChanged;
-            Grid.SetColumn(_seekSlider, 0);
-            sliderGrid.Children.Add(_seekSlider);
-
-            _timeDisplay = new TextBlock
-            {
-                Text = "00:00 / 00:00",
-                FontSize = 12,
-                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#aaa")),
-                VerticalAlignment = VerticalAlignment.Center,
-                Width = 90,
-                TextAlignment = TextAlignment.Right
-            };
-            Grid.SetColumn(_timeDisplay, 1);
-            sliderGrid.Children.Add(_timeDisplay);
-            controlsStack.Children.Add(sliderGrid);
-
-            // Przyciski transportu
-            var transportStack = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                HorizontalAlignment = HorizontalAlignment.Center
-            };
-
-            var btnPrev = CreateTransportButton("⏮", "Poprzedni fragment");
-            btnPrev.Click += BtnPrevFragment_Click;
-            transportStack.Children.Add(btnPrev);
-
-            var btnBack10 = CreateTransportButton("⏪", "-10s");
-            btnBack10.Click += (s, ev) => SeekRelative(-10);
-            transportStack.Children.Add(btnBack10);
-
-            _playPauseBtn = CreateTransportButton("▶", "Odtwórz", true);
-            _playPauseBtn.Click += BtnPlayPause_Click;
-            transportStack.Children.Add(_playPauseBtn);
-
-            var btnFwd10 = CreateTransportButton("⏩", "+10s");
-            btnFwd10.Click += (s, ev) => SeekRelative(10);
-            transportStack.Children.Add(btnFwd10);
-
-            var btnNext = CreateTransportButton("⏭", "Następny fragment");
-            btnNext.Click += BtnNextFragment_Click;
-            transportStack.Children.Add(btnNext);
-
-            // Głośność
-            var volumeStack = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Margin = new Thickness(30, 0, 0, 0),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            volumeStack.Children.Add(new TextBlock
-            {
-                Text = "🔊",
-                FontSize = 14,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 5, 0)
-            });
-            var volumeSlider = new Slider
-            {
-                Width = 80,
-                Minimum = 0,
-                Maximum = 1,
-                Value = 0.8,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            volumeSlider.ValueChanged += (s, ev) =>
-            {
-                if (_mediaElement != null) _mediaElement.Volume = ev.NewValue;
-            };
-            volumeStack.Children.Add(volumeSlider);
-            transportStack.Children.Add(volumeStack);
-
-            controlsStack.Children.Add(transportStack);
-            controlsPanel.Child = controlsStack;
-            Grid.SetRow(controlsPanel, 2);
-            mainGrid.Children.Add(controlsPanel);
-
-            // ===== FOOTER =====
-            var footerPanel = new Border
-            {
-                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0f0f23")),
-                Padding = new Thickness(15, 8, 15, 8)
-            };
-            var footerStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-
-            if (!string.IsNullOrEmpty(transcriptUrl))
-            {
-                var btnFireflies = new Button
-                {
-                    Content = "🌐 Fireflies",
-                    Padding = new Thickness(10, 5, 10, 5),
-                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#455a64")),
-                    Foreground = Brushes.White,
-                    BorderThickness = new Thickness(0),
-                    Margin = new Thickness(0, 0, 10, 0),
-                    Cursor = System.Windows.Input.Cursors.Hand
-                };
-                btnFireflies.Click += (s, ev) =>
-                {
-                    try
-                    {
-                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                        {
-                            FileName = transcriptUrl,
-                            UseShellExecute = true
-                        });
-                    }
-                    catch { }
-                };
-                footerStack.Children.Add(btnFireflies);
-            }
-
-            var btnZamknij = new Button
-            {
-                Content = "Zamknij",
-                Padding = new Thickness(12, 5, 12, 5),
-                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#607D8B")),
-                Foreground = Brushes.White,
-                BorderThickness = new Thickness(0),
-                Cursor = System.Windows.Input.Cursors.Hand
-            };
-            btnZamknij.Click += (s, ev) =>
-            {
-                _playerTimer?.Stop();
-                _mediaElement?.Stop();
-                _odtwarzaczWindow?.Close();
-            };
-            footerStack.Children.Add(btnZamknij);
-            footerPanel.Child = footerStack;
-            Grid.SetRow(footerPanel, 3);
-            mainGrid.Children.Add(footerPanel);
-
-            // ===== MEDIA ELEMENT (ukryty, ale musi być w visual tree) =====
-            _mediaElement = new MediaElement
-            {
-                LoadedBehavior = MediaState.Manual,
-                UnloadedBehavior = MediaState.Stop,
-                Volume = 0.8,
-                Width = 0,
-                Height = 0,
-                Visibility = Visibility.Collapsed
-            };
-            _mediaElement.MediaOpened += MediaElement_MediaOpened;
-            _mediaElement.MediaEnded += MediaElement_MediaEnded;
-            _mediaElement.MediaFailed += MediaElement_MediaFailed;
-
-            // Dodaj MediaElement do głównego grida (ukryty)
-            mainGrid.Children.Add(_mediaElement);
-
-            // Timer do aktualizacji pozycji
-            _playerTimer = new System.Windows.Threading.DispatcherTimer
-            {
-                Interval = TimeSpan.FromMilliseconds(200)
-            };
-            _playerTimer.Tick += PlayerTimer_Tick;
-
-            _odtwarzaczWindow.Content = mainGrid;
-            _odtwarzaczWindow.Closing += (s, ev) =>
-            {
-                _playerTimer?.Stop();
-                _mediaElement?.Stop();
-            };
-
-            // Załaduj audio
-            try
-            {
-                _mediaElement.Source = new Uri(audioUrl);
-                // Automatyczne rozpoczęcie od pierwszego fragmentu mówcy
-                if (fragmenty.Count > 0)
-                {
-                    _mediaElement.MediaOpened += (s, ev) =>
-                    {
-                        var startTime = fragmenty[0].StartTime;
-                        _mediaElement.Position = TimeSpan.FromSeconds(startTime);
-                        _mediaElement.Play();
-                        _playPauseBtn!.Content = "⏸";
-                        _playerTimer?.Start();
-
-                        // Zaznacz pierwszy fragment
-                        if (_fragmentsList?.Items.Count > 0)
-                            _fragmentsList.SelectedIndex = 0;
-                    };
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Nie można załadować audio: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            }
-
-            TxtStatusMapowania.Text = $"🎧 Odtwarzanie: {mowca.DisplayFireflies}";
-            StatusMapowania.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E3F2FD"));
-
-            _odtwarzaczWindow.Show();
-        }
+        private bool _uzywaNatywnegoAudio = false;
 
         private Button CreateTransportButton(string content, string tooltip, bool isPrimary = false)
         {
@@ -1534,6 +1095,557 @@ namespace Kalendarz1.Spotkania.Views
         private void MediaElement_MediaFailed(object? sender, ExceptionRoutedEventArgs e)
         {
             MessageBox.Show($"Błąd odtwarzania audio: {e.ErrorException?.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+
+        /// <summary>
+        /// Główna metoda odtwarzacza - obsługuje zarówno natywne audio jak i osadzony Fireflies
+        /// </summary>
+        private void PokazOdtwarzaczZFragmentami(string? audioUrl, string? transcriptUrl, MowcaMapowanieDisplay mowca, List<FirefliesSentenceDto> fragmenty)
+        {
+            // Zamknij poprzednie okno
+            if (_odtwarzaczWindow != null && _odtwarzaczWindow.IsLoaded)
+            {
+                _playerTimer?.Stop();
+                _mediaElement?.Stop();
+                _odtwarzaczWindow.Close();
+            }
+
+            _currentFragmenty = fragmenty;
+            _uzywaNatywnegoAudio = !string.IsNullOrEmpty(audioUrl);
+
+            // Sprawdź czy mamy cokolwiek do odtworzenia
+            if (string.IsNullOrEmpty(audioUrl) && string.IsNullOrEmpty(transcriptUrl))
+            {
+                var msg = $"🔊 {mowca.DisplayFireflies}\n\n" +
+                          $"Przykładowa wypowiedź:\n\"{mowca.PrzykladowaWypowiedz}\"\n\n" +
+                          $"⏱️ Czas mówienia: {mowca.CzasMowieniaDisplay}\n" +
+                          $"📊 Udział w rozmowie: {mowca.ProcentCzasu:F0}%\n\n" +
+                          $"(Brak dostępnego audio)";
+                MessageBox.Show(msg, "Próbka mówcy", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            _odtwarzaczWindow = new Window
+            {
+                Title = $"🎧 {mowca.DisplayFireflies} - Odtwarzacz",
+                Width = 950,
+                Height = 600,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1a1a2e"))
+            };
+
+            var mainGrid = new Grid();
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) }); // Lista fragmentów
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Odtwarzacz
+
+            // ===== LEWA STRONA - LISTA FRAGMENTÓW =====
+            var leftPanel = new Grid();
+            leftPanel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Header mówcy
+            leftPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Lista
+            leftPanel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Przycisk przypisz
+            leftPanel.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0f0f23"));
+
+            // Header mówcy
+            var speakerHeader = new Border
+            {
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#16213e")),
+                Padding = new Thickness(12, 10, 12, 10)
+            };
+            var speakerStack = new StackPanel();
+            var speakerRow = new StackPanel { Orientation = Orientation.Horizontal };
+
+            var avatar = new Border
+            {
+                Width = 40,
+                Height = 40,
+                CornerRadius = new CornerRadius(20),
+                Background = mowca.KolorMowcy,
+                Margin = new Thickness(0, 0, 10, 0)
+            };
+            avatar.Child = new TextBlock
+            {
+                Text = "🎧",
+                FontSize = 16,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            speakerRow.Children.Add(avatar);
+
+            var speakerInfo = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            speakerInfo.Children.Add(new TextBlock
+            {
+                Text = mowca.DisplayFireflies,
+                FontSize = 14,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            });
+            speakerInfo.Children.Add(new TextBlock
+            {
+                Text = mowca.StatystykiDisplay,
+                FontSize = 11,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#888"))
+            });
+            speakerRow.Children.Add(speakerInfo);
+            speakerStack.Children.Add(speakerRow);
+
+            // Info o fragmentach
+            speakerStack.Children.Add(new TextBlock
+            {
+                Text = $"📋 {fragmenty.Count} fragmentów",
+                FontSize = 11,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64B5F6")),
+                Margin = new Thickness(0, 8, 0, 0)
+            });
+            speakerHeader.Child = speakerStack;
+            Grid.SetRow(speakerHeader, 0);
+            leftPanel.Children.Add(speakerHeader);
+
+            // Lista fragmentów
+            _fragmentsList = new ListBox
+            {
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Margin = new Thickness(5),
+                SelectionMode = SelectionMode.Single
+            };
+
+            foreach (var frag in fragmenty)
+            {
+                var item = new ListBoxItem
+                {
+                    Tag = frag,
+                    Padding = new Thickness(8, 6, 8, 6),
+                    Margin = new Thickness(0, 2, 0, 2),
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1e1e3f")),
+                    Cursor = System.Windows.Input.Cursors.Hand
+                };
+
+                var itemStack = new StackPanel();
+                itemStack.Children.Add(new TextBlock
+                {
+                    Text = $"⏱ {TimeSpan.FromSeconds(frag.StartTime):mm\\:ss}",
+                    FontSize = 10,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64B5F6"))
+                });
+                itemStack.Children.Add(new TextBlock
+                {
+                    Text = frag.Text?.Length > 60 ? frag.Text.Substring(0, 60) + "..." : frag.Text,
+                    FontSize = 11,
+                    Foreground = Brushes.White,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 3, 0, 0)
+                });
+
+                item.Content = itemStack;
+                item.MouseLeftButtonUp += FragmentItem_Click;
+                _fragmentsList.Items.Add(item);
+            }
+
+            Grid.SetRow(_fragmentsList, 1);
+            leftPanel.Children.Add(_fragmentsList);
+
+            // Przycisk przypisz (jeśli nie przypisany)
+            if (!mowca.JestPrzypisany)
+            {
+                var assignPanel = new Border
+                {
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#16213e")),
+                    Padding = new Thickness(10)
+                };
+                var btnPrzypisz = new Button
+                {
+                    Content = "✓ Przypisz tego mówcę",
+                    Padding = new Thickness(10, 8, 10, 8),
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4CAF50")),
+                    Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0),
+                    FontWeight = FontWeights.SemiBold,
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    HorizontalAlignment = HorizontalAlignment.Stretch
+                };
+                btnPrzypisz.Click += (s, ev) =>
+                {
+                    _playerTimer?.Stop();
+                    _mediaElement?.Stop();
+                    _odtwarzaczWindow?.Close();
+                    TxtStatusMapowania.Text = $"Wybierz pracownika dla: {mowca.DisplayFireflies}";
+                    StatusMapowania.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFF8E1"));
+                };
+                assignPanel.Child = btnPrzypisz;
+                Grid.SetRow(assignPanel, 2);
+                leftPanel.Children.Add(assignPanel);
+            }
+
+            Grid.SetColumn(leftPanel, 0);
+            mainGrid.Children.Add(leftPanel);
+
+            // ===== PRAWA STRONA - ODTWARZACZ =====
+            var rightPanel = new Grid();
+            rightPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Player/Browser
+            rightPanel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Kontrolki
+            rightPanel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Footer
+
+            if (_uzywaNatywnegoAudio)
+            {
+                // NATYWNY ODTWARZACZ AUDIO
+                var audioVisual = new Border
+                {
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0f0f23"))
+                };
+                var audioStack = new StackPanel
+                {
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+                audioStack.Children.Add(new TextBlock
+                {
+                    Text = "🎵",
+                    FontSize = 80,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                });
+                audioStack.Children.Add(new TextBlock
+                {
+                    Text = "Odtwarzanie natywne audio",
+                    FontSize = 14,
+                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#888")),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 10, 0, 0)
+                });
+                audioVisual.Child = audioStack;
+                Grid.SetRow(audioVisual, 0);
+                rightPanel.Children.Add(audioVisual);
+
+                // MediaElement (ukryty)
+                _mediaElement = new MediaElement
+                {
+                    LoadedBehavior = MediaState.Manual,
+                    UnloadedBehavior = MediaState.Stop,
+                    Volume = 0.8,
+                    Width = 0,
+                    Height = 0,
+                    Visibility = Visibility.Collapsed
+                };
+                _mediaElement.MediaOpened += (s, ev) =>
+                {
+                    if (fragmenty.Count > 0)
+                    {
+                        _mediaElement.Position = TimeSpan.FromSeconds(fragmenty[0].StartTime);
+                    }
+                    _mediaElement.Play();
+                    if (_playPauseBtn != null) _playPauseBtn.Content = "⏸";
+                    _playerTimer?.Start();
+                    if (_fragmentsList?.Items.Count > 0)
+                        _fragmentsList.SelectedIndex = 0;
+                };
+                _mediaElement.MediaEnded += MediaElement_MediaEnded;
+                _mediaElement.MediaFailed += (s, ev) =>
+                {
+                    // Fallback do przeglądarki przy błędzie
+                    if (!string.IsNullOrEmpty(transcriptUrl))
+                    {
+                        _uzywaNatywnegoAudio = false;
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = transcriptUrl,
+                            UseShellExecute = true
+                        });
+                    }
+                };
+                rightPanel.Children.Add(_mediaElement);
+
+                try
+                {
+                    _mediaElement.Source = new Uri(audioUrl!);
+                }
+                catch { }
+
+                // Kontrolki dla natywnego audio
+                var controlsPanel = CreateAudioControls();
+                Grid.SetRow(controlsPanel, 1);
+                rightPanel.Children.Add(controlsPanel);
+            }
+            else
+            {
+                // OSADZONY FIREFLIES (WebBrowser)
+                _webBrowser = new System.Windows.Controls.WebBrowser();
+
+                // Tłumienie błędów JavaScript
+                _webBrowser.Navigating += (s, ev) => SetWebBrowserSilent(_webBrowser);
+                _webBrowser.Navigated += (s, ev) => SetWebBrowserSilent(_webBrowser);
+                _webBrowser.LoadCompleted += (s, ev) => SetWebBrowserSilent(_webBrowser);
+
+                Grid.SetRow(_webBrowser, 0);
+                rightPanel.Children.Add(_webBrowser);
+
+                // Nawiguj do Fireflies z timestampem
+                var url = transcriptUrl!;
+                if (fragmenty.Count > 0 && fragmenty[0].StartTime > 0)
+                {
+                    var separator = url.Contains("?") ? "&" : "?";
+                    url = $"{url}{separator}t={Math.Floor(fragmenty[0].StartTime)}";
+                }
+
+                try
+                {
+                    _webBrowser.Navigate(new Uri(url));
+                }
+                catch { }
+
+                // Info panel zamiast kontrolek
+                var infoPanel = new Border
+                {
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#16213e")),
+                    Padding = new Thickness(15, 10, 15, 10)
+                };
+                infoPanel.Child = new TextBlock
+                {
+                    Text = "💡 Kliknij fragment na liście, aby przeskoczyć do tego miejsca w Fireflies",
+                    FontSize = 12,
+                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#aaa")),
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+                Grid.SetRow(infoPanel, 1);
+                rightPanel.Children.Add(infoPanel);
+            }
+
+            // Footer z przyciskami
+            var footerPanel = new Border
+            {
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#16213e")),
+                Padding = new Thickness(10, 8, 10, 8)
+            };
+            var footerStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+
+            if (!string.IsNullOrEmpty(transcriptUrl))
+            {
+                var btnFireflies = new Button
+                {
+                    Content = "🌐 Otwórz w przeglądarce",
+                    Padding = new Thickness(10, 5, 10, 5),
+                    Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#455a64")),
+                    Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0),
+                    Margin = new Thickness(0, 0, 10, 0),
+                    Cursor = System.Windows.Input.Cursors.Hand
+                };
+                btnFireflies.Click += (s, ev) =>
+                {
+                    try
+                    {
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = transcriptUrl,
+                            UseShellExecute = true
+                        });
+                    }
+                    catch { }
+                };
+                footerStack.Children.Add(btnFireflies);
+            }
+
+            var btnZamknij = new Button
+            {
+                Content = "Zamknij",
+                Padding = new Thickness(12, 5, 12, 5),
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#607D8B")),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            btnZamknij.Click += (s, ev) =>
+            {
+                _playerTimer?.Stop();
+                _mediaElement?.Stop();
+                _odtwarzaczWindow?.Close();
+            };
+            footerStack.Children.Add(btnZamknij);
+            footerPanel.Child = footerStack;
+            Grid.SetRow(footerPanel, 2);
+            rightPanel.Children.Add(footerPanel);
+
+            Grid.SetColumn(rightPanel, 1);
+            mainGrid.Children.Add(rightPanel);
+
+            // Timer
+            _playerTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(200)
+            };
+            _playerTimer.Tick += PlayerTimer_Tick;
+
+            _odtwarzaczWindow.Content = mainGrid;
+            _odtwarzaczWindow.Closing += (s, ev) =>
+            {
+                _playerTimer?.Stop();
+                _mediaElement?.Stop();
+            };
+
+            TxtStatusMapowania.Text = $"🎧 Odtwarzanie: {mowca.DisplayFireflies}";
+            StatusMapowania.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E3F2FD"));
+
+            _odtwarzaczWindow.Show();
+        }
+
+        private Border CreateAudioControls()
+        {
+            var controlsPanel = new Border
+            {
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#16213e")),
+                Padding = new Thickness(15, 12, 15, 12)
+            };
+            var controlsStack = new StackPanel();
+
+            // Slider + czas
+            var sliderGrid = new Grid { Margin = new Thickness(0, 0, 0, 10) };
+            sliderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            sliderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            _seekSlider = new Slider
+            {
+                Minimum = 0,
+                Maximum = 100,
+                Value = 0,
+                Height = 20,
+                Margin = new Thickness(0, 0, 10, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            _seekSlider.PreviewMouseDown += (s, ev) => _isDraggingSlider = true;
+            _seekSlider.PreviewMouseUp += SeekSlider_MouseUp;
+            Grid.SetColumn(_seekSlider, 0);
+            sliderGrid.Children.Add(_seekSlider);
+
+            _timeDisplay = new TextBlock
+            {
+                Text = "00:00 / 00:00",
+                FontSize = 12,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#aaa")),
+                VerticalAlignment = VerticalAlignment.Center,
+                Width = 90,
+                TextAlignment = TextAlignment.Right
+            };
+            Grid.SetColumn(_timeDisplay, 1);
+            sliderGrid.Children.Add(_timeDisplay);
+            controlsStack.Children.Add(sliderGrid);
+
+            // Przyciski transportu
+            var transportStack = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+
+            var btnPrev = CreateTransportButton("⏮", "Poprzedni fragment");
+            btnPrev.Click += BtnPrevFragment_Click;
+            transportStack.Children.Add(btnPrev);
+
+            var btnBack10 = CreateTransportButton("⏪", "-10s");
+            btnBack10.Click += (s, ev) => SeekRelative(-10);
+            transportStack.Children.Add(btnBack10);
+
+            _playPauseBtn = CreateTransportButton("▶", "Odtwórz", true);
+            _playPauseBtn.Click += BtnPlayPause_Click;
+            transportStack.Children.Add(_playPauseBtn);
+
+            var btnFwd10 = CreateTransportButton("⏩", "+10s");
+            btnFwd10.Click += (s, ev) => SeekRelative(10);
+            transportStack.Children.Add(btnFwd10);
+
+            var btnNext = CreateTransportButton("⏭", "Następny fragment");
+            btnNext.Click += BtnNextFragment_Click;
+            transportStack.Children.Add(btnNext);
+
+            // Głośność
+            var volumeStack = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(30, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            volumeStack.Children.Add(new TextBlock
+            {
+                Text = "🔊",
+                FontSize = 14,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 5, 0)
+            });
+            var volumeSlider = new Slider
+            {
+                Width = 80,
+                Minimum = 0,
+                Maximum = 1,
+                Value = 0.8,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            volumeSlider.ValueChanged += (s, ev) =>
+            {
+                if (_mediaElement != null) _mediaElement.Volume = ev.NewValue;
+            };
+            volumeStack.Children.Add(volumeSlider);
+            transportStack.Children.Add(volumeStack);
+
+            controlsStack.Children.Add(transportStack);
+            controlsPanel.Child = controlsStack;
+            return controlsPanel;
+        }
+
+        private void FragmentItem_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            var item = sender as ListBoxItem;
+            var frag = item?.Tag as FirefliesSentenceDto;
+            if (frag == null) return;
+
+            if (_uzywaNatywnegoAudio && _mediaElement != null)
+            {
+                // Natywny audio - przeskocz do pozycji
+                _mediaElement.Position = TimeSpan.FromSeconds(frag.StartTime);
+                if (_playPauseBtn?.Content?.ToString() == "▶")
+                {
+                    _mediaElement.Play();
+                    _playPauseBtn.Content = "⏸";
+                    _playerTimer?.Start();
+                }
+            }
+            else if (_webBrowser != null)
+            {
+                // WebBrowser - nawiguj do URL z timestampem
+                var transcriptUrl = _transkrypcja?.TranskrypcjaUrl ?? _transkrypcjaApi?.TranscriptUrl;
+                if (!string.IsNullOrEmpty(transcriptUrl))
+                {
+                    var separator = transcriptUrl.Contains("?") ? "&" : "?";
+                    var url = $"{transcriptUrl}{separator}t={Math.Floor(frag.StartTime)}";
+                    try
+                    {
+                        _webBrowser.Navigate(new Uri(url));
+                    }
+                    catch { }
+                }
+            }
+        }
+
+        private void SetWebBrowserSilent(System.Windows.Controls.WebBrowser browser)
+        {
+            try
+            {
+                var fiComWebBrowser = typeof(System.Windows.Controls.WebBrowser)
+                    .GetField("_axIWebBrowser2", BindingFlags.Instance | BindingFlags.NonPublic);
+                if (fiComWebBrowser != null)
+                {
+                    var objComWebBrowser = fiComWebBrowser.GetValue(browser);
+                    if (objComWebBrowser != null)
+                    {
+                        objComWebBrowser.GetType().InvokeMember(
+                            "Silent",
+                            BindingFlags.SetProperty,
+                            null,
+                            objComWebBrowser,
+                            new object[] { true });
+                    }
+                }
+            }
+            catch { }
         }
 
         #endregion
