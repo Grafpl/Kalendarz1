@@ -423,7 +423,7 @@ namespace Kalendarz1.Spotkania.Services
                 var sb = new StringBuilder();
                 foreach (var s in dto.Sentences)
                 {
-                    sb.AppendLine($"[{s.SpeakerName ?? s.SpeakerId ?? "?"}]: {s.Text}");
+                    sb.AppendLine($"[{s.SpeakerName ?? s.SpeakerId?.ToString() ?? "?"}]: {s.Text}");
                 }
                 transkrypcjaTekst = sb.ToString();
             }
