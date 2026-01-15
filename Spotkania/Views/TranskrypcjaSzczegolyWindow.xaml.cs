@@ -82,26 +82,21 @@ namespace Kalendarz1.Spotkania.Views
             using var conn = new SqlConnection(CONNECTION_STRING);
             await conn.OpenAsync();
 
-            string sql = @"SELECT UserID, imie, nazwisko, email
-                          FROM operators
-                          WHERE aktywny = 1
-                          ORDER BY nazwisko, imie";
+            // Tabela operators ma kolumny ID i Name
+            string sql = @"SELECT ID, Name FROM operators ORDER BY Name";
 
             using var cmd = new SqlCommand(sql, conn);
             using var reader = await cmd.ExecuteReaderAsync();
 
             while (await reader.ReadAsync())
             {
-                var userId = reader.GetString(0);
-                var imie = reader.IsDBNull(1) ? "" : reader.GetString(1);
-                var nazwisko = reader.IsDBNull(2) ? "" : reader.GetString(2);
-                var email = reader.IsDBNull(3) ? "" : reader.GetString(3);
+                var id = reader.GetString(0);
+                var name = reader.IsDBNull(1) ? id : reader.GetString(1);
 
                 _pracownicy.Add(new PracownikItem
                 {
-                    UserID = userId,
-                    DisplayName = $"{imie} {nazwisko}".Trim(),
-                    Email = email
+                    UserID = id,
+                    DisplayName = string.IsNullOrEmpty(name) ? id : name
                 });
             }
         }
