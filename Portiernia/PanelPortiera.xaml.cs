@@ -54,8 +54,7 @@ namespace Kalendarz1
         private const string FIRMA_REGON = "750045476";
         private const string FIRMA_TEL = "(46) 874 71 70";
 
-        private ObservableCollection<DostawaPortiera> dostawy;        // Kolekcja dla Avilog
-        private ObservableCollection<DostawaPortiera> dostawyOdpady; // Kolekcja dla Odpady
+        private ObservableCollection<DostawaPortiera> dostawy;
         private DostawaPortiera _wybranaDostwa;
         private Border selectedCardBorder = null;
         private DataGridRow selectedGridRow = null;
@@ -106,18 +105,6 @@ namespace Kalendarz1
         private DispatcherTimer clockTimer;
         private DispatcherTimer dateCheckTimer;
 
-        // Timer bezczynności - automatyczne przełączanie na kamery po 6 minutach
-        private DispatcherTimer inactivityTimer;
-        private DateTime lastActivityTime = DateTime.Now;
-        private const int INACTIVITY_MINUTES = 6;
-
-        // Kamera - pojedynczy widok z wyborem strumienia
-        private DispatcherTimer cameraViewTimer;
-        private bool cameraViewActive = false;
-        private bool useMainStream = false; // true = główny strumień (101), false = podstrumień (102) - domyślnie SD
-        private int frameCount = 0;
-        private DateTime lastFpsUpdate = DateTime.Now;
-
         public ObservableCollection<Odbiorca> ListaOdbiorcow { get; set; } = new ObservableCollection<Odbiorca>();
 
         private int nextWzNumber = 1;
@@ -132,9 +119,8 @@ namespace Kalendarz1
             DataContext = this;
 
             dostawy = new ObservableCollection<DostawaPortiera>();
-            dostawyOdpady = new ObservableCollection<DostawaPortiera>();
             listDostawy.ItemsSource = dostawy;
-            gridTable.ItemsSource = dostawyOdpady;
+            gridTable.ItemsSource = dostawy;
             cbOdbiorcy.ItemsSource = ListaOdbiorcow;
             cbOdbiorcy.DisplayMemberPath = "Nazwa";
 
@@ -184,36 +170,7 @@ namespace Kalendarz1
             };
             dateCheckTimer.Start();
 
-            // Timer bezczynności - przełącza na widok kamer po 6 minutach braku ważeń
-            inactivityTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
-            inactivityTimer.Tick += InactivityTimer_Tick;
-            inactivityTimer.Start();
-            lastActivityTime = DateTime.Now;
-
             ConnectToScale("COM1", 9600);
-        }
-
-        private void InactivityTimer_Tick(object sender, EventArgs e)
-        {
-            // Sprawdź czy minęło 6 minut od ostatniej aktywności (ważenia)
-            if ((DateTime.Now - lastActivityTime).TotalMinutes >= INACTIVITY_MINUTES)
-            {
-                // Przełącz na tryb kamer tylko jeśli nie jesteśmy już w trybie kamer
-                if (aktualnyTryb != "Kamery")
-                {
-                    Dispatcher.Invoke(() =>
-                    {
-                        rbKamery.IsChecked = true;
-                        SwitchToCameraMode();
-                    });
-                }
-            }
-        }
-
-        // Metoda do rejestrowania aktywności (wywoływana przy ważeniu)
-        private void RegisterActivity()
-        {
-            lastActivityTime = DateTime.Now;
         }
 
         #region ANIMACJE
@@ -672,27 +629,18 @@ namespace Kalendarz1
         {
             if (sender is RadioButton rb)
             {
-                // Zatrzymaj kamery jeśli wychodzimy z trybu kamer
-                if (aktualnyTryb == "Kamery" && rb.Name != "rbKamery")
-                {
-                    StopCameraViewStream();
-                }
-
                 if (rb.Name == "rbAvilog")
                 {
                     aktualnyTryb = "Avilog";
                     this.Resources["ThemeColor"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFA726"));
                     viewTiles.Visibility = Visibility.Visible;
                     gridTable.Visibility = Visibility.Collapsed;
-                    viewCameras.Visibility = Visibility.Collapsed;
                     panelButtonsLeft.Visibility = Visibility.Collapsed;
                     panelCommodity.Visibility = Visibility.Collapsed;
                     panelReadOnlyCar.Visibility = Visibility.Visible;
                     panelEditCar.Visibility = Visibility.Collapsed;
                     btnScanAvilog.Visibility = Visibility.Visible;
                     btnPrintAvilog.Visibility = Visibility.Visible;
-                    panelRight.Visibility = Visibility.Visible;
-                    LoadDostawy();
                 }
                 else if (rb.Name == "rbOdpady")
                 {
@@ -701,45 +649,18 @@ namespace Kalendarz1
                     UpdateThemeColor(aktualnyTowar);
                     viewTiles.Visibility = Visibility.Collapsed;
                     gridTable.Visibility = Visibility.Visible;
-                    viewCameras.Visibility = Visibility.Collapsed;
                     panelButtonsLeft.Visibility = Visibility.Visible;
                     panelCommodity.Visibility = Visibility.Visible;
                     panelReadOnlyCar.Visibility = Visibility.Collapsed;
                     panelEditCar.Visibility = Visibility.Visible;
                     btnScanAvilog.Visibility = Visibility.Collapsed;
                     btnPrintAvilog.Visibility = Visibility.Collapsed;
-                    panelRight.Visibility = Visibility.Visible;
                     btnKrew.IsChecked = true;
                     LoadOdbiorcyDlaTowar(aktualnyTowar);
-                    LoadDostawy();
                 }
-                else if (rb.Name == "rbKamery")
-                {
-                    SwitchToCameraMode();
-                }
+                LoadDostawy();
                 ClearFormularz();
             }
-        }
-
-        private void SwitchToCameraMode()
-        {
-            aktualnyTryb = "Kamery";
-            this.Resources["ThemeColor"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#89B4FA"));
-            viewTiles.Visibility = Visibility.Collapsed;
-            gridTable.Visibility = Visibility.Collapsed;
-            viewCameras.Visibility = Visibility.Visible;
-            panelButtonsLeft.Visibility = Visibility.Collapsed;
-            panelCommodity.Visibility = Visibility.Collapsed;
-            panelReadOnlyCar.Visibility = Visibility.Collapsed;
-            panelEditCar.Visibility = Visibility.Collapsed;
-            btnScanAvilog.Visibility = Visibility.Collapsed;
-            btnPrintAvilog.Visibility = Visibility.Collapsed;
-
-            // Schowaj prawy panel - pełny ekran dla kamer
-            panelRight.Visibility = Visibility.Collapsed;
-
-            // Uruchom strumienie 4 kamer
-            StartCameraViewStream();
         }
 
         #endregion
@@ -761,11 +682,7 @@ namespace Kalendarz1
                     selectedGridRow = null;
                 }
 
-                // Czyść odpowiednią kolekcję w zależności od trybu
-                if (aktualnyTryb == "Avilog")
-                    dostawy.Clear();
-                else
-                    dostawyOdpady.Clear();
+                dostawy.Clear();
 
                 using (var conn = new SqlConnection(connectionString))
                 {
@@ -778,11 +695,9 @@ namespace Kalendarz1
                             ISNULL(dr.[Name], '') as KierowcaNazwa, fc.CarID, fc.TrailerID, fc.SztPoj,
                             ISNULL(fc.FullWeight, 0) as Brutto, ISNULL(fc.EmptyWeight, 0) as Tara,
                             ISNULL(fc.NettoWeight, 0) as Netto, fc.Przyjazd, fc.GodzinaTara, fc.GodzinaBrutto,
-                            fc.ZdjecieTaraPath, fc.ZdjecieBruttoPath,
-                            ISNULL(rz.Zatwierdzony, 0) as Zatwierdzony, rz.ZatwierdzonePrzez
-                        FROM dbo.FarmerCalc fc
+                            fc.ZdjecieTaraPath, fc.ZdjecieBruttoPath
+                        FROM dbo.FarmerCalc fc 
                         LEFT JOIN dbo.Driver dr ON fc.DriverGID = dr.GID
-                        LEFT JOIN dbo.RozliczeniaZatwierdzenia rz ON fc.ID = rz.SpecyfikacjaID AND rz.DataUboju = CAST(fc.CalcDate AS DATE)
                         WHERE CAST(fc.CalcDate AS DATE) = @Data
                         ORDER BY fc.Przyjazd ASC, fc.ID";
 
@@ -815,9 +730,7 @@ namespace Kalendarz1
                                         GodzinaTaraDisplay = godzTara?.ToString("HH:mm") ?? "-",
                                         GodzinaBruttoDisplay = godzBrutto?.ToString("HH:mm") ?? "-",
                                         ZdjecieTaraPath = r["ZdjecieTaraPath"]?.ToString(),
-                                        ZdjecieBruttoPath = r["ZdjecieBruttoPath"]?.ToString(),
-                                        Zatwierdzony = r["Zatwierdzony"] != DBNull.Value && Convert.ToBoolean(r["Zatwierdzony"]),
-                                        ZatwierdzonePrzez = r["ZatwierdzonePrzez"]?.ToString()
+                                        ZdjecieBruttoPath = r["ZdjecieBruttoPath"]?.ToString()
                                     };
                                     d.NrRejestracyjny = $"{d.CarID} {d.TrailerID}";
                                     dostawy.Add(d);
@@ -843,7 +756,7 @@ namespace Kalendarz1
                                     var godzTara = r["GodzinaTara"] != DBNull.Value ? Convert.ToDateTime(r["GodzinaTara"]) : (DateTime?)null;
                                     var godzBrutto = r["GodzinaBrutto"] != DBNull.Value ? Convert.ToDateTime(r["GodzinaBrutto"]) : (DateTime?)null;
 
-                                    dostawyOdpady.Add(new DostawaPortiera
+                                    dostawy.Add(new DostawaPortiera
                                     {
                                         ID = Convert.ToInt64(r["ID"]),
                                         GodzinaPrzyjazdu = r["Godzina"]?.ToString() ?? "",
@@ -922,54 +835,6 @@ namespace Kalendarz1
                     AnimateRowGlow(selectedGridRow, true);
 
                 WybierzDostawe(dostawa);
-            }
-        }
-
-        private void CbTowarInGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (sender is ComboBox cb && cb.Tag is DostawaPortiera dostawa && cb.SelectedValue != null)
-            {
-                string nowyTowar = cb.SelectedValue.ToString();
-
-                // Pomijamy jeśli wartość się nie zmieniła
-                if (dostawa.Towar == nowyTowar) return;
-
-                // Sprawdź czy wiersz jest wprowadzony - wtedy blokuj zmianę
-                if (dostawa.JestWprowadzony)
-                {
-                    MessageBox.Show("Nie można zmienić towaru dla już wprowadzonego ważenia.",
-                        "Blokada edycji", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    // Przywróć poprzednią wartość
-                    cb.SelectedValue = dostawa.Towar;
-                    return;
-                }
-
-                try
-                {
-                    using (var conn = new SqlConnection(connectionString))
-                    {
-                        conn.Open();
-                        string updateQuery = @"UPDATE dbo.Odpady_Wazenia
-                                               SET TowarKod = @Towar
-                                               WHERE ID = @ID";
-                        using (var cmd = new SqlCommand(updateQuery, conn))
-                        {
-                            cmd.Parameters.AddWithValue("@Towar", nowyTowar);
-                            cmd.Parameters.AddWithValue("@ID", dostawa.ID);
-                            cmd.ExecuteNonQuery();
-                        }
-                    }
-
-                    // Aktualizuj lokalnie
-                    dostawa.Towar = nowyTowar;
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Błąd zapisu zmiany towaru: {ex.Message}",
-                        "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                    // Przywróć poprzednią wartość
-                    cb.SelectedValue = dostawa.Towar;
-                }
             }
         }
 
@@ -1319,17 +1184,6 @@ namespace Kalendarz1
             bool jestZmiana = (brutto != originalBrutto) || (tara != originalTara);
             if (!jestZmiana && brutto == 0 && tara == 0) return;
 
-            // Sprawdź blokadę edycji (status "wprowadzony")
-            if (aktualnyTryb == "Avilog" && WybranaDostwa != null && WybranaDostwa.JestWprowadzony)
-            {
-                MessageBox.Show($"Nie można zapisać wagi - transport jest już wprowadzony do rozliczenia.\n\n" +
-                    $"Pojazd: {WybranaDostwa.CarID} {WybranaDostwa.TrailerID}\n" +
-                    $"Wprowadził: {WybranaDostwa.ZatwierdzonePrzez}\n\n" +
-                    $"Aby zmienić wagę, należy najpierw cofnąć status w zakładce Rozliczenia.",
-                    "Blokada edycji - transport wprowadzony", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
             bool success = false;
 
             if (aktualnyTryb == "Avilog")
@@ -1350,21 +1204,9 @@ namespace Kalendarz1
 
             if (success)
             {
-                // Zarejestruj aktywność - resetuje timer bezczynności
-                RegisterActivity();
-
                 PlaySound(true);
                 if (selectedCardBorder != null)
                     AnimateSuccess(selectedCardBorder);
-
-                // Pokaż MessageBox z potwierdzeniem zapisu
-                string typWagi = (tara > 0 && brutto == 0) ? "TARA" : (brutto > 0 ? "BRUTTO" : "WAGA");
-                string pojazd = aktualnyTryb == "Avilog"
-                    ? $"{WybranaDostwa?.CarID} {WybranaDostwa?.TrailerID}"
-                    : txtEditRejestracja.Text.Trim();
-                int wartoscWagi = (tara > 0 && brutto == 0) ? tara : brutto;
-                MessageBox.Show($"Zapisano wagę {typWagi}!\n\nPojazd: {pojazd}\nWaga: {wartoscWagi:N0} kg",
-                    "Zapisano", MessageBoxButton.OK, MessageBoxImage.Information);
 
                 // Drukuj paragon tylko jeśli checkbox jest zaznaczony
                 if (chkAutoPrint.IsChecked == true)
@@ -1670,8 +1512,8 @@ namespace Kalendarz1
                 HodowcaNazwa = "(nowy wpis)"
             };
 
-            // Dodaj do listy aby był widoczny w tabeli (w trybie Odpady)
-            dostawyOdpady.Insert(0, nowyWpis);
+            // Dodaj do listy aby był widoczny w tabeli
+            dostawy.Insert(0, nowyWpis);
 
             // Zaznacz nowy wiersz
             WybranaDostwa = nowyWpis;
@@ -2239,9 +2081,17 @@ namespace Kalendarz1
 
         public void BtnCamera_Click(object sender, RoutedEventArgs e)
         {
-            // Przełącz na zakładkę kamer zamiast otwierać overlay
-            rbKamery.IsChecked = true;
-            SwitchToCameraMode();
+            // Normalny tryb - nie wpisuj do TextBox
+            cameraScanToTextBoxMode = false;
+            
+            CameraOverlay.Visibility = Visibility.Visible;
+            cameraStatus.Text = "Łączenie z kamerą...";
+            cameraImage.Source = null;
+            
+            // Reset zoom przy otwarciu
+            ResetCameraZoom();
+            
+            StartCameraStream();
         }
 
         private void CameraClose_Click(object sender, RoutedEventArgs e)
@@ -2484,141 +2334,6 @@ namespace Kalendarz1
                 {
                     if (cameraActive)
                         cameraStatus.Text = $"Błąd: {ex.Message}";
-                });
-            }
-        }
-
-        #endregion
-
-        #region WIDOK KAMERY (ZAKŁADKA)
-
-        private void StreamSwitch_Click(object sender, RoutedEventArgs e)
-        {
-            useMainStream = rbMainStream.IsChecked == true;
-
-            // Aktualizuj etykietę rozdzielczości
-            lblStreamInfo.Text = useMainStream ? "1920x1080" : "640x480";
-
-            // Zresetuj licznik FPS
-            frameCount = 0;
-            lastFpsUpdate = DateTime.Now;
-        }
-
-        private void StartCameraViewStream()
-        {
-            cameraViewActive = true;
-            cameraStatus1.Text = "Łączenie z kamerą...";
-            cameraImage1.Source = null;
-
-            // Reset FPS
-            frameCount = 0;
-            lastFpsUpdate = DateTime.Now;
-            lblCameraFps.Text = "-- FPS";
-            lblStreamInfo.Text = useMainStream ? "1920x1080" : "640x480";
-
-            // Timer do odświeżania kamery co 150ms
-            cameraViewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
-            cameraViewTimer.Tick += async (s, e) => await RefreshCameraViewImage();
-            cameraViewTimer.Start();
-
-            // Pierwsze pobranie od razu
-            _ = RefreshCameraViewImage();
-        }
-
-        private void StopCameraViewStream()
-        {
-            cameraViewActive = false;
-            if (cameraViewTimer != null)
-            {
-                cameraViewTimer.Stop();
-                cameraViewTimer = null;
-            }
-        }
-
-        private async Task RefreshCameraViewImage()
-        {
-            if (!cameraViewActive) return;
-
-            try
-            {
-                // Wybierz kanał w zależności od wybranego strumienia
-                // 101 = główny strumień (main stream, HD)
-                // 102 = podstrumień (sub stream, SD)
-                string channel = useMainStream ? "101" : "102";
-
-                string[] endpoints = new string[]
-                {
-                    $"http://{CAMERA_IP}/ISAPI/Streaming/channels/{channel}/picture",
-                    $"http://{CAMERA_IP}/Streaming/channels/{channel}/picture",
-                    $"http://{CAMERA_IP}/cgi-bin/snapshot.cgi?channel={channel}",
-                    $"http://{CAMERA_IP}/snap.jpg"
-                };
-
-                using (var handler = new HttpClientHandler())
-                {
-                    handler.Credentials = new System.Net.NetworkCredential(CAMERA_USER, CAMERA_PASS);
-
-                    using (var client = new HttpClient(handler))
-                    {
-                        client.Timeout = TimeSpan.FromSeconds(3);
-
-                        foreach (var endpoint in endpoints)
-                        {
-                            try
-                            {
-                                var response = await client.GetAsync(endpoint);
-                                if (response.IsSuccessStatusCode)
-                                {
-                                    var data = await response.Content.ReadAsByteArrayAsync();
-                                    if (data.Length > 0)
-                                    {
-                                        await Dispatcher.InvokeAsync(() =>
-                                        {
-                                            if (!cameraViewActive) return;
-
-                                            var bitmap = new BitmapImage();
-                                            bitmap.BeginInit();
-                                            bitmap.StreamSource = new MemoryStream(data);
-                                            bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                                            bitmap.EndInit();
-                                            bitmap.Freeze();
-
-                                            cameraImage1.Source = bitmap;
-                                            cameraStatus1.Text = "";
-
-                                            // Oblicz FPS
-                                            frameCount++;
-                                            var elapsed = (DateTime.Now - lastFpsUpdate).TotalSeconds;
-                                            if (elapsed >= 1.0)
-                                            {
-                                                int fps = (int)(frameCount / elapsed);
-                                                lblCameraFps.Text = $"{fps} FPS";
-                                                frameCount = 0;
-                                                lastFpsUpdate = DateTime.Now;
-                                            }
-                                        });
-                                        return;
-                                    }
-                                }
-                            }
-                            catch { }
-                        }
-
-                        // Jeśli żaden endpoint nie zadziałał
-                        Dispatcher.Invoke(() =>
-                        {
-                            if (cameraViewActive)
-                                cameraStatus1.Text = "Brak połączenia z kamerą";
-                        });
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Dispatcher.Invoke(() =>
-                {
-                    if (cameraViewActive)
-                        cameraStatus1.Text = $"Błąd: {ex.Message}";
                 });
             }
         }
@@ -3661,36 +3376,7 @@ namespace Kalendarz1
             }
         }
 
-        private string _towar;
-        public string Towar
-        {
-            get => _towar;
-            set
-            {
-                _towar = value;
-                OnPropertyChanged(nameof(Towar));
-                OnPropertyChanged(nameof(TowarKod));
-                OnPropertyChanged(nameof(TowarIcon));
-                OnPropertyChanged(nameof(TowarColor));
-            }
-        }
-
-        // Alias dla ComboBox - używa tego samego pola co Towar
-        public string TowarKod
-        {
-            get => _towar;
-            set
-            {
-                if (_towar != value)
-                {
-                    _towar = value;
-                    OnPropertyChanged(nameof(TowarKod));
-                    OnPropertyChanged(nameof(Towar));
-                    OnPropertyChanged(nameof(TowarIcon));
-                    OnPropertyChanged(nameof(TowarColor));
-                }
-            }
-        }
+        public string Towar { get; set; }
         public int SztukiPlan { get; set; }
         public string GodzinaTaraDisplay { get; set; } = "-";
         public string GodzinaBruttoDisplay { get; set; } = "-";
@@ -3698,12 +3384,6 @@ namespace Kalendarz1
         // Ścieżki do zdjęć z ważenia
         public string ZdjecieTaraPath { get; set; }
         public string ZdjecieBruttoPath { get; set; }
-
-        // Status wprowadzenia (blokada edycji wag)
-        public bool Zatwierdzony { get; set; }
-        public string ZatwierdzonePrzez { get; set; }
-        public bool JestWprowadzony => Zatwierdzony;
-        public bool IsEditable => !Zatwierdzony;
 
         private int _brutto;
         public int Brutto
