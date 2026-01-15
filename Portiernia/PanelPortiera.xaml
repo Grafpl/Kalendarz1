@@ -270,13 +270,16 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- Obraz z kamery - pełna szerokość -->
-            <Border Grid.Row="0" Background="Black">
+            <!-- Obraz z kamery - pełna szerokość, kliknięcie przełącza na AVILOG -->
+            <Border Grid.Row="0" Background="Black" Cursor="Hand" MouseLeftButtonUp="CameraView_Click">
                 <Grid>
                     <Image x:Name="cameraViewImage" Stretch="Uniform"/>
                     <TextBlock x:Name="cameraViewStatus" Text="Łączenie z kamerą..."
                                FontSize="28" Foreground="Gray"
                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <!-- Podpowiedź na dole -->
+                    <TextBlock Text="Kliknij aby wrócić do AVILOG" FontSize="14" Foreground="#444"
+                               HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,15"/>
                 </Grid>
             </Border>
 

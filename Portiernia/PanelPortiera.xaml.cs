@@ -76,9 +76,9 @@ namespace Kalendarz1
         private bool czekaNaPierwszaCyfreBrutto = false;
         private bool czekaNaPierwszaCyfreTara = false;
 
-        // Timer nieaktywności - automatyczne przełączenie na KAMERY po 6 minutach
+        // Timer nieaktywności - automatyczne przełączenie na KAMERY po 5 minutach
         private DispatcherTimer inactivityTimer;
-        private const int INACTIVITY_TIMEOUT_MINUTES = 6;
+        private const int INACTIVITY_TIMEOUT_MINUTES = 5;
 
         // Tryb kamery - zmienne dla widoku KAMERY
         private DispatcherTimer cameraViewTimer;
@@ -2547,6 +2547,16 @@ namespace Kalendarz1
         public void BtnCameraOverlay_Click(object sender, RoutedEventArgs e)
         {
             BtnCamera_Click(sender, e);
+        }
+
+        /// <summary>
+        /// Kliknięcie na widok kamery - przełącza na AVILOG
+        /// </summary>
+        public void CameraView_Click(object sender, MouseButtonEventArgs e)
+        {
+            // Przełącz na tryb AVILOG
+            rbAvilog.IsChecked = true;
+            ZmienTryb_Click(rbAvilog, null);
         }
 
         #endregion
