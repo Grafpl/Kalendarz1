@@ -450,7 +450,6 @@
                     </Button>
                 </StackPanel>
             </Grid>
-        </Grid>
 
         <!-- Dolny panel nawigacji -->
         <Border Grid.Row="1" Grid.ColumnSpan="2" Background="#181820" Padding="12,10" BorderThickness="0,2,0,0" BorderBrush="#333">
