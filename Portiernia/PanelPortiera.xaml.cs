@@ -758,8 +758,8 @@ namespace Kalendarz1
                     LoadOdbiorcyDlaTowar(aktualnyTowar);
                     LoadDostawyOdpady();
 
-                    // Uruchom PiP kamery (8)
-                    StartPipCamera();
+                    // Zatrzymaj PiP w trybie ODPADY
+                    StopPipCamera();
                 }
                 else if (rb.Name == "rbKamery")
                 {
