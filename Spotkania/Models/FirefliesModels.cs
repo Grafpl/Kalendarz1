@@ -340,7 +340,7 @@ namespace Kalendarz1.Spotkania.Models
         public long? Date { get; set; } // Unix timestamp w milisekundach
 
         [JsonPropertyName("duration")]
-        public int? Duration { get; set; } // w sekundach
+        public double? Duration { get; set; } // w sekundach (może być float z API)
 
         [JsonPropertyName("transcript_url")]
         public string? TranscriptUrl { get; set; }
