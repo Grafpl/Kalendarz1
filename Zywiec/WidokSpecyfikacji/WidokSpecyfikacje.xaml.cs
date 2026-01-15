@@ -2370,9 +2370,9 @@ namespace Kalendarz1
         private void PasteRowSettingsToSupplier()
         {
             var currentRow = selectedRow ?? dataGridView1.SelectedItem as SpecyfikacjaRow;
-            if (currentRow == null || string.IsNullOrEmpty(currentRow.RealDostawca) || !_supplierClipboard.HasData) return;
+            if (currentRow == null || string.IsNullOrEmpty(currentRow.DostawcaGID) || !_supplierClipboard.HasData) return;
 
-            var rowsToUpdate = specyfikacjeData.Where(x => x.RealDostawca == currentRow.RealDostawca).ToList();
+            var rowsToUpdate = specyfikacjeData.Where(x => x.DostawcaGID == currentRow.DostawcaGID).ToList();
             var idsToUpdate = rowsToUpdate.Select(r => r.ID).ToList();
 
             // Określ które pola mają być zaktualizowane
@@ -3148,9 +3148,9 @@ namespace Kalendarz1
             sb.AppendLine($"⚖️ Suma wagi ubojni: {specyfikacjeData.Sum(r => r.NettoUbojniValue):N0} kg");
             sb.AppendLine($"💰 Suma wartość: {specyfikacjeData.Sum(r => r.Wartosc):N2} zł\n");
 
-            // Statystyki per dostawca
+            // Statystyki per dostawca (grupowane po DostawcaGID)
             var perDostawca = specyfikacjeData
-                .GroupBy(r => r.RealDostawca ?? r.Dostawca)
+                .GroupBy(r => r.DostawcaGID ?? r.Dostawca)
                 .OrderByDescending(g => g.Sum(r => r.LUMEL))
                 .Take(10);
 
@@ -3662,9 +3662,9 @@ namespace Kalendarz1
         private void ApplyFieldsToSupplier(SupplierFieldMask fields, SpecyfikacjaRow sourceRow = null)
         {
             var currentRow = sourceRow ?? selectedRow ?? dataGridView1.SelectedItem as SpecyfikacjaRow;
-            if (currentRow == null || string.IsNullOrEmpty(currentRow.RealDostawca)) return;
+            if (currentRow == null || string.IsNullOrEmpty(currentRow.DostawcaGID)) return;
 
-            var rowsToUpdate = specyfikacjeData.Where(x => x.RealDostawca == currentRow.RealDostawca).ToList();
+            var rowsToUpdate = specyfikacjeData.Where(x => x.DostawcaGID == currentRow.DostawcaGID).ToList();
             var idsToUpdate = rowsToUpdate.Select(r => r.ID).ToList();
 
             if (idsToUpdate.Count == 0) return;
@@ -4544,9 +4544,9 @@ namespace Kalendarz1
                 {
                     UpdateStatus($"Generowanie PDF dla: {currentRow.RealDostawca}...");
 
-                    // Zbierz wszystkie ID dla tego samego dostawcy (RealDostawca)
+                    // Zbierz wszystkie ID dla tego samego dostawcy (DostawcaGID - kod dostawcy)
                     var wierszeDoPDF = specyfikacjeData
-                        .Where(r => r.RealDostawca == currentRow.RealDostawca)
+                        .Where(r => r.DostawcaGID == currentRow.DostawcaGID)
                         .ToList();
 
                     List<int> ids = wierszeDoPDF.Select(r => r.ID).ToList();
@@ -4677,8 +4677,8 @@ namespace Kalendarz1
                 {
                     UpdateStatus("Generowanie PDF dla wszystkich dostawców...");
 
-                    // Grupuj po dostawcy
-                    var grupy = specyfikacjeData.GroupBy(r => r.RealDostawca).ToList();
+                    // Grupuj po dostawcy (DostawcaGID - kod dostawcy)
+                    var grupy = specyfikacjeData.GroupBy(r => r.DostawcaGID).ToList();
                     int count = 0;
 
                     foreach (var grupa in grupy)
