@@ -87,6 +87,10 @@ namespace Kalendarz1
         private int cameraFrameCount = 0;
         private bool cameraHdMode = false; // false = SD, true = HD
 
+        // PiP (Picture-in-Picture) kamera (8)
+        private DispatcherTimer pipCameraTimer;
+        private bool pipEnabled = true; // czy PiP ma się pokazywać
+
         public DostawaPortiera WybranaDostwa
         {
             get => _wybranaDostwa;
@@ -166,15 +170,16 @@ namespace Kalendarz1
             autoRefreshTimer.Tick += (s, ev) => LoadDostawy();
             autoRefreshTimer.Start();
 
-            // ZMIANA: Zegar bez animacji migania, odswiezanie co 1 sekunde
+            // Zegar z datą (16) - odswiezanie co 1 sekunde
             clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             clockTimer.Tick += (s, ev) =>
             {
-                // clockShowColon = !clockShowColon; // USUNIETO
                 lblTime.Text = DateTime.Now.ToString("HH:mm");
+                lblDate.Text = DateTime.Now.ToString("dd.MM.yyyy");
             };
             clockTimer.Start();
             lblTime.Text = DateTime.Now.ToString("HH:mm");
+            lblDate.Text = DateTime.Now.ToString("dd.MM.yyyy");
 
             dateCheckTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(10) };
             dateCheckTimer.Tick += (s, ev) =>
@@ -697,6 +702,12 @@ namespace Kalendarz1
                     StopCameraViewStream();
                 }
 
+                // Zatrzymaj PiP gdy przechodzimy na KAMERY
+                if (rb.Name == "rbKamery")
+                {
+                    StopPipCamera();
+                }
+
                 if (rb.Name == "rbAvilog")
                 {
                     aktualnyTryb = "Avilog";
@@ -710,7 +721,16 @@ namespace Kalendarz1
                     panelCommodity.Visibility = Visibility.Collapsed;
                     panelReadOnlyCar.Visibility = Visibility.Visible;
                     panelEditCar.Visibility = Visibility.Collapsed;
+
+                    // Animacje (10)
+                    AnimateFadeIn(panelLewy);
+                    AnimateFadeIn(panelWagi);
+                    AnimateSlideIn(viewTiles);
+
                     LoadDostawyAvilog();
+
+                    // Uruchom PiP kamery (8)
+                    StartPipCamera();
                 }
                 else if (rb.Name == "rbOdpady")
                 {
@@ -727,8 +747,17 @@ namespace Kalendarz1
                     panelReadOnlyCar.Visibility = Visibility.Collapsed;
                     panelEditCar.Visibility = Visibility.Visible;
                     btnKrew.IsChecked = true;
+
+                    // Animacje (10)
+                    AnimateFadeIn(panelLewy);
+                    AnimateFadeIn(panelWagi);
+                    AnimateSlideIn(gridTable);
+
                     LoadOdbiorcyDlaTowar(aktualnyTowar);
                     LoadDostawyOdpady();
+
+                    // Uruchom PiP kamery (8)
+                    StartPipCamera();
                 }
                 else if (rb.Name == "rbKamery")
                 {
@@ -738,6 +767,9 @@ namespace Kalendarz1
                     panelLewy.Visibility = Visibility.Collapsed;
                     panelWagi.Visibility = Visibility.Collapsed;
                     viewCameraFullscreen.Visibility = Visibility.Visible;
+
+                    // Animacja (10)
+                    AnimateFadeIn(viewCameraFullscreen);
 
                     // Zatrzymaj timer nieaktywności w trybie KAMERY
                     inactivityTimer?.Stop();
@@ -1330,6 +1362,7 @@ namespace Kalendarz1
             if (success)
             {
                 PlaySound(true);
+                ShowSuccessAnimation(); // (23) Animacja sukcesu
                 if (selectedCardBorder != null)
                     AnimateSuccess(selectedCardBorder);
 
@@ -3668,6 +3701,281 @@ namespace Kalendarz1
                     UpdatePrinterStatus($"Błąd: {ex.Message}", true);
                 }
             });
+        }
+
+        #endregion
+
+        #region PICTURE-IN-PICTURE KAMERA (8)
+
+        /// <summary>
+        /// Uruchamia PiP kamery - mały podgląd w rogu ekranu
+        /// </summary>
+        private void StartPipCamera()
+        {
+            if (!pipEnabled || aktualnyTryb == "Kamery") return;
+
+            pipCamera.Visibility = Visibility.Visible;
+
+            // Timer odświeżania PiP - wolniejszy niż główny widok (500ms = 2 FPS)
+            pipCameraTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+            pipCameraTimer.Tick += async (s, e) => await RefreshPipCameraImage();
+            pipCameraTimer.Start();
+
+            Debug.WriteLine("[PIP] Uruchomiono Picture-in-Picture");
+        }
+
+        /// <summary>
+        /// Zatrzymuje PiP kamery
+        /// </summary>
+        private void StopPipCamera()
+        {
+            if (pipCameraTimer != null)
+            {
+                pipCameraTimer.Stop();
+                pipCameraTimer = null;
+            }
+            pipCamera.Visibility = Visibility.Collapsed;
+            Debug.WriteLine("[PIP] Zatrzymano Picture-in-Picture");
+        }
+
+        /// <summary>
+        /// Odświeża obraz w PiP
+        /// </summary>
+        private async Task RefreshPipCameraImage()
+        {
+            try
+            {
+                string endpoint = $"http://{CAMERA_IP}/ISAPI/Streaming/channels/102/picture"; // SD dla PiP
+
+                using (var handler = new HttpClientHandler())
+                {
+                    handler.Credentials = new System.Net.NetworkCredential(CAMERA_USER, CAMERA_PASS);
+                    using (var client = new HttpClient(handler))
+                    {
+                        client.Timeout = TimeSpan.FromSeconds(3);
+                        var response = await client.GetAsync(endpoint);
+
+                        if (response.IsSuccessStatusCode)
+                        {
+                            var data = await response.Content.ReadAsByteArrayAsync();
+                            var bitmap = new BitmapImage();
+                            using (var ms = new MemoryStream(data))
+                            {
+                                bitmap.BeginInit();
+                                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                                bitmap.StreamSource = ms;
+                                bitmap.EndInit();
+                                bitmap.Freeze();
+                            }
+                            pipCameraImage.Source = bitmap;
+                        }
+                    }
+                }
+            }
+            catch { /* Ignoruj błędy - PiP jest opcjonalne */ }
+        }
+
+        /// <summary>
+        /// Kliknięcie na PiP - przełącza na tryb KAMERY
+        /// </summary>
+        public void PipCamera_Click(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+            rbKamery.IsChecked = true;
+            ZmienTryb_Click(rbKamery, null);
+        }
+
+        /// <summary>
+        /// Zamknięcie PiP
+        /// </summary>
+        public void PipCamera_Close(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+            pipEnabled = false;
+            StopPipCamera();
+        }
+
+        #endregion
+
+        #region ANIMACJE WIDOKÓW (10)
+
+        /// <summary>
+        /// Animacja fade-in dla panelu
+        /// </summary>
+        private void AnimateFadeIn(UIElement element, double durationMs = 300)
+        {
+            if (element == null) return;
+
+            element.Opacity = 0;
+            var fadeIn = new DoubleAnimation
+            {
+                From = 0,
+                To = 1,
+                Duration = TimeSpan.FromMilliseconds(durationMs),
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+            };
+            element.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+        }
+
+        /// <summary>
+        /// Animacja fade-out dla panelu
+        /// </summary>
+        private void AnimateFadeOut(UIElement element, double durationMs = 200, Action onComplete = null)
+        {
+            if (element == null) return;
+
+            var fadeOut = new DoubleAnimation
+            {
+                From = 1,
+                To = 0,
+                Duration = TimeSpan.FromMilliseconds(durationMs),
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
+            };
+
+            if (onComplete != null)
+            {
+                fadeOut.Completed += (s, e) => onComplete();
+            }
+
+            element.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+        }
+
+        /// <summary>
+        /// Animacja slide-in od dołu
+        /// </summary>
+        private void AnimateSlideIn(FrameworkElement element, double durationMs = 350)
+        {
+            if (element == null) return;
+
+            var translateTransform = new TranslateTransform(0, 50);
+            element.RenderTransform = translateTransform;
+            element.Opacity = 0;
+
+            var slideAnim = new DoubleAnimation
+            {
+                From = 50,
+                To = 0,
+                Duration = TimeSpan.FromMilliseconds(durationMs),
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+            };
+
+            var fadeAnim = new DoubleAnimation
+            {
+                From = 0,
+                To = 1,
+                Duration = TimeSpan.FromMilliseconds(durationMs)
+            };
+
+            translateTransform.BeginAnimation(TranslateTransform.YProperty, slideAnim);
+            element.BeginAnimation(UIElement.OpacityProperty, fadeAnim);
+        }
+
+        #endregion
+
+        #region LOADING SKELETON (20)
+
+        /// <summary>
+        /// Pokazuje loading overlay z animacją
+        /// </summary>
+        private void ShowLoading(string text = "Ładowanie danych...")
+        {
+            loadingText.Text = text;
+            loadingOverlay.Visibility = Visibility.Visible;
+
+            // Animacja obrotu spinnera
+            var rotation = new DoubleAnimation
+            {
+                From = 0,
+                To = 360,
+                Duration = TimeSpan.FromSeconds(1),
+                RepeatBehavior = RepeatBehavior.Forever
+            };
+            spinnerRotate.BeginAnimation(RotateTransform.AngleProperty, rotation);
+        }
+
+        /// <summary>
+        /// Ukrywa loading overlay
+        /// </summary>
+        private void HideLoading()
+        {
+            spinnerRotate.BeginAnimation(RotateTransform.AngleProperty, null);
+            loadingOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        #endregion
+
+        #region ANIMACJA SUKCESU (23)
+
+        /// <summary>
+        /// Pokazuje animację sukcesu
+        /// </summary>
+        private void ShowSuccessAnimation()
+        {
+            successOverlay.Visibility = Visibility.Visible;
+            successBorder.Opacity = 0;
+            successIcon.Opacity = 0;
+
+            // Animacja pojawienia się
+            var fadeInBg = new DoubleAnimation
+            {
+                From = 0,
+                To = 1,
+                Duration = TimeSpan.FromMilliseconds(200)
+            };
+
+            var scaleTransform = new ScaleTransform(0.5, 0.5);
+            successBorder.RenderTransformOrigin = new Point(0.5, 0.5);
+            successBorder.RenderTransform = scaleTransform;
+
+            var scaleAnim = new DoubleAnimation
+            {
+                From = 0.5,
+                To = 1,
+                Duration = TimeSpan.FromMilliseconds(300),
+                EasingFunction = new BackEase { Amplitude = 0.3, EasingMode = EasingMode.EaseOut }
+            };
+
+            var fadeInIcon = new DoubleAnimation
+            {
+                From = 0,
+                To = 1,
+                Duration = TimeSpan.FromMilliseconds(200),
+                BeginTime = TimeSpan.FromMilliseconds(100)
+            };
+
+            successBorder.BeginAnimation(UIElement.OpacityProperty, fadeInBg);
+            scaleTransform.BeginAnimation(ScaleTransform.ScaleXProperty, scaleAnim);
+            scaleTransform.BeginAnimation(ScaleTransform.ScaleYProperty, scaleAnim);
+            successIcon.BeginAnimation(UIElement.OpacityProperty, fadeInIcon);
+
+            // Auto-ukrycie po 1.2 sekundy
+            var hideTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1200) };
+            hideTimer.Tick += (s, e) =>
+            {
+                hideTimer.Stop();
+                HideSuccessAnimation();
+            };
+            hideTimer.Start();
+        }
+
+        /// <summary>
+        /// Ukrywa animację sukcesu
+        /// </summary>
+        private void HideSuccessAnimation()
+        {
+            var fadeOut = new DoubleAnimation
+            {
+                From = 1,
+                To = 0,
+                Duration = TimeSpan.FromMilliseconds(200)
+            };
+
+            fadeOut.Completed += (s, e) =>
+            {
+                successOverlay.Visibility = Visibility.Collapsed;
+            };
+
+            successBorder.BeginAnimation(UIElement.OpacityProperty, fadeOut);
         }
 
         #endregion

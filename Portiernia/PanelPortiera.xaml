@@ -341,8 +341,9 @@
 
             <!-- Główny obszar -->
             <Grid Grid.Row="0" Margin="10">
-                <!-- Widok kafelków AVILOG -->
-                <ScrollViewer x:Name="viewTiles" VerticalScrollBarVisibility="Auto">
+                <!-- Widok kafelków AVILOG (22 - smooth scrolling) -->
+                <ScrollViewer x:Name="viewTiles" VerticalScrollBarVisibility="Auto"
+                              PanningMode="VerticalOnly" CanContentScroll="False">
                     <ItemsControl x:Name="listDostawy">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -692,11 +693,15 @@
                         <TextBlock Text="&#x1F504;" FontSize="26" Foreground="White"/>
                     </Button>
 
-                    <!-- Zegar -->
-                    <Border Grid.Column="8" Background="Black" CornerRadius="10" Padding="16,0" Height="50"
+                    <!-- Zegar z datą (16) -->
+                    <Border Grid.Column="8" Background="Black" CornerRadius="10" Padding="16,8" Height="56"
                             BorderBrush="#FFA726" BorderThickness="2">
-                        <TextBlock x:Name="lblTime" Text="12:00" FontSize="26" FontWeight="Black"
-                                   Foreground="#FFA726" VerticalAlignment="Center"/>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock x:Name="lblTime" Text="12:00" FontSize="28" FontWeight="Black"
+                                       Foreground="#FFA726" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="lblDate" Text="15.01.2026" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="#888" HorizontalAlignment="Center" Margin="0,-2,0,0"/>
+                        </StackPanel>
                     </Border>
                 </Grid>
             </Border>
@@ -946,6 +951,59 @@
                 </Grid>
             </Grid>
         </Border>
+
+        <!-- Picture-in-Picture kamera (8) - mały podgląd w rogu -->
+        <Border x:Name="pipCamera" Grid.Column="0" Visibility="Collapsed"
+                Width="240" Height="135"
+                HorizontalAlignment="Right" VerticalAlignment="Top"
+                Margin="0,15,15,0" Background="Black" CornerRadius="12"
+                BorderBrush="#FFA726" BorderThickness="2" Cursor="Hand"
+                MouseLeftButtonUp="PipCamera_Click" ToolTip="Kliknij aby powiększyć">
+            <Border.Effect>
+                <DropShadowEffect Color="Black" BlurRadius="15" Opacity="0.6" ShadowDepth="3"/>
+            </Border.Effect>
+            <Grid ClipToBounds="True">
+                <Image x:Name="pipCameraImage" Stretch="UniformToFill"/>
+                <Border Background="#80000000" CornerRadius="4" Padding="4,2"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" Margin="6">
+                    <TextBlock Text="📷 LIVE" FontSize="10" Foreground="White" FontWeight="Bold"/>
+                </Border>
+                <!-- Przycisk zamknięcia PiP -->
+                <Border Background="#80FF5555" CornerRadius="10" Width="20" Height="20"
+                        HorizontalAlignment="Right" VerticalAlignment="Top" Margin="6"
+                        MouseLeftButtonUp="PipCamera_Close" Cursor="Hand">
+                    <TextBlock Text="×" FontSize="14" Foreground="White" FontWeight="Bold"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Loading Skeleton Overlay (20) -->
+        <Grid x:Name="loadingOverlay" Grid.ColumnSpan="2" Visibility="Collapsed" Background="#CC121212">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <Border x:Name="loadingSpinner" Width="60" Height="60" CornerRadius="30"
+                        BorderBrush="#FFA726" BorderThickness="4" Background="Transparent">
+                    <Border.RenderTransform>
+                        <RotateTransform x:Name="spinnerRotate" CenterX="30" CenterY="30"/>
+                    </Border.RenderTransform>
+                </Border>
+                <TextBlock x:Name="loadingText" Text="Ładowanie danych..." FontSize="18" Foreground="#888"
+                           FontWeight="SemiBold" Margin="0,15,0,0" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Success Animation Overlay (23) -->
+        <Grid x:Name="successOverlay" Grid.ColumnSpan="2" Visibility="Collapsed" IsHitTestVisible="False">
+            <Border x:Name="successBorder" Background="#004CAF50" CornerRadius="20"
+                    Width="200" Height="200" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock x:Name="successIcon" Text="✓" FontSize="80" Foreground="#4CAF50"
+                               FontWeight="Bold" HorizontalAlignment="Center"/>
+                    <TextBlock Text="ZAPISANO" FontSize="18" Foreground="#4CAF50"
+                               FontWeight="Bold" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                </StackPanel>
+            </Border>
+        </Grid>
 
         <!-- Ukryte pola na wartości wagi -->
         <TextBlock x:Name="txtBrutto" Visibility="Collapsed" Text="0"/>
