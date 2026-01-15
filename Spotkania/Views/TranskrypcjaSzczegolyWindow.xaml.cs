@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Data.SqlClient;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -1045,9 +1046,43 @@ namespace Kalendarz1.Spotkania.Views
 
             // WebBrowser z Fireflies
             var webBrowser = new System.Windows.Controls.WebBrowser();
+
+            // Metoda pomocnicza do ustawienia trybu cichego (bez dialogów błędów JS)
+            void SetWebBrowserSilent(System.Windows.Controls.WebBrowser browser)
+            {
+                try
+                {
+                    var fiComWebBrowser = typeof(System.Windows.Controls.WebBrowser)
+                        .GetField("_axIWebBrowser2", BindingFlags.Instance | BindingFlags.NonPublic);
+                    if (fiComWebBrowser != null)
+                    {
+                        var objComWebBrowser = fiComWebBrowser.GetValue(browser);
+                        if (objComWebBrowser != null)
+                        {
+                            objComWebBrowser.GetType().InvokeMember(
+                                "Silent",
+                                BindingFlags.SetProperty,
+                                null,
+                                objComWebBrowser,
+                                new object[] { true });
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            // Ustaw tryb cichy jak najwcześniej - przy pierwszej nawigacji
+            webBrowser.Navigating += (s, ev) =>
+            {
+                SetWebBrowserSilent(webBrowser);
+            };
+
+            // Tłumienie błędów JavaScript + ukrycie scrollbarów po załadowaniu
             webBrowser.Navigated += (s, ev) =>
             {
-                // Ukryj scrollbary i błędy JavaScript
+                SetWebBrowserSilent(webBrowser);
+
+                // Ukryj scrollbary
                 try
                 {
                     dynamic doc = webBrowser.Document;
@@ -1058,6 +1093,13 @@ namespace Kalendarz1.Spotkania.Views
                 }
                 catch { }
             };
+
+            // Dodatkowe ustawienie przy pełnym załadowaniu
+            webBrowser.LoadCompleted += (s, ev) =>
+            {
+                SetWebBrowserSilent(webBrowser);
+            };
+
             Grid.SetRow(webBrowser, 1);
             mainGrid.Children.Add(webBrowser);
 
