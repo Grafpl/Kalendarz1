@@ -170,16 +170,18 @@ namespace Kalendarz1
             autoRefreshTimer.Tick += (s, ev) => LoadDostawy();
             autoRefreshTimer.Start();
 
-            // Zegar z datą (16) - odswiezanie co 1 sekunde
+            // Zegar z datą i dniem tygodnia (16) - odswiezanie co 1 sekunde
             clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             clockTimer.Tick += (s, ev) =>
             {
                 lblTime.Text = DateTime.Now.ToString("HH:mm");
                 lblDate.Text = DateTime.Now.ToString("dd.MM.yyyy");
+                lblDayOfWeek.Text = DateTime.Now.ToString("dddd", new CultureInfo("pl-PL"));
             };
             clockTimer.Start();
             lblTime.Text = DateTime.Now.ToString("HH:mm");
             lblDate.Text = DateTime.Now.ToString("dd.MM.yyyy");
+            lblDayOfWeek.Text = DateTime.Now.ToString("dddd", new CultureInfo("pl-PL"));
 
             dateCheckTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(10) };
             dateCheckTimer.Tick += (s, ev) =>
