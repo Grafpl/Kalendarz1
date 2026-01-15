@@ -203,5 +203,19 @@ namespace Kalendarz1.Spotkania.Views
             DialogResult = false;
             Close();
         }
+
+        private void BtnDiagnostyka_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(TxtApiKey.Password))
+            {
+                MessageBox.Show("Wprowadź klucz API przed uruchomieniem diagnostyki.",
+                    "Brak klucza API", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var diagnostyka = new FirefliesDiagnostyka(TxtApiKey.Password);
+            diagnostyka.Owner = this;
+            diagnostyka.ShowDialog();
+        }
     }
 }

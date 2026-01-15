@@ -52,10 +52,14 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <PasswordBox x:Name="TxtApiKey" Grid.Column="0" FontSize="14" Padding="10"/>
                             <Button x:Name="BtnTestuj" Grid.Column="1" Content="Testuj połączenie"
                                     Padding="15,10" Margin="10,0,0,0" Click="BtnTestuj_Click"/>
+                            <Button x:Name="BtnDiagnostyka" Grid.Column="2" Content="🔍 Diagnostyka"
+                                    Padding="15,10" Margin="10,0,0,0" Background="#333" Foreground="White"
+                                    BorderThickness="0" Click="BtnDiagnostyka_Click"/>
                         </Grid>
                         <TextBlock x:Name="TxtTestWynik" Text="" FontSize="12" Margin="0,10,0,0"/>
                     </StackPanel>
