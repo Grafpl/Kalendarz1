@@ -1782,7 +1782,7 @@
                                                         Visibility="Collapsed">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBox Text="{Binding Opasienie, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat={}{0:F0}}"
+                                            <TextBox Text="{Binding Opasienie, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                                      Style="{StaticResource NumericTextBoxStyle}"
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
