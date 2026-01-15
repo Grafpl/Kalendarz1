@@ -186,12 +186,22 @@ namespace Kalendarz1.Spotkania.Views
         {
             _mowcy.Clear();
 
-            if (_zdaniaApi == null || _zdaniaApi.Count == 0)
+            // Najpierw probuj z API
+            if (_zdaniaApi != null && _zdaniaApi.Count > 0)
             {
-                TxtLiczbaMowcow.Text = "(0)";
-                return;
+                WykryjMowcowZApi();
+            }
+            // Jesli brak API, wykryj z tekstu transkrypcji
+            else if (_transkrypcja?.Transkrypcja != null)
+            {
+                WykryjMowcowZTekstu();
             }
 
+            TxtLiczbaMowcow.Text = $"({_mowcy.Count})";
+        }
+
+        private void WykryjMowcowZApi()
+        {
             // Grupuj i oblicz statystyki
             var grupyMowcow = _zdaniaApi
                 .GroupBy(z => new { z.SpeakerId, z.SpeakerName })
@@ -236,8 +246,70 @@ namespace Kalendarz1.Spotkania.Views
                     DostepniPracownicy = _pracownicy
                 });
             }
+        }
 
-            TxtLiczbaMowcow.Text = $"({_mowcy.Count})";
+        private void WykryjMowcowZTekstu()
+        {
+            var lines = _transkrypcja!.Transkrypcja!.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            var mowcyDict = new Dictionary<string, (int liczba, string przyklad)>();
+
+            foreach (var line in lines)
+            {
+                string mowcaNazwa = "";
+
+                // Format: [Nazwa]: tekst
+                if (line.StartsWith("[") && line.Contains("]"))
+                {
+                    var endBracket = line.IndexOf(']');
+                    mowcaNazwa = line.Substring(1, endBracket - 1).Trim();
+                }
+                // Format: Nazwa: tekst
+                else if (line.Contains(":"))
+                {
+                    var colonIdx = line.IndexOf(':');
+                    var potentialName = line.Substring(0, colonIdx).Trim();
+                    // Sprawdz czy to wyglada jak nazwa (nie jest za dluga, nie zaczyna sie od cyfry itp.)
+                    if (potentialName.Length > 0 && potentialName.Length < 50 && !char.IsDigit(potentialName[0]))
+                    {
+                        mowcaNazwa = potentialName;
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(mowcaNazwa))
+                {
+                    if (mowcyDict.ContainsKey(mowcaNazwa))
+                    {
+                        var (liczba, przyklad) = mowcyDict[mowcaNazwa];
+                        mowcyDict[mowcaNazwa] = (liczba + 1, przyklad);
+                    }
+                    else
+                    {
+                        var tekst = line.Contains(":") ? line.Substring(line.IndexOf(':') + 1).Trim() : line;
+                        mowcyDict[mowcaNazwa] = (1, tekst.Length > 120 ? tekst.Substring(0, 120) + "..." : tekst);
+                    }
+                }
+            }
+
+            int idx = 0;
+            foreach (var kvp in mowcyDict.OrderByDescending(x => x.Value.liczba))
+            {
+                var kolorIdx = idx % KoloryMowcow.Length;
+                var procentCzasu = lines.Length > 0 ? (kvp.Value.liczba * 100.0 / lines.Length) : 0;
+
+                _mowcy.Add(new MowcaMapowanieDisplay
+                {
+                    SpeakerId = idx,
+                    SpeakerNameFireflies = kvp.Key,
+                    LiczbaWypowiedzi = kvp.Value.liczba,
+                    CzasMowienia = 0,
+                    ProcentCzasu = procentCzasu,
+                    PrzykladowaWypowiedz = kvp.Value.przyklad,
+                    KolorMowcy = new SolidColorBrush((Color)ColorConverter.ConvertFromString(KoloryMowcow[kolorIdx])),
+                    TloKolor = new SolidColorBrush((Color)ColorConverter.ConvertFromString(KoloryTla[kolorIdx])),
+                    DostepniPracownicy = _pracownicy
+                });
+                idx++;
+            }
         }
 
         private async Task ZaladujZapisaneMapowania()
@@ -320,16 +392,45 @@ namespace Kalendarz1.Spotkania.Views
                 foreach (var line in lines)
                 {
                     var zdanie = new ZdanieDisplay { Index = idx++, UzyjNazwySystemowej = _uzyjNazwSystemowych, PokazCzas = _pokazCzasy };
+                    string mowcaNazwa = "";
+                    string tekst = line;
 
-                    var colonIndex = line.IndexOf(']');
-                    if (colonIndex > 0 && line.StartsWith("["))
+                    // Format: [Nazwa]: tekst
+                    if (line.StartsWith("[") && line.Contains("]"))
                     {
-                        zdanie.MowcaFireflies = line.Substring(1, colonIndex - 1);
-                        zdanie.Tekst = line.Substring(colonIndex + 2).Trim();
+                        var endBracket = line.IndexOf(']');
+                        mowcaNazwa = line.Substring(1, endBracket - 1).Trim();
+                        tekst = line.Substring(endBracket + 1).TrimStart(':', ' ');
                     }
-                    else
+                    // Format: Nazwa: tekst
+                    else if (line.Contains(":"))
                     {
-                        zdanie.Tekst = line;
+                        var colonIdx = line.IndexOf(':');
+                        var potentialName = line.Substring(0, colonIdx).Trim();
+                        if (potentialName.Length > 0 && potentialName.Length < 50 && !char.IsDigit(potentialName[0]))
+                        {
+                            mowcaNazwa = potentialName;
+                            tekst = line.Substring(colonIdx + 1).Trim();
+                        }
+                    }
+
+                    zdanie.MowcaFireflies = mowcaNazwa;
+                    zdanie.Tekst = tekst;
+
+                    // Znajdz mowce i przypisz kolory
+                    var mowca = _mowcy.FirstOrDefault(m => m.SpeakerNameFireflies == mowcaNazwa);
+                    if (mowca != null)
+                    {
+                        zdanie.SpeakerId = mowca.SpeakerId;
+                        zdanie.TloKolor = mowca.TloKolor;
+                        zdanie.MowcaKolor = mowca.KolorMowcy;
+
+                        // Przypisz nazwe systemowa jesli jest mapowanie
+                        if (!string.IsNullOrEmpty(mowca.PrzypisanyUserID))
+                        {
+                            var pracownik = _pracownicy.FirstOrDefault(p => p.UserID == mowca.PrzypisanyUserID);
+                            zdanie.MowcaSystemowy = pracownik?.DisplayName;
+                        }
                     }
 
                     _zdania.Add(zdanie);
