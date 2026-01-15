@@ -350,7 +350,7 @@
                 </ScrollViewer>
 
                 <!-- Widok tabeli ODPADY -->
-                <DataGrid x:Name="gridTable" Visibility="Collapsed" Style="{StaticResource MyDataGridStyle}" 
+                <DataGrid x:Name="gridTable" Visibility="Collapsed" Style="{StaticResource MyDataGridStyle}"
                           SelectionChanged="GridTable_SelectionChanged"
                           MouseLeftButtonUp="GridTable_MouseClick">
                     <DataGrid.ContextMenu>
@@ -368,12 +368,44 @@
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
                         <DataGridTextColumn Header="GODZ." Binding="{Binding GodzinaPrzyjazdu}" Width="80"/>
-                        <DataGridTemplateColumn Header="" Width="55">
+                        <DataGridTemplateColumn Header="TOWAR" Width="160">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding TowarIcon}" FontSize="32" FontWeight="Bold"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                                               Foreground="{Binding TowarColor}"/>
+                                    <ComboBox x:Name="cbTowarInGrid" SelectedValue="{Binding TowarKod, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              SelectedValuePath="Tag" SelectionChanged="CbTowarInGrid_SelectionChanged"
+                                              Tag="{Binding}" Background="#252530" Foreground="White" FontWeight="Bold"
+                                              BorderBrush="#444" Height="38" FontSize="13" Padding="4,0">
+                                        <ComboBoxItem Tag="KREW">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="❤" FontSize="18" Foreground="#FF5555" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="KREW" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </ComboBoxItem>
+                                        <ComboBoxItem Tag="LAPY">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="🐾" FontSize="18" Foreground="#FFD54F" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="LAPY" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </ComboBoxItem>
+                                        <ComboBoxItem Tag="JELITA">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="➰" FontSize="18" Foreground="#A1887F" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="JELITA" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </ComboBoxItem>
+                                        <ComboBoxItem Tag="PIORA">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="~" FontSize="20" Foreground="#BDBDBD" FontStyle="Italic" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="PIORA" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </ComboBoxItem>
+                                        <ComboBoxItem Tag="ODPADY">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="♻" FontSize="18" Foreground="#AB47BC" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="ODPADY" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </ComboBoxItem>
+                                    </ComboBox>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -384,6 +416,110 @@
                         <DataGridTextColumn Header="NETTO" Binding="{Binding NettoDisplay}" Width="130"/>
                     </DataGrid.Columns>
                 </DataGrid>
+
+                <!-- Widok 4 kamer -->
+                <Grid x:Name="viewCameras" Visibility="Collapsed" Background="#121212">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Kamera 1 - Wjazd -->
+                    <Border Grid.Row="0" Grid.Column="0" Background="#1E1E2E" CornerRadius="12" Margin="5" BorderBrush="#333" BorderThickness="2">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0" Background="#252530" CornerRadius="10,10,0,0" Padding="10,6">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="🎥" FontSize="20" Margin="0,0,8,0"/>
+                                    <TextBlock Text="KAMERA 1 - WJAZD" FontSize="16" FontWeight="Bold" Foreground="White"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Row="1" Background="Black" Margin="5" CornerRadius="8" ClipToBounds="True">
+                                <Grid>
+                                    <Image x:Name="cameraImage1" Stretch="Uniform"/>
+                                    <TextBlock x:Name="cameraStatus1" Text="Ładowanie..." FontSize="18" Foreground="Gray"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- Kamera 2 - Wyjazd -->
+                    <Border Grid.Row="0" Grid.Column="1" Background="#1E1E2E" CornerRadius="12" Margin="5" BorderBrush="#333" BorderThickness="2">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0" Background="#252530" CornerRadius="10,10,0,0" Padding="10,6">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="🎥" FontSize="20" Margin="0,0,8,0"/>
+                                    <TextBlock Text="KAMERA 2 - WYJAZD" FontSize="16" FontWeight="Bold" Foreground="White"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Row="1" Background="Black" Margin="5" CornerRadius="8" ClipToBounds="True">
+                                <Grid>
+                                    <Image x:Name="cameraImage2" Stretch="Uniform"/>
+                                    <TextBlock x:Name="cameraStatus2" Text="Ładowanie..." FontSize="18" Foreground="Gray"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- Kamera 3 - Waga -->
+                    <Border Grid.Row="1" Grid.Column="0" Background="#1E1E2E" CornerRadius="12" Margin="5" BorderBrush="#333" BorderThickness="2">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0" Background="#252530" CornerRadius="10,10,0,0" Padding="10,6">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="🎥" FontSize="20" Margin="0,0,8,0"/>
+                                    <TextBlock Text="KAMERA 3 - WAGA" FontSize="16" FontWeight="Bold" Foreground="White"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Row="1" Background="Black" Margin="5" CornerRadius="8" ClipToBounds="True">
+                                <Grid>
+                                    <Image x:Name="cameraImage3" Stretch="Uniform"/>
+                                    <TextBlock x:Name="cameraStatus3" Text="Ładowanie..." FontSize="18" Foreground="Gray"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- Kamera 4 - Parking -->
+                    <Border Grid.Row="1" Grid.Column="1" Background="#1E1E2E" CornerRadius="12" Margin="5" BorderBrush="#333" BorderThickness="2">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0" Background="#252530" CornerRadius="10,10,0,0" Padding="10,6">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="🎥" FontSize="20" Margin="0,0,8,0"/>
+                                    <TextBlock Text="KAMERA 4 - PARKING" FontSize="16" FontWeight="Bold" Foreground="White"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Row="1" Background="Black" Margin="5" CornerRadius="8" ClipToBounds="True">
+                                <Grid>
+                                    <Image x:Name="cameraImage4" Stretch="Uniform"/>
+                                    <TextBlock x:Name="cameraStatus4" Text="Ładowanie..." FontSize="18" Foreground="Gray"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </Grid>
 
                 <!-- Przyciski dla ODPADY -->
                 <StackPanel x:Name="panelButtonsLeft" VerticalAlignment="Bottom" HorizontalAlignment="Right" 
@@ -516,6 +652,13 @@
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#x2764;" FontSize="22" Margin="0,0,6,0" Foreground="#FF5555"/>
                                 <TextBlock Text="KREW / JELITA / LAPY / PIORA" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="rbKamery" GroupName="Mode" Click="ZmienTryb_Click"
+                                     Style="{StaticResource ModeRadioStyle}" Height="50">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#x1F3A5;" FontSize="22" Margin="0,0,6,0" Foreground="#89B4FA"/>
+                                <TextBlock Text="KAMERY" FontSize="15" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </RadioButton>
                     </StackPanel>

@@ -105,6 +105,16 @@ namespace Kalendarz1
         private DispatcherTimer clockTimer;
         private DispatcherTimer dateCheckTimer;
 
+        // Timer bezczynności - automatyczne przełączanie na kamery po 6 minutach
+        private DispatcherTimer inactivityTimer;
+        private DateTime lastActivityTime = DateTime.Now;
+        private const int INACTIVITY_MINUTES = 6;
+
+        // Kamery - 4 strumienie
+        private DispatcherTimer cameraViewTimer;
+        private bool cameraViewActive = false;
+        private string[] CAMERA_IPS = { "192.168.0.76", "192.168.0.77", "192.168.0.78", "192.168.0.79" };
+
         public ObservableCollection<Odbiorca> ListaOdbiorcow { get; set; } = new ObservableCollection<Odbiorca>();
 
         private int nextWzNumber = 1;
@@ -170,7 +180,36 @@ namespace Kalendarz1
             };
             dateCheckTimer.Start();
 
+            // Timer bezczynności - przełącza na widok kamer po 6 minutach braku ważeń
+            inactivityTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
+            inactivityTimer.Tick += InactivityTimer_Tick;
+            inactivityTimer.Start();
+            lastActivityTime = DateTime.Now;
+
             ConnectToScale("COM1", 9600);
+        }
+
+        private void InactivityTimer_Tick(object sender, EventArgs e)
+        {
+            // Sprawdź czy minęło 6 minut od ostatniej aktywności (ważenia)
+            if ((DateTime.Now - lastActivityTime).TotalMinutes >= INACTIVITY_MINUTES)
+            {
+                // Przełącz na tryb kamer tylko jeśli nie jesteśmy już w trybie kamer
+                if (aktualnyTryb != "Kamery")
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        rbKamery.IsChecked = true;
+                        SwitchToCameraMode();
+                    });
+                }
+            }
+        }
+
+        // Metoda do rejestrowania aktywności (wywoływana przy ważeniu)
+        private void RegisterActivity()
+        {
+            lastActivityTime = DateTime.Now;
         }
 
         #region ANIMACJE
@@ -629,18 +668,26 @@ namespace Kalendarz1
         {
             if (sender is RadioButton rb)
             {
+                // Zatrzymaj kamery jeśli wychodzimy z trybu kamer
+                if (aktualnyTryb == "Kamery" && rb.Name != "rbKamery")
+                {
+                    StopCameraViewStream();
+                }
+
                 if (rb.Name == "rbAvilog")
                 {
                     aktualnyTryb = "Avilog";
                     this.Resources["ThemeColor"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFA726"));
                     viewTiles.Visibility = Visibility.Visible;
                     gridTable.Visibility = Visibility.Collapsed;
+                    viewCameras.Visibility = Visibility.Collapsed;
                     panelButtonsLeft.Visibility = Visibility.Collapsed;
                     panelCommodity.Visibility = Visibility.Collapsed;
                     panelReadOnlyCar.Visibility = Visibility.Visible;
                     panelEditCar.Visibility = Visibility.Collapsed;
                     btnScanAvilog.Visibility = Visibility.Visible;
                     btnPrintAvilog.Visibility = Visibility.Visible;
+                    LoadDostawy();
                 }
                 else if (rb.Name == "rbOdpady")
                 {
@@ -649,6 +696,7 @@ namespace Kalendarz1
                     UpdateThemeColor(aktualnyTowar);
                     viewTiles.Visibility = Visibility.Collapsed;
                     gridTable.Visibility = Visibility.Visible;
+                    viewCameras.Visibility = Visibility.Collapsed;
                     panelButtonsLeft.Visibility = Visibility.Visible;
                     panelCommodity.Visibility = Visibility.Visible;
                     panelReadOnlyCar.Visibility = Visibility.Collapsed;
@@ -657,10 +705,32 @@ namespace Kalendarz1
                     btnPrintAvilog.Visibility = Visibility.Collapsed;
                     btnKrew.IsChecked = true;
                     LoadOdbiorcyDlaTowar(aktualnyTowar);
+                    LoadDostawy();
                 }
-                LoadDostawy();
+                else if (rb.Name == "rbKamery")
+                {
+                    SwitchToCameraMode();
+                }
                 ClearFormularz();
             }
+        }
+
+        private void SwitchToCameraMode()
+        {
+            aktualnyTryb = "Kamery";
+            this.Resources["ThemeColor"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#89B4FA"));
+            viewTiles.Visibility = Visibility.Collapsed;
+            gridTable.Visibility = Visibility.Collapsed;
+            viewCameras.Visibility = Visibility.Visible;
+            panelButtonsLeft.Visibility = Visibility.Collapsed;
+            panelCommodity.Visibility = Visibility.Collapsed;
+            panelReadOnlyCar.Visibility = Visibility.Visible;
+            panelEditCar.Visibility = Visibility.Collapsed;
+            btnScanAvilog.Visibility = Visibility.Collapsed;
+            btnPrintAvilog.Visibility = Visibility.Collapsed;
+
+            // Uruchom strumienie 4 kamer
+            StartCameraViewStream();
         }
 
         #endregion
@@ -839,6 +909,54 @@ namespace Kalendarz1
                     AnimateRowGlow(selectedGridRow, true);
 
                 WybierzDostawe(dostawa);
+            }
+        }
+
+        private void CbTowarInGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is ComboBox cb && cb.Tag is DostawaPortiera dostawa && cb.SelectedValue != null)
+            {
+                string nowyTowar = cb.SelectedValue.ToString();
+
+                // Pomijamy jeśli wartość się nie zmieniła
+                if (dostawa.Towar == nowyTowar) return;
+
+                // Sprawdź czy wiersz jest wprowadzony - wtedy blokuj zmianę
+                if (dostawa.JestWprowadzony)
+                {
+                    MessageBox.Show("Nie można zmienić towaru dla już wprowadzonego ważenia.",
+                        "Blokada edycji", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    // Przywróć poprzednią wartość
+                    cb.SelectedValue = dostawa.Towar;
+                    return;
+                }
+
+                try
+                {
+                    using (var conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+                        string updateQuery = @"UPDATE dbo.Odpady_Wazenia
+                                               SET TowarKod = @Towar
+                                               WHERE ID = @ID";
+                        using (var cmd = new SqlCommand(updateQuery, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@Towar", nowyTowar);
+                            cmd.Parameters.AddWithValue("@ID", dostawa.ID);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    // Aktualizuj lokalnie
+                    dostawa.Towar = nowyTowar;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Błąd zapisu zmiany towaru: {ex.Message}",
+                        "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    // Przywróć poprzednią wartość
+                    cb.SelectedValue = dostawa.Towar;
+                }
             }
         }
 
@@ -1219,6 +1337,9 @@ namespace Kalendarz1
 
             if (success)
             {
+                // Zarejestruj aktywność - resetuje timer bezczynności
+                RegisterActivity();
+
                 PlaySound(true);
                 if (selectedCardBorder != null)
                     AnimateSuccess(selectedCardBorder);
@@ -2105,17 +2226,9 @@ namespace Kalendarz1
 
         public void BtnCamera_Click(object sender, RoutedEventArgs e)
         {
-            // Normalny tryb - nie wpisuj do TextBox
-            cameraScanToTextBoxMode = false;
-            
-            CameraOverlay.Visibility = Visibility.Visible;
-            cameraStatus.Text = "Łączenie z kamerą...";
-            cameraImage.Source = null;
-            
-            // Reset zoom przy otwarciu
-            ResetCameraZoom();
-            
-            StartCameraStream();
+            // Przełącz na zakładkę kamer zamiast otwierać overlay
+            rbKamery.IsChecked = true;
+            SwitchToCameraMode();
         }
 
         private void CameraClose_Click(object sender, RoutedEventArgs e)
@@ -2358,6 +2471,132 @@ namespace Kalendarz1
                 {
                     if (cameraActive)
                         cameraStatus.Text = $"Błąd: {ex.Message}";
+                });
+            }
+        }
+
+        #endregion
+
+        #region WIDOK 4 KAMER (ZAKŁADKA)
+
+        private void StartCameraViewStream()
+        {
+            cameraViewActive = true;
+            cameraStatus1.Text = "Łączenie...";
+            cameraStatus2.Text = "Łączenie...";
+            cameraStatus3.Text = "Łączenie...";
+            cameraStatus4.Text = "Łączenie...";
+            cameraImage1.Source = null;
+            cameraImage2.Source = null;
+            cameraImage3.Source = null;
+            cameraImage4.Source = null;
+
+            // Timer do odświeżania 4 kamer co 500ms
+            cameraViewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+            cameraViewTimer.Tick += async (s, e) => await RefreshAllCameraImages();
+            cameraViewTimer.Start();
+
+            // Pierwsze pobranie od razu
+            _ = RefreshAllCameraImages();
+        }
+
+        private void StopCameraViewStream()
+        {
+            cameraViewActive = false;
+            if (cameraViewTimer != null)
+            {
+                cameraViewTimer.Stop();
+                cameraViewTimer = null;
+            }
+        }
+
+        private async Task RefreshAllCameraImages()
+        {
+            if (!cameraViewActive) return;
+
+            // Odśwież wszystkie 4 kamery równolegle
+            var tasks = new List<Task>
+            {
+                RefreshSingleCameraImage(0, cameraImage1, cameraStatus1),
+                RefreshSingleCameraImage(1, cameraImage2, cameraStatus2),
+                RefreshSingleCameraImage(2, cameraImage3, cameraStatus3),
+                RefreshSingleCameraImage(3, cameraImage4, cameraStatus4)
+            };
+
+            await Task.WhenAll(tasks);
+        }
+
+        private async Task RefreshSingleCameraImage(int cameraIndex, System.Windows.Controls.Image imageControl, TextBlock statusControl)
+        {
+            if (!cameraViewActive || cameraIndex >= CAMERA_IPS.Length) return;
+
+            string ip = CAMERA_IPS[cameraIndex];
+
+            try
+            {
+                string[] endpoints = new string[]
+                {
+                    $"http://{ip}/ISAPI/Streaming/channels/101/picture",
+                    $"http://{ip}/ISAPI/Streaming/channels/1/picture",
+                    $"http://{ip}/Streaming/channels/1/picture",
+                    $"http://{ip}/cgi-bin/snapshot.cgi",
+                    $"http://{ip}/snap.jpg"
+                };
+
+                using (var handler = new HttpClientHandler())
+                {
+                    handler.Credentials = new System.Net.NetworkCredential(CAMERA_USER, CAMERA_PASS);
+
+                    using (var client = new HttpClient(handler))
+                    {
+                        client.Timeout = TimeSpan.FromSeconds(3);
+
+                        foreach (var endpoint in endpoints)
+                        {
+                            try
+                            {
+                                var response = await client.GetAsync(endpoint);
+                                if (response.IsSuccessStatusCode)
+                                {
+                                    var data = await response.Content.ReadAsByteArrayAsync();
+                                    if (data.Length > 0)
+                                    {
+                                        await Dispatcher.InvokeAsync(() =>
+                                        {
+                                            if (!cameraViewActive) return;
+
+                                            var bitmap = new BitmapImage();
+                                            bitmap.BeginInit();
+                                            bitmap.StreamSource = new MemoryStream(data);
+                                            bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                                            bitmap.EndInit();
+                                            bitmap.Freeze();
+
+                                            imageControl.Source = bitmap;
+                                            statusControl.Text = "";
+                                        });
+                                        return;
+                                    }
+                                }
+                            }
+                            catch { }
+                        }
+
+                        // Jeśli żaden endpoint nie zadziałał
+                        Dispatcher.Invoke(() =>
+                        {
+                            if (cameraViewActive)
+                                statusControl.Text = "Brak połączenia";
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    if (cameraViewActive)
+                        statusControl.Text = $"Błąd: {ex.Message}";
                 });
             }
         }
@@ -3400,7 +3639,36 @@ namespace Kalendarz1
             }
         }
 
-        public string Towar { get; set; }
+        private string _towar;
+        public string Towar
+        {
+            get => _towar;
+            set
+            {
+                _towar = value;
+                OnPropertyChanged(nameof(Towar));
+                OnPropertyChanged(nameof(TowarKod));
+                OnPropertyChanged(nameof(TowarIcon));
+                OnPropertyChanged(nameof(TowarColor));
+            }
+        }
+
+        // Alias dla ComboBox - używa tego samego pola co Towar
+        public string TowarKod
+        {
+            get => _towar;
+            set
+            {
+                if (_towar != value)
+                {
+                    _towar = value;
+                    OnPropertyChanged(nameof(TowarKod));
+                    OnPropertyChanged(nameof(Towar));
+                    OnPropertyChanged(nameof(TowarIcon));
+                    OnPropertyChanged(nameof(TowarColor));
+                }
+            }
+        }
         public int SztukiPlan { get; set; }
         public string GodzinaTaraDisplay { get; set; } = "-";
         public string GodzinaBruttoDisplay { get; set; } = "-";
