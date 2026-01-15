@@ -55,6 +55,8 @@ namespace Kalendarz1
         private const string FIRMA_TEL = "(46) 874 71 70";
 
         private ObservableCollection<DostawaPortiera> dostawy;
+        private ObservableCollection<DostawaPortiera> dostawyAvilog; // Oddzielne dane AVILOG
+        private ObservableCollection<DostawaPortiera> dostawyOdpady; // Oddzielne dane ODPADY
         private DostawaPortiera _wybranaDostwa;
         private Border selectedCardBorder = null;
         private DataGridRow selectedGridRow = null;
@@ -65,14 +67,25 @@ namespace Kalendarz1
         private int originalBrutto = 0;
         private int originalTara = 0;
         private string aktualnyTowar = "KREW";
-        
+
         // Zmienne do przechowywania aktualnie wpisywanych wartości (niezależne od bazy)
         private int wpisywaneBrutto = 0;
         private int wpisywaneTara = 0;
-        
+
         // Flagi do śledzenia czy pierwsza cyfra przy edycji (ma wyzerować wyświetlacz)
         private bool czekaNaPierwszaCyfreBrutto = false;
         private bool czekaNaPierwszaCyfreTara = false;
+
+        // Timer nieaktywności - automatyczne przełączenie na KAMERY po 6 minutach
+        private DispatcherTimer inactivityTimer;
+        private const int INACTIVITY_TIMEOUT_MINUTES = 6;
+
+        // Tryb kamery - zmienne dla widoku KAMERY
+        private DispatcherTimer cameraViewTimer;
+        private bool cameraViewActive = false;
+        private DateTime lastCameraFrameTime;
+        private int cameraFrameCount = 0;
+        private bool cameraHdMode = false; // false = SD, true = HD
 
         public DostawaPortiera WybranaDostwa
         {
@@ -118,11 +131,19 @@ namespace Kalendarz1
             System.Threading.Thread.CurrentThread.CurrentUICulture = new CultureInfo("pl-PL");
             DataContext = this;
 
+            // Inicjalizacja oddzielnych źródeł danych
             dostawy = new ObservableCollection<DostawaPortiera>();
-            listDostawy.ItemsSource = dostawy;
-            gridTable.ItemsSource = dostawy;
+            dostawyAvilog = new ObservableCollection<DostawaPortiera>();
+            dostawyOdpady = new ObservableCollection<DostawaPortiera>();
+
+            listDostawy.ItemsSource = dostawyAvilog;
+            gridTable.ItemsSource = dostawyOdpady;
             cbOdbiorcy.ItemsSource = ListaOdbiorcow;
             cbOdbiorcy.DisplayMemberPath = "Nazwa";
+
+            // Timer nieaktywności
+            inactivityTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(INACTIVITY_TIMEOUT_MINUTES) };
+            inactivityTimer.Tick += InactivityTimer_Tick;
 
             try
             {
@@ -170,8 +191,46 @@ namespace Kalendarz1
             };
             dateCheckTimer.Start();
 
+            // Uruchom timer nieaktywności
+            ResetInactivityTimer();
+
             ConnectToScale("COM1", 9600);
         }
+
+        #region TIMER NIEAKTYWNOŚCI
+
+        /// <summary>
+        /// Resetuje timer nieaktywności - wywoływane przy każdej aktywności użytkownika
+        /// </summary>
+        private void ResetInactivityTimer()
+        {
+            if (inactivityTimer != null)
+            {
+                inactivityTimer.Stop();
+                // Nie uruchamiaj timera gdy jesteśmy w trybie KAMERY
+                if (aktualnyTryb != "Kamery")
+                {
+                    inactivityTimer.Start();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Handler timera nieaktywności - przełącza na tryb KAMERY
+        /// </summary>
+        private void InactivityTimer_Tick(object sender, EventArgs e)
+        {
+            inactivityTimer.Stop();
+
+            // Przełącz na tryb KAMERY
+            if (aktualnyTryb != "Kamery")
+            {
+                rbKamery.IsChecked = true;
+                ZmienTryb_Click(rbKamery, null);
+            }
+        }
+
+        #endregion
 
         #region ANIMACJE
 
@@ -627,20 +686,31 @@ namespace Kalendarz1
 
         public void ZmienTryb_Click(object sender, RoutedEventArgs e)
         {
+            // Reset timera nieaktywności przy każdej zmianie trybu
+            ResetInactivityTimer();
+
             if (sender is RadioButton rb)
             {
+                // Zatrzymaj widok kamery jeśli był aktywny
+                if (aktualnyTryb == "Kamery" && rb.Name != "rbKamery")
+                {
+                    StopCameraViewStream();
+                }
+
                 if (rb.Name == "rbAvilog")
                 {
                     aktualnyTryb = "Avilog";
                     this.Resources["ThemeColor"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFA726"));
                     viewTiles.Visibility = Visibility.Visible;
                     gridTable.Visibility = Visibility.Collapsed;
+                    viewCamera.Visibility = Visibility.Collapsed;
                     panelButtonsLeft.Visibility = Visibility.Collapsed;
                     panelCommodity.Visibility = Visibility.Collapsed;
                     panelReadOnlyCar.Visibility = Visibility.Visible;
                     panelEditCar.Visibility = Visibility.Collapsed;
                     btnScanAvilog.Visibility = Visibility.Visible;
                     btnPrintAvilog.Visibility = Visibility.Visible;
+                    LoadDostawyAvilog();
                 }
                 else if (rb.Name == "rbOdpady")
                 {
@@ -649,6 +719,7 @@ namespace Kalendarz1
                     UpdateThemeColor(aktualnyTowar);
                     viewTiles.Visibility = Visibility.Collapsed;
                     gridTable.Visibility = Visibility.Visible;
+                    viewCamera.Visibility = Visibility.Collapsed;
                     panelButtonsLeft.Visibility = Visibility.Visible;
                     panelCommodity.Visibility = Visibility.Visible;
                     panelReadOnlyCar.Visibility = Visibility.Collapsed;
@@ -657,8 +728,28 @@ namespace Kalendarz1
                     btnPrintAvilog.Visibility = Visibility.Collapsed;
                     btnKrew.IsChecked = true;
                     LoadOdbiorcyDlaTowar(aktualnyTowar);
+                    LoadDostawyOdpady();
                 }
-                LoadDostawy();
+                else if (rb.Name == "rbKamery")
+                {
+                    aktualnyTryb = "Kamery";
+                    this.Resources["ThemeColor"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2196F3"));
+                    viewTiles.Visibility = Visibility.Collapsed;
+                    gridTable.Visibility = Visibility.Collapsed;
+                    viewCamera.Visibility = Visibility.Visible;
+                    panelButtonsLeft.Visibility = Visibility.Collapsed;
+                    panelCommodity.Visibility = Visibility.Collapsed;
+                    panelReadOnlyCar.Visibility = Visibility.Collapsed;
+                    panelEditCar.Visibility = Visibility.Collapsed;
+                    btnScanAvilog.Visibility = Visibility.Collapsed;
+                    btnPrintAvilog.Visibility = Visibility.Collapsed;
+
+                    // Zatrzymaj timer nieaktywności w trybie KAMERY
+                    inactivityTimer?.Stop();
+
+                    // Uruchom stream kamery
+                    StartCameraViewStream();
+                }
                 ClearFormularz();
             }
         }
@@ -669,6 +760,18 @@ namespace Kalendarz1
 
         private void LoadDostawy()
         {
+            // Metoda zachowana dla kompatybilności wstecznej
+            if (aktualnyTryb == "Avilog")
+                LoadDostawyAvilog();
+            else if (aktualnyTryb == "Odpady")
+                LoadDostawyOdpady();
+        }
+
+        /// <summary>
+        /// Ładuje dane AVILOG do oddzielnej kolekcji
+        /// </summary>
+        private void LoadDostawyAvilog()
+        {
             try
             {
                 if (selectedCardBorder != null)
@@ -676,107 +779,57 @@ namespace Kalendarz1
                     AnimateGlow(selectedCardBorder, false);
                     selectedCardBorder = null;
                 }
-                if (selectedGridRow != null)
-                {
-                    AnimateRowGlow(selectedGridRow, false);
-                    selectedGridRow = null;
-                }
 
-                dostawy.Clear();
+                dostawyAvilog.Clear();
 
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
 
-                    if (aktualnyTryb == "Avilog")
+                    string query = @"SELECT fc.ID, fc.LpDostawy, fc.CustomerGID,
+                        (SELECT TOP 1 ShortName FROM dbo.Dostawcy WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(fc.CustomerGID))) as HodowcaNazwa,
+                        ISNULL(dr.[Name], '') as KierowcaNazwa, fc.CarID, fc.TrailerID, fc.SztPoj,
+                        ISNULL(fc.FullWeight, 0) as Brutto, ISNULL(fc.EmptyWeight, 0) as Tara,
+                        ISNULL(fc.NettoWeight, 0) as Netto, fc.Przyjazd, fc.GodzinaTara, fc.GodzinaBrutto,
+                        fc.ZdjecieTaraPath, fc.ZdjecieBruttoPath
+                    FROM dbo.FarmerCalc fc
+                    LEFT JOIN dbo.Driver dr ON fc.DriverGID = dr.GID
+                    WHERE CAST(fc.CalcDate AS DATE) = @Data
+                    ORDER BY fc.Przyjazd ASC, fc.ID";
+
+                    using (var cmd = new SqlCommand(query, conn))
                     {
-                        string query = @"SELECT fc.ID, fc.LpDostawy, fc.CustomerGID,
-                            (SELECT TOP 1 ShortName FROM dbo.Dostawcy WHERE LTRIM(RTRIM(ID)) = LTRIM(RTRIM(fc.CustomerGID))) as HodowcaNazwa,
-                            ISNULL(dr.[Name], '') as KierowcaNazwa, fc.CarID, fc.TrailerID, fc.SztPoj,
-                            ISNULL(fc.FullWeight, 0) as Brutto, ISNULL(fc.EmptyWeight, 0) as Tara,
-                            ISNULL(fc.NettoWeight, 0) as Netto, fc.Przyjazd, fc.GodzinaTara, fc.GodzinaBrutto,
-                            fc.ZdjecieTaraPath, fc.ZdjecieBruttoPath
-                        FROM dbo.FarmerCalc fc 
-                        LEFT JOIN dbo.Driver dr ON fc.DriverGID = dr.GID
-                        WHERE CAST(fc.CalcDate AS DATE) = @Data
-                        ORDER BY fc.Przyjazd ASC, fc.ID";
-
-                        using (var cmd = new SqlCommand(query, conn))
+                        cmd.Parameters.AddWithValue("@Data", SelectedDate);
+                        using (var r = cmd.ExecuteReader())
                         {
-                            cmd.Parameters.AddWithValue("@Data", SelectedDate);
-                            using (var r = cmd.ExecuteReader())
+                            int lp = 1;
+                            while (r.Read())
                             {
-                                int lp = 1;
-                                while (r.Read())
+                                var przyjazd = r["Przyjazd"] != DBNull.Value ? Convert.ToDateTime(r["Przyjazd"]) : (DateTime?)null;
+                                var godzTara = r["GodzinaTara"] != DBNull.Value ? Convert.ToDateTime(r["GodzinaTara"]) : (DateTime?)null;
+                                var godzBrutto = r["GodzinaBrutto"] != DBNull.Value ? Convert.ToDateTime(r["GodzinaBrutto"]) : (DateTime?)null;
+
+                                var d = new DostawaPortiera
                                 {
-                                    var przyjazd = r["Przyjazd"] != DBNull.Value ? Convert.ToDateTime(r["Przyjazd"]) : (DateTime?)null;
-                                    var godzTara = r["GodzinaTara"] != DBNull.Value ? Convert.ToDateTime(r["GodzinaTara"]) : (DateTime?)null;
-                                    var godzBrutto = r["GodzinaBrutto"] != DBNull.Value ? Convert.ToDateTime(r["GodzinaBrutto"]) : (DateTime?)null;
-
-                                    var d = new DostawaPortiera
-                                    {
-                                        ID = Convert.ToInt64(r["ID"]),
-                                        Lp = (lp++).ToString(),
-                                        HodowcaNazwa = r["HodowcaNazwa"]?.ToString() ?? "Nieznany",
-                                        KierowcaNazwa = r["KierowcaNazwa"]?.ToString() ?? "",
-                                        CarID = r["CarID"]?.ToString() ?? "",
-                                        TrailerID = r["TrailerID"]?.ToString() ?? "",
-                                        Brutto = r["Brutto"] != DBNull.Value ? Convert.ToInt32(Convert.ToDecimal(r["Brutto"])) : 0,
-                                        Tara = r["Tara"] != DBNull.Value ? Convert.ToInt32(Convert.ToDecimal(r["Tara"])) : 0,
-                                        Netto = r["Netto"] != DBNull.Value ? Convert.ToInt32(Convert.ToDecimal(r["Netto"])) : 0,
-                                        SztukiPlan = r["SztPoj"] != DBNull.Value ? Convert.ToInt32(Convert.ToDecimal(r["SztPoj"])) : 0,
-                                        Towar = "Zywiec",
-                                        GodzinaPrzyjazdu = przyjazd?.ToString("HH:mm") ?? "00:00",
-                                        GodzinaTaraDisplay = godzTara?.ToString("HH:mm") ?? "-",
-                                        GodzinaBruttoDisplay = godzBrutto?.ToString("HH:mm") ?? "-",
-                                        ZdjecieTaraPath = r["ZdjecieTaraPath"]?.ToString(),
-                                        ZdjecieBruttoPath = r["ZdjecieBruttoPath"]?.ToString()
-                                    };
-                                    d.NrRejestracyjny = $"{d.CarID} {d.TrailerID}";
-                                    dostawy.Add(d);
-                                }
-                            }
-                        }
-                    }
-                    else
-                    {
-                        string query = @"SELECT ID, FORMAT(DataWazenia, 'HH:mm') as Godzina, NrRejestracyjny, Odbiorca, 
-                                   ISNULL(Brutto, 0) as Brutto, ISNULL(Tara, 0) as Tara, ISNULL(Netto, 0) as Netto, 
-                                   ISNULL(Towar, 'KREW') as Towar, GodzinaTara, GodzinaBrutto,
-                                   ZdjecieTaraPath, ZdjecieBruttoPath
-                            FROM dbo.OdpadyRejestr WHERE CAST(DataWazenia AS DATE) = @Data ORDER BY DataWazenia DESC";
-
-                        using (var cmd = new SqlCommand(query, conn))
-                        {
-                            cmd.Parameters.AddWithValue("@Data", DateTime.Today);
-                            using (var r = cmd.ExecuteReader())
-                            {
-                                while (r.Read())
-                                {
-                                    var godzTara = r["GodzinaTara"] != DBNull.Value ? Convert.ToDateTime(r["GodzinaTara"]) : (DateTime?)null;
-                                    var godzBrutto = r["GodzinaBrutto"] != DBNull.Value ? Convert.ToDateTime(r["GodzinaBrutto"]) : (DateTime?)null;
-
-                                    dostawy.Add(new DostawaPortiera
-                                    {
-                                        ID = Convert.ToInt64(r["ID"]),
-                                        GodzinaPrzyjazdu = r["Godzina"]?.ToString() ?? "",
-                                        NrRejestracyjny = r["NrRejestracyjny"]?.ToString() ?? "",
-                                        HodowcaNazwa = r["Odbiorca"]?.ToString() ?? "",
-                                        Brutto = Convert.ToInt32(r["Brutto"]),
-                                        Tara = Convert.ToInt32(r["Tara"]),
-                                        Netto = Convert.ToInt32(r["Netto"]),
-                                        Towar = r["Towar"]?.ToString() ?? "KREW",
-                                        GodzinaTaraDisplay = godzTara?.ToString("HH:mm") ?? "-",
-                                        GodzinaBruttoDisplay = godzBrutto?.ToString("HH:mm") ?? "-",
-                                        ZdjecieTaraPath = r["ZdjecieTaraPath"]?.ToString(),
-                                        ZdjecieBruttoPath = r["ZdjecieBruttoPath"]?.ToString(),
-                                        Lp = "-",
-                                        CarID = "",
-                                        TrailerID = "",
-                                        KierowcaNazwa = "",
-                                        SztukiPlan = 0
-                                    });
-                                }
+                                    ID = Convert.ToInt64(r["ID"]),
+                                    Lp = (lp++).ToString(),
+                                    HodowcaNazwa = r["HodowcaNazwa"]?.ToString() ?? "Nieznany",
+                                    KierowcaNazwa = r["KierowcaNazwa"]?.ToString() ?? "",
+                                    CarID = r["CarID"]?.ToString() ?? "",
+                                    TrailerID = r["TrailerID"]?.ToString() ?? "",
+                                    Brutto = r["Brutto"] != DBNull.Value ? Convert.ToInt32(Convert.ToDecimal(r["Brutto"])) : 0,
+                                    Tara = r["Tara"] != DBNull.Value ? Convert.ToInt32(Convert.ToDecimal(r["Tara"])) : 0,
+                                    Netto = r["Netto"] != DBNull.Value ? Convert.ToInt32(Convert.ToDecimal(r["Netto"])) : 0,
+                                    SztukiPlan = r["SztPoj"] != DBNull.Value ? Convert.ToInt32(Convert.ToDecimal(r["SztPoj"])) : 0,
+                                    Towar = "Zywiec",
+                                    GodzinaPrzyjazdu = przyjazd?.ToString("HH:mm") ?? "00:00",
+                                    GodzinaTaraDisplay = godzTara?.ToString("HH:mm") ?? "-",
+                                    GodzinaBruttoDisplay = godzBrutto?.ToString("HH:mm") ?? "-",
+                                    ZdjecieTaraPath = r["ZdjecieTaraPath"]?.ToString(),
+                                    ZdjecieBruttoPath = r["ZdjecieBruttoPath"]?.ToString()
+                                };
+                                d.NrRejestracyjny = $"{d.CarID} {d.TrailerID}";
+                                dostawyAvilog.Add(d);
                             }
                         }
                     }
@@ -784,7 +837,75 @@ namespace Kalendarz1
             }
             catch (Exception ex)
             {
-                Debug.WriteLine("Blad ladowania: " + ex.Message);
+                Debug.WriteLine("Blad ladowania AVILOG: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Ładuje dane ODPADY do oddzielnej kolekcji
+        /// </summary>
+        private void LoadDostawyOdpady()
+        {
+            try
+            {
+                if (selectedGridRow != null)
+                {
+                    AnimateRowGlow(selectedGridRow, false);
+                    selectedGridRow = null;
+                }
+
+                dostawyOdpady.Clear();
+
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    string query = @"SELECT ID, FORMAT(DataWazenia, 'HH:mm') as Godzina, NrRejestracyjny, Odbiorca,
+                               ISNULL(Brutto, 0) as Brutto, ISNULL(Tara, 0) as Tara, ISNULL(Netto, 0) as Netto,
+                               ISNULL(Towar, 'KREW') as Towar, GodzinaTara, GodzinaBrutto,
+                               ZdjecieTaraPath, ZdjecieBruttoPath, ISNULL(Status, '') as Status
+                        FROM dbo.OdpadyRejestr WHERE CAST(DataWazenia AS DATE) = @Data ORDER BY DataWazenia DESC";
+
+                    using (var cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Data", DateTime.Today);
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            while (r.Read())
+                            {
+                                var godzTara = r["GodzinaTara"] != DBNull.Value ? Convert.ToDateTime(r["GodzinaTara"]) : (DateTime?)null;
+                                var godzBrutto = r["GodzinaBrutto"] != DBNull.Value ? Convert.ToDateTime(r["GodzinaBrutto"]) : (DateTime?)null;
+                                var status = r["Status"]?.ToString() ?? "";
+
+                                dostawyOdpady.Add(new DostawaPortiera
+                                {
+                                    ID = Convert.ToInt64(r["ID"]),
+                                    GodzinaPrzyjazdu = r["Godzina"]?.ToString() ?? "",
+                                    NrRejestracyjny = r["NrRejestracyjny"]?.ToString() ?? "",
+                                    HodowcaNazwa = r["Odbiorca"]?.ToString() ?? "",
+                                    Brutto = Convert.ToInt32(r["Brutto"]),
+                                    Tara = Convert.ToInt32(r["Tara"]),
+                                    Netto = Convert.ToInt32(r["Netto"]),
+                                    Towar = r["Towar"]?.ToString() ?? "KREW",
+                                    GodzinaTaraDisplay = godzTara?.ToString("HH:mm") ?? "-",
+                                    GodzinaBruttoDisplay = godzBrutto?.ToString("HH:mm") ?? "-",
+                                    ZdjecieTaraPath = r["ZdjecieTaraPath"]?.ToString(),
+                                    ZdjecieBruttoPath = r["ZdjecieBruttoPath"]?.ToString(),
+                                    Status = status,
+                                    Lp = "-",
+                                    CarID = "",
+                                    TrailerID = "",
+                                    KierowcaNazwa = "",
+                                    SztukiPlan = 0
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Blad ladowania ODPADY: " + ex.Message);
             }
         }
 
@@ -811,6 +932,9 @@ namespace Kalendarz1
 
         public void Dostawa_Click(object sender, MouseButtonEventArgs e)
         {
+            // Reset timera nieaktywności przy kliknięciu w kafelek
+            ResetInactivityTimer();
+
             if (sender is Border border && border.Tag is DostawaPortiera dostawa)
             {
                 if (selectedCardBorder != null)
@@ -825,6 +949,9 @@ namespace Kalendarz1
 
         private void GridTable_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            // Reset timera nieaktywności przy wyborze wiersza
+            ResetInactivityTimer();
+
             if (gridTable.SelectedItem is DostawaPortiera dostawa)
             {
                 if (selectedGridRow != null)
@@ -1176,6 +1303,9 @@ namespace Kalendarz1
 
         public void BtnZapisz_Click(object sender, RoutedEventArgs e)
         {
+            // Reset timera nieaktywności przy zapisie wagi
+            ResetInactivityTimer();
+
             int brutto = 0, tara = 0;
             int.TryParse(txtBrutto.Text, out brutto);
             int.TryParse(txtTara.Text, out tara);
@@ -2257,6 +2387,219 @@ namespace Kalendarz1
                 cameraTimer = null;
             }
         }
+
+        #endregion
+
+        #region WIDOK KAMERY (TRYB KAMERY)
+
+        /// <summary>
+        /// Uruchamia stream kamery dla trybu KAMERY (pełnoekranowy widok)
+        /// </summary>
+        private void StartCameraViewStream()
+        {
+            cameraViewActive = true;
+            cameraFrameCount = 0;
+            lastCameraFrameTime = DateTime.Now;
+
+            // Timer - SD: 200ms (5 FPS), HD: 100ms (10 FPS)
+            int interval = cameraHdMode ? 100 : 200;
+            cameraViewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(interval) };
+            cameraViewTimer.Tick += async (s, e) => await RefreshCameraViewImage();
+            cameraViewTimer.Start();
+
+            // Aktualizuj etykiety
+            lblCameraResolution.Text = cameraHdMode ? "1920x1080 (HD)" : "640x480 (SD)";
+            cameraViewStatus.Text = "Łączenie z kamerą...";
+
+            // Timer aktualizacji FPS (co sekundę)
+            var fpsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            fpsTimer.Tick += (s, e) =>
+            {
+                if (!cameraViewActive)
+                {
+                    fpsTimer.Stop();
+                    return;
+                }
+                var elapsed = (DateTime.Now - lastCameraFrameTime).TotalSeconds;
+                if (elapsed > 0)
+                {
+                    int fps = (int)(cameraFrameCount / elapsed);
+                    lblCameraFps.Text = $"{fps} FPS";
+                }
+                cameraFrameCount = 0;
+                lastCameraFrameTime = DateTime.Now;
+            };
+            fpsTimer.Start();
+
+            // Pierwsze pobranie od razu
+            _ = RefreshCameraViewImage();
+        }
+
+        /// <summary>
+        /// Zatrzymuje stream kamery dla trybu KAMERY
+        /// </summary>
+        private void StopCameraViewStream()
+        {
+            cameraViewActive = false;
+            if (cameraViewTimer != null)
+            {
+                cameraViewTimer.Stop();
+                cameraViewTimer = null;
+            }
+            lblCameraFps.Text = "-- FPS";
+        }
+
+        /// <summary>
+        /// Odświeża obraz kamery w trybie KAMERY
+        /// </summary>
+        private async Task RefreshCameraViewImage()
+        {
+            if (!cameraViewActive) return;
+
+            try
+            {
+                // Endpoint zależny od jakości
+                string channel = cameraHdMode ? "101" : "102"; // 101=główny HD, 102=substream SD
+                string[] endpoints = new string[]
+                {
+                    $"http://{CAMERA_IP}/ISAPI/Streaming/channels/{channel}/picture",
+                    $"http://{CAMERA_IP}/ISAPI/Streaming/channels/1/picture",
+                    $"http://{CAMERA_IP}/Streaming/channels/1/picture",
+                    $"http://{CAMERA_IP}/cgi-bin/snapshot.cgi",
+                    $"http://{CAMERA_IP}/snap.jpg"
+                };
+
+                using (var handler = new HttpClientHandler())
+                {
+                    handler.Credentials = new System.Net.NetworkCredential(CAMERA_USER, CAMERA_PASS);
+
+                    using (var client = new HttpClient(handler))
+                    {
+                        client.Timeout = TimeSpan.FromSeconds(5);
+
+                        foreach (var url in endpoints)
+                        {
+                            try
+                            {
+                                var response = await client.GetAsync(url);
+
+                                if (response.IsSuccessStatusCode)
+                                {
+                                    var imageData = await response.Content.ReadAsByteArrayAsync();
+
+                                    if (imageData.Length > 2 && imageData[0] == 0xFF && imageData[1] == 0xD8)
+                                    {
+                                        Dispatcher.Invoke(() =>
+                                        {
+                                            if (!cameraViewActive) return;
+
+                                            var bitmap = new BitmapImage();
+                                            using (var ms = new MemoryStream(imageData))
+                                            {
+                                                bitmap.BeginInit();
+                                                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                                                bitmap.StreamSource = ms;
+                                                bitmap.EndInit();
+                                                bitmap.Freeze();
+                                            }
+                                            cameraViewImage.Source = bitmap;
+                                            cameraViewStatus.Text = "";
+                                            cameraFrameCount++;
+                                        });
+                                        return;
+                                    }
+                                }
+                            }
+                            catch { }
+                        }
+
+                        Dispatcher.Invoke(() =>
+                        {
+                            cameraViewStatus.Text = "Nie można połączyć z kamerą.";
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    if (cameraViewActive)
+                        cameraViewStatus.Text = $"Błąd: {ex.Message}";
+                });
+            }
+        }
+
+        /// <summary>
+        /// Handler przełącznika jakości SD/HD
+        /// </summary>
+        public void CameraQuality_Click(object sender, RoutedEventArgs e)
+        {
+            bool wasHd = cameraHdMode;
+            cameraHdMode = rbCameraHD.IsChecked == true;
+
+            // Jeśli zmieniono jakość i stream jest aktywny, restartuj
+            if (wasHd != cameraHdMode && cameraViewActive)
+            {
+                StopCameraViewStream();
+                StartCameraViewStream();
+            }
+        }
+
+        /// <summary>
+        /// Handler przycisku ZOOM - otwiera overlay kamery z zoom
+        /// </summary>
+        public void BtnCameraOverlay_Click(object sender, RoutedEventArgs e)
+        {
+            BtnCamera_Click(sender, e);
+        }
+
+        #endregion
+
+        #region COMBOBOX TOWARU W ODPADY
+
+        /// <summary>
+        /// Handler zmiany towaru w ComboBox w tabeli ODPADY
+        /// </summary>
+        public void TowarComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Reset timera nieaktywności
+            ResetInactivityTimer();
+
+            if (sender is ComboBox cb && cb.DataContext is DostawaPortiera dostawa)
+            {
+                if (cb.SelectedValue is string nowyTowar && !string.IsNullOrEmpty(nowyTowar))
+                {
+                    // Aktualizuj w bazie
+                    if (dostawa.ID > 0)
+                    {
+                        try
+                        {
+                            using (var conn = new SqlConnection(connectionString))
+                            {
+                                conn.Open();
+                                using (var cmd = new SqlCommand("UPDATE dbo.OdpadyRejestr SET Towar = @Towar WHERE ID = @ID", conn))
+                                {
+                                    cmd.Parameters.AddWithValue("@Towar", nowyTowar);
+                                    cmd.Parameters.AddWithValue("@ID", dostawa.ID);
+                                    cmd.ExecuteNonQuery();
+                                }
+                            }
+                            dostawa.Towar = nowyTowar;
+                            Debug.WriteLine($"[ODPADY] Zmieniono towar ID={dostawa.ID} na {nowyTowar}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"[ODPADY] Błąd zmiany towaru: {ex.Message}");
+                        }
+                    }
+                }
+            }
+        }
+
+        #endregion
+
+        #region KAMERA OVERLAY
 
         private async Task RefreshCameraImage()
         {
@@ -3376,11 +3719,39 @@ namespace Kalendarz1
             }
         }
 
-        public string Towar { get; set; }
+        private string _towar;
+        public string Towar
+        {
+            get => _towar;
+            set
+            {
+                _towar = value;
+                OnPropertyChanged(nameof(Towar));
+                OnPropertyChanged(nameof(TowarIcon));
+                OnPropertyChanged(nameof(TowarColor));
+            }
+        }
+
         public int SztukiPlan { get; set; }
         public string GodzinaTaraDisplay { get; set; } = "-";
         public string GodzinaBruttoDisplay { get; set; } = "-";
-        
+
+        // Status wpisu (dla blokady edycji towaru)
+        public string Status { get; set; } = "";
+
+        /// <summary>
+        /// Czy można edytować towar w ComboBox (blokada dla statusu "wprowadzony/wprowadzone")
+        /// </summary>
+        public bool CanEditTowar
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(Status)) return true;
+                var statusLower = Status.ToLower();
+                return !statusLower.Contains("wprowadzon");
+            }
+        }
+
         // Ścieżki do zdjęć z ważenia
         public string ZdjecieTaraPath { get; set; }
         public string ZdjecieBruttoPath { get; set; }

@@ -350,7 +350,7 @@
                 </ScrollViewer>
 
                 <!-- Widok tabeli ODPADY -->
-                <DataGrid x:Name="gridTable" Visibility="Collapsed" Style="{StaticResource MyDataGridStyle}" 
+                <DataGrid x:Name="gridTable" Visibility="Collapsed" Style="{StaticResource MyDataGridStyle}"
                           SelectionChanged="GridTable_SelectionChanged"
                           MouseLeftButtonUp="GridTable_MouseClick">
                     <DataGrid.ContextMenu>
@@ -368,12 +368,48 @@
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
                         <DataGridTextColumn Header="GODZ." Binding="{Binding GodzinaPrzyjazdu}" Width="80"/>
-                        <DataGridTemplateColumn Header="" Width="55">
+                        <!-- ComboBox wyboru towaru zamiast ikony -->
+                        <DataGridTemplateColumn Header="TOWAR" Width="140">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding TowarIcon}" FontSize="32" FontWeight="Bold"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                                               Foreground="{Binding TowarColor}"/>
+                                    <ComboBox SelectedValue="{Binding Towar, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              SelectedValuePath="Tag"
+                                              SelectionChanged="TowarComboBox_SelectionChanged"
+                                              IsEnabled="{Binding CanEditTowar}"
+                                              Background="#252530" Foreground="White" FontSize="14" FontWeight="Bold"
+                                              Height="40" VerticalContentAlignment="Center" Padding="8,0"
+                                              BorderThickness="0">
+                                        <ComboBoxItem Tag="KREW">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="❤️" FontSize="18" Margin="0,0,6,0"/>
+                                                <TextBlock Text="KREW" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </ComboBoxItem>
+                                        <ComboBoxItem Tag="LAPY">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="🐾" FontSize="18" Margin="0,0,6,0"/>
+                                                <TextBlock Text="ŁAPY" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </ComboBoxItem>
+                                        <ComboBoxItem Tag="JELITA">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="➰" FontSize="18" Margin="0,0,6,0"/>
+                                                <TextBlock Text="JELITA" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </ComboBoxItem>
+                                        <ComboBoxItem Tag="PIORA">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="~" FontSize="20" Margin="0,0,6,0" FontStyle="Italic"/>
+                                                <TextBlock Text="PIÓRA" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </ComboBoxItem>
+                                        <ComboBoxItem Tag="ODPADY">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="♻️" FontSize="18" Margin="0,0,6,0"/>
+                                                <TextBlock Text="ODPADY" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </ComboBoxItem>
+                                    </ComboBox>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -384,6 +420,74 @@
                         <DataGridTextColumn Header="NETTO" Binding="{Binding NettoDisplay}" Width="130"/>
                     </DataGrid.Columns>
                 </DataGrid>
+
+                <!-- Widok KAMERY (pełnoekranowy) -->
+                <Grid x:Name="viewCamera" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Obraz z kamery - pełna szerokość bez obramowań -->
+                    <Border Grid.Row="0" Background="Black">
+                        <Grid x:Name="cameraViewContainer">
+                            <Image x:Name="cameraViewImage" Stretch="Uniform"/>
+                            <TextBlock x:Name="cameraViewStatus" Text="Łączenie z kamerą..."
+                                       FontSize="28" Foreground="Gray"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Pasek info kamery -->
+                    <Border Grid.Row="1" Background="#1E1E2E" Padding="15,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Przełącznik jakości SD/HD -->
+                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                <TextBlock Text="JAKOŚĆ:" Foreground="#888" FontWeight="Bold"
+                                           VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <RadioButton x:Name="rbCameraSD" GroupName="CameraQuality" IsChecked="True"
+                                             Click="CameraQuality_Click" Style="{StaticResource ModeRadioStyle}"
+                                             Height="40" MinWidth="100">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="SD" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                                        <TextBlock Text=" 640x480" FontSize="10" Foreground="#888" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </RadioButton>
+                                <RadioButton x:Name="rbCameraHD" GroupName="CameraQuality"
+                                             Click="CameraQuality_Click" Style="{StaticResource ModeRadioStyle}"
+                                             Height="40" MinWidth="120" Margin="5,0,0,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="HD" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                                        <TextBlock Text=" 1920x1080" FontSize="10" Foreground="#888" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </RadioButton>
+                            </StackPanel>
+
+                            <!-- Info o statusie -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
+                                <TextBlock x:Name="lblCameraFps" Text="-- FPS" FontSize="16" Foreground="#4CAF50"
+                                           FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,20,0"/>
+                                <TextBlock x:Name="lblCameraResolution" Text="---" FontSize="14" Foreground="#888"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- Przycisk pełnoekranowy overlay (opcjonalnie) -->
+                            <Button Grid.Column="2" Click="BtnCameraOverlay_Click"
+                                    Style="{StaticResource ActionButtonStyle}" Height="40" Width="120">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="🔍" FontSize="16" Margin="0,0,5,0"/>
+                                    <TextBlock Text="ZOOM" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </Border>
+                </Grid>
 
                 <!-- Przyciski dla ODPADY -->
                 <StackPanel x:Name="panelButtonsLeft" VerticalAlignment="Bottom" HorizontalAlignment="Right" 
@@ -493,44 +597,37 @@
                         </StackPanel>
                     </Button>
                     
-                    <!-- Przycisk KAMERA -->
-                    <Button Grid.Column="4" Click="BtnCamera_Click" HorizontalAlignment="Left"
-                            Style="{StaticResource ActionButtonStyle}" Height="50" Width="120" Margin="0,0,5,0">
+                    <!-- Przycisk KAMERA (overlay) - przeniesiony do Column 4 -->
+                    <Button x:Name="btnCameraOverlayBottom" Grid.Column="4" Click="BtnCamera_Click" HorizontalAlignment="Left"
+                            Style="{StaticResource ActionButtonStyle}" Height="50" Width="100" Margin="0,0,5,0"
+                            ToolTip="Otwórz podgląd kamery z zoom">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#x1F3A5;" FontSize="20" Margin="0,0,5,0"/>
-                            <TextBlock Text="KAMERA" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <TextBlock Text="🔍" FontSize="18" Margin="0,0,5,0"/>
+                            <TextBlock Text="ZOOM" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    
-                    <!-- Przycisk ALPR - rozpoznawanie tablic -->
-                    <Button Grid.Column="4" Click="BtnScanPlate_Click" HorizontalAlignment="Left" Margin="130,0,0,0"
-                            Height="50" Width="100" ToolTip="Rozpoznaj tablicę rejestracyjną z kamery">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border Background="#2E7D32" CornerRadius="8" Cursor="Hand">
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <TextBlock Text="🚗" FontSize="18" Margin="0,0,5,0"/>
-                                        <TextBlock Text="ALPR" FontSize="14" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Border>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
 
-                    <!-- Przełącznik trybów -->
+                    <!-- Przełącznik trybów: AVILOG / ODPADY / KAMERY -->
                     <StackPanel Grid.Column="5" Orientation="Horizontal" Margin="10,0">
-                        <RadioButton x:Name="rbAvilog" GroupName="Mode" IsChecked="True" Click="ZmienTryb_Click" 
+                        <RadioButton x:Name="rbAvilog" GroupName="Mode" IsChecked="True" Click="ZmienTryb_Click"
                                      Style="{StaticResource ModeRadioStyle}" Height="50">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#x1F414;" FontSize="22" Margin="0,0,6,0"/>
                                 <TextBlock Text="AVILOG" FontSize="15" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </RadioButton>
-                        <RadioButton x:Name="rbOdpady" GroupName="Mode" Click="ZmienTryb_Click" 
-                                     Style="{StaticResource ModeRadioStyle}" Height="50" MinWidth="240">
+                        <RadioButton x:Name="rbOdpady" GroupName="Mode" Click="ZmienTryb_Click"
+                                     Style="{StaticResource ModeRadioStyle}" Height="50" MinWidth="200">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#x2764;" FontSize="22" Margin="0,0,6,0" Foreground="#FF5555"/>
-                                <TextBlock Text="KREW / JELITA / LAPY / PIORA" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <TextBlock Text="ODPADY" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="rbKamery" GroupName="Mode" Click="ZmienTryb_Click"
+                                     Style="{StaticResource ModeRadioStyle}" Height="50" MinWidth="130">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#x1F3A5;" FontSize="22" Margin="0,0,6,0"/>
+                                <TextBlock Text="KAMERY" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </RadioButton>
                     </StackPanel>
