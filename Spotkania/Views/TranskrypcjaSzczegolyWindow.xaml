@@ -393,33 +393,49 @@
                     </Grid>
 
                     <!-- Lista zdan -->
-                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
-                        <ItemsControl x:Name="ListaZdan">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Background="{Binding TloKolor}" CornerRadius="6" Padding="12" Margin="0,0,0,6"
-                                            Visibility="{Binding Widocznosc}">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
+                    <ListBox x:Name="ListaZdan" Grid.Row="2"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             Background="Transparent" BorderThickness="0"
+                             HorizontalContentAlignment="Stretch"
+                             SelectionMode="Single">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Margin" Value="0"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <ContentPresenter/>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{Binding TloKolor}" CornerRadius="6" Padding="12" Margin="0,0,0,6"
+                                        Visibility="{Binding Widocznosc}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
 
-                                            <StackPanel Grid.Column="0" MinWidth="150" Margin="0,0,12,0">
-                                                <TextBlock Text="{Binding CzasDisplay}" FontSize="11" Foreground="#888"
-                                                           Visibility="{Binding CzasWidocznosc}"/>
-                                                <TextBlock Text="{Binding MowcaWyswietlany}" FontWeight="SemiBold"
-                                                           Foreground="{Binding MowcaKolor}" FontSize="13"/>
-                                            </StackPanel>
+                                        <StackPanel Grid.Column="0" MinWidth="150" Margin="0,0,12,0">
+                                            <TextBlock Text="{Binding CzasDisplay}" FontSize="11" Foreground="#888"
+                                                       Visibility="{Binding CzasWidocznosc}"/>
+                                            <TextBlock Text="{Binding MowcaWyswietlany}" FontWeight="SemiBold"
+                                                       Foreground="{Binding MowcaKolor}" FontSize="13"/>
+                                        </StackPanel>
 
-                                            <TextBlock Grid.Column="1" Text="{Binding Tekst}" TextWrapping="Wrap"
-                                                       FontSize="13" Foreground="#333"/>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
+                                        <TextBlock Grid.Column="1" Text="{Binding Tekst}" TextWrapping="Wrap"
+                                                   FontSize="13" Foreground="#333"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                 </Grid>
             </Border>
 
