@@ -11543,29 +11543,27 @@ namespace Kalendarz1
                     NazwaZiD nazwaZiDPods = new NazwaZiD();
                     string drukujacy = nazwaZiDPods.GetNameById(App.UserID) ?? App.UserID ?? Environment.UserName;
 
-                    // Data wydruku + kto drukuje na górze po prawej (odsunięte od marginesu)
-                    Paragraph dateprint = new Paragraph($"Data wydruku: {DateTime.Now:dd.MM.yyyy HH:mm}\nWydrukował: {drukujacy}", fontFooter);
-                    dateprint.Alignment = Element.ALIGN_RIGHT;
-                    dateprint.IndentationRight = 15f;  // Odsunięcie od prawego marginesu
-                    dateprint.SpacingAfter = 5;
-                    doc.Add(dateprint);
-
-                    // Tytuł
+                    // Tytuł na samej górze
                     Paragraph title = new Paragraph("RAPORT Z PRZYJĘCIA ŻYWCA DO UBOJU", fontTitle);
                     title.Alignment = Element.ALIGN_CENTER;
+                    title.SpacingAfter = 3;
                     doc.Add(title);
 
-                    // Data uboju z dniem tygodnia
-                    Paragraph subtitle = new Paragraph($"Data uboju: {selectedDate:dd.MM.yyyy} ({dzienTygodnia})", fontSubtitle);
-                    subtitle.Alignment = Element.ALIGN_CENTER;
-                    subtitle.SpacingAfter = 10;
-                    doc.Add(subtitle);
+                    // Data uboju, Wydrukował, Data wydruku - w jednej linii
+                    Paragraph infoLine = new Paragraph(
+                        $"Data uboju: {selectedDate:dd.MM.yyyy} ({dzienTygodnia})          " +
+                        $"Wydrukował: {drukujacy}          " +
+                        $"Data wydruku: {DateTime.Now:dd.MM.yyyy HH:mm}", fontSubtitle);
+                    infoLine.Alignment = Element.ALIGN_CENTER;
+                    infoLine.SpacingAfter = 8;
+                    doc.Add(infoLine);
 
                     // Tabela z czarnymi obramowaniami (18 kolumn) - z kolumną Partia
                     PdfPTable table = new PdfPTable(18);
                     table.WidthPercentage = 96;
-                    // Zmniejszone kolumny kg (Konfi[kg], Padłe[kg], Suma[kg]) + kolumna Partia
-                    float[] widths = { 3f, 10f, 6f, 4.5f, 4f, 4f, 4f, 3.5f, 3.5f, 3.5f, 5f, 5f, 4f, 5f, 5.5f, 5f, 5f, 5.5f };
+                    // Szerokości kolumn: L.P węższy, Hodowca węższy, Partia szersza, Prod krótsze
+                    // Padłe/Konfi/Suma [szt] = ta sama szerokość co [kg] (3.5f)
+                    float[] widths = { 2.5f, 9f, 7f, 4.5f, 3.5f, 3.5f, 3.5f, 3.5f, 3.5f, 3.5f, 5f, 5f, 4f, 5f, 5.5f, 5f, 4f, 4.5f };
                     table.SetWidths(widths);
 
                     // Ustawienie domyślnych obramowań dla tabeli
@@ -11589,8 +11587,8 @@ namespace Kalendarz1
                         table.AddCell(cell);
                     }
 
-                    // Dane - wyższe wiersze (pomijamy wiersz SUMA który jest na końcu)
-                    float cellPadding = 8f; // Większy padding dla wyższych wierszy
+                    // Dane - mniejsze wiersze
+                    float cellPadding = 5f; // Mniejszy padding dla niższych wierszy
                     foreach (var row in podsumowanieData.Where(r => !r.IsSumRow && r.HodowcaDrobiu != "SUMA"))
                     {
                         table.AddCell(new PdfPCell(new Phrase(row.LP.ToString(), fontData)) { HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE, Padding = cellPadding });
