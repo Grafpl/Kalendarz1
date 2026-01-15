@@ -7997,6 +7997,7 @@ namespace Kalendarz1
         }
 
         // Handler dla zmiany Symfonia (CheckBox) - zapisuje do bazy natychmiast
+        // UWAGA: Symfonia NIE jest blokowana przy statusie "wprowadzony" - na życzenie użytkownika
         private void Symfonia_Changed(object sender, RoutedEventArgs e)
         {
             if (_isLoadingData) return;
@@ -8006,13 +8007,6 @@ namespace Kalendarz1
 
             var row = checkBox.DataContext as SpecyfikacjaRow;
             if (row == null) return;
-
-            // Sprawdź blokadę edycji (uwzględnia status wprowadzenia)
-            if (!CheckEditingAllowed(row))
-            {
-                checkBox.IsChecked = !row.Symfonia;
-                return;
-            }
 
             // Zapisz do bazy
             SaveFieldToDatabase(row.ID, "Symfonia", row.Symfonia);

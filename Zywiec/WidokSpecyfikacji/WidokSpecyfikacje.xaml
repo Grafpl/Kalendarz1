@@ -1404,6 +1404,7 @@
                                             <TextBox Text="{Binding SztukiDek, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                          Style="{StaticResource NumericTextBoxStyle}"
                                          FontWeight="SemiBold"
+                                         IsReadOnly="{Binding JestWprowadzony}"
                                          GotFocus="SztukiDek_GotFocus"
                                          LostFocus="SztukiDek_LostFocus"/>
                                         </DataTemplate>
@@ -1422,6 +1423,7 @@
                                             <TextBox Text="{Binding Padle, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                          Style="{StaticResource NumericTextBoxStyle}"
                                          Foreground="#BF360C"
+                                         IsReadOnly="{Binding JestWprowadzony}"
                                          GotFocus="Padle_GotFocus"
                                          LostFocus="Padle_LostFocus"/>
                                         </DataTemplate>
@@ -1439,6 +1441,7 @@
                                         <DataTemplate>
                                             <TextBox Text="{Binding CH, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                          Style="{StaticResource NumericTextBoxStyle}"
+                                         IsReadOnly="{Binding JestWprowadzony}"
                                          GotFocus="CH_GotFocus"
                                          LostFocus="CH_LostFocus"/>
                                         </DataTemplate>
@@ -1456,6 +1459,7 @@
                                         <DataTemplate>
                                             <TextBox Text="{Binding NW, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                          Style="{StaticResource NumericTextBoxStyle}"
+                                         IsReadOnly="{Binding JestWprowadzony}"
                                          GotFocus="NW_GotFocus"
                                          LostFocus="NW_LostFocus"/>
                                         </DataTemplate>
@@ -1473,6 +1477,7 @@
                                         <DataTemplate>
                                             <TextBox Text="{Binding ZM, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource ZeroToEmptyConverter}}"
                                          Style="{StaticResource NumericTextBoxStyle}"
+                                         IsReadOnly="{Binding JestWprowadzony}"
                                          GotFocus="ZM_GotFocus"
                                          LostFocus="ZM_LostFocus"/>
                                         </DataTemplate>
@@ -1492,6 +1497,7 @@
                                          Style="{StaticResource NumericTextBoxStyle}"
                                          FontWeight="Bold"
                                          Foreground="#7B1FA2"
+                                         IsReadOnly="{Binding JestWprowadzony}"
                                          GotFocus="LUMEL_GotFocus"
                                          LostFocus="LUMEL_LostFocus"/>
                                         </DataTemplate>
@@ -1626,6 +1632,7 @@
                                                      Foreground="#1565C0"
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
+                                                     IsReadOnly="{Binding JestWprowadzony}"
                                                      KeyDown="Cena_KeyDown"
                                                      GotFocus="Cena_GotFocus"
                                                      LostFocus="Cena_LostFocus"/>
@@ -1646,6 +1653,7 @@
                                                      Foreground="#0D47A1"
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
+                                                     IsReadOnly="{Binding JestWprowadzony}"
                                                      KeyDown="Dodatek_KeyDown"
                                                      GotFocus="Dodatek_GotFocus"
                                                      LostFocus="Dodatek_LostFocus"/>
@@ -1667,6 +1675,7 @@
                                                       VerticalContentAlignment="Center"
                                                       SelectionChanged="TypCeny_SelectionChanged"
                                                       IsHitTestVisible="True"
+                                                      IsEnabled="{Binding IsEditable}"
                                                       MaxDropDownHeight="200">
                                                 <ComboBox.Style>
                                                     <Style TargetType="ComboBox">
@@ -1751,6 +1760,7 @@
                                                      Foreground="Black"
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
+                                                     IsReadOnly="{Binding JestWprowadzony}"
                                                      KeyDown="Ubytek_KeyDown"
                                                      GotFocus="Ubytek_GotFocus"
                                                      LostFocus="Ubytek_LostFocus"/>
@@ -1770,6 +1780,7 @@
                                             <CheckBox IsChecked="{Binding PiK, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                       HorizontalAlignment="Center"
                                                       VerticalAlignment="Center"
+                                                      IsEnabled="{Binding IsEditable}"
                                                       Checked="PiK_Changed"
                                                       Unchecked="PiK_Changed"/>
                                         </DataTemplate>
@@ -1786,6 +1797,7 @@
                                                      Style="{StaticResource NumericTextBoxStyle}"
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
+                                                     IsReadOnly="{Binding JestWprowadzony}"
                                                      GotFocus="Opasienie_GotFocus"
                                                      LostFocus="Opasienie_LostFocus"/>
                                         </DataTemplate>
@@ -1802,6 +1814,7 @@
                                                      Style="{StaticResource NumericTextBoxStyle}"
                                                      TextAlignment="Right"
                                                      Padding="0,0,8,0"
+                                                     IsReadOnly="{Binding JestWprowadzony}"
                                                      GotFocus="KlasaB_GotFocus"
                                                      LostFocus="KlasaB_LostFocus"/>
                                         </DataTemplate>
