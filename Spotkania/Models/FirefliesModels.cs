@@ -346,6 +346,12 @@ namespace Kalendarz1.Spotkania.Models
         [JsonPropertyName("transcript_url")]
         public string? TranscriptUrl { get; set; }
 
+        [JsonPropertyName("audio_url")]
+        public string? AudioUrl { get; set; }
+
+        [JsonPropertyName("video_url")]
+        public string? VideoUrl { get; set; }
+
         [JsonPropertyName("host_email")]
         public string? HostEmail { get; set; }
 

@@ -258,6 +258,8 @@ namespace Kalendarz1.Spotkania.Services
                             date
                             duration
                             transcript_url
+                            audio_url
+                            video_url
                             organizer_email
                             participants
                             sentences {
