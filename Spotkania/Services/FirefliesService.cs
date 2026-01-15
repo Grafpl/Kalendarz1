@@ -52,7 +52,7 @@ namespace Kalendarz1.Spotkania.Services
                         ApiKey = reader.IsDBNull(reader.GetOrdinal("ApiKeyPlain")) ? null : reader.GetString(reader.GetOrdinal("ApiKeyPlain")),
                         AutoImportNotatek = reader.GetBoolean(reader.GetOrdinal("AutoImportNotatek")),
                         AutoSynchronizacja = reader.GetBoolean(reader.GetOrdinal("AutoSynchronizacja")),
-                        InterwalSynchronizacjiMin = reader.GetInt32(reader.GetOrdinal("InterwałSynchronizacjiMin")),
+                        InterwalSynchronizacjiMin = reader.GetInt32(reader.GetOrdinal("InterwalSynchronizacjiMin")),
                         MinimalnyCzasSpotkaniaSek = reader.GetInt32(reader.GetOrdinal("MinimalnyCzasSpotkaniaSek")),
                         Aktywna = reader.GetBoolean(reader.GetOrdinal("Aktywna"))
                     };
@@ -96,7 +96,7 @@ namespace Kalendarz1.Spotkania.Services
                         ApiKeyPlain = @ApiKey,
                         AutoImportNotatek = @AutoImport,
                         AutoSynchronizacja = @AutoSync,
-                        InterwałSynchronizacjiMin = @Interwal,
+                        InterwalSynchronizacjiMin = @Interwal,
                         ImportujOdDaty = @ImportOd,
                         MinimalnyCzasSpotkaniaSek = @MinCzas,
                         Aktywna = @Aktywna,
@@ -106,7 +106,7 @@ namespace Kalendarz1.Spotkania.Services
                 else
                 {
                     sql = @"INSERT INTO FirefliesKonfiguracja
-                        (ApiKeyPlain, AutoImportNotatek, AutoSynchronizacja, InterwałSynchronizacjiMin,
+                        (ApiKeyPlain, AutoImportNotatek, AutoSynchronizacja, InterwalSynchronizacjiMin,
                          ImportujOdDaty, MinimalnyCzasSpotkaniaSek, Aktywna, DataUtworzenia)
                     VALUES (@ApiKey, @AutoImport, @AutoSync, @Interwal, @ImportOd, @MinCzas, @Aktywna, GETDATE())";
                 }
