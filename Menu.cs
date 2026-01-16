@@ -1,5 +1,6 @@
 using Kalendarz1.AnalizaPrzychoduProdukcji;
 using Kalendarz1.HandlowiecDashboard.Views;
+using Kalendarz1.Helpers;
 using Kalendarz1.OfertaCenowa;
 using Kalendarz1.Opakowania.Views;
 using Kalendarz1.Reklamacje;
@@ -231,74 +232,74 @@ namespace Kalendarz1
             var leftColumnCategories = new Dictionary<string, List<MenuItemConfig>>
             {
                 // ═══════════════════════════════════════════════════════════════════════════
-                // DZIAŁ ZAKUPÓW - KOLOR ZIELONY (gradient od jasnego #A5D6A7 do ciemnego #1B5E20)
+                // DZIAŁ ZAKUPÓW - KOLOR ZIELONY (gradient od jasnego do ciemnego)
                 // ═══════════════════════════════════════════════════════════════════════════
                 ["ZAOPATRZENIE I ZAKUPY"] = new List<MenuItemConfig>
                 {
                     new MenuItemConfig("DaneHodowcy", "Baza Hodowców",
                         "Kompletna kartoteka wszystkich dostawców żywca kurczaków z danymi kontaktowymi i historią współpracy",
-                        Color.FromArgb(165, 214, 167), // Jasny zielony #A5D6A7
+                        Color.FromArgb(200, 230, 201), // #C8E6C9 - najjaśniejszy
                         () => new WidokKontrahenci(), "🧑‍🌾"),
 
                     new MenuItemConfig("WstawieniaHodowcy", "Cykle Wstawień",
                         "Rejestracja i monitorowanie cykli hodowlanych piskląt u hodowców wraz z terminami odbioru",
-                        Color.FromArgb(129, 199, 132), // #81C784
+                        Color.FromArgb(165, 214, 167), // #A5D6A7
                         () => new WidokWstawienia(), "🐣"),
 
                     new MenuItemConfig("TerminyDostawyZywca", "Kalendarz Dostaw Żywca",
                         "Interaktywny kalendarz planowania terminów dostaw żywca od hodowców do ubojni",
-                        Color.FromArgb(102, 187, 106), // #66BB6A
+                        Color.FromArgb(129, 199, 132), // #81C784
                         () => new WidokKalendarza { UserID = App.UserID, WindowState = FormWindowState.Maximized }, "📅"),
 
                     new MenuItemConfig("PlachtyAviloga", "Matryca Transportu",
                         "Zaawansowane planowanie tras transportu żywca z optymalizacją załadunku i wysyłką SMS",
-                        Color.FromArgb(76, 175, 80), // #4CAF50
+                        Color.FromArgb(102, 187, 106), // #66BB6A
                         () => new WidokMatrycaWPF(), "🚛"),
 
                     new MenuItemConfig("PanelPortiera", "Panel Portiera",
                         "Dotykowy panel do rejestracji wag brutto i tary dostaw żywca przy wjeździe",
-                        Color.FromArgb(0, 150, 136), // Teal #009688
+                        Color.FromArgb(76, 175, 80), // #4CAF50
                         () => new PanelPortiera(), "⚖️"),
 
                     new MenuItemConfig("PanelLekarza", "Panel Lekarza",
                         "Ocena dobrostanu drobiu - padłe, konfiskaty CH/NW/ZM dla lekarza weterynarii",
-                        Color.FromArgb(156, 39, 176), // Purple #9C27B0
+                        Color.FromArgb(67, 160, 71), // #43A047
                         () => new PanelLekarza(), "🩺"),
 
                     new MenuItemConfig("Specyfikacje", "Specyfikacja Surowca",
                         "Definiowanie parametrów jakościowych surowca od poszczególnych dostawców żywca",
-                        Color.FromArgb(67, 160, 71), // #43A047
+                        Color.FromArgb(56, 142, 60), // #388E3C
                         () => new WidokSpecyfikacje(), "📋"),
 
                     new MenuItemConfig("DokumentyZakupu", "Dokumenty i Umowy",
                         "Archiwum umów handlowych, certyfikatów i dokumentów związanych z zakupem żywca",
-                        Color.FromArgb(56, 142, 60), // #388E3C
+                        Color.FromArgb(46, 125, 50), // #2E7D32
                         () => new SprawdzalkaUmow { UserID = App.UserID }, "📑"),
 
                     new MenuItemConfig("PlatnosciHodowcy", "Rozliczenia z Hodowcami",
                         "Monitorowanie należności i płatności dla dostawców żywca wraz z historią transakcji",
-                        Color.FromArgb(46, 125, 50), // #2E7D32
+                        Color.FromArgb(27, 94, 32), // #1B5E20
                         () => new Platnosci(), "💵"),
 
                     new MenuItemConfig("ZakupPaszyPisklak", "Zakup Paszy i Piskląt",
                         "Ewidencja zakupów pasz i piskląt dla hodowców kontraktowych",
-                        Color.FromArgb(27, 94, 32), // Ciemny zielony #1B5E20
+                        Color.FromArgb(27, 94, 32), // #1B5E20
                         null, "🌾"),
 
                     new MenuItemConfig("RaportyHodowcow", "Statystyki Hodowców",
                         "Raporty i analizy współpracy z hodowcami - wydajność, jakość, terminowość dostaw",
-                        Color.FromArgb(27, 94, 32), // #1B5E20
+                        Color.FromArgb(21, 74, 25), // #154A19 - najciemniejszy
                         () => new RaportyStatystykiWindow(), "📊")
                 },
 
                 // ═══════════════════════════════════════════════════════════════════════════
-                // DZIAŁ PRODUKCJI - KOLOR POMARAŃCZOWY (gradient od jasnego #FFCC80 do ciemnego #E65100)
+                // DZIAŁ PRODUKCJI - KOLOR POMARAŃCZOWY (gradient od jasnego do ciemnego)
                 // ═══════════════════════════════════════════════════════════════════════════
                 ["PRODUKCJA I MAGAZYN"] = new List<MenuItemConfig>
                 {
                     new MenuItemConfig("ProdukcjaPodglad", "Panel Produkcji",
                         "Bieżący monitoring procesu uboju i krojenia z podglądem wydajności linii",
-                        Color.FromArgb(255, 204, 128), // Jasny pomarańczowy #FFCC80
+                        Color.FromArgb(255, 224, 178), // #FFE0B2 - najjaśniejszy
                         () => {
                             var window = new Kalendarz1.ProdukcjaPanel();
                             window.UserID = App.UserID;
@@ -307,17 +308,17 @@ namespace Kalendarz1
 
                     new MenuItemConfig("KalkulacjaKrojenia", "Kalkulacja Rozbioru",
                         "Planowanie procesu krojenia tuszek z kalkulacją wydajności poszczególnych elementów",
-                        Color.FromArgb(255, 183, 77), // #FFB74D
+                        Color.FromArgb(255, 204, 128), // #FFCC80
                         () => new PokazKrojenieMrozenie { WindowState = FormWindowState.Maximized }, "✂️"),
 
                     new MenuItemConfig("PrzychodMrozni", "Magazyn Mroźni",
                         "Zarządzanie stanami magazynowymi produktów mrożonych z kontrolą partii i dat",
-                        Color.FromArgb(255, 152, 0), // #FF9800
+                        Color.FromArgb(255, 183, 77), // #FFB74D
                         () => new Mroznia(), "❄️"),
 
                     new MenuItemConfig("LiczenieMagazynu", "Inwentaryzacja Magazynu",
                         "Codzienna rejestracja stanów magazynowych produktów gotowych i surowców",
-                        Color.FromArgb(251, 140, 0), // #FB8C00
+                        Color.FromArgb(255, 152, 0), // #FF9800
                         () => {
                             return new Kalendarz1.MagazynLiczenie.Formularze.LiczenieStanuWindow(
                                 connectionString,
@@ -328,7 +329,7 @@ namespace Kalendarz1
 
                     new MenuItemConfig("PanelMagazyniera", "Panel Magazyniera",
                         "Kompleksowe narzędzie do zarządzania wydaniami towarów i dokumentacją magazynową",
-                        Color.FromArgb(245, 124, 0), // #F57C00
+                        Color.FromArgb(251, 140, 0), // #FB8C00
                         () => {
                             var panel = new Kalendarz1.MagazynPanel();
                             panel.UserID = App.UserID;
@@ -342,23 +343,23 @@ namespace Kalendarz1
 
                     new MenuItemConfig("AnalizaWydajnosci", "Analiza Wydajności",
                         "Porównanie masy żywca do masy tuszek - analiza strat i efektywności uboju",
-                        Color.FromArgb(230, 81, 0), // Ciemny pomarańczowy #E65100
+                        Color.FromArgb(230, 81, 0), // #E65100 - najciemniejszy
                         () => new AnalizaWydajnosciKrojenia(connectionHandel), "📈")
                 },
 
                 // ═══════════════════════════════════════════════════════════════════════════
-                // DZIAŁ ADMINISTRACJI - KOLOR CZERWONY (gradient od jasnego #EF9A9A do ciemnego #B71C1C)
+                // DZIAŁ ADMINISTRACJI - KOLOR CZERWONY (gradient od jasnego do ciemnego)
                 // ═══════════════════════════════════════════════════════════════════════════
                 ["ADMINISTRACJA SYSTEMU"] = new List<MenuItemConfig>
                 {
                     new MenuItemConfig("ZmianyUHodowcow", "Wnioski o Zmiany",
                         "Przeglądanie i zatwierdzanie wniosków o zmiany danych hodowców zgłoszonych przez użytkowników",
-                        Color.FromArgb(239, 154, 154), // Jasny czerwony #EF9A9A
+                        Color.FromArgb(255, 205, 210), // #FFCDD2 - najjaśniejszy
                         () => new AdminChangeRequestsForm(connectionString, App.UserID), "📝"),
 
                     new MenuItemConfig("AdminPermissions", "Zarządzanie Uprawnieniami",
                         "Panel administratora do nadawania i odbierania uprawnień dostępu użytkownikom systemu",
-                        Color.FromArgb(183, 28, 28), // Ciemny czerwony #B71C1C
+                        Color.FromArgb(183, 28, 28), // #B71C1C - najciemniejszy
                         () => new AdminPermissionsForm(), "🔐")
                 }
             };
@@ -366,18 +367,18 @@ namespace Kalendarz1
             var rightColumnCategories = new Dictionary<string, List<MenuItemConfig>>
             {
                 // ═══════════════════════════════════════════════════════════════════════════
-                // DZIAŁ SPRZEDAŻY - KOLOR NIEBIESKI (gradient od jasnego #90CAF9 do ciemnego #0D47A1)
+                // DZIAŁ SPRZEDAŻY - KOLOR NIEBIESKI (gradient od jasnego do ciemnego)
                 // ═══════════════════════════════════════════════════════════════════════════
                 ["SPRZEDAŻ I CRM"] = new List<MenuItemConfig>
                 {
                     new MenuItemConfig("CRM", "Relacje z Klientami",
                         "Zarządzanie relacjami z odbiorcami - kontakty, notatki, historia współpracy",
-                        Color.FromArgb(144, 202, 249), // Jasny niebieski #90CAF9
+                        Color.FromArgb(187, 222, 251), // #BBDEFB - najjaśniejszy
                         () => new CRM.CRMWindow { UserID = App.UserID }, "🤝"),
 
                     new MenuItemConfig("KartotekaOdbiorcow", "Kartoteka Odbiorców",
                         "Pełna baza danych klientów z danymi kontaktowymi, warunkami handlowymi i historią zamówień",
-                        Color.FromArgb(100, 181, 246), // #64B5F6
+                        Color.FromArgb(144, 202, 249), // #90CAF9
                         () => {
                             var window = new Kalendarz1.KartotekaOdbiorcowWindow();
                             window.UserID = App.UserID;
@@ -386,7 +387,7 @@ namespace Kalendarz1
 
                     new MenuItemConfig("ZamowieniaOdbiorcow", "Zamówienia Klientów",
                         "Przyjmowanie i realizacja zamówień na produkty mięsne od odbiorców hurtowych",
-                        Color.FromArgb(66, 165, 245), // #42A5F5
+                        Color.FromArgb(100, 181, 246), // #64B5F6
                         () => {
                             var window = new Kalendarz1.WPF.MainWindow();
                             window.UserID = App.UserID;
@@ -395,7 +396,7 @@ namespace Kalendarz1
 
                     new MenuItemConfig("DashboardHandlowca", "Dashboard Handlowca",
                         "Kompleksowa analiza sprzedaży - wykresy, trendy, porównanie miesięczne, top odbiorcy",
-                        Color.FromArgb(56, 142, 60), // #388E3C
+                        Color.FromArgb(66, 165, 245), // #42A5F5
                         () => new HandlowiecDashboardWindow(), "📊"),
 
                     new MenuItemConfig("DokumentySprzedazy", "Faktury Sprzedaży",
@@ -414,7 +415,7 @@ namespace Kalendarz1
 
                     new MenuItemConfig("OfertaCenowa", "Kreator Ofert",
                         "Tworzenie profesjonalnych ofert cenowych dla klientów z aktualnym cennikiem produktów",
-                        Color.FromArgb(30, 136, 229), // #1E88E5
+                        Color.FromArgb(25, 118, 210), // #1976D2
                         () => {
                             var window = new OfertaHandlowaWindow();
                             window.UserID = App.UserID;
@@ -423,7 +424,7 @@ namespace Kalendarz1
 
                     new MenuItemConfig("ListaOfert", "Archiwum Ofert",
                         "Historia wszystkich wysłanych ofert handlowych z możliwością kopiowania i edycji",
-                        Color.FromArgb(25, 118, 210), // #1976D2
+                        Color.FromArgb(21, 101, 192), // #1565C0
                         () => {
                             var window = new OfertyListaWindow();
                             window.UserID = App.UserID;
@@ -432,14 +433,14 @@ namespace Kalendarz1
 
                     new MenuItemConfig("DashboardOfert", "Analiza Ofert",
                         "Statystyki skuteczności ofert - konwersja, wartości, porównania okresów",
-                        Color.FromArgb(21, 101, 192), // #1565C0
+                        Color.FromArgb(13, 71, 161), // #0D47A1
                         () => {
                             return new OfertyDashboardWindow();
                         }, "📊"),
 
                     new MenuItemConfig("DashboardWyczerpalnosci", "Klasy Wagowe",
                         "Rozdzielanie dostępnych klas wagowych tuszek pomiędzy zamówienia klientów",
-                        Color.FromArgb(13, 71, 161), // Ciemny niebieski #0D47A1
+                        Color.FromArgb(13, 71, 161), // #0D47A1
                         () => {
                             var window = new DashboardKlasWagowychWindow();
                             window.UserID = App.UserID;
@@ -448,49 +449,49 @@ namespace Kalendarz1
 
                     new MenuItemConfig("PanelReklamacji", "Reklamacje Klientów",
                         "Rejestracja i obsługa reklamacji jakościowych zgłaszanych przez odbiorców",
-                        Color.FromArgb(21, 101, 192), // #1565C0
+                        Color.FromArgb(26, 35, 126), // #1A237E - najciemniejszy
                         () => new FormPanelReklamacjiWindow(connectionString, App.UserID), "⚠️")
                 },
 
                 // ═══════════════════════════════════════════════════════════════════════════
-                // DZIAŁ PLANOWANIA - KOLOR FIOLETOWY (gradient od jasnego #CE93D8 do ciemnego #4A148C)
+                // DZIAŁ PLANOWANIA - KOLOR FIOLETOWY (gradient od jasnego do ciemnego)
                 // ═══════════════════════════════════════════════════════════════════════════
                 ["PLANOWANIE I ANALIZY"] = new List<MenuItemConfig>
                 {
                     new MenuItemConfig("PrognozyUboju", "Prognoza Uboju",
                         "Analiza średnich tygodniowych zakupów żywca z prognozą zapotrzebowania",
-                        Color.FromArgb(206, 147, 216), // Jasny fioletowy #CE93D8
+                        Color.FromArgb(225, 190, 231), // #E1BEE7 - najjaśniejszy
                         () => new PrognozyUboju.PrognozyUbojuWindow(), "🔮"),
 
                     new MenuItemConfig("PlanTygodniowy", "Plan Tygodniowy",
                         "Harmonogram uboju i krojenia na nadchodzący tydzień z podziałem na dni",
-                        Color.FromArgb(171, 71, 188), // #AB47BC
+                        Color.FromArgb(186, 104, 200), // #BA68C8
                         () => new Kalendarz1.TygodniowyPlan(), "🗓️"),
 
                     new MenuItemConfig("AnalizaTygodniowa", "Dashboard Analityczny",
                         "Kompleksowa analiza bilansu produkcji i sprzedaży z wykresami i wskaźnikami",
-                        Color.FromArgb(74, 20, 140), // Ciemny fioletowy #4A148C
+                        Color.FromArgb(106, 27, 154), // #6A1B9A - najciemniejszy
                         () => new Kalendarz1.AnalizaTygodniowa.AnalizaTygodniowaWindow(), "📉")
                 },
 
                 // ═══════════════════════════════════════════════════════════════════════════
-                // DZIAŁ OPAKOWAŃ - KOLOR TURKUSOWY (gradient od jasnego #80DEEA do ciemnego #006064)
+                // DZIAŁ OPAKOWAŃ - KOLOR TURKUSOWY (gradient od jasnego do ciemnego)
                 // ═══════════════════════════════════════════════════════════════════════════
                 ["OPAKOWANIA I TRANSPORT"] = new List<MenuItemConfig>
                 {
                     new MenuItemConfig("PodsumowanieSaldOpak", "Zestawienie Opakowań",
                         "Zbiorcze zestawienie sald opakowań zwrotnych wg typu z podsumowaniem wartości",
-                        Color.FromArgb(128, 222, 234), // Jasny turkusowy #80DEEA
+                        Color.FromArgb(178, 235, 242), // #B2EBF2 - najjaśniejszy
                         () => new ZestawienieOpakowanWindow(), "📦"),
 
                     new MenuItemConfig("SaldaOdbiorcowOpak", "Salda Opakowań Klientów",
                         "Szczegółowe salda opakowań zwrotnych dla każdego kontrahenta z historią obrotów",
-                        Color.FromArgb(0, 172, 193), // #00ACC1
+                        Color.FromArgb(0, 188, 212), // #00BCD4
                         () => new SaldaWszystkichOpakowanWindow(), "🏷️"),
 
                     new MenuItemConfig("UstalanieTranportu", "Planowanie Transportu",
                         "Organizacja tras dostaw do klientów z przydziałem pojazdów i kierowców",
-                        Color.FromArgb(0, 96, 100), // Ciemny turkusowy #006064
+                        Color.FromArgb(0, 96, 100), // #006064 - najciemniejszy
                         () => {
                             var connTransport = "Server=192.168.0.109;Database=TransportPL;User Id=pronova;Password=pronova;TrustServerCertificate=True";
                             var repo = new Transport.Repozytorium.TransportRepozytorium(connTransport, connectionString);
@@ -499,34 +500,34 @@ namespace Kalendarz1
                 },
 
                 // ═══════════════════════════════════════════════════════════════════════════
-                // DZIAŁ FINANSÓW - KOLOR SZARONIEBIESKI (gradient od jasnego #B0BEC5 do ciemnego #263238)
+                // DZIAŁ FINANSÓW - KOLOR SZARONIEBIESKI (gradient od jasnego do ciemnego)
                 // ═══════════════════════════════════════════════════════════════════════════
                 ["FINANSE I ZARZĄDZANIE"] = new List<MenuItemConfig>
                 {
                     new MenuItemConfig("DaneFinansowe", "Wyniki Finansowe",
                         "Zestawienie wyników finansowych firmy - przychody, koszty, marże i rentowność",
-                        Color.FromArgb(176, 190, 197), // Jasny szaroniebieski #B0BEC5
+                        Color.FromArgb(207, 216, 220), // #CFD8DC - najjaśniejszy
                         () => new WidokSprzeZakup(), "💼"),
 
                     new MenuItemConfig("CentrumSpotkan", "Centrum Spotkań",
                         "Kompleksowe zarządzanie spotkaniami, powiadomienia, integracja Fireflies.ai, notatki ze spotkań",
-                        Color.FromArgb(25, 118, 210), // Niebieski #1976D2
+                        Color.FromArgb(120, 144, 156), // #78909C
                         () => new Kalendarz1.Spotkania.Views.SpotkaniaGlowneWindow(App.UserID), "📅"),
 
                     new MenuItemConfig("NotatkiZeSpotkan", "Notatki Służbowe",
                         "Rejestr notatek ze spotkań biznesowych, ustaleń i zadań do wykonania",
-                        Color.FromArgb(38, 50, 56), // Ciemny szaroniebieski #263238
+                        Color.FromArgb(55, 71, 79), // #37474F - najciemniejszy
                         () => new Kalendarz1.NotatkiZeSpotkan.NotatkirGlownyWindow(App.UserID), "📝")
                 },
 
                 // ═══════════════════════════════════════════════════════════════════════════
-                // NOWA KATEGORIA: KADRY I HR - KOLOR INDYGO/FIOLETOWY
+                // KADRY I HR - KOLOR INDYGO (gradient od jasnego do ciemnego)
                 // ═══════════════════════════════════════════════════════════════════════════
                 ["KADRY I HR"] = new List<MenuItemConfig>
                 {
                     new MenuItemConfig("KontrolaGodzin", "Kontrola Czasu Pracy",
                         "System UNICARD - rejestracja wejść/wyjść, godziny pracy, obecności i raporty agencji",
-                        Color.FromArgb(126, 87, 194), // Indygo #7E57C2
+                        Color.FromArgb(159, 168, 218), // #9FA8DA - jasny indygo
                         () => new KontrolaGodzinWindow(), "⏱️")
                 }
             };
@@ -632,10 +633,32 @@ namespace Kalendarz1
 
                         if (formularz is System.Windows.Window wpfWindow)
                         {
+                            // Ustaw ikonę okna z emoji
+                            if (!string.IsNullOrEmpty(config.IconText))
+                            {
+                                try
+                                {
+                                    Helpers.WindowIconHelper.SetWindowIcon(wpfWindow, config.IconText, config.Color);
+                                }
+                                catch { /* Ignoruj błędy ikon */ }
+                            }
+
+                            // Dodaj emoji do tytułu okna
+                            if (!string.IsNullOrEmpty(config.IconText) && !wpfWindow.Title.StartsWith(config.IconText))
+                            {
+                                wpfWindow.Title = $"{config.IconText} {wpfWindow.Title}";
+                            }
+
                             wpfWindow.ShowDialog();
                         }
                         else if (formularz is System.Windows.Forms.Form winForm)
                         {
+                            // Dodaj emoji do tytułu formularza WinForms
+                            if (!string.IsNullOrEmpty(config.IconText) && !winForm.Text.StartsWith(config.IconText))
+                            {
+                                winForm.Text = $"{config.IconText} {winForm.Text}";
+                            }
+
                             winForm.Show();
                         }
                         else if (formularz != null)
