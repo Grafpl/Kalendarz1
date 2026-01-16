@@ -259,6 +259,16 @@
             <DataGrid.Columns>
                 <!-- Kolumna wyboru -->
                 <DataGridCheckBoxColumn Header="" Binding="{Binding Wybrana, UpdateSourceTrigger=PropertyChanged}" Width="35"/>
+                <!-- A: Kolejnosc auta -->
+                <DataGridTextColumn Header="Nr" Binding="{Binding KolejnoscAuta}" Width="40" IsReadOnly="True">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="FontWeight" Value="Bold"/>
+                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                            <Setter Property="Foreground" Value="#1976D2"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
                 <!-- B: Hodowca -->
                 <DataGridTextColumn Header="Hodowca" Binding="{Binding Hodowca}" Width="160" IsReadOnly="True"/>
                 <!-- C: Id na produkcji -->

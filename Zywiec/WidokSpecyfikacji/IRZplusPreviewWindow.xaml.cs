@@ -73,9 +73,12 @@ namespace Kalendarz1
                 var specyfikacje = await _service.GetSpecyfikacjeAsync(_connectionString, _dataUboju);
 
                 _specyfikacje.Clear();
+                int kolejnosc = 1;
                 foreach (var spec in specyfikacje)
                 {
-                    _specyfikacje.Add(new SpecyfikacjaDoIRZplusViewModel(spec));
+                    var vm = new SpecyfikacjaDoIRZplusViewModel(spec);
+                    vm.KolejnoscAuta = kolejnosc++;
+                    _specyfikacje.Add(vm);
                 }
 
                 UpdateSummary();
@@ -616,6 +619,9 @@ namespace Kalendarz1
         public event PropertyChangedEventHandler PropertyChanged;
 
         public int Id { get; set; }
+
+        // Kolumna A - Kolejnosc auta (1, 2, 3...)
+        public int KolejnoscAuta { get; set; }
 
         // Kolumna B - Hodowca
         public string Hodowca { get; set; }
