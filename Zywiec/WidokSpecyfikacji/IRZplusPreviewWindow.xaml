@@ -444,5 +444,8 @@
                 </StackPanel>
             </Grid>
         </Border>
+
+        <!-- Konfetti Canvas (overlay na calym oknie) -->
+        <Canvas x:Name="confettiCanvas" Grid.Row="0" Grid.RowSpan="5" IsHitTestVisible="False"/>
     </Grid>
 </Window>
