@@ -12052,6 +12052,8 @@ namespace Kalendarz1
 
             try
             {
+                // Pokaż overlay ładowania
+                borderIRZplusLoading.Visibility = Visibility.Visible;
                 txtIRZplusStatus.Text = "Ładowanie danych...";
                 progressBarIRZplus.Visibility = Visibility.Visible;
                 progressBarIRZplus.IsIndeterminate = true;
@@ -12084,6 +12086,8 @@ namespace Kalendarz1
             }
             finally
             {
+                // Ukryj overlay ładowania
+                borderIRZplusLoading.Visibility = Visibility.Collapsed;
                 progressBarIRZplus.Visibility = Visibility.Collapsed;
             }
         }
