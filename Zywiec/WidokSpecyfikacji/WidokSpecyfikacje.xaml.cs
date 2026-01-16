@@ -12057,7 +12057,7 @@ namespace Kalendarz1
                 progressBarIRZplus.IsIndeterminate = true;
 
                 // Pobierz datę z datepickera
-                var dataUboju = dpDataSpecyfikacji?.SelectedDate ?? DateTime.Today;
+                var dataUboju = dateTimePicker1?.SelectedDate ?? DateTime.Today;
 
                 await _irzPlusService.EnsureIRZplusColumnsExistAsync(connectionString);
                 var specyfikacje = await _irzPlusService.GetSpecyfikacjeAsync(connectionString, dataUboju);
@@ -12186,7 +12186,7 @@ namespace Kalendarz1
 
             var settings = _irzPlusService.GetSettings();
             var envText = settings.UseTestEnvironment ? "TESTOWE" : "PRODUKCYJNE";
-            var dataUboju = dpDataSpecyfikacji?.SelectedDate ?? DateTime.Today;
+            var dataUboju = dateTimePicker1?.SelectedDate ?? DateTime.Today;
 
             var result = MessageBox.Show(
                 $"Czy na pewno chcesz wysłać zgłoszenie do IRZplus?\n\n" +
@@ -12279,7 +12279,7 @@ namespace Kalendarz1
                 if (!System.IO.Directory.Exists(dir))
                     System.IO.Directory.CreateDirectory(dir);
 
-                var dataUboju = dpDataSpecyfikacji?.SelectedDate ?? DateTime.Today;
+                var dataUboju = dateTimePicker1?.SelectedDate ?? DateTime.Today;
                 var fileName = $"IRZplus_{dataUboju:yyyy-MM-dd}_{DateTime.Now:HHmmss}.json";
                 var filePath = System.IO.Path.Combine(dir, fileName);
 
@@ -12308,7 +12308,7 @@ namespace Kalendarz1
                     return;
                 }
 
-                var dataUboju = dpDataSpecyfikacji?.SelectedDate ?? DateTime.Today;
+                var dataUboju = dateTimePicker1?.SelectedDate ?? DateTime.Today;
 
                 var dialog = IRZplusExportDialog.UtworzZDanych(
                     dataUboju: dataUboju,
