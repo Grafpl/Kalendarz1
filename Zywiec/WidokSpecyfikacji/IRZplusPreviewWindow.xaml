@@ -157,7 +157,7 @@
         </Border>
 
         <!-- Panel podsumowania -->
-        <Border Grid.Row="1" Background="White" Padding="20" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
+        <Border Grid.Row="1" Background="White" Padding="10,8" BorderBrush="Black" BorderThickness="0,0,0,2" Margin="10,5,10,0">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -166,37 +166,37 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <StackPanel Margin="0,0,40,0">
-                        <TextBlock Text="Data uboju:" FontSize="12" Foreground="#757575"/>
-                        <TextBlock x:Name="txtDataUboju" Text="-" FontSize="18" FontWeight="Bold" Foreground="#1976D2"/>
+                    <StackPanel Margin="0,0,20,0">
+                        <TextBlock Text="Data uboju:" FontSize="10" Foreground="#757575"/>
+                        <TextBlock x:Name="txtDataUboju" Text="-" FontSize="14" FontWeight="Bold" Foreground="#1976D2"/>
                     </StackPanel>
-                    <StackPanel Margin="0,0,40,0">
-                        <TextBlock Text="Liczba dostawcow:" FontSize="12" Foreground="#757575"/>
-                        <TextBlock x:Name="txtLiczbaDostawcow" Text="0" FontSize="18" FontWeight="Bold" Foreground="#424242"/>
+                    <StackPanel Margin="0,0,20,0">
+                        <TextBlock Text="Dostawcy:" FontSize="10" Foreground="#757575"/>
+                        <TextBlock x:Name="txtLiczbaDostawcow" Text="0" FontSize="14" FontWeight="Bold" Foreground="#424242"/>
                     </StackPanel>
-                    <StackPanel Margin="0,0,40,0">
-                        <TextBlock Text="Suma sztuk:" FontSize="12" Foreground="#757575"/>
-                        <TextBlock x:Name="txtSumaSztuk" Text="0" FontSize="18" FontWeight="Bold" Foreground="#424242"/>
+                    <StackPanel Margin="0,0,20,0">
+                        <TextBlock Text="Suma szt:" FontSize="10" Foreground="#757575"/>
+                        <TextBlock x:Name="txtSumaSztuk" Text="0" FontSize="14" FontWeight="Bold" Foreground="#424242"/>
                     </StackPanel>
-                    <StackPanel Margin="0,0,40,0">
-                        <TextBlock Text="Suma wagi netto:" FontSize="12" Foreground="#757575"/>
-                        <TextBlock x:Name="txtSumaWagi" Text="0 kg" FontSize="18" FontWeight="Bold" Foreground="#424242"/>
+                    <StackPanel Margin="0,0,20,0">
+                        <TextBlock Text="Waga netto:" FontSize="10" Foreground="#757575"/>
+                        <TextBlock x:Name="txtSumaWagi" Text="0 kg" FontSize="14" FontWeight="Bold" Foreground="#424242"/>
                     </StackPanel>
-                    <StackPanel Margin="0,0,40,0">
-                        <TextBlock Text="Suma padlych:" FontSize="12" Foreground="#757575"/>
-                        <TextBlock x:Name="txtSumaPadlych" Text="0" FontSize="18" FontWeight="Bold" Foreground="#D32F2F"/>
+                    <StackPanel Margin="0,0,20,0">
+                        <TextBlock Text="Padle:" FontSize="10" Foreground="#757575"/>
+                        <TextBlock x:Name="txtSumaPadlych" Text="0" FontSize="14" FontWeight="Bold" Foreground="#D32F2F"/>
                     </StackPanel>
-                    <StackPanel Margin="0,0,40,0">
-                        <TextBlock Text="KG Do zapl.:" FontSize="12" Foreground="#757575"/>
-                        <TextBlock x:Name="txtSumaKgDoZapl" Text="0 kg" FontSize="18" FontWeight="Bold" Foreground="#1976D2"/>
+                    <StackPanel Margin="0,0,20,0">
+                        <TextBlock Text="KG zapl:" FontSize="10" Foreground="#757575"/>
+                        <TextBlock x:Name="txtSumaKgDoZapl" Text="0" FontSize="14" FontWeight="Bold" Foreground="#1976D2"/>
                     </StackPanel>
-                    <StackPanel Margin="0,0,40,0">
-                        <TextBlock Text="Szt Konfiskat:" FontSize="12" Foreground="#757575"/>
-                        <TextBlock x:Name="txtSumaKgKonfiskat" Text="0 szt" FontSize="18" FontWeight="Bold" Foreground="#FF9800"/>
+                    <StackPanel Margin="0,0,20,0">
+                        <TextBlock Text="Konfi szt:" FontSize="10" Foreground="#757575"/>
+                        <TextBlock x:Name="txtSumaKgKonfiskat" Text="0" FontSize="14" FontWeight="Bold" Foreground="#FF9800"/>
                     </StackPanel>
                     <StackPanel>
-                        <TextBlock Text="Szt Padlych:" FontSize="12" Foreground="#757575"/>
-                        <TextBlock x:Name="txtSumaKgPadlych" Text="0 szt" FontSize="18" FontWeight="Bold" Foreground="#D32F2F"/>
+                        <TextBlock Text="Padle szt:" FontSize="10" Foreground="#757575"/>
+                        <TextBlock x:Name="txtSumaKgPadlych" Text="0" FontSize="14" FontWeight="Bold" Foreground="#D32F2F"/>
                     </StackPanel>
                 </StackPanel>
 
@@ -209,38 +209,47 @@
         </Border>
 
         <!-- DataGrid ze specyfikacjami -->
-        <DataGrid x:Name="dgSpecyfikacje" Grid.Row="2"
+        <Border Grid.Row="2" BorderBrush="Black" BorderThickness="2" Margin="10">
+        <DataGrid x:Name="dgSpecyfikacje"
                   AutoGenerateColumns="False"
                   IsReadOnly="False"
                   SelectionMode="Extended"
                   SelectionUnit="FullRow"
                   CanUserSortColumns="True"
-                  GridLinesVisibility="Horizontal"
-                  AlternatingRowBackground="#FAFAFA"
+                  GridLinesVisibility="All"
+                  HorizontalGridLinesBrush="Black"
+                  VerticalGridLinesBrush="Black"
+                  AlternatingRowBackground="#F5F5F5"
                   RowBackground="White"
-                  BorderBrush="#E0E0E0"
                   BorderThickness="0"
-                  Margin="10">
+                  FontSize="12"
+                  RowHeight="28"
+                  ColumnHeaderHeight="32">
 
             <DataGrid.ColumnHeaderStyle>
                 <Style TargetType="DataGridColumnHeader">
-                    <Setter Property="Background" Value="#ECEFF1"/>
-                    <Setter Property="Foreground" Value="#37474F"/>
-                    <Setter Property="FontWeight" Value="SemiBold"/>
-                    <Setter Property="Padding" Value="10,8"/>
-                    <Setter Property="BorderBrush" Value="#CFD8DC"/>
+                    <Setter Property="Background" Value="#37474F"/>
+                    <Setter Property="Foreground" Value="White"/>
+                    <Setter Property="FontWeight" Value="Bold"/>
+                    <Setter Property="FontSize" Value="11"/>
+                    <Setter Property="Padding" Value="6,4"/>
+                    <Setter Property="BorderBrush" Value="Black"/>
                     <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                    <Setter Property="HorizontalContentAlignment" Value="Center"/>
                 </Style>
             </DataGrid.ColumnHeaderStyle>
 
             <DataGrid.CellStyle>
                 <Style TargetType="DataGridCell">
-                    <Setter Property="Padding" Value="8,6"/>
-                    <Setter Property="BorderThickness" Value="0"/>
+                    <Setter Property="Padding" Value="4,2"/>
+                    <Setter Property="BorderBrush" Value="Black"/>
+                    <Setter Property="BorderThickness" Value="0,0,1,0"/>
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="DataGridCell">
                                 <Border Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
                                         Padding="{TemplateBinding Padding}">
                                     <ContentPresenter VerticalAlignment="Center"/>
                                 </Border>
@@ -249,8 +258,8 @@
                     </Setter>
                     <Style.Triggers>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter Property="Background" Value="#E3F2FD"/>
-                            <Setter Property="Foreground" Value="#1565C0"/>
+                            <Setter Property="Background" Value="#BBDEFB"/>
+                            <Setter Property="Foreground" Value="Black"/>
                         </Trigger>
                     </Style.Triggers>
                 </Style>
@@ -258,9 +267,9 @@
 
             <DataGrid.Columns>
                 <!-- Kolumna wyboru -->
-                <DataGridCheckBoxColumn Header="" Binding="{Binding Wybrana, UpdateSourceTrigger=PropertyChanged}" Width="35"/>
+                <DataGridCheckBoxColumn Header="" Binding="{Binding Wybrana, UpdateSourceTrigger=PropertyChanged}" Width="30"/>
                 <!-- A: Kolejnosc auta -->
-                <DataGridTextColumn Header="Nr" Binding="{Binding KolejnoscAuta}" Width="40" IsReadOnly="True">
+                <DataGridTextColumn Header="Nr" Binding="{Binding KolejnoscAuta}" Width="30" IsReadOnly="True">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="FontWeight" Value="Bold"/>
@@ -270,11 +279,11 @@
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
                 <!-- B: Hodowca -->
-                <DataGridTextColumn Header="Hodowca" Binding="{Binding Hodowca}" Width="160" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Hodowca" Binding="{Binding Hodowca}" Width="130" IsReadOnly="True"/>
                 <!-- C: Id na produkcji -->
-                <DataGridTextColumn Header="Id Hodowcy" Binding="{Binding IdHodowcy}" Width="80" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Id" Binding="{Binding IdHodowcy}" Width="45" IsReadOnly="True"/>
                 <!-- D: IRZ PLUS - edytowalne z mozliwoscia zapisu do bazy -->
-                <DataGridTemplateColumn Header="IRZ PLUS" Width="180">
+                <DataGridTemplateColumn Header="IRZ PLUS" Width="130">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Grid>
@@ -307,7 +316,7 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
                 <!-- E: Numer Partii z przyciskiem Kopiuj -->
-                <DataGridTemplateColumn Header="Numer Partii" Width="170" IsReadOnly="True">
+                <DataGridTemplateColumn Header="Numer Partii" Width="140" IsReadOnly="True">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Grid>
@@ -344,7 +353,7 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
                 <!-- F: Liczba Sztuk Drobiu (zdatne) -->
-                <DataGridTextColumn Header="Liczba Sztuk" Binding="{Binding LiczbaSztukDrobiu, StringFormat=N0}" Width="90" IsReadOnly="True">
+                <DataGridTextColumn Header="Szt" Binding="{Binding LiczbaSztukDrobiu, StringFormat=N0}" Width="60" IsReadOnly="True">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="FontWeight" Value="Bold"/>
@@ -353,7 +362,7 @@
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
                 <!-- KG Do zapl. (PayWgt) -->
-                <DataGridTextColumn Header="KG Do zapl." Binding="{Binding KgDoZaplaty, StringFormat=N0}" Width="90" IsReadOnly="True">
+                <DataGridTextColumn Header="KG" Binding="{Binding KgDoZaplaty, StringFormat=N0}" Width="70" IsReadOnly="True">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="FontWeight" Value="Bold"/>
@@ -363,7 +372,7 @@
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
                 <!-- Szt Konfiskat -->
-                <DataGridTextColumn Header="Szt Konfi" Binding="{Binding KgKonfiskat, StringFormat=N0}" Width="80" IsReadOnly="True">
+                <DataGridTextColumn Header="Konf" Binding="{Binding KgKonfiskat, StringFormat=N0}" Width="45" IsReadOnly="True">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -372,7 +381,7 @@
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
                 <!-- Szt Padlych -->
-                <DataGridTextColumn Header="Szt Padl." Binding="{Binding KgPadlych, StringFormat=N0}" Width="80" IsReadOnly="True">
+                <DataGridTextColumn Header="Padl" Binding="{Binding KgPadlych, StringFormat=N0}" Width="45" IsReadOnly="True">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -381,13 +390,13 @@
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
                 <!-- G: Typ Zdarzenia -->
-                <DataGridTextColumn Header="Typ Zdarzenia" Binding="{Binding TypZdarzenia}" Width="170" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Typ Zdarzenia" Binding="{Binding TypZdarzenia}" Width="140" IsReadOnly="True"/>
                 <!-- H: Data zdarzenia -->
-                <DataGridTextColumn Header="Data Zdarzenia" Binding="{Binding DataZdarzenia, StringFormat='{}{0:dd-MM-yyyy}'}" Width="100" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Data" Binding="{Binding DataZdarzenia, StringFormat='{}{0:dd-MM-yyyy}'}" Width="80" IsReadOnly="True"/>
                 <!-- I: Kraj Wywozu -->
-                <DataGridTextColumn Header="Kraj" Binding="{Binding KrajWywozu}" Width="50" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Kraj" Binding="{Binding KrajWywozu}" Width="40" IsReadOnly="True"/>
                 <!-- J: Przyjete z dzialalnosci (obliczane) -->
-                <DataGridTextColumn Header="Przyjete z dzialalnosci" Binding="{Binding PrzyjetaZDzialalnosci}" Width="160" IsReadOnly="True">
+                <DataGridTextColumn Header="Przyjete z dzial." Binding="{Binding PrzyjetaZDzialalnosci}" Width="120" IsReadOnly="True">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="Foreground" Value="#388E3C"/>
@@ -395,13 +404,14 @@
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
                 <!-- K: nr.dok.Arimr (edytowalne) -->
-                <DataGridTextColumn Header="nr.dok.Arimr" Binding="{Binding NrDokArimr, UpdateSourceTrigger=PropertyChanged}" Width="120"/>
+                <DataGridTextColumn Header="nr.dok.Arimr" Binding="{Binding NrDokArimr, UpdateSourceTrigger=PropertyChanged}" Width="100"/>
                 <!-- L: przybycie (edytowalne) -->
-                <DataGridTextColumn Header="przybycie" Binding="{Binding Przybycie, UpdateSourceTrigger=PropertyChanged}" Width="120"/>
+                <DataGridTextColumn Header="przybycie" Binding="{Binding Przybycie, UpdateSourceTrigger=PropertyChanged}" Width="80"/>
                 <!-- M: padniecia (edytowalne) -->
-                <DataGridTextColumn Header="padniecia" Binding="{Binding Padniecia, UpdateSourceTrigger=PropertyChanged}" Width="120"/>
+                <DataGridTextColumn Header="padniecia" Binding="{Binding Padniecia, UpdateSourceTrigger=PropertyChanged}" Width="80"/>
             </DataGrid.Columns>
         </DataGrid>
+        </Border>
 
         <!-- Panel walidacji/ostrzezen -->
         <Border x:Name="borderWarnings" Grid.Row="3" Background="#FFF3E0" Padding="15" Margin="10,0,10,10"
@@ -413,7 +423,7 @@
         </Border>
 
         <!-- Panel akcji -->
-        <Border Grid.Row="4" Background="#ECEFF1" Padding="20,15">
+        <Border Grid.Row="4" Background="#ECEFF1" Padding="10,8" BorderBrush="Black" BorderThickness="0,2,0,0">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
