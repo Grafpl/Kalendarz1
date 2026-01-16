@@ -2106,6 +2106,55 @@ namespace Kalendarz1
         {
             var menuAgregacja = new ContextMenuStrip();
 
+            // === NOWA OPCJA: Powiększ do nowego okna ===
+            var menuPowieksz = new ToolStripMenuItem("🔍 Powiększ do nowego okna");
+            menuPowieksz.Click += (s, e) =>
+            {
+                if (dgvAgregacja.CurrentRow == null) return;
+
+                try
+                {
+                    var row = dgvAgregacja.CurrentRow;
+                    string produktNazwa = row.Cells["Produkt"]?.Value?.ToString() ?? "";
+                    decimal plan = Convert.ToDecimal(row.Cells["PlanowanyPrzychód"]?.Value ?? 0m);
+                    decimal fakt = Convert.ToDecimal(row.Cells["FaktycznyPrzychód"]?.Value ?? 0m);
+                    decimal zam = Convert.ToDecimal(row.Cells["Zamówienia"]?.Value ?? 0m);
+                    decimal bilans = Convert.ToDecimal(row.Cells["Bilans"]?.Value ?? 0m);
+
+                    // Znajdź ID produktu
+                    int towarId = 0;
+                    foreach (var kv in _twKatalogCache)
+                    {
+                        if (kv.Value.Equals(produktNazwa, StringComparison.OrdinalIgnoreCase))
+                        {
+                            towarId = kv.Key;
+                            break;
+                        }
+                    }
+
+                    // Użyj współdzielonego helpera do wyświetlenia okna
+                    var productData = new Kalendarz1.WPF.Helpers.ProductDetailData
+                    {
+                        Id = towarId,
+                        Kod = produktNazwa,
+                        Nazwa = produktNazwa,
+                        Plan = plan,
+                        Fakt = fakt,
+                        Stan = 0, // Brak stanu w tym widoku
+                        Zamowienia = zam,
+                        Wydania = 0, // Brak wydań w tym widoku
+                        Bilans = bilans,
+                        Data = _selectedDate
+                    };
+
+                    Kalendarz1.WPF.Helpers.ProductDetailWindowHelper.ShowExpandedProductCard(productData, false, null);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(this, $"Błąd wyświetlania szczegółów: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+
             var menuScalowanie = new ToolStripMenuItem("Konfiguruj scalowanie towarów");
             menuScalowanie.Click += async (s, e) =>
             {
@@ -2124,6 +2173,8 @@ namespace Kalendarz1
                 await WyswietlAgregacjeProduktowAsync(_selectedDate);
             };
 
+            menuAgregacja.Items.Add(menuPowieksz);
+            menuAgregacja.Items.Add(new ToolStripSeparator());
             menuAgregacja.Items.Add(menuScalowanie);
             menuAgregacja.Items.Add(new ToolStripSeparator());
             menuAgregacja.Items.Add(menuOdswiez);
