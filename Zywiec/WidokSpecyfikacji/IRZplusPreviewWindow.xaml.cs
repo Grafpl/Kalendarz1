@@ -560,14 +560,32 @@ namespace Kalendarz1
         /// <summary>
         /// Kopiuje numer partii do schowka
         /// </summary>
-        private void BtnKopiujPartie_Click(object sender, RoutedEventArgs e)
+        private async void BtnKopiujPartie_Click(object sender, RoutedEventArgs e)
         {
             try
             {
                 if (sender is Button btn && btn.Tag is string numerPartii && !string.IsNullOrEmpty(numerPartii))
                 {
                     System.Windows.Clipboard.SetText(numerPartii);
-                    txtStatus.Text = $"Skopiowano: {numerPartii}";
+
+                    // Zapisz oryginalne wartosci
+                    var originalContent = btn.Content;
+                    var originalBackground = btn.Background;
+                    var originalForeground = btn.Foreground;
+
+                    // Zmien na "Skopiowano!" z zielonym tlem
+                    btn.Content = "OK!";
+                    btn.Background = new System.Windows.Media.SolidColorBrush(
+                        (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#4CAF50"));
+                    btn.Foreground = System.Windows.Media.Brushes.White;
+
+                    // Poczekaj 1 sekunde
+                    await Task.Delay(1000);
+
+                    // Przywroc oryginalne wartosci
+                    btn.Content = originalContent;
+                    btn.Background = originalBackground;
+                    btn.Foreground = originalForeground;
                 }
             }
             catch (Exception ex)
