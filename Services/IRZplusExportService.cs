@@ -31,6 +31,12 @@ namespace Kalendarz1.Services
         private const string NUMER_PRODUCENTA = "039806095";
         private const string GATUNEK = "kury";
 
+        // Polskie nazwy dni tygodnia
+        private static readonly string[] _polskieDniTygodnia = new[]
+        {
+            "niedziela", "poniedzialek", "wtorek", "sroda", "czwartek", "piatek", "sobota"
+        };
+
         private readonly string _exportPath;
         private readonly CultureInfo _polishCulture;
 
@@ -45,6 +51,86 @@ namespace Kalendarz1.Services
             // Polski format - przecinek jako separator dziesietny
             _polishCulture = new CultureInfo("pl-PL");
         }
+
+        #region ========== STRUKTURA FOLDEROW I NAZEWNICTWO ==========
+
+        /// <summary>
+        /// Tworzy sciezke folderu wg struktury: Rok/Miesiac/Dzien-DzienTygodnia
+        /// np. "2026/01/16-czwartek"
+        /// </summary>
+        public string UtworzSciezkeFolderu(DateTime data, string bazowaScieszka = null)
+        {
+            var baza = bazowaScieszka ?? _exportPath;
+
+            // Numer dnia tygodnia (0=niedziela, 1=poniedzialek, ...)
+            int numerDnia = (int)data.DayOfWeek;
+            // Zamieniamy na numer gdzie 1=poniedzialek, 7=niedziela
+            int numerDniaPolski = numerDnia == 0 ? 7 : numerDnia;
+
+            string nazwaFolderuDnia = $"{data.Day}-{_polskieDniTygodnia[numerDnia]}";
+
+            var pelnaSciezka = Path.Combine(
+                baza,
+                data.Year.ToString(),
+                data.Month.ToString("00"),
+                nazwaFolderuDnia
+            );
+
+            if (!Directory.Exists(pelnaSciezka))
+                Directory.CreateDirectory(pelnaSciezka);
+
+            return pelnaSciezka;
+        }
+
+        /// <summary>
+        /// Generuje nazwe pliku wg wzoru: kolejnosc-NazwaHodowcy-pelnaData
+        /// np. "1-Kowalski_Jan-16-01-2026.csv"
+        /// </summary>
+        public string GenerujNazwePliku(int kolejnosc, string nazwaHodowcy, DateTime data, string rozszerzenie = "csv")
+        {
+            // Usun niedozwolone znaki z nazwy hodowcy
+            var bezpiecznaNazwa = UsunNiedozwoloneZnaki(nazwaHodowcy);
+
+            // Ogranicz dlugosc nazwy
+            if (bezpiecznaNazwa.Length > 50)
+                bezpiecznaNazwa = bezpiecznaNazwa.Substring(0, 50);
+
+            return $"{kolejnosc}-{bezpiecznaNazwa}-{data:dd-MM-yyyy}.{rozszerzenie}";
+        }
+
+        /// <summary>
+        /// Usuwa niedozwolone znaki z nazwy pliku
+        /// </summary>
+        private string UsunNiedozwoloneZnaki(string nazwa)
+        {
+            if (string.IsNullOrEmpty(nazwa))
+                return "NIEZNANY";
+
+            // Zamien polskie znaki na ASCII
+            var zamiana = new Dictionary<char, char>
+            {
+                {'ą', 'a'}, {'ć', 'c'}, {'ę', 'e'}, {'ł', 'l'}, {'ń', 'n'},
+                {'ó', 'o'}, {'ś', 's'}, {'ź', 'z'}, {'ż', 'z'},
+                {'Ą', 'A'}, {'Ć', 'C'}, {'Ę', 'E'}, {'Ł', 'L'}, {'Ń', 'N'},
+                {'Ó', 'O'}, {'Ś', 'S'}, {'Ź', 'Z'}, {'Ż', 'Z'}
+            };
+
+            var wynik = new StringBuilder();
+            foreach (var c in nazwa)
+            {
+                if (zamiana.ContainsKey(c))
+                    wynik.Append(zamiana[c]);
+                else if (char.IsLetterOrDigit(c) || c == '-' || c == '_')
+                    wynik.Append(c);
+                else if (c == ' ')
+                    wynik.Append('_');
+                // pomijamy inne znaki
+            }
+
+            return wynik.ToString().Trim('_');
+        }
+
+        #endregion
 
         #region ========== ZURD - Zgloszenie Uboju Drobiu w Rzezni ==========
 
@@ -500,6 +586,274 @@ namespace Kalendarz1.Services
             }
 
             return wyniki;
+        }
+
+        /// <summary>
+        /// Eksportuje transporty POJEDYNCZO do struktury folderow Rok/Miesiac/Dzien-dzienTygodnia
+        /// Nazwy plikow: kolejnosc-NazwaHodowcy-data.csv
+        /// </summary>
+        public List<ExportResult> EksportujTransportyPojedynczoZStruktura_CSV(
+            DateTime dataUboju,
+            IEnumerable<PozycjaZgloszeniaIRZ> transporty,
+            string bazowaScieszka = null)
+        {
+            var wyniki = new List<ExportResult>();
+            var folderPath = UtworzSciezkeFolderu(dataUboju, bazowaScieszka);
+
+            int kolejnosc = 1;
+            foreach (var transport in transporty)
+            {
+                try
+                {
+                    // Pobierz nazwe hodowcy z Uwagi (tam zapisujemy nazwe hodowcy)
+                    var nazwaHodowcy = transport.Uwagi ?? "NIEZNANY";
+                    var fileName = GenerujNazwePliku(kolejnosc, nazwaHodowcy, dataUboju, "csv");
+                    var filePath = Path.Combine(folderPath, fileName);
+
+                    // Normalizuj numer siedliska
+                    var numerSiedliska = NormalizujNumerSiedliska(transport.PrzyjeteZDzialalnosci);
+
+                    // Buduj CSV
+                    var csv = new StringBuilder();
+                    var dataZdarzeniaStr = dataUboju.ToString("dd-MM-yyyy");
+                    var masaStr = ((int)Math.Round(transport.MasaKg)).ToString(CultureInfo.InvariantCulture);
+
+                    csv.AppendLine(string.Join(";", new[]
+                    {
+                        numerSiedliska,                               // Kol 1: Numer identyfikacyjny
+                        transport.LiczbaSztuk.ToString(),             // Kol 2: Liczba sztuk
+                        masaStr,                                      // Kol 3: Masa
+                        "Przybycie do rzeźni i ubój",                 // Kol 4: Typ zdarzenia
+                        dataZdarzeniaStr,                             // Kol 5: Data zdarzenia
+                        "",                                           // Kol 6: Kraj wwozu
+                        dataZdarzeniaStr,                             // Kol 7: Data kupna
+                        numerSiedliska,                               // Kol 8: Przyjete z dzialalnosci
+                        transport.UbojRytualny ? "T" : "N"            // Kol 9: Uboj rytualny
+                    }));
+
+                    File.WriteAllText(filePath, csv.ToString(), new UTF8Encoding(true));
+
+                    wyniki.Add(new ExportResult
+                    {
+                        Success = true,
+                        FilePath = filePath,
+                        FileName = fileName,
+                        Message = $"Wyeksportowano: {nazwaHodowcy}"
+                    });
+                }
+                catch (Exception ex)
+                {
+                    wyniki.Add(new ExportResult
+                    {
+                        Success = false,
+                        Message = $"Blad eksportu auta {kolejnosc}: {ex.Message}"
+                    });
+                }
+
+                kolejnosc++;
+            }
+
+            return wyniki;
+        }
+
+        /// <summary>
+        /// Eksportuje WSZYSTKIE transporty do JEDNEGO pliku CSV w strukturze folderow
+        /// </summary>
+        public ExportResult EksportujTransportyRazem_CSV(
+            ZgloszenieZURD zgloszenie,
+            string bazowaScieszka = null)
+        {
+            try
+            {
+                var folderPath = UtworzSciezkeFolderu(zgloszenie.DataUboju, bazowaScieszka);
+                var fileName = $"ZURD_RAZEM_{zgloszenie.DataUboju:dd-MM-yyyy}_{DateTime.Now:HHmmss}.csv";
+                var filePath = Path.Combine(folderPath, fileName);
+
+                var csv = new StringBuilder();
+
+                foreach (var poz in zgloszenie.Pozycje.OrderBy(p => p.Lp))
+                {
+                    var dataZdarzeniaStr = poz.DataZdarzenia.ToString("dd-MM-yyyy");
+                    var masaStr = ((int)Math.Round(poz.MasaKg)).ToString(CultureInfo.InvariantCulture);
+                    var numerSiedliska = NormalizujNumerSiedliska(poz.PrzyjeteZDzialalnosci);
+
+                    csv.AppendLine(string.Join(";", new[]
+                    {
+                        numerSiedliska,                               // Kol 1: Numer identyfikacyjny
+                        poz.LiczbaSztuk.ToString(),                   // Kol 2: Liczba sztuk
+                        masaStr,                                      // Kol 3: Masa
+                        "Przybycie do rzeźni i ubój",                 // Kol 4: Typ zdarzenia
+                        dataZdarzeniaStr,                             // Kol 5: Data zdarzenia
+                        poz.KrajWwozu ?? "",                          // Kol 6: Kraj wwozu
+                        dataZdarzeniaStr,                             // Kol 7: Data kupna
+                        numerSiedliska,                               // Kol 8: Przyjete z dzialalnosci
+                        poz.UbojRytualny ? "T" : "N"                  // Kol 9: Uboj rytualny
+                    }));
+                }
+
+                File.WriteAllText(filePath, csv.ToString(), new UTF8Encoding(true));
+
+                // Zapisz instrukcje
+                ZapiszInstrukcjeImportu(zgloszenie, filePath);
+
+                return new ExportResult
+                {
+                    Success = true,
+                    FilePath = filePath,
+                    FileName = fileName,
+                    Message = $"Wyeksportowano {zgloszenie.LiczbaPozycji} pozycji do jednego pliku"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ExportResult
+                {
+                    Success = false,
+                    Message = $"Blad eksportu: {ex.Message}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// Eksportuje transporty POJEDYNCZO do struktury folderow w formacie XML
+        /// </summary>
+        public List<ExportResult> EksportujTransportyPojedynczoZStruktura_XML(
+            DateTime dataUboju,
+            IEnumerable<PozycjaZgloszeniaIRZ> transporty,
+            string bazowaScieszka = null)
+        {
+            var wyniki = new List<ExportResult>();
+            var folderPath = UtworzSciezkeFolderu(dataUboju, bazowaScieszka);
+
+            int kolejnosc = 1;
+            foreach (var transport in transporty)
+            {
+                try
+                {
+                    var nazwaHodowcy = transport.Uwagi ?? "NIEZNANY";
+                    var fileName = GenerujNazwePliku(kolejnosc, nazwaHodowcy, dataUboju, "xml");
+                    var filePath = Path.Combine(folderPath, fileName);
+
+                    var numerSiedliska = NormalizujNumerSiedliska(transport.PrzyjeteZDzialalnosci);
+                    var numerPartiiUboju = ZgloszenieZURD.GenerujNumerPartiiUboju(dataUboju, kolejnosc);
+
+                    var xml = new XDocument(
+                        new XDeclaration("1.0", "UTF-8", null),
+                        new XComment($" ZURD - {nazwaHodowcy} - {dataUboju:dd.MM.yyyy} "),
+                        new XElement("DyspozycjaZURD",
+                            new XElement("numerProducenta", NUMER_PRODUCENTA),
+                            new XElement("zgloszenie",
+                                new XElement("numerRzezni", NUMER_RZEZNI),
+                                new XElement("numerPartiiUboju", numerPartiiUboju),
+                                new XElement("gatunek",
+                                    new XElement("kod", GATUNEK.ToUpper())
+                                ),
+                                new XElement("pozycje",
+                                    new XElement("pozycja",
+                                        new XElement("lp", 1),
+                                        new XElement("numerIdenPartiiDrobiu", numerSiedliska),
+                                        new XElement("liczbaDrobiu", transport.LiczbaSztuk),
+                                        new XElement("masaDrobiu", transport.MasaKg.ToString("F2", CultureInfo.InvariantCulture)),
+                                        new XElement("typZdarzenia",
+                                            new XElement("kod", "UR")
+                                        ),
+                                        new XElement("dataZdarzenia", dataUboju.ToString("yyyy-MM-dd")),
+                                        new XElement("przyjeteZDzialalnosci", numerSiedliska),
+                                        new XElement("ubojRytualny", transport.UbojRytualny.ToString().ToLower())
+                                    )
+                                )
+                            )
+                        )
+                    );
+
+                    xml.Save(filePath);
+
+                    wyniki.Add(new ExportResult
+                    {
+                        Success = true,
+                        FilePath = filePath,
+                        FileName = fileName,
+                        Message = $"Wyeksportowano XML: {nazwaHodowcy}"
+                    });
+                }
+                catch (Exception ex)
+                {
+                    wyniki.Add(new ExportResult
+                    {
+                        Success = false,
+                        Message = $"Blad eksportu XML auta {kolejnosc}: {ex.Message}"
+                    });
+                }
+
+                kolejnosc++;
+            }
+
+            return wyniki;
+        }
+
+        /// <summary>
+        /// Eksportuje WSZYSTKIE transporty do JEDNEGO pliku XML w strukturze folderow
+        /// </summary>
+        public ExportResult EksportujTransportyRazem_XML(
+            ZgloszenieZURD zgloszenie,
+            string bazowaScieszka = null)
+        {
+            try
+            {
+                var folderPath = UtworzSciezkeFolderu(zgloszenie.DataUboju, bazowaScieszka);
+                var fileName = $"ZURD_RAZEM_{zgloszenie.DataUboju:dd-MM-yyyy}_{DateTime.Now:HHmmss}.xml";
+                var filePath = Path.Combine(folderPath, fileName);
+
+                var xml = new XDocument(
+                    new XDeclaration("1.0", "UTF-8", null),
+                    new XComment($" ZURD - RAZEM - {zgloszenie.DataUboju:dd.MM.yyyy} "),
+                    new XComment($" Pozycji: {zgloszenie.LiczbaPozycji}, Sztuk: {zgloszenie.SumaLiczbaSztuk} "),
+                    new XElement("DyspozycjaZURD",
+                        new XElement("numerProducenta", zgloszenie.NumerProducenta),
+                        new XElement("zgloszenie",
+                            new XElement("numerRzezni", zgloszenie.NumerRzezni),
+                            new XElement("numerPartiiUboju", zgloszenie.NumerPartiiUboju),
+                            new XElement("gatunek",
+                                new XElement("kod", zgloszenie.Gatunek)
+                            ),
+                            new XElement("pozycje",
+                                zgloszenie.Pozycje.OrderBy(p => p.Lp).Select(poz =>
+                                    new XElement("pozycja",
+                                        new XElement("lp", poz.Lp),
+                                        new XElement("numerIdenPartiiDrobiu", poz.NumerPartiiDrobiu),
+                                        new XElement("liczbaDrobiu", poz.LiczbaSztuk),
+                                        new XElement("masaDrobiu", poz.MasaKg.ToString("F2", CultureInfo.InvariantCulture)),
+                                        new XElement("typZdarzenia",
+                                            new XElement("kod", poz.TypZdarzenia ?? "UR")
+                                        ),
+                                        new XElement("dataZdarzenia", poz.DataZdarzenia.ToString("yyyy-MM-dd")),
+                                        new XElement("przyjeteZDzialalnosci", poz.PrzyjeteZDzialalnosci),
+                                        new XElement("ubojRytualny", poz.UbojRytualny.ToString().ToLower())
+                                    )
+                                )
+                            )
+                        )
+                    )
+                );
+
+                xml.Save(filePath);
+
+                return new ExportResult
+                {
+                    Success = true,
+                    FilePath = filePath,
+                    FileName = fileName,
+                    Message = $"Wyeksportowano {zgloszenie.LiczbaPozycji} pozycji do jednego pliku XML"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ExportResult
+                {
+                    Success = false,
+                    Message = $"Blad eksportu XML: {ex.Message}"
+                };
+            }
         }
 
         #endregion

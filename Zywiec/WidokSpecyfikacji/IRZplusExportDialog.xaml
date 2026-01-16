@@ -44,21 +44,47 @@
         </GroupBox>
 
         <!-- FORMAT PLIKU -->
-        <GroupBox Grid.Row="2" Header="Format pliku" Margin="0,0,0,10" Padding="15" FontSize="14">
-            <StackPanel Orientation="Horizontal">
-                <RadioButton x:Name="rbCSV" IsChecked="True" GroupName="Format" Margin="10,5" VerticalContentAlignment="Center">
-                    <StackPanel>
-                        <TextBlock Text="CSV (zalecany)" FontWeight="Bold" FontSize="14"/>
-                        <TextBlock Text="Import: 'Wczytaj dane z pliku CSV/TXT'" Foreground="#666" FontSize="11"/>
-                    </StackPanel>
-                </RadioButton>
-                <RadioButton x:Name="rbXML" GroupName="Format" Margin="40,5" VerticalContentAlignment="Center">
-                    <StackPanel>
-                        <TextBlock Text="XML" FontWeight="Bold" FontSize="14"/>
-                        <TextBlock Text="Import: 'Import z pliku XML'" Foreground="#666" FontSize="11"/>
-                    </StackPanel>
-                </RadioButton>
-            </StackPanel>
+        <GroupBox Grid.Row="2" Header="Format i tryb eksportu" Margin="0,0,0,10" Padding="15" FontSize="14">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Format pliku -->
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Format pliku:" FontWeight="Bold" Margin="0,0,0,5"/>
+                    <RadioButton x:Name="rbCSV" IsChecked="True" GroupName="Format" Margin="10,5" VerticalContentAlignment="Center">
+                        <StackPanel>
+                            <TextBlock Text="CSV (zalecany)" FontWeight="Bold" FontSize="14"/>
+                            <TextBlock Text="Import: 'Wczytaj dane z pliku CSV/TXT'" Foreground="#666" FontSize="11"/>
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton x:Name="rbXML" GroupName="Format" Margin="10,5" VerticalContentAlignment="Center">
+                        <StackPanel>
+                            <TextBlock Text="XML" FontWeight="Bold" FontSize="14"/>
+                            <TextBlock Text="Import: 'Import z pliku XML'" Foreground="#666" FontSize="11"/>
+                        </StackPanel>
+                    </RadioButton>
+                </StackPanel>
+
+                <!-- Tryb eksportu -->
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Tryb eksportu:" FontWeight="Bold" Margin="0,0,0,5"/>
+                    <RadioButton x:Name="rbPojedynczo" IsChecked="True" GroupName="TrybEksportu" Margin="10,5" VerticalContentAlignment="Center">
+                        <StackPanel>
+                            <TextBlock Text="POJEDYNCZO (kazde auto osobny plik)" FontWeight="Bold" FontSize="14" Foreground="#1976D2"/>
+                            <TextBlock Text="Pliki: 1-Kowalski-16-01-2026.csv, 2-Nowak-16-01-2026.csv..." Foreground="#666" FontSize="11"/>
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton x:Name="rbRazem" GroupName="TrybEksportu" Margin="10,5" VerticalContentAlignment="Center">
+                        <StackPanel>
+                            <TextBlock Text="RAZEM (wszystko w jednym pliku)" FontWeight="Bold" FontSize="14"/>
+                            <TextBlock Text="Plik: ZURD_RAZEM_16-01-2026.csv" Foreground="#666" FontSize="11"/>
+                        </StackPanel>
+                    </RadioButton>
+                </StackPanel>
+            </Grid>
         </GroupBox>
 
         <!-- PODSUMOWANIE ZGLOSZENIA -->
