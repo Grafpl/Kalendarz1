@@ -296,10 +296,10 @@ namespace Kalendarz1
             }
             catch { }
 
-            // Szerokość dla trzech kolumn
+            // Szerokość dla czterech kolumn
             int totalWidth = permissionsPanel.ClientSize.Width - 30;
-            int columnWidth = (totalWidth - 20) / 3; // 20px gap między kolumnami
-            if (columnWidth < 280) columnWidth = 280;
+            int columnWidth = (totalWidth - 30) / 4; // 30px gap między kolumnami
+            if (columnWidth < 220) columnWidth = 220;
 
             // Grupuj moduły według kategorii
             var groupedModules = modules.GroupBy(m => m.Category).OrderBy(g => GetCategoryOrder(g.Key));
@@ -350,7 +350,7 @@ namespace Kalendarz1
                 permissionsFlowPanel.Controls.Add(categoryPanel);
 
                 // ═══════════════════════════════════════════════════════════════════════
-                // KONTENER NA MODUŁY W TRZECH KOLUMNACH
+                // KONTENER NA MODUŁY W CZTERECH KOLUMNACH
                 // ═══════════════════════════════════════════════════════════════════════
                 var modulesContainer = new FlowLayoutPanel
                 {
