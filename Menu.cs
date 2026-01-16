@@ -87,11 +87,11 @@ namespace Kalendarz1
         {
             string odbiorcaId = App.UserID ?? "";
             string userName = App.UserFullName ?? App.UserID ?? "Użytkownik";
-            int avatarSize = 40;
+            int avatarSize = 50;
 
             var panel = new Panel
             {
-                Size = new Size(220, 55),
+                Size = new Size(240, 95),
                 BackColor = Color.FromArgb(45, 55, 65),
                 Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
                 Cursor = Cursors.Default
@@ -138,7 +138,7 @@ namespace Kalendarz1
             var avatarPanel = new Panel
             {
                 Size = new Size(avatarSize, avatarSize),
-                Location = new Point(8, 8),
+                Location = new Point(12, 12),
                 BackColor = Color.Transparent
             };
 
@@ -174,11 +174,11 @@ namespace Kalendarz1
             var nameLabel = new Label
             {
                 Text = userName,
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 ForeColor = Color.White,
-                Location = new Point(55, 10),
+                Location = new Point(70, 12),
                 AutoSize = true,
-                MaximumSize = new Size(150, 0),
+                MaximumSize = new Size(160, 0),
                 BackColor = Color.Transparent
             };
             panel.Controls.Add(nameLabel);
@@ -189,11 +189,43 @@ namespace Kalendarz1
                 Text = "● Online",
                 Font = new Font("Segoe UI", 8),
                 ForeColor = Color.FromArgb(76, 175, 80),
-                Location = new Point(55, 30),
+                Location = new Point(70, 35),
                 AutoSize = true,
                 BackColor = Color.Transparent
             };
             panel.Controls.Add(statusLabel);
+
+            // Przycisk wyloguj
+            var logoutButton = new Button
+            {
+                Text = "Wyloguj",
+                Font = new Font("Segoe UI", 9),
+                Size = new Size(216, 30),
+                Location = new Point(12, 58),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(60, 70, 80),
+                ForeColor = Color.White,
+                Cursor = Cursors.Hand
+            };
+            logoutButton.FlatAppearance.BorderColor = Color.FromArgb(80, 90, 100);
+            logoutButton.FlatAppearance.BorderSize = 1;
+            logoutButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(180, 60, 60);
+            logoutButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(200, 50, 50);
+
+            logoutButton.Click += (s, e) =>
+            {
+                var result = MessageBox.Show(
+                    "Czy na pewno chcesz się wylogować?",
+                    "Wylogowanie",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (result == DialogResult.Yes)
+                {
+                    this.Close();
+                }
+            };
+            panel.Controls.Add(logoutButton);
 
             panel.BringToFront();
             return panel;
