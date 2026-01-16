@@ -2106,9 +2106,9 @@ namespace Kalendarz1
         {
             var menuAgregacja = new ContextMenuStrip();
 
-            // === NOWA OPCJA: Powiększ do nowego okna ===
+            // === Powiększ do nowego okna - używa tego samego okna co Dashboard ===
             var menuPowieksz = new ToolStripMenuItem("🔍 Powiększ do nowego okna");
-            menuPowieksz.Click += (s, e) =>
+            menuPowieksz.Click += async (s, e) =>
             {
                 if (dgvAgregacja.CurrentRow == null) return;
 
@@ -2116,38 +2116,13 @@ namespace Kalendarz1
                 {
                     var row = dgvAgregacja.CurrentRow;
                     string produktNazwa = row.Cells["Produkt"]?.Value?.ToString() ?? "";
-                    decimal plan = Convert.ToDecimal(row.Cells["PlanowanyPrzychód"]?.Value ?? 0m);
-                    decimal fakt = Convert.ToDecimal(row.Cells["FaktycznyPrzychód"]?.Value ?? 0m);
-                    decimal zam = Convert.ToDecimal(row.Cells["Zamówienia"]?.Value ?? 0m);
-                    decimal bilans = Convert.ToDecimal(row.Cells["Bilans"]?.Value ?? 0m);
 
-                    // Znajdź ID produktu
-                    int towarId = 0;
-                    foreach (var kv in _twKatalogCache)
-                    {
-                        if (kv.Value.Equals(produktNazwa, StringComparison.OrdinalIgnoreCase))
-                        {
-                            towarId = kv.Key;
-                            break;
-                        }
-                    }
-
-                    // Użyj współdzielonego helpera do wyświetlenia okna
-                    var productData = new Kalendarz1.WPF.Helpers.ProductDetailData
-                    {
-                        Id = towarId,
-                        Kod = produktNazwa,
-                        Nazwa = produktNazwa,
-                        Plan = plan,
-                        Fakt = fakt,
-                        Stan = 0, // Brak stanu w tym widoku
-                        Zamowienia = zam,
-                        Wydania = 0, // Brak wydań w tym widoku
-                        Bilans = bilans,
-                        Data = _selectedDate
-                    };
-
-                    Kalendarz1.WPF.Helpers.ProductDetailWindowHelper.ShowExpandedProductCard(productData, false, null);
+                    // Użyj DashboardWindow do wyświetlenia szczegółów - to samo okno co z Dashboard
+                    await Kalendarz1.WPF.DashboardWindow.OpenProductDetailDirectlyAsync(
+                        _connLibra,
+                        _connHandel,
+                        produktNazwa,
+                        _selectedDate);
                 }
                 catch (Exception ex)
                 {

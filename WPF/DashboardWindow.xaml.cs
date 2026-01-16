@@ -3750,6 +3750,66 @@ namespace Kalendarz1.WPF
             return border;
         }
 
+        /// <summary>
+        /// Publiczna metoda do wyświetlenia okna szczegółów produktu z zewnątrz.
+        /// Pozwala wywołać to samo okno z innych miejsc aplikacji (np. z WidokZamowieniaPodsumowanie).
+        /// </summary>
+        /// <param name="productCode">Kod produktu do wyświetlenia</param>
+        public void ShowProductDetailByCode(string productCode)
+        {
+            if (string.IsNullOrEmpty(productCode) || _productDataList == null || _productDataList.Count == 0)
+                return;
+
+            // Znajdź produkt po kodzie
+            var product = _productDataList.FirstOrDefault(p =>
+                p.Kod.Equals(productCode, StringComparison.OrdinalIgnoreCase) ||
+                p.Nazwa.Equals(productCode, StringComparison.OrdinalIgnoreCase));
+
+            if (product != null)
+            {
+                ShowExpandedProductCard(product);
+            }
+        }
+
+        /// <summary>
+        /// Publiczna statyczna metoda do otwarcia okna szczegółów produktu bezpośrednio.
+        /// Tworzy tymczasowe DashboardWindow, ładuje dane i wyświetla szczegóły produktu.
+        /// </summary>
+        /// <param name="connLibra">Connection string do bazy LibraNet</param>
+        /// <param name="connHandel">Connection string do bazy Handel</param>
+        /// <param name="productCode">Kod produktu do wyświetlenia</param>
+        /// <param name="date">Data dla której wyświetlić dane</param>
+        public static async System.Threading.Tasks.Task OpenProductDetailDirectlyAsync(
+            string connLibra,
+            string connHandel,
+            string productCode,
+            DateTime date)
+        {
+            // Utwórz tymczasowe okno DashboardWindow (ukryte)
+            var dashboard = new DashboardWindow(connLibra, connHandel, date);
+            dashboard.WindowState = WindowState.Minimized;
+            dashboard.ShowInTaskbar = false;
+            dashboard.Opacity = 0;
+            dashboard.Show();
+
+            // Poczekaj aż dane się załadują (max 10 sekund)
+            int waitCount = 0;
+            while ((dashboard._productDataList == null || dashboard._productDataList.Count == 0) && waitCount < 100)
+            {
+                await System.Threading.Tasks.Task.Delay(100);
+                waitCount++;
+            }
+
+            // Wyświetl szczegóły produktu
+            if (dashboard._productDataList != null && dashboard._productDataList.Count > 0)
+            {
+                dashboard.ShowProductDetailByCode(productCode);
+            }
+
+            // Zamknij ukryte okno dashboard
+            dashboard.Close();
+        }
+
         #endregion
     }
 
