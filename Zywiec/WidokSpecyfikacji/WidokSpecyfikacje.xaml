@@ -3584,9 +3584,9 @@
                                       AlternatingRowBackground="#F5F5F5"
                                       RowBackground="White"
                                       BorderThickness="0"
-                                      FontSize="14"
-                                      RowHeight="44"
-                                      ColumnHeaderHeight="46"
+                                      FontSize="13"
+                                      RowHeight="36"
+                                      ColumnHeaderHeight="40"
                                       CellEditEnding="DgIRZplus_CellEditEnding">
 
                                 <DataGrid.ColumnHeaderStyle>
