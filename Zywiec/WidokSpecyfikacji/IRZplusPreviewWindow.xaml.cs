@@ -67,6 +67,9 @@ namespace Kalendarz1
                 progressBar.Visibility = Visibility.Visible;
                 progressBar.IsIndeterminate = true;
 
+                // Upewnij się że kolumny IRZplus istnieją w tabeli FarmerCalc
+                await _service.EnsureIRZplusColumnsExistAsync(_connectionString);
+
                 var specyfikacje = await _service.GetSpecyfikacjeAsync(_connectionString, _dataUboju);
 
                 _specyfikacje.Clear();
@@ -483,6 +486,74 @@ namespace Kalendarz1
             {
                 MessageBox.Show($"Blad zapisu IRZPlus:\n{ex.Message}", "Blad",
                     MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Zapisuje pola IRZ (nr.dok.Arimr, przybycie, padniecia) dla wszystkich specyfikacji do bazy
+        /// </summary>
+        private async void BtnSaveIRZFields_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                txtStatus.Text = "Zapisywanie danych IRZ...";
+                progressBar.Visibility = Visibility.Visible;
+                progressBar.IsIndeterminate = true;
+
+                int savedCount = 0;
+                int errorCount = 0;
+
+                foreach (var spec in _specyfikacje)
+                {
+                    // Zapisz tylko jesli sa jakies dane do zapisu
+                    bool hasData = !string.IsNullOrWhiteSpace(spec.NrDokArimr) ||
+                                   !string.IsNullOrWhiteSpace(spec.Przybycie) ||
+                                   !string.IsNullOrWhiteSpace(spec.Padniecia);
+
+                    if (hasData)
+                    {
+                        var success = await _service.SaveIRZplusFieldsAsync(
+                            _connectionString,
+                            spec.Id,
+                            spec.NrDokArimr,
+                            spec.Przybycie,
+                            spec.Padniecia);
+
+                        if (success)
+                            savedCount++;
+                        else
+                            errorCount++;
+                    }
+                }
+
+                if (errorCount > 0)
+                {
+                    MessageBox.Show($"Zapisano: {savedCount} rekordow\nBledy: {errorCount} rekordow",
+                        "Zapis czesciowy", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    txtStatus.Text = $"Zapisano {savedCount} rekordow, {errorCount} bledow";
+                }
+                else if (savedCount > 0)
+                {
+                    MessageBox.Show($"Pomyslnie zapisano dane IRZ dla {savedCount} rekordow.",
+                        "Zapisano", MessageBoxButton.OK, MessageBoxImage.Information);
+                    txtStatus.Text = $"Zapisano dane IRZ dla {savedCount} rekordow";
+                }
+                else
+                {
+                    MessageBox.Show("Brak danych do zapisania.\nWprowadz wartosci w kolumnach nr.dok.Arimr, przybycie lub padniecia.",
+                        "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                    txtStatus.Text = "Brak danych do zapisania";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad zapisu danych IRZ:\n{ex.Message}", "Blad",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                txtStatus.Text = "Blad zapisu";
+            }
+            finally
+            {
+                progressBar.Visibility = Visibility.Collapsed;
             }
         }
 

@@ -381,6 +381,7 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Content="Zapisz dane IRZ" Click="BtnSaveIRZFields_Click" Style="{StaticResource PrimaryButtonStyle}" ToolTip="Zapisz nr.dok.Arimr, przybycie i padniecia do bazy"/>
                     <Button Content="Zapisz lokalna kopie" Click="BtnSaveLocal_Click" Style="{StaticResource WarningButtonStyle}"/>
                     <Button x:Name="btnExportDialog" Content="Eksport do pliku (XML/CSV)" Click="BtnExportDialog_Click" Style="{StaticResource WarningButtonStyle}" ToolTip="Eksportuj dane do pliku XML lub CSV - do recznego importu w portalu IRZplus gdy API nie dziala"/>
                     <Button x:Name="btnSend" Content="Wyslij do IRZplus" Click="BtnSend_Click" Style="{StaticResource SendButtonStyle}"/>
