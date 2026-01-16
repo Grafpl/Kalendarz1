@@ -748,13 +748,15 @@ namespace Kalendarz1
         private static extern bool DestroyIcon(IntPtr hIcon);
 
         /// <summary>
-        /// Tworzy ikonę Windows Forms z emoji i kolorowym tłem
+        /// Tworzy ikonę Windows Forms z emoji i kolorowym tłem (48x48 dla paska zadań)
         /// </summary>
         private Icon CreateEmojiIcon(string emoji, Color accentColor)
         {
             try
             {
-                using (Bitmap bmp = new Bitmap(32, 32))
+                // Rozmiar 48x48 dla lepszej widoczności w pasku zadań Windows
+                int size = 48;
+                using (Bitmap bmp = new Bitmap(size, size))
                 using (Graphics g = Graphics.FromImage(bmp))
                 {
                     g.Clear(Color.Transparent);
@@ -764,17 +766,17 @@ namespace Kalendarz1
                     // Rysuj kolorowe okrągłe tło
                     using (SolidBrush bgBrush = new SolidBrush(accentColor))
                     {
-                        g.FillEllipse(bgBrush, 0, 0, 31, 31);
+                        g.FillEllipse(bgBrush, 1, 1, size - 2, size - 2);
                     }
 
                     // Renderuj emoji na środku
                     if (!string.IsNullOrEmpty(emoji))
                     {
-                        using (Font emojiFont = new Font("Segoe UI Emoji", 18, FontStyle.Regular, GraphicsUnit.Pixel))
+                        using (Font emojiFont = new Font("Segoe UI Emoji", 28, FontStyle.Regular, GraphicsUnit.Pixel))
                         {
                             var textSize = g.MeasureString(emoji, emojiFont);
-                            float x = (32 - textSize.Width) / 2;
-                            float y = (32 - textSize.Height) / 2;
+                            float x = (size - textSize.Width) / 2;
+                            float y = (size - textSize.Height) / 2;
                             g.DrawString(emoji, emojiFont, Brushes.White, x, y);
                         }
                     }
@@ -796,13 +798,15 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Tworzy ikonę WPF (BitmapSource) z emoji i kolorowym tłem
+        /// Tworzy ikonę WPF (BitmapSource) z emoji i kolorowym tłem (48x48 dla paska zadań)
         /// </summary>
         private BitmapSource CreateWpfEmojiIcon(string emoji, Color accentColor)
         {
             try
             {
-                using (Bitmap bmp = new Bitmap(32, 32))
+                // Rozmiar 48x48 dla lepszej widoczności w pasku zadań Windows
+                int size = 48;
+                using (Bitmap bmp = new Bitmap(size, size))
                 using (Graphics g = Graphics.FromImage(bmp))
                 {
                     g.Clear(Color.Transparent);
@@ -812,17 +816,17 @@ namespace Kalendarz1
                     // Rysuj kolorowe okrągłe tło
                     using (SolidBrush bgBrush = new SolidBrush(accentColor))
                     {
-                        g.FillEllipse(bgBrush, 0, 0, 31, 31);
+                        g.FillEllipse(bgBrush, 1, 1, size - 2, size - 2);
                     }
 
                     // Renderuj emoji na środku
                     if (!string.IsNullOrEmpty(emoji))
                     {
-                        using (Font emojiFont = new Font("Segoe UI Emoji", 18, FontStyle.Regular, GraphicsUnit.Pixel))
+                        using (Font emojiFont = new Font("Segoe UI Emoji", 28, FontStyle.Regular, GraphicsUnit.Pixel))
                         {
                             var textSize = g.MeasureString(emoji, emojiFont);
-                            float x = (32 - textSize.Width) / 2;
-                            float y = (32 - textSize.Height) / 2;
+                            float x = (size - textSize.Width) / 2;
+                            float y = (size - textSize.Height) / 2;
                             g.DrawString(emoji, emojiFont, Brushes.White, x, y);
                         }
                     }
