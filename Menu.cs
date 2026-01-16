@@ -199,20 +199,40 @@ namespace Kalendarz1
 
         private List<string> GetAllModules()
         {
+            // Pełna lista wszystkich modułów dostępnych w menu
             return new List<string>
             {
-                "DaneHodowcy", "ZakupPaszyPisklak", "WstawieniaHodowcy", "TerminyDostawyZywca",
-                "PlachtyAviloga", "DokumentyZakupu", "Specyfikacje", "PlatnosciHodowcy",
-                "CRM", "ZamowieniaOdbiorcow", "DashboardHandlowca", "KalkulacjaKrojenia", "PrzychodMrozni",
-                "DokumentySprzedazy", "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "DaneFinansowe",
-                "UstalanieTranportu", "ZmianyUHodowcow", "ProdukcjaPodglad", "OfertaCenowa",
-                "PrognozyUboju", "AnalizaTygodniowa", "NotatkiZeSpotkan", "PlanTygodniowy",
-                "LiczenieMagazynu", "PanelMagazyniera", "KartotekaOdbiorcow", "AnalizaWydajnosci",
-                "RezerwacjaKlas", "DashboardWyczerpalnosci",
-                "ListaOfert", "DashboardOfert",
-                "PanelReklamacji", "ReklamacjeJakosc", "RaportyHodowcow",
-                "AdminPermissions", "AnalizaPrzychodu", "PanelPortiera", "PanelLekarza",
-                "KontrolaGodzin", "CentrumSpotkan"  // <-- CENTRUM SPOTKAŃ
+                // ZAOPATRZENIE I ZAKUPY
+                "DaneHodowcy", "WstawieniaHodowcy", "TerminyDostawyZywca", "PlachtyAviloga",
+                "PanelPortiera", "PanelLekarza", "Specyfikacje", "DokumentyZakupu",
+                "PlatnosciHodowcy", "ZakupPaszyPisklak", "RaportyHodowcow",
+
+                // PRODUKCJA I MAGAZYN
+                "ProdukcjaPodglad", "KalkulacjaKrojenia", "PrzychodMrozni", "LiczenieMagazynu",
+                "PanelMagazyniera", "AnalizaPrzychodu", "AnalizaWydajnosci",
+
+                // SPRZEDAŻ I CRM
+                "CRM", "KartotekaOdbiorcow", "ZamowieniaOdbiorcow", "DashboardHandlowca",
+                "DokumentySprzedazy", "PanelFaktur", "OfertaCenowa", "ListaOfert",
+                "DashboardOfert", "DashboardWyczerpalnosci", "PanelReklamacji",
+
+                // PLANOWANIE I ANALIZY
+                "PrognozyUboju", "PlanTygodniowy", "AnalizaTygodniowa",
+
+                // OPAKOWANIA I TRANSPORT
+                "PodsumowanieSaldOpak", "SaldaOdbiorcowOpak", "UstalanieTranportu",
+
+                // FINANSE I ZARZĄDZANIE
+                "DaneFinansowe", "CentrumSpotkan", "NotatkiZeSpotkan",
+
+                // KADRY I HR
+                "KontrolaGodzin",
+
+                // ADMINISTRACJA SYSTEMU
+                "ZmianyUHodowcow", "AdminPermissions",
+
+                // Nieużywane ale w systemie uprawnień
+                "RezerwacjaKlas", "ReklamacjeJakosc"
             };
         }
 
@@ -706,9 +726,9 @@ namespace Kalendarz1
         private static extern bool DeleteObject(IntPtr hObject);
 
         /// <summary>
-        /// Tworzy ikonę Windows Forms z emoji
+        /// Tworzy ikonę Windows Forms z emoji (bez tła)
         /// </summary>
-        private Icon CreateEmojiIcon(string emoji, Color backgroundColor)
+        private Icon CreateEmojiIcon(string emoji, Color accentColor)
         {
             try
             {
@@ -719,21 +739,15 @@ namespace Kalendarz1
                     g.SmoothingMode = SmoothingMode.AntiAlias;
                     g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
 
-                    // Tło - zaokrąglony kwadrat w kolorze modułu
-                    using (SolidBrush bgBrush = new SolidBrush(backgroundColor))
-                    {
-                        g.FillRectangle(bgBrush, 0, 0, 32, 32);
-                    }
-
-                    // Renderuj emoji na środku
+                    // Renderuj emoji na środku (bez tła)
                     if (!string.IsNullOrEmpty(emoji))
                     {
-                        using (Font emojiFont = new Font("Segoe UI Emoji", 18, FontStyle.Regular, GraphicsUnit.Pixel))
+                        using (Font emojiFont = new Font("Segoe UI Emoji", 22, FontStyle.Regular, GraphicsUnit.Pixel))
                         {
                             var textSize = g.MeasureString(emoji, emojiFont);
                             float x = (32 - textSize.Width) / 2;
                             float y = (32 - textSize.Height) / 2;
-                            g.DrawString(emoji, emojiFont, Brushes.White, x, y);
+                            g.DrawString(emoji, emojiFont, Brushes.Black, x, y);
                         }
                     }
 
@@ -748,9 +762,9 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Tworzy ikonę WPF (BitmapSource) z emoji
+        /// Tworzy ikonę WPF (BitmapSource) z emoji (bez tła)
         /// </summary>
-        private BitmapSource CreateWpfEmojiIcon(string emoji, Color backgroundColor)
+        private BitmapSource CreateWpfEmojiIcon(string emoji, Color accentColor)
         {
             try
             {
@@ -761,21 +775,15 @@ namespace Kalendarz1
                     g.SmoothingMode = SmoothingMode.AntiAlias;
                     g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
 
-                    // Tło - zaokrąglony kwadrat w kolorze modułu
-                    using (SolidBrush bgBrush = new SolidBrush(backgroundColor))
-                    {
-                        g.FillRectangle(bgBrush, 0, 0, 32, 32);
-                    }
-
-                    // Renderuj emoji na środku
+                    // Renderuj emoji na środku (bez tła)
                     if (!string.IsNullOrEmpty(emoji))
                     {
-                        using (Font emojiFont = new Font("Segoe UI Emoji", 18, FontStyle.Regular, GraphicsUnit.Pixel))
+                        using (Font emojiFont = new Font("Segoe UI Emoji", 22, FontStyle.Regular, GraphicsUnit.Pixel))
                         {
                             var textSize = g.MeasureString(emoji, emojiFont);
                             float x = (32 - textSize.Width) / 2;
                             float y = (32 - textSize.Height) / 2;
-                            g.DrawString(emoji, emojiFont, Brushes.White, x, y);
+                            g.DrawString(emoji, emojiFont, Brushes.Black, x, y);
                         }
                     }
 
