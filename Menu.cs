@@ -120,7 +120,8 @@ namespace Kalendarz1
             {
                 Size = new Size(avatarSize, avatarSize),
                 Location = new Point((panelWidth - avatarSize) / 2, 20),
-                BackColor = Color.Transparent
+                BackColor = Color.Transparent,
+                Cursor = Cursors.Hand
             };
 
             avatarPanel.Paint += (s, e) =>
@@ -155,6 +156,9 @@ namespace Kalendarz1
                     e.Graphics.DrawImage(defaultAvatar, 3, 3, avatarSize - 6, avatarSize - 6);
                 }
             };
+
+            // Kliknięcie na avatar - powiększenie
+            avatarPanel.Click += (s, e) => ShowEnlargedAvatar(odbiorcaId, userName);
             headerPanel.Controls.Add(avatarPanel);
 
             // Nazwa użytkownika - wycentrowana
@@ -966,6 +970,127 @@ namespace Kalendarz1
                         "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
+        }
+
+        /// <summary>
+        /// Pokazuje powiększony avatar na chwilę
+        /// </summary>
+        private void ShowEnlargedAvatar(string odbiorcaId, string userName)
+        {
+            int enlargedSize = 250;
+
+            var popup = new Form
+            {
+                FormBorderStyle = FormBorderStyle.None,
+                StartPosition = FormStartPosition.CenterScreen,
+                Size = new Size(enlargedSize + 40, enlargedSize + 60),
+                BackColor = Color.FromArgb(30, 40, 50),
+                ShowInTaskbar = false,
+                TopMost = true
+            };
+
+            // Zaokrąglone rogi
+            popup.Paint += (s, e) =>
+            {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                using (var pen = new Pen(Color.FromArgb(76, 175, 80), 3))
+                {
+                    e.Graphics.DrawRectangle(pen, 1, 1, popup.Width - 3, popup.Height - 3);
+                }
+            };
+
+            // Panel na avatar
+            var avatarPanel = new Panel
+            {
+                Size = new Size(enlargedSize, enlargedSize),
+                Location = new Point(20, 15),
+                BackColor = Color.Transparent
+            };
+
+            avatarPanel.Paint += (s, e) =>
+            {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+
+                // Biała obwódka
+                using (var pen = new Pen(Color.FromArgb(150, 255, 255, 255), 4))
+                {
+                    e.Graphics.DrawEllipse(pen, 2, 2, enlargedSize - 5, enlargedSize - 5);
+                }
+
+                try
+                {
+                    if (UserAvatarManager.HasAvatar(odbiorcaId))
+                    {
+                        using (var avatar = UserAvatarManager.GetAvatarRounded(odbiorcaId, enlargedSize - 10))
+                        {
+                            if (avatar != null)
+                            {
+                                e.Graphics.DrawImage(avatar, 5, 5, enlargedSize - 10, enlargedSize - 10);
+                                return;
+                            }
+                        }
+                    }
+                }
+                catch { }
+
+                using (var defaultAvatar = UserAvatarManager.GenerateDefaultAvatar(userName, odbiorcaId, enlargedSize - 10))
+                {
+                    e.Graphics.DrawImage(defaultAvatar, 5, 5, enlargedSize - 10, enlargedSize - 10);
+                }
+            };
+            popup.Controls.Add(avatarPanel);
+
+            // Nazwa użytkownika pod avatarem
+            var nameLabel = new Label
+            {
+                Text = userName,
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                ForeColor = Color.White,
+                AutoSize = false,
+                Size = new Size(enlargedSize + 20, 25),
+                Location = new Point(10, enlargedSize + 20),
+                TextAlign = ContentAlignment.MiddleCenter,
+                BackColor = Color.Transparent
+            };
+            popup.Controls.Add(nameLabel);
+
+            // Zamknij po kliknięciu
+            popup.Click += (s, e) => popup.Close();
+            avatarPanel.Click += (s, e) => popup.Close();
+            nameLabel.Click += (s, e) => popup.Close();
+
+            // Auto-zamknij po 3 sekundach
+            var closeTimer = new Timer { Interval = 3000 };
+            closeTimer.Tick += (s, e) =>
+            {
+                closeTimer.Stop();
+                closeTimer.Dispose();
+                if (!popup.IsDisposed)
+                {
+                    popup.Close();
+                }
+            };
+            closeTimer.Start();
+
+            // Animacja fade-in
+            popup.Opacity = 0;
+            var fadeTimer = new Timer { Interval = 15 };
+            fadeTimer.Tick += (s, e) =>
+            {
+                if (popup.Opacity < 1)
+                {
+                    popup.Opacity += 0.1;
+                }
+                else
+                {
+                    fadeTimer.Stop();
+                    fadeTimer.Dispose();
+                }
+            };
+            fadeTimer.Start();
+
+            popup.Show();
         }
 
         private void ApplyModernStyle()
