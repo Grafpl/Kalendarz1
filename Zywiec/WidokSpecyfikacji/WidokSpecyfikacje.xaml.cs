@@ -592,28 +592,30 @@ namespace Kalendarz1
                     lumelPanel.Visibility = Visibility.Collapsed;
                 }
 
-                // Załaduj dane IRZplus gdy przełączono na kartę IRZplus (index 2)
-                if (mainTabControl.SelectedIndex == 2)
-                {
-                    InitializeIRZplusTab();
-                }
+                // Kolejność kart: 0-Specyfikacje, 1-Transport, 2-Płachta, 3-Podsumowanie, 4-IRZplus, 5-Rozliczenia
 
-                // Załaduj dane płachty gdy przełączono na kartę Płachta (index 3)
-                if (mainTabControl.SelectedIndex == 3)
+                // Załaduj dane płachty gdy przełączono na kartę Płachta (index 2)
+                if (mainTabControl.SelectedIndex == 2)
                 {
                     LoadPlachtaData();
                 }
 
-                // Załaduj dane rozliczeń gdy przełączono na kartę Rozliczenia (index 4)
-                if (mainTabControl.SelectedIndex == 4)
-                {
-                    LoadRozliczeniaData();
-                }
-
-                // Załaduj dane podsumowania gdy przełączono na kartę Podsumowanie (index 5)
-                if (mainTabControl.SelectedIndex == 5)
+                // Załaduj dane podsumowania gdy przełączono na kartę Podsumowanie (index 3)
+                if (mainTabControl.SelectedIndex == 3)
                 {
                     LoadPodsumowanieData();
+                }
+
+                // Załaduj dane IRZplus gdy przełączono na kartę IRZplus (index 4)
+                if (mainTabControl.SelectedIndex == 4)
+                {
+                    InitializeIRZplusTab();
+                }
+
+                // Załaduj dane rozliczeń gdy przełączono na kartę Rozliczenia (index 5)
+                if (mainTabControl.SelectedIndex == 5)
+                {
+                    LoadRozliczeniaData();
                 }
             }
         }
