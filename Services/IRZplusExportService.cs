@@ -62,11 +62,9 @@ namespace Kalendarz1.Services
 
                 var csv = new StringBuilder();
 
-                // === NAGLOWEK KOLUMN (PIERWSZA LINIA!) ===
-                // UWAGA: Kolejnosc kolumn zgodna z portalem IRZplus!
-                csv.AppendLine("Lp;Numer identyfikacyjny/numer partii;Liczba sztuk drobiu;Masa drobiu poddanego ubojowi (kg);Typ zdarzenia;Data zdarzenia;Kraj wwozu;Data kupna/wwozu;Przyjęte z działalności;Ubój rytualny");
-
-                // === POZYCJE (kazdy aut/transport to osobna linia) ===
+                // === POZYCJE (BEZ NAGLOWKA!) ===
+                // UWAGA: Portal IRZplus NIE potrzebuje wiersza naglowka!
+                // Kolejnosc kolumn: Lp;NumerIdent;LiczbaSztuk;Masa;TypZdarzenia;Data;KrajWwozu;DataKupna;Przyjete;Uboj
                 foreach (var poz in zgloszenie.Pozycje.OrderBy(p => p.Lp))
                 {
                     // Data zdarzenia w formacie DD-MM-RRRR
@@ -78,7 +76,7 @@ namespace Kalendarz1.Services
                     // Numer siedliska hodowcy - usun podwojne -001 jesli wystepuje
                     var numerSiedliska = NormalizujNumerSiedliska(poz.PrzyjeteZDzialalnosci);
 
-                    // Kolejnosc kolumn zgodna z naglowkiem!
+                    // Kolejnosc kolumn zgodna z portalem!
                     csv.AppendLine(string.Join(";", new[]
                     {
                         poz.Lp.ToString(),                            // Kol 1: Lp
@@ -338,15 +336,13 @@ namespace Kalendarz1.Services
                 // Masa jako liczba calkowita BEZ separatorow
                 var masaStr = ((int)Math.Round(masaKg)).ToString(CultureInfo.InvariantCulture);
 
-                // === BUDUJ CSV (CZYSTY - bez komentarzy!) ===
+                // === BUDUJ CSV (BEZ NAGLOWKA!) ===
+                // UWAGA: Portal IRZplus NIE potrzebuje wiersza naglowka!
+                // Naglowek jest traktowany jako dane i tworzy pusta pozycje!
                 var csv = new StringBuilder();
 
-                // Naglowek CSV - kolejnosc kolumn zgodna z portalem IRZplus!
-                // WAZNE: Kolejnosc musi odpowiadac ukladowi pol w formularzu portalu
-                csv.AppendLine("Lp;Numer identyfikacyjny/numer partii;Liczba sztuk drobiu;Masa drobiu poddanego ubojowi (kg);Typ zdarzenia;Data zdarzenia;Kraj wwozu;Data kupna/wwozu;Przyjęte z działalności;Ubój rytualny");
-
-                // Dane - JEDNA linia (jeden transport)
-                // Kolejnosc kolumn zgodna z naglowkiem!
+                // Dane - JEDNA linia (jeden transport) - BEZ NAGLOWKA!
+                // Kolejnosc kolumn: Lp;NumerIdent;LiczbaSztuk;Masa;TypZdarzenia;Data;KrajWwozu;DataKupna;Przyjete;Uboj
                 csv.AppendLine(string.Join(";", new[]
                 {
                     "1",                                // Kol 1: Lp
@@ -672,10 +668,8 @@ namespace Kalendarz1.Services
 
                 var csv = new StringBuilder();
 
-                // Naglowek - kolejnosc kolumn zgodna z portalem IRZplus!
-                csv.AppendLine("Lp;Numer identyfikacyjny/numer partii;Liczba sztuk drobiu;Masa drobiu poddanego ubojowi (kg);Typ zdarzenia;Data zdarzenia;Kraj wwozu;Data kupna/wwozu;Przyjęte z działalności;Ubój rytualny");
-
-                // Przykladowe dane testowe - kolejnosc zgodna z naglowkiem!
+                // Dane testowe BEZ NAGLOWKA - portal nie potrzebuje naglowka!
+                // Kolejnosc kolumn: Lp;NumerIdent;LiczbaSztuk;Masa;TypZdarzenia;Data;KrajWwozu;DataKupna;Przyjete;Uboj
                 var dataTest = DateTime.Now.ToString("dd-MM-yyyy");
                 csv.AppendLine($"1;{NUMER_RZEZNI};4173;13851;UR;{dataTest};;{dataTest};068736945-001;N");
 
@@ -1197,9 +1191,9 @@ namespace Kalendarz1.Services
                 return sb.ToString();
             }
 
-            // Generuj CSV dokladnie tak jak w eksporcie - kolejnosc zgodna z portalem!
+            // Generuj CSV dokladnie tak jak w eksporcie - BEZ NAGLOWKA!
+            // Kolejnosc kolumn: Lp;NumerIdent;LiczbaSztuk;Masa;TypZdarzenia;Data;KrajWwozu;DataKupna;Przyjete;Uboj
             var csv = new StringBuilder();
-            csv.AppendLine("Lp;Numer identyfikacyjny/numer partii;Liczba sztuk drobiu;Masa drobiu poddanego ubojowi (kg);Typ zdarzenia;Data zdarzenia;Kraj wwozu;Data kupna/wwozu;Przyjęte z działalności;Ubój rytualny");
 
             foreach (var poz in zgloszenie.Pozycje.OrderBy(p => p.Lp))
             {
