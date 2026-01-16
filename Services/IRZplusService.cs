@@ -176,7 +176,7 @@ namespace Kalendarz1.Services
                 FROM dbo.FarmerCalc fc
                 LEFT JOIN dbo.Dostawcy d ON LTRIM(RTRIM(fc.CustomerGID)) = LTRIM(RTRIM(d.ID))
                 WHERE fc.CalcDate = @DataUboju AND ISNULL(fc.LumQnt, 0) > 0
-                ORDER BY d.ShortName";
+                ORDER BY fc.ID";
 
             using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("@DataUboju", dataUboju.Date);
