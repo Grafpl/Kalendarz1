@@ -46,6 +46,31 @@ namespace Kalendarz1.Opakowania.Services
 
         #endregion
 
+        #region Cache dla wszystkich sald (WidokPojemnikiZestawienie)
+
+        // Cache wszystkich sald - klucz to kombinacja parametrów
+        private static readonly ConcurrentDictionary<string, (List<SaldoOpakowania> Data, DateTime Time)> _cacheWszystkieSalda = new();
+        private static readonly TimeSpan CacheWszystkieSaldaLifetime = TimeSpan.FromHours(4); // 4 godziny
+
+        /// <summary>
+        /// Invaliduje cache wszystkich sald
+        /// </summary>
+        public static void InvalidateWszystkieSaldaCache()
+        {
+            _cacheWszystkieSalda.Clear();
+            Debug.WriteLine("[CACHE] WszystkieSalda cache invalidated");
+        }
+
+        /// <summary>
+        /// Zwraca status cache'a wszystkich sald
+        /// </summary>
+        public static string GetWszystkieSaldaCacheStatus()
+        {
+            return $"WszystkieSalda cache: {_cacheWszystkieSalda.Count} wpisów";
+        }
+
+        #endregion
+
         #region Cache dla szczegółów kontrahenta
 
         // Cache szczegółów kontrahenta - klucz to kontrahentId_dataOd_dataDo
@@ -651,9 +676,29 @@ OPTION (RECOMPILE)";
 
         /// <summary>
         /// Pobiera salda wszystkich opakowań dla WSZYSTKICH kontrahentów jednym zapytaniem (SZYBKA WERSJA)
+        /// ZOPTYMALIZOWANE z cache'owaniem
         /// </summary>
         public async Task<List<SaldoOpakowania>> PobierzWszystkieSaldaAsync(DateTime dataDo, string handlowiecFilter = null)
         {
+            // Generuj klucz cache'a
+            var cacheKey = $"wszystkie_{dataDo:yyyyMMdd}_{handlowiecFilter ?? "ALL"}";
+
+            // FAST PATH: Sprawdź cache
+            if (_cacheWszystkieSalda.TryGetValue(cacheKey, out var cached))
+            {
+                if (DateTime.Now - cached.Time <= CacheWszystkieSaldaLifetime)
+                {
+                    Debug.WriteLine($"[CACHE HIT] WszystkieSalda ({cached.Data.Count} records)");
+                    PerformanceProfiler.RecordCacheHit("WszystkieSalda");
+                    return cached.Data;
+                }
+                // Cache wygasł - usuń
+                _cacheWszystkieSalda.TryRemove(cacheKey, out _);
+            }
+            PerformanceProfiler.RecordCacheMiss("WszystkieSalda");
+
+            // SLOW PATH: Pobierz z bazy
+            var sw = Stopwatch.StartNew();
             var wyniki = new List<SaldoOpakowania>();
 
             string query = @"
@@ -717,6 +762,11 @@ ORDER BY C.Shortcut";
             {
                 throw new Exception($"Błąd podczas pobierania sald: {ex.Message}", ex);
             }
+
+            // Zapisz w cache
+            sw.Stop();
+            _cacheWszystkieSalda[cacheKey] = (wyniki, DateTime.Now);
+            Debug.WriteLine($"[CACHE] WszystkieSalda saved ({wyniki.Count} records in {sw.ElapsedMilliseconds}ms)");
 
             return wyniki;
         }
@@ -1000,8 +1050,10 @@ SELECT SCOPE_IDENTITY();";
 
                         var result = await command.ExecuteScalarAsync();
 
-                        // Invaliduj cache po dodaniu potwierdzenia
+                        // Invaliduj wszystkie cache'e po dodaniu potwierdzenia
                         InvalidateZestawieniaCache();
+                        InvalidateWszystkieSaldaCache();
+                        InvalidateSzczegolyCache(potwierdzenie.KontrahentId);
                         SaldaService.InvalidatePotwierdzeniaCache();
 
                         return Convert.ToInt32(result);
@@ -1041,8 +1093,9 @@ WHERE Id = @Id";
 
                         await command.ExecuteNonQueryAsync();
 
-                        // Invaliduj cache po aktualizacji potwierdzenia
+                        // Invaliduj wszystkie cache'e po aktualizacji potwierdzenia
                         InvalidateZestawieniaCache();
+                        InvalidateWszystkieSaldaCache();
                         SaldaService.InvalidatePotwierdzeniaCache();
                     }
                 }

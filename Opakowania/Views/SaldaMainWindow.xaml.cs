@@ -54,10 +54,13 @@ namespace Kalendarz1.Opakowania.Views
                     _viewModel.DataDo,
                     _viewModel.UserId);
                 szczegolyWindow.Owner = this;
-                szczegolyWindow.ShowDialog();
+                var result = szczegolyWindow.ShowDialog();
 
-                // Odśwież po zamknięciu (może być nowe potwierdzenie)
-                _viewModel.OdswiezCommand.Execute(null);
+                // Odśwież tylko jeśli coś zmieniono (DialogResult = true)
+                if (result == true)
+                {
+                    _viewModel.OdswiezCommand.Execute(null);
+                }
             }
         }
 
