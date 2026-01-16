@@ -261,12 +261,12 @@ namespace Kalendarz1
 
                     new MenuItemConfig("PanelPortiera", "Panel Portiera",
                         "Dotykowy panel do rejestracji wag brutto i tary dostaw żywca przy wjeździe",
-                        Color.FromArgb(0, 150, 136), // Teal #009688
+                        Color.FromArgb(85, 139, 47), // Zielony #558B2F (gradient zaopatrzenia)
                         () => new PanelPortiera(), "⚖️", "Portier"),
 
                     new MenuItemConfig("PanelLekarza", "Panel Lekarza",
                         "Ocena dobrostanu drobiu - padłe, konfiskaty CH/NW/ZM dla lekarza weterynarii",
-                        Color.FromArgb(156, 39, 176), // Purple #9C27B0
+                        Color.FromArgb(51, 105, 30), // Ciemniejszy zielony #33691E (gradient zaopatrzenia)
                         () => new PanelLekarza(), "🩺", "Lekarz Wet."),
 
                     new MenuItemConfig("Specyfikacje", "Specyfikacja Surowca",
@@ -399,7 +399,7 @@ namespace Kalendarz1
 
                     new MenuItemConfig("DashboardHandlowca", "Dashboard Handlowca",
                         "Kompleksowa analiza sprzedaży - wykresy, trendy, porównanie miesięczne, top odbiorcy",
-                        Color.FromArgb(56, 142, 60), // #388E3C
+                        Color.FromArgb(41, 121, 255), // Niebieski #2979FF (gradient sprzedaży)
                         () => new HandlowiecDashboardWindow(), "📊", "Dashboard"),
 
                     new MenuItemConfig("DokumentySprzedazy", "Faktury Sprzedaży",
@@ -638,7 +638,7 @@ namespace Kalendarz1
                         {
                             // Ustaw krótki tytuł i ikonę dla okna WPF
                             wpfWindow.Title = config.ShortTitle;
-                            var wpfIcon = CreateWpfIconFromColor(config.Color);
+                            var wpfIcon = CreateWpfEmojiIcon(config.IconText, config.Color);
                             if (wpfIcon != null)
                             {
                                 wpfWindow.Icon = wpfIcon;
@@ -649,7 +649,7 @@ namespace Kalendarz1
                         {
                             // Ustaw krótki tytuł i ikonę dla okna WinForms
                             winForm.Text = config.ShortTitle;
-                            var winIcon = CreateColorIcon(config.Color);
+                            var winIcon = CreateEmojiIcon(config.IconText, config.Color);
                             if (winIcon != null)
                             {
                                 winForm.Icon = winIcon;
@@ -700,15 +700,15 @@ namespace Kalendarz1
 
         private void MENU_Load(object sender, EventArgs e) { }
 
-        #region Tworzenie ikon kolorowych
+        #region Tworzenie ikon z emoji
 
         [DllImport("gdi32.dll")]
         private static extern bool DeleteObject(IntPtr hObject);
 
         /// <summary>
-        /// Tworzy ikonę Windows Forms w postaci kolorowego kółka z białą obwódką
+        /// Tworzy ikonę Windows Forms z emoji
         /// </summary>
-        private Icon CreateColorIcon(Color color)
+        private Icon CreateEmojiIcon(string emoji, Color backgroundColor)
         {
             try
             {
@@ -717,17 +717,24 @@ namespace Kalendarz1
                 {
                     g.Clear(Color.Transparent);
                     g.SmoothingMode = SmoothingMode.AntiAlias;
+                    g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
 
-                    // Wypełnienie kolorowe
-                    using (SolidBrush brush = new SolidBrush(color))
+                    // Tło - zaokrąglony kwadrat w kolorze modułu
+                    using (SolidBrush bgBrush = new SolidBrush(backgroundColor))
                     {
-                        g.FillEllipse(brush, 2, 2, 28, 28);
+                        g.FillRectangle(bgBrush, 0, 0, 32, 32);
                     }
 
-                    // Biała obwódka
-                    using (Pen pen = new Pen(Color.White, 2))
+                    // Renderuj emoji na środku
+                    if (!string.IsNullOrEmpty(emoji))
                     {
-                        g.DrawEllipse(pen, 2, 2, 28, 28);
+                        using (Font emojiFont = new Font("Segoe UI Emoji", 18, FontStyle.Regular, GraphicsUnit.Pixel))
+                        {
+                            var textSize = g.MeasureString(emoji, emojiFont);
+                            float x = (32 - textSize.Width) / 2;
+                            float y = (32 - textSize.Height) / 2;
+                            g.DrawString(emoji, emojiFont, Brushes.White, x, y);
+                        }
                     }
 
                     IntPtr hIcon = bmp.GetHicon();
@@ -741,9 +748,9 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Tworzy ikonę WPF (BitmapSource) w postaci kolorowego kółka z białą obwódką
+        /// Tworzy ikonę WPF (BitmapSource) z emoji
         /// </summary>
-        private BitmapSource CreateWpfIconFromColor(Color color)
+        private BitmapSource CreateWpfEmojiIcon(string emoji, Color backgroundColor)
         {
             try
             {
@@ -752,17 +759,24 @@ namespace Kalendarz1
                 {
                     g.Clear(Color.Transparent);
                     g.SmoothingMode = SmoothingMode.AntiAlias;
+                    g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
 
-                    // Wypełnienie kolorowe
-                    using (SolidBrush brush = new SolidBrush(color))
+                    // Tło - zaokrąglony kwadrat w kolorze modułu
+                    using (SolidBrush bgBrush = new SolidBrush(backgroundColor))
                     {
-                        g.FillEllipse(brush, 2, 2, 28, 28);
+                        g.FillRectangle(bgBrush, 0, 0, 32, 32);
                     }
 
-                    // Biała obwódka
-                    using (Pen pen = new Pen(Color.White, 2))
+                    // Renderuj emoji na środku
+                    if (!string.IsNullOrEmpty(emoji))
                     {
-                        g.DrawEllipse(pen, 2, 2, 28, 28);
+                        using (Font emojiFont = new Font("Segoe UI Emoji", 18, FontStyle.Regular, GraphicsUnit.Pixel))
+                        {
+                            var textSize = g.MeasureString(emoji, emojiFont);
+                            float x = (32 - textSize.Width) / 2;
+                            float y = (32 - textSize.Height) / 2;
+                            g.DrawString(emoji, emojiFont, Brushes.White, x, y);
+                        }
                     }
 
                     IntPtr hBitmap = bmp.GetHbitmap();
