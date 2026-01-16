@@ -2,8 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="IRZplus - Ustawienia"
-        Height="580" Width="550"
-        MinHeight="500" MinWidth="500"
+        Height="700" Width="600"
+        MinHeight="600" MinWidth="550"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="#F5F5F5">
@@ -182,18 +182,33 @@
                 <TextBlock Text="OPCJE DODATKOWE" FontSize="12" FontWeight="Bold" Foreground="#1976D2" Margin="0,10,0,10"/>
 
                 <CheckBox x:Name="chkSaveLocalCopy" Content="Zapisuj lokalna kopie przed wyslaniem" IsChecked="True" Margin="0,0,0,10"/>
-                <CheckBox x:Name="chkAutoSend" Content="Automatycznie wysylaj przy zapisie specyfikacji (zaawansowane)" Margin="0,0,0,15"/>
+                <CheckBox x:Name="chkAutoSend" Content="Automatycznie wysylaj przy zapisie specyfikacji (zaawansowane)" Margin="0,0,0,20"/>
 
-                <TextBlock Text="Sciezka do lokalnych kopii:" Style="{StaticResource LabelStyle}"/>
-                <Grid Margin="0,0,0,20">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBox x:Name="txtExportPath" Grid.Column="0" Style="{StaticResource TextBoxStyle}"/>
-                    <Button Grid.Column="1" Content="..." Width="40" Margin="5,0,0,0"
-                            Style="{StaticResource SecondaryButtonStyle}" Click="BtnBrowse_Click" Padding="10,8"/>
-                </Grid>
+                <!-- SCIEZKA EKSPORTU PLIKOW -->
+                <Border Background="#E8F5E9" Padding="15" CornerRadius="4" Margin="0,0,0,20">
+                    <StackPanel>
+                        <TextBlock Text="SCIEZKA EKSPORTU PLIKOW XML/CSV" FontSize="12" FontWeight="Bold" Foreground="#2E7D32" Margin="0,0,0,10"/>
+
+                        <TextBlock Text="Sciezka bazowa do zapisywania plikow eksportu:" Style="{StaticResource LabelStyle}"/>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="txtExportPath" Grid.Column="0" Style="{StaticResource TextBoxStyle}"/>
+                            <Button Grid.Column="1" Content="Przegladaj..." Width="90" Margin="5,0,0,0"
+                                    Style="{StaticResource SecondaryButtonStyle}" Click="BtnBrowse_Click" Padding="10,8"/>
+                        </Grid>
+
+                        <TextBlock Text="Struktura folderow:" FontWeight="SemiBold" Foreground="#388E3C" Margin="0,5,0,3"/>
+                        <TextBlock Text="[Sciezka]/Rok/Miesiac/Dzien-DzienTygodnia/" Foreground="#666" FontFamily="Consolas" FontSize="11"/>
+                        <TextBlock Text="Przyklad: C:\Export\2026\01\16-czwartek\" Foreground="#666" FontFamily="Consolas" FontSize="11"/>
+
+                        <TextBlock Text="Nazwy plikow:" FontWeight="SemiBold" Foreground="#388E3C" Margin="0,8,0,3"/>
+                        <TextBlock Text="[NrAuta]-[NazwaHodowcy]-[Data].csv" Foreground="#666" FontFamily="Consolas" FontSize="11"/>
+                        <TextBlock Text="Przyklad: 1-Kowalski_Jan-16-01-2026.csv" Foreground="#666" FontFamily="Consolas" FontSize="11"/>
+                    </StackPanel>
+                </Border>
 
                 <!-- Test polaczenia -->
                 <Border Background="#E3F2FD" Padding="15" CornerRadius="4">

@@ -259,11 +259,81 @@
     <Grid Background="#121212">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="440"/>
+            <ColumnDefinition x:Name="colPanelWagi" Width="440"/>
         </Grid.ColumnDefinitions>
 
+        <!-- WIDOK KAMERY - pełna szerokość (nad innymi elementami) -->
+        <Grid x:Name="viewCameraFullscreen" Grid.ColumnSpan="2" Visibility="Collapsed" Background="Black">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Obraz z kamery - pełna szerokość, kliknięcie przełącza na AVILOG -->
+            <Border Grid.Row="0" Background="Black" Cursor="Hand" MouseLeftButtonUp="CameraView_Click">
+                <Grid>
+                    <Image x:Name="cameraViewImage" Stretch="Uniform"/>
+                    <TextBlock x:Name="cameraViewStatus" Text="Łączenie z kamerą..."
+                               FontSize="28" Foreground="Gray"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <!-- Podpowiedź na dole -->
+                    <TextBlock Text="Kliknij aby wrócić do AVILOG" FontSize="14" Foreground="#444"
+                               HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,15"/>
+                </Grid>
+            </Border>
+
+            <!-- Mini pasek SD/HD -->
+            <Border Grid.Row="1" Background="#1A1A24" Padding="10,5">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <RadioButton x:Name="rbCameraSD" GroupName="CameraQuality" IsChecked="True"
+                                 Click="CameraQuality_Click" Height="32" Margin="0,0,5,0" Cursor="Hand">
+                        <RadioButton.Template>
+                            <ControlTemplate TargetType="RadioButton">
+                                <Border x:Name="border" Background="#252530" CornerRadius="6" Padding="12,4" BorderThickness="2" BorderBrush="#444">
+                                    <TextBlock Text="SD" FontSize="13" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#2196F3"/>
+                                        <Setter TargetName="border" Property="BorderBrush" Value="#2196F3"/>
+                                    </Trigger>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="BorderBrush" Value="#FFA726"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </RadioButton.Template>
+                    </RadioButton>
+                    <RadioButton x:Name="rbCameraHD" GroupName="CameraQuality"
+                                 Click="CameraQuality_Click" Height="32" Cursor="Hand">
+                        <RadioButton.Template>
+                            <ControlTemplate TargetType="RadioButton">
+                                <Border x:Name="border" Background="#252530" CornerRadius="6" Padding="12,4" BorderThickness="2" BorderBrush="#444">
+                                    <TextBlock Text="HD" FontSize="13" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#4CAF50"/>
+                                        <Setter TargetName="border" Property="BorderBrush" Value="#4CAF50"/>
+                                    </Trigger>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="BorderBrush" Value="#FFA726"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </RadioButton.Template>
+                    </RadioButton>
+                    <TextBlock x:Name="lblCameraFps" Text="-- FPS" FontSize="13" Foreground="#4CAF50"
+                               FontWeight="Bold" VerticalAlignment="Center" Margin="20,0,0,0"/>
+                    <TextBlock x:Name="lblCameraResolution" Text="" FontSize="11" Foreground="#666"
+                               VerticalAlignment="Center" Margin="10,0,0,0"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
         <!-- Lewa strona -->
-        <Grid Grid.Column="0">
+        <Grid x:Name="panelLewy" Grid.Column="0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
@@ -271,8 +341,9 @@
 
             <!-- Główny obszar -->
             <Grid Grid.Row="0" Margin="10">
-                <!-- Widok kafelków AVILOG -->
-                <ScrollViewer x:Name="viewTiles" VerticalScrollBarVisibility="Auto">
+                <!-- Widok kafelków AVILOG (22 - smooth scrolling) -->
+                <ScrollViewer x:Name="viewTiles" VerticalScrollBarVisibility="Auto"
+                              PanningMode="VerticalOnly" CanContentScroll="False">
                     <ItemsControl x:Name="listDostawy">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -350,7 +421,7 @@
                 </ScrollViewer>
 
                 <!-- Widok tabeli ODPADY -->
-                <DataGrid x:Name="gridTable" Visibility="Collapsed" Style="{StaticResource MyDataGridStyle}" 
+                <DataGrid x:Name="gridTable" Visibility="Collapsed" Style="{StaticResource MyDataGridStyle}"
                           SelectionChanged="GridTable_SelectionChanged"
                           MouseLeftButtonUp="GridTable_MouseClick">
                     <DataGrid.ContextMenu>
@@ -368,12 +439,126 @@
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
                         <DataGridTextColumn Header="GODZ." Binding="{Binding GodzinaPrzyjazdu}" Width="80"/>
-                        <DataGridTemplateColumn Header="" Width="55">
+                        <!-- ComboBox wyboru towaru - ciemny szablon -->
+                        <DataGridTemplateColumn Header="TOWAR" Width="145">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding TowarIcon}" FontSize="32" FontWeight="Bold"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                                               Foreground="{Binding TowarColor}"/>
+                                    <ComboBox SelectedValue="{Binding Towar, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              SelectedValuePath="Tag"
+                                              SelectionChanged="TowarComboBox_SelectionChanged"
+                                              IsEnabled="{Binding CanEditTowar}"
+                                              Height="50" Cursor="Hand">
+                                        <ComboBox.Template>
+                                            <ControlTemplate TargetType="ComboBox">
+                                                <Grid>
+                                                    <ToggleButton x:Name="ToggleButton" Focusable="False"
+                                                                  IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                                                  ClickMode="Press">
+                                                        <ToggleButton.Template>
+                                                            <ControlTemplate TargetType="ToggleButton">
+                                                                <Border x:Name="Border" Background="#252530" BorderBrush="#444"
+                                                                        BorderThickness="1" CornerRadius="4">
+                                                                    <Grid>
+                                                                        <Grid.ColumnDefinitions>
+                                                                            <ColumnDefinition/>
+                                                                            <ColumnDefinition Width="20"/>
+                                                                        </Grid.ColumnDefinitions>
+                                                                        <Path Grid.Column="1" Data="M0,0 L4,4 L8,0" Stroke="#888"
+                                                                              StrokeThickness="2" HorizontalAlignment="Center"
+                                                                              VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                                                    </Grid>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="Border" Property="BorderBrush" Value="#FFA726"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsChecked" Value="True">
+                                                                        <Setter TargetName="Border" Property="BorderBrush" Value="#FFA726"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </ToggleButton.Template>
+                                                    </ToggleButton>
+                                                    <ContentPresenter x:Name="ContentSite" IsHitTestVisible="False"
+                                                                      Content="{TemplateBinding SelectionBoxItem}"
+                                                                      ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                                      Margin="10,0,25,0" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                                                    <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                                           AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                                        <Grid x:Name="DropDown" SnapsToDevicePixels="True"
+                                                              MinWidth="{TemplateBinding ActualWidth}" MaxHeight="300">
+                                                            <Border x:Name="DropDownBorder" Background="#252530"
+                                                                    BorderBrush="#555" BorderThickness="1" CornerRadius="4"/>
+                                                            <ScrollViewer Margin="2" SnapsToDevicePixels="True">
+                                                                <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                                            </ScrollViewer>
+                                                        </Grid>
+                                                    </Popup>
+                                                </Grid>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsEnabled" Value="False">
+                                                        <Setter Property="Opacity" Value="0.5"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </ComboBox.Template>
+                                        <ComboBox.ItemContainerStyle>
+                                            <Style TargetType="ComboBoxItem">
+                                                <Setter Property="Background" Value="#252530"/>
+                                                <Setter Property="Foreground" Value="White"/>
+                                                <Setter Property="Padding" Value="10,8"/>
+                                                <Setter Property="Cursor" Value="Hand"/>
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="ComboBoxItem">
+                                                            <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                                                    Padding="{TemplateBinding Padding}">
+                                                                <ContentPresenter/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsHighlighted" Value="True">
+                                                                    <Setter TargetName="Bd" Property="Background" Value="#3D3D5C"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="Bd" Property="Background" Value="#3D3D5C"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </ComboBox.ItemContainerStyle>
+                                        <ComboBoxItem Tag="KREW">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="❤" FontSize="18" Margin="0,0,8,0" Foreground="#FF5555"/>
+                                                <TextBlock Text="KREW" FontWeight="Bold" VerticalAlignment="Center" Foreground="#FF5555"/>
+                                            </StackPanel>
+                                        </ComboBoxItem>
+                                        <ComboBoxItem Tag="LAPY">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="🐾" FontSize="18" Margin="0,0,8,0"/>
+                                                <TextBlock Text="ŁAPY" FontWeight="Bold" VerticalAlignment="Center" Foreground="#FFD54F"/>
+                                            </StackPanel>
+                                        </ComboBoxItem>
+                                        <ComboBoxItem Tag="JELITA">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="➰" FontSize="18" Margin="0,0,8,0" Foreground="#A1887F"/>
+                                                <TextBlock Text="JELITA" FontWeight="Bold" VerticalAlignment="Center" Foreground="#A1887F"/>
+                                            </StackPanel>
+                                        </ComboBoxItem>
+                                        <ComboBoxItem Tag="PIORA">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="~" FontSize="22" Margin="0,0,8,0" FontWeight="Bold" Foreground="#BDBDBD"/>
+                                                <TextBlock Text="PIÓRA" FontWeight="Bold" VerticalAlignment="Center" Foreground="#BDBDBD"/>
+                                            </StackPanel>
+                                        </ComboBoxItem>
+                                        <ComboBoxItem Tag="ODPADY">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="♻" FontSize="18" Margin="0,0,8,0" Foreground="#AB47BC"/>
+                                                <TextBlock Text="ODPADY" FontWeight="Bold" VerticalAlignment="Center" Foreground="#AB47BC"/>
+                                            </StackPanel>
+                                        </ComboBoxItem>
+                                    </ComboBox>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -477,92 +662,58 @@
                         </DatePicker>
                     </Border>
 
-                    <!-- Przyciski SKAN i DRUKUJ dla AVILOG -->
-                    <Button x:Name="btnScanAvilog" Grid.Column="2" Click="BtnScan_Click" 
-                            Style="{StaticResource ActionButtonStyle}" Height="50" Width="100" Margin="0,0,5,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#x1F4F7;" FontSize="20" Margin="0,0,5,0"/>
-                            <TextBlock Text="SKAN" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                    <Button x:Name="btnPrintAvilog" Grid.Column="3" Click="BtnPrint_Click" 
-                            Style="{StaticResource ActionButtonStyle}" Height="50" Width="110" Margin="0,0,5,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#x1F5B6;" FontSize="20" Margin="0,0,5,0"/>
-                            <TextBlock Text="DRUKUJ" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                    
-                    <!-- Przycisk KAMERA -->
-                    <Button Grid.Column="4" Click="BtnCamera_Click" HorizontalAlignment="Left"
-                            Style="{StaticResource ActionButtonStyle}" Height="50" Width="120" Margin="0,0,5,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#x1F3A5;" FontSize="20" Margin="0,0,5,0"/>
-                            <TextBlock Text="KAMERA" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                    
-                    <!-- Przycisk ALPR - rozpoznawanie tablic -->
-                    <Button Grid.Column="4" Click="BtnScanPlate_Click" HorizontalAlignment="Left" Margin="130,0,0,0"
-                            Height="50" Width="100" ToolTip="Rozpoznaj tablicę rejestracyjną z kamery">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border Background="#2E7D32" CornerRadius="8" Cursor="Hand">
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <TextBlock Text="🚗" FontSize="18" Margin="0,0,5,0"/>
-                                        <TextBlock Text="ALPR" FontSize="14" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Border>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
-
-                    <!-- Przełącznik trybów -->
+                    <!-- Przełącznik trybów: AVILOG / ODPADY / KAMERY -->
                     <StackPanel Grid.Column="5" Orientation="Horizontal" Margin="10,0">
-                        <RadioButton x:Name="rbAvilog" GroupName="Mode" IsChecked="True" Click="ZmienTryb_Click" 
+                        <RadioButton x:Name="rbAvilog" GroupName="Mode" IsChecked="True" Click="ZmienTryb_Click"
                                      Style="{StaticResource ModeRadioStyle}" Height="50">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#x1F414;" FontSize="22" Margin="0,0,6,0"/>
                                 <TextBlock Text="AVILOG" FontSize="15" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </RadioButton>
-                        <RadioButton x:Name="rbOdpady" GroupName="Mode" Click="ZmienTryb_Click" 
-                                     Style="{StaticResource ModeRadioStyle}" Height="50" MinWidth="240">
+                        <RadioButton x:Name="rbOdpady" GroupName="Mode" Click="ZmienTryb_Click"
+                                     Style="{StaticResource ModeRadioStyle}" Height="50" MinWidth="200">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#x2764;" FontSize="22" Margin="0,0,6,0" Foreground="#FF5555"/>
-                                <TextBlock Text="KREW / JELITA / LAPY / PIORA" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <TextBlock Text="ODPADY" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="rbKamery" GroupName="Mode" Click="ZmienTryb_Click"
+                                     Style="{StaticResource ModeRadioStyle}" Height="50" MinWidth="130">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#x1F3A5;" FontSize="22" Margin="0,0,6,0"/>
+                                <TextBlock Text="KAMERY" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </RadioButton>
                     </StackPanel>
 
-                    <!-- Status drukarki -->
-                    <Border Grid.Column="5" Background="#1A1A24" CornerRadius="8" Padding="10,5" Margin="10,0" 
-                            VerticalAlignment="Center" HorizontalAlignment="Left">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock x:Name="lblPrinterIcon" Text="🖨️" FontSize="18" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                            <TextBlock x:Name="lblPrinterStatus" Text="" FontSize="12" Foreground="#888" 
-                                       VerticalAlignment="Center" MaxWidth="200" TextTrimming="CharacterEllipsis"/>
-                        </StackPanel>
-                    </Border>
-
                     <!-- Przycisk odśwież -->
-                    <Button Grid.Column="6" Click="BtnRefresh_Click" Background="Transparent" BorderThickness="0" 
+                    <Button Grid.Column="6" Click="BtnRefresh_Click" Background="Transparent" BorderThickness="0"
                             Margin="10,0" Width="50" Height="50" Cursor="Hand">
                         <TextBlock Text="&#x1F504;" FontSize="26" Foreground="White"/>
                     </Button>
 
-                    <!-- Zegar -->
-                    <Border Grid.Column="8" Background="Black" CornerRadius="10" Padding="16,0" Height="50" 
+                    <!-- Zegar z datą i dniem tygodnia (16) -->
+                    <Border Grid.Column="8" Background="Black" CornerRadius="10" Padding="12,8" Height="56"
                             BorderBrush="#FFA726" BorderThickness="2">
-                        <TextBlock x:Name="lblTime" Text="12:00" FontSize="26" FontWeight="Black" 
-                                   Foreground="#FFA726" VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock x:Name="lblTime" Text="12:00" FontSize="26" FontWeight="Black"
+                                       Foreground="#FFA726" VerticalAlignment="Center"/>
+                            <TextBlock Text=" | " FontSize="20" Foreground="#555" VerticalAlignment="Center"/>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock x:Name="lblDate" Text="15.01.2026" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="#AAA"/>
+                                <TextBlock x:Name="lblDayOfWeek" Text="Środa" FontSize="11" FontWeight="Normal"
+                                           Foreground="#666" Margin="0,-2,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
                     </Border>
                 </Grid>
             </Border>
         </Grid>
 
         <!-- Prawa strona - panel wagi -->
-        <Border Grid.Column="1" Background="#16161D" BorderBrush="#333" BorderThickness="2,0,0,0">
+        <Border x:Name="panelWagi" Grid.Column="1" Background="#16161D" BorderBrush="#333" BorderThickness="2,0,0,0">
             <Grid Margin="10">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -805,6 +956,59 @@
                 </Grid>
             </Grid>
         </Border>
+
+        <!-- Picture-in-Picture kamera (8) - mały podgląd w prawym dolnym rogu -->
+        <Border x:Name="pipCamera" Grid.Column="0" Visibility="Collapsed"
+                Width="240" Height="135"
+                HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                Margin="0,0,15,80" Background="Black" CornerRadius="12"
+                BorderBrush="#FFA726" BorderThickness="2" Cursor="Hand"
+                MouseLeftButtonUp="PipCamera_Click" ToolTip="Kliknij aby powiększyć">
+            <Border.Effect>
+                <DropShadowEffect Color="Black" BlurRadius="15" Opacity="0.6" ShadowDepth="3"/>
+            </Border.Effect>
+            <Grid ClipToBounds="True">
+                <Image x:Name="pipCameraImage" Stretch="UniformToFill"/>
+                <Border Background="#80000000" CornerRadius="4" Padding="4,2"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" Margin="6">
+                    <TextBlock Text="📷 LIVE" FontSize="10" Foreground="White" FontWeight="Bold"/>
+                </Border>
+                <!-- Przycisk zamknięcia PiP -->
+                <Border Background="#80FF5555" CornerRadius="10" Width="20" Height="20"
+                        HorizontalAlignment="Right" VerticalAlignment="Top" Margin="6"
+                        MouseLeftButtonUp="PipCamera_Close" Cursor="Hand">
+                    <TextBlock Text="×" FontSize="14" Foreground="White" FontWeight="Bold"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Loading Skeleton Overlay (20) -->
+        <Grid x:Name="loadingOverlay" Grid.ColumnSpan="2" Visibility="Collapsed" Background="#CC121212">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <Border x:Name="loadingSpinner" Width="60" Height="60" CornerRadius="30"
+                        BorderBrush="#FFA726" BorderThickness="4" Background="Transparent">
+                    <Border.RenderTransform>
+                        <RotateTransform x:Name="spinnerRotate" CenterX="30" CenterY="30"/>
+                    </Border.RenderTransform>
+                </Border>
+                <TextBlock x:Name="loadingText" Text="Ładowanie danych..." FontSize="18" Foreground="#888"
+                           FontWeight="SemiBold" Margin="0,15,0,0" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Success Animation Overlay (23) -->
+        <Grid x:Name="successOverlay" Grid.ColumnSpan="2" Visibility="Collapsed" IsHitTestVisible="False">
+            <Border x:Name="successBorder" Background="#004CAF50" CornerRadius="20"
+                    Width="200" Height="200" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock x:Name="successIcon" Text="✓" FontSize="80" Foreground="#4CAF50"
+                               FontWeight="Bold" HorizontalAlignment="Center"/>
+                    <TextBlock Text="ZAPISANO" FontSize="18" Foreground="#4CAF50"
+                               FontWeight="Bold" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                </StackPanel>
+            </Border>
+        </Grid>
 
         <!-- Ukryte pola na wartości wagi -->
         <TextBlock x:Name="txtBrutto" Visibility="Collapsed" Text="0"/>

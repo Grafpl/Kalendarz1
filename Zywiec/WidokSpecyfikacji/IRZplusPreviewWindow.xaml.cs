@@ -67,12 +67,18 @@ namespace Kalendarz1
                 progressBar.Visibility = Visibility.Visible;
                 progressBar.IsIndeterminate = true;
 
+                // Upewnij się że kolumny IRZplus istnieją w tabeli FarmerCalc
+                await _service.EnsureIRZplusColumnsExistAsync(_connectionString);
+
                 var specyfikacje = await _service.GetSpecyfikacjeAsync(_connectionString, _dataUboju);
 
                 _specyfikacje.Clear();
+                int kolejnosc = 1;
                 foreach (var spec in specyfikacje)
                 {
-                    _specyfikacje.Add(new SpecyfikacjaDoIRZplusViewModel(spec));
+                    var vm = new SpecyfikacjaDoIRZplusViewModel(spec);
+                    vm.KolejnoscAuta = kolejnosc++;
+                    _specyfikacje.Add(vm);
                 }
 
                 UpdateSummary();
@@ -527,13 +533,15 @@ namespace Kalendarz1
                     {
                         Lp = lp,
                         // Numer partii drobiu = numer siedliska hodowcy (np. 038481631-001)
-                        NumerPartiiDrobiu = string.IsNullOrEmpty(vm.IRZPlus) ? "" : vm.IRZPlus + "-001",
+                        // IRZPlus juz zawiera pelny numer - NIE DODAWAC -001!
+                        NumerPartiiDrobiu = vm.IRZPlus ?? "",
                         TypZdarzenia = TypZdarzeniaZURD.UbojRzezniczy,
                         LiczbaSztuk = vm.LiczbaSztukDrobiu,
                         MasaKg = vm.WagaNetto,
                         DataZdarzenia = vm.DataZdarzenia,
-                        // Przyjete z dzialalnosci = numer dzialalnosci hodowcy (np. 038481631-001-001)
-                        PrzyjeteZDzialalnosci = vm.PrzyjetaZDzialalnosci + "-001",
+                        // Przyjete z dzialalnosci = numer siedliska hodowcy (np. 038481631-001)
+                        // PrzyjetaZDzialalnosci juz zawiera pelny numer - NIE DODAWAC -001!
+                        PrzyjeteZDzialalnosci = vm.PrzyjetaZDzialalnosci,
                         UbojRytualny = false,
                         LiczbaPadlych = vm.SztukiPadle,
                         NumerPartiiWewnetrzny = vm.NumerPartii,
@@ -633,6 +641,112 @@ namespace Kalendarz1
             }
         }
 
+        /// <summary>
+        /// Zapisuje pola IRZ (nr.dok.Arimr, przybycie, padniecia) dla wszystkich specyfikacji do bazy
+        /// </summary>
+        private async void BtnSaveIRZFields_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                txtStatus.Text = "Zapisywanie danych IRZ...";
+                progressBar.Visibility = Visibility.Visible;
+                progressBar.IsIndeterminate = true;
+
+                int savedCount = 0;
+                int errorCount = 0;
+
+                foreach (var spec in _specyfikacje)
+                {
+                    // Zapisz tylko jesli sa jakies dane do zapisu
+                    bool hasData = !string.IsNullOrWhiteSpace(spec.NrDokArimr) ||
+                                   !string.IsNullOrWhiteSpace(spec.Przybycie) ||
+                                   !string.IsNullOrWhiteSpace(spec.Padniecia);
+
+                    if (hasData)
+                    {
+                        var success = await _service.SaveIRZplusFieldsAsync(
+                            _connectionString,
+                            spec.Id,
+                            spec.NrDokArimr,
+                            spec.Przybycie,
+                            spec.Padniecia);
+
+                        if (success)
+                            savedCount++;
+                        else
+                            errorCount++;
+                    }
+                }
+
+                if (errorCount > 0)
+                {
+                    MessageBox.Show($"Zapisano: {savedCount} rekordow\nBledy: {errorCount} rekordow",
+                        "Zapis czesciowy", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    txtStatus.Text = $"Zapisano {savedCount} rekordow, {errorCount} bledow";
+                }
+                else if (savedCount > 0)
+                {
+                    MessageBox.Show($"Pomyslnie zapisano dane IRZ dla {savedCount} rekordow.",
+                        "Zapisano", MessageBoxButton.OK, MessageBoxImage.Information);
+                    txtStatus.Text = $"Zapisano dane IRZ dla {savedCount} rekordow";
+                }
+                else
+                {
+                    MessageBox.Show("Brak danych do zapisania.\nWprowadz wartosci w kolumnach nr.dok.Arimr, przybycie lub padniecia.",
+                        "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                    txtStatus.Text = "Brak danych do zapisania";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad zapisu danych IRZ:\n{ex.Message}", "Blad",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                txtStatus.Text = "Blad zapisu";
+            }
+            finally
+            {
+                progressBar.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        /// <summary>
+        /// Kopiuje numer partii do schowka
+        /// </summary>
+        private async void BtnKopiujPartie_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (sender is Button btn && btn.Tag is string numerPartii && !string.IsNullOrEmpty(numerPartii))
+                {
+                    System.Windows.Clipboard.SetText(numerPartii);
+
+                    // Zapisz oryginalne wartosci
+                    var originalContent = btn.Content;
+                    var originalBackground = btn.Background;
+                    var originalForeground = btn.Foreground;
+
+                    // Zmien na "Skopiowano!" z zielonym tlem
+                    btn.Content = "OK!";
+                    btn.Background = new System.Windows.Media.SolidColorBrush(
+                        (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#4CAF50"));
+                    btn.Foreground = System.Windows.Media.Brushes.White;
+
+                    // Poczekaj 1 sekunde
+                    await Task.Delay(1000);
+
+                    // Przywroc oryginalne wartosci
+                    btn.Content = originalContent;
+                    btn.Background = originalBackground;
+                    btn.Foreground = originalForeground;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad kopiowania:\n{ex.Message}", "Blad",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         protected override void OnClosed(EventArgs e)
         {
             base.OnClosed(e);
@@ -654,6 +768,9 @@ namespace Kalendarz1
         public event PropertyChangedEventHandler PropertyChanged;
 
         public int Id { get; set; }
+
+        // Kolumna A - Kolejnosc auta (1, 2, 3...)
+        public int KolejnoscAuta { get; set; }
 
         // Kolumna B - Hodowca
         public string Hodowca { get; set; }
@@ -691,8 +808,9 @@ namespace Kalendarz1
         // Kolumna I - Kraj Wywozu
         public string KrajWywozu { get; set; }
 
-        // Kolumna J - Przyjete z dzialalnosci (obliczane)
-        public string PrzyjetaZDzialalnosci => string.IsNullOrEmpty(IRZPlus) ? "" : IRZPlus + "-001";
+        // Kolumna J - Przyjete z dzialalnosci (numer siedliska hodowcy)
+        // IRZPlus juz zawiera pelny numer np. "038481631-001" - NIE DODAWAC -001!
+        public string PrzyjetaZDzialalnosci => IRZPlus ?? "";
 
         // Kolumna K - nr.dok.Arimr (edytowalne)
         public string NrDokArimr

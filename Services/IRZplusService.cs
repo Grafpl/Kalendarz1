@@ -153,11 +153,30 @@ namespace Kalendarz1.Services
             using var conn = new SqlConnection(connectionString);
             await conn.OpenAsync();
 
-            var sql = @"SELECT fc.ID, fc.CalcDate, fc.CustomerGID, fc.LumQnt, fc.DeclI2, fc.DeclI3, fc.PayWgt, fc.PartiaNumber, d.ShortName as Hodowca, d.IRZPlus
+            // Rozszerzony SQL - pobiera wszystkie dane potrzebne do IRZplus
+            // Dodane: DeclI4, DeclI5 (konfiskaty), NettoWeight (do obliczenia średniej wagi)
+            // Dodane: NrDokArimr, Przybycie, Padniecia (pola edytowalne)
+            var sql = @"SELECT
+                    fc.ID,
+                    fc.CalcDate,
+                    fc.CustomerGID,
+                    fc.LumQnt,
+                    ISNULL(fc.DeclI2, 0) as DeclI2,
+                    ISNULL(fc.DeclI3, 0) as DeclI3,
+                    ISNULL(fc.DeclI4, 0) as DeclI4,
+                    ISNULL(fc.DeclI5, 0) as DeclI5,
+                    fc.PayWgt,
+                    fc.NettoWeight,
+                    fc.PartiaNumber,
+                    d.ShortName as Hodowca,
+                    d.IRZPlus,
+                    fc.NrDokArimr,
+                    fc.Przybycie,
+                    fc.PadnieciaIRZ
                 FROM dbo.FarmerCalc fc
                 LEFT JOIN dbo.Dostawcy d ON LTRIM(RTRIM(fc.CustomerGID)) = LTRIM(RTRIM(d.ID))
                 WHERE fc.CalcDate = @DataUboju AND ISNULL(fc.LumQnt, 0) > 0
-                ORDER BY d.ShortName";
+                ORDER BY fc.ID";
 
             using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("@DataUboju", dataUboju.Date);
@@ -166,9 +185,25 @@ namespace Kalendarz1.Services
             while (await reader.ReadAsync())
             {
                 var lumQnt = reader["LumQnt"] != DBNull.Value ? Convert.ToInt32(reader["LumQnt"]) : 0;
-                var declI2 = reader["DeclI2"] != DBNull.Value ? Convert.ToInt32(reader["DeclI2"]) : 0;
-                var declI3 = reader["DeclI3"] != DBNull.Value ? Convert.ToInt32(reader["DeclI3"]) : 0;
+                var declI2 = Convert.ToInt32(reader["DeclI2"]); // padłe
+                var declI3 = Convert.ToInt32(reader["DeclI3"]); // CH
+                var declI4 = Convert.ToInt32(reader["DeclI4"]); // NW
+                var declI5 = Convert.ToInt32(reader["DeclI5"]); // ZM
                 var payWgt = reader["PayWgt"] != DBNull.Value ? Convert.ToDecimal(reader["PayWgt"]) : 0;
+                var nettoWeight = reader["NettoWeight"] != DBNull.Value ? Convert.ToDecimal(reader["NettoWeight"]) : 0;
+
+                // Oblicz średnią wagę: NettoWeight / (LumQnt + DeclI2)
+                // LumQnt = sztuki z LUMEL, DeclI2 = padłe
+                decimal sredniaWaga = (lumQnt + declI2) > 0 ? nettoWeight / (lumQnt + declI2) : 0;
+
+                // Konfiskaty suma = CH + NW + ZM
+                int konfiskatySuma = declI3 + declI4 + declI5;
+
+                // KgKonfiskat = konfiskaty * średnia waga
+                decimal kgKonfiskat = Math.Round(konfiskatySuma * sredniaWaga, 0);
+
+                // KgPadlych = padłe * średnia waga
+                decimal kgPadlych = Math.Round(declI2 * sredniaWaga, 0);
 
                 result.Add(new SpecyfikacjaDoIRZplus
                 {
@@ -181,13 +216,73 @@ namespace Kalendarz1.Services
                     DataZdarzenia = reader.GetDateTime(reader.GetOrdinal("CalcDate")),
                     SztukiWszystkie = lumQnt,
                     SztukiPadle = declI2,
-                    SztukiKonfiskaty = declI3,
+                    SztukiKonfiskaty = konfiskatySuma,
                     WagaNetto = payWgt,
                     KgDoZaplaty = payWgt,
+                    KgKonfiskat = kgKonfiskat,
+                    KgPadlych = kgPadlych,
+                    // Pola edytowalne - pobierz z bazy jeśli istnieją
+                    NrDokArimr = reader["NrDokArimr"]?.ToString() ?? "",
+                    Przybycie = reader["Przybycie"]?.ToString() ?? "",
+                    Padniecia = reader["PadnieciaIRZ"]?.ToString() ?? "",
                     Wybrana = true
                 });
             }
             return result;
+        }
+
+        /// <summary>
+        /// Upewnia się że kolumny IRZplus istnieją w tabeli FarmerCalc
+        /// </summary>
+        public async Task EnsureIRZplusColumnsExistAsync(string connectionString)
+        {
+            using var conn = new SqlConnection(connectionString);
+            await conn.OpenAsync();
+
+            var sql = @"
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.FarmerCalc') AND name = 'NrDokArimr')
+                    ALTER TABLE dbo.FarmerCalc ADD NrDokArimr NVARCHAR(100) NULL;
+
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.FarmerCalc') AND name = 'Przybycie')
+                    ALTER TABLE dbo.FarmerCalc ADD Przybycie NVARCHAR(100) NULL;
+
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dbo.FarmerCalc') AND name = 'PadnieciaIRZ')
+                    ALTER TABLE dbo.FarmerCalc ADD PadnieciaIRZ NVARCHAR(100) NULL;
+            ";
+
+            using var cmd = new SqlCommand(sql, conn);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        /// <summary>
+        /// Zapisuje pola edytowalne IRZplus do bazy danych
+        /// </summary>
+        public async Task<bool> SaveIRZplusFieldsAsync(string connectionString, int farmerCalcId, string nrDokArimr, string przybycie, string padniecia)
+        {
+            try
+            {
+                using var conn = new SqlConnection(connectionString);
+                await conn.OpenAsync();
+
+                var sql = @"UPDATE dbo.FarmerCalc
+                    SET NrDokArimr = @NrDokArimr,
+                        Przybycie = @Przybycie,
+                        PadnieciaIRZ = @Padniecia
+                    WHERE ID = @Id";
+
+                using var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@Id", farmerCalcId);
+                cmd.Parameters.AddWithValue("@NrDokArimr", (object)nrDokArimr ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@Przybycie", (object)przybycie ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@Padniecia", (object)padniecia ?? DBNull.Value);
+
+                await cmd.ExecuteNonQueryAsync();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public async Task<IRZplusResult> WyslijZgloszenieAsync(ZgloszenieZbiorczeRequest request)
@@ -212,7 +307,8 @@ namespace Kalendarz1.Services
                             LiczbaDrobiu = d.IloscSztuk,
                             TypZdarzenia = new KodOpisDto { Kod = "UR" },
                             DataZdarzenia = request.DataUboju.ToString("yyyy-MM-dd"),
-                            PrzyjeteZDzialalnosci = d.NumerSiedliska + "-001",
+                            // NumerSiedliska juz zawiera pelny numer np. "038481631-001" - NIE DODAWAC -001!
+                        PrzyjeteZDzialalnosci = d.NumerSiedliska,
                             UbojRytualny = false
                         }).ToList()
                     }
@@ -368,7 +464,8 @@ namespace Kalendarz1.Services
                     LiczbaDrobiu = spec.LiczbaSztukDrobiu,
                     TypZdarzenia = new KodOpisDto { Kod = "UR" }, // UR = ubój w rzeźni
                     DataZdarzenia = spec.DataZdarzenia.ToString("yyyy-MM-dd"),
-                    PrzyjeteZDzialalnosci = irzPlus + "-001",  // np. "080640491-001-001"
+                    // irzPlus juz zawiera pelny numer np. "080640491-001" - NIE DODAWAC -001!
+                    PrzyjeteZDzialalnosci = irzPlus,
                     UbojRytualny = false
                 });
             }
@@ -631,7 +728,7 @@ namespace Kalendarz1.Services
         public string DataZdarzenia { get; set; }  // format "2025-01-13"
 
         [JsonPropertyName("przyjeteZDzialalnosci")]
-        public string PrzyjeteZDzialalnosci { get; set; }  // np. "080640491-001-001"
+        public string PrzyjeteZDzialalnosci { get; set; }  // np. "080640491-001" (pelny numer siedliska)
 
         [JsonPropertyName("ubojRytualny")]
         public bool UbojRytualny { get; set; } = false;
