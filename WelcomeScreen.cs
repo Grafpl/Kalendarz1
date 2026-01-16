@@ -10,13 +10,14 @@ namespace Kalendarz1
     /// </summary>
     public class WelcomeScreen : Form
     {
-        private Timer fadeTimer;
+        private Timer animationTimer;
         private Timer closeTimer;
-        private float opacity = 0;
-        private bool fadingIn = true;
+        private int animationPhase = 0; // 0=fade in, 1=display, 2=fade out
+        private float currentOpacity = 0;
         private string userName;
         private string odbiorcaId;
         private int avatarSize = 120;
+        private Image cachedAvatar = null;
 
         public WelcomeScreen(string odbiorcaId, string userName)
         {
@@ -24,70 +25,93 @@ namespace Kalendarz1
             this.userName = userName;
 
             InitializeForm();
+            CacheAvatar();
             SetupTimers();
         }
 
         private void InitializeForm()
         {
-            // Konfiguracja formularza
             this.FormBorderStyle = FormBorderStyle.None;
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.Size = new Size(400, 300);
+            this.Size = new Size(400, 280);
             this.BackColor = Color.FromArgb(45, 57, 69);
             this.ShowInTaskbar = false;
             this.TopMost = true;
             this.Opacity = 0;
             this.DoubleBuffered = true;
 
-            // Zaokrąglone rogi
-            this.Region = CreateRoundedRegion(this.Width, this.Height, 20);
-
-            // Custom painting
             this.Paint += WelcomeScreen_Paint;
+        }
+
+        private void CacheAvatar()
+        {
+            try
+            {
+                if (UserAvatarManager.HasAvatar(odbiorcaId))
+                {
+                    cachedAvatar = UserAvatarManager.GetAvatarRounded(odbiorcaId, avatarSize);
+                }
+                else
+                {
+                    cachedAvatar = UserAvatarManager.GenerateDefaultAvatar(userName, odbiorcaId, avatarSize);
+                }
+            }
+            catch
+            {
+                cachedAvatar = null;
+            }
         }
 
         private void SetupTimers()
         {
-            // Timer fade in/out
-            fadeTimer = new Timer { Interval = 20 };
-            fadeTimer.Tick += FadeTimer_Tick;
+            // Główny timer animacji
+            animationTimer = new Timer { Interval = 30 };
+            animationTimer.Tick += AnimationTimer_Tick;
 
-            // Timer do automatycznego zamknięcia (2 sekundy)
+            // Timer do przejścia do fade out
             closeTimer = new Timer { Interval = 2000 };
-            closeTimer.Tick += (s, e) => {
+            closeTimer.Tick += (s, e) =>
+            {
                 closeTimer.Stop();
-                fadingIn = false;
-                fadeTimer.Start();
+                animationPhase = 2; // Rozpocznij fade out
             };
 
-            this.Shown += (s, e) => {
-                fadeTimer.Start();
+            this.Shown += (s, e) =>
+            {
+                animationPhase = 0;
+                animationTimer.Start();
             };
         }
 
-        private void FadeTimer_Tick(object sender, EventArgs e)
+        private void AnimationTimer_Tick(object sender, EventArgs e)
         {
-            if (fadingIn)
+            switch (animationPhase)
             {
-                opacity += 0.08f;
-                if (opacity >= 1)
-                {
-                    opacity = 1;
-                    fadeTimer.Stop();
-                    closeTimer.Start();
-                }
+                case 0: // Fade in
+                    currentOpacity += 0.1f;
+                    if (currentOpacity >= 1)
+                    {
+                        currentOpacity = 1;
+                        animationPhase = 1;
+                        closeTimer.Start();
+                    }
+                    break;
+
+                case 2: // Fade out
+                    currentOpacity -= 0.08f;
+                    if (currentOpacity <= 0)
+                    {
+                        currentOpacity = 0;
+                        animationTimer.Stop();
+                        this.DialogResult = DialogResult.OK;
+                        this.Close();
+                        return;
+                    }
+                    break;
             }
-            else
-            {
-                opacity -= 0.06f;
-                if (opacity <= 0)
-                {
-                    opacity = 0;
-                    fadeTimer.Stop();
-                    this.Close();
-                }
-            }
-            this.Opacity = opacity;
+
+            this.Opacity = currentOpacity;
+            this.Invalidate();
         }
 
         private void WelcomeScreen_Paint(object sender, PaintEventArgs e)
@@ -107,15 +131,33 @@ namespace Kalendarz1
                 g.FillRectangle(bgBrush, this.ClientRectangle);
             }
 
-            // Subtelna ramka
+            // Ramka
             using (var borderPen = new Pen(Color.FromArgb(80, 255, 255, 255), 2))
             {
                 g.DrawRectangle(borderPen, 1, 1, this.Width - 3, this.Height - 3);
             }
 
             // Avatar
-            int avatarY = 40;
-            DrawAvatar(g, centerX - avatarSize / 2, avatarY);
+            int avatarY = 30;
+            int avatarX = centerX - avatarSize / 2;
+
+            // Cień pod avatarem
+            using (var shadowBrush = new SolidBrush(Color.FromArgb(50, 0, 0, 0)))
+            {
+                g.FillEllipse(shadowBrush, avatarX + 4, avatarY + 4, avatarSize, avatarSize);
+            }
+
+            // Ramka avatara
+            using (var borderPen = new Pen(Color.FromArgb(120, 255, 255, 255), 3))
+            {
+                g.DrawEllipse(borderPen, avatarX - 2, avatarY - 2, avatarSize + 3, avatarSize + 3);
+            }
+
+            // Avatar
+            if (cachedAvatar != null)
+            {
+                g.DrawImage(cachedAvatar, avatarX, avatarY, avatarSize, avatarSize);
+            }
 
             // Tekst "Witaj"
             using (var font = new Font("Segoe UI", 14, FontStyle.Regular))
@@ -127,7 +169,7 @@ namespace Kalendarz1
             }
 
             // Pełne imię użytkownika
-            using (var font = new Font("Segoe UI", 20, FontStyle.Bold))
+            using (var font = new Font("Segoe UI", 18, FontStyle.Bold))
             using (var brush = new SolidBrush(Color.White))
             {
                 string displayName = userName ?? "Użytkowniku";
@@ -141,90 +183,28 @@ namespace Kalendarz1
                 g.DrawString(displayName, font, brush, centerX - size.Width / 2, avatarY + avatarSize + 40);
             }
 
-            // Animowana linia pod imieniem
-            int lineWidth = 100;
-            int lineY = avatarY + avatarSize + 85;
-            using (var lineBrush = new LinearGradientBrush(
-                new Point(centerX - lineWidth / 2, 0),
-                new Point(centerX + lineWidth / 2, 0),
-                Color.FromArgb(0, 76, 175, 80),
-                Color.FromArgb(255, 76, 175, 80)))
+            // Zielona linia akcentowa
+            int lineWidth = 80;
+            int lineY = avatarY + avatarSize + 80;
+            using (var lineBrush = new SolidBrush(Color.FromArgb(76, 175, 80)))
             {
-                // Symetryczny gradient
-                ColorBlend blend = new ColorBlend(3);
-                blend.Colors = new Color[] {
-                    Color.FromArgb(0, 76, 175, 80),
-                    Color.FromArgb(255, 76, 175, 80),
-                    Color.FromArgb(0, 76, 175, 80)
-                };
-                blend.Positions = new float[] { 0f, 0.5f, 1f };
-                lineBrush.InterpolationColors = blend;
-
                 g.FillRectangle(lineBrush, centerX - lineWidth / 2, lineY, lineWidth, 3);
             }
         }
 
-        private void DrawAvatar(Graphics g, int x, int y)
+        protected override void OnFormClosing(FormClosingEventArgs e)
         {
-            // Cień pod avatarem
-            using (var shadowBrush = new SolidBrush(Color.FromArgb(40, 0, 0, 0)))
-            {
-                g.FillEllipse(shadowBrush, x + 4, y + 4, avatarSize, avatarSize);
-            }
-
-            // Ramka avatara (jasna obwódka)
-            using (var borderPen = new Pen(Color.FromArgb(100, 255, 255, 255), 3))
-            {
-                g.DrawEllipse(borderPen, x - 2, y - 2, avatarSize + 3, avatarSize + 3);
-            }
-
-            // Avatar
-            if (UserAvatarManager.HasAvatar(odbiorcaId))
-            {
-                try
-                {
-                    using (var avatar = UserAvatarManager.GetAvatarRounded(odbiorcaId, avatarSize))
-                    {
-                        if (avatar != null)
-                        {
-                            g.DrawImage(avatar, x, y, avatarSize, avatarSize);
-                            return;
-                        }
-                    }
-                }
-                catch { }
-            }
-
-            // Domyślny avatar z inicjałami
-            using (var defaultAvatar = UserAvatarManager.GenerateDefaultAvatar(userName, odbiorcaId, avatarSize))
-            {
-                g.DrawImage(defaultAvatar, x, y, avatarSize, avatarSize);
-            }
-        }
-
-        private string GetFirstName(string fullName)
-        {
-            if (string.IsNullOrWhiteSpace(fullName)) return "Użytkowniku";
-
-            var parts = fullName.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            return parts.Length > 0 ? parts[0] : fullName;
-        }
-
-        private Region CreateRoundedRegion(int width, int height, int radius)
-        {
-            using (var path = new GraphicsPath())
-            {
-                path.AddArc(0, 0, radius * 2, radius * 2, 180, 90);
-                path.AddArc(width - radius * 2, 0, radius * 2, radius * 2, 270, 90);
-                path.AddArc(width - radius * 2, height - radius * 2, radius * 2, radius * 2, 0, 90);
-                path.AddArc(0, height - radius * 2, radius * 2, radius * 2, 90, 90);
-                path.CloseFigure();
-                return new Region(path);
-            }
+            // Zwolnij zasoby
+            cachedAvatar?.Dispose();
+            animationTimer?.Stop();
+            animationTimer?.Dispose();
+            closeTimer?.Stop();
+            closeTimer?.Dispose();
+            base.OnFormClosing(e);
         }
 
         /// <summary>
-        /// Wyświetla ekran powitalny dla użytkownika
+        /// Wyświetla ekran powitalny dla użytkownika (nieblokujące)
         /// </summary>
         public static void Show(string odbiorcaId, string userName)
         {
@@ -237,8 +217,10 @@ namespace Kalendarz1
         /// </summary>
         public static void ShowAndWait(string odbiorcaId, string userName)
         {
-            var screen = new WelcomeScreen(odbiorcaId, userName);
-            screen.ShowDialog();
+            using (var screen = new WelcomeScreen(odbiorcaId, userName))
+            {
+                screen.ShowDialog();
+            }
         }
 
         protected override CreateParams CreateParams
@@ -246,7 +228,7 @@ namespace Kalendarz1
             get
             {
                 var cp = base.CreateParams;
-                cp.ExStyle |= 0x02000000; // WS_EX_COMPOSITED - double buffering
+                cp.ExStyle |= 0x02000000; // WS_EX_COMPOSITED
                 return cp;
             }
         }

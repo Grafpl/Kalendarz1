@@ -51,7 +51,15 @@ namespace Kalendarz1
                         this.Hide();
 
                         // Pokaż ekran powitalny z avatarem
-                        WelcomeScreen.ShowAndWait(username, userName);
+                        try
+                        {
+                            WelcomeScreen.ShowAndWait(username, userName);
+                        }
+                        catch (Exception ex)
+                        {
+                            // Jeśli ekran powitalny nie zadziała, kontynuuj logowanie
+                            System.Diagnostics.Debug.WriteLine($"WelcomeScreen error: {ex.Message}");
+                        }
 
                         // Ustaw wynik formularza na OK i zamknij formularz logowania
                         this.DialogResult = DialogResult.OK;
