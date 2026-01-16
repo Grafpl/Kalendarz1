@@ -14,7 +14,6 @@ namespace Kalendarz1
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
         private string handelConnectionString = "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True";
 
-        private DataGridView usersGrid;
         private Panel topToolbar;
         private Panel leftPanel;
         private Panel rightPanel;
@@ -25,8 +24,19 @@ namespace Kalendarz1
         private string selectedUserId;
         private PictureBox logoPictureBox;
         private FlowLayoutPanel permissionsFlowPanel;
+        private FlowLayoutPanel usersCardsPanel;
+        private Panel selectedUserCard;
+        private List<UserInfo> allUsers = new List<UserInfo>();
         private Dictionary<string, List<CheckBox>> categoryCheckboxes = new Dictionary<string, List<CheckBox>>();
         private Dictionary<string, CheckBox> categoryHeaders = new Dictionary<string, CheckBox>();
+
+        // Klasa do przechowywania danych użytkownika
+        private class UserInfo
+        {
+            public string ID { get; set; }
+            public string Name { get; set; }
+            public Panel Card { get; set; }
+        }
 
         // Kolory działów - zsynchronizowane z Menu.cs
         private static class DepartmentColors
@@ -153,31 +163,31 @@ namespace Kalendarz1
             topToolbar.Controls.Add(closeBtn);
 
             // ═══════════════════════════════════════════════════════════════════════════
-            // LEFT PANEL - Logo + Lista użytkowników
+            // LEFT PANEL - Logo + Lista użytkowników jako karty
             // ═══════════════════════════════════════════════════════════════════════════
             leftPanel = new Panel
             {
                 Dock = DockStyle.Left,
-                Width = 320,
-                BackColor = Color.White,
+                Width = 300,
+                BackColor = Color.FromArgb(250, 251, 252),
                 Padding = new Padding(0)
             };
             leftPanel.Paint += (s, e) => {
                 e.Graphics.DrawLine(new Pen(Colors.Border), leftPanel.Width - 1, 0, leftPanel.Width - 1, leftPanel.Height);
             };
 
-            // Logo - kompaktowy nagłówek
+            // Logo - elegancki nagłówek
             var logoPanel = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 55,
+                Height = 70,
                 BackColor = Colors.Primary
             };
 
             logoPictureBox = new PictureBox
             {
-                Size = new Size(40, 40),
-                Location = new Point(8, 8),
+                Size = new Size(45, 45),
+                Location = new Point(12, 12),
                 SizeMode = PictureBoxSizeMode.Zoom,
                 BackColor = Color.Transparent
             };
@@ -202,50 +212,53 @@ namespace Kalendarz1
             var titleLabel = new Label
             {
                 Text = "PIÓRKOWSCY",
-                Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                Font = new Font("Segoe UI", 14, FontStyle.Bold),
                 ForeColor = Color.White,
-                Location = new Point(55, 10),
+                Location = new Point(65, 12),
                 AutoSize = true
             };
             logoPanel.Controls.Add(titleLabel);
 
             var subtitleLabel = new Label
             {
-                Text = "Panel Administracyjny",
-                Font = new Font("Segoe UI", 8),
-                ForeColor = Color.FromArgb(180, 180, 180),
-                Location = new Point(57, 30),
+                Text = "Zarządzanie Uprawnieniami",
+                Font = new Font("Segoe UI", 9),
+                ForeColor = Color.FromArgb(200, 200, 200),
+                Location = new Point(67, 36),
                 AutoSize = true
             };
             logoPanel.Controls.Add(subtitleLabel);
 
             leftPanel.Controls.Add(logoPanel);
 
-            // Panel wyszukiwania - kompaktowy
+            // Panel wyszukiwania
             var searchPanel = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 50,
+                Height = 60,
                 BackColor = Color.White,
-                Padding = new Padding(8, 3, 8, 3)
+                Padding = new Padding(10)
+            };
+            searchPanel.Paint += (s, e) => {
+                e.Graphics.DrawLine(new Pen(Colors.Border), 0, searchPanel.Height - 1, searchPanel.Width, searchPanel.Height - 1);
             };
 
             var usersLabel = new Label
             {
-                Text = "👥 UŻYTKOWNICY SYSTEMU",
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                Text = "👥 UŻYTKOWNICY",
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 ForeColor = Colors.TextDark,
-                Location = new Point(8, 3),
+                Location = new Point(10, 8),
                 AutoSize = true
             };
             searchPanel.Controls.Add(usersLabel);
 
             searchBox = new TextBox
             {
-                Location = new Point(8, 24),
-                Size = new Size(295, 22),
-                Font = new Font("Segoe UI", 9),
-                PlaceholderText = "🔍 Szukaj użytkownika...",
+                Location = new Point(10, 32),
+                Size = new Size(265, 24),
+                Font = new Font("Segoe UI", 10),
+                PlaceholderText = "🔍 Szukaj...",
                 BorderStyle = BorderStyle.FixedSingle
             };
             searchBox.TextChanged += SearchBox_TextChanged;
@@ -253,53 +266,32 @@ namespace Kalendarz1
 
             leftPanel.Controls.Add(searchPanel);
 
-            // Grid użytkowników
-            usersGrid = new DataGridView
+            // Panel z kartami użytkowników
+            usersCardsPanel = new FlowLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                Font = new Font("Segoe UI", 10),
-                BackgroundColor = Color.White,
-                BorderStyle = BorderStyle.None,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                MultiSelect = false,
-                AllowUserToAddRows = false,
-                AllowUserToDeleteRows = false,
-                ReadOnly = true,
-                RowHeadersVisible = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                EnableHeadersVisualStyles = false,
-                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
-                GridColor = Colors.Border
+                AutoScroll = true,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
+                BackColor = Color.FromArgb(250, 251, 252),
+                Padding = new Padding(8, 8, 8, 8)
             };
+            leftPanel.Controls.Add(usersCardsPanel);
 
-            usersGrid.ColumnHeadersDefaultCellStyle.BackColor = Colors.Primary;
-            usersGrid.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
-            usersGrid.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10, FontStyle.Bold);
-            usersGrid.ColumnHeadersDefaultCellStyle.Padding = new Padding(5);
-            usersGrid.ColumnHeadersHeight = 38;
-            usersGrid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(200, 230, 201);
-            usersGrid.DefaultCellStyle.SelectionForeColor = Colors.TextDark;
-            usersGrid.AlternatingRowsDefaultCellStyle.BackColor = Colors.RowAlt;
-            usersGrid.RowTemplate.Height = 32;
-            usersGrid.SelectionChanged += UsersGrid_SelectionChanged;
-            usersGrid.DataBindingComplete += UsersGrid_DataBindingComplete;
-
-            leftPanel.Controls.Add(usersGrid);
-
-            // Pasek statusu na dole - kompaktowy
+            // Pasek statusu na dole
             var statusPanel = new Panel
             {
                 Dock = DockStyle.Bottom,
-                Height = 25,
-                BackColor = Color.FromArgb(240, 240, 240)
+                Height = 30,
+                BackColor = Colors.Primary
             };
 
             usersCountLabel = new Label
             {
                 Text = "Ładowanie...",
-                Font = new Font("Segoe UI", 8),
-                ForeColor = Colors.TextGray,
-                Location = new Point(10, 5),
+                Font = new Font("Segoe UI", 9),
+                ForeColor = Color.White,
+                Location = new Point(10, 6),
                 AutoSize = true
             };
             statusPanel.Controls.Add(usersCountLabel);
@@ -654,30 +646,32 @@ namespace Kalendarz1
         {
             try
             {
+                allUsers.Clear();
+                usersCardsPanel.Controls.Clear();
+
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    string query = @"
-                        SELECT
-                            o.ID,
-                            o.Name,
-                            STUFF((
-                                SELECT ', ' + uh.HandlowiecName
-                                FROM UserHandlowcy uh
-                                WHERE uh.UserID = o.ID
-                                ORDER BY uh.HandlowiecName
-                                FOR XML PATH('')
-                            ), 1, 2, '') AS Handlowcy
-                        FROM operators o
-                        ORDER BY o.Name";
+                    string query = "SELECT ID, Name FROM operators ORDER BY Name";
 
-                    using (SqlDataAdapter adapter = new SqlDataAdapter(query, conn))
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    using (SqlDataReader reader = cmd.ExecuteReader())
                     {
-                        DataTable dt = new DataTable();
-                        adapter.Fill(dt);
-                        usersGrid.DataSource = dt;
+                        while (reader.Read())
+                        {
+                            string id = reader["ID"]?.ToString() ?? "";
+                            string name = reader["Name"]?.ToString() ?? "";
+
+                            var userInfo = new UserInfo { ID = id, Name = name };
+                            var card = CreateUserCard(userInfo);
+                            userInfo.Card = card;
+                            allUsers.Add(userInfo);
+                            usersCardsPanel.Controls.Add(card);
+                        }
                     }
                 }
+
+                usersCountLabel.Text = $"👥 {allUsers.Count} użytkowników";
             }
             catch (Exception ex)
             {
@@ -685,35 +679,159 @@ namespace Kalendarz1
             }
         }
 
-        private void UsersGrid_DataBindingComplete(object sender, DataGridViewBindingCompleteEventArgs e)
+        private Panel CreateUserCard(UserInfo user)
         {
-            if (usersGrid.DataSource is DataTable dt)
+            int cardWidth = usersCardsPanel.ClientSize.Width - 25;
+            if (cardWidth < 250) cardWidth = 250;
+
+            var card = new Panel
             {
-                usersCountLabel.Text = $"Łącznie: {dt.Rows.Count} użytkowników";
-            }
+                Width = cardWidth,
+                Height = 60,
+                BackColor = Color.White,
+                Margin = new Padding(0, 0, 0, 6),
+                Cursor = Cursors.Hand,
+                Tag = user
+            };
+
+            // Cień/obramowanie
+            card.Paint += (s, e) => {
+                using (Pen pen = new Pen(Color.FromArgb(220, 220, 220)))
+                {
+                    e.Graphics.DrawRectangle(pen, 0, 0, card.Width - 1, card.Height - 1);
+                }
+            };
+
+            // Avatar z inicjałami
+            string initials = GetInitials(user.Name);
+            Color avatarColor = GetAvatarColor(user.ID);
+
+            var avatarPanel = new Panel
+            {
+                Size = new Size(44, 44),
+                Location = new Point(8, 8),
+                BackColor = avatarColor
+            };
+            avatarPanel.Paint += (s, e) => {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                using (SolidBrush brush = new SolidBrush(avatarColor))
+                {
+                    e.Graphics.FillEllipse(brush, 0, 0, 43, 43);
+                }
+                using (Font font = new Font("Segoe UI", 14, FontStyle.Bold))
+                using (SolidBrush textBrush = new SolidBrush(Color.White))
+                {
+                    var size = e.Graphics.MeasureString(initials, font);
+                    e.Graphics.DrawString(initials, font, textBrush,
+                        (44 - size.Width) / 2, (44 - size.Height) / 2);
+                }
+            };
+            card.Controls.Add(avatarPanel);
+
+            // Nazwa użytkownika
+            var nameLabel = new Label
+            {
+                Text = user.Name,
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                ForeColor = Colors.TextDark,
+                Location = new Point(60, 10),
+                Size = new Size(cardWidth - 70, 22),
+                AutoEllipsis = true
+            };
+            card.Controls.Add(nameLabel);
+
+            // ID użytkownika
+            var idLabel = new Label
+            {
+                Text = $"ID: {user.ID}",
+                Font = new Font("Segoe UI", 9),
+                ForeColor = Colors.TextGray,
+                Location = new Point(60, 32),
+                AutoSize = true
+            };
+            card.Controls.Add(idLabel);
+
+            // Hover i kliknięcie
+            Action<bool> setHover = (hover) => {
+                if (card != selectedUserCard)
+                {
+                    card.BackColor = hover ? Color.FromArgb(245, 247, 250) : Color.White;
+                }
+            };
+
+            card.MouseEnter += (s, e) => setHover(true);
+            card.MouseLeave += (s, e) => setHover(false);
+            avatarPanel.MouseEnter += (s, e) => setHover(true);
+            avatarPanel.MouseLeave += (s, e) => setHover(false);
+            nameLabel.MouseEnter += (s, e) => setHover(true);
+            nameLabel.MouseLeave += (s, e) => setHover(false);
+            idLabel.MouseEnter += (s, e) => setHover(true);
+            idLabel.MouseLeave += (s, e) => setHover(false);
+
+            Action selectCard = () => SelectUserCard(card, user);
+            card.Click += (s, e) => selectCard();
+            avatarPanel.Click += (s, e) => selectCard();
+            nameLabel.Click += (s, e) => selectCard();
+            idLabel.Click += (s, e) => selectCard();
+
+            return card;
         }
 
-        private void UsersGrid_SelectionChanged(object sender, EventArgs e)
+        private void SelectUserCard(Panel card, UserInfo user)
         {
-            if (usersGrid.SelectedRows.Count > 0)
+            // Odznacz poprzednią kartę
+            if (selectedUserCard != null)
             {
-                selectedUserId = usersGrid.SelectedRows[0].Cells["ID"].Value?.ToString();
-                if (!string.IsNullOrEmpty(selectedUserId))
-                {
-                    string userName = usersGrid.SelectedRows[0].Cells["Name"].Value?.ToString() ?? "Nieznany";
-                    selectedUserLabel.Text = $"Użytkownik: {userName} (ID: {selectedUserId})";
-                    selectedUserLabel.ForeColor = Colors.TextDark;
-                    BuildPermissionsUI();
-                }
+                selectedUserCard.BackColor = Color.White;
+                selectedUserCard.Invalidate();
             }
+
+            // Zaznacz nową kartę
+            selectedUserCard = card;
+            card.BackColor = Color.FromArgb(200, 230, 201); // Jasny zielony
+
+            selectedUserId = user.ID;
+            selectedUserLabel.Text = $"👤 {user.Name} (ID: {user.ID})";
+            selectedUserLabel.ForeColor = Colors.TextDark;
+            BuildPermissionsUI();
+        }
+
+        private string GetInitials(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return "?";
+            var parts = name.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 2)
+                return (parts[0][0].ToString() + parts[1][0].ToString()).ToUpper();
+            return name.Length >= 2 ? name.Substring(0, 2).ToUpper() : name.ToUpper();
+        }
+
+        private Color GetAvatarColor(string id)
+        {
+            // Generuj kolor na podstawie ID
+            int hash = id.GetHashCode();
+            Color[] colors = {
+                Color.FromArgb(46, 125, 50),   // Zielony
+                Color.FromArgb(25, 118, 210),  // Niebieski
+                Color.FromArgb(156, 39, 176),  // Fioletowy
+                Color.FromArgb(230, 81, 0),    // Pomarańczowy
+                Color.FromArgb(0, 137, 123),   // Teal
+                Color.FromArgb(194, 24, 91),   // Różowy
+                Color.FromArgb(69, 90, 100),   // Szary
+                Color.FromArgb(121, 85, 72)    // Brązowy
+            };
+            return colors[Math.Abs(hash) % colors.Length];
         }
 
         private void SearchBox_TextChanged(object sender, EventArgs e)
         {
-            if (usersGrid.DataSource is DataTable dt)
+            string filter = searchBox.Text.Trim().ToLower();
+
+            foreach (var user in allUsers)
             {
-                string filter = searchBox.Text.Trim().Replace("'", "''");
-                dt.DefaultView.RowFilter = string.IsNullOrEmpty(filter) ? "" : $"ID LIKE '%{filter}%' OR Name LIKE '%{filter}%'";
+                bool visible = string.IsNullOrEmpty(filter) ||
+                               user.ID.ToLower().Contains(filter) ||
+                               user.Name.ToLower().Contains(filter);
+                user.Card.Visible = visible;
             }
         }
 
@@ -805,17 +923,17 @@ namespace Kalendarz1
 
         private void DeleteUserButton_Click(object sender, EventArgs e)
         {
-            if (usersGrid.SelectedRows.Count == 0)
+            if (string.IsNullOrEmpty(selectedUserId))
             {
                 MessageBox.Show("Wybierz użytkownika do usunięcia.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            string userId = usersGrid.SelectedRows[0].Cells["ID"].Value.ToString();
-            string userName = usersGrid.SelectedRows[0].Cells["Name"].Value?.ToString() ?? "Nieznany";
+            var selectedUser = allUsers.FirstOrDefault(u => u.ID == selectedUserId);
+            string userName = selectedUser?.Name ?? "Nieznany";
 
             var result = MessageBox.Show(
-                $"Czy na pewno chcesz usunąć użytkownika:\n\nID: {userId}\nNazwa: {userName}\n\nTa operacja jest nieodwracalna!",
+                $"Czy na pewno chcesz usunąć użytkownika:\n\nID: {selectedUserId}\nNazwa: {userName}\n\nTa operacja jest nieodwracalna!",
                 "Potwierdzenie usunięcia",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Warning
@@ -831,16 +949,17 @@ namespace Kalendarz1
                         string query = "DELETE FROM operators WHERE ID = @userId";
                         using (SqlCommand cmd = new SqlCommand(query, conn))
                         {
-                            cmd.Parameters.AddWithValue("@userId", userId);
+                            cmd.Parameters.AddWithValue("@userId", selectedUserId);
                             cmd.ExecuteNonQuery();
                         }
                     }
 
                     MessageBox.Show("✓ Użytkownik został usunięty.", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    selectedUserCard = null;
                     LoadUsers();
                     permissionsFlowPanel.Controls.Clear();
                     selectedUserId = null;
-                    selectedUserLabel.Text = "Wybierz użytkownika z listy po lewej stronie";
+                    selectedUserLabel.Text = "Wybierz użytkownika z listy";
                     selectedUserLabel.ForeColor = Colors.TextGray;
                 }
                 catch (Exception ex)
@@ -852,34 +971,34 @@ namespace Kalendarz1
 
         private void ManageHandlowcyButton_Click(object sender, EventArgs e)
         {
-            if (usersGrid.SelectedRows.Count == 0)
+            if (string.IsNullOrEmpty(selectedUserId))
             {
                 MessageBox.Show("Wybierz użytkownika, któremu chcesz przypisać handlowców.",
                     "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            string userId = usersGrid.SelectedRows[0].Cells["ID"].Value.ToString();
-            string userName = usersGrid.SelectedRows[0].Cells["Name"].Value?.ToString() ?? "Nieznany";
+            var selectedUser = allUsers.FirstOrDefault(u => u.ID == selectedUserId);
+            string userName = selectedUser?.Name ?? "Nieznany";
 
-            var dialog = new UserHandlowcyDialog(connectionString, handelConnectionString, userId, userName);
+            var dialog = new UserHandlowcyDialog(connectionString, handelConnectionString, selectedUserId, userName);
             dialog.HandlowcyZapisani += (s, ev) => LoadUsers();
             dialog.Show();
         }
 
         private void EditContactButton_Click(object sender, EventArgs e)
         {
-            if (usersGrid.SelectedRows.Count == 0)
+            if (string.IsNullOrEmpty(selectedUserId))
             {
                 MessageBox.Show("Wybierz użytkownika, któremu chcesz edytować dane kontaktowe.",
                     "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            string userId = usersGrid.SelectedRows[0].Cells["ID"].Value.ToString();
-            string userName = usersGrid.SelectedRows[0].Cells["Name"].Value?.ToString() ?? "Nieznany";
+            var selectedUser = allUsers.FirstOrDefault(u => u.ID == selectedUserId);
+            string userName = selectedUser?.Name ?? "Nieznany";
 
-            var dialog = new EditOperatorContactDialog(connectionString, userId, userName);
+            var dialog = new EditOperatorContactDialog(connectionString, selectedUserId, userName);
             dialog.ShowDialog();
         }
 
