@@ -23,7 +23,6 @@ namespace Kalendarz1
         private Label usersCountLabel;
         private Label selectedUserLabel;
         private string selectedUserId;
-        private PictureBox logoPictureBox;
         private FlowLayoutPanel permissionsFlowPanel;
         private FlowLayoutPanel usersCardsPanel;
         private Panel selectedUserCard;
@@ -86,151 +85,77 @@ namespace Kalendarz1
         private void InitializeCustomComponents()
         {
             // ═══════════════════════════════════════════════════════════════════════════
-            // TOP TOOLBAR - jak w screenie
+            // TOP TOOLBAR - nowoczesny pasek z ikonami
             // ═══════════════════════════════════════════════════════════════════════════
             topToolbar = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 50,
-                BackColor = Color.FromArgb(250, 250, 250),
+                Height = 56,
+                BackColor = Colors.Primary,
                 BorderStyle = BorderStyle.None
             };
-            topToolbar.Paint += (s, e) => {
-                e.Graphics.DrawLine(new Pen(Colors.Border), 0, topToolbar.Height - 1, topToolbar.Width, topToolbar.Height - 1);
-            };
 
-            int btnX = 15;
-            var saveBtn = CreateToolbarButton("💾 Zapisz", Colors.Success, ref btnX);
+            int btnX = 12;
+
+            // Grupa: Zapis
+            var saveBtn = CreateToolbarIconButton("💾", "Zapisz", Colors.Success, ref btnX);
             saveBtn.Click += SaveButton_Click;
             topToolbar.Controls.Add(saveBtn);
 
-            var cancelBtn = CreateToolbarButton("❌ Anuluj", Colors.TextGray, ref btnX);
+            var cancelBtn = CreateToolbarIconButton("✕", "Anuluj", Color.FromArgb(120, 130, 140), ref btnX);
             cancelBtn.Click += (s, e) => this.Close();
             topToolbar.Controls.Add(cancelBtn);
 
-            btnX += 20; // Separator
+            btnX += 15; // Separator
 
-            var selectAllBtn = CreateToolbarButton("✓ Wszystko", Color.FromArgb(46, 125, 50), ref btnX);
+            // Grupa: Zaznaczanie
+            var selectAllBtn = CreateToolbarIconButton("✓", "Wszystko", Color.FromArgb(76, 175, 80), ref btnX);
             selectAllBtn.Click += (s, e) => SetAllPermissions(true);
             topToolbar.Controls.Add(selectAllBtn);
 
-            var selectNoneBtn = CreateToolbarButton("✗ Nic", Colors.Danger, ref btnX);
+            var selectNoneBtn = CreateToolbarIconButton("✗", "Nic", Colors.Danger, ref btnX);
             selectNoneBtn.Click += (s, e) => SetAllPermissions(false);
             topToolbar.Controls.Add(selectNoneBtn);
 
-            var invertBtn = CreateToolbarButton("🔄 Odwróć", Colors.Warning, ref btnX);
+            var invertBtn = CreateToolbarIconButton("⇄", "Odwróć", Colors.Warning, ref btnX);
             invertBtn.Click += InvertPermissions_Click;
             topToolbar.Controls.Add(invertBtn);
 
-            btnX += 20;
+            btnX += 15;
 
-            var addUserBtn = CreateToolbarButton("➕ Nowy użytkownik", Color.FromArgb(25, 118, 210), ref btnX);
+            // Grupa: Użytkownicy
+            var addUserBtn = CreateToolbarIconButton("➕", "Nowy", Color.FromArgb(33, 150, 243), ref btnX);
             addUserBtn.Click += AddUserButton_Click;
             topToolbar.Controls.Add(addUserBtn);
 
-            var deleteUserBtn = CreateToolbarButton("🗑️ Usuń", Colors.Danger, ref btnX);
+            var deleteUserBtn = CreateToolbarIconButton("🗑", "Usuń", Colors.Danger, ref btnX);
             deleteUserBtn.Click += DeleteUserButton_Click;
             topToolbar.Controls.Add(deleteUserBtn);
 
-            btnX += 20;
+            btnX += 15;
 
-            var handlowcyBtn = CreateToolbarButton("👔 Handlowcy", Color.FromArgb(156, 39, 176), ref btnX);
+            // Grupa: Akcje
+            var handlowcyBtn = CreateToolbarIconButton("👔", "Handlowcy", Color.FromArgb(156, 39, 176), ref btnX);
             handlowcyBtn.Click += ManageHandlowcyButton_Click;
             topToolbar.Controls.Add(handlowcyBtn);
 
-            var contactBtn = CreateToolbarButton("📞 Kontakt", Color.FromArgb(0, 172, 193), ref btnX);
+            var contactBtn = CreateToolbarIconButton("📞", "Kontakt", Color.FromArgb(0, 172, 193), ref btnX);
             contactBtn.Click += EditContactButton_Click;
             topToolbar.Controls.Add(contactBtn);
 
-            // Close button na prawo
-            var closeBtn = new Button
-            {
-                Text = "✕",
-                Size = new Size(40, 35),
-                Location = new Point(this.Width - 60, 7),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                BackColor = Color.Transparent,
-                ForeColor = Colors.TextDark,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 14),
-                Cursor = Cursors.Hand
-            };
-            closeBtn.FlatAppearance.BorderSize = 0;
-            closeBtn.FlatAppearance.MouseOverBackColor = Colors.Danger;
-            closeBtn.FlatAppearance.MouseOverBackColor = Colors.Danger;
-            closeBtn.MouseEnter += (s, e) => closeBtn.ForeColor = Color.White;
-            closeBtn.MouseLeave += (s, e) => closeBtn.ForeColor = Colors.TextDark;
-            closeBtn.Click += (s, e) => this.Close();
-            topToolbar.Controls.Add(closeBtn);
-
             // ═══════════════════════════════════════════════════════════════════════════
-            // LEFT PANEL - Logo + Lista użytkowników jako karty
+            // LEFT PANEL - Lista użytkowników jako karty
             // ═══════════════════════════════════════════════════════════════════════════
             leftPanel = new Panel
             {
                 Dock = DockStyle.Left,
-                Width = 300,
+                Width = 280,
                 BackColor = Color.FromArgb(250, 251, 252),
                 Padding = new Padding(0)
             };
             leftPanel.Paint += (s, e) => {
                 e.Graphics.DrawLine(new Pen(Colors.Border), leftPanel.Width - 1, 0, leftPanel.Width - 1, leftPanel.Height);
             };
-
-            // Logo - elegancki nagłówek
-            var logoPanel = new Panel
-            {
-                Dock = DockStyle.Top,
-                Height = 70,
-                BackColor = Colors.Primary
-            };
-
-            logoPictureBox = new PictureBox
-            {
-                Size = new Size(45, 45),
-                Location = new Point(12, 12),
-                SizeMode = PictureBoxSizeMode.Zoom,
-                BackColor = Color.Transparent
-            };
-
-            // Próba załadowania logo
-            try
-            {
-                string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logo.png");
-                if (!File.Exists(logoPath))
-                {
-                    logoPath = Path.Combine(Directory.GetCurrentDirectory(), "Logo.png");
-                }
-                if (File.Exists(logoPath))
-                {
-                    logoPictureBox.Image = Image.FromFile(logoPath);
-                }
-            }
-            catch { }
-
-            logoPanel.Controls.Add(logoPictureBox);
-
-            var titleLabel = new Label
-            {
-                Text = "PIÓRKOWSCY",
-                Font = new Font("Segoe UI", 14, FontStyle.Bold),
-                ForeColor = Color.White,
-                Location = new Point(65, 12),
-                AutoSize = true
-            };
-            logoPanel.Controls.Add(titleLabel);
-
-            var subtitleLabel = new Label
-            {
-                Text = "Zarządzanie Uprawnieniami",
-                Font = new Font("Segoe UI", 9),
-                ForeColor = Color.FromArgb(200, 200, 200),
-                Location = new Point(67, 36),
-                AutoSize = true
-            };
-            logoPanel.Controls.Add(subtitleLabel);
-
-            leftPanel.Controls.Add(logoPanel);
 
             // Panel wyszukiwania
             var searchPanel = new Panel
@@ -257,7 +182,7 @@ namespace Kalendarz1
             searchBox = new TextBox
             {
                 Location = new Point(10, 32),
-                Size = new Size(265, 24),
+                Size = new Size(245, 24),
                 Font = new Font("Segoe UI", 10),
                 PlaceholderText = "🔍 Szukaj...",
                 BorderStyle = BorderStyle.FixedSingle
@@ -370,23 +295,26 @@ namespace Kalendarz1
             this.Controls.Add(topToolbar);
         }
 
-        private Button CreateToolbarButton(string text, Color color, ref int x)
+        private Button CreateToolbarIconButton(string icon, string label, Color color, ref int x)
         {
             var btn = new Button
             {
-                Text = text,
-                Size = new Size(text.Length * 9 + 30, 35),
-                Location = new Point(x, 7),
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                ForeColor = Color.White,
+                Size = new Size(70, 48),
+                Location = new Point(x, 4),
                 BackColor = color,
+                ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand
+                Cursor = Cursors.Hand,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Font = new Font("Segoe UI", 8)
             };
             btn.FlatAppearance.BorderSize = 0;
-            btn.FlatAppearance.MouseOverBackColor = ControlPaint.Dark(color, 0.1f);
+            btn.FlatAppearance.MouseOverBackColor = ControlPaint.Light(color, 0.15f);
 
-            x += btn.Width + 8;
+            // Tekst z ikoną i etykietą
+            btn.Text = $"{icon}\n{label}";
+
+            x += btn.Width + 6;
             return btn;
         }
 
@@ -419,10 +347,10 @@ namespace Kalendarz1
             }
             catch { }
 
-            // Szerokość dla dwóch kolumn
+            // Szerokość dla trzech kolumn
             int totalWidth = permissionsPanel.ClientSize.Width - 30;
-            int columnWidth = (totalWidth - 10) / 2; // 10px gap między kolumnami
-            if (columnWidth < 400) columnWidth = 400;
+            int columnWidth = (totalWidth - 20) / 3; // 20px gap między kolumnami
+            if (columnWidth < 280) columnWidth = 280;
 
             // Grupuj moduły według kategorii
             var groupedModules = modules.GroupBy(m => m.Category).OrderBy(g => GetCategoryOrder(g.Key));
@@ -433,22 +361,22 @@ namespace Kalendarz1
                 Color categoryColor = GetCategoryColor(category);
 
                 // ═══════════════════════════════════════════════════════════════════════
-                // NAGŁÓWEK KATEGORII - rozciąga się na całą szerokość
+                // NAGŁÓWEK KATEGORII - kompaktowy
                 // ═══════════════════════════════════════════════════════════════════════
                 var categoryPanel = new Panel
                 {
                     Width = totalWidth,
-                    Height = 32,
+                    Height = 28,
                     BackColor = categoryColor,
-                    Margin = new Padding(0, 8, 0, 4)
+                    Margin = new Padding(0, 6, 0, 2)
                 };
 
                 var categoryCheckbox = new CheckBox
                 {
                     Text = $"  {category}",
-                    Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                    Font = new Font("Segoe UI", 9, FontStyle.Bold),
                     ForeColor = Color.White,
-                    Location = new Point(8, 5),
+                    Location = new Point(6, 4),
                     AutoSize = true,
                     Cursor = Cursors.Hand,
                     BackColor = Color.Transparent
@@ -460,20 +388,20 @@ namespace Kalendarz1
                 // Licznik uprawnień w kategorii
                 var countLabel = new Label
                 {
-                    Text = $"{group.Count()} modułów",
-                    Font = new Font("Segoe UI", 9),
-                    ForeColor = Color.FromArgb(220, 220, 220),
+                    Text = $"{group.Count()}",
+                    Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(255, 255, 255, 180),
                     AutoSize = true,
                     BackColor = Color.Transparent
                 };
-                countLabel.Location = new Point(totalWidth - countLabel.PreferredWidth - 15, 8);
+                countLabel.Location = new Point(totalWidth - countLabel.PreferredWidth - 12, 5);
                 categoryPanel.Controls.Add(countLabel);
 
                 categoryPanel.Click += (s, e) => categoryCheckbox.Checked = !categoryCheckbox.Checked;
                 permissionsFlowPanel.Controls.Add(categoryPanel);
 
                 // ═══════════════════════════════════════════════════════════════════════
-                // KONTENER NA MODUŁY W DWÓCH KOLUMNACH
+                // KONTENER NA MODUŁY W TRZECH KOLUMNACH
                 // ═══════════════════════════════════════════════════════════════════════
                 var modulesContainer = new FlowLayoutPanel
                 {
@@ -497,67 +425,55 @@ namespace Kalendarz1
                     if (position >= 0 && position < accessString.Length)
                         hasAccess = accessString[position] == '1';
 
-                    // Panel pojedynczego modułu
+                    // Panel pojedynczego modułu - kompaktowy
                     var modulePanel = new Panel
                     {
-                        Width = columnWidth,
-                        Height = 36,
+                        Width = columnWidth - 6,
+                        Height = 32,
                         BackColor = moduleIndex % 2 == 0 ? Color.White : Color.FromArgb(250, 251, 252),
-                        Margin = new Padding(0, 0, 5, 2),
+                        Margin = new Padding(2, 1, 2, 1),
                         Cursor = Cursors.Hand
                     };
 
                     // Pasek koloru po lewej
                     var colorBar = new Panel
                     {
-                        Width = 4,
-                        Height = 36,
+                        Width = 3,
+                        Height = 32,
                         BackColor = categoryColor,
                         Location = new Point(0, 0)
                     };
                     modulePanel.Controls.Add(colorBar);
 
-                    // Ikona emoji
+                    // Ikona emoji - mniejsza
                     var iconLabel = new Label
                     {
                         Text = module.Icon,
-                        Font = new Font("Segoe UI Emoji", 14),
+                        Font = new Font("Segoe UI Emoji", 12),
                         ForeColor = categoryColor,
-                        Location = new Point(10, 6),
-                        Size = new Size(28, 28),
+                        Location = new Point(6, 5),
+                        Size = new Size(24, 24),
                         TextAlign = ContentAlignment.MiddleCenter
                     };
                     modulePanel.Controls.Add(iconLabel);
 
-                    // Nazwa modułu
+                    // Nazwa modułu - tylko nazwa, bez opisu dla kompaktowości
                     var nameLabel = new Label
                     {
                         Text = module.DisplayName,
-                        Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                        Font = new Font("Segoe UI", 9),
                         ForeColor = Colors.TextDark,
-                        Location = new Point(42, 4),
-                        Size = new Size(columnWidth - 120, 16),
+                        Location = new Point(32, 7),
+                        Size = new Size(columnWidth - 80, 18),
                         AutoEllipsis = true
                     };
                     modulePanel.Controls.Add(nameLabel);
 
-                    // Opis modułu
-                    var descLabel = new Label
-                    {
-                        Text = module.Description,
-                        Font = new Font("Segoe UI", 7),
-                        ForeColor = Colors.TextGray,
-                        Location = new Point(42, 19),
-                        Size = new Size(columnWidth - 120, 14),
-                        AutoEllipsis = true
-                    };
-                    modulePanel.Controls.Add(descLabel);
-
-                    // Checkbox dostępu
+                    // Checkbox dostępu - przesunięty
                     var accessCheckbox = new CheckBox
                     {
                         Checked = hasAccess,
-                        Location = new Point(columnWidth - 30, 8),
+                        Location = new Point(columnWidth - 32, 6),
                         Size = new Size(20, 20),
                         Cursor = Cursors.Hand,
                         Tag = module.Key
@@ -575,7 +491,6 @@ namespace Kalendarz1
                     Action toggleCheckbox = () => accessCheckbox.Checked = !accessCheckbox.Checked;
                     modulePanel.Click += (s, e) => toggleCheckbox();
                     nameLabel.Click += (s, e) => toggleCheckbox();
-                    descLabel.Click += (s, e) => toggleCheckbox();
                     iconLabel.Click += (s, e) => toggleCheckbox();
                     colorBar.Click += (s, e) => toggleCheckbox();
 
@@ -682,15 +597,15 @@ namespace Kalendarz1
 
         private Panel CreateUserCard(UserInfo user)
         {
-            int cardWidth = usersCardsPanel.ClientSize.Width - 25;
-            if (cardWidth < 250) cardWidth = 250;
+            int cardWidth = usersCardsPanel.ClientSize.Width - 20;
+            if (cardWidth < 240) cardWidth = 240;
 
             var card = new Panel
             {
                 Width = cardWidth,
-                Height = 60,
+                Height = 52,
                 BackColor = Color.White,
-                Margin = new Padding(0, 0, 0, 6),
+                Margin = new Padding(0, 0, 0, 4),
                 Cursor = Cursors.Hand,
                 Tag = user
             };
@@ -703,28 +618,28 @@ namespace Kalendarz1
                 }
             };
 
-            // Avatar z inicjałami
+            // Avatar z inicjałami - mniejszy
             string initials = GetInitials(user.Name);
             Color avatarColor = GetAvatarColor(user.ID);
 
             var avatarPanel = new Panel
             {
-                Size = new Size(44, 44),
-                Location = new Point(8, 8),
+                Size = new Size(38, 38),
+                Location = new Point(7, 7),
                 BackColor = avatarColor
             };
             avatarPanel.Paint += (s, e) => {
                 e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
                 using (SolidBrush brush = new SolidBrush(avatarColor))
                 {
-                    e.Graphics.FillEllipse(brush, 0, 0, 43, 43);
+                    e.Graphics.FillEllipse(brush, 0, 0, 37, 37);
                 }
-                using (Font font = new Font("Segoe UI", 14, FontStyle.Bold))
+                using (Font font = new Font("Segoe UI", 12, FontStyle.Bold))
                 using (SolidBrush textBrush = new SolidBrush(Color.White))
                 {
                     var size = e.Graphics.MeasureString(initials, font);
                     e.Graphics.DrawString(initials, font, textBrush,
-                        (44 - size.Width) / 2, (44 - size.Height) / 2);
+                        (38 - size.Width) / 2, (38 - size.Height) / 2);
                 }
             };
             card.Controls.Add(avatarPanel);
@@ -733,10 +648,10 @@ namespace Kalendarz1
             var nameLabel = new Label
             {
                 Text = user.Name,
-                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 ForeColor = Colors.TextDark,
-                Location = new Point(60, 10),
-                Size = new Size(cardWidth - 70, 22),
+                Location = new Point(52, 8),
+                Size = new Size(cardWidth - 60, 20),
                 AutoEllipsis = true
             };
             card.Controls.Add(nameLabel);
@@ -745,9 +660,9 @@ namespace Kalendarz1
             var idLabel = new Label
             {
                 Text = $"ID: {user.ID}",
-                Font = new Font("Segoe UI", 9),
+                Font = new Font("Segoe UI", 8),
                 ForeColor = Colors.TextGray,
-                Location = new Point(60, 32),
+                Location = new Point(52, 28),
                 AutoSize = true
             };
             card.Controls.Add(idLabel);
