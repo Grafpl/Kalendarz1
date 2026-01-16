@@ -199,8 +199,8 @@ namespace Kalendarz1.Services
                 // Konfiskaty suma = CH + NW + ZM
                 int konfiskatySuma = declI3 + declI4 + declI5;
 
-                // Zdatne = Dostarczone - Padle - Konfiskaty
-                int zdatne = lumQnt - declI2 - konfiskatySuma;
+                // Zdatne = LumQnt - Padle (bez konfiskat)
+                int zdatne = lumQnt - declI2;
 
                 result.Add(new SpecyfikacjaDoIRZplus
                 {
