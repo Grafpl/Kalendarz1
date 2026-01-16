@@ -645,8 +645,21 @@ namespace Kalendarz1
         private void Panel_Click(object sender, EventArgs e)
         {
             Control control = sender as Control;
-            Panel panel = control as Panel ?? control.Parent as Panel;
-            if (panel?.Tag is MenuItemConfig config)
+
+            // Szukaj panelu z MenuItemConfig w Tag rekurencyjnie w górę hierarchii
+            MenuItemConfig config = null;
+            Control current = control;
+            while (current != null)
+            {
+                if (current.Tag is MenuItemConfig foundConfig)
+                {
+                    config = foundConfig;
+                    break;
+                }
+                current = current.Parent;
+            }
+
+            if (config != null)
             {
                 try
                 {
@@ -705,6 +718,12 @@ namespace Kalendarz1
         private void AdminPanelButton_Click(object sender, EventArgs e)
         {
             var adminForm = new AdminPermissionsForm();
+            // Ustaw ikonę dla panelu administracyjnego
+            var adminIcon = CreateEmojiIcon("🔐", Color.FromArgb(183, 28, 28));
+            if (adminIcon != null)
+            {
+                adminForm.Icon = adminIcon;
+            }
             adminForm.ShowDialog();
             LoadUserPermissions();
             SetupMenuItems();
