@@ -3948,21 +3948,19 @@ namespace Kalendarz1.WPF
                 var currentData = _productDataList[viewIndex];
                 mainContainer.Children.Clear();
 
-                // Główny layout: 4 kolumny [Info produktu | Lista odbiorców | Kamera | Nawigacja]
-                var mainGrid = new Grid { Margin = new Thickness(20) };
-                mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) }); // Lewa - info
-                mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Odbiorcy
-                mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(450) }); // Kamera
-                mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(180) }); // Prawa - nawigacja
+                // Główny layout: 2 kolumny [Lewa (info+nawigacja) | Prawa (odbiorcy + kamery)]
+                var mainGrid = new Grid { Margin = new Thickness(15) };
+                mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) }); // Lewa - info + nawigacja
+                mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Prawa - odbiorcy + kamery
 
-                // === LEWA KOLUMNA - INFORMACJE O PRODUKCIE (KOMPAKTOWA) ===
+                // === LEWA KOLUMNA - INFO + NAWIGACJA ===
                 var leftPanel = new StackPanel { Margin = new Thickness(0, 0, 10, 0) };
 
-                // Zdjęcie produktu (mniejsze)
+                // Zdjęcie produktu
                 var productImage = GetProductImage(currentData.Id);
                 var imageBorder = new Border
                 {
-                    Width = 200, Height = 200,
+                    Width = 180, Height = 180,
                     CornerRadius = new CornerRadius(15),
                     Background = productImage != null
                         ? (Brush)new ImageBrush { ImageSource = productImage, Stretch = Stretch.UniformToFill }
@@ -3971,341 +3969,245 @@ namespace Kalendarz1.WPF
                     HorizontalAlignment = HorizontalAlignment.Center
                 };
                 if (productImage == null)
-                    imageBorder.Child = new TextBlock { Text = "📦", FontSize = 60, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)) };
+                    imageBorder.Child = new TextBlock { Text = "📦", FontSize = 50, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)) };
                 leftPanel.Children.Add(imageBorder);
 
                 // Nazwa produktu
                 leftPanel.Children.Add(new TextBlock
                 {
                     Text = currentData.Kod,
-                    FontSize = 32,
+                    FontSize = 28,
                     FontWeight = FontWeights.Bold,
                     Foreground = Brushes.White,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     TextWrapping = TextWrapping.Wrap,
-                    Margin = new Thickness(0, 0, 0, 5)
+                    Margin = new Thickness(0, 0, 0, 10)
                 });
 
-                // Data
-                leftPanel.Children.Add(new TextBlock
-                {
-                    Text = _selectedDate.ToString("dd.MM.yyyy", new System.Globalization.CultureInfo("pl-PL")),
-                    FontSize = 18,
-                    Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = new Thickness(0, 0, 0, 15)
-                });
-
-                // Duże kafelki z informacjami
+                // Kafelki z informacjami
                 bool uzyjFakt = currentData.Fakt > 0;
                 decimal cel = uzyjFakt ? currentData.Fakt : currentData.Plan;
                 decimal bilans = cel + currentData.Stan - currentData.Zamowienia;
 
-                // BILANS - kafelek
+                // BILANS
                 var bilansBorder = new Border
                 {
                     Background = new SolidColorBrush(bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60)),
-                    CornerRadius = new CornerRadius(15),
-                    Padding = new Thickness(10),
-                    Margin = new Thickness(0, 0, 0, 10),
+                    CornerRadius = new CornerRadius(12),
+                    Padding = new Thickness(8),
+                    Margin = new Thickness(0, 0, 0, 8),
                     HorizontalAlignment = HorizontalAlignment.Stretch
                 };
                 var bilansStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-                bilansStack.Children.Add(new TextBlock { Text = "BILANS", FontSize = 16, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center });
-                bilansStack.Children.Add(new TextBlock { Text = $"{bilans:N0} kg", FontSize = 36, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center });
+                bilansStack.Children.Add(new TextBlock { Text = "BILANS", FontSize = 14, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center });
+                bilansStack.Children.Add(new TextBlock { Text = $"{bilans:N0} kg", FontSize = 32, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center });
                 bilansBorder.Child = bilansStack;
                 leftPanel.Children.Add(bilansBorder);
 
-                // Mniejsze kafelki w 2x2 grid
-                var statsGrid = new Grid { Margin = new Thickness(0, 0, 0, 10) };
+                // Kafelki 2x2
+                var statsGrid = new Grid { Margin = new Thickness(0, 0, 0, 8) };
                 statsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 statsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 statsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
                 statsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
                 var planBorder = CreateJolaStatBoxCompact(uzyjFakt ? "FAKT" : "PLAN", $"{cel:N0}", uzyjFakt ? Color.FromRgb(155, 89, 182) : Color.FromRgb(52, 152, 219));
-                Grid.SetColumn(planBorder, 0);
-                Grid.SetRow(planBorder, 0);
+                Grid.SetColumn(planBorder, 0); Grid.SetRow(planBorder, 0);
                 statsGrid.Children.Add(planBorder);
 
                 var stanBorder = CreateJolaStatBoxCompact("STAN", $"{currentData.Stan:N0}", Color.FromRgb(26, 188, 156));
-                Grid.SetColumn(stanBorder, 1);
-                Grid.SetRow(stanBorder, 0);
+                Grid.SetColumn(stanBorder, 1); Grid.SetRow(stanBorder, 0);
                 statsGrid.Children.Add(stanBorder);
 
                 var zamBorder = CreateJolaStatBoxCompact("ZAM.", $"{currentData.Zamowienia:N0}", Color.FromRgb(230, 126, 34));
-                Grid.SetColumn(zamBorder, 0);
-                Grid.SetColumnSpan(zamBorder, 2);
-                Grid.SetRow(zamBorder, 1);
+                Grid.SetColumn(zamBorder, 0); Grid.SetColumnSpan(zamBorder, 2); Grid.SetRow(zamBorder, 1);
                 statsGrid.Children.Add(zamBorder);
 
                 leftPanel.Children.Add(statsGrid);
 
+                // === DATEPICKER ===
+                var datePanel = new StackPanel { Margin = new Thickness(0, 10, 0, 10) };
+                datePanel.Children.Add(new TextBlock { Text = "DATA:", FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)), HorizontalAlignment = HorizontalAlignment.Center });
+
+                var dateGrid = new Grid { HorizontalAlignment = HorizontalAlignment.Center };
+                dateGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                dateGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                dateGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                var btnDatePrev = new Button { Content = "◀", FontSize = 18, Width = 35, Height = 35, Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = System.Windows.Input.Cursors.Hand };
+                var dateTxt = new TextBlock { Text = _selectedDate.ToString("dd.MM"), FontSize = 22, FontWeight = FontWeights.Bold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 10, 0) };
+                var btnDateNext = new Button { Content = "▶", FontSize = 18, Width = 35, Height = 35, Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = System.Windows.Input.Cursors.Hand };
+
+                // TODO: Obsługa zmiany daty (wymaga przeładowania danych)
+                Grid.SetColumn(btnDatePrev, 0); Grid.SetColumn(dateTxt, 1); Grid.SetColumn(btnDateNext, 2);
+                dateGrid.Children.Add(btnDatePrev); dateGrid.Children.Add(dateTxt); dateGrid.Children.Add(btnDateNext);
+                datePanel.Children.Add(dateGrid);
+                leftPanel.Children.Add(datePanel);
+
+                // === NAWIGACJA PRODUKTÓW ===
+                var navPanel = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 10, 0, 0) };
+
+                var btnPrev = new Button { Content = "▲", FontSize = 40, Width = 100, Height = 80, Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Margin = new Thickness(0, 0, 0, 5), Cursor = System.Windows.Input.Cursors.Hand };
+                btnPrev.Click += (s, e) => { viewIndex = (viewIndex - 1 + _productDataList.Count) % _productDataList.Count; refreshContent(); };
+                navPanel.Children.Add(btnPrev);
+
+                navPanel.Children.Add(new TextBlock { Text = $"{viewIndex + 1} z {_productDataList.Count}", FontSize = 18, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 5, 0, 5) });
+
+                var btnNext = new Button { Content = "▼", FontSize = 40, Width = 100, Height = 80, Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Margin = new Thickness(0, 5, 0, 0), Cursor = System.Windows.Input.Cursors.Hand };
+                btnNext.Click += (s, e) => { viewIndex = (viewIndex + 1) % _productDataList.Count; refreshContent(); };
+                navPanel.Children.Add(btnNext);
+
+                // Przycisk ZAMKNIJ
+                var btnClose = new Button { Content = "✕ ZAMKNIJ", FontSize = 16, FontWeight = FontWeights.Bold, Padding = new Thickness(15, 10, 15, 10), Background = new SolidColorBrush(Color.FromRgb(231, 76, 60)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Margin = new Thickness(0, 15, 0, 0), Cursor = System.Windows.Input.Cursors.Hand };
+                btnClose.Click += (s, e) => dialog.Close();
+                navPanel.Children.Add(btnClose);
+
+                leftPanel.Children.Add(navPanel);
+
                 Grid.SetColumn(leftPanel, 0);
                 mainGrid.Children.Add(leftPanel);
 
-                // === KOLUMNA ODBIORCÓW ===
-                var odbiorcyPanel = new Grid { Margin = new Thickness(10, 0, 10, 0) };
+                // === PRAWA STRONA - ODBIORCY + KAMERY ===
+                var rightPanel = new Grid { Margin = new Thickness(10, 0, 0, 0) };
+                rightPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Odbiorcy
+                rightPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(350) }); // Kamery
+
+                // === LISTA ODBIORCÓW (3 kolumny: nazwa + zamówione + wydane) ===
+                var odbiorcyPanel = new Grid { Margin = new Thickness(0, 0, 0, 10) };
                 odbiorcyPanel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Nagłówek
                 odbiorcyPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Lista
 
-                // Nagłówek
-                var odbiorcyHeader = new TextBlock
-                {
-                    Text = "📋 ODBIORCY",
-                    FontSize = 24,
-                    FontWeight = FontWeights.Bold,
-                    Foreground = Brushes.White,
-                    Margin = new Thickness(0, 0, 0, 10)
-                };
-                Grid.SetRow(odbiorcyHeader, 0);
-                odbiorcyPanel.Children.Add(odbiorcyHeader);
+                // Nagłówek tabeli
+                var headerGrid = new Grid { Background = new SolidColorBrush(Color.FromRgb(44, 62, 80)), Margin = new Thickness(0, 0, 0, 5) };
+                headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Lp
+                headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Nazwa
+                headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) }); // Zamówione
+                headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) }); // Wydane
 
-                // Lista odbiorców w ScrollViewer
-                var odbiorcyScroll = new ScrollViewer
-                {
-                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
-                };
+                headerGrid.Children.Add(new TextBlock { Text = "#", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = Brushes.White, Margin = new Thickness(10, 8, 10, 8) });
+                var hdrNazwa = new TextBlock { Text = "ODBIORCA", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = Brushes.White, Margin = new Thickness(5, 8, 5, 8) };
+                Grid.SetColumn(hdrNazwa, 1); headerGrid.Children.Add(hdrNazwa);
+                var hdrZam = new TextBlock { Text = "ZAMÓWIONE", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(46, 204, 113)), Margin = new Thickness(5, 8, 5, 8), HorizontalAlignment = HorizontalAlignment.Right };
+                Grid.SetColumn(hdrZam, 2); headerGrid.Children.Add(hdrZam);
+                var hdrWyd = new TextBlock { Text = "WYDANE", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)), Margin = new Thickness(5, 8, 10, 8), HorizontalAlignment = HorizontalAlignment.Right };
+                Grid.SetColumn(hdrWyd, 3); headerGrid.Children.Add(hdrWyd);
+
+                Grid.SetRow(headerGrid, 0);
+                odbiorcyPanel.Children.Add(headerGrid);
+
+                // Lista odbiorców
+                var odbiorcyScroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
                 var odbiorcyList = new StackPanel();
 
-                // Pobierz odbiorców dla tego produktu (już są w currentData.Odbiorcy)
-                var odbiorcy = currentData.Odbiorcy
-                    .OrderByDescending(o => o.Zamowione)
-                    .ToList();
+                var odbiorcy = currentData.Odbiorcy.OrderByDescending(o => o.Zamowione).ToList();
 
                 if (odbiorcy.Any())
                 {
                     int lp = 1;
                     foreach (var odbiorca in odbiorcy)
                     {
-                        var odbiorcaBorder = new Border
+                        var rowBorder = new Border
                         {
-                            Background = new SolidColorBrush(Color.FromRgb(45, 55, 65)),
-                            CornerRadius = new CornerRadius(10),
-                            Padding = new Thickness(12, 8, 12, 8),
-                            Margin = new Thickness(0, 0, 0, 5)
+                            Background = new SolidColorBrush(lp % 2 == 0 ? Color.FromRgb(40, 50, 60) : Color.FromRgb(35, 45, 55)),
+                            Padding = new Thickness(0, 6, 0, 6)
                         };
-                        var odbiorcaGrid = new Grid();
-                        odbiorcaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Numer
-                        odbiorcaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Nazwa
-                        odbiorcaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Ilość
+                        var rowGrid = new Grid();
+                        rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                        rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                        rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
+                        rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
 
-                        // Numer
-                        var numTxt = new TextBlock
-                        {
-                            Text = $"{lp}.",
-                            FontSize = 18,
-                            FontWeight = FontWeights.Bold,
-                            Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
-                            VerticalAlignment = VerticalAlignment.Center,
-                            Margin = new Thickness(0, 0, 10, 0)
-                        };
-                        Grid.SetColumn(numTxt, 0);
-                        odbiorcaGrid.Children.Add(numTxt);
+                        var lpTxt = new TextBlock { Text = $"{lp}.", FontSize = 16, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)), Margin = new Thickness(10, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center };
+                        Grid.SetColumn(lpTxt, 0); rowGrid.Children.Add(lpTxt);
 
-                        // Nazwa kontrahenta
-                        var nazwaTxt = new TextBlock
-                        {
-                            Text = odbiorca.NazwaOdbiorcy ?? "Nieznany",
-                            FontSize = 18,
-                            Foreground = Brushes.White,
-                            VerticalAlignment = VerticalAlignment.Center,
-                            TextTrimming = TextTrimming.CharacterEllipsis
-                        };
-                        Grid.SetColumn(nazwaTxt, 1);
-                        odbiorcaGrid.Children.Add(nazwaTxt);
+                        var nazwaTxt = new TextBlock { Text = odbiorca.NazwaOdbiorcy ?? "Nieznany", FontSize = 16, Foreground = Brushes.White, Margin = new Thickness(5, 0, 5, 0), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+                        Grid.SetColumn(nazwaTxt, 1); rowGrid.Children.Add(nazwaTxt);
 
-                        // Ilość
-                        var iloscTxt = new TextBlock
-                        {
-                            Text = $"{odbiorca.Zamowione:N0} kg",
-                            FontSize = 20,
-                            FontWeight = FontWeights.Bold,
-                            Foreground = new SolidColorBrush(Color.FromRgb(46, 204, 113)),
-                            VerticalAlignment = VerticalAlignment.Center,
-                            Margin = new Thickness(10, 0, 0, 0)
-                        };
-                        Grid.SetColumn(iloscTxt, 2);
-                        odbiorcaGrid.Children.Add(iloscTxt);
+                        var zamTxt = new TextBlock { Text = $"{odbiorca.Zamowione:N0} kg", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(46, 204, 113)), Margin = new Thickness(5, 0, 5, 0), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
+                        Grid.SetColumn(zamTxt, 2); rowGrid.Children.Add(zamTxt);
 
-                        odbiorcaBorder.Child = odbiorcaGrid;
-                        odbiorcyList.Children.Add(odbiorcaBorder);
+                        var wydTxt = new TextBlock { Text = $"{odbiorca.Wydane:N0} kg", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)), Margin = new Thickness(5, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
+                        Grid.SetColumn(wydTxt, 3); rowGrid.Children.Add(wydTxt);
+
+                        rowBorder.Child = rowGrid;
+                        odbiorcyList.Children.Add(rowBorder);
                         lp++;
                     }
 
-                    // Suma na dole
-                    var sumaBorder = new Border
-                    {
-                        Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
-                        CornerRadius = new CornerRadius(10),
-                        Padding = new Thickness(12, 10, 12, 10),
-                        Margin = new Thickness(0, 10, 0, 0)
-                    };
+                    // Suma
+                    var sumaBorder = new Border { Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)), Padding = new Thickness(0, 8, 0, 8), Margin = new Thickness(0, 5, 0, 0) };
                     var sumaGrid = new Grid();
-                    sumaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                     sumaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                    sumaGrid.Children.Add(new TextBlock { Text = "SUMA ZAMÓWIEŃ:", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
-                    var sumaTxt = new TextBlock { Text = $"{currentData.Zamowienia:N0} kg", FontSize = 22, FontWeight = FontWeights.Bold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center };
-                    Grid.SetColumn(sumaTxt, 1);
-                    sumaGrid.Children.Add(sumaTxt);
+                    sumaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    sumaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
+                    sumaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
+
+                    var sumaTxt = new TextBlock { Text = "SUMA:", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Brushes.White, Margin = new Thickness(10, 0, 5, 0), VerticalAlignment = VerticalAlignment.Center };
+                    Grid.SetColumn(sumaTxt, 1); sumaGrid.Children.Add(sumaTxt);
+
+                    decimal sumaZam = odbiorcy.Sum(o => o.Zamowione);
+                    decimal sumaWyd = odbiorcy.Sum(o => o.Wydane);
+                    var sumaZamTxt = new TextBlock { Text = $"{sumaZam:N0} kg", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Brushes.White, Margin = new Thickness(5, 0, 5, 0), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
+                    Grid.SetColumn(sumaZamTxt, 2); sumaGrid.Children.Add(sumaZamTxt);
+                    var sumaWydTxt = new TextBlock { Text = $"{sumaWyd:N0} kg", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Brushes.White, Margin = new Thickness(5, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
+                    Grid.SetColumn(sumaWydTxt, 3); sumaGrid.Children.Add(sumaWydTxt);
+
                     sumaBorder.Child = sumaGrid;
                     odbiorcyList.Children.Add(sumaBorder);
                 }
                 else
                 {
-                    odbiorcyList.Children.Add(new TextBlock
-                    {
-                        Text = "Brak zamówień",
-                        FontSize = 18,
-                        Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
-                        FontStyle = FontStyles.Italic,
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        Margin = new Thickness(0, 20, 0, 0)
-                    });
+                    odbiorcyList.Children.Add(new TextBlock { Text = "Brak zamówień", FontSize = 18, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)), FontStyle = FontStyles.Italic, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 30, 0, 0) });
                 }
 
                 odbiorcyScroll.Content = odbiorcyList;
                 Grid.SetRow(odbiorcyScroll, 1);
                 odbiorcyPanel.Children.Add(odbiorcyScroll);
 
-                Grid.SetColumn(odbiorcyPanel, 1);
-                mainGrid.Children.Add(odbiorcyPanel);
+                Grid.SetRow(odbiorcyPanel, 0);
+                rightPanel.Children.Add(odbiorcyPanel);
 
-                // === KOLUMNA KAMERY (DUŻA) ===
-                var cameraPanel = new Grid { Margin = new Thickness(10, 0, 10, 0) };
-                cameraPanel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Info realizacji
-                cameraPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Kamera
+                // === DWA MIEJSCA NA KAMERY ===
+                var camerasGrid = new Grid();
+                camerasGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Kamera 1
+                camerasGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Kamera 2
 
-                // Mały pasek realizacji na górze
-                decimal procentRealizacji = cel > 0 ? (currentData.Zamowienia / cel) * 100 : 0;
-                Color barColor = procentRealizacji >= 100 ? Color.FromRgb(155, 89, 182) :
-                                 procentRealizacji >= 80 ? Color.FromRgb(39, 174, 96) :
-                                 procentRealizacji >= 50 ? Color.FromRgb(241, 196, 15) :
-                                 Color.FromRgb(231, 76, 60);
-
-                var realizacjaPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 15) };
-                realizacjaPanel.Children.Add(new TextBlock
-                {
-                    Text = $"📊 REALIZACJA: {procentRealizacji:N0}%",
-                    FontSize = 22,
-                    FontWeight = FontWeights.Bold,
-                    Foreground = new SolidColorBrush(barColor),
-                    HorizontalAlignment = HorizontalAlignment.Center
-                });
-
-                // Mini pasek postępu
-                var miniProgressBg = new Border
-                {
-                    Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)),
-                    CornerRadius = new CornerRadius(10),
-                    Height = 30,
-                    Margin = new Thickness(0, 5, 0, 0)
-                };
-                var miniProgressGrid = new Grid();
-                double displayPct = Math.Min((double)procentRealizacji, 140) / 140 * 100;
-                var fillGrid = new Grid();
-                fillGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(displayPct, 1), GridUnitType.Star) });
-                fillGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(100 - displayPct, 1), GridUnitType.Star) });
-                fillGrid.Children.Add(new Border { Background = new SolidColorBrush(barColor), CornerRadius = new CornerRadius(10, displayPct >= 99 ? 10 : 0, displayPct >= 99 ? 10 : 0, 10) });
-                miniProgressGrid.Children.Add(fillGrid);
-                miniProgressBg.Child = miniProgressGrid;
-                realizacjaPanel.Children.Add(miniProgressBg);
-
-                Grid.SetRow(realizacjaPanel, 0);
-                cameraPanel.Children.Add(realizacjaPanel);
-
-                // Duże miejsce na kamerę
-                var cameraBorder = new Border
+                // Kamera 1
+                var camera1Border = new Border
                 {
                     Background = new SolidColorBrush(Color.FromRgb(25, 30, 35)),
-                    CornerRadius = new CornerRadius(20),
+                    CornerRadius = new CornerRadius(15),
                     BorderBrush = new SolidColorBrush(Color.FromRgb(60, 70, 80)),
-                    BorderThickness = new Thickness(3)
+                    BorderThickness = new Thickness(2),
+                    Margin = new Thickness(0, 0, 5, 0)
                 };
-                var cameraPlaceholder = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-                cameraPlaceholder.Children.Add(new TextBlock { Text = "📹", FontSize = 100, HorizontalAlignment = HorizontalAlignment.Center });
-                cameraPlaceholder.Children.Add(new TextBlock { Text = "KAMERA", FontSize = 32, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(80, 90, 100)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 10, 0, 0) });
-                cameraPlaceholder.Children.Add(new TextBlock { Text = "Miejsce na podgląd z kamery", FontSize = 16, Foreground = new SolidColorBrush(Color.FromRgb(60, 70, 80)), HorizontalAlignment = HorizontalAlignment.Center });
-                cameraBorder.Child = cameraPlaceholder;
-                Grid.SetRow(cameraBorder, 1);
-                cameraPanel.Children.Add(cameraBorder);
+                var camera1Content = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                camera1Content.Children.Add(new TextBlock { Text = "📹", FontSize = 60, HorizontalAlignment = HorizontalAlignment.Center });
+                camera1Content.Children.Add(new TextBlock { Text = "KAMERA 1", FontSize = 20, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(80, 90, 100)), HorizontalAlignment = HorizontalAlignment.Center });
+                camera1Border.Child = camera1Content;
+                Grid.SetColumn(camera1Border, 0);
+                camerasGrid.Children.Add(camera1Border);
 
-                Grid.SetColumn(cameraPanel, 2);
-                mainGrid.Children.Add(cameraPanel);
-
-                // === PRAWA KOLUMNA - NAWIGACJA (DUŻE STRZAŁKI) ===
-                var rightPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0) };
-
-                // Przycisk POPRZEDNI (w górę)
-                var btnPrev = new Button
+                // Kamera 2
+                var camera2Border = new Border
                 {
-                    Content = "▲",
-                    FontSize = 50,
-                    Width = 130,
-                    Height = 130,
-                    Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)),
-                    Foreground = Brushes.White,
-                    BorderThickness = new Thickness(0),
-                    Margin = new Thickness(0, 0, 0, 15),
-                    Cursor = System.Windows.Input.Cursors.Hand
+                    Background = new SolidColorBrush(Color.FromRgb(25, 30, 35)),
+                    CornerRadius = new CornerRadius(15),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(60, 70, 80)),
+                    BorderThickness = new Thickness(2),
+                    Margin = new Thickness(5, 0, 0, 0)
                 };
-                btnPrev.Click += (s, e) => { viewIndex = (viewIndex - 1 + _productDataList.Count) % _productDataList.Count; refreshContent(); };
-                rightPanel.Children.Add(btnPrev);
+                var camera2Content = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                camera2Content.Children.Add(new TextBlock { Text = "📹", FontSize = 60, HorizontalAlignment = HorizontalAlignment.Center });
+                camera2Content.Children.Add(new TextBlock { Text = "KAMERA 2", FontSize = 20, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(80, 90, 100)), HorizontalAlignment = HorizontalAlignment.Center });
+                camera2Border.Child = camera2Content;
+                Grid.SetColumn(camera2Border, 1);
+                camerasGrid.Children.Add(camera2Border);
 
-                // Numer produktu
-                rightPanel.Children.Add(new TextBlock
-                {
-                    Text = $"{viewIndex + 1}",
-                    FontSize = 40,
-                    FontWeight = FontWeights.Bold,
-                    Foreground = Brushes.White,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = new Thickness(0, 5, 0, 0)
-                });
-                rightPanel.Children.Add(new TextBlock
-                {
-                    Text = $"z {_productDataList.Count}",
-                    FontSize = 20,
-                    Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = new Thickness(0, 0, 0, 5)
-                });
+                Grid.SetRow(camerasGrid, 1);
+                rightPanel.Children.Add(camerasGrid);
 
-                // Przycisk NASTĘPNY (w dół)
-                var btnNext = new Button
-                {
-                    Content = "▼",
-                    FontSize = 50,
-                    Width = 130,
-                    Height = 130,
-                    Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
-                    Foreground = Brushes.White,
-                    BorderThickness = new Thickness(0),
-                    Margin = new Thickness(0, 15, 0, 0),
-                    Cursor = System.Windows.Input.Cursors.Hand
-                };
-                btnNext.Click += (s, e) => { viewIndex = (viewIndex + 1) % _productDataList.Count; refreshContent(); };
-                rightPanel.Children.Add(btnNext);
-
-                // Przycisk ZAMKNIJ
-                var btnClose = new Button
-                {
-                    Content = "✕",
-                    FontSize = 30,
-                    FontWeight = FontWeights.Bold,
-                    Width = 80,
-                    Height = 80,
-                    Background = new SolidColorBrush(Color.FromRgb(231, 76, 60)),
-                    Foreground = Brushes.White,
-                    BorderThickness = new Thickness(0),
-                    Margin = new Thickness(0, 30, 0, 0),
-                    Cursor = System.Windows.Input.Cursors.Hand
-                };
-                btnClose.Click += (s, e) => dialog.Close();
-                rightPanel.Children.Add(btnClose);
-
-                Grid.SetColumn(rightPanel, 3);
+                Grid.SetColumn(rightPanel, 1);
                 mainGrid.Children.Add(rightPanel);
 
                 mainContainer.Children.Add(mainGrid);
