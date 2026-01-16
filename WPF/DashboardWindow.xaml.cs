@@ -3918,7 +3918,7 @@ namespace Kalendarz1.WPF
 
         /// <summary>
         /// Uproszczony panel dla Pani Joli - duże przyciski, prosta nawigacja, bez symulacji.
-        /// Strzałki nawigacji po prawej stronie, miejsce na kamerę pod wykresem.
+        /// 3 tablice odbiorców, 2 kamery, działający datepicker.
         /// </summary>
         private void ShowSimplifiedPanelJola(ProductData data, int currentIndex = -1)
         {
@@ -3929,6 +3929,7 @@ namespace Kalendarz1.WPF
             }
 
             int viewIndex = currentIndex;
+            DateTime jolaDate = _selectedDate; // Lokalna data dla tego panelu
 
             var dialog = new Window
             {
@@ -3948,10 +3949,10 @@ namespace Kalendarz1.WPF
                 var currentData = _productDataList[viewIndex];
                 mainContainer.Children.Clear();
 
-                // Główny layout: 2 kolumny [Lewa (info+nawigacja) | Prawa (odbiorcy + kamery)]
-                var mainGrid = new Grid { Margin = new Thickness(15) };
-                mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) }); // Lewa - info + nawigacja
-                mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Prawa - odbiorcy + kamery
+                // Główny layout: 2 kolumny [Lewa (info+nawigacja) | Prawa (tablice + kamery)]
+                var mainGrid = new Grid { Margin = new Thickness(10) };
+                mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(170) }); // Lewa - info + nawigacja
+                mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Prawa - tablice + kamery
 
                 // === LEWA KOLUMNA - INFO + NAWIGACJA ===
                 var leftPanel = new StackPanel { Margin = new Thickness(0, 0, 10, 0) };
@@ -3960,28 +3961,28 @@ namespace Kalendarz1.WPF
                 var productImage = GetProductImage(currentData.Id);
                 var imageBorder = new Border
                 {
-                    Width = 180, Height = 180,
-                    CornerRadius = new CornerRadius(15),
+                    Width = 140, Height = 140,
+                    CornerRadius = new CornerRadius(10),
                     Background = productImage != null
                         ? (Brush)new ImageBrush { ImageSource = productImage, Stretch = Stretch.UniformToFill }
                         : new SolidColorBrush(Color.FromRgb(52, 73, 94)),
-                    Margin = new Thickness(0, 0, 0, 10),
+                    Margin = new Thickness(0, 0, 0, 8),
                     HorizontalAlignment = HorizontalAlignment.Center
                 };
                 if (productImage == null)
-                    imageBorder.Child = new TextBlock { Text = "📦", FontSize = 50, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)) };
+                    imageBorder.Child = new TextBlock { Text = "📦", FontSize = 40, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)) };
                 leftPanel.Children.Add(imageBorder);
 
                 // Nazwa produktu
                 leftPanel.Children.Add(new TextBlock
                 {
                     Text = currentData.Kod,
-                    FontSize = 28,
+                    FontSize = 22,
                     FontWeight = FontWeights.Bold,
                     Foreground = Brushes.White,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     TextWrapping = TextWrapping.Wrap,
-                    Margin = new Thickness(0, 0, 0, 10)
+                    Margin = new Thickness(0, 0, 0, 8)
                 });
 
                 // Kafelki z informacjami
@@ -3993,19 +3994,19 @@ namespace Kalendarz1.WPF
                 var bilansBorder = new Border
                 {
                     Background = new SolidColorBrush(bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60)),
-                    CornerRadius = new CornerRadius(12),
-                    Padding = new Thickness(8),
-                    Margin = new Thickness(0, 0, 0, 8),
+                    CornerRadius = new CornerRadius(10),
+                    Padding = new Thickness(6),
+                    Margin = new Thickness(0, 0, 0, 6),
                     HorizontalAlignment = HorizontalAlignment.Stretch
                 };
                 var bilansStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-                bilansStack.Children.Add(new TextBlock { Text = "BILANS", FontSize = 14, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center });
-                bilansStack.Children.Add(new TextBlock { Text = $"{bilans:N0} kg", FontSize = 32, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center });
+                bilansStack.Children.Add(new TextBlock { Text = "BILANS", FontSize = 12, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center });
+                bilansStack.Children.Add(new TextBlock { Text = $"{bilans:N0} kg", FontSize = 26, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center });
                 bilansBorder.Child = bilansStack;
                 leftPanel.Children.Add(bilansBorder);
 
                 // Kafelki 2x2
-                var statsGrid = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+                var statsGrid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
                 statsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 statsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 statsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -4025,40 +4026,47 @@ namespace Kalendarz1.WPF
 
                 leftPanel.Children.Add(statsGrid);
 
-                // === DATEPICKER ===
-                var datePanel = new StackPanel { Margin = new Thickness(0, 10, 0, 10) };
-                datePanel.Children.Add(new TextBlock { Text = "DATA:", FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)), HorizontalAlignment = HorizontalAlignment.Center });
+                // === DATEPICKER z dniem tygodnia ===
+                var datePanel = new StackPanel { Margin = new Thickness(0, 8, 0, 8) };
+                datePanel.Children.Add(new TextBlock { Text = "DATA:", FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)), HorizontalAlignment = HorizontalAlignment.Center });
 
-                var dateGrid = new Grid { HorizontalAlignment = HorizontalAlignment.Center };
+                var dateGrid = new Grid { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 3, 0, 0) };
                 dateGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 dateGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 dateGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-                var btnDatePrev = new Button { Content = "◀", FontSize = 18, Width = 35, Height = 35, Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = System.Windows.Input.Cursors.Hand };
-                var dateTxt = new TextBlock { Text = _selectedDate.ToString("dd.MM"), FontSize = 22, FontWeight = FontWeights.Bold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 10, 0) };
-                var btnDateNext = new Button { Content = "▶", FontSize = 18, Width = 35, Height = 35, Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = System.Windows.Input.Cursors.Hand };
+                var btnDatePrev = new Button { Content = "◀", FontSize = 16, Width = 32, Height = 32, Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = System.Windows.Input.Cursors.Hand };
+                var dateTxt = new TextBlock { Text = jolaDate.ToString("dd.MM"), FontSize = 20, FontWeight = FontWeights.Bold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 8, 0) };
+                var btnDateNext = new Button { Content = "▶", FontSize = 16, Width = 32, Height = 32, Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = System.Windows.Input.Cursors.Hand };
 
-                // TODO: Obsługa zmiany daty (wymaga przeładowania danych)
+                btnDatePrev.Click += (s, e) => { jolaDate = jolaDate.AddDays(-1); refreshContent(); };
+                btnDateNext.Click += (s, e) => { jolaDate = jolaDate.AddDays(1); refreshContent(); };
+
                 Grid.SetColumn(btnDatePrev, 0); Grid.SetColumn(dateTxt, 1); Grid.SetColumn(btnDateNext, 2);
                 dateGrid.Children.Add(btnDatePrev); dateGrid.Children.Add(dateTxt); dateGrid.Children.Add(btnDateNext);
                 datePanel.Children.Add(dateGrid);
+
+                // Dzień tygodnia
+                string dzienTygodnia = jolaDate.ToString("dddd", new System.Globalization.CultureInfo("pl-PL"));
+                datePanel.Children.Add(new TextBlock { Text = dzienTygodnia, FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 2, 0, 0) });
+
                 leftPanel.Children.Add(datePanel);
 
                 // === NAWIGACJA PRODUKTÓW ===
-                var navPanel = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 10, 0, 0) };
+                var navPanel = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0) };
 
-                var btnPrev = new Button { Content = "▲", FontSize = 40, Width = 100, Height = 80, Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Margin = new Thickness(0, 0, 0, 5), Cursor = System.Windows.Input.Cursors.Hand };
+                var btnPrev = new Button { Content = "▲", FontSize = 36, Width = 80, Height = 65, Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Margin = new Thickness(0, 0, 0, 5), Cursor = System.Windows.Input.Cursors.Hand };
                 btnPrev.Click += (s, e) => { viewIndex = (viewIndex - 1 + _productDataList.Count) % _productDataList.Count; refreshContent(); };
                 navPanel.Children.Add(btnPrev);
 
-                navPanel.Children.Add(new TextBlock { Text = $"{viewIndex + 1} z {_productDataList.Count}", FontSize = 18, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 5, 0, 5) });
+                navPanel.Children.Add(new TextBlock { Text = $"{viewIndex + 1} z {_productDataList.Count}", FontSize = 16, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 3, 0, 3) });
 
-                var btnNext = new Button { Content = "▼", FontSize = 40, Width = 100, Height = 80, Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Margin = new Thickness(0, 5, 0, 0), Cursor = System.Windows.Input.Cursors.Hand };
+                var btnNext = new Button { Content = "▼", FontSize = 36, Width = 80, Height = 65, Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Margin = new Thickness(0, 5, 0, 0), Cursor = System.Windows.Input.Cursors.Hand };
                 btnNext.Click += (s, e) => { viewIndex = (viewIndex + 1) % _productDataList.Count; refreshContent(); };
                 navPanel.Children.Add(btnNext);
 
                 // Przycisk ZAMKNIJ
-                var btnClose = new Button { Content = "✕ ZAMKNIJ", FontSize = 16, FontWeight = FontWeights.Bold, Padding = new Thickness(15, 10, 15, 10), Background = new SolidColorBrush(Color.FromRgb(231, 76, 60)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Margin = new Thickness(0, 15, 0, 0), Cursor = System.Windows.Input.Cursors.Hand };
+                var btnClose = new Button { Content = "✕ ZAMKNIJ", FontSize = 14, FontWeight = FontWeights.Bold, Padding = new Thickness(12, 8, 12, 8), Background = new SolidColorBrush(Color.FromRgb(231, 76, 60)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Margin = new Thickness(0, 12, 0, 0), Cursor = System.Windows.Input.Cursors.Hand };
                 btnClose.Click += (s, e) => dialog.Close();
                 navPanel.Children.Add(btnClose);
 
@@ -4067,139 +4075,76 @@ namespace Kalendarz1.WPF
                 Grid.SetColumn(leftPanel, 0);
                 mainGrid.Children.Add(leftPanel);
 
-                // === PRAWA STRONA - ODBIORCY + KAMERY ===
-                var rightPanel = new Grid { Margin = new Thickness(10, 0, 0, 0) };
-                rightPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Odbiorcy
-                rightPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(350) }); // Kamery
+                // === PRAWA STRONA - 3 TABLICE + 2 KAMERY ===
+                var rightPanel = new Grid { Margin = new Thickness(5, 0, 0, 0) };
+                rightPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Tablice
+                rightPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Kamery
 
-                // === LISTA ODBIORCÓW (3 kolumny: nazwa + zamówione + wydane) ===
-                var odbiorcyPanel = new Grid { Margin = new Thickness(0, 0, 0, 10) };
-                odbiorcyPanel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Nagłówek
-                odbiorcyPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Lista
-
-                // Nagłówek tabeli
-                var headerGrid = new Grid { Background = new SolidColorBrush(Color.FromRgb(44, 62, 80)), Margin = new Thickness(0, 0, 0, 5) };
-                headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Lp
-                headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Nazwa
-                headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) }); // Zamówione
-                headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) }); // Wydane
-
-                headerGrid.Children.Add(new TextBlock { Text = "#", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = Brushes.White, Margin = new Thickness(10, 8, 10, 8) });
-                var hdrNazwa = new TextBlock { Text = "ODBIORCA", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = Brushes.White, Margin = new Thickness(5, 8, 5, 8) };
-                Grid.SetColumn(hdrNazwa, 1); headerGrid.Children.Add(hdrNazwa);
-                var hdrZam = new TextBlock { Text = "ZAMÓWIONE", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(46, 204, 113)), Margin = new Thickness(5, 8, 5, 8), HorizontalAlignment = HorizontalAlignment.Right };
-                Grid.SetColumn(hdrZam, 2); headerGrid.Children.Add(hdrZam);
-                var hdrWyd = new TextBlock { Text = "WYDANE", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)), Margin = new Thickness(5, 8, 10, 8), HorizontalAlignment = HorizontalAlignment.Right };
-                Grid.SetColumn(hdrWyd, 3); headerGrid.Children.Add(hdrWyd);
-
-                Grid.SetRow(headerGrid, 0);
-                odbiorcyPanel.Children.Add(headerGrid);
-
-                // Lista odbiorców
-                var odbiorcyScroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
-                var odbiorcyList = new StackPanel();
+                // === 3 TABLICE ODBIORCÓW ===
+                var tabliceGrid = new Grid { Margin = new Thickness(0, 0, 0, 5) };
+                tabliceGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Tablica 1
+                tabliceGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Tablica 2
+                tabliceGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Tablica 3
 
                 var odbiorcy = currentData.Odbiorcy.OrderByDescending(o => o.Zamowione).ToList();
+                int maxRowsPerTable = 12; // Max wierszy na tablicę
 
-                if (odbiorcy.Any())
-                {
-                    int lp = 1;
-                    foreach (var odbiorca in odbiorcy)
-                    {
-                        var rowBorder = new Border
-                        {
-                            Background = new SolidColorBrush(lp % 2 == 0 ? Color.FromRgb(40, 50, 60) : Color.FromRgb(35, 45, 55)),
-                            Padding = new Thickness(0, 6, 0, 6)
-                        };
-                        var rowGrid = new Grid();
-                        rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                        rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                        rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
-                        rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
+                // Podziel odbiorców na 3 tablice
+                var tablica1 = odbiorcy.Take(maxRowsPerTable).ToList();
+                var tablica2 = odbiorcy.Skip(maxRowsPerTable).Take(maxRowsPerTable).ToList();
+                var tablica3 = odbiorcy.Skip(maxRowsPerTable * 2).Take(maxRowsPerTable).ToList();
 
-                        var lpTxt = new TextBlock { Text = $"{lp}.", FontSize = 16, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)), Margin = new Thickness(10, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center };
-                        Grid.SetColumn(lpTxt, 0); rowGrid.Children.Add(lpTxt);
+                // Suma całkowita
+                decimal sumaZamTotal = odbiorcy.Sum(o => o.Zamowione);
+                decimal sumaWydTotal = odbiorcy.Sum(o => o.Wydane);
 
-                        var nazwaTxt = new TextBlock { Text = odbiorca.NazwaOdbiorcy ?? "Nieznany", FontSize = 16, Foreground = Brushes.White, Margin = new Thickness(5, 0, 5, 0), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
-                        Grid.SetColumn(nazwaTxt, 1); rowGrid.Children.Add(nazwaTxt);
+                // Tworzenie tablic
+                var tab1 = CreateJolaTable(tablica1, 1, sumaZamTotal, sumaWydTotal, true);
+                Grid.SetColumn(tab1, 0);
+                tabliceGrid.Children.Add(tab1);
 
-                        var zamTxt = new TextBlock { Text = $"{odbiorca.Zamowione:N0} kg", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(46, 204, 113)), Margin = new Thickness(5, 0, 5, 0), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
-                        Grid.SetColumn(zamTxt, 2); rowGrid.Children.Add(zamTxt);
+                var tab2 = CreateJolaTable(tablica2, maxRowsPerTable + 1, 0, 0, false);
+                Grid.SetColumn(tab2, 1);
+                tabliceGrid.Children.Add(tab2);
 
-                        var wydTxt = new TextBlock { Text = $"{odbiorca.Wydane:N0} kg", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)), Margin = new Thickness(5, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
-                        Grid.SetColumn(wydTxt, 3); rowGrid.Children.Add(wydTxt);
+                var tab3 = CreateJolaTable(tablica3, maxRowsPerTable * 2 + 1, 0, 0, false);
+                Grid.SetColumn(tab3, 2);
+                tabliceGrid.Children.Add(tab3);
 
-                        rowBorder.Child = rowGrid;
-                        odbiorcyList.Children.Add(rowBorder);
-                        lp++;
-                    }
+                Grid.SetRow(tabliceGrid, 0);
+                rightPanel.Children.Add(tabliceGrid);
 
-                    // Suma
-                    var sumaBorder = new Border { Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)), Padding = new Thickness(0, 8, 0, 8), Margin = new Thickness(0, 5, 0, 0) };
-                    var sumaGrid = new Grid();
-                    sumaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                    sumaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    sumaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
-                    sumaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
+                // === 2 KAMERY ===
+                var camerasGrid = new Grid { Margin = new Thickness(0, 5, 0, 0) };
+                camerasGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                camerasGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-                    var sumaTxt = new TextBlock { Text = "SUMA:", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Brushes.White, Margin = new Thickness(10, 0, 5, 0), VerticalAlignment = VerticalAlignment.Center };
-                    Grid.SetColumn(sumaTxt, 1); sumaGrid.Children.Add(sumaTxt);
-
-                    decimal sumaZam = odbiorcy.Sum(o => o.Zamowione);
-                    decimal sumaWyd = odbiorcy.Sum(o => o.Wydane);
-                    var sumaZamTxt = new TextBlock { Text = $"{sumaZam:N0} kg", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Brushes.White, Margin = new Thickness(5, 0, 5, 0), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
-                    Grid.SetColumn(sumaZamTxt, 2); sumaGrid.Children.Add(sumaZamTxt);
-                    var sumaWydTxt = new TextBlock { Text = $"{sumaWyd:N0} kg", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Brushes.White, Margin = new Thickness(5, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
-                    Grid.SetColumn(sumaWydTxt, 3); sumaGrid.Children.Add(sumaWydTxt);
-
-                    sumaBorder.Child = sumaGrid;
-                    odbiorcyList.Children.Add(sumaBorder);
-                }
-                else
-                {
-                    odbiorcyList.Children.Add(new TextBlock { Text = "Brak zamówień", FontSize = 18, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)), FontStyle = FontStyles.Italic, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 30, 0, 0) });
-                }
-
-                odbiorcyScroll.Content = odbiorcyList;
-                Grid.SetRow(odbiorcyScroll, 1);
-                odbiorcyPanel.Children.Add(odbiorcyScroll);
-
-                Grid.SetRow(odbiorcyPanel, 0);
-                rightPanel.Children.Add(odbiorcyPanel);
-
-                // === DWA MIEJSCA NA KAMERY ===
-                var camerasGrid = new Grid();
-                camerasGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Kamera 1
-                camerasGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Kamera 2
-
-                // Kamera 1
                 var camera1Border = new Border
                 {
-                    Background = new SolidColorBrush(Color.FromRgb(25, 30, 35)),
-                    CornerRadius = new CornerRadius(15),
-                    BorderBrush = new SolidColorBrush(Color.FromRgb(60, 70, 80)),
-                    BorderThickness = new Thickness(2),
-                    Margin = new Thickness(0, 0, 5, 0)
+                    Background = new SolidColorBrush(Color.FromRgb(30, 35, 40)),
+                    CornerRadius = new CornerRadius(10),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(50, 55, 60)),
+                    BorderThickness = new Thickness(1),
+                    Margin = new Thickness(0, 0, 3, 0)
                 };
                 var camera1Content = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-                camera1Content.Children.Add(new TextBlock { Text = "📹", FontSize = 60, HorizontalAlignment = HorizontalAlignment.Center });
-                camera1Content.Children.Add(new TextBlock { Text = "KAMERA 1", FontSize = 20, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(80, 90, 100)), HorizontalAlignment = HorizontalAlignment.Center });
+                camera1Content.Children.Add(new TextBlock { Text = "📹", FontSize = 50, HorizontalAlignment = HorizontalAlignment.Center });
+                camera1Content.Children.Add(new TextBlock { Text = "KAMERA 1", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(70, 80, 90)), HorizontalAlignment = HorizontalAlignment.Center });
                 camera1Border.Child = camera1Content;
                 Grid.SetColumn(camera1Border, 0);
                 camerasGrid.Children.Add(camera1Border);
 
-                // Kamera 2
                 var camera2Border = new Border
                 {
-                    Background = new SolidColorBrush(Color.FromRgb(25, 30, 35)),
-                    CornerRadius = new CornerRadius(15),
-                    BorderBrush = new SolidColorBrush(Color.FromRgb(60, 70, 80)),
-                    BorderThickness = new Thickness(2),
-                    Margin = new Thickness(5, 0, 0, 0)
+                    Background = new SolidColorBrush(Color.FromRgb(30, 35, 40)),
+                    CornerRadius = new CornerRadius(10),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(50, 55, 60)),
+                    BorderThickness = new Thickness(1),
+                    Margin = new Thickness(3, 0, 0, 0)
                 };
                 var camera2Content = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-                camera2Content.Children.Add(new TextBlock { Text = "📹", FontSize = 60, HorizontalAlignment = HorizontalAlignment.Center });
-                camera2Content.Children.Add(new TextBlock { Text = "KAMERA 2", FontSize = 20, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(80, 90, 100)), HorizontalAlignment = HorizontalAlignment.Center });
+                camera2Content.Children.Add(new TextBlock { Text = "📹", FontSize = 50, HorizontalAlignment = HorizontalAlignment.Center });
+                camera2Content.Children.Add(new TextBlock { Text = "KAMERA 2", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(70, 80, 90)), HorizontalAlignment = HorizontalAlignment.Center });
                 camera2Border.Child = camera2Content;
                 Grid.SetColumn(camera2Border, 1);
                 camerasGrid.Children.Add(camera2Border);
@@ -4270,6 +4215,113 @@ namespace Kalendarz1.WPF
             stack.Children.Add(new TextBlock { Text = value, FontSize = 20, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center });
             border.Child = stack;
             return border;
+        }
+
+        /// <summary>
+        /// Tworzy pojedynczą tablicę odbiorców dla panelu Pani Joli
+        /// </summary>
+        private Border CreateJolaTable(List<OdbiorcaZamowienie> odbiorcy, int startLp, decimal sumaZam, decimal sumaWyd, bool showSuma)
+        {
+            var tableBorder = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(30, 40, 50)),
+                CornerRadius = new CornerRadius(8),
+                Margin = new Thickness(2),
+                Padding = new Thickness(0)
+            };
+
+            var tableGrid = new Grid();
+            tableGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Nagłówek
+            tableGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Lista
+            if (showSuma)
+                tableGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Suma
+
+            // Nagłówek
+            var headerGrid = new Grid { Background = new SolidColorBrush(Color.FromRgb(44, 62, 80)), Padding = new Thickness(5, 4, 5, 4) };
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
+
+            headerGrid.Children.Add(new TextBlock { Text = "#", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Brushes.White, Margin = new Thickness(5, 0, 8, 0) });
+            var hdrNazwa = new TextBlock { Text = "ODBIORCA", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Brushes.White };
+            Grid.SetColumn(hdrNazwa, 1); headerGrid.Children.Add(hdrNazwa);
+            var hdrZam = new TextBlock { Text = "ZAMÓWIONE", FontSize = 11, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(46, 204, 113)), HorizontalAlignment = HorizontalAlignment.Right };
+            Grid.SetColumn(hdrZam, 2); headerGrid.Children.Add(hdrZam);
+            var hdrWyd = new TextBlock { Text = "WYDANE", FontSize = 11, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)), HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 5, 0) };
+            Grid.SetColumn(hdrWyd, 3); headerGrid.Children.Add(hdrWyd);
+
+            Grid.SetRow(headerGrid, 0);
+            tableGrid.Children.Add(headerGrid);
+
+            // Lista odbiorców
+            var scrollViewer = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+            var listPanel = new StackPanel();
+
+            if (odbiorcy.Any())
+            {
+                int lp = startLp;
+                foreach (var odbiorca in odbiorcy)
+                {
+                    var rowBorder = new Border
+                    {
+                        Background = new SolidColorBrush(lp % 2 == 0 ? Color.FromRgb(38, 48, 58) : Color.FromRgb(32, 42, 52)),
+                        Padding = new Thickness(5, 4, 5, 4)
+                    };
+                    var rowGrid = new Grid();
+                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
+                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
+
+                    var lpTxt = new TextBlock { Text = $"{lp}.", FontSize = 13, Foreground = new SolidColorBrush(Color.FromRgb(130, 140, 150)), Margin = new Thickness(5, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
+                    Grid.SetColumn(lpTxt, 0); rowGrid.Children.Add(lpTxt);
+
+                    var nazwaTxt = new TextBlock { Text = odbiorca.NazwaOdbiorcy ?? "Nieznany", FontSize = 13, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+                    Grid.SetColumn(nazwaTxt, 1); rowGrid.Children.Add(nazwaTxt);
+
+                    var zamTxt = new TextBlock { Text = $"{odbiorca.Zamowione:N0} kg", FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(46, 204, 113)), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
+                    Grid.SetColumn(zamTxt, 2); rowGrid.Children.Add(zamTxt);
+
+                    var wydTxt = new TextBlock { Text = $"{odbiorca.Wydane:N0} kg", FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 5, 0) };
+                    Grid.SetColumn(wydTxt, 3); rowGrid.Children.Add(wydTxt);
+
+                    rowBorder.Child = rowGrid;
+                    listPanel.Children.Add(rowBorder);
+                    lp++;
+                }
+            }
+
+            scrollViewer.Content = listPanel;
+            Grid.SetRow(scrollViewer, 1);
+            tableGrid.Children.Add(scrollViewer);
+
+            // Suma (tylko dla pierwszej tablicy)
+            if (showSuma)
+            {
+                var sumaBorder = new Border { Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)), Padding = new Thickness(5, 5, 5, 5) };
+                var sumaGrid = new Grid();
+                sumaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                sumaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                sumaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
+                sumaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
+
+                var sumaTxt = new TextBlock { Text = "SUMA:", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = Brushes.White, Margin = new Thickness(5, 0, 0, 0) };
+                Grid.SetColumn(sumaTxt, 1); sumaGrid.Children.Add(sumaTxt);
+
+                var sumaZamTxt = new TextBlock { Text = $"{sumaZam:N0} kg", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Right };
+                Grid.SetColumn(sumaZamTxt, 2); sumaGrid.Children.Add(sumaZamTxt);
+
+                var sumaWydTxt = new TextBlock { Text = $"{sumaWyd:N0} kg", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 5, 0) };
+                Grid.SetColumn(sumaWydTxt, 3); sumaGrid.Children.Add(sumaWydTxt);
+
+                sumaBorder.Child = sumaGrid;
+                Grid.SetRow(sumaBorder, 2);
+                tableGrid.Children.Add(sumaBorder);
+            }
+
+            tableBorder.Child = tableGrid;
+            return tableBorder;
         }
 
         private Border CreateCompactOdbiorcySection(string title, List<OdbiorcaZamowienie> odbiorcy, bool isWarning)
