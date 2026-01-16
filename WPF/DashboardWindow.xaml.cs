@@ -4116,89 +4116,50 @@ namespace Kalendarz1.WPF
                     produktyGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
                 }
 
-                // Wyświetl produkty jako wielkie kafle
+                // Wyświetl produkty jako wielkie kafle - tylko obraz i tekst z cieniem
                 for (int i = 0; i < maxProdukty; i++)
                 {
                     var prod = _productDataList[i];
                     int prodIndex = i; // Capture for closure
                     bool isSelected = (i == viewIndex);
 
-                    // Duży kafel produktu
+                    // Duży kafel produktu - obraz jako tło
+                    var prodImage = GetProductImage(prod.Id);
                     var prodBorder = new Border
                     {
-                        Background = isSelected
-                            ? new LinearGradientBrush(Color.FromRgb(41, 128, 185), Color.FromRgb(52, 152, 219), 90)
-                            : new LinearGradientBrush(Color.FromRgb(45, 52, 62), Color.FromRgb(55, 62, 72), 90),
+                        Background = prodImage != null
+                            ? (Brush)new ImageBrush { ImageSource = prodImage, Stretch = Stretch.UniformToFill }
+                            : new SolidColorBrush(Color.FromRgb(80, 90, 100)),
                         CornerRadius = new CornerRadius(12),
-                        BorderBrush = new SolidColorBrush(isSelected ? Color.FromRgb(52, 152, 219) : Color.FromRgb(70, 80, 90)),
-                        BorderThickness = new Thickness(isSelected ? 4 : 2),
+                        BorderBrush = new SolidColorBrush(isSelected ? Color.FromRgb(52, 152, 219) : Color.FromRgb(100, 110, 120)),
+                        BorderThickness = new Thickness(isSelected ? 5 : 2),
                         Margin = new Thickness(3),
                         Cursor = System.Windows.Input.Cursors.Hand
                     };
 
-                    // Zawartość kafla - obrazek na całą wysokość z nazwą na dole
-                    var kafelGrid = new Grid();
-
-                    // Obrazek produktu jako tło
-                    var prodImage = GetProductImage(prod.Id);
-                    if (prodImage != null)
-                    {
-                        kafelGrid.Background = new ImageBrush
-                        {
-                            ImageSource = prodImage,
-                            Stretch = Stretch.UniformToFill,
-                            Opacity = isSelected ? 0.9 : 0.7
-                        };
-                    }
-                    else
-                    {
-                        // Ikona zastępcza
-                        kafelGrid.Children.Add(new TextBlock
-                        {
-                            Text = "📦",
-                            FontSize = 60,
-                            HorizontalAlignment = HorizontalAlignment.Center,
-                            VerticalAlignment = VerticalAlignment.Center,
-                            Foreground = new SolidColorBrush(Color.FromRgb(100, 110, 120)),
-                            Opacity = 0.5
-                        });
-                    }
-
-                    // Panel z nazwą i bilansem na dole z półprzezroczystym tłem
-                    var infoPanel = new Border
-                    {
-                        Background = new SolidColorBrush(Color.FromArgb(220, 25, 30, 38)),
-                        VerticalAlignment = VerticalAlignment.Bottom,
-                        Padding = new Thickness(10, 8, 10, 8)
-                    };
-                    var infoStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-
-                    // Nazwa produktu - duża czcionka
-                    infoStack.Children.Add(new TextBlock
+                    // Tylko tekst z cieniem na dole
+                    var nameText = new TextBlock
                     {
                         Text = prod.Kod,
-                        FontSize = isSelected ? 22 : 18,
+                        FontSize = isSelected ? 24 : 20,
                         FontWeight = FontWeights.Bold,
                         Foreground = Brushes.White,
                         HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Bottom,
+                        Margin = new Thickness(5, 0, 5, 12),
                         TextTrimming = TextTrimming.CharacterEllipsis
-                    });
-
-                    // Bilans
-                    decimal prodBilans = (prod.Fakt > 0 ? prod.Fakt : prod.Plan) + prod.Stan - prod.Zamowienia;
-                    infoStack.Children.Add(new TextBlock
+                    };
+                    // Efekt cienia
+                    nameText.Effect = new System.Windows.Media.Effects.DropShadowEffect
                     {
-                        Text = $"{prodBilans:N0} kg",
-                        FontSize = isSelected ? 18 : 14,
-                        FontWeight = FontWeights.SemiBold,
-                        Foreground = new SolidColorBrush(prodBilans >= 0 ? Color.FromRgb(46, 204, 113) : Color.FromRgb(231, 76, 60)),
-                        HorizontalAlignment = HorizontalAlignment.Center
-                    });
+                        Color = Colors.Black,
+                        Direction = 315,
+                        ShadowDepth = 3,
+                        Opacity = 0.9,
+                        BlurRadius = 6
+                    };
 
-                    infoPanel.Child = infoStack;
-                    kafelGrid.Children.Add(infoPanel);
-
-                    prodBorder.Child = kafelGrid;
+                    prodBorder.Child = nameText;
                     prodBorder.MouseLeftButtonDown += (s, e) => { viewIndex = prodIndex; refreshContent(); };
 
                     Grid.SetRow(prodBorder, i);
