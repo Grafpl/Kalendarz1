@@ -250,11 +250,23 @@ namespace Kalendarz1
                 float percent = (float)enabledCount / totalCount;
                 int fillWidth = (int)(barWidth * percent);
 
-                using (var brush = new LinearGradientBrush(
-                    new Point(10, 0), new Point(10 + fillWidth, 0),
-                    Color.FromArgb(76, 175, 80), Color.FromArgb(129, 199, 132)))
+                // Zabezpieczenie przed OutOfMemoryException gdy fillWidth <= 0
+                if (fillWidth > 1)
                 {
-                    e.Graphics.FillRectangle(brush, 10, barY, fillWidth, barHeight);
+                    using (var brush = new LinearGradientBrush(
+                        new Point(10, 0), new Point(10 + fillWidth, 0),
+                        Color.FromArgb(76, 175, 80), Color.FromArgb(129, 199, 132)))
+                    {
+                        e.Graphics.FillRectangle(brush, 10, barY, fillWidth, barHeight);
+                    }
+                }
+                else if (fillWidth == 1)
+                {
+                    // Dla bardzo małych wartości użyj jednolitego koloru
+                    using (var brush = new SolidBrush(Color.FromArgb(76, 175, 80)))
+                    {
+                        e.Graphics.FillRectangle(brush, 10, barY, fillWidth, barHeight);
+                    }
                 }
             }
 
@@ -269,7 +281,7 @@ namespace Kalendarz1
     }
 
     // ════════════════════════════════════════════════════════════════════════════════
-    // ANIMOWANY PRZYCISK - Z efektami hover i kliknięcia
+    // ANIMOWANY PRZYCISK - Profesjonalny wygląd z gradientem i cieniem
     // ════════════════════════════════════════════════════════════════════════════════
     public class AnimatedButton : Panel
     {
@@ -291,36 +303,36 @@ namespace Kalendarz1
         {
             this.text = text;
             this.baseColor = color;
-            this.hoverColor = ControlPaint.Light(color, 0.15f);
-            this.pressColor = ControlPaint.Dark(color, 0.1f);
+            this.hoverColor = ControlPaint.Light(color, 0.2f);
+            this.pressColor = ControlPaint.Dark(color, 0.15f);
             this.font = new Font("Segoe UI", 9, FontStyle.Bold);
 
-            this.Size = new Size(text.Length * 8 + 24, 32);
+            this.Size = new Size(text.Length * 8 + 28, 34);
             this.BackColor = baseColor;
             this.Cursor = Cursors.Hand;
             this.DoubleBuffered = true;
 
             this.MouseEnter += (s, e) => {
                 isHovered = true;
-                UIAnimator.AnimateColor(this, BackColor, hoverColor, 100);
+                Invalidate();
             };
 
             this.MouseLeave += (s, e) => {
                 isHovered = false;
                 isPressed = false;
-                UIAnimator.AnimateColor(this, BackColor, baseColor, 100);
+                Invalidate();
             };
 
             this.MouseDown += (s, e) => {
                 isPressed = true;
                 rippleCenter = e.Location;
                 StartRipple();
-                this.BackColor = pressColor;
+                Invalidate();
             };
 
             this.MouseUp += (s, e) => {
                 isPressed = false;
-                this.BackColor = isHovered ? hoverColor : baseColor;
+                Invalidate();
                 Click?.Invoke(this, EventArgs.Empty);
             };
         }
@@ -331,7 +343,7 @@ namespace Kalendarz1
             rippleTimer?.Stop();
             rippleTimer = new Timer { Interval = 15 };
             rippleTimer.Tick += (s, e) => {
-                rippleSize += 8;
+                rippleSize += 10;
                 if (rippleSize > Math.Max(Width, Height) * 2)
                 {
                     rippleTimer.Stop();
@@ -344,21 +356,57 @@ namespace Kalendarz1
 
         protected override void OnPaint(PaintEventArgs e)
         {
-            base.OnPaint(e);
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
-            // Zaokrąglone tło
-            using (var path = GetRoundedRectPath(new Rectangle(0, 0, Width - 1, Height - 1), 4))
-            using (var brush = new SolidBrush(BackColor))
+            Color currentColor = isPressed ? pressColor : (isHovered ? hoverColor : baseColor);
+            int radius = 6;
+
+            // Cień pod przyciskiem
+            if (!isPressed)
             {
-                e.Graphics.FillPath(brush, path);
+                using (var shadowPath = GetRoundedRectPath(new Rectangle(2, 3, Width - 4, Height - 4), radius))
+                using (var shadowBrush = new SolidBrush(Color.FromArgb(40, 0, 0, 0)))
+                {
+                    e.Graphics.FillPath(shadowBrush, shadowPath);
+                }
+            }
+
+            // Tło z gradientem
+            using (var path = GetRoundedRectPath(new Rectangle(0, isPressed ? 1 : 0, Width - 1, Height - 2), radius))
+            {
+                Color topColor = ControlPaint.Light(currentColor, 0.15f);
+                Color bottomColor = ControlPaint.Dark(currentColor, 0.05f);
+
+                using (var gradientBrush = new LinearGradientBrush(
+                    new Point(0, 0), new Point(0, Height),
+                    topColor, bottomColor))
+                {
+                    e.Graphics.FillPath(gradientBrush, path);
+                }
+
+                // Subtelna ramka
+                using (var borderPen = new Pen(Color.FromArgb(60, 0, 0, 0), 1))
+                {
+                    e.Graphics.DrawPath(borderPen, path);
+                }
+
+                // Highlight na górze (efekt szklany)
+                if (!isPressed)
+                {
+                    using (var highlightBrush = new LinearGradientBrush(
+                        new Point(0, 0), new Point(0, Height / 3),
+                        Color.FromArgb(50, 255, 255, 255), Color.FromArgb(0, 255, 255, 255)))
+                    {
+                        e.Graphics.FillPath(highlightBrush, path);
+                    }
+                }
             }
 
             // Efekt ripple
             if (rippleSize > 0)
             {
-                using (var brush = new SolidBrush(Color.FromArgb(30, 255, 255, 255)))
+                using (var brush = new SolidBrush(Color.FromArgb(40, 255, 255, 255)))
                 {
                     e.Graphics.FillEllipse(brush,
                         rippleCenter.X - rippleSize / 2,
@@ -367,13 +415,19 @@ namespace Kalendarz1
                 }
             }
 
-            // Tekst
-            using (var brush = new SolidBrush(Color.White))
+            // Tekst z cieniem
+            int yOffset = isPressed ? 1 : 0;
+            using (var shadowBrush = new SolidBrush(Color.FromArgb(80, 0, 0, 0)))
+            using (var textBrush = new SolidBrush(Color.White))
             {
                 var size = e.Graphics.MeasureString(text, font);
-                e.Graphics.DrawString(text, font, brush,
-                    (Width - size.Width) / 2,
-                    (Height - size.Height) / 2);
+                float x = (Width - size.Width) / 2;
+                float y = (Height - size.Height) / 2 + yOffset;
+
+                // Cień tekstu
+                e.Graphics.DrawString(text, font, shadowBrush, x + 1, y + 1);
+                // Tekst
+                e.Graphics.DrawString(text, font, textBrush, x, y);
             }
         }
 
@@ -549,10 +603,6 @@ namespace Kalendarz1
             selectNoneBtn.Click += (s, e) => SetAllPermissions(false);
             topToolbar.Controls.Add(selectNoneBtn);
 
-            var invertBtn = CreateAnimatedButton("⇄ Odwróć", Colors.Warning, ref btnX);
-            invertBtn.Click += InvertPermissions_Click;
-            topToolbar.Controls.Add(invertBtn);
-
             btnX += 15;
 
             var addUserBtn = CreateAnimatedButton("➕ Nowy", Color.FromArgb(41, 128, 185), ref btnX);
@@ -572,6 +622,10 @@ namespace Kalendarz1
             var contactBtn = CreateAnimatedButton("📞 Kontakt", Color.FromArgb(22, 160, 133), ref btnX);
             contactBtn.Click += EditContactButton_Click;
             topToolbar.Controls.Add(contactBtn);
+
+            var avatarBtn = CreateAnimatedButton("🖼 Avatar", Color.FromArgb(233, 30, 99), ref btnX);
+            avatarBtn.Click += ImportAvatarButton_Click;
+            topToolbar.Controls.Add(avatarBtn);
 
             btnX += 15;
 
@@ -1014,18 +1068,40 @@ namespace Kalendarz1
                 Tag = user
             };
 
-            // Avatar z inicjałami - kompaktowy
+            // Avatar - zaimportowany lub domyślny z inicjałami
             string initials = GetInitials(user.Name);
             Color avatarColor = GetAvatarColor(user.ID);
+            string currentUserId = user.ID; // Lokalna kopia dla lambda
 
             var avatarPanel = new Panel
             {
                 Size = new Size(32, 32),
                 Location = new Point(4, 4),
-                BackColor = Color.Transparent
+                BackColor = Color.Transparent,
+                Tag = "avatar" // Tag dla RefreshUserCard
             };
             avatarPanel.Paint += (s, e) => {
                 e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+
+                // Sprawdź czy jest zaimportowany avatar
+                if (UserAvatarManager.HasAvatar(currentUserId))
+                {
+                    try
+                    {
+                        using (var avatar = UserAvatarManager.GetAvatarRounded(currentUserId, 32))
+                        {
+                            if (avatar != null)
+                            {
+                                e.Graphics.DrawImage(avatar, 0, 0, 32, 32);
+                                return;
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                // Domyślny avatar z inicjałami
                 using (SolidBrush brush = new SolidBrush(avatarColor))
                     e.Graphics.FillEllipse(brush, 0, 0, 31, 31);
                 using (Font font = new Font("Segoe UI", 10, FontStyle.Bold))
@@ -1489,6 +1565,99 @@ namespace Kalendarz1
 
             var dialog = new EditOperatorContactDialog(connectionString, selectedUserId, userName);
             dialog.ShowDialog();
+        }
+
+        // ════════════════════════════════════════════════════════════════════════════════
+        // IMPORT AVATARA UŻYTKOWNIKA
+        // ════════════════════════════════════════════════════════════════════════════════
+        private void ImportAvatarButton_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(selectedUserId))
+            {
+                ToastNotification.Show(this, "Wybierz użytkownika", ToastNotification.ToastType.Warning);
+                return;
+            }
+
+            var selectedUser = allUsers.FirstOrDefault(u => u.ID == selectedUserId);
+            string userName = selectedUser?.Name ?? "Nieznany";
+
+            // Menu kontekstowe z opcjami
+            var menu = new ContextMenuStrip();
+            menu.BackColor = Color.White;
+            menu.Font = new Font("Segoe UI", 10);
+
+            var importItem = new ToolStripMenuItem("📷 Importuj zdjęcie...");
+            importItem.Click += (s, ev) => ImportAvatarFromFile(selectedUserId, userName);
+            menu.Items.Add(importItem);
+
+            if (UserAvatarManager.HasAvatar(selectedUserId))
+            {
+                var removeItem = new ToolStripMenuItem("🗑 Usuń avatar");
+                removeItem.Click += (s, ev) => {
+                    if (UserAvatarManager.DeleteAvatar(selectedUserId))
+                    {
+                        ToastNotification.Show(this, "Avatar usunięty", ToastNotification.ToastType.Info);
+                        RefreshUserCard(selectedUserId);
+                    }
+                };
+                menu.Items.Add(removeItem);
+            }
+
+            menu.Items.Add(new ToolStripSeparator());
+
+            var infoItem = new ToolStripMenuItem("ℹ Informacje o avatarach") { Enabled = false };
+            menu.Items.Add(infoItem);
+
+            var btn = sender as Control;
+            menu.Show(btn, new Point(0, btn.Height));
+        }
+
+        private void ImportAvatarFromFile(string userId, string userName)
+        {
+            using (var openFileDialog = new OpenFileDialog())
+            {
+                openFileDialog.Title = $"Wybierz avatar dla {userName}";
+                openFileDialog.Filter = "Pliki graficzne|*.jpg;*.jpeg;*.png;*.bmp;*.gif|Wszystkie pliki|*.*";
+                openFileDialog.FilterIndex = 1;
+
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    try
+                    {
+                        if (UserAvatarManager.SaveAvatar(userId, openFileDialog.FileName))
+                        {
+                            ToastNotification.Show(this, $"Avatar zapisany dla {userName}", ToastNotification.ToastType.Success);
+                            RefreshUserCard(userId);
+                        }
+                        else
+                        {
+                            ToastNotification.Show(this, "Błąd podczas zapisywania avatara", ToastNotification.ToastType.Error);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Błąd podczas importowania avatara:\n{ex.Message}",
+                            "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
+        }
+
+        private void RefreshUserCard(string userId)
+        {
+            var user = allUsers.FirstOrDefault(u => u.ID == userId);
+            if (user?.Card != null)
+            {
+                // Odśwież panel avatara
+                foreach (Control c in user.Card.Controls)
+                {
+                    if (c.Tag?.ToString() == "avatar")
+                    {
+                        c.Invalidate();
+                        break;
+                    }
+                }
+            }
         }
 
         // ════════════════════════════════════════════════════════════════════════════════
