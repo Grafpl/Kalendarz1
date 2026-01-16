@@ -62,33 +62,34 @@ namespace Kalendarz1.Services
 
                 var csv = new StringBuilder();
 
-                // === POZYCJE (BEZ NAGLOWKA!) ===
-                // UWAGA: Portal IRZplus NIE potrzebuje wiersza naglowka!
-                // Kolejnosc kolumn: Lp;NumerIdent;LiczbaSztuk;Masa;TypZdarzenia;Data;KrajWwozu;DataKupna;Przyjete;Uboj
+                // === POZYCJE (BEZ NAGLOWKA, BEZ Lp!) ===
+                // Portal IRZplus oczekuje kolumn w kolejnosci POL FORMULARZA:
+                // 1. Numer identyfikacyjny/numer partii = SIEDLISKO HODOWCY (nie rzezni!)
+                // 2. Liczba sztuk drobiu
+                // 3. Masa drobiu poddanego ubojowi (kg)
+                // 4. Typ zdarzenia (UR)
+                // 5. Data zdarzenia (DD-MM-RRRR)
+                // 6. Kraj wwozu (pusty dla krajowych)
+                // 7. Data kupna/wwozu (DD-MM-RRRR)
+                // 8. Przyjete z dzialalnosci = SIEDLISKO HODOWCY
+                // 9. Uboj rytualny (T/N)
                 foreach (var poz in zgloszenie.Pozycje.OrderBy(p => p.Lp))
                 {
-                    // Data zdarzenia w formacie DD-MM-RRRR
                     var dataZdarzeniaStr = poz.DataZdarzenia.ToString("dd-MM-yyyy");
-
-                    // Masa jako liczba calkowita BEZ separatorow tysiecy
                     var masaStr = ((int)Math.Round(poz.MasaKg)).ToString(CultureInfo.InvariantCulture);
-
-                    // Numer siedliska hodowcy - usun podwojne -001 jesli wystepuje
                     var numerSiedliska = NormalizujNumerSiedliska(poz.PrzyjeteZDzialalnosci);
 
-                    // Kolejnosc kolumn zgodna z portalem!
                     csv.AppendLine(string.Join(";", new[]
                     {
-                        poz.Lp.ToString(),                            // Kol 1: Lp
-                        NUMER_RZEZNI,                                  // Kol 2: Nr identyfikacyjny = NUMER RZEZNI
-                        poz.LiczbaSztuk.ToString(),                    // Kol 3: Liczba sztuk
-                        masaStr,                                       // Kol 4: Masa (liczba calkowita!)
-                        poz.TypZdarzenia ?? "UR",                      // Kol 5: Typ zdarzenia
-                        dataZdarzeniaStr,                              // Kol 6: Data zdarzenia
-                        poz.KrajWwozu ?? "",                           // Kol 7: Kraj wwozu
-                        dataZdarzeniaStr,                              // Kol 8: Data kupna = data zdarzenia
-                        numerSiedliska,                                // Kol 9: Przyjete z dzialalnosci
-                        poz.UbojRytualny ? "T" : "N"                   // Kol 10: Uboj rytualny
+                        numerSiedliska,                               // Kol 1: Numer identyfikacyjny = SIEDLISKO HODOWCY
+                        poz.LiczbaSztuk.ToString(),                   // Kol 2: Liczba sztuk
+                        masaStr,                                      // Kol 3: Masa (liczba calkowita!)
+                        poz.TypZdarzenia ?? "UR",                     // Kol 4: Typ zdarzenia
+                        dataZdarzeniaStr,                             // Kol 5: Data zdarzenia
+                        poz.KrajWwozu ?? "",                          // Kol 6: Kraj wwozu
+                        dataZdarzeniaStr,                             // Kol 7: Data kupna = data zdarzenia
+                        numerSiedliska,                               // Kol 8: Przyjete z dzialalnosci
+                        poz.UbojRytualny ? "T" : "N"                  // Kol 9: Uboj rytualny
                     }));
                 }
 
@@ -336,25 +337,30 @@ namespace Kalendarz1.Services
                 // Masa jako liczba calkowita BEZ separatorow
                 var masaStr = ((int)Math.Round(masaKg)).ToString(CultureInfo.InvariantCulture);
 
-                // === BUDUJ CSV (BEZ NAGLOWKA!) ===
-                // UWAGA: Portal IRZplus NIE potrzebuje wiersza naglowka!
-                // Naglowek jest traktowany jako dane i tworzy pusta pozycje!
+                // === BUDUJ CSV (BEZ NAGLOWKA, BEZ Lp!) ===
+                // Portal IRZplus oczekuje kolumn w kolejnosci POL FORMULARZA (lewo-prawo, gora-dol):
+                // 1. Numer identyfikacyjny/numer partii = SIEDLISKO HODOWCY (nie rzezni!)
+                // 2. Liczba sztuk drobiu
+                // 3. Masa drobiu poddanego ubojowi (kg)
+                // 4. Typ zdarzenia (UR)
+                // 5. Data zdarzenia (DD-MM-RRRR)
+                // 6. Kraj wwozu (pusty dla krajowych)
+                // 7. Data kupna/wwozu (DD-MM-RRRR)
+                // 8. Przyjete z dzialalnosci = SIEDLISKO HODOWCY
+                // 9. Uboj rytualny (T/N)
                 var csv = new StringBuilder();
 
-                // Dane - JEDNA linia (jeden transport) - BEZ NAGLOWKA!
-                // Kolejnosc kolumn: Lp;NumerIdent;LiczbaSztuk;Masa;TypZdarzenia;Data;KrajWwozu;DataKupna;Przyjete;Uboj
                 csv.AppendLine(string.Join(";", new[]
                 {
-                    "1",                                // Kol 1: Lp
-                    NUMER_RZEZNI,                       // Kol 2: Nr identyfikacyjny = NUMER RZEZNI
-                    liczbaSztuk.ToString(),             // Kol 3: Liczba sztuk
-                    masaStr,                            // Kol 4: Masa (liczba calkowita!)
-                    "UR",                               // Kol 5: Typ zdarzenia
-                    dataZdarzeniaStr,                   // Kol 6: Data zdarzenia
-                    "",                                 // Kol 7: Kraj wwozu (pusty dla krajowych)
-                    dataZdarzeniaStr,                   // Kol 8: Data kupna = data zdarzenia
-                    numerSiedliskaHodowcy,              // Kol 9: Przyjete z dzialalnosci
-                    "N"                                 // Kol 10: Uboj rytualny
+                    numerSiedliskaHodowcy,              // Kol 1: Numer identyfikacyjny = SIEDLISKO HODOWCY
+                    liczbaSztuk.ToString(),             // Kol 2: Liczba sztuk
+                    masaStr,                            // Kol 3: Masa (liczba calkowita!)
+                    "UR",                               // Kol 4: Typ zdarzenia
+                    dataZdarzeniaStr,                   // Kol 5: Data zdarzenia
+                    "",                                 // Kol 6: Kraj wwozu (pusty dla krajowych)
+                    dataZdarzeniaStr,                   // Kol 7: Data kupna = data zdarzenia
+                    numerSiedliskaHodowcy,              // Kol 8: Przyjete z dzialalnosci = SIEDLISKO HODOWCY
+                    "N"                                 // Kol 9: Uboj rytualny
                 }));
 
                 // Zapisz CSV z UTF-8 BOM
@@ -668,10 +674,11 @@ namespace Kalendarz1.Services
 
                 var csv = new StringBuilder();
 
-                // Dane testowe BEZ NAGLOWKA - portal nie potrzebuje naglowka!
-                // Kolejnosc kolumn: Lp;NumerIdent;LiczbaSztuk;Masa;TypZdarzenia;Data;KrajWwozu;DataKupna;Przyjete;Uboj
+                // Dane testowe BEZ NAGLOWKA, BEZ Lp!
+                // Kolejnosc: NumerSiedliska;LiczbaSztuk;Masa;TypZdarzenia;Data;KrajWwozu;DataKupna;Przyjete;Uboj
                 var dataTest = DateTime.Now.ToString("dd-MM-yyyy");
-                csv.AppendLine($"1;{NUMER_RZEZNI};4173;13851;UR;{dataTest};;{dataTest};068736945-001;N");
+                // Przykladowe siedlisko hodowcy: 068736945-001
+                csv.AppendLine($"068736945-001;4173;13851;UR;{dataTest};;{dataTest};068736945-001;N");
 
                 File.WriteAllText(filePath, csv.ToString(), new UTF8Encoding(true));
 
@@ -1191,8 +1198,8 @@ namespace Kalendarz1.Services
                 return sb.ToString();
             }
 
-            // Generuj CSV dokladnie tak jak w eksporcie - BEZ NAGLOWKA!
-            // Kolejnosc kolumn: Lp;NumerIdent;LiczbaSztuk;Masa;TypZdarzenia;Data;KrajWwozu;DataKupna;Przyjete;Uboj
+            // Generuj CSV dokladnie tak jak w eksporcie - BEZ NAGLOWKA, BEZ Lp!
+            // Kolejnosc: NumerSiedliska;LiczbaSztuk;Masa;TypZdarzenia;Data;KrajWwozu;DataKupna;Przyjete;Uboj
             var csv = new StringBuilder();
 
             foreach (var poz in zgloszenie.Pozycje.OrderBy(p => p.Lp))
@@ -1203,16 +1210,15 @@ namespace Kalendarz1.Services
 
                 csv.AppendLine(string.Join(";", new[]
                 {
-                    poz.Lp.ToString(),
-                    NUMER_RZEZNI,
-                    poz.LiczbaSztuk.ToString(),
-                    masaStr,
-                    poz.TypZdarzenia ?? "UR",
-                    dataZdarzeniaStr,
-                    poz.KrajWwozu ?? "",
-                    dataZdarzeniaStr,
-                    numerSiedliska,
-                    poz.UbojRytualny ? "T" : "N"
+                    numerSiedliska,                               // Kol 1: Numer identyfikacyjny = SIEDLISKO HODOWCY
+                    poz.LiczbaSztuk.ToString(),                   // Kol 2: Liczba sztuk
+                    masaStr,                                      // Kol 3: Masa
+                    poz.TypZdarzenia ?? "UR",                     // Kol 4: Typ zdarzenia
+                    dataZdarzeniaStr,                             // Kol 5: Data zdarzenia
+                    poz.KrajWwozu ?? "",                          // Kol 6: Kraj wwozu
+                    dataZdarzeniaStr,                             // Kol 7: Data kupna
+                    numerSiedliska,                               // Kol 8: Przyjete z dzialalnosci
+                    poz.UbojRytualny ? "T" : "N"                  // Kol 9: Uboj rytualny
                 }));
             }
 
