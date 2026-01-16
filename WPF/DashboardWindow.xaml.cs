@@ -3920,100 +3920,213 @@ namespace Kalendarz1.WPF
 
         /// <summary>
         /// Wyświetla dialog do symulacji redukcji ilości zamówienia.
-        /// Pozwala zmniejszyć o procent lub o konkretną ilość kg.
+        /// Pozwala ustawić docelową ilość w kg lub jako procent oryginalnego zamówienia.
         /// </summary>
         private void ShowReductionDialog(string odbiorcaNazwa, decimal aktualnIlosc, decimal obecnaRedukcja, Action<decimal> onApply)
         {
+            // Oblicz aktualną wartość po symulacji
+            decimal aktualnaWartosc = aktualnIlosc + obecnaRedukcja;
+
             var dialog = new Window
             {
-                Title = "Symulacja redukcji",
-                Width = 420,
-                Height = 380,
+                Title = "Symulacja - ustaw docelową ilość",
+                Width = 550,
+                Height = 520,
                 WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                Background = new SolidColorBrush(Color.FromRgb(245, 245, 245)),
+                Background = new SolidColorBrush(Color.FromRgb(45, 52, 54)),
                 ResizeMode = ResizeMode.NoResize
             };
 
-            var mainStack = new StackPanel { Margin = new Thickness(25) };
+            var mainStack = new StackPanel { Margin = new Thickness(30) };
 
             // Nagłówek
             mainStack.Children.Add(new TextBlock
             {
-                Text = "📉 Symulacja redukcji zamówienia",
-                FontSize = 18,
+                Text = "📊 Symulacja zamówienia",
+                FontSize = 22,
                 FontWeight = FontWeights.Bold,
-                Margin = new Thickness(0, 0, 0, 15)
+                Foreground = Brushes.White,
+                Margin = new Thickness(0, 0, 0, 20)
             });
 
             // Informacja o odbiorcy
             var infoBorder = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)),
-                CornerRadius = new CornerRadius(8),
-                Padding = new Thickness(15, 10, 15, 10),
-                Margin = new Thickness(0, 0, 0, 20)
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(20, 15, 20, 15),
+                Margin = new Thickness(0, 0, 0, 25)
             };
             var infoStack = new StackPanel();
-            infoStack.Children.Add(new TextBlock { Text = odbiorcaNazwa, FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Brushes.White });
-            infoStack.Children.Add(new TextBlock { Text = $"Aktualne zamówienie: {aktualnIlosc:N0} kg", FontSize = 13, Foreground = new SolidColorBrush(Color.FromRgb(189, 195, 199)), Margin = new Thickness(0, 5, 0, 0) });
+            infoStack.Children.Add(new TextBlock
+            {
+                Text = odbiorcaNazwa,
+                FontSize = 18,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                TextWrapping = TextWrapping.Wrap
+            });
+
+            var infoGrid = new Grid { Margin = new Thickness(0, 10, 0, 0) };
+            infoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            infoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var origLabel = new TextBlock { Text = "Oryginalne zamówienie:", FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)) };
+            var origValue = new TextBlock { Text = $"{aktualnIlosc:N0} kg", FontSize = 16, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White };
+            var origStack = new StackPanel();
+            origStack.Children.Add(origLabel);
+            origStack.Children.Add(origValue);
+            Grid.SetColumn(origStack, 0);
+            infoGrid.Children.Add(origStack);
+
             if (obecnaRedukcja != 0)
-                infoStack.Children.Add(new TextBlock { Text = $"Obecna symulacja: {obecnaRedukcja:N0} kg", FontSize = 13, Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)), Margin = new Thickness(0, 2, 0, 0) });
+            {
+                var simLabel = new TextBlock { Text = "Obecna symulacja:", FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)) };
+                var simValue = new TextBlock { Text = $"{aktualnaWartosc:N0} kg ({obecnaRedukcja:+0;-0;0} kg)", FontSize = 16, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)) };
+                var simStack = new StackPanel();
+                simStack.Children.Add(simLabel);
+                simStack.Children.Add(simValue);
+                Grid.SetColumn(simStack, 1);
+                infoGrid.Children.Add(simStack);
+            }
+            infoStack.Children.Add(infoGrid);
             infoBorder.Child = infoStack;
             mainStack.Children.Add(infoBorder);
 
-            // Wybór trybu: procent lub kg
-            mainStack.Children.Add(new TextBlock { Text = "Redukcja o:", FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 10) });
+            // Wybór trybu: kg lub procent
+            mainStack.Children.Add(new TextBlock
+            {
+                Text = "Ustaw docelową ilość:",
+                FontSize = 16,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White,
+                Margin = new Thickness(0, 0, 0, 15)
+            });
 
-            var modePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 15) };
-            var radioPercent = new RadioButton { Content = "Procent (%)", FontSize = 14, IsChecked = true, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 30, 0) };
-            var radioKg = new RadioButton { Content = "Kilogramy (kg)", FontSize = 14, VerticalAlignment = VerticalAlignment.Center };
-            modePanel.Children.Add(radioPercent);
+            var modePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 20) };
+            var radioKg = new RadioButton
+            {
+                Content = "Ilość w kg",
+                FontSize = 15,
+                IsChecked = true,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 40, 0),
+                Foreground = Brushes.White
+            };
+            var radioPercent = new RadioButton
+            {
+                Content = "Procent oryginalnego (%)",
+                FontSize = 15,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = Brushes.White
+            };
             modePanel.Children.Add(radioKg);
+            modePanel.Children.Add(radioPercent);
             mainStack.Children.Add(modePanel);
 
-            // Pole wprowadzania wartości
-            var inputPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
-            var txtValue = new TextBox { Width = 100, FontSize = 16, Padding = new Thickness(8, 5, 8, 5), Text = obecnaRedukcja != 0 ? $"{Math.Abs(obecnaRedukcja):N0}" : "" };
-            var lblUnit = new TextBlock { Text = "%", FontSize = 16, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0) };
+            // Pole wprowadzania wartości - większe
+            var inputPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 15) };
+            var txtValue = new TextBox
+            {
+                Width = 180,
+                FontSize = 24,
+                Padding = new Thickness(15, 10, 15, 10),
+                Text = obecnaRedukcja != 0 ? $"{aktualnaWartosc:N0}" : $"{aktualnIlosc:N0}",
+                Background = new SolidColorBrush(Color.FromRgb(99, 110, 114)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(2),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(52, 152, 219))
+            };
+            var lblUnit = new TextBlock
+            {
+                Text = "kg",
+                FontSize = 24,
+                FontWeight = FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(15, 0, 0, 0),
+                Foreground = Brushes.White
+            };
             inputPanel.Children.Add(txtValue);
             inputPanel.Children.Add(lblUnit);
             mainStack.Children.Add(inputPanel);
 
-            // Aktualizuj jednostkę przy zmianie trybu
-            radioPercent.Checked += (s, e) => lblUnit.Text = "%";
-            radioKg.Checked += (s, e) => lblUnit.Text = "kg";
+            // Aktualizuj jednostkę i wartość przy zmianie trybu
+            radioKg.Checked += (s, e) =>
+            {
+                lblUnit.Text = "kg";
+                // Konwertuj z procentu na kg
+                if (decimal.TryParse(txtValue.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal percent))
+                {
+                    decimal kgValue = Math.Round(aktualnIlosc * percent / 100, 0);
+                    txtValue.Text = $"{kgValue:N0}";
+                }
+            };
+            radioPercent.Checked += (s, e) =>
+            {
+                lblUnit.Text = "%";
+                // Konwertuj z kg na procent
+                if (decimal.TryParse(txtValue.Text.Replace(",", ".").Replace(" ", ""), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal kg) && aktualnIlosc > 0)
+                {
+                    decimal percent = Math.Round(kg / aktualnIlosc * 100, 0);
+                    txtValue.Text = $"{percent:N0}";
+                }
+            };
 
             // Podgląd wyniku
             var previewBorder = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(241, 196, 15)),
-                CornerRadius = new CornerRadius(8),
-                Padding = new Thickness(15, 10, 15, 10),
-                Margin = new Thickness(0, 10, 0, 20)
+                Background = new SolidColorBrush(Color.FromRgb(39, 174, 96)),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(20, 15, 20, 15),
+                Margin = new Thickness(0, 10, 0, 25)
             };
-            var previewText = new TextBlock { FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(30, 30, 30)) };
-            previewBorder.Child = previewText;
+            var previewStack = new StackPanel();
+            var previewLabel = new TextBlock { Text = "Podgląd:", FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(200, 230, 200)) };
+            var previewText = new TextBlock { FontSize = 18, FontWeight = FontWeights.Bold, Foreground = Brushes.White };
+            var previewDiff = new TextBlock { FontSize = 14, Foreground = new SolidColorBrush(Color.FromRgb(200, 230, 200)), Margin = new Thickness(0, 5, 0, 0) };
+            previewStack.Children.Add(previewLabel);
+            previewStack.Children.Add(previewText);
+            previewStack.Children.Add(previewDiff);
+            previewBorder.Child = previewStack;
             mainStack.Children.Add(previewBorder);
 
             // Aktualizuj podgląd
             Action updatePreview = () =>
             {
-                if (decimal.TryParse(txtValue.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal value) && value > 0)
+                string cleanText = txtValue.Text.Replace(",", ".").Replace(" ", "");
+                if (decimal.TryParse(cleanText, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal value) && value >= 0)
                 {
-                    decimal reduction;
-                    if (radioPercent.IsChecked == true)
-                        reduction = -Math.Round(aktualnIlosc * value / 100, 0);
+                    decimal targetKg;
+                    if (radioKg.IsChecked == true)
+                        targetKg = value;
                     else
-                        reduction = -value;
+                        targetKg = Math.Round(aktualnIlosc * value / 100, 0);
 
-                    decimal newValue = Math.Max(0, aktualnIlosc + reduction);
-                    previewText.Text = $"Nowa ilość: {newValue:N0} kg (redukcja: {reduction:N0} kg)";
-                    previewBorder.Background = new SolidColorBrush(Color.FromRgb(241, 196, 15));
+                    // Ogranicz do oryginalnej wartości (nie można zwiększać)
+                    targetKg = Math.Min(targetKg, aktualnIlosc);
+                    targetKg = Math.Max(targetKg, 0);
+
+                    decimal reduction = targetKg - aktualnIlosc;
+
+                    previewText.Text = $"Docelowa ilość: {targetKg:N0} kg";
+
+                    if (reduction == 0)
+                    {
+                        previewDiff.Text = "Bez zmian (oryginalna ilość)";
+                        previewBorder.Background = new SolidColorBrush(Color.FromRgb(52, 152, 219));
+                    }
+                    else
+                    {
+                        decimal percentChange = aktualnIlosc > 0 ? (reduction / aktualnIlosc) * 100 : 0;
+                        previewDiff.Text = $"Zmiana: {reduction:+0;-0;0} kg ({percentChange:+0.0;-0.0;0}%)";
+                        previewBorder.Background = new SolidColorBrush(Color.FromRgb(241, 196, 15));
+                    }
                 }
                 else
                 {
-                    previewText.Text = "Wprowadź wartość większą od 0";
-                    previewBorder.Background = new SolidColorBrush(Color.FromRgb(189, 195, 199));
+                    previewText.Text = "Wprowadź prawidłową wartość";
+                    previewDiff.Text = "";
+                    previewBorder.Background = new SolidColorBrush(Color.FromRgb(231, 76, 60));
                 }
             };
             txtValue.TextChanged += (s, e) => updatePreview();
@@ -4026,8 +4139,9 @@ namespace Kalendarz1.WPF
 
             var btnApply = new Button
             {
-                Content = "Zastosuj symulację",
-                Padding = new Thickness(20, 10, 20, 10),
+                Content = "✓  Zastosuj",
+                Padding = new Thickness(25, 12, 25, 12),
+                FontSize = 15,
                 Background = new SolidColorBrush(Color.FromRgb(39, 174, 96)),
                 Foreground = Brushes.White,
                 BorderThickness = new Thickness(0),
@@ -4038,8 +4152,9 @@ namespace Kalendarz1.WPF
 
             var btnReset = new Button
             {
-                Content = "Resetuj",
-                Padding = new Thickness(15, 10, 15, 10),
+                Content = "↺  Przywróć oryginał",
+                Padding = new Thickness(20, 12, 20, 12),
+                FontSize = 15,
                 Background = new SolidColorBrush(Color.FromRgb(230, 126, 34)),
                 Foreground = Brushes.White,
                 BorderThickness = new Thickness(0),
@@ -4050,8 +4165,9 @@ namespace Kalendarz1.WPF
             var btnCancel = new Button
             {
                 Content = "Anuluj",
-                Padding = new Thickness(15, 10, 15, 10),
-                Background = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
+                Padding = new Thickness(20, 12, 20, 12),
+                FontSize = 15,
+                Background = new SolidColorBrush(Color.FromRgb(99, 110, 114)),
                 Foreground = Brushes.White,
                 BorderThickness = new Thickness(0),
                 Cursor = System.Windows.Input.Cursors.Hand
@@ -4059,17 +4175,20 @@ namespace Kalendarz1.WPF
 
             btnApply.Click += (s, e) =>
             {
-                if (decimal.TryParse(txtValue.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal value) && value > 0)
+                string cleanText = txtValue.Text.Replace(",", ".").Replace(" ", "");
+                if (decimal.TryParse(cleanText, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal value) && value >= 0)
                 {
-                    decimal reduction;
-                    if (radioPercent.IsChecked == true)
-                        reduction = -Math.Round(aktualnIlosc * value / 100, 0);
+                    decimal targetKg;
+                    if (radioKg.IsChecked == true)
+                        targetKg = value;
                     else
-                        reduction = -value;
+                        targetKg = Math.Round(aktualnIlosc * value / 100, 0);
 
-                    // Nie pozwól na redukcję większą niż zamówienie
-                    reduction = Math.Max(reduction, -aktualnIlosc);
+                    // Ogranicz do oryginalnej wartości
+                    targetKg = Math.Min(targetKg, aktualnIlosc);
+                    targetKg = Math.Max(targetKg, 0);
 
+                    decimal reduction = targetKg - aktualnIlosc;
                     onApply(reduction);
                     dialog.Close();
                 }
