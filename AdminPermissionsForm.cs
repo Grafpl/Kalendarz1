@@ -893,6 +893,8 @@ namespace Kalendarz1
                 new ModuleInfo("WstawieniaHodowcy", "Cykle Wstawień", "Rejestracja cykli hodowlanych piskląt", "Zaopatrzenie i Zakupy", "🐣"),
                 new ModuleInfo("TerminyDostawyZywca", "Kalendarz Dostaw Żywca", "Planowanie terminów dostaw żywca", "Zaopatrzenie i Zakupy", "📅"),
                 new ModuleInfo("PlachtyAviloga", "Matryca Transportu", "Planowanie tras transportu żywca z SMS", "Zaopatrzenie i Zakupy", "🚛"),
+                new ModuleInfo("PanelPortiera", "Panel Portiera", "Przyjęcie i ważenie żywca na bramie", "Zaopatrzenie i Zakupy", "🚧"),
+                new ModuleInfo("PanelLekarza", "Panel Lekarza", "Badanie weterynaryjne zwierząt", "Zaopatrzenie i Zakupy", "⚕️"),
                 new ModuleInfo("Specyfikacje", "Specyfikacja Surowca", "Parametry jakościowe surowca", "Zaopatrzenie i Zakupy", "📋"),
                 new ModuleInfo("DokumentyZakupu", "Dokumenty i Umowy", "Archiwum umów i certyfikatów", "Zaopatrzenie i Zakupy", "📑"),
                 new ModuleInfo("PlatnosciHodowcy", "Rozliczenia z Hodowcami", "Płatności dla dostawców żywca", "Zaopatrzenie i Zakupy", "💵"),
@@ -943,7 +945,9 @@ namespace Kalendarz1
                 // FINANSE I ZARZĄDZANIE - Szaroniebieski
                 // ═══════════════════════════════════════════════════════════════════════
                 new ModuleInfo("DaneFinansowe", "Wyniki Finansowe", "Przychody, koszty, marże", "Finanse i Zarządzanie", "💼"),
+                new ModuleInfo("CentrumSpotkan", "Centrum Spotkań", "Rejestr spotkań i wizyt", "Finanse i Zarządzanie", "📆"),
                 new ModuleInfo("NotatkiZeSpotkan", "Notatki Służbowe", "Notatki ze spotkań biznesowych", "Finanse i Zarządzanie", "📝"),
+                new ModuleInfo("KontrolaGodzin", "Kontrola Czasu Pracy", "Monitoring czasu pracy pracowników", "Finanse i Zarządzanie", "⏰"),
 
                 // ═══════════════════════════════════════════════════════════════════════
                 // ADMINISTRACJA SYSTEMU - Czerwony
@@ -998,7 +1002,11 @@ namespace Kalendarz1
                 [35] = "AdminPermissions",
                 [36] = "AnalizaPrzychodu",
                 [37] = "DashboardHandlowca",
-                [38] = "PanelFaktur"
+                [38] = "PanelFaktur",
+                [39] = "PanelPortiera",
+                [40] = "PanelLekarza",
+                [41] = "KontrolaGodzin",
+                [42] = "CentrumSpotkan"
             };
         }
 
