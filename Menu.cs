@@ -744,6 +744,9 @@ namespace Kalendarz1
         [DllImport("gdi32.dll")]
         private static extern bool DeleteObject(IntPtr hObject);
 
+        [DllImport("user32.dll")]
+        private static extern bool DestroyIcon(IntPtr hIcon);
+
         /// <summary>
         /// Tworzy ikonę Windows Forms z emoji i kolorowym tłem
         /// </summary>
@@ -776,8 +779,14 @@ namespace Kalendarz1
                         }
                     }
 
+                    // Utwórz ikonę i sklonuj ją, aby przetrwała po dispose bitmapy
                     IntPtr hIcon = bmp.GetHicon();
-                    return Icon.FromHandle(hIcon);
+                    using (Icon tempIcon = Icon.FromHandle(hIcon))
+                    {
+                        Icon clonedIcon = (Icon)tempIcon.Clone();
+                        DestroyIcon(hIcon);
+                        return clonedIcon;
+                    }
                 }
             }
             catch
