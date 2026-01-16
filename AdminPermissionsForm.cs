@@ -426,8 +426,10 @@ namespace Kalendarz1
             }
             catch { }
 
-            // Stała szerokość paneli
-            int panelWidth = 950;
+            // Szerokość dla dwóch kolumn
+            int totalWidth = permissionsPanel.ClientSize.Width - 30;
+            int columnWidth = (totalWidth - 10) / 2; // 10px gap między kolumnami
+            if (columnWidth < 400) columnWidth = 400;
 
             // Grupuj moduły według kategorii
             var groupedModules = modules.GroupBy(m => m.Category).OrderBy(g => GetCategoryOrder(g.Key));
@@ -438,23 +440,22 @@ namespace Kalendarz1
                 Color categoryColor = GetCategoryColor(category);
 
                 // ═══════════════════════════════════════════════════════════════════════
-                // NAGŁÓWEK KATEGORII - minimalny
+                // NAGŁÓWEK KATEGORII - rozciąga się na całą szerokość
                 // ═══════════════════════════════════════════════════════════════════════
                 var categoryPanel = new Panel
                 {
-                    Width = panelWidth,
-                    Height = 24,
+                    Width = totalWidth,
+                    Height = 32,
                     BackColor = categoryColor,
-                    Margin = new Padding(0, 3, 0, 0),
-                    Cursor = Cursors.Hand
+                    Margin = new Padding(0, 8, 0, 4)
                 };
 
                 var categoryCheckbox = new CheckBox
                 {
-                    Text = $" ▼ {category}",
-                    Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                    Text = $"  {category}",
+                    Font = new Font("Segoe UI", 10, FontStyle.Bold),
                     ForeColor = Color.White,
-                    Location = new Point(5, 3),
+                    Location = new Point(8, 5),
                     AutoSize = true,
                     Cursor = Cursors.Hand,
                     BackColor = Color.Transparent
@@ -463,62 +464,74 @@ namespace Kalendarz1
                 categoryPanel.Controls.Add(categoryCheckbox);
                 categoryHeaders[category] = categoryCheckbox;
 
-                // Licznik uprawnień w kategorii - na prawo
+                // Licznik uprawnień w kategorii
                 var countLabel = new Label
                 {
-                    Text = $"({group.Count()} modułów)",
-                    Font = new Font("Segoe UI", 7),
+                    Text = $"{group.Count()} modułów",
+                    Font = new Font("Segoe UI", 9),
                     ForeColor = Color.FromArgb(220, 220, 220),
                     AutoSize = true,
                     BackColor = Color.Transparent
                 };
-                countLabel.Location = new Point(panelWidth - countLabel.PreferredWidth - 10, 5);
+                countLabel.Location = new Point(totalWidth - countLabel.PreferredWidth - 15, 8);
                 categoryPanel.Controls.Add(countLabel);
 
-                // Kliknięcie na panel też zaznacza
                 categoryPanel.Click += (s, e) => categoryCheckbox.Checked = !categoryCheckbox.Checked;
-
                 permissionsFlowPanel.Controls.Add(categoryPanel);
 
-                // Lista modułów w kategorii
+                // ═══════════════════════════════════════════════════════════════════════
+                // KONTENER NA MODUŁY W DWÓCH KOLUMNACH
+                // ═══════════════════════════════════════════════════════════════════════
+                var modulesContainer = new FlowLayoutPanel
+                {
+                    Width = totalWidth,
+                    AutoSize = true,
+                    FlowDirection = FlowDirection.LeftToRight,
+                    WrapContents = true,
+                    BackColor = Color.White,
+                    Padding = new Padding(0),
+                    Margin = new Padding(0, 0, 0, 4)
+                };
+
                 categoryCheckboxes[category] = new List<CheckBox>();
                 int moduleIndex = 0;
+                var modulesList = group.ToList();
 
-                foreach (var module in group)
+                foreach (var module in modulesList)
                 {
                     bool hasAccess = false;
                     var position = accessMap.FirstOrDefault(x => x.Value == module.Key).Key;
                     if (position >= 0 && position < accessString.Length)
                         hasAccess = accessString[position] == '1';
 
-                    // Panel pojedynczego modułu - minimalny
+                    // Panel pojedynczego modułu
                     var modulePanel = new Panel
                     {
-                        Width = panelWidth,
-                        Height = 28,
-                        BackColor = moduleIndex % 2 == 0 ? Color.White : Colors.RowAlt,
-                        Margin = new Padding(0, 0, 0, 0),
+                        Width = columnWidth,
+                        Height = 36,
+                        BackColor = moduleIndex % 2 == 0 ? Color.White : Color.FromArgb(250, 251, 252),
+                        Margin = new Padding(0, 0, 5, 2),
                         Cursor = Cursors.Hand
                     };
 
                     // Pasek koloru po lewej
                     var colorBar = new Panel
                     {
-                        Width = 3,
-                        Height = 28,
+                        Width = 4,
+                        Height = 36,
                         BackColor = categoryColor,
                         Location = new Point(0, 0)
                     };
                     modulePanel.Controls.Add(colorBar);
 
-                    // Ikona
+                    // Ikona emoji
                     var iconLabel = new Label
                     {
                         Text = module.Icon,
-                        Font = new Font("Segoe UI Emoji", 11),
+                        Font = new Font("Segoe UI Emoji", 14),
                         ForeColor = categoryColor,
-                        Location = new Point(8, 3),
-                        Size = new Size(22, 22),
+                        Location = new Point(10, 6),
+                        Size = new Size(28, 28),
                         TextAlign = ContentAlignment.MiddleCenter
                     };
                     modulePanel.Controls.Add(iconLabel);
@@ -529,30 +542,30 @@ namespace Kalendarz1
                         Text = module.DisplayName,
                         Font = new Font("Segoe UI", 9, FontStyle.Bold),
                         ForeColor = Colors.TextDark,
-                        Location = new Point(32, 1),
-                        AutoSize = true
+                        Location = new Point(42, 4),
+                        Size = new Size(columnWidth - 120, 16),
+                        AutoEllipsis = true
                     };
                     modulePanel.Controls.Add(nameLabel);
 
-                    // Opis - skrócony jeśli za długi
-                    string desc = module.Description;
-                    if (desc.Length > 45) desc = desc.Substring(0, 42) + "...";
+                    // Opis modułu
                     var descLabel = new Label
                     {
-                        Text = desc,
+                        Text = module.Description,
                         Font = new Font("Segoe UI", 7),
                         ForeColor = Colors.TextGray,
-                        Location = new Point(32, 15),
-                        AutoSize = true
+                        Location = new Point(42, 19),
+                        Size = new Size(columnWidth - 120, 14),
+                        AutoEllipsis = true
                     };
                     modulePanel.Controls.Add(descLabel);
 
-                    // Checkbox dostępu - pozycja od prawej
+                    // Checkbox dostępu
                     var accessCheckbox = new CheckBox
                     {
                         Checked = hasAccess,
-                        Location = new Point(panelWidth - 25, 5),
-                        Size = new Size(18, 18),
+                        Location = new Point(columnWidth - 30, 8),
+                        Size = new Size(20, 20),
                         Cursor = Cursors.Hand,
                         Tag = module.Key
                     };
@@ -560,33 +573,24 @@ namespace Kalendarz1
                     modulePanel.Controls.Add(accessCheckbox);
                     categoryCheckboxes[category].Add(accessCheckbox);
 
-                    // Label "Dostęp" - przed checkboxem
-                    var accessLabel = new Label
-                    {
-                        Text = "Dostęp",
-                        Font = new Font("Segoe UI", 7),
-                        ForeColor = Colors.TextGray,
-                        Location = new Point(panelWidth - 68, 7),
-                        AutoSize = true
-                    };
-                    modulePanel.Controls.Add(accessLabel);
-
                     // Hover effect
-                    int idx = moduleIndex;
-                    modulePanel.MouseEnter += (s, e) => modulePanel.BackColor = Colors.RowHover;
-                    modulePanel.MouseLeave += (s, e) => modulePanel.BackColor = idx % 2 == 0 ? Color.White : Colors.RowAlt;
+                    Color normalColor = moduleIndex % 2 == 0 ? Color.White : Color.FromArgb(250, 251, 252);
+                    modulePanel.MouseEnter += (s, e) => modulePanel.BackColor = Color.FromArgb(232, 245, 233);
+                    modulePanel.MouseLeave += (s, e) => modulePanel.BackColor = normalColor;
 
-                    // Kliknięcie na panel przełącza checkbox
-                    modulePanel.Click += (s, e) => accessCheckbox.Checked = !accessCheckbox.Checked;
-                    nameLabel.Click += (s, e) => accessCheckbox.Checked = !accessCheckbox.Checked;
-                    descLabel.Click += (s, e) => accessCheckbox.Checked = !accessCheckbox.Checked;
-                    iconLabel.Click += (s, e) => accessCheckbox.Checked = !accessCheckbox.Checked;
+                    // Kliknięcie przełącza checkbox
+                    Action toggleCheckbox = () => accessCheckbox.Checked = !accessCheckbox.Checked;
+                    modulePanel.Click += (s, e) => toggleCheckbox();
+                    nameLabel.Click += (s, e) => toggleCheckbox();
+                    descLabel.Click += (s, e) => toggleCheckbox();
+                    iconLabel.Click += (s, e) => toggleCheckbox();
+                    colorBar.Click += (s, e) => toggleCheckbox();
 
-                    permissionsFlowPanel.Controls.Add(modulePanel);
+                    modulesContainer.Controls.Add(modulePanel);
                     moduleIndex++;
                 }
 
-                // Zaktualizuj stan nagłówka kategorii
+                permissionsFlowPanel.Controls.Add(modulesContainer);
                 UpdateCategoryHeaderState(category);
             }
         }
