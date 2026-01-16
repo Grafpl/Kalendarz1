@@ -10,6 +10,205 @@ using Microsoft.Data.SqlClient;
 
 namespace Kalendarz1
 {
+    // ════════════════════════════════════════════════════════════════════════════════
+    // KLASA ANIMACJI - Płynne przejścia i efekty
+    // ════════════════════════════════════════════════════════════════════════════════
+    public static class UIAnimator
+    {
+        public static void AnimateColor(Control control, Color fromColor, Color toColor, int duration = 150, Action onComplete = null)
+        {
+            int steps = duration / 15;
+            int currentStep = 0;
+
+            var timer = new Timer { Interval = 15 };
+            timer.Tick += (s, e) => {
+                currentStep++;
+                float progress = (float)currentStep / steps;
+                progress = EaseOutQuad(progress);
+
+                int r = (int)(fromColor.R + (toColor.R - fromColor.R) * progress);
+                int g = (int)(fromColor.G + (toColor.G - fromColor.G) * progress);
+                int b = (int)(fromColor.B + (toColor.B - fromColor.B) * progress);
+
+                control.BackColor = Color.FromArgb(
+                    Math.Max(0, Math.Min(255, r)),
+                    Math.Max(0, Math.Min(255, g)),
+                    Math.Max(0, Math.Min(255, b)));
+
+                if (currentStep >= steps)
+                {
+                    timer.Stop();
+                    timer.Dispose();
+                    control.BackColor = toColor;
+                    onComplete?.Invoke();
+                }
+            };
+            timer.Start();
+        }
+
+        public static void AnimateSize(Control control, Size toSize, int duration = 200)
+        {
+            Size fromSize = control.Size;
+            int steps = duration / 15;
+            int currentStep = 0;
+
+            var timer = new Timer { Interval = 15 };
+            timer.Tick += (s, e) => {
+                currentStep++;
+                float progress = EaseOutQuad((float)currentStep / steps);
+
+                int w = (int)(fromSize.Width + (toSize.Width - fromSize.Width) * progress);
+                int h = (int)(fromSize.Height + (toSize.Height - fromSize.Height) * progress);
+
+                control.Size = new Size(w, h);
+
+                if (currentStep >= steps)
+                {
+                    timer.Stop();
+                    timer.Dispose();
+                    control.Size = toSize;
+                }
+            };
+            timer.Start();
+        }
+
+        private static float EaseOutQuad(float t) => t * (2 - t);
+        private static float EaseInOutQuad(float t) => t < 0.5f ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════════
+    // ANIMOWANY PRZYCISK - Z efektami hover i kliknięcia
+    // ════════════════════════════════════════════════════════════════════════════════
+    public class AnimatedButton : Panel
+    {
+        private Color baseColor;
+        private Color hoverColor;
+        private Color pressColor;
+        private bool isHovered = false;
+        private bool isPressed = false;
+        private float rippleSize = 0;
+        private Point rippleCenter;
+        private Timer rippleTimer;
+        private string text;
+        private Font font;
+
+        public event EventHandler Click;
+        public new string Text { get => text; set { text = value; Invalidate(); } }
+
+        public AnimatedButton(string text, Color color)
+        {
+            this.text = text;
+            this.baseColor = color;
+            this.hoverColor = ControlPaint.Light(color, 0.15f);
+            this.pressColor = ControlPaint.Dark(color, 0.1f);
+            this.font = new Font("Segoe UI", 9, FontStyle.Bold);
+
+            this.Size = new Size(text.Length * 8 + 24, 32);
+            this.BackColor = baseColor;
+            this.Cursor = Cursors.Hand;
+            this.DoubleBuffered = true;
+
+            this.MouseEnter += (s, e) => {
+                isHovered = true;
+                UIAnimator.AnimateColor(this, BackColor, hoverColor, 100);
+            };
+
+            this.MouseLeave += (s, e) => {
+                isHovered = false;
+                isPressed = false;
+                UIAnimator.AnimateColor(this, BackColor, baseColor, 100);
+            };
+
+            this.MouseDown += (s, e) => {
+                isPressed = true;
+                rippleCenter = e.Location;
+                StartRipple();
+                this.BackColor = pressColor;
+            };
+
+            this.MouseUp += (s, e) => {
+                isPressed = false;
+                this.BackColor = isHovered ? hoverColor : baseColor;
+                Click?.Invoke(this, EventArgs.Empty);
+            };
+        }
+
+        private void StartRipple()
+        {
+            rippleSize = 0;
+            rippleTimer?.Stop();
+            rippleTimer = new Timer { Interval = 15 };
+            rippleTimer.Tick += (s, e) => {
+                rippleSize += 8;
+                if (rippleSize > Math.Max(Width, Height) * 2)
+                {
+                    rippleTimer.Stop();
+                    rippleSize = 0;
+                }
+                Invalidate();
+            };
+            rippleTimer.Start();
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
+            // Zaokrąglone tło
+            using (var path = GetRoundedRectPath(new Rectangle(0, 0, Width - 1, Height - 1), 4))
+            using (var brush = new SolidBrush(BackColor))
+            {
+                e.Graphics.FillPath(brush, path);
+            }
+
+            // Efekt ripple
+            if (rippleSize > 0)
+            {
+                using (var brush = new SolidBrush(Color.FromArgb(30, 255, 255, 255)))
+                {
+                    e.Graphics.FillEllipse(brush,
+                        rippleCenter.X - rippleSize / 2,
+                        rippleCenter.Y - rippleSize / 2,
+                        rippleSize, rippleSize);
+                }
+            }
+
+            // Tekst
+            using (var brush = new SolidBrush(Color.White))
+            {
+                var size = e.Graphics.MeasureString(text, font);
+                e.Graphics.DrawString(text, font, brush,
+                    (Width - size.Width) / 2,
+                    (Height - size.Height) / 2);
+            }
+        }
+
+        private GraphicsPath GetRoundedRectPath(Rectangle rect, int radius)
+        {
+            var path = new GraphicsPath();
+            path.AddArc(rect.X, rect.Y, radius * 2, radius * 2, 180, 90);
+            path.AddArc(rect.Right - radius * 2, rect.Y, radius * 2, radius * 2, 270, 90);
+            path.AddArc(rect.Right - radius * 2, rect.Bottom - radius * 2, radius * 2, radius * 2, 0, 90);
+            path.AddArc(rect.X, rect.Bottom - radius * 2, radius * 2, radius * 2, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        protected override CreateParams CreateParams
+        {
+            get {
+                var cp = base.CreateParams;
+                cp.ExStyle |= 0x02000000; // WS_EX_COMPOSITED - double buffering
+                return cp;
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════════
+    // GŁÓWNY FORMULARZ
+    // ════════════════════════════════════════════════════════════════════════════════
     public partial class AdminPermissionsForm : Form
     {
         private string connectionString = "Server=192.168.0.109;Database=LibraNet;User Id=pronova;Password=pronova;TrustServerCertificate=True";
@@ -84,78 +283,112 @@ namespace Kalendarz1
 
         private void InitializeCustomComponents()
         {
+            // Włącz double buffering dla płynnych animacji
+            this.SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
+
             // ═══════════════════════════════════════════════════════════════════════════
-            // TOP TOOLBAR - kompaktowy, wszystko w jednej linii
+            // TOP TOOLBAR - z gradientem i cieniem
             // ═══════════════════════════════════════════════════════════════════════════
             topToolbar = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 44,
-                BackColor = Colors.Primary,
-                Padding = new Padding(8, 6, 8, 6)
+                Height = 52,
+                BackColor = Colors.Primary
+            };
+            topToolbar.Paint += (s, e) => {
+                // Gradient
+                using (var brush = new LinearGradientBrush(
+                    new Point(0, 0), new Point(0, topToolbar.Height),
+                    Color.FromArgb(55, 67, 79), Color.FromArgb(35, 47, 59)))
+                {
+                    e.Graphics.FillRectangle(brush, topToolbar.ClientRectangle);
+                }
+                // Cień na dole
+                using (var pen = new Pen(Color.FromArgb(60, 0, 0, 0), 2))
+                {
+                    e.Graphics.DrawLine(pen, 0, topToolbar.Height - 1, topToolbar.Width, topToolbar.Height - 1);
+                }
             };
 
-            // Wyszukiwanie użytkowników - na początku
-            searchBox = new TextBox
+            // Wyszukiwanie użytkowników - stylowe
+            var searchContainer = new Panel
             {
                 Location = new Point(10, 10),
-                Size = new Size(180, 24),
-                Font = new Font("Segoe UI", 9),
-                PlaceholderText = "🔍 Szukaj użytkownika...",
-                BorderStyle = BorderStyle.FixedSingle
+                Size = new Size(200, 32),
+                BackColor = Color.FromArgb(60, 72, 84)
+            };
+            searchContainer.Paint += (s, e) => {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                using (var path = CreateRoundedRectangle(0, 0, searchContainer.Width - 1, searchContainer.Height - 1, 6))
+                using (var brush = new SolidBrush(Color.FromArgb(60, 72, 84)))
+                {
+                    e.Graphics.FillPath(brush, path);
+                }
+            };
+            topToolbar.Controls.Add(searchContainer);
+
+            searchBox = new TextBox
+            {
+                Location = new Point(8, 6),
+                Size = new Size(184, 20),
+                Font = new Font("Segoe UI", 10),
+                PlaceholderText = "🔍 Szukaj...",
+                BorderStyle = BorderStyle.None,
+                BackColor = Color.FromArgb(60, 72, 84),
+                ForeColor = Color.White
             };
             searchBox.TextChanged += SearchBox_TextChanged;
-            topToolbar.Controls.Add(searchBox);
+            searchContainer.Controls.Add(searchBox);
 
-            int btnX = 200;
+            int btnX = 220;
 
-            // Przyciski akcji - kompaktowe
-            var saveBtn = CreateCompactButton("💾 Zapisz", Colors.Success, ref btnX);
+            // Przyciski z animacjami
+            var saveBtn = CreateAnimatedButton("💾 Zapisz", Colors.Success, ref btnX);
             saveBtn.Click += SaveButton_Click;
             topToolbar.Controls.Add(saveBtn);
 
-            var selectAllBtn = CreateCompactButton("✓ Wszystko", Color.FromArgb(76, 175, 80), ref btnX);
+            var selectAllBtn = CreateAnimatedButton("✓ Wszystko", Color.FromArgb(76, 175, 80), ref btnX);
             selectAllBtn.Click += (s, e) => SetAllPermissions(true);
             topToolbar.Controls.Add(selectAllBtn);
 
-            var selectNoneBtn = CreateCompactButton("✗ Nic", Color.FromArgb(180, 80, 80), ref btnX);
+            var selectNoneBtn = CreateAnimatedButton("✗ Nic", Color.FromArgb(192, 57, 43), ref btnX);
             selectNoneBtn.Click += (s, e) => SetAllPermissions(false);
             topToolbar.Controls.Add(selectNoneBtn);
 
-            var invertBtn = CreateCompactButton("⇄ Odwróć", Colors.Warning, ref btnX);
+            var invertBtn = CreateAnimatedButton("⇄ Odwróć", Colors.Warning, ref btnX);
             invertBtn.Click += InvertPermissions_Click;
             topToolbar.Controls.Add(invertBtn);
 
-            btnX += 10;
+            btnX += 15;
 
-            var addUserBtn = CreateCompactButton("➕ Nowy", Color.FromArgb(33, 150, 243), ref btnX);
+            var addUserBtn = CreateAnimatedButton("➕ Nowy", Color.FromArgb(41, 128, 185), ref btnX);
             addUserBtn.Click += AddUserButton_Click;
             topToolbar.Controls.Add(addUserBtn);
 
-            var deleteUserBtn = CreateCompactButton("🗑 Usuń", Color.FromArgb(180, 80, 80), ref btnX);
+            var deleteUserBtn = CreateAnimatedButton("🗑 Usuń", Color.FromArgb(192, 57, 43), ref btnX);
             deleteUserBtn.Click += DeleteUserButton_Click;
             topToolbar.Controls.Add(deleteUserBtn);
 
-            btnX += 10;
+            btnX += 15;
 
-            var handlowcyBtn = CreateCompactButton("👔 Handlowcy", Color.FromArgb(156, 39, 176), ref btnX);
+            var handlowcyBtn = CreateAnimatedButton("👔 Handlowcy", Color.FromArgb(142, 68, 173), ref btnX);
             handlowcyBtn.Click += ManageHandlowcyButton_Click;
             topToolbar.Controls.Add(handlowcyBtn);
 
-            var contactBtn = CreateCompactButton("📞 Kontakt", Color.FromArgb(0, 150, 170), ref btnX);
+            var contactBtn = CreateAnimatedButton("📞 Kontakt", Color.FromArgb(22, 160, 133), ref btnX);
             contactBtn.Click += EditContactButton_Click;
             topToolbar.Controls.Add(contactBtn);
 
-            // Wybrany użytkownik - po prawej stronie toolbara
+            // Wybrany użytkownik - elegancki badge
             selectedUserLabel = new Label
             {
                 Text = "👤 Wybierz użytkownika",
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                ForeColor = Color.FromArgb(200, 210, 220),
+                ForeColor = Color.FromArgb(180, 190, 200),
                 AutoSize = true,
                 Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
-            selectedUserLabel.Location = new Point(this.Width - selectedUserLabel.PreferredWidth - 20, 12);
+            selectedUserLabel.Location = new Point(this.Width - selectedUserLabel.PreferredWidth - 25, 16);
             topToolbar.Controls.Add(selectedUserLabel);
 
             // ═══════════════════════════════════════════════════════════════════════════
@@ -247,23 +480,25 @@ namespace Kalendarz1
             };
         }
 
-        private Button CreateCompactButton(string text, Color color, ref int x)
+        private AnimatedButton CreateAnimatedButton(string text, Color color, ref int x)
         {
-            var btn = new Button
+            var btn = new AnimatedButton(text, color)
             {
-                Text = text,
-                Size = new Size(text.Length * 7 + 20, 28),
-                Location = new Point(x, 8),
-                BackColor = color,
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8, FontStyle.Bold),
-                Cursor = Cursors.Hand
+                Location = new Point(x, 10)
             };
-            btn.FlatAppearance.BorderSize = 0;
-            btn.FlatAppearance.MouseOverBackColor = ControlPaint.Light(color, 0.15f);
-            x += btn.Width + 4;
+            x += btn.Width + 6;
             return btn;
+        }
+
+        private GraphicsPath CreateRoundedRectangle(int x, int y, int width, int height, int radius)
+        {
+            var path = new GraphicsPath();
+            path.AddArc(x, y, radius * 2, radius * 2, 180, 90);
+            path.AddArc(x + width - radius * 2, y, radius * 2, radius * 2, 270, 90);
+            path.AddArc(x + width - radius * 2, y + height - radius * 2, radius * 2, radius * 2, 0, 90);
+            path.AddArc(x, y + height - radius * 2, radius * 2, radius * 2, 90, 90);
+            path.CloseFigure();
+            return path;
         }
 
 
@@ -606,11 +841,16 @@ namespace Kalendarz1
             };
             card.Controls.Add(idLabel);
 
-            // Hover i kliknięcie
+            // Hover z animacją
+            Color normalColor = Color.White;
+            Color hoverColor = Color.FromArgb(240, 248, 255);
+            Color selectedColor = Color.FromArgb(200, 230, 201);
+
             Action<bool> setHover = (hover) => {
                 if (card != selectedUserCard)
                 {
-                    card.BackColor = hover ? Color.FromArgb(245, 247, 250) : Color.White;
+                    Color targetColor = hover ? hoverColor : normalColor;
+                    UIAnimator.AnimateColor(card, card.BackColor, targetColor, 80);
                 }
             };
 
@@ -634,22 +874,21 @@ namespace Kalendarz1
 
         private void SelectUserCard(Panel card, UserInfo user)
         {
-            // Odznacz poprzednią kartę
+            // Odznacz poprzednią kartę z animacją
             if (selectedUserCard != null)
             {
-                selectedUserCard.BackColor = Color.White;
-                selectedUserCard.Invalidate();
+                UIAnimator.AnimateColor(selectedUserCard, selectedUserCard.BackColor, Color.White, 120);
             }
 
-            // Zaznacz nową kartę
+            // Zaznacz nową kartę z animacją
             selectedUserCard = card;
-            card.BackColor = Color.FromArgb(200, 230, 201); // Jasny zielony
+            UIAnimator.AnimateColor(card, card.BackColor, Color.FromArgb(200, 230, 201), 150);
 
             selectedUserId = user.ID;
             selectedUserLabel.Text = $"👤 {user.Name} (ID: {user.ID})";
             selectedUserLabel.ForeColor = Color.White;
             // Aktualizuj pozycję labela
-            selectedUserLabel.Location = new Point(this.Width - selectedUserLabel.PreferredWidth - 30, 12);
+            selectedUserLabel.Location = new Point(this.Width - selectedUserLabel.PreferredWidth - 30, 16);
             BuildPermissionsUI();
         }
 
