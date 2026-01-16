@@ -581,8 +581,12 @@ namespace Kalendarz1
         {
             if (e.Source is TabControl)
             {
+                // Pobierz nazwę wybranej karty
+                var selectedTab = mainTabControl.SelectedItem as TabItem;
+                var tabHeader = selectedTab?.Header?.ToString() ?? "";
+
                 // Ukryj panel LUMEL gdy nie jesteśmy na karcie Specyfikacje
-                if (mainTabControl.SelectedIndex == 0)
+                if (tabHeader.Contains("Specyfikacje"))
                 {
                     // Karta Specyfikacje - LUMEL panel może być widoczny
                 }
@@ -592,28 +596,20 @@ namespace Kalendarz1
                     lumelPanel.Visibility = Visibility.Collapsed;
                 }
 
-                // Kolejność kart: 0-Specyfikacje, 1-Transport, 2-Płachta, 3-Podsumowanie, 4-IRZplus, 5-Rozliczenia
-
-                // Załaduj dane płachty gdy przełączono na kartę Płachta (index 2)
-                if (mainTabControl.SelectedIndex == 2)
+                // Załaduj dane w zależności od wybranej karty (używamy nazwy, nie indeksu)
+                if (tabHeader.Contains("Płachta"))
                 {
                     LoadPlachtaData();
                 }
-
-                // Załaduj dane podsumowania gdy przełączono na kartę Podsumowanie (index 3)
-                if (mainTabControl.SelectedIndex == 3)
+                else if (tabHeader.Contains("Podsumowanie"))
                 {
                     LoadPodsumowanieData();
                 }
-
-                // Załaduj dane IRZplus gdy przełączono na kartę IRZplus (index 4)
-                if (mainTabControl.SelectedIndex == 4)
+                else if (tabHeader.Contains("IRZplus"))
                 {
                     InitializeIRZplusTab();
                 }
-
-                // Załaduj dane rozliczeń gdy przełączono na kartę Rozliczenia (index 5)
-                if (mainTabControl.SelectedIndex == 5)
+                else if (tabHeader.Contains("Rozliczenia"))
                 {
                     LoadRozliczeniaData();
                 }
