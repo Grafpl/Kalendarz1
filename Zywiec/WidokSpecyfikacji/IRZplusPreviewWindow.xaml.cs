@@ -17,6 +17,9 @@ using Kalendarz1.Services;
 using Kalendarz1.Models.IRZplus;
 using Kalendarz1.Zywiec.WidokSpecyfikacji;
 
+// Alias to resolve ambiguity between System.IO.Path and System.Windows.Shapes.Path
+using Path = System.IO.Path;
+
 namespace Kalendarz1
 {
     public partial class IRZplusPreviewWindow : Window, INotifyPropertyChanged
@@ -348,13 +351,13 @@ namespace Kalendarz1
                 var settings = _service.GetSettings();
                 var dir = settings.LocalExportPath;
                 if (string.IsNullOrEmpty(dir))
-                    dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "IRZplus_Export");
+                    dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "IRZplus_Export");
 
                 if (!Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
 
                 var fileName = $"IRZplus_{_dataUboju:yyyy-MM-dd}_{DateTime.Now:HHmmss}.json";
-                var filePath = System.IO.Path.Combine(dir, fileName);
+                var filePath = Path.Combine(dir, fileName);
 
                 var json = JsonSerializer.Serialize(zgloszenie, new JsonSerializerOptions { WriteIndented = true });
                 File.WriteAllText(filePath, json);
@@ -423,7 +426,7 @@ namespace Kalendarz1
 
                 if (dialog.ShowDialog() == true && dialog.Sukces)
                 {
-                    txtStatus.Text = $"Wyeksportowano do: {System.IO.Path.GetFileName(dialog.WyeksportowanyPlik)}";
+                    txtStatus.Text = $"Wyeksportowano do: {Path.GetFileName(dialog.WyeksportowanyPlik)}";
                 }
             }
             catch (Exception ex)
