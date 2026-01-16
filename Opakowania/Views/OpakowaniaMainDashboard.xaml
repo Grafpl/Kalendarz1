@@ -384,7 +384,13 @@
                 <DataGrid Grid.Row="1" ItemsSource="{Binding WynikiSzukania}"
                           SelectedItem="{Binding WybranyKontrahent}"
                           Style="{StaticResource ModernDataGridStyle}"
-                          MouseDoubleClick="DataGrid_MouseDoubleClick">
+                          MouseDoubleClick="DataGrid_MouseDoubleClick"
+                          VirtualizingStackPanel.IsVirtualizing="True"
+                          VirtualizingStackPanel.VirtualizationMode="Recycling"
+                          EnableRowVirtualization="True"
+                          EnableColumnVirtualization="True"
+                          ScrollViewer.IsDeferredScrollingEnabled="True"
+                          MaxHeight="600">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="KONTRAHENT" Binding="{Binding Kontrahent}" Width="140" FontSize="13">
                             <DataGridTextColumn.ElementStyle>

@@ -247,7 +247,12 @@
         <DataGrid Grid.Row="3" ItemsSource="{Binding ListaKontrahentow}"
                   SelectedItem="{Binding WybranyKontrahent}"
                   Margin="24,16"
-                  MouseDoubleClick="DataGrid_MouseDoubleClick">
+                  MouseDoubleClick="DataGrid_MouseDoubleClick"
+                  VirtualizingStackPanel.IsVirtualizing="True"
+                  VirtualizingStackPanel.VirtualizationMode="Recycling"
+                  EnableRowVirtualization="True"
+                  EnableColumnVirtualization="True"
+                  ScrollViewer.IsDeferredScrollingEnabled="True">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="KONTRAHENT" Binding="{Binding Kontrahent}" Width="150">
                     <DataGridTextColumn.ElementStyle>

@@ -337,7 +337,12 @@
         </Border>
 
         <!-- ======================= TABELA DOKUMENTÓW ======================= -->
-        <DataGrid Grid.Row="3" ItemsSource="{Binding ListaDokumentow}" Margin="24,16">
+        <DataGrid Grid.Row="3" ItemsSource="{Binding ListaDokumentow}" Margin="24,16"
+                  VirtualizingStackPanel.IsVirtualizing="True"
+                  VirtualizingStackPanel.VirtualizationMode="Recycling"
+                  EnableRowVirtualization="True"
+                  EnableColumnVirtualization="True"
+                  ScrollViewer.IsDeferredScrollingEnabled="True">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="DATA" Binding="{Binding DataTekst}" Width="90">
                     <DataGridTextColumn.ElementStyle>
@@ -430,7 +435,10 @@
         <!-- ======================= HISTORIA POTWIERDZEŃ ======================= -->
         <Expander Grid.Row="4" Header="HISTORIA POTWIERDZEŃ" IsExpanded="False" Margin="24,0,24,16">
             <Border Background="White" CornerRadius="8" Padding="16">
-                <DataGrid ItemsSource="{Binding ListaPotwierdzen}" MaxHeight="200">
+                <DataGrid ItemsSource="{Binding ListaPotwierdzen}" MaxHeight="200"
+                          VirtualizingStackPanel.IsVirtualizing="True"
+                          VirtualizingStackPanel.VirtualizationMode="Recycling"
+                          EnableRowVirtualization="True">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="DATA" Binding="{Binding DataPotwierdzeniaTekst}" Width="100"/>
                         <DataGridTextColumn Header="OPAKOWANIE" Binding="{Binding TypOpakowania}" Width="100"/>
