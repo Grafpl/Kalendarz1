@@ -346,19 +346,4 @@ namespace Kalendarz1.Opakowania.Services
             public void Dispose() { }
         }
     }
-
-    /// <summary>
-    /// Extension method dla łatwiejszego mierzenia z liczbą rekordów
-    /// </summary>
-    public static class ProfilerExtensions
-    {
-        public static T WithRecordCount<T>(this T measurement, int count) where T : IDisposable
-        {
-            if (measurement is PerformanceProfiler.OperationMeasurement m)
-            {
-                // This won't work directly due to private class, but we handle it differently
-            }
-            return measurement;
-        }
-    }
 }
