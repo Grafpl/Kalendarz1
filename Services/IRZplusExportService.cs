@@ -63,8 +63,8 @@ namespace Kalendarz1.Services
                 var csv = new StringBuilder();
 
                 // === NAGLOWEK KOLUMN (PIERWSZA LINIA!) ===
-                // UWAGA: Bez komentarzy! Portal nie obsluguje komentarzy!
-                csv.AppendLine("Lp;Numer identyfikacyjny/numer partii;Typ zdarzenia;Liczba sztuk drobiu;Data zdarzenia;Masa drobiu poddanego ubojowi (kg);Kraj wwozu;Data kupna/wwozu;Przyjęte z działalności;Ubój rytualny");
+                // UWAGA: Kolejnosc kolumn zgodna z portalem IRZplus!
+                csv.AppendLine("Lp;Numer identyfikacyjny/numer partii;Liczba sztuk drobiu;Masa drobiu poddanego ubojowi (kg);Typ zdarzenia;Data zdarzenia;Kraj wwozu;Data kupna/wwozu;Przyjęte z działalności;Ubój rytualny");
 
                 // === POZYCJE (kazdy aut/transport to osobna linia) ===
                 foreach (var poz in zgloszenie.Pozycje.OrderBy(p => p.Lp))
@@ -78,14 +78,15 @@ namespace Kalendarz1.Services
                     // Numer siedliska hodowcy - usun podwojne -001 jesli wystepuje
                     var numerSiedliska = NormalizujNumerSiedliska(poz.PrzyjeteZDzialalnosci);
 
+                    // Kolejnosc kolumn zgodna z naglowkiem!
                     csv.AppendLine(string.Join(";", new[]
                     {
                         poz.Lp.ToString(),                            // Kol 1: Lp
                         NUMER_RZEZNI,                                  // Kol 2: Nr identyfikacyjny = NUMER RZEZNI
-                        poz.TypZdarzenia ?? "UR",                      // Kol 3: Typ zdarzenia
-                        poz.LiczbaSztuk.ToString(),                    // Kol 4: Liczba sztuk
-                        dataZdarzeniaStr,                              // Kol 5: Data zdarzenia
-                        masaStr,                                       // Kol 6: Masa (liczba calkowita!)
+                        poz.LiczbaSztuk.ToString(),                    // Kol 3: Liczba sztuk
+                        masaStr,                                       // Kol 4: Masa (liczba calkowita!)
+                        poz.TypZdarzenia ?? "UR",                      // Kol 5: Typ zdarzenia
+                        dataZdarzeniaStr,                              // Kol 6: Data zdarzenia
                         poz.KrajWwozu ?? "",                           // Kol 7: Kraj wwozu
                         dataZdarzeniaStr,                              // Kol 8: Data kupna = data zdarzenia
                         numerSiedliska,                                // Kol 9: Przyjete z dzialalnosci
@@ -340,19 +341,21 @@ namespace Kalendarz1.Services
                 // === BUDUJ CSV (CZYSTY - bez komentarzy!) ===
                 var csv = new StringBuilder();
 
-                // Naglowek CSV (pierwsza linia!)
-                csv.AppendLine("Lp;Numer identyfikacyjny/numer partii;Typ zdarzenia;Liczba sztuk drobiu;Data zdarzenia;Masa drobiu poddanego ubojowi (kg);Kraj wwozu;Data kupna/wwozu;Przyjęte z działalności;Ubój rytualny");
+                // Naglowek CSV - kolejnosc kolumn zgodna z portalem IRZplus!
+                // WAZNE: Kolejnosc musi odpowiadac ukladowi pol w formularzu portalu
+                csv.AppendLine("Lp;Numer identyfikacyjny/numer partii;Liczba sztuk drobiu;Masa drobiu poddanego ubojowi (kg);Typ zdarzenia;Data zdarzenia;Kraj wwozu;Data kupna/wwozu;Przyjęte z działalności;Ubój rytualny");
 
                 // Dane - JEDNA linia (jeden transport)
+                // Kolejnosc kolumn zgodna z naglowkiem!
                 csv.AppendLine(string.Join(";", new[]
                 {
                     "1",                                // Kol 1: Lp
                     NUMER_RZEZNI,                       // Kol 2: Nr identyfikacyjny = NUMER RZEZNI
-                    "UR",                               // Kol 3: Typ zdarzenia
-                    liczbaSztuk.ToString(),             // Kol 4: Liczba sztuk
-                    dataZdarzeniaStr,                   // Kol 5: Data zdarzenia
-                    masaStr,                            // Kol 6: Masa (liczba calkowita!)
-                    "",                                 // Kol 7: Kraj wwozu
+                    liczbaSztuk.ToString(),             // Kol 3: Liczba sztuk
+                    masaStr,                            // Kol 4: Masa (liczba calkowita!)
+                    "UR",                               // Kol 5: Typ zdarzenia
+                    dataZdarzeniaStr,                   // Kol 6: Data zdarzenia
+                    "",                                 // Kol 7: Kraj wwozu (pusty dla krajowych)
                     dataZdarzeniaStr,                   // Kol 8: Data kupna = data zdarzenia
                     numerSiedliskaHodowcy,              // Kol 9: Przyjete z dzialalnosci
                     "N"                                 // Kol 10: Uboj rytualny
@@ -669,12 +672,12 @@ namespace Kalendarz1.Services
 
                 var csv = new StringBuilder();
 
-                // Naglowek
-                csv.AppendLine("Lp;Numer identyfikacyjny/numer partii;Typ zdarzenia;Liczba sztuk drobiu;Data zdarzenia;Masa drobiu poddanego ubojowi (kg);Kraj wwozu;Data kupna/wwozu;Przyjęte z działalności;Ubój rytualny");
+                // Naglowek - kolejnosc kolumn zgodna z portalem IRZplus!
+                csv.AppendLine("Lp;Numer identyfikacyjny/numer partii;Liczba sztuk drobiu;Masa drobiu poddanego ubojowi (kg);Typ zdarzenia;Data zdarzenia;Kraj wwozu;Data kupna/wwozu;Przyjęte z działalności;Ubój rytualny");
 
-                // Przykladowe dane testowe
+                // Przykladowe dane testowe - kolejnosc zgodna z naglowkiem!
                 var dataTest = DateTime.Now.ToString("dd-MM-yyyy");
-                csv.AppendLine($"1;{NUMER_RZEZNI};UR;4173;{dataTest};13851;;{dataTest};068736945-001;N");
+                csv.AppendLine($"1;{NUMER_RZEZNI};4173;13851;UR;{dataTest};;{dataTest};068736945-001;N");
 
                 File.WriteAllText(filePath, csv.ToString(), new UTF8Encoding(true));
 
@@ -1194,9 +1197,9 @@ namespace Kalendarz1.Services
                 return sb.ToString();
             }
 
-            // Generuj CSV dokladnie tak jak w eksporcie
+            // Generuj CSV dokladnie tak jak w eksporcie - kolejnosc zgodna z portalem!
             var csv = new StringBuilder();
-            csv.AppendLine("Lp;Numer identyfikacyjny/numer partii;Typ zdarzenia;Liczba sztuk drobiu;Data zdarzenia;Masa drobiu poddanego ubojowi (kg);Kraj wwozu;Data kupna/wwozu;Przyjęte z działalności;Ubój rytualny");
+            csv.AppendLine("Lp;Numer identyfikacyjny/numer partii;Liczba sztuk drobiu;Masa drobiu poddanego ubojowi (kg);Typ zdarzenia;Data zdarzenia;Kraj wwozu;Data kupna/wwozu;Przyjęte z działalności;Ubój rytualny");
 
             foreach (var poz in zgloszenie.Pozycje.OrderBy(p => p.Lp))
             {
@@ -1208,10 +1211,10 @@ namespace Kalendarz1.Services
                 {
                     poz.Lp.ToString(),
                     NUMER_RZEZNI,
-                    poz.TypZdarzenia ?? "UR",
                     poz.LiczbaSztuk.ToString(),
-                    dataZdarzeniaStr,
                     masaStr,
+                    poz.TypZdarzenia ?? "UR",
+                    dataZdarzeniaStr,
                     poz.KrajWwozu ?? "",
                     dataZdarzeniaStr,
                     numerSiedliska,
