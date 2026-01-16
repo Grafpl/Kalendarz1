@@ -3275,8 +3275,33 @@ namespace Kalendarz1.WPF
 
                     row.Child = rowGrid;
                     var odbRef = odb;
+                    var currentProductId = currentData.Id;
+                    var currentDate = _selectedDate;
                     row.MouseEnter += (s, e) => row.Background = new SolidColorBrush(Color.FromRgb(60, 80, 100));
                     row.MouseLeave += (s, e) => row.Background = bezZam ? new SolidColorBrush(Color.FromRgb(60, 35, 35)) : Brushes.Transparent;
+
+                    // Kliknięcie na odbiorcę - otwórz edycję zamówienia
+                    row.MouseLeftButtonUp += async (s, e) =>
+                    {
+                        if (odbRef.KlientId > 0 && odbRef.Zamowione > 0)
+                        {
+                            await OpenOrderEditorForClientAsync(
+                                odbRef.KlientId,
+                                currentProductId,
+                                odbRef.NazwaOdbiorcy,
+                                currentDate,
+                                refreshContent);
+                        }
+                        else if (odbRef.Zamowione == 0 && odbRef.Wydane > 0)
+                        {
+                            MessageBox.Show($"Odbiorca '{odbRef.NazwaOdbiorcy}' ma tylko wydania bez zamówienia.\nNie można otworzyć edycji.",
+                                "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                        }
+                    };
+
+                    // Tooltip z informacją
+                    row.ToolTip = odbRef.Zamowione > 0 ? "Kliknij aby edytować zamówienie" : "Wydanie bez zamówienia";
+
                     rightPanel.Children.Add(row);
                 }
                 rightScroll.Content = rightPanel;
@@ -3748,6 +3773,192 @@ namespace Kalendarz1.WPF
 
             border.Child = stack;
             return border;
+        }
+
+        /// <summary>
+        /// Pobiera zamówienia dla klienta na dany dzień/zakres dat i produkt.
+        /// </summary>
+        private async System.Threading.Tasks.Task<List<(int ZamowienieId, decimal Ilosc, string Status, DateTime DataUboju)>> GetOrdersForClientAndProductAsync(
+            int klientId, int productId, DateTime dateStart, DateTime? dateEnd = null)
+        {
+            var result = new List<(int ZamowienieId, decimal Ilosc, string Status, DateTime DataUboju)>();
+
+            try
+            {
+                await using var cn = new SqlConnection(_connLibra);
+                await cn.OpenAsync();
+
+                var sql = @"SELECT z.Id, t.Ilosc, z.Status, z.DataUboju
+                            FROM [dbo].[ZamowieniaMieso] z
+                            INNER JOIN [dbo].[ZamowieniaMiesoTowar] t ON z.Id = t.ZamowienieId
+                            WHERE z.KlientId = @KlientId
+                              AND t.KodTowaru = @ProductId
+                              AND z.DataUboju BETWEEN @DateStart AND @DateEnd
+                              AND z.Status <> 'Anulowane'
+                            ORDER BY z.DataUboju, z.Id";
+
+                await using var cmd = new SqlCommand(sql, cn);
+                cmd.Parameters.AddWithValue("@KlientId", klientId);
+                cmd.Parameters.AddWithValue("@ProductId", productId);
+                cmd.Parameters.AddWithValue("@DateStart", dateStart.Date);
+                cmd.Parameters.AddWithValue("@DateEnd", (dateEnd ?? dateStart).Date);
+
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                {
+                    int zamId = rdr.GetInt32(0);
+                    decimal ilosc = rdr.IsDBNull(1) ? 0 : rdr.GetDecimal(1);
+                    string status = rdr.IsDBNull(2) ? "" : rdr.GetString(2);
+                    DateTime dataUboju = rdr.GetDateTime(3);
+                    result.Add((zamId, ilosc, status, dataUboju));
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[GetOrdersForClientAndProduct] Błąd: {ex.Message}");
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Otwiera edycję zamówienia dla klienta. Jeśli jest więcej zamówień - pokazuje listę wyboru.
+        /// </summary>
+        private async System.Threading.Tasks.Task OpenOrderEditorForClientAsync(
+            int klientId, int productId, string nazwaOdbiorcy, DateTime dateStart, Action refreshCallback)
+        {
+            DateTime? dateEnd = _zakresDat ? _selectedDateDo : (DateTime?)null;
+            var orders = await GetOrdersForClientAndProductAsync(klientId, productId, dateStart, dateEnd);
+
+            if (orders.Count == 0)
+            {
+                MessageBox.Show($"Nie znaleziono zamówień dla odbiorcy '{nazwaOdbiorcy}' na ten produkt.",
+                    "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            int selectedOrderId;
+
+            if (orders.Count == 1)
+            {
+                // Jedno zamówienie - od razu otwórz edycję
+                selectedOrderId = orders[0].ZamowienieId;
+            }
+            else
+            {
+                // Więcej zamówień - pokaż dialog wyboru
+                string dateLabel = _zakresDat
+                    ? $"{dateStart:dd.MM} - {_selectedDateDo:dd.MM.yyyy}"
+                    : $"{dateStart:dd.MM.yyyy}";
+
+                var dialog = new Window
+                {
+                    Title = $"Zamówienia: {nazwaOdbiorcy}",
+                    Width = 500,
+                    Height = 380,
+                    WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                    Background = new SolidColorBrush(Color.FromRgb(245, 245, 245)),
+                    ResizeMode = ResizeMode.NoResize
+                };
+
+                var mainStack = new StackPanel { Margin = new Thickness(20) };
+                mainStack.Children.Add(new TextBlock
+                {
+                    Text = $"Odbiorca: {nazwaOdbiorcy}",
+                    FontSize = 16,
+                    FontWeight = FontWeights.Bold,
+                    Margin = new Thickness(0, 0, 0, 5)
+                });
+                mainStack.Children.Add(new TextBlock
+                {
+                    Text = $"Data: {dateLabel} | Znaleziono {orders.Count} zamówień",
+                    FontSize = 12,
+                    Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+                    Margin = new Thickness(0, 0, 0, 15)
+                });
+
+                var listBox = new ListBox
+                {
+                    Height = 200,
+                    FontSize = 13,
+                    Margin = new Thickness(0, 0, 0, 15)
+                };
+
+                foreach (var order in orders)
+                {
+                    listBox.Items.Add(new ListBoxItem
+                    {
+                        Content = $"#{order.ZamowienieId} | {order.DataUboju:dd.MM} | {order.Ilosc:N0} kg | {order.Status}",
+                        Tag = order.ZamowienieId,
+                        Padding = new Thickness(10, 8, 10, 8)
+                    });
+                }
+                listBox.SelectedIndex = 0;
+                mainStack.Children.Add(listBox);
+
+                var btnPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+                var btnOk = new Button
+                {
+                    Content = "Otwórz do edycji",
+                    Padding = new Thickness(20, 8, 20, 8),
+                    Background = new SolidColorBrush(Color.FromRgb(39, 174, 96)),
+                    Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0),
+                    Margin = new Thickness(0, 0, 10, 0),
+                    Cursor = System.Windows.Input.Cursors.Hand
+                };
+                var btnCancel = new Button
+                {
+                    Content = "Anuluj",
+                    Padding = new Thickness(20, 8, 20, 8),
+                    Background = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
+                    Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0),
+                    Cursor = System.Windows.Input.Cursors.Hand
+                };
+
+                int? chosenId = null;
+                btnOk.Click += (s, e) =>
+                {
+                    if (listBox.SelectedItem is ListBoxItem item && item.Tag is int id)
+                    {
+                        chosenId = id;
+                        dialog.Close();
+                    }
+                };
+                btnCancel.Click += (s, e) => dialog.Close();
+                listBox.MouseDoubleClick += (s, e) =>
+                {
+                    if (listBox.SelectedItem is ListBoxItem item && item.Tag is int id)
+                    {
+                        chosenId = id;
+                        dialog.Close();
+                    }
+                };
+
+                btnPanel.Children.Add(btnOk);
+                btnPanel.Children.Add(btnCancel);
+                mainStack.Children.Add(btnPanel);
+                dialog.Content = mainStack;
+                dialog.ShowDialog();
+
+                if (!chosenId.HasValue)
+                    return;
+
+                selectedOrderId = chosenId.Value;
+            }
+
+            // Otwórz WidokZamowienia (WinForms) do edycji
+            var widokZamowienia = new WidokZamowienia(App.UserID ?? "", selectedOrderId);
+            var result = widokZamowienia.ShowDialog();
+
+            // Po zamknięciu okna edycji - odśwież dane
+            if (result == System.Windows.Forms.DialogResult.OK)
+            {
+                // Odśwież dane
+                await LoadDataAsync();
+                refreshCallback?.Invoke();
+            }
         }
 
         /// <summary>
