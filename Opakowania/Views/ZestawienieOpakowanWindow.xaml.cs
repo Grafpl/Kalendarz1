@@ -1,7 +1,12 @@
 using System;
+using System.Diagnostics;
+using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Threading;
 using Kalendarz1.Opakowania.Models;
+using Kalendarz1.Opakowania.Services;
 using Kalendarz1.Opakowania.ViewModels;
 
 namespace Kalendarz1.Opakowania.Views
@@ -12,6 +17,10 @@ namespace Kalendarz1.Opakowania.Views
     public partial class ZestawienieOpakowanWindow : Window
     {
         private readonly ZestawienieOpakowanViewModel _viewModel;
+        private readonly DispatcherTimer _diagTimer;
+        private readonly StringBuilder _logBuilder = new StringBuilder();
+        private int _operationCount = 0;
+        private long _lastLoadTimeMs = 0;
 
         public ZestawienieOpakowanWindow()
         {
@@ -35,7 +44,220 @@ namespace Kalendarz1.Opakowania.Views
                     AktualizujWygladPrzyciskowOpakowan();
                 }
             };
+
+            // Timer do odświeżania diagnostyki co 2 sekundy
+            _diagTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(2)
+            };
+            _diagTimer.Tick += (s, e) => RefreshDiagnostics();
+            _diagTimer.Start();
+
+            // Pierwsze odświeżenie
+            Loaded += (s, e) =>
+            {
+                RefreshDiagnostics();
+                AddLog("Okno uruchomione");
+                AddLog($"User: {userId}");
+            };
         }
+
+        #region Diagnostyka
+
+        private void RefreshDiagnostics()
+        {
+            try
+            {
+                var cacheStatus = SaldaService.GetCacheStatus();
+
+                string saldaStatus = "--";
+                var lines = cacheStatus.Split('\n');
+                foreach (var line in lines)
+                {
+                    if (line.Contains("Salda:"))
+                    {
+                        saldaStatus = line.Contains("ZAŁADOWANE") ? "OK" : "Puste";
+                    }
+                }
+
+                var profilerReport = PerformanceProfiler.GenerateShortReport();
+                var hitRateMatch = System.Text.RegularExpressions.Regex.Match(profilerReport, @"(\d+)% hit rate");
+                string hitRateText = hitRateMatch.Success ? hitRateMatch.Groups[1].Value + " %" : "-- %";
+
+                txtCacheStatus.Text = saldaStatus;
+                txtCacheHitRate.Text = hitRateText;
+                txtTotalOperations.Text = _operationCount.ToString();
+                txtLastLoadTime.Text = _lastLoadTimeMs > 0 ? $"{_lastLoadTimeMs} ms" : "-- ms";
+                txtLastUpdate.Text = $"Aktualizacja: {DateTime.Now:HH:mm:ss}";
+
+                if (_logBuilder.Length == 0)
+                {
+                    txtDiagLog.Text = cacheStatus + "\n\n" + profilerReport;
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLog($"Błąd: {ex.Message}");
+            }
+        }
+
+        private void AddLog(string message)
+        {
+            var timestamp = DateTime.Now.ToString("HH:mm:ss");
+            _logBuilder.AppendLine($"[{timestamp}] {message}");
+
+            if (_logBuilder.Length > 5000)
+            {
+                var text = _logBuilder.ToString();
+                _logBuilder.Clear();
+                _logBuilder.Append(text.Substring(text.Length - 3000));
+            }
+
+            txtDiagLog.Text = _logBuilder.ToString();
+        }
+
+        private async void BtnRunTest_Click(object sender, RoutedEventArgs e)
+        {
+            btnRunTest.IsEnabled = false;
+            btnRunTest.Content = "⏳ TESTOWANIE...";
+            _logBuilder.Clear();
+
+            try
+            {
+                AddLog("=== TEST WYDAJNOŚCI ===");
+                AddLog("");
+
+                var service = new SaldaService();
+
+                // Test 1: Ładowanie sald
+                AddLog("TEST 1: Ładowanie sald...");
+                var sw1 = Stopwatch.StartNew();
+                var salda = await service.PobierzWszystkieSaldaAsync(DateTime.Today);
+                sw1.Stop();
+                _lastLoadTimeMs = sw1.ElapsedMilliseconds;
+                _operationCount++;
+
+                string status1 = sw1.ElapsedMilliseconds < 100 ? "CACHE!" :
+                                sw1.ElapsedMilliseconds < 2000 ? "OK" : "WOLNE";
+                AddLog($"  {salda.Count} rekordów w {sw1.ElapsedMilliseconds} ms [{status1}]");
+                AddLog("");
+
+                // Test 2: Cache test
+                AddLog("TEST 2: Ponowne ładowanie (cache)...");
+                var sw2 = Stopwatch.StartNew();
+                var salda2 = await service.PobierzWszystkieSaldaAsync(DateTime.Today);
+                sw2.Stop();
+                _operationCount++;
+
+                string status2 = sw2.ElapsedMilliseconds < 10 ? "CACHE HIT!" : "Wolne";
+                AddLog($"  {salda2.Count} rekordów w {sw2.ElapsedMilliseconds} ms [{status2}]");
+                AddLog("");
+
+                // Test 3: Dokumenty
+                if (salda.Count > 0)
+                {
+                    var pierwszy = salda[0];
+                    AddLog($"TEST 3: Dokumenty [{pierwszy.Kontrahent?.Substring(0, Math.Min(20, pierwszy.Kontrahent?.Length ?? 0))}...]");
+                    var sw3 = Stopwatch.StartNew();
+                    var docs = await service.PobierzDokumentyAsync(pierwszy.Id, DateTime.Today.AddMonths(-3), DateTime.Today);
+                    sw3.Stop();
+                    _operationCount++;
+                    AddLog($"  {docs.Count} dokumentów w {sw3.ElapsedMilliseconds} ms");
+                    AddLog("");
+
+                    // Test 4: Potwierdzenia
+                    AddLog("TEST 4: Potwierdzenia...");
+                    var sw4 = Stopwatch.StartNew();
+                    var potwierdzenia = await service.PobierzPotwierdzeniaKontrahentaAsync(pierwszy.Id);
+                    sw4.Stop();
+                    _operationCount++;
+                    AddLog($"  {potwierdzenia.Count} potwierdzeń w {sw4.ElapsedMilliseconds} ms");
+                    AddLog("");
+                }
+
+                // Podsumowanie
+                AddLog("=== WYNIK ===");
+                if (sw1.ElapsedMilliseconds < 100 && sw2.ElapsedMilliseconds < 10)
+                {
+                    AddLog("CACHE DZIAŁA POPRAWNIE!");
+                }
+                else if (sw1.ElapsedMilliseconds < 3000)
+                {
+                    AddLog("Pierwsze ładowanie OK.");
+                    AddLog("Kolejne z cache.");
+                }
+                else
+                {
+                    AddLog("WOLNE - sprawdź serwer.");
+                }
+
+                AddLog("");
+                AddLog("=== CACHE STATUS ===");
+                AddLog(SaldaService.GetCacheStatus());
+
+                RefreshDiagnostics();
+            }
+            catch (Exception ex)
+            {
+                AddLog($"BŁĄD: {ex.Message}");
+            }
+            finally
+            {
+                btnRunTest.IsEnabled = true;
+                btnRunTest.Content = "🚀 TEST WYDAJNOŚCI";
+            }
+        }
+
+        private void BtnCopyDiag_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var sb = new StringBuilder();
+                sb.AppendLine("╔════════════════════════════════════════════════════════════╗");
+                sb.AppendLine("║         RAPORT DIAGNOSTYCZNY - OPAKOWANIA                  ║");
+                sb.AppendLine($"║         {DateTime.Now:yyyy-MM-dd HH:mm:ss}                            ║");
+                sb.AppendLine("╚════════════════════════════════════════════════════════════╝");
+                sb.AppendLine();
+                sb.AppendLine("=== METRYKI ===");
+                sb.AppendLine($"Ostatnie ładowanie: {txtLastLoadTime.Text}");
+                sb.AppendLine($"Cache hit rate: {txtCacheHitRate.Text}");
+                sb.AppendLine($"Operacji: {txtTotalOperations.Text}");
+                sb.AppendLine($"Status cache: {txtCacheStatus.Text}");
+                sb.AppendLine();
+                sb.AppendLine("=== LOG ===");
+                sb.AppendLine(txtDiagLog.Text);
+                sb.AppendLine();
+                sb.AppendLine("=== PROFILER ===");
+                sb.AppendLine(PerformanceProfiler.GenerateReport());
+                sb.AppendLine();
+                sb.AppendLine("=== CACHE ===");
+                sb.AppendLine(SaldaService.GetCacheStatus());
+
+                Clipboard.SetText(sb.ToString());
+                MessageBox.Show("Raport skopiowany!", "OK", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnResetDiag_Click(object sender, RoutedEventArgs e)
+        {
+            var result = MessageBox.Show("Zresetować statystyki?", "Potwierdzenie", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                PerformanceProfiler.Reset();
+                _logBuilder.Clear();
+                _operationCount = 0;
+                _lastLoadTimeMs = 0;
+                AddLog("Statystyki zresetowane");
+                RefreshDiagnostics();
+            }
+        }
+
+        #endregion
 
         #region Event Handlers
 
@@ -126,7 +348,6 @@ namespace Kalendarz1.Opakowania.Views
         {
             if (dataGridZestawienie.SelectedItem is ZestawienieSalda kontrahent)
             {
-                // TODO: Implementacja dzwonienia
                 MessageBox.Show($"Dzwonienie do: {kontrahent.Kontrahent}", "Zadzwoń", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
@@ -135,20 +356,17 @@ namespace Kalendarz1.Opakowania.Views
         {
             if (dataGridZestawienie.SelectedItem is ZestawienieSalda kontrahent)
             {
-                // TODO: Implementacja emaila
                 MessageBox.Show($"Wysyłanie emaila do: {kontrahent.Kontrahent}", "Email", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
         private void MenuEksportExcel_Click(object sender, RoutedEventArgs e)
         {
-            // TODO: Implementacja eksportu Excel
             MessageBox.Show("Funkcja eksportu do Excel zostanie wkrótce zaimplementowana.", "Eksport Excel", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void MenuEksportPDF_Click(object sender, RoutedEventArgs e)
         {
-            // Użyj istniejącej komendy GenerujPDF jeśli jest wybrany kontrahent
             if (_viewModel.WybranyKontrahent != null)
             {
                 _viewModel.GenerujPDFCommand?.Execute(null);
@@ -227,6 +445,7 @@ namespace Kalendarz1.Opakowania.Views
 
         protected override void OnClosed(EventArgs e)
         {
+            _diagTimer?.Stop();
             _viewModel.OtworzSzczegolyRequested -= OnOtworzSzczegoly;
             _viewModel.DodajPotwierdzenieRequested -= OnDodajPotwierdzenie;
             base.OnClosed(e);

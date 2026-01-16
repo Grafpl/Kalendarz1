@@ -28,13 +28,20 @@
     </Window.InputBindings>
 
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="320"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- LEWA STRONA - główna zawartość -->
+        <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
         <!-- ============================================== -->
         <!-- PASEK TYTUŁU -->
@@ -345,7 +352,7 @@
         <!-- ============================================== -->
         <!-- LOADING OVERLAY -->
         <!-- ============================================== -->
-        <Grid Grid.RowSpan="5" Background="#80FFFFFF" 
+        <Grid Grid.RowSpan="5" Background="#80FFFFFF"
               Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}">
             <Border Background="White" CornerRadius="12" Padding="30" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Border.Effect>
@@ -353,10 +360,171 @@
                 </Border.Effect>
                 <StackPanel>
                     <ProgressBar IsIndeterminate="True" Width="200" Height="6"/>
-                    <TextBlock Text="⏳ Ładowanie danych..." FontSize="14" Foreground="{StaticResource TextSecondaryBrush}" 
+                    <TextBlock Text="⏳ Ładowanie danych..." FontSize="14" Foreground="{StaticResource TextSecondaryBrush}"
                                HorizontalAlignment="Center" Margin="0,15,0,0"/>
                 </StackPanel>
             </Border>
         </Grid>
+        </Grid>
+
+        <!-- ============================================== -->
+        <!-- PRAWA STRONA - PANEL DIAGNOSTYKI -->
+        <!-- ============================================== -->
+        <Border Grid.Column="1" Background="#1A1A2E" BorderBrush="#16213E" BorderThickness="1,0,0,0">
+            <Grid Margin="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Nagłówek diagnostyki -->
+                <Border Grid.Row="0" Background="#16213E" CornerRadius="8" Padding="12" Margin="0,0,0,12">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⚡" FontSize="18" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Text="DIAGNOSTYKA" FontSize="14" FontWeight="Bold" Foreground="#00D9FF"/>
+                        </StackPanel>
+                        <TextBlock Text="Monitoring wydajności" FontSize="10" Foreground="#888" Margin="26,2,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Metryki -->
+                <Border Grid.Row="1" Background="#16213E" CornerRadius="8" Padding="12" Margin="0,0,0,8">
+                    <StackPanel>
+                        <TextBlock Text="METRYKI" FontSize="10" Foreground="#666" FontWeight="Bold" Margin="0,0,0,10"/>
+
+                        <Grid Margin="0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Ostatnie ładowanie:" Foreground="#AAA" FontSize="11"/>
+                            <TextBlock x:Name="txtLastLoadTime" Grid.Column="1" Text="-- ms" Foreground="#00FF88" FontWeight="Bold" FontSize="11"/>
+                        </Grid>
+
+                        <Grid Margin="0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Cache hit rate:" Foreground="#AAA" FontSize="11"/>
+                            <TextBlock x:Name="txtCacheHitRate" Grid.Column="1" Text="-- %" Foreground="#FFD700" FontWeight="Bold" FontSize="11"/>
+                        </Grid>
+
+                        <Grid Margin="0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Operacji:" Foreground="#AAA" FontSize="11"/>
+                            <TextBlock x:Name="txtTotalOperations" Grid.Column="1" Text="0" Foreground="#FFF" FontWeight="Bold" FontSize="11"/>
+                        </Grid>
+
+                        <Grid Margin="0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Status cache:" Foreground="#AAA" FontSize="11"/>
+                            <TextBlock x:Name="txtCacheStatus" Grid.Column="1" Text="--" Foreground="#00D9FF" FontWeight="Bold" FontSize="11"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Log operacji -->
+                <Border Grid.Row="2" Background="#16213E" CornerRadius="8" Padding="10">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Text="LOG OPERACJI" FontSize="10" Foreground="#666" FontWeight="Bold" Margin="0,0,0,8"/>
+
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <TextBox x:Name="txtDiagLog"
+                                     FontFamily="Consolas"
+                                     FontSize="10"
+                                     Foreground="#DCDCDC"
+                                     Background="Transparent"
+                                     BorderThickness="0"
+                                     IsReadOnly="True"
+                                     TextWrapping="Wrap"
+                                     AcceptsReturn="True"
+                                     Text="Oczekiwanie na dane..."/>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+                <!-- Przyciski -->
+                <StackPanel Grid.Row="3" Margin="0,10,0,0">
+                    <Button x:Name="btnRunTest" Content="🚀 TEST WYDAJNOŚCI" Click="BtnRunTest_Click"
+                            Background="#5C2D91" Foreground="White" FontWeight="Bold" FontSize="11"
+                            Padding="10,10" Cursor="Hand" BorderThickness="0" Margin="0,0,0,8">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button x:Name="btnCopyDiag" Content="📋 Kopiuj" Click="BtnCopyDiag_Click"
+                                Background="#107C10" Foreground="White" FontWeight="Bold" FontSize="10"
+                                Padding="8,8" Cursor="Hand" BorderThickness="0" Margin="0,0,4,0">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter HorizontalAlignment="Center"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+
+                        <Button x:Name="btnResetDiag" Grid.Column="1" Content="🔄 Resetuj" Click="BtnResetDiag_Click"
+                                Background="#D83B01" Foreground="White" FontWeight="Bold" FontSize="10"
+                                Padding="8,8" Cursor="Hand" BorderThickness="0" Margin="4,0,0,0">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter HorizontalAlignment="Center"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </Grid>
+
+                    <TextBlock x:Name="txtLastUpdate" Text="Aktualizacja: --"
+                               Foreground="#555" FontSize="9" Margin="0,10,0,0" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </Border>
     </Grid>
 </Window>
