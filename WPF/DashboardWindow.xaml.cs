@@ -4237,7 +4237,8 @@ namespace Kalendarz1.WPF
                 tableGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Suma
 
             // Nagłówek
-            var headerGrid = new Grid { Background = new SolidColorBrush(Color.FromRgb(44, 62, 80)), Padding = new Thickness(5, 4, 5, 4) };
+            var headerBorder = new Border { Background = new SolidColorBrush(Color.FromRgb(44, 62, 80)), Padding = new Thickness(5, 4, 5, 4) };
+            var headerGrid = new Grid();
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
@@ -4251,8 +4252,9 @@ namespace Kalendarz1.WPF
             var hdrWyd = new TextBlock { Text = "WYDANE", FontSize = 11, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)), HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 5, 0) };
             Grid.SetColumn(hdrWyd, 3); headerGrid.Children.Add(hdrWyd);
 
-            Grid.SetRow(headerGrid, 0);
-            tableGrid.Children.Add(headerGrid);
+            headerBorder.Child = headerGrid;
+            Grid.SetRow(headerBorder, 0);
+            tableGrid.Children.Add(headerBorder);
 
             // Lista odbiorców
             var scrollViewer = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
