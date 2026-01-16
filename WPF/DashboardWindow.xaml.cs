@@ -2939,6 +2939,10 @@ namespace Kalendarz1.WPF
             Button? slideshowBtnRef = null;
             TextBlock? productInfoLabelRef = null;
 
+            // === SYMULACJA REDUKCJI (tymczasowe, bez zapisu do bazy) ===
+            // Klucz: (ProductId, KlientId), Wartość: redukcja w kg (ujemna wartość)
+            var simulatedReductions = new Dictionary<(int ProductId, int KlientId), decimal>();
+
             // === METODA ODŚWIEŻAJĄCA ZAWARTOŚĆ ===
             Action refreshContent = null!;
             refreshContent = () =>
@@ -2949,14 +2953,21 @@ namespace Kalendarz1.WPF
                 // Wyczyść i przebuduj
                 mainContainer.Children.Clear();
 
-                // Obliczenia
+                // Oblicz symulowaną redukcję dla tego produktu
+                decimal totalReduction = simulatedReductions
+                    .Where(kvp => kvp.Key.ProductId == currentData.Id)
+                    .Sum(kvp => kvp.Value);
+
+                // Obliczenia z uwzględnieniem symulacji
                 bool uzyjFakt = currentData.Fakt > 0;
                 decimal cel = uzyjFakt ? currentData.Fakt : currentData.Plan;
-                decimal zamLubWyd = viewUseWydania ? currentData.Wydania : currentData.Zamowienia;
+                decimal zamowieniaSymulowane = currentData.Zamowienia + totalReduction; // totalReduction jest ujemne
+                decimal zamLubWyd = viewUseWydania ? currentData.Wydania : zamowieniaSymulowane;
                 decimal bilans = cel + currentData.Stan - zamLubWyd;
-                decimal doWydania = currentData.Zamowienia - currentData.Wydania;
+                decimal doWydania = zamowieniaSymulowane - currentData.Wydania;
                 decimal procentRealizacji = cel > 0 ? (zamLubWyd / cel) * 100 : 0;
                 bool przekroczono = procentRealizacji > 100;
+                bool maSymulacje = totalReduction != 0;
 
                 // === GŁÓWNY KONTENER ===
                 var mainGrid = new Grid { Margin = new Thickness(40) };
@@ -3062,16 +3073,38 @@ namespace Kalendarz1.WPF
                 Grid.SetColumn(titleStack, 1);
                 headerPanel.Children.Add(titleStack);
 
-                // BILANS
+                // BILANS (z informacją o symulacji)
                 var bilansBorder = new Border
                 {
                     Background = new SolidColorBrush(bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60)),
                     CornerRadius = new CornerRadius(15), Padding = new Thickness(30, 15, 30, 15),
                     Margin = new Thickness(20, 0, 20, 0), VerticalAlignment = VerticalAlignment.Center
                 };
+                // Jeśli jest symulacja - dodaj obramowanie żółte
+                if (maSymulacje)
+                {
+                    bilansBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(241, 196, 15));
+                    bilansBorder.BorderThickness = new Thickness(4);
+                }
                 var bilansStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-                bilansStack.Children.Add(new TextBlock { Text = "BILANS", FontSize = 14, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center });
+                bilansStack.Children.Add(new TextBlock
+                {
+                    Text = maSymulacje ? "📉 BILANS (symulacja)" : "BILANS",
+                    FontSize = 14,
+                    Foreground = maSymulacje ? new SolidColorBrush(Color.FromRgb(241, 196, 15)) : Brushes.White,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                });
                 bilansStack.Children.Add(new TextBlock { Text = $"{bilans:N0} kg", FontSize = 48, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center });
+                if (maSymulacje)
+                {
+                    bilansStack.Children.Add(new TextBlock
+                    {
+                        Text = $"(redukcja: {totalReduction:N0} kg)",
+                        FontSize = 12,
+                        Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)),
+                        HorizontalAlignment = HorizontalAlignment.Center
+                    });
+                }
                 bilansBorder.Child = bilansStack;
                 Grid.SetColumn(bilansBorder, 2);
                 headerPanel.Children.Add(bilansBorder);
@@ -3128,7 +3161,26 @@ namespace Kalendarz1.WPF
                 formulaPanel.Children.Add(new TextBlock { Text = "  +  ", FontSize = 30, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
                 formulaPanel.Children.Add(new TextBlock { Text = $"STAN {currentData.Stan:N0}", FontSize = 30, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(26, 188, 156)), VerticalAlignment = VerticalAlignment.Center });
                 formulaPanel.Children.Add(new TextBlock { Text = "  −  ", FontSize = 30, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
-                formulaPanel.Children.Add(new TextBlock { Text = viewUseWydania ? $"WYD {currentData.Wydania:N0}" : $"ZAM {currentData.Zamowienia:N0}", FontSize = 30, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(viewUseWydania ? Color.FromRgb(192, 57, 43) : Color.FromRgb(230, 126, 34)), VerticalAlignment = VerticalAlignment.Center });
+
+                // Zamówienia/Wydania (z symulacją)
+                if (viewUseWydania)
+                {
+                    formulaPanel.Children.Add(new TextBlock { Text = $"WYD {currentData.Wydania:N0}", FontSize = 30, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(192, 57, 43)), VerticalAlignment = VerticalAlignment.Center });
+                }
+                else if (maSymulacje)
+                {
+                    // Pokaż oryginalne zamówienia przekreślone + symulowane
+                    var zamStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                    zamStack.Children.Add(new TextBlock { Text = $"ZAM ", FontSize = 30, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(230, 126, 34)) });
+                    zamStack.Children.Add(new TextBlock { Text = $"{currentData.Zamowienia:N0}", FontSize = 22, Foreground = new SolidColorBrush(Color.FromRgb(150, 100, 50)), TextDecorations = TextDecorations.Strikethrough, Margin = new Thickness(0, 0, 5, 0) });
+                    zamStack.Children.Add(new TextBlock { Text = $"{zamowieniaSymulowane:N0}", FontSize = 30, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)) });
+                    formulaPanel.Children.Add(zamStack);
+                }
+                else
+                {
+                    formulaPanel.Children.Add(new TextBlock { Text = $"ZAM {currentData.Zamowienia:N0}", FontSize = 30, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(230, 126, 34)), VerticalAlignment = VerticalAlignment.Center });
+                }
+
                 formulaPanel.Children.Add(new TextBlock { Text = "  =  ", FontSize = 30, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
                 formulaPanel.Children.Add(new TextBlock { Text = $"{bilans:N0}", FontSize = 36, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60)), VerticalAlignment = VerticalAlignment.Center });
                 formulaBorder.Child = formulaPanel;
@@ -3247,60 +3299,122 @@ namespace Kalendarz1.WPF
                 foreach (var odb in odbiorcy)
                 {
                     bool bezZam = odb.Zamowione == 0 && odb.Wydane > 0;
-                    var row = new Border { Background = bezZam ? new SolidColorBrush(Color.FromRgb(60, 35, 35)) : Brushes.Transparent, CornerRadius = new CornerRadius(5), Padding = new Thickness(8, 5, 8, 5), Margin = new Thickness(0, 1, 0, 1), Cursor = System.Windows.Input.Cursors.Hand };
+                    var odbRef = odb;
+                    var currentProductId = currentData.Id;
+                    var currentDate = _selectedDate;
+
+                    // Sprawdź czy jest symulowana redukcja dla tego odbiorcy
+                    var reductionKey = (currentProductId, odbRef.KlientId);
+                    decimal odbReduction = simulatedReductions.TryGetValue(reductionKey, out var red) ? red : 0;
+                    decimal odbZamowioneSymulowane = odbRef.Zamowione + odbReduction;
+                    bool maRedukcje = odbReduction != 0;
+
+                    var row = new Border
+                    {
+                        Background = maRedukcje
+                            ? new SolidColorBrush(Color.FromRgb(60, 50, 30)) // żółtawe tło dla symulacji
+                            : bezZam ? new SolidColorBrush(Color.FromRgb(60, 35, 35)) : Brushes.Transparent,
+                        CornerRadius = new CornerRadius(5),
+                        Padding = new Thickness(8, 5, 8, 5),
+                        Margin = new Thickness(0, 1, 0, 1),
+                        Cursor = System.Windows.Input.Cursors.Hand
+                    };
                     var rowGrid = new Grid();
                     rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
+                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
                     rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
                     rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
 
-                    rowGrid.Children.Add(new TextBlock { Text = odb.NazwaOdbiorcy, FontSize = 16, Foreground = Brushes.White, TextTrimming = TextTrimming.CharacterEllipsis });
+                    // Nazwa odbiorcy (z ikonką jeśli ma redukcję)
+                    var namePanel = new StackPanel { Orientation = Orientation.Horizontal };
+                    if (maRedukcje)
+                        namePanel.Children.Add(new TextBlock { Text = "📉 ", FontSize = 14, VerticalAlignment = VerticalAlignment.Center });
+                    namePanel.Children.Add(new TextBlock { Text = odbRef.NazwaOdbiorcy, FontSize = 16, Foreground = Brushes.White, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center });
+                    rowGrid.Children.Add(namePanel);
 
-                    // Zamówienia
-                    var vZam = new TextBlock { Text = odb.Zamowione > 0 ? $"{odb.Zamowione:N0}" : "-", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(230, 126, 34)), HorizontalAlignment = HorizontalAlignment.Right };
-                    Grid.SetColumn(vZam, 1);
-                    rowGrid.Children.Add(vZam);
+                    // Zamówienia (z symulacją)
+                    var zamStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+                    if (maRedukcje)
+                    {
+                        zamStack.Children.Add(new TextBlock { Text = $"{odbRef.Zamowione:N0}", FontSize = 14, Foreground = new SolidColorBrush(Color.FromRgb(150, 100, 50)), TextDecorations = TextDecorations.Strikethrough, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 5, 0) });
+                        zamStack.Children.Add(new TextBlock { Text = $"{odbZamowioneSymulowane:N0}", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)), VerticalAlignment = VerticalAlignment.Center });
+                    }
+                    else
+                    {
+                        zamStack.Children.Add(new TextBlock { Text = odbRef.Zamowione > 0 ? $"{odbRef.Zamowione:N0}" : "-", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(230, 126, 34)) });
+                    }
+                    Grid.SetColumn(zamStack, 1);
+                    rowGrid.Children.Add(zamStack);
 
                     // Wydania
-                    var vWyd = new TextBlock { Text = odb.Wydane > 0 ? $"{odb.Wydane:N0}" : "-", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(192, 57, 43)), HorizontalAlignment = HorizontalAlignment.Right };
+                    var vWyd = new TextBlock { Text = odbRef.Wydane > 0 ? $"{odbRef.Wydane:N0}" : "-", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(192, 57, 43)), HorizontalAlignment = HorizontalAlignment.Right };
                     Grid.SetColumn(vWyd, 2);
                     rowGrid.Children.Add(vWyd);
 
-                    // % udziału (zależny od trybu ZAM/WYD)
-                    decimal odbWartosc = viewUseWydania ? odb.Wydane : odb.Zamowione;
+                    // % udziału (zależny od trybu ZAM/WYD) - używa symulowanej wartości
+                    decimal odbWartosc = viewUseWydania ? odbRef.Wydane : odbZamowioneSymulowane;
                     decimal procent = sumaGlowna > 0 ? (odbWartosc / sumaGlowna) * 100 : 0;
                     var vPct = new TextBlock { Text = procent > 0 ? $"{procent:N1}%" : "-", FontSize = 16, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219)), HorizontalAlignment = HorizontalAlignment.Right };
                     Grid.SetColumn(vPct, 3);
                     rowGrid.Children.Add(vPct);
 
                     row.Child = rowGrid;
-                    var odbRef = odb;
-                    var currentProductId = currentData.Id;
-                    var currentDate = _selectedDate;
-                    row.MouseEnter += (s, e) => row.Background = new SolidColorBrush(Color.FromRgb(60, 80, 100));
-                    row.MouseLeave += (s, e) => row.Background = bezZam ? new SolidColorBrush(Color.FromRgb(60, 35, 35)) : Brushes.Transparent;
 
-                    // Kliknięcie na odbiorcę - otwórz edycję zamówienia
-                    row.MouseLeftButtonUp += async (s, e) =>
+                    // Hover effect
+                    var defaultBg = row.Background;
+                    row.MouseEnter += (s, e) => row.Background = new SolidColorBrush(Color.FromRgb(60, 80, 100));
+                    row.MouseLeave += (s, e) => row.Background = defaultBg;
+
+                    // === MENU KONTEKSTOWE (prawy przycisk) ===
+                    var contextMenu = new ContextMenu();
+
+                    // Edytuj zamówienie
+                    var menuEdit = new MenuItem { Header = "✏️ Edytuj zamówienie", IsEnabled = odbRef.Zamowione > 0 };
+                    menuEdit.Click += async (s, e) =>
                     {
                         if (odbRef.KlientId > 0 && odbRef.Zamowione > 0)
                         {
-                            await OpenOrderEditorForClientAsync(
-                                odbRef.KlientId,
-                                currentProductId,
-                                odbRef.NazwaOdbiorcy,
-                                currentDate,
-                                refreshContent);
-                        }
-                        else if (odbRef.Zamowione == 0 && odbRef.Wydane > 0)
-                        {
-                            MessageBox.Show($"Odbiorca '{odbRef.NazwaOdbiorcy}' ma tylko wydania bez zamówienia.\nNie można otworzyć edycji.",
-                                "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                            await OpenOrderEditorForClientAsync(odbRef.KlientId, currentProductId, odbRef.NazwaOdbiorcy, currentDate, refreshContent);
                         }
                     };
+                    contextMenu.Items.Add(menuEdit);
+
+                    contextMenu.Items.Add(new Separator());
+
+                    // Zmniejsz ilość (symulacja)
+                    var menuReduce = new MenuItem { Header = "📉 Zmniejsz ilość (symulacja)", IsEnabled = odbRef.Zamowione > 0 };
+                    menuReduce.Click += (s, e) =>
+                    {
+                        ShowReductionDialog(odbRef.NazwaOdbiorcy, odbRef.Zamowione, odbReduction, (newReduction) =>
+                        {
+                            if (newReduction == 0)
+                                simulatedReductions.Remove(reductionKey);
+                            else
+                                simulatedReductions[reductionKey] = newReduction;
+                            refreshContent();
+                        });
+                    };
+                    contextMenu.Items.Add(menuReduce);
+
+                    // Resetuj symulację dla tego odbiorcy
+                    if (maRedukcje)
+                    {
+                        var menuReset = new MenuItem { Header = "🔄 Resetuj symulację" };
+                        menuReset.Click += (s, e) =>
+                        {
+                            simulatedReductions.Remove(reductionKey);
+                            refreshContent();
+                        };
+                        contextMenu.Items.Add(menuReset);
+                    }
+
+                    row.ContextMenu = contextMenu;
 
                     // Tooltip z informacją
-                    row.ToolTip = odbRef.Zamowione > 0 ? "Kliknij aby edytować zamówienie" : "Wydanie bez zamówienia";
+                    string tooltip = "Prawy przycisk myszy → opcje";
+                    if (maRedukcje)
+                        tooltip = $"Symulowana redukcja: {odbReduction:N0} kg\n{tooltip}";
+                    row.ToolTip = tooltip;
 
                     rightPanel.Children.Add(row);
                 }
@@ -3354,10 +3468,39 @@ namespace Kalendarz1.WPF
                 };
                 footerPanel.Children.Add(slideshowBtn);
 
+                // Przycisk reset symulacji (tylko gdy są aktywne)
+                bool anySimulations = simulatedReductions.Any();
+                if (anySimulations)
+                {
+                    var resetSimBtn = new Button
+                    {
+                        Content = "🔄 Resetuj symulacje",
+                        FontSize = 14,
+                        Padding = new Thickness(15, 8, 15, 8),
+                        Background = new SolidColorBrush(Color.FromRgb(241, 196, 15)),
+                        Foreground = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+                        BorderThickness = new Thickness(0),
+                        Margin = new Thickness(0, 0, 15, 0),
+                        FontWeight = FontWeights.SemiBold,
+                        Cursor = System.Windows.Input.Cursors.Hand
+                    };
+                    resetSimBtn.Click += (s, e) =>
+                    {
+                        simulatedReductions.Clear();
+                        refreshContent();
+                    };
+                    footerPanel.Children.Add(resetSimBtn);
+                }
+
                 var productInfoLabel = new TextBlock { Text = $"[{viewIndex + 1}/{_productDataList.Count}]", FontSize = 16, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 15, 0) };
                 productInfoLabelRef = productInfoLabel;
                 footerPanel.Children.Add(productInfoLabel);
-                footerPanel.Children.Add(new TextBlock { Text = "ESC = zamknij  |  ← → nawigacja", FontSize = 14, Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)), VerticalAlignment = VerticalAlignment.Center });
+
+                // Informacja o symulacjach w stopce
+                string footerText = "ESC = zamknij  |  ← → nawigacja  |  PPM = opcje";
+                if (anySimulations)
+                    footerText = $"📉 Symulacje aktywne ({simulatedReductions.Count})  |  " + footerText;
+                footerPanel.Children.Add(new TextBlock { Text = footerText, FontSize = 14, Foreground = new SolidColorBrush(anySimulations ? Color.FromRgb(241, 196, 15) : Color.FromRgb(100, 100, 100)), VerticalAlignment = VerticalAlignment.Center });
                 Grid.SetRow(footerPanel, 2);
                 mainGrid.Children.Add(footerPanel);
 
@@ -3773,6 +3916,180 @@ namespace Kalendarz1.WPF
 
             border.Child = stack;
             return border;
+        }
+
+        /// <summary>
+        /// Wyświetla dialog do symulacji redukcji ilości zamówienia.
+        /// Pozwala zmniejszyć o procent lub o konkretną ilość kg.
+        /// </summary>
+        private void ShowReductionDialog(string odbiorcaNazwa, decimal aktualnIlosc, decimal obecnaRedukcja, Action<decimal> onApply)
+        {
+            var dialog = new Window
+            {
+                Title = "Symulacja redukcji",
+                Width = 420,
+                Height = 380,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Background = new SolidColorBrush(Color.FromRgb(245, 245, 245)),
+                ResizeMode = ResizeMode.NoResize
+            };
+
+            var mainStack = new StackPanel { Margin = new Thickness(25) };
+
+            // Nagłówek
+            mainStack.Children.Add(new TextBlock
+            {
+                Text = "📉 Symulacja redukcji zamówienia",
+                FontSize = 18,
+                FontWeight = FontWeights.Bold,
+                Margin = new Thickness(0, 0, 0, 15)
+            });
+
+            // Informacja o odbiorcy
+            var infoBorder = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(15, 10, 15, 10),
+                Margin = new Thickness(0, 0, 0, 20)
+            };
+            var infoStack = new StackPanel();
+            infoStack.Children.Add(new TextBlock { Text = odbiorcaNazwa, FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Brushes.White });
+            infoStack.Children.Add(new TextBlock { Text = $"Aktualne zamówienie: {aktualnIlosc:N0} kg", FontSize = 13, Foreground = new SolidColorBrush(Color.FromRgb(189, 195, 199)), Margin = new Thickness(0, 5, 0, 0) });
+            if (obecnaRedukcja != 0)
+                infoStack.Children.Add(new TextBlock { Text = $"Obecna symulacja: {obecnaRedukcja:N0} kg", FontSize = 13, Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)), Margin = new Thickness(0, 2, 0, 0) });
+            infoBorder.Child = infoStack;
+            mainStack.Children.Add(infoBorder);
+
+            // Wybór trybu: procent lub kg
+            mainStack.Children.Add(new TextBlock { Text = "Redukcja o:", FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 10) });
+
+            var modePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 15) };
+            var radioPercent = new RadioButton { Content = "Procent (%)", FontSize = 14, IsChecked = true, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 30, 0) };
+            var radioKg = new RadioButton { Content = "Kilogramy (kg)", FontSize = 14, VerticalAlignment = VerticalAlignment.Center };
+            modePanel.Children.Add(radioPercent);
+            modePanel.Children.Add(radioKg);
+            mainStack.Children.Add(modePanel);
+
+            // Pole wprowadzania wartości
+            var inputPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
+            var txtValue = new TextBox { Width = 100, FontSize = 16, Padding = new Thickness(8, 5, 8, 5), Text = obecnaRedukcja != 0 ? $"{Math.Abs(obecnaRedukcja):N0}" : "" };
+            var lblUnit = new TextBlock { Text = "%", FontSize = 16, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0) };
+            inputPanel.Children.Add(txtValue);
+            inputPanel.Children.Add(lblUnit);
+            mainStack.Children.Add(inputPanel);
+
+            // Aktualizuj jednostkę przy zmianie trybu
+            radioPercent.Checked += (s, e) => lblUnit.Text = "%";
+            radioKg.Checked += (s, e) => lblUnit.Text = "kg";
+
+            // Podgląd wyniku
+            var previewBorder = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(241, 196, 15)),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(15, 10, 15, 10),
+                Margin = new Thickness(0, 10, 0, 20)
+            };
+            var previewText = new TextBlock { FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(30, 30, 30)) };
+            previewBorder.Child = previewText;
+            mainStack.Children.Add(previewBorder);
+
+            // Aktualizuj podgląd
+            Action updatePreview = () =>
+            {
+                if (decimal.TryParse(txtValue.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal value) && value > 0)
+                {
+                    decimal reduction;
+                    if (radioPercent.IsChecked == true)
+                        reduction = -Math.Round(aktualnIlosc * value / 100, 0);
+                    else
+                        reduction = -value;
+
+                    decimal newValue = Math.Max(0, aktualnIlosc + reduction);
+                    previewText.Text = $"Nowa ilość: {newValue:N0} kg (redukcja: {reduction:N0} kg)";
+                    previewBorder.Background = new SolidColorBrush(Color.FromRgb(241, 196, 15));
+                }
+                else
+                {
+                    previewText.Text = "Wprowadź wartość większą od 0";
+                    previewBorder.Background = new SolidColorBrush(Color.FromRgb(189, 195, 199));
+                }
+            };
+            txtValue.TextChanged += (s, e) => updatePreview();
+            radioPercent.Checked += (s, e) => updatePreview();
+            radioKg.Checked += (s, e) => updatePreview();
+            updatePreview();
+
+            // Przyciski
+            var btnPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+
+            var btnApply = new Button
+            {
+                Content = "Zastosuj symulację",
+                Padding = new Thickness(20, 10, 20, 10),
+                Background = new SolidColorBrush(Color.FromRgb(39, 174, 96)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Margin = new Thickness(0, 0, 10, 0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                FontWeight = FontWeights.SemiBold
+            };
+
+            var btnReset = new Button
+            {
+                Content = "Resetuj",
+                Padding = new Thickness(15, 10, 15, 10),
+                Background = new SolidColorBrush(Color.FromRgb(230, 126, 34)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Margin = new Thickness(0, 0, 10, 0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+
+            var btnCancel = new Button
+            {
+                Content = "Anuluj",
+                Padding = new Thickness(15, 10, 15, 10),
+                Background = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+
+            btnApply.Click += (s, e) =>
+            {
+                if (decimal.TryParse(txtValue.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal value) && value > 0)
+                {
+                    decimal reduction;
+                    if (radioPercent.IsChecked == true)
+                        reduction = -Math.Round(aktualnIlosc * value / 100, 0);
+                    else
+                        reduction = -value;
+
+                    // Nie pozwól na redukcję większą niż zamówienie
+                    reduction = Math.Max(reduction, -aktualnIlosc);
+
+                    onApply(reduction);
+                    dialog.Close();
+                }
+            };
+
+            btnReset.Click += (s, e) =>
+            {
+                onApply(0);
+                dialog.Close();
+            };
+
+            btnCancel.Click += (s, e) => dialog.Close();
+
+            btnPanel.Children.Add(btnApply);
+            btnPanel.Children.Add(btnReset);
+            btnPanel.Children.Add(btnCancel);
+            mainStack.Children.Add(btnPanel);
+
+            dialog.Content = mainStack;
+            dialog.ShowDialog();
         }
 
         /// <summary>
