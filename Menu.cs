@@ -48,7 +48,7 @@ namespace Kalendarz1
             sidePanel = new Panel
             {
                 Dock = DockStyle.Left,
-                Width = 240,
+                Width = 200,
                 BackColor = Color.FromArgb(30, 40, 50),
                 Visible = true
             };
@@ -79,7 +79,8 @@ namespace Kalendarz1
         {
             string odbiorcaId = App.UserID ?? "";
             string userName = App.UserFullName ?? App.UserID ?? "Użytkownik";
-            int avatarSize = 80;
+            int avatarSize = 70;
+            int panelWidth = 200;
 
             var panel = new Panel
             {
@@ -92,7 +93,7 @@ namespace Kalendarz1
             var headerPanel = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 180,
+                Height = 160,
                 BackColor = Color.FromArgb(25, 35, 45)
             };
 
@@ -118,7 +119,7 @@ namespace Kalendarz1
             var avatarPanel = new Panel
             {
                 Size = new Size(avatarSize, avatarSize),
-                Location = new Point((240 - avatarSize) / 2, 25),
+                Location = new Point((panelWidth - avatarSize) / 2, 20),
                 BackColor = Color.Transparent
             };
 
@@ -160,11 +161,11 @@ namespace Kalendarz1
             var nameLabel = new Label
             {
                 Text = userName,
-                Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
                 ForeColor = Color.White,
                 AutoSize = false,
-                Size = new Size(220, 25),
-                Location = new Point(10, 115),
+                Size = new Size(panelWidth - 20, 25),
+                Location = new Point(10, 100),
                 TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent
             };
@@ -177,8 +178,8 @@ namespace Kalendarz1
                 Font = new Font("Segoe UI", 9),
                 ForeColor = Color.FromArgb(76, 175, 80),
                 AutoSize = false,
-                Size = new Size(220, 20),
-                Location = new Point(10, 142),
+                Size = new Size(panelWidth - 20, 20),
+                Location = new Point(10, 128),
                 TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent
             };
@@ -195,22 +196,21 @@ namespace Kalendarz1
             };
             panel.Controls.Add(separator);
 
-            // Sekcja z przyciskami
-            var buttonsPanel = new Panel
+            // Sekcja z przyciskiem admina (tylko dla adminów)
+            var adminPanel = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 130,
+                Height = 60,
                 BackColor = Color.FromArgb(30, 40, 50),
-                Padding = new Padding(15, 15, 15, 10)
+                Padding = new Padding(10)
             };
 
-            // Przycisk Panel Administracyjny (widoczny tylko dla adminów)
             var adminButton = new Button
             {
-                Text = "⚙ Panel Administracyjny",
+                Text = "⚙ Panel Admin",
                 Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                Size = new Size(210, 40),
-                Location = new Point(15, 15),
+                Size = new Size(panelWidth - 20, 40),
+                Location = new Point(10, 10),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.FromArgb(229, 57, 53),
                 ForeColor = Color.White,
@@ -222,15 +222,25 @@ namespace Kalendarz1
             adminButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(244, 81, 77);
             adminButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(198, 40, 40);
             adminButton.Click += AdminPanelButton_Click;
-            buttonsPanel.Controls.Add(adminButton);
+            adminPanel.Controls.Add(adminButton);
 
-            // Przycisk Wyloguj
+            panel.Controls.Add(adminPanel);
+
+            // Dolna sekcja - wyloguj i wersja
+            var footerPanel = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 90,
+                BackColor = Color.FromArgb(20, 28, 36)
+            };
+
+            // Przycisk Wyloguj na dole
             var logoutButton = new Button
             {
                 Text = "🚪 Wyloguj",
                 Font = new Font("Segoe UI", 9),
-                Size = new Size(210, 40),
-                Location = new Point(15, 65),
+                Size = new Size(panelWidth - 20, 38),
+                Location = new Point(10, 10),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.FromArgb(55, 65, 75),
                 ForeColor = Color.White,
@@ -240,17 +250,7 @@ namespace Kalendarz1
             logoutButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(180, 60, 60);
             logoutButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(200, 50, 50);
             logoutButton.Click += LogoutButton_Click;
-            buttonsPanel.Controls.Add(logoutButton);
-
-            panel.Controls.Add(buttonsPanel);
-
-            // Dolna sekcja - informacje o aplikacji
-            var footerPanel = new Panel
-            {
-                Dock = DockStyle.Bottom,
-                Height = 50,
-                BackColor = Color.FromArgb(20, 28, 36)
-            };
+            footerPanel.Controls.Add(logoutButton);
 
             var versionLabel = new Label
             {
@@ -258,8 +258,8 @@ namespace Kalendarz1
                 Font = new Font("Segoe UI", 8),
                 ForeColor = Color.FromArgb(100, 110, 120),
                 AutoSize = false,
-                Size = new Size(220, 20),
-                Location = new Point(10, 15),
+                Size = new Size(panelWidth - 20, 20),
+                Location = new Point(10, 58),
                 TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent
             };
