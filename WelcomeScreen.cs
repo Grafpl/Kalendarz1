@@ -52,8 +52,8 @@ namespace Kalendarz1
             fadeTimer = new Timer { Interval = 20 };
             fadeTimer.Tick += FadeTimer_Tick;
 
-            // Timer do automatycznego zamknięcia (2.5 sekundy)
-            closeTimer = new Timer { Interval = 2500 };
+            // Timer do automatycznego zamknięcia (2 sekundy)
+            closeTimer = new Timer { Interval = 2000 };
             closeTimer.Tick += (s, e) => {
                 closeTimer.Stop();
                 fadingIn = false;
@@ -126,11 +126,11 @@ namespace Kalendarz1
                 g.DrawString(welcomeText, font, brush, centerX - size.Width / 2, avatarY + avatarSize + 15);
             }
 
-            // Imię użytkownika
-            using (var font = new Font("Segoe UI", 22, FontStyle.Bold))
+            // Pełne imię użytkownika
+            using (var font = new Font("Segoe UI", 20, FontStyle.Bold))
             using (var brush = new SolidBrush(Color.White))
             {
-                string displayName = GetFirstName(userName);
+                string displayName = userName ?? "Użytkowniku";
                 var size = g.MeasureString(displayName, font);
 
                 // Cień tekstu
