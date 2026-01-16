@@ -365,6 +365,9 @@
                             <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,15">
                                 <Button x:Name="BtnSynchronizuj" Content="🔄 Synchronizuj z Fireflies"
                                         Style="{StaticResource ActionButton}" Click="BtnSynchronizuj_Click"/>
+                                <Button x:Name="BtnGlobalneSzukanie" Content="🔍 Szukaj w transkrypcjach"
+                                        Style="{StaticResource SecondaryButton}" Margin="10,0,0,0"
+                                        Click="BtnGlobalneSzukanie_Click" ToolTip="Szukaj we wszystkich transkrypcjach"/>
                                 <TextBlock x:Name="TxtStatusSync" Text="" VerticalAlignment="Center"
                                            Margin="15,0,0,0" Foreground="#666"/>
                                 <ProgressBar x:Name="ProgressSync" Width="200" Height="20"

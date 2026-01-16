@@ -474,6 +474,22 @@ namespace Kalendarz1.Spotkania.Views
             }
         }
 
+        private void BtnGlobalneSzukanie_Click(object sender, RoutedEventArgs e)
+        {
+            var searchWindow = new GlobalneSzukanieWindow(_firefliesService);
+            searchWindow.Owner = this;
+            searchWindow.TranskrypcjaOtwarta += (firefliesId, transkrypcjaId) =>
+            {
+                var window = new TranskrypcjaSzczegolyWindow(firefliesId, transkrypcjaId);
+                window.Owner = this;
+                if (window.ShowDialog() == true)
+                {
+                    _ = LoadTranskrypcjeAsync();
+                }
+            };
+            searchWindow.Show();
+        }
+
         #endregion
     }
 }
