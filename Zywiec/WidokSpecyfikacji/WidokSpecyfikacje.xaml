@@ -3773,11 +3773,7 @@
                     </Style>
                 </TabItem.Resources>
 
-                <Border Background="#FAFAFA" CornerRadius="10" Margin="8" Padding="0"
-                        RenderTransformOrigin="0.5,0">
-                    <Border.RenderTransform>
-                        <TranslateTransform Y="0"/>
-                    </Border.RenderTransform>
+                <Border Background="#FAFAFA" CornerRadius="10" Margin="8" Padding="0">
                     <Border.Effect>
                         <DropShadowEffect ShadowDepth="3" Color="#000000" Opacity="0.15" BlurRadius="20"/>
                     </Border.Effect>
@@ -3785,17 +3781,7 @@
                         <EventTrigger RoutedEvent="Border.Loaded">
                             <BeginStoryboard>
                                 <Storyboard>
-                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.4">
-                                        <DoubleAnimation.EasingFunction>
-                                            <CubicEase EasingMode="EaseOut"/>
-                                        </DoubleAnimation.EasingFunction>
-                                    </DoubleAnimation>
-                                    <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
-                                                     From="20" To="0" Duration="0:0:0.4">
-                                        <DoubleAnimation.EasingFunction>
-                                            <CubicEase EasingMode="EaseOut"/>
-                                        </DoubleAnimation.EasingFunction>
-                                    </DoubleAnimation>
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.3"/>
                                 </Storyboard>
                             </BeginStoryboard>
                         </EventTrigger>
@@ -3810,7 +3796,7 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <!-- Nagłówek IRZplus z efektem glow -->
+                        <!-- Nagłówek IRZplus -->
                         <Border Grid.Row="0" CornerRadius="10,10,0,0" Padding="24,20">
                             <Border.Background>
                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
@@ -3820,19 +3806,8 @@
                                 </LinearGradientBrush>
                             </Border.Background>
                             <Border.Effect>
-                                <DropShadowEffect ShadowDepth="0" Color="#1976D2" Opacity="0.5" BlurRadius="20"/>
+                                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.2" BlurRadius="10"/>
                             </Border.Effect>
-                            <Border.Triggers>
-                                <EventTrigger RoutedEvent="Border.Loaded">
-                                    <BeginStoryboard>
-                                        <Storyboard RepeatBehavior="Forever">
-                                            <!-- Pulsujący efekt glow -->
-                                            <DoubleAnimation Storyboard.TargetProperty="(Effect).(DropShadowEffect.BlurRadius)"
-                                                             From="20" To="30" Duration="0:0:2" AutoReverse="True"/>
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </EventTrigger>
-                            </Border.Triggers>
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -3847,24 +3822,7 @@
                                     <TextBlock Text="Podgląd danych przed wysłaniem do ARiMR" FontSize="13" Foreground="#B3E5FC" Margin="0,6,0,0" Opacity="0.9"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Border x:Name="borderIRZplusEnv" Background="#FF9800" CornerRadius="8" Padding="14,8" Margin="0,0,12,0"
-                                            RenderTransformOrigin="0.5,0.5">
-                                        <Border.RenderTransform>
-                                            <ScaleTransform ScaleX="1" ScaleY="1"/>
-                                        </Border.RenderTransform>
-                                        <Border.Effect>
-                                            <DropShadowEffect ShadowDepth="0" Color="#FF9800" Opacity="0.6" BlurRadius="10"/>
-                                        </Border.Effect>
-                                        <Border.Triggers>
-                                            <EventTrigger RoutedEvent="Border.Loaded">
-                                                <BeginStoryboard>
-                                                    <Storyboard RepeatBehavior="Forever">
-                                                        <DoubleAnimation Storyboard.TargetProperty="(Effect).(DropShadowEffect.BlurRadius)"
-                                                                         From="10" To="20" Duration="0:0:1" AutoReverse="True"/>
-                                                    </Storyboard>
-                                                </BeginStoryboard>
-                                            </EventTrigger>
-                                        </Border.Triggers>
+                                    <Border x:Name="borderIRZplusEnv" Background="#FF9800" CornerRadius="8" Padding="14,8" Margin="0,0,12,0">
                                         <TextBlock x:Name="txtIRZplusEnvironment" Text="TESTOWE" FontSize="12" FontWeight="Bold" Foreground="White"/>
                                     </Border>
                                     <Button Content="⚙ Ustawienia" Click="BtnIRZplusSettings_Click"
@@ -3873,79 +3831,20 @@
                             </Grid>
                         </Border>
 
-                        <!-- Loading indicator z animowanym spinnerem -->
+                        <!-- Loading indicator -->
                         <Border x:Name="borderIRZplusLoading" Grid.Row="1" Grid.RowSpan="5" Background="#90FFFFFF"
                                 Visibility="Collapsed" CornerRadius="0,0,10,10" Panel.ZIndex="100">
-                            <Border.Triggers>
-                                <EventTrigger RoutedEvent="Border.Loaded">
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.3"/>
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </EventTrigger>
-                            </Border.Triggers>
-                            <Border Background="White" CornerRadius="16" Padding="40,30" VerticalAlignment="Center" HorizontalAlignment="Center">
-                                <Border.Effect>
-                                    <DropShadowEffect ShadowDepth="3" Color="#000000" Opacity="0.2" BlurRadius="20"/>
-                                </Border.Effect>
-                                <StackPanel HorizontalAlignment="Center">
-                                    <!-- Animowany spinner -->
-                                    <Border Width="50" Height="50" Margin="0,0,0,16" RenderTransformOrigin="0.5,0.5">
-                                        <Border.RenderTransform>
-                                            <RotateTransform x:Name="spinnerRotate" Angle="0"/>
-                                        </Border.RenderTransform>
-                                        <Border.Triggers>
-                                            <EventTrigger RoutedEvent="Border.Loaded">
-                                                <BeginStoryboard>
-                                                    <Storyboard RepeatBehavior="Forever">
-                                                        <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
-                                                                         From="0" To="360" Duration="0:0:1"/>
-                                                    </Storyboard>
-                                                </BeginStoryboard>
-                                            </EventTrigger>
-                                        </Border.Triggers>
-                                        <Border BorderThickness="4" BorderBrush="#E0E0E0" CornerRadius="25">
-                                            <Border.Clip>
-                                                <EllipseGeometry Center="21,21" RadiusX="21" RadiusY="21"/>
-                                            </Border.Clip>
-                                            <Border BorderThickness="4,0,0,0" BorderBrush="#1976D2" CornerRadius="25"/>
-                                        </Border>
-                                    </Border>
-                                    <TextBlock Text="Ładowanie danych IRZplus..." FontSize="15" Foreground="#37474F" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="Proszę czekać..." FontSize="12" Foreground="#78909C" Margin="0,6,0,0" HorizontalAlignment="Center"/>
-                                </StackPanel>
-                            </Border>
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <ProgressBar IsIndeterminate="True" Width="200" Height="6" Margin="0,0,0,12"/>
+                                <TextBlock Text="Ładowanie danych IRZplus..." FontSize="14" Foreground="#546E7A" FontWeight="SemiBold"/>
+                            </StackPanel>
                         </Border>
 
-                        <!-- Panel podsumowania IRZplus z animacją -->
-                        <Border Grid.Row="1" Background="White" Padding="16,12" Margin="12,12,12,0" CornerRadius="8"
-                                RenderTransformOrigin="0.5,0.5">
-                            <Border.RenderTransform>
-                                <TranslateTransform X="0"/>
-                            </Border.RenderTransform>
+                        <!-- Panel podsumowania IRZplus -->
+                        <Border Grid.Row="1" Background="White" Padding="16,12" Margin="12,12,12,0" CornerRadius="8">
                             <Border.Effect>
                                 <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.08" BlurRadius="6"/>
                             </Border.Effect>
-                            <Border.Triggers>
-                                <EventTrigger RoutedEvent="Border.Loaded">
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.5" BeginTime="0:0:0.2">
-                                                <DoubleAnimation.EasingFunction>
-                                                    <CubicEase EasingMode="EaseOut"/>
-                                                </DoubleAnimation.EasingFunction>
-                                            </DoubleAnimation>
-                                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
-                                                             From="-30" To="0" Duration="0:0:0.5" BeginTime="0:0:0.2">
-                                                <DoubleAnimation.EasingFunction>
-                                                    <CubicEase EasingMode="EaseOut"/>
-                                                </DoubleAnimation.EasingFunction>
-                                            </DoubleAnimation>
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </EventTrigger>
-                            </Border.Triggers>
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -3998,34 +3897,11 @@
                             </Grid>
                         </Border>
 
-                        <!-- DataGrid IRZplus z animacją slide-in -->
-                        <Border Grid.Row="3" BorderBrush="#263238" BorderThickness="2" Margin="12,12,12,0" CornerRadius="6"
-                                RenderTransformOrigin="0.5,0.5">
-                            <Border.RenderTransform>
-                                <TranslateTransform Y="0"/>
-                            </Border.RenderTransform>
+                        <!-- DataGrid IRZplus -->
+                        <Border Grid.Row="3" BorderBrush="#263238" BorderThickness="2" Margin="12,12,12,0" CornerRadius="6">
                             <Border.Effect>
-                                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="10"/>
+                                <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.1" BlurRadius="6"/>
                             </Border.Effect>
-                            <Border.Triggers>
-                                <EventTrigger RoutedEvent="Border.Loaded">
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.6" BeginTime="0:0:0.3">
-                                                <DoubleAnimation.EasingFunction>
-                                                    <CubicEase EasingMode="EaseOut"/>
-                                                </DoubleAnimation.EasingFunction>
-                                            </DoubleAnimation>
-                                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
-                                                             From="40" To="0" Duration="0:0:0.6" BeginTime="0:0:0.3">
-                                                <DoubleAnimation.EasingFunction>
-                                                    <CubicEase EasingMode="EaseOut"/>
-                                                </DoubleAnimation.EasingFunction>
-                                            </DoubleAnimation>
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </EventTrigger>
-                            </Border.Triggers>
                             <DataGrid x:Name="dgIRZplus"
                                       AutoGenerateColumns="False"
                                       IsReadOnly="False"
@@ -4279,40 +4155,20 @@
                             </DataGrid>
                         </Border>
 
-                        <!-- Panel ostrzeżeń IRZplus z pulsowaniem -->
+                        <!-- Panel ostrzeżeń IRZplus -->
                         <Border x:Name="borderIRZplusWarnings" Grid.Row="4" Background="#FFF8E1" Padding="14,10" Margin="12,10,12,0"
-                                BorderBrush="#FFB300" BorderThickness="2" CornerRadius="8" Visibility="Collapsed"
-                                RenderTransformOrigin="0.5,0.5">
-                            <Border.RenderTransform>
-                                <ScaleTransform ScaleX="1" ScaleY="1"/>
-                            </Border.RenderTransform>
+                                BorderBrush="#FFB300" BorderThickness="2" CornerRadius="8" Visibility="Collapsed">
                             <Border.Effect>
-                                <DropShadowEffect ShadowDepth="2" Color="#FF8F00" Opacity="0.3" BlurRadius="8"/>
+                                <DropShadowEffect ShadowDepth="1" Color="#FF8F00" Opacity="0.15" BlurRadius="4"/>
                             </Border.Effect>
-                            <Border.Triggers>
-                                <EventTrigger RoutedEvent="Border.Loaded">
-                                    <BeginStoryboard>
-                                        <Storyboard RepeatBehavior="Forever">
-                                            <DoubleAnimation Storyboard.TargetProperty="(Effect).(DropShadowEffect.BlurRadius)"
-                                                             From="8" To="16" Duration="0:0:0.8" AutoReverse="True"/>
-                                            <DoubleAnimation Storyboard.TargetProperty="(Effect).(DropShadowEffect.Opacity)"
-                                                             From="0.3" To="0.5" Duration="0:0:0.8" AutoReverse="True"/>
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </EventTrigger>
-                            </Border.Triggers>
                             <StackPanel>
                                 <TextBlock Text="⚠ Ostrzeżenia:" FontWeight="Bold" Foreground="#E65100" FontSize="13" Margin="0,0,0,4"/>
                                 <TextBlock x:Name="txtIRZplusWarnings" TextWrapping="Wrap" Foreground="#BF360C" FontSize="12"/>
                             </StackPanel>
                         </Border>
 
-                        <!-- Panel akcji IRZplus z animacją -->
-                        <Border Grid.Row="5" Padding="16,14" Margin="12,12,12,12" CornerRadius="8"
-                                RenderTransformOrigin="0.5,0.5">
-                            <Border.RenderTransform>
-                                <TranslateTransform Y="0"/>
-                            </Border.RenderTransform>
+                        <!-- Panel akcji IRZplus -->
+                        <Border Grid.Row="5" Padding="16,14" Margin="12,12,12,12" CornerRadius="8">
                             <Border.Background>
                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
                                     <GradientStop Color="#ECEFF1" Offset="0"/>
@@ -4320,27 +4176,8 @@
                                 </LinearGradientBrush>
                             </Border.Background>
                             <Border.Effect>
-                                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.12" BlurRadius="8"/>
+                                <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.1" BlurRadius="6"/>
                             </Border.Effect>
-                            <Border.Triggers>
-                                <EventTrigger RoutedEvent="Border.Loaded">
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.5" BeginTime="0:0:0.5">
-                                                <DoubleAnimation.EasingFunction>
-                                                    <CubicEase EasingMode="EaseOut"/>
-                                                </DoubleAnimation.EasingFunction>
-                                            </DoubleAnimation>
-                                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
-                                                             From="30" To="0" Duration="0:0:0.5" BeginTime="0:0:0.5">
-                                                <DoubleAnimation.EasingFunction>
-                                                    <CubicEase EasingMode="EaseOut"/>
-                                                </DoubleAnimation.EasingFunction>
-                                            </DoubleAnimation>
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </EventTrigger>
-                            </Border.Triggers>
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
