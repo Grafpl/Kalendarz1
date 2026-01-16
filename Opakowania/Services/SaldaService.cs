@@ -166,33 +166,94 @@ namespace Kalendarz1.Opakowania.Services
 
         #region SQL Queries
 
-        private static readonly string QuerySalda = @"
+        // ZOPTYMALIZOWANE ZAPYTANIE - wersja BEZ filtra handlowca
+        // Używa CTE dla lepszego planu wykonania, najpierw agreguje dane, potem dołącza kontrahentów
+        private static readonly string QuerySaldaBezFiltra = @"
+;WITH DokumentyOpakowan AS (
+    SELECT
+        MG.khid AS KontrahentId,
+        TW.nazwa AS TowarNazwa,
+        MZ.Ilosc,
+        MG.Data
+    FROM [HANDEL].[HM].[MG] MG WITH (NOLOCK)
+    INNER JOIN [HANDEL].[HM].[MZ] MZ WITH (NOLOCK) ON MZ.super = MG.id
+    INNER JOIN [HANDEL].[HM].[TW] TW WITH (NOLOCK) ON MZ.idtw = TW.id
+    WHERE MG.anulowany = 0
+      AND MG.magazyn = 65559
+      AND MG.typ_dk IN ('MW1', 'MP')
+      AND MG.data <= @DataDo
+      AND TW.nazwa IN ('Pojemnik Drobiowy E2', 'Paleta H1', 'Paleta EURO', 'Paleta plastikowa', 'Paleta Drewniana')
+),
+SaldaKontrahentow AS (
+    SELECT
+        KontrahentId,
+        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Pojemnik Drobiowy E2' THEN Ilosc ELSE 0 END), 0) AS INT) AS E2,
+        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta H1' THEN Ilosc ELSE 0 END), 0) AS INT) AS H1,
+        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta EURO' THEN Ilosc ELSE 0 END), 0) AS INT) AS EURO,
+        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta plastikowa' THEN Ilosc ELSE 0 END), 0) AS INT) AS PCV,
+        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta Drewniana' THEN Ilosc ELSE 0 END), 0) AS INT) AS DREW,
+        MAX(Data) AS OstatniDokument
+    FROM DokumentyOpakowan
+    GROUP BY KontrahentId
+    HAVING ABS(SUM(Ilosc)) > 0
+)
 SELECT
     C.id AS Id,
     C.Shortcut AS Kontrahent,
     C.Name AS Nazwa,
     ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec,
-    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Pojemnik Drobiowy E2' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS E2,
-    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta H1' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS H1,
-    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta EURO' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS EURO,
-    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta plastikowa' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS PCV,
-    CAST(ISNULL(SUM(CASE WHEN TW.nazwa = 'Paleta Drewniana' THEN MZ.Ilosc ELSE 0 END), 0) AS INT) AS DREW,
-    MAX(MG.Data) AS OstatniDokument
-FROM [HANDEL].[SSCommon].[STContractors] C WITH (NOLOCK)
-INNER JOIN [HANDEL].[HM].[MG] MG WITH (NOLOCK) ON MG.khid = C.id
-INNER JOIN [HANDEL].[HM].[MZ] MZ WITH (NOLOCK) ON MZ.super = MG.id
-INNER JOIN [HANDEL].[HM].[TW] TW WITH (NOLOCK) ON MZ.idtw = TW.id
+    SK.E2, SK.H1, SK.EURO, SK.PCV, SK.DREW,
+    SK.OstatniDokument
+FROM SaldaKontrahentow SK
+INNER JOIN [HANDEL].[SSCommon].[STContractors] C WITH (NOLOCK) ON C.id = SK.KontrahentId
 LEFT JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM WITH (NOLOCK) ON C.Id = WYM.ElementId
-WHERE MG.anulowany = 0
-  AND MG.magazyn = 65559
-  AND MG.typ_dk IN ('MW1', 'MP')
-  AND MG.data <= @DataDo
-  AND TW.nazwa IN ('Pojemnik Drobiowy E2', 'Paleta H1', 'Paleta EURO', 'Paleta plastikowa', 'Paleta Drewniana')
-  AND (@HandlowiecFilter IS NULL OR WYM.CDim_Handlowiec_Val = @HandlowiecFilter)
-GROUP BY C.id, C.Shortcut, C.Name, WYM.CDim_Handlowiec_Val
-HAVING ABS(SUM(CASE WHEN TW.nazwa IN ('Pojemnik Drobiowy E2', 'Paleta H1', 'Paleta EURO', 'Paleta plastikowa', 'Paleta Drewniana')
-              THEN MZ.Ilosc ELSE 0 END)) > 0
-ORDER BY C.Shortcut";
+ORDER BY C.Shortcut
+OPTION (RECOMPILE, MAXDOP 4)";
+
+        // ZOPTYMALIZOWANE ZAPYTANIE - wersja Z filtrem handlowca
+        // Osobna wersja unika problemu z (@param IS NULL OR ...) który powoduje złe plany wykonania
+        private static readonly string QuerySaldaZFiltrem = @"
+;WITH DokumentyOpakowan AS (
+    SELECT
+        MG.khid AS KontrahentId,
+        TW.nazwa AS TowarNazwa,
+        MZ.Ilosc,
+        MG.Data
+    FROM [HANDEL].[HM].[MG] MG WITH (NOLOCK)
+    INNER JOIN [HANDEL].[HM].[MZ] MZ WITH (NOLOCK) ON MZ.super = MG.id
+    INNER JOIN [HANDEL].[HM].[TW] TW WITH (NOLOCK) ON MZ.idtw = TW.id
+    WHERE MG.anulowany = 0
+      AND MG.magazyn = 65559
+      AND MG.typ_dk IN ('MW1', 'MP')
+      AND MG.data <= @DataDo
+      AND TW.nazwa IN ('Pojemnik Drobiowy E2', 'Paleta H1', 'Paleta EURO', 'Paleta plastikowa', 'Paleta Drewniana')
+),
+SaldaKontrahentow AS (
+    SELECT
+        KontrahentId,
+        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Pojemnik Drobiowy E2' THEN Ilosc ELSE 0 END), 0) AS INT) AS E2,
+        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta H1' THEN Ilosc ELSE 0 END), 0) AS INT) AS H1,
+        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta EURO' THEN Ilosc ELSE 0 END), 0) AS INT) AS EURO,
+        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta plastikowa' THEN Ilosc ELSE 0 END), 0) AS INT) AS PCV,
+        CAST(ISNULL(SUM(CASE WHEN TowarNazwa = 'Paleta Drewniana' THEN Ilosc ELSE 0 END), 0) AS INT) AS DREW,
+        MAX(Data) AS OstatniDokument
+    FROM DokumentyOpakowan
+    GROUP BY KontrahentId
+    HAVING ABS(SUM(Ilosc)) > 0
+)
+SELECT
+    C.id AS Id,
+    C.Shortcut AS Kontrahent,
+    C.Name AS Nazwa,
+    ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec,
+    SK.E2, SK.H1, SK.EURO, SK.PCV, SK.DREW,
+    SK.OstatniDokument
+FROM SaldaKontrahentow SK
+INNER JOIN [HANDEL].[SSCommon].[STContractors] C WITH (NOLOCK) ON C.id = SK.KontrahentId
+INNER JOIN [HANDEL].[SSCommon].[ContractorClassification] WYM WITH (NOLOCK) ON C.Id = WYM.ElementId
+WHERE WYM.CDim_Handlowiec_Val = @HandlowiecFilter
+ORDER BY C.Shortcut
+OPTION (RECOMPILE, MAXDOP 4)";
 
         private static readonly string QueryPotwierdzenia = @"
 SELECT KontrahentId, KodOpakowania, MAX(DataPotwierdzenia) AS DataPotwierdzenia
@@ -216,7 +277,8 @@ WHERE MG.khid = @KontrahentId
   AND MG.magazyn = 65559
   AND MG.typ_dk IN ('MW1', 'MP')
   AND MG.data <= @DataOd
-  AND TW.nazwa IN ('Pojemnik Drobiowy E2', 'Paleta H1', 'Paleta EURO', 'Paleta plastikowa', 'Paleta Drewniana')";
+  AND TW.nazwa IN ('Pojemnik Drobiowy E2', 'Paleta H1', 'Paleta EURO', 'Paleta plastikowa', 'Paleta Drewniana')
+OPTION (RECOMPILE)";
 
         private static readonly string QueryDokumenty = @"
 SELECT
@@ -240,7 +302,8 @@ WHERE MG.khid = @KontrahentId
   AND MG.data <= @DataDo
   AND TW.nazwa IN ('Pojemnik Drobiowy E2', 'Paleta H1', 'Paleta EURO', 'Paleta plastikowa', 'Paleta Drewniana')
 GROUP BY MG.id, MG.kod, MG.data, MG.opis
-ORDER BY MG.data DESC";
+ORDER BY MG.data DESC
+OPTION (RECOMPILE)";
 
         #endregion
 
@@ -337,12 +400,17 @@ ORDER BY MG.data DESC";
         }
 
         /// <summary>
-        /// Pobiera salda z bazy
+        /// Pobiera salda z bazy - ZOPTYMALIZOWANA WERSJA
+        /// Używa osobnych zapytań dla filtrowanego i niefiltrowanego przypadku
         /// </summary>
         private async Task<List<SaldoKontrahenta>> PobierzSaldaZBazyAsync(DateTime dataDo, string handlowiecFilter)
         {
             var wyniki = new List<SaldoKontrahenta>(500);
             var sw = Stopwatch.StartNew();
+
+            // Wybierz odpowiednie zapytanie - unikamy (@param IS NULL OR ...) które powoduje złe plany
+            var query = string.IsNullOrEmpty(handlowiecFilter) ? QuerySaldaBezFiltra : QuerySaldaZFiltrem;
+            Debug.WriteLine($"[SQL] Using query: {(string.IsNullOrEmpty(handlowiecFilter) ? "BezFiltra" : "ZFiltrem")}");
 
             try
             {
@@ -353,10 +421,15 @@ ORDER BY MG.data DESC";
 
                     using (PerformanceProfiler.MeasureOperation("SQL_ExecuteQuery_Salda"))
                     {
-                        using var command = new SqlCommand(QuerySalda, connection);
+                        using var command = new SqlCommand(query, connection);
                         command.CommandTimeout = 120;
                         command.Parameters.AddWithValue("@DataDo", dataDo);
-                        command.Parameters.AddWithValue("@HandlowiecFilter", (object)handlowiecFilter ?? DBNull.Value);
+
+                        // Dodaj parametr tylko jeśli jest filtr (zapytanie z filtrem go używa)
+                        if (!string.IsNullOrEmpty(handlowiecFilter))
+                        {
+                            command.Parameters.AddWithValue("@HandlowiecFilter", handlowiecFilter);
+                        }
 
                         using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 
