@@ -111,7 +111,11 @@
         </Style>
 
         <Style x:Key="DataGridRowHoverStyle" TargetType="DataGridRow">
-            <Setter Property="Background" Value="White"/>
+            <Setter Property="Background">
+                <Setter.Value>
+                    <SolidColorBrush Color="White"/>
+                </Setter.Value>
+            </Setter>
             <Setter Property="Foreground" Value="Black"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -126,10 +130,17 @@
                     <Setter Property="BorderBrush" Value="#1976D2"/>
                     <Setter Property="Background" Value="#E8F4FD"/>
                 </DataTrigger>
-                <!-- 2. Zaznaczenie - pogrubienie czcionki, bez zmiany tła -->
+                <!-- 2. Zaznaczenie - z animacją highlight -->
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="FontWeight" Value="Bold"/>
-                    <Setter Property="Background" Value="Transparent"/>
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <ColorAnimation Storyboard.TargetProperty="(DataGridRow.Background).(SolidColorBrush.Color)"
+                                                From="#90CAF9" To="White" Duration="0:0:0.4"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
                 </Trigger>
                 <!-- 3. Hover + Zaznaczenie -->
                 <MultiTrigger>
@@ -278,6 +289,69 @@
 
         <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource MainButtonStyle}">
             <Setter Property="Background" Value="#607D8B"/>
+        </Style>
+
+        <!-- Styl przycisku z progress spinnerem -->
+        <Style x:Key="ProgressButton" TargetType="Button">
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.15" BlurRadius="8"/>
+                            </Border.Effect>
+                            <Grid>
+                                <!-- Normalny content -->
+                                <ContentPresenter x:Name="content" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <!-- Spinner (ukryty domyślnie) -->
+                                <StackPanel x:Name="spinnerPanel" Orientation="Horizontal" HorizontalAlignment="Center" Visibility="Collapsed">
+                                    <Border Width="16" Height="16" Margin="0,0,8,0" RenderTransformOrigin="0.5,0.5">
+                                        <Border.RenderTransform>
+                                            <RotateTransform x:Name="spinnerRotate"/>
+                                        </Border.RenderTransform>
+                                        <Ellipse Stroke="White" StrokeThickness="2" StrokeDashArray="3,2"/>
+                                    </Border>
+                                    <TextBlock x:Name="spinnerText" Text="Przetwarzanie..." Foreground="White" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect ShadowDepth="3" Color="#000000" Opacity="0.25" BlurRadius="12"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="content" Property="Visibility" Value="Collapsed"/>
+                                <Setter TargetName="spinnerPanel" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="border" Property="Opacity" Value="0.8"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard x:Name="spinStoryboard">
+                                        <Storyboard RepeatBehavior="Forever">
+                                            <DoubleAnimation Storyboard.TargetName="spinnerRotate"
+                                                             Storyboard.TargetProperty="Angle"
+                                                             From="0" To="360" Duration="0:0:1"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <StopStoryboard BeginStoryboardName="spinStoryboard"/>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- Styl dla przycisków toolbara z animacją hover -->
@@ -1059,15 +1133,15 @@
                                 <!-- PRZYCISK PDF -->
                                 <Button x:Name="btnGenerujPdf" Click="Button1_Click"
                                         Content="📄 PDF" ToolTip="Generuj PDF dla wybranego dostawcy (prawy przycisk myszy dla więcej opcji)"
-                                        Style="{StaticResource ToolbarButton}" Background="#E53935" FontSize="12"/>
+                                        Style="{StaticResource ProgressButton}" Background="#E53935" Padding="12,4"/>
                                 <Button x:Name="btnGenerujPdfAll" Click="BtnPrintAll_Click"
                                         Content="📄 Wszystkie PDF" ToolTip="Generuj PDF dla wszystkich dostawców"
-                                        Style="{StaticResource ToolbarButton}" Background="#C62828"/>
+                                        Style="{StaticResource ProgressButton}" Background="#C62828" Padding="10,4" Margin="2,0"/>
 
                                 <!-- Przycisk Wyślij email -->
                                 <Button x:Name="btnWyslijEmail" Click="BtnWyslijEmail_Click"
                                         Content="📧 Wyślij email" ToolTip="Wyślij specyfikację emailem"
-                                        Style="{StaticResource ToolbarButton}" Background="#1976D2"/>
+                                        Style="{StaticResource ProgressButton}" Background="#1976D2" Padding="10,4" Margin="2,0"/>
 
                                 <!-- Checkboxy kolumn: Opas, Kl.B, Dodatek, Pośrednik -->
                                 <Border Background="#F5F5F5" CornerRadius="4" Padding="5,2" Margin="5,0">
@@ -4200,10 +4274,10 @@
                                     <Button Content="📁 Zapisz kopię" Click="BtnIRZplusSaveLocal_Click"
                                             Style="{StaticResource ModernButton}" Background="#607D8B" Foreground="White"/>
                                     <Button x:Name="btnIRZplusExport" Content="📤 Eksport CSV/XML" Click="BtnIRZplusExportDialog_Click"
-                                            Style="{StaticResource ModernButton}" Background="#FF9800" Foreground="White"
+                                            Style="{StaticResource ProgressButton}" Background="#FF9800"
                                             ToolTip="Eksportuj dane do pliku CSV lub XML"/>
                                     <Button x:Name="btnIRZplusSend" Content="🚀 Wyślij do IRZplus" Click="BtnIRZplusSend_Click"
-                                            Style="{StaticResource ActionButton}"/>
+                                            Style="{StaticResource ProgressButton}" Background="#2E7D32" FontWeight="Bold"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
