@@ -48,7 +48,7 @@ namespace Kalendarz1
             sidePanel = new Panel
             {
                 Dock = DockStyle.Left,
-                Width = 200,
+                Width = 170,
                 BackColor = Color.FromArgb(30, 40, 50),
                 Visible = true
             };
@@ -79,8 +79,8 @@ namespace Kalendarz1
         {
             string odbiorcaId = App.UserID ?? "";
             string userName = App.UserFullName ?? App.UserID ?? "Użytkownik";
-            int avatarSize = 70;
-            int panelWidth = 200;
+            int avatarSize = 90;
+            int panelWidth = 170;
 
             var panel = new Panel
             {
@@ -93,7 +93,7 @@ namespace Kalendarz1
             var headerPanel = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 160,
+                Height = 185,
                 BackColor = Color.FromArgb(25, 35, 45)
             };
 
@@ -161,11 +161,11 @@ namespace Kalendarz1
             var nameLabel = new Label
             {
                 Text = userName,
-                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 ForeColor = Color.White,
                 AutoSize = false,
-                Size = new Size(panelWidth - 20, 25),
-                Location = new Point(10, 100),
+                Size = new Size(panelWidth - 10, 25),
+                Location = new Point(5, 120),
                 TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent
             };
@@ -175,11 +175,11 @@ namespace Kalendarz1
             var statusLabel = new Label
             {
                 Text = "● Online",
-                Font = new Font("Segoe UI", 9),
+                Font = new Font("Segoe UI", 8),
                 ForeColor = Color.FromArgb(76, 175, 80),
                 AutoSize = false,
-                Size = new Size(panelWidth - 20, 20),
-                Location = new Point(10, 128),
+                Size = new Size(panelWidth - 10, 20),
+                Location = new Point(5, 148),
                 TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent
             };
