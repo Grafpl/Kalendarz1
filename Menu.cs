@@ -726,7 +726,7 @@ namespace Kalendarz1
         private static extern bool DeleteObject(IntPtr hObject);
 
         /// <summary>
-        /// Tworzy ikonę Windows Forms z emoji (bez tła)
+        /// Tworzy ikonę Windows Forms z emoji i kolorowym tłem
         /// </summary>
         private Icon CreateEmojiIcon(string emoji, Color accentColor)
         {
@@ -739,15 +739,21 @@ namespace Kalendarz1
                     g.SmoothingMode = SmoothingMode.AntiAlias;
                     g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
 
-                    // Renderuj emoji na środku (bez tła)
+                    // Rysuj kolorowe okrągłe tło
+                    using (SolidBrush bgBrush = new SolidBrush(accentColor))
+                    {
+                        g.FillEllipse(bgBrush, 0, 0, 31, 31);
+                    }
+
+                    // Renderuj emoji na środku
                     if (!string.IsNullOrEmpty(emoji))
                     {
-                        using (Font emojiFont = new Font("Segoe UI Emoji", 22, FontStyle.Regular, GraphicsUnit.Pixel))
+                        using (Font emojiFont = new Font("Segoe UI Emoji", 18, FontStyle.Regular, GraphicsUnit.Pixel))
                         {
                             var textSize = g.MeasureString(emoji, emojiFont);
                             float x = (32 - textSize.Width) / 2;
                             float y = (32 - textSize.Height) / 2;
-                            g.DrawString(emoji, emojiFont, Brushes.Black, x, y);
+                            g.DrawString(emoji, emojiFont, Brushes.White, x, y);
                         }
                     }
 
@@ -762,7 +768,7 @@ namespace Kalendarz1
         }
 
         /// <summary>
-        /// Tworzy ikonę WPF (BitmapSource) z emoji (bez tła)
+        /// Tworzy ikonę WPF (BitmapSource) z emoji i kolorowym tłem
         /// </summary>
         private BitmapSource CreateWpfEmojiIcon(string emoji, Color accentColor)
         {
@@ -775,15 +781,21 @@ namespace Kalendarz1
                     g.SmoothingMode = SmoothingMode.AntiAlias;
                     g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
 
-                    // Renderuj emoji na środku (bez tła)
+                    // Rysuj kolorowe okrągłe tło
+                    using (SolidBrush bgBrush = new SolidBrush(accentColor))
+                    {
+                        g.FillEllipse(bgBrush, 0, 0, 31, 31);
+                    }
+
+                    // Renderuj emoji na środku
                     if (!string.IsNullOrEmpty(emoji))
                     {
-                        using (Font emojiFont = new Font("Segoe UI Emoji", 22, FontStyle.Regular, GraphicsUnit.Pixel))
+                        using (Font emojiFont = new Font("Segoe UI Emoji", 18, FontStyle.Regular, GraphicsUnit.Pixel))
                         {
                             var textSize = g.MeasureString(emoji, emojiFont);
                             float x = (32 - textSize.Width) / 2;
                             float y = (32 - textSize.Height) / 2;
-                            g.DrawString(emoji, emojiFont, Brushes.Black, x, y);
+                            g.DrawString(emoji, emojiFont, Brushes.White, x, y);
                         }
                     }
 
