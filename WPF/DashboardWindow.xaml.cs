@@ -4094,29 +4094,111 @@ namespace Kalendarz1.WPF
                 tabliceGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Tablica 3
 
                 var odbiorcy = currentData.Odbiorcy.OrderByDescending(o => o.Zamowione).ToList();
-                int maxRowsPerTable = 12; // Max wierszy na tablicę
+                int maxRowsPerTable = 15; // Max wierszy na tablicę
 
-                // Podziel odbiorców na 3 tablice
+                // Podziel odbiorców na 2 tablice (bo pierwsza kolumna to produkty)
                 var tablica1 = odbiorcy.Take(maxRowsPerTable).ToList();
                 var tablica2 = odbiorcy.Skip(maxRowsPerTable).Take(maxRowsPerTable).ToList();
-                var tablica3 = odbiorcy.Skip(maxRowsPerTable * 2).Take(maxRowsPerTable).ToList();
 
-                // Suma całkowita
-                decimal sumaZamTotal = odbiorcy.Sum(o => o.Zamowione);
-                decimal sumaWydTotal = odbiorcy.Sum(o => o.Wydane);
+                // === KOLUMNA 1: OBRAZKI PRODUKTÓW ===
+                var produktyPanel = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(35, 40, 48)),
+                    CornerRadius = new CornerRadius(8),
+                    Margin = new Thickness(0, 0, 5, 0),
+                    Padding = new Thickness(5)
+                };
+                var produktyStack = new StackPanel();
 
-                // Tworzenie tablic
-                var tab1 = CreateJolaTable(tablica1, 1, sumaZamTotal, sumaWydTotal, false);
-                Grid.SetColumn(tab1, 0);
+                // Nagłówek
+                produktyStack.Children.Add(new TextBlock
+                {
+                    Text = "PRODUKTY",
+                    FontSize = 14,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = Brushes.White,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 0, 0, 8)
+                });
+
+                // Wyświetl do 5 produktów
+                int maxProdukty = Math.Min(5, _productDataList.Count);
+                for (int i = 0; i < maxProdukty; i++)
+                {
+                    var prod = _productDataList[i];
+                    int prodIndex = i; // Capture for closure
+                    bool isSelected = (i == viewIndex);
+
+                    var prodBorder = new Border
+                    {
+                        Background = new SolidColorBrush(isSelected ? Color.FromRgb(52, 152, 219) : Color.FromRgb(45, 52, 62)),
+                        CornerRadius = new CornerRadius(8),
+                        BorderBrush = new SolidColorBrush(isSelected ? Color.FromRgb(41, 128, 185) : Color.FromRgb(60, 70, 80)),
+                        BorderThickness = new Thickness(isSelected ? 3 : 1),
+                        Margin = new Thickness(0, 2, 0, 2),
+                        Padding = new Thickness(8, 6, 8, 6),
+                        Cursor = System.Windows.Input.Cursors.Hand
+                    };
+
+                    var prodGrid = new Grid();
+                    prodGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) }); // Obrazek
+                    prodGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Nazwa
+
+                    // Obrazek produktu
+                    var prodImage = GetProductImage(prod.Id);
+                    var imgBorder = new Border
+                    {
+                        Width = 45, Height = 45,
+                        CornerRadius = new CornerRadius(6),
+                        Background = prodImage != null
+                            ? (Brush)new ImageBrush { ImageSource = prodImage, Stretch = Stretch.UniformToFill }
+                            : new SolidColorBrush(Color.FromRgb(60, 70, 80)),
+                        Margin = new Thickness(0, 0, 8, 0)
+                    };
+                    if (prodImage == null)
+                        imgBorder.Child = new TextBlock { Text = "📦", FontSize = 20, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = new SolidColorBrush(Color.FromRgb(120, 130, 140)) };
+                    Grid.SetColumn(imgBorder, 0);
+                    prodGrid.Children.Add(imgBorder);
+
+                    // Nazwa produktu
+                    var nameStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+                    nameStack.Children.Add(new TextBlock
+                    {
+                        Text = prod.Kod,
+                        FontSize = 14,
+                        FontWeight = isSelected ? FontWeights.Bold : FontWeights.SemiBold,
+                        Foreground = Brushes.White,
+                        TextTrimming = TextTrimming.CharacterEllipsis
+                    });
+                    // Mała informacja o bilansie
+                    decimal prodBilans = (prod.Fakt > 0 ? prod.Fakt : prod.Plan) + prod.Stan - prod.Zamowienia;
+                    nameStack.Children.Add(new TextBlock
+                    {
+                        Text = $"{prodBilans:N0} kg",
+                        FontSize = 11,
+                        Foreground = new SolidColorBrush(prodBilans >= 0 ? Color.FromRgb(46, 204, 113) : Color.FromRgb(231, 76, 60))
+                    });
+                    Grid.SetColumn(nameStack, 1);
+                    prodGrid.Children.Add(nameStack);
+
+                    prodBorder.Child = prodGrid;
+                    prodBorder.MouseLeftButtonDown += (s, e) => { viewIndex = prodIndex; refreshContent(); };
+                    produktyStack.Children.Add(prodBorder);
+                }
+
+                produktyPanel.Child = produktyStack;
+                Grid.SetColumn(produktyPanel, 0);
+                tabliceGrid.Children.Add(produktyPanel);
+
+                // === KOLUMNA 2: TABELA ODBIORCÓW 1 ===
+                var tab1 = CreateJolaTable(tablica1, 1, 0, 0, false);
+                Grid.SetColumn(tab1, 1);
                 tabliceGrid.Children.Add(tab1);
 
+                // === KOLUMNA 3: TABELA ODBIORCÓW 2 ===
                 var tab2 = CreateJolaTable(tablica2, maxRowsPerTable + 1, 0, 0, false);
-                Grid.SetColumn(tab2, 1);
+                Grid.SetColumn(tab2, 2);
                 tabliceGrid.Children.Add(tab2);
-
-                var tab3 = CreateJolaTable(tablica3, maxRowsPerTable * 2 + 1, 0, 0, false);
-                Grid.SetColumn(tab3, 2);
-                tabliceGrid.Children.Add(tab3);
 
                 Grid.SetRow(tabliceGrid, 0);
                 rightPanel.Children.Add(tabliceGrid);
