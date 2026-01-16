@@ -77,6 +77,198 @@ namespace Kalendarz1
     }
 
     // ════════════════════════════════════════════════════════════════════════════════
+    // TOAST NOTIFICATION - Eleganckie powiadomienia
+    // ════════════════════════════════════════════════════════════════════════════════
+    public class ToastNotification : Form
+    {
+        private Timer fadeTimer;
+        private Timer displayTimer;
+        private float opacity = 0;
+        private bool fadingIn = true;
+
+        public enum ToastType { Success, Error, Warning, Info }
+
+        public ToastNotification(string message, ToastType type, int duration = 3000)
+        {
+            this.FormBorderStyle = FormBorderStyle.None;
+            this.ShowInTaskbar = false;
+            this.TopMost = true;
+            this.StartPosition = FormStartPosition.Manual;
+            this.Size = new Size(320, 60);
+            this.Opacity = 0;
+
+            Color bgColor = type switch
+            {
+                ToastType.Success => Color.FromArgb(39, 174, 96),
+                ToastType.Error => Color.FromArgb(192, 57, 43),
+                ToastType.Warning => Color.FromArgb(243, 156, 18),
+                ToastType.Info => Color.FromArgb(41, 128, 185),
+                _ => Color.FromArgb(52, 73, 94)
+            };
+
+            string icon = type switch
+            {
+                ToastType.Success => "✓",
+                ToastType.Error => "✕",
+                ToastType.Warning => "⚠",
+                ToastType.Info => "ℹ",
+                _ => "•"
+            };
+
+            this.BackColor = bgColor;
+            this.Paint += (s, e) => {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                using (var path = CreateRoundedRect(0, 0, Width - 1, Height - 1, 8))
+                using (var brush = new SolidBrush(bgColor))
+                {
+                    e.Graphics.FillPath(brush, path);
+                }
+                // Cień
+                using (var shadowBrush = new SolidBrush(Color.FromArgb(30, 0, 0, 0)))
+                {
+                    e.Graphics.FillRectangle(shadowBrush, 4, Height - 4, Width - 8, 4);
+                }
+            };
+
+            // Ikona
+            var iconLabel = new Label
+            {
+                Text = icon,
+                Font = new Font("Segoe UI", 20, FontStyle.Bold),
+                ForeColor = Color.White,
+                Location = new Point(15, 12),
+                Size = new Size(40, 40),
+                BackColor = Color.Transparent
+            };
+            this.Controls.Add(iconLabel);
+
+            // Tekst
+            var textLabel = new Label
+            {
+                Text = message,
+                Font = new Font("Segoe UI", 11),
+                ForeColor = Color.White,
+                Location = new Point(55, 18),
+                Size = new Size(250, 30),
+                BackColor = Color.Transparent
+            };
+            this.Controls.Add(textLabel);
+
+            // Pozycja - prawy dolny róg
+            var screen = Screen.PrimaryScreen.WorkingArea;
+            this.Location = new Point(screen.Right - this.Width - 20, screen.Bottom - this.Height - 20);
+
+            // Animacja fade in
+            fadeTimer = new Timer { Interval = 20 };
+            fadeTimer.Tick += (s, e) => {
+                if (fadingIn)
+                {
+                    opacity += 0.1f;
+                    if (opacity >= 1) { opacity = 1; fadingIn = false; fadeTimer.Stop(); }
+                }
+                else
+                {
+                    opacity -= 0.05f;
+                    if (opacity <= 0) { fadeTimer.Stop(); this.Close(); }
+                }
+                this.Opacity = opacity;
+            };
+
+            // Timer do zamknięcia
+            displayTimer = new Timer { Interval = duration };
+            displayTimer.Tick += (s, e) => {
+                displayTimer.Stop();
+                fadingIn = false;
+                fadeTimer.Start();
+            };
+
+            this.Shown += (s, e) => {
+                fadeTimer.Start();
+                displayTimer.Start();
+            };
+        }
+
+        private GraphicsPath CreateRoundedRect(int x, int y, int w, int h, int r)
+        {
+            var path = new GraphicsPath();
+            path.AddArc(x, y, r * 2, r * 2, 180, 90);
+            path.AddArc(x + w - r * 2, y, r * 2, r * 2, 270, 90);
+            path.AddArc(x + w - r * 2, y + h - r * 2, r * 2, r * 2, 0, 90);
+            path.AddArc(x, y + h - r * 2, r * 2, r * 2, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        public static void Show(Control parent, string message, ToastType type = ToastType.Info)
+        {
+            var toast = new ToastNotification(message, type);
+            toast.Show();
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════════
+    // PASEK POSTĘPU UPRAWNIEŃ
+    // ════════════════════════════════════════════════════════════════════════════════
+    public class PermissionProgressBar : Panel
+    {
+        private int totalCount = 0;
+        private int enabledCount = 0;
+        private Color barColor = Color.FromArgb(76, 175, 80);
+
+        public PermissionProgressBar()
+        {
+            this.Height = 28;
+            this.BackColor = Color.FromArgb(240, 242, 245);
+            this.DoubleBuffered = true;
+        }
+
+        public void UpdateProgress(int enabled, int total)
+        {
+            enabledCount = enabled;
+            totalCount = total;
+            Invalidate();
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+            int barHeight = 6;
+            int barY = (Height - barHeight) / 2 + 4;
+            int barWidth = Width - 120;
+
+            // Tło paska
+            using (var bgBrush = new SolidBrush(Color.FromArgb(220, 225, 230)))
+            {
+                e.Graphics.FillRectangle(bgBrush, 10, barY, barWidth, barHeight);
+            }
+
+            // Wypełnienie paska
+            if (totalCount > 0)
+            {
+                float percent = (float)enabledCount / totalCount;
+                int fillWidth = (int)(barWidth * percent);
+
+                using (var brush = new LinearGradientBrush(
+                    new Point(10, 0), new Point(10 + fillWidth, 0),
+                    Color.FromArgb(76, 175, 80), Color.FromArgb(129, 199, 132)))
+                {
+                    e.Graphics.FillRectangle(brush, 10, barY, fillWidth, barHeight);
+                }
+            }
+
+            // Tekst
+            string text = totalCount > 0 ? $"{enabledCount}/{totalCount} modułów ({(enabledCount * 100 / totalCount)}%)" : "Wybierz użytkownika";
+            using (var font = new Font("Segoe UI", 9))
+            using (var brush = new SolidBrush(Color.FromArgb(100, 110, 120)))
+            {
+                e.Graphics.DrawString(text, font, brush, barWidth + 20, 6);
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════════
     // ANIMOWANY PRZYCISK - Z efektami hover i kliknięcia
     // ════════════════════════════════════════════════════════════════════════════════
     public class AnimatedButton : Panel
@@ -228,6 +420,8 @@ namespace Kalendarz1
         private List<UserInfo> allUsers = new List<UserInfo>();
         private Dictionary<string, List<CheckBox>> categoryCheckboxes = new Dictionary<string, List<CheckBox>>();
         private Dictionary<string, CheckBox> categoryHeaders = new Dictionary<string, CheckBox>();
+        private PermissionProgressBar progressBar;
+        private string copiedPermissions = null; // Skopiowane uprawnienia
 
         // Klasa do przechowywania danych użytkownika
         private class UserInfo
@@ -379,6 +573,22 @@ namespace Kalendarz1
             contactBtn.Click += EditContactButton_Click;
             topToolbar.Controls.Add(contactBtn);
 
+            btnX += 15;
+
+            // Kopiowanie uprawnień
+            var copyBtn = CreateAnimatedButton("📋 Kopiuj", Color.FromArgb(52, 73, 94), ref btnX);
+            copyBtn.Click += CopyPermissions_Click;
+            topToolbar.Controls.Add(copyBtn);
+
+            var pasteBtn = CreateAnimatedButton("📥 Wklej", Color.FromArgb(52, 73, 94), ref btnX);
+            pasteBtn.Click += PastePermissions_Click;
+            topToolbar.Controls.Add(pasteBtn);
+
+            // Szablony
+            var presetsBtn = CreateAnimatedButton("⚡ Szablony", Color.FromArgb(155, 89, 182), ref btnX);
+            presetsBtn.Click += ShowPresets_Click;
+            topToolbar.Controls.Add(presetsBtn);
+
             // Wybrany użytkownik - elegancki badge
             selectedUserLabel = new Label
             {
@@ -467,6 +677,13 @@ namespace Kalendarz1
             };
 
             permissionsPanel.Controls.Add(permissionsFlowPanel);
+            // Pasek postępu uprawnień
+            progressBar = new PermissionProgressBar
+            {
+                Dock = DockStyle.Bottom
+            };
+            rightPanel.Controls.Add(progressBar);
+
             rightPanel.Controls.Add(permissionsPanel);
 
             // Dodaj kontrolki do formularza
@@ -662,7 +879,7 @@ namespace Kalendarz1
                         Cursor = Cursors.Hand,
                         Tag = module.Key
                     };
-                    accessCheckbox.CheckedChanged += (s, e) => UpdateCategoryHeaderState(category);
+                    accessCheckbox.CheckedChanged += (s, e) => { UpdateCategoryHeaderState(category); UpdateProgressBar(); };
                     modulePanel.Controls.Add(accessCheckbox);
                     categoryCheckboxes[category].Add(accessCheckbox);
 
@@ -685,6 +902,9 @@ namespace Kalendarz1
                 permissionsFlowPanel.Controls.Add(modulesContainer);
                 UpdateCategoryHeaderState(category);
             }
+
+            // Aktualizuj pasek postępu
+            UpdateProgressBar();
         }
 
         private void CategoryHeader_CheckedChanged(string category, bool isChecked)
@@ -957,7 +1177,7 @@ namespace Kalendarz1
         {
             if (string.IsNullOrEmpty(selectedUserId))
             {
-                MessageBox.Show("Wybierz użytkownika przed zapisaniem.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                ToastNotification.Show(this, "Wybierz użytkownika", ToastNotification.ToastType.Warning);
                 return;
             }
 
@@ -998,12 +1218,185 @@ namespace Kalendarz1
                     }
                 }
 
-                MessageBox.Show("✓ Uprawnienia zostały zapisane pomyślnie!", "Sukces", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                ToastNotification.Show(this, "Uprawnienia zapisane!", ToastNotification.ToastType.Success);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Błąd podczas zapisywania uprawnień:\n{ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        // ════════════════════════════════════════════════════════════════════════════════
+        // KOPIOWANIE UPRAWNIEŃ
+        // ════════════════════════════════════════════════════════════════════════════════
+        private void CopyPermissions_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(selectedUserId))
+            {
+                ToastNotification.Show(this, "Wybierz użytkownika", ToastNotification.ToastType.Warning);
+                return;
+            }
+
+            // Pobierz aktualne uprawnienia
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    string query = "SELECT Access FROM operators WHERE ID = @userId";
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@userId", selectedUserId);
+                        var result = cmd.ExecuteScalar();
+                        if (result != null)
+                        {
+                            copiedPermissions = result.ToString();
+                            var userName = allUsers.FirstOrDefault(u => u.ID == selectedUserId)?.Name ?? "użytkownika";
+                            ToastNotification.Show(this, $"Skopiowano uprawnienia {userName}", ToastNotification.ToastType.Info);
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private void PastePermissions_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(selectedUserId))
+            {
+                ToastNotification.Show(this, "Wybierz użytkownika", ToastNotification.ToastType.Warning);
+                return;
+            }
+
+            if (string.IsNullOrEmpty(copiedPermissions))
+            {
+                ToastNotification.Show(this, "Najpierw skopiuj uprawnienia", ToastNotification.ToastType.Warning);
+                return;
+            }
+
+            // Zastosuj skopiowane uprawnienia
+            var accessMap = GetAccessMap();
+            foreach (var categoryList in categoryCheckboxes.Values)
+            {
+                foreach (var checkbox in categoryList)
+                {
+                    string moduleKey = checkbox.Tag?.ToString();
+                    if (!string.IsNullOrEmpty(moduleKey))
+                    {
+                        var position = accessMap.FirstOrDefault(x => x.Value == moduleKey).Key;
+                        if (position >= 0 && position < copiedPermissions.Length)
+                        {
+                            checkbox.Checked = copiedPermissions[position] == '1';
+                        }
+                    }
+                }
+            }
+
+            UpdateProgressBar();
+            ToastNotification.Show(this, "Uprawnienia wklejone!", ToastNotification.ToastType.Success);
+        }
+
+        // ════════════════════════════════════════════════════════════════════════════════
+        // SZABLONY UPRAWNIEŃ
+        // ════════════════════════════════════════════════════════════════════════════════
+        private void ShowPresets_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(selectedUserId))
+            {
+                ToastNotification.Show(this, "Wybierz użytkownika", ToastNotification.ToastType.Warning);
+                return;
+            }
+
+            var menu = new ContextMenuStrip();
+            menu.BackColor = Color.White;
+            menu.Font = new Font("Segoe UI", 10);
+
+            var adminItem = new ToolStripMenuItem("👑 Administrator (wszystko)");
+            adminItem.Click += (s, ev) => ApplyPreset("admin");
+            menu.Items.Add(adminItem);
+
+            var managerItem = new ToolStripMenuItem("👔 Kierownik (bez administracji)");
+            managerItem.Click += (s, ev) => ApplyPreset("manager");
+            menu.Items.Add(managerItem);
+
+            var salesItem = new ToolStripMenuItem("💼 Handlowiec (sprzedaż + CRM)");
+            salesItem.Click += (s, ev) => ApplyPreset("sales");
+            menu.Items.Add(salesItem);
+
+            var warehouseItem = new ToolStripMenuItem("📦 Magazynier (produkcja + magazyn)");
+            warehouseItem.Click += (s, ev) => ApplyPreset("warehouse");
+            menu.Items.Add(warehouseItem);
+
+            var viewerItem = new ToolStripMenuItem("👁 Podgląd (tylko odczyt analiz)");
+            viewerItem.Click += (s, ev) => ApplyPreset("viewer");
+            menu.Items.Add(viewerItem);
+
+            menu.Items.Add(new ToolStripSeparator());
+
+            var clearItem = new ToolStripMenuItem("🚫 Wyczyść wszystko");
+            clearItem.Click += (s, ev) => ApplyPreset("none");
+            menu.Items.Add(clearItem);
+
+            var btn = sender as Control;
+            menu.Show(btn, new Point(0, btn.Height));
+        }
+
+        private void ApplyPreset(string preset)
+        {
+            var modules = GetModulesList();
+
+            foreach (var categoryList in categoryCheckboxes.Values)
+            {
+                foreach (var checkbox in categoryList)
+                {
+                    string moduleKey = checkbox.Tag?.ToString();
+                    if (string.IsNullOrEmpty(moduleKey)) continue;
+
+                    var module = modules.FirstOrDefault(m => m.Key == moduleKey);
+                    if (module == null) continue;
+
+                    checkbox.Checked = preset switch
+                    {
+                        "admin" => true,
+                        "manager" => module.Category != "Administracja Systemu",
+                        "sales" => module.Category == "Sprzedaż i CRM" || module.Category == "Planowanie i Analizy",
+                        "warehouse" => module.Category == "Produkcja i Magazyn" || module.Category == "Opakowania i Transport",
+                        "viewer" => module.Category == "Planowanie i Analizy" || module.Category == "Finanse i Zarządzanie",
+                        "none" => false,
+                        _ => checkbox.Checked
+                    };
+                }
+            }
+
+            UpdateProgressBar();
+            string presetName = preset switch
+            {
+                "admin" => "Administrator",
+                "manager" => "Kierownik",
+                "sales" => "Handlowiec",
+                "warehouse" => "Magazynier",
+                "viewer" => "Podgląd",
+                "none" => "Wyczyszczono",
+                _ => preset
+            };
+            ToastNotification.Show(this, $"Szablon: {presetName}", ToastNotification.ToastType.Info);
+        }
+
+        private void UpdateProgressBar()
+        {
+            int total = 0;
+            int enabled = 0;
+
+            foreach (var categoryList in categoryCheckboxes.Values)
+            {
+                foreach (var checkbox in categoryList)
+                {
+                    total++;
+                    if (checkbox.Checked) enabled++;
+                }
+            }
+
+            progressBar.UpdateProgress(enabled, total);
         }
 
         private void AddUserButton_Click(object sender, EventArgs e)
