@@ -557,6 +557,26 @@ namespace Kalendarz1
             }
         }
 
+        /// <summary>
+        /// Kopiuje numer partii do schowka
+        /// </summary>
+        private void BtnKopiujPartie_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (sender is Button btn && btn.Tag is string numerPartii && !string.IsNullOrEmpty(numerPartii))
+                {
+                    System.Windows.Clipboard.SetText(numerPartii);
+                    txtStatus.Text = $"Skopiowano: {numerPartii}";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Blad kopiowania:\n{ex.Message}", "Blad",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         protected override void OnClosed(EventArgs e)
         {
             base.OnClosed(e);

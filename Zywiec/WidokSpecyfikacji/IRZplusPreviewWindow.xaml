@@ -296,8 +296,43 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <!-- E: Numer Partii -->
-                <DataGridTextColumn Header="Numer Partii" Binding="{Binding NumerPartii}" Width="90" IsReadOnly="True"/>
+                <!-- E: Numer Partii z przyciskiem Kopiuj -->
+                <DataGridTemplateColumn Header="Numer Partii" Width="130" IsReadOnly="True">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{Binding NumerPartii}" VerticalAlignment="Center" Margin="2,0"/>
+                                <Button Grid.Column="1" Content="Kopiuj"
+                                        Click="BtnKopiujPartie_Click"
+                                        Tag="{Binding NumerPartii}"
+                                        Background="#E3F2FD"
+                                        Foreground="#1976D2"
+                                        FontSize="10"
+                                        Padding="4,2"
+                                        Margin="2,0"
+                                        Cursor="Hand"
+                                        ToolTip="Kopiuj numer partii do schowka">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="BorderThickness" Value="1"/>
+                                            <Setter Property="BorderBrush" Value="#1976D2"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#1976D2"/>
+                                                    <Setter Property="Foreground" Value="White"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </Grid>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <!-- F: Liczba Sztuk Drobiu (zdatne) -->
                 <DataGridTextColumn Header="Liczba Sztuk" Binding="{Binding LiczbaSztukDrobiu, StringFormat=N0}" Width="90" IsReadOnly="True">
                     <DataGridTextColumn.ElementStyle>
