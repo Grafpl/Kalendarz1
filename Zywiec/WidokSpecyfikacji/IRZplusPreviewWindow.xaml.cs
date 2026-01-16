@@ -107,10 +107,10 @@ namespace Kalendarz1
             txtSumaWagi.Text = wybrane.Sum(s => s.WagaNetto).ToString("N2") + " kg";
             txtSumaPadlych.Text = wybrane.Sum(s => s.SztukiPadle).ToString("N0");
 
-            // KG - Do zaplaty, Konfiskat, Padlych
+            // KG Do zaplaty, Szt Konfiskat, Szt Padlych
             txtSumaKgDoZapl.Text = wybrane.Sum(s => s.KgDoZaplaty).ToString("N0") + " kg";
-            txtSumaKgKonfiskat.Text = wybrane.Sum(s => s.KgKonfiskat).ToString("N0") + " kg";
-            txtSumaKgPadlych.Text = wybrane.Sum(s => s.KgPadlych).ToString("N0") + " kg";
+            txtSumaKgKonfiskat.Text = wybrane.Sum(s => s.KgKonfiskat).ToString("N0") + " szt";
+            txtSumaKgPadlych.Text = wybrane.Sum(s => s.KgPadlych).ToString("N0") + " szt";
 
             btnSend.IsEnabled = wybrane.Count > 0;
         }

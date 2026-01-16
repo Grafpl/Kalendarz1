@@ -191,12 +191,12 @@
                         <TextBlock x:Name="txtSumaKgDoZapl" Text="0 kg" FontSize="18" FontWeight="Bold" Foreground="#1976D2"/>
                     </StackPanel>
                     <StackPanel Margin="0,0,40,0">
-                        <TextBlock Text="KG Konfiskat:" FontSize="12" Foreground="#757575"/>
-                        <TextBlock x:Name="txtSumaKgKonfiskat" Text="0 kg" FontSize="18" FontWeight="Bold" Foreground="#FF9800"/>
+                        <TextBlock Text="Szt Konfiskat:" FontSize="12" Foreground="#757575"/>
+                        <TextBlock x:Name="txtSumaKgKonfiskat" Text="0 szt" FontSize="18" FontWeight="Bold" Foreground="#FF9800"/>
                     </StackPanel>
                     <StackPanel>
-                        <TextBlock Text="KG Padlych:" FontSize="12" Foreground="#757575"/>
-                        <TextBlock x:Name="txtSumaKgPadlych" Text="0 kg" FontSize="18" FontWeight="Bold" Foreground="#D32F2F"/>
+                        <TextBlock Text="Szt Padlych:" FontSize="12" Foreground="#757575"/>
+                        <TextBlock x:Name="txtSumaKgPadlych" Text="0 szt" FontSize="18" FontWeight="Bold" Foreground="#D32F2F"/>
                     </StackPanel>
                 </StackPanel>
 
@@ -362,8 +362,8 @@
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <!-- KG Konfiskat -->
-                <DataGridTextColumn Header="KG Konfi" Binding="{Binding KgKonfiskat, StringFormat=N0}" Width="80" IsReadOnly="True">
+                <!-- Szt Konfiskat -->
+                <DataGridTextColumn Header="Szt Konfi" Binding="{Binding KgKonfiskat, StringFormat=N0}" Width="80" IsReadOnly="True">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -371,8 +371,8 @@
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <!-- KG Padlych -->
-                <DataGridTextColumn Header="KG Padl." Binding="{Binding KgPadlych, StringFormat=N0}" Width="80" IsReadOnly="True">
+                <!-- Szt Padlych -->
+                <DataGridTextColumn Header="Szt Padl." Binding="{Binding KgPadlych, StringFormat=N0}" Width="80" IsReadOnly="True">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="HorizontalAlignment" Value="Right"/>
