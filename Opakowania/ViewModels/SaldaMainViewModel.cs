@@ -26,11 +26,9 @@ namespace Kalendarz1.Opakowania.ViewModels
             _dataDo = DateTime.Today;
             _wszystkieSalda = new List<SaldoKontrahenta>();
 
+            // Tylko E2 i H1 - EURO, PCV, DREW ukryte
             ListaE2 = new ObservableCollection<SaldoKontrahenta>();
             ListaH1 = new ObservableCollection<SaldoKontrahenta>();
-            ListaEURO = new ObservableCollection<SaldoKontrahenta>();
-            ListaPCV = new ObservableCollection<SaldoKontrahenta>();
-            ListaDREW = new ObservableCollection<SaldoKontrahenta>();
 
             OdswiezCommand = new RelayCommand(async _ => await OdswiezAsync());
 
@@ -121,12 +119,9 @@ namespace Kalendarz1.Opakowania.ViewModels
 
         public string NazwaHandlowca => string.IsNullOrEmpty(_handlowiecFilter) ? "Wszyscy" : _handlowiecFilter;
 
-        // Listy per zakładka
+        // Listy per zakładka - tylko E2 i H1 (EURO, PCV, DREW ukryte)
         public ObservableCollection<SaldoKontrahenta> ListaE2 { get; }
         public ObservableCollection<SaldoKontrahenta> ListaH1 { get; }
-        public ObservableCollection<SaldoKontrahenta> ListaEURO { get; }
-        public ObservableCollection<SaldoKontrahenta> ListaPCV { get; }
-        public ObservableCollection<SaldoKontrahenta> ListaDREW { get; }
 
         private List<SaldoKontrahenta> _wszystkieSalda;
 
@@ -215,33 +210,18 @@ namespace Kalendarz1.Opakowania.ViewModels
             foreach (var s in przefiltrowane.Where(x => x.H1 != 0).OrderByDescending(x => x.H1))
                 ListaH1.Add(s);
 
-            // EURO
-            ListaEURO.Clear();
-            foreach (var s in przefiltrowane.Where(x => x.EURO != 0).OrderByDescending(x => x.EURO))
-                ListaEURO.Add(s);
-
-            // PCV
-            ListaPCV.Clear();
-            foreach (var s in przefiltrowane.Where(x => x.PCV != 0).OrderByDescending(x => x.PCV))
-                ListaPCV.Add(s);
-
-            // DREW
-            ListaDREW.Clear();
-            foreach (var s in przefiltrowane.Where(x => x.DREW != 0).OrderByDescending(x => x.DREW))
-                ListaDREW.Add(s);
+            // EURO, PCV, DREW - UKRYTE (nie przetwarzamy)
 
             ObliczStatystyki();
         }
 
         private void ObliczStatystyki()
         {
+            // Tylko E2 i H1 - EURO, PCV, DREW ukryte
             var aktualnaLista = WybranaZakladka switch
             {
                 0 => ListaE2,
                 1 => ListaH1,
-                2 => ListaEURO,
-                3 => ListaPCV,
-                4 => ListaDREW,
                 _ => ListaE2
             };
 
@@ -249,9 +229,6 @@ namespace Kalendarz1.Opakowania.ViewModels
             {
                 0 => "E2",
                 1 => "H1",
-                2 => "EURO",
-                3 => "PCV",
-                4 => "DREW",
                 _ => "E2"
             };
 
