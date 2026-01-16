@@ -348,13 +348,13 @@ namespace Kalendarz1
                 var settings = _service.GetSettings();
                 var dir = settings.LocalExportPath;
                 if (string.IsNullOrEmpty(dir))
-                    dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "IRZplus_Export");
+                    dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "IRZplus_Export");
 
                 if (!Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
 
                 var fileName = $"IRZplus_{_dataUboju:yyyy-MM-dd}_{DateTime.Now:HHmmss}.json";
-                var filePath = Path.Combine(dir, fileName);
+                var filePath = System.IO.Path.Combine(dir, fileName);
 
                 var json = JsonSerializer.Serialize(zgloszenie, new JsonSerializerOptions { WriteIndented = true });
                 File.WriteAllText(filePath, json);
