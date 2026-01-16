@@ -23,6 +23,8 @@ using System.Drawing.Printing;
 using System.Diagnostics;
 using Kalendarz.Zywiec.WidokSpecyfikacji;
 using Kalendarz1.Zywiec.WidokSpecyfikacji;
+using Kalendarz1.Services;
+using Kalendarz1.Models.IRZplus;
 
 // Aliasy dla rozwiązania konfliktu System.Drawing vs System.Windows.Media
 using Color = System.Windows.Media.Color;
@@ -108,6 +110,10 @@ namespace Kalendarz1
 
         // === SCHOWEK: Ctrl+Shift+C/V dla ustawień cenowych ===
         private SupplierClipboard _supplierClipboard = new SupplierClipboard();
+
+        // === IRZPLUS: Dane i serwis dla karty IRZplus ===
+        private IRZplusService _irzPlusService;
+        private ObservableCollection<SpecyfikacjaDoIRZplusViewModel> _irzPlusSpecyfikacje;
 
         // === HIGHLIGHT: Aktualnie podświetlona grupa dostawcy ===
         private string _highlightedSupplier = null;
@@ -586,20 +592,26 @@ namespace Kalendarz1
                     lumelPanel.Visibility = Visibility.Collapsed;
                 }
 
-                // Załaduj dane płachty gdy przełączono na kartę Płachta (teraz index 2 po ReorderTabs)
+                // Załaduj dane IRZplus gdy przełączono na kartę IRZplus (index 2)
                 if (mainTabControl.SelectedIndex == 2)
+                {
+                    InitializeIRZplusTab();
+                }
+
+                // Załaduj dane płachty gdy przełączono na kartę Płachta (index 3)
+                if (mainTabControl.SelectedIndex == 3)
                 {
                     LoadPlachtaData();
                 }
 
-                // Załaduj dane rozliczeń gdy przełączono na kartę Rozliczenia (teraz index 3 po ReorderTabs)
-                if (mainTabControl.SelectedIndex == 3)
+                // Załaduj dane rozliczeń gdy przełączono na kartę Rozliczenia (index 4)
+                if (mainTabControl.SelectedIndex == 4)
                 {
                     LoadRozliczeniaData();
                 }
 
-                // Załaduj dane podsumowania gdy przełączono na kartę Podsumowanie (index 4)
-                if (mainTabControl.SelectedIndex == 4)
+                // Załaduj dane podsumowania gdy przełączono na kartę Podsumowanie (index 5)
+                if (mainTabControl.SelectedIndex == 5)
                 {
                     LoadPodsumowanieData();
                 }
@@ -11995,6 +12007,404 @@ namespace Kalendarz1
                     MessageBox.Show($"Błąd przypisywania partii:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
+        }
+
+        #endregion
+
+        #region === IRZPLUS METHODS ===
+
+        /// <summary>
+        /// Inicjalizuje kartę IRZplus - wywoływane przy pierwszym wejściu na kartę
+        /// </summary>
+        private void InitializeIRZplusTab()
+        {
+            if (_irzPlusService == null)
+            {
+                _irzPlusService = new IRZplusService();
+                _irzPlusSpecyfikacje = new ObservableCollection<SpecyfikacjaDoIRZplusViewModel>();
+                dgIRZplus.ItemsSource = _irzPlusSpecyfikacje;
+            }
+
+            UpdateIRZplusEnvironmentDisplay();
+            LoadIRZplusDataAsync();
+        }
+
+        private void UpdateIRZplusEnvironmentDisplay()
+        {
+            if (_irzPlusService == null) return;
+
+            var settings = _irzPlusService.GetSettings();
+            if (settings.UseTestEnvironment)
+            {
+                txtIRZplusEnvironment.Text = "TESTOWE";
+                borderIRZplusEnv.Background = System.Windows.Media.Brushes.Orange;
+            }
+            else
+            {
+                txtIRZplusEnvironment.Text = "PRODUKCJA";
+                borderIRZplusEnv.Background = System.Windows.Media.Brushes.Green;
+            }
+        }
+
+        private async void LoadIRZplusDataAsync()
+        {
+            if (_irzPlusService == null || _irzPlusSpecyfikacje == null) return;
+
+            try
+            {
+                txtIRZplusStatus.Text = "Ładowanie danych...";
+                progressBarIRZplus.Visibility = Visibility.Visible;
+                progressBarIRZplus.IsIndeterminate = true;
+
+                // Pobierz datę z datepickera
+                var dataUboju = dpDataSpecyfikacji?.SelectedDate ?? DateTime.Today;
+
+                await _irzPlusService.EnsureIRZplusColumnsExistAsync(connectionString);
+                var specyfikacje = await _irzPlusService.GetSpecyfikacjeAsync(connectionString, dataUboju);
+
+                _irzPlusSpecyfikacje.Clear();
+                int kolejnosc = 1;
+                foreach (var spec in specyfikacje)
+                {
+                    var vm = new SpecyfikacjaDoIRZplusViewModel(spec);
+                    vm.KolejnoscAuta = kolejnosc++;
+                    _irzPlusSpecyfikacje.Add(vm);
+                }
+
+                UpdateIRZplusSummary();
+                ValidateIRZplusData();
+
+                txtIRZplusStatus.Text = $"Załadowano {_irzPlusSpecyfikacje.Count} specyfikacji";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd ładowania danych IRZplus:\n{ex.Message}", "Błąd",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                txtIRZplusStatus.Text = "Błąd ładowania";
+            }
+            finally
+            {
+                progressBarIRZplus.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void UpdateIRZplusSummary()
+        {
+            if (_irzPlusSpecyfikacje == null) return;
+
+            var wybrane = _irzPlusSpecyfikacje.Where(s => s.Wybrana).ToList();
+
+            txtIRZplusLiczbaDostawcow.Text = wybrane.Count.ToString();
+            txtIRZplusSumaSztuk.Text = wybrane.Sum(s => s.LiczbaSztukDrobiu).ToString("N0");
+            txtIRZplusSumaWagi.Text = wybrane.Sum(s => s.WagaNetto).ToString("N0") + " kg";
+            txtIRZplusSumaPadlych.Text = wybrane.Sum(s => s.SztukiPadle).ToString("N0");
+            txtIRZplusSumaKgDoZapl.Text = wybrane.Sum(s => s.KgDoZaplaty).ToString("N0");
+            txtIRZplusSumaKonfiskat.Text = wybrane.Sum(s => s.KgKonfiskat).ToString("N0");
+            txtIRZplusSumaPadlychSzt.Text = wybrane.Sum(s => s.KgPadlych).ToString("N0");
+
+            btnIRZplusSend.IsEnabled = wybrane.Count > 0;
+        }
+
+        private void ValidateIRZplusData()
+        {
+            if (_irzPlusSpecyfikacje == null) return;
+
+            var warnings = new List<string>();
+
+            foreach (var spec in _irzPlusSpecyfikacje.Where(s => s.Wybrana))
+            {
+                if (string.IsNullOrWhiteSpace(spec.IRZPlus))
+                {
+                    warnings.Add($"Brak numeru IRZ PLUS dla: {spec.Hodowca}");
+                }
+
+                if (spec.LiczbaSztukDrobiu <= 0)
+                {
+                    warnings.Add($"Zerowa liczba sztuk zdatnych dla: {spec.Hodowca}");
+                }
+            }
+
+            if (warnings.Count > 0)
+            {
+                txtIRZplusWarnings.Text = string.Join("\n", warnings.Take(10));
+                if (warnings.Count > 10)
+                    txtIRZplusWarnings.Text += $"\n... i {warnings.Count - 10} innych ostrzeżeń";
+                borderIRZplusWarnings.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                borderIRZplusWarnings.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void BtnIRZplusSelectAll_Click(object sender, RoutedEventArgs e)
+        {
+            if (_irzPlusSpecyfikacje == null) return;
+            foreach (var spec in _irzPlusSpecyfikacje)
+                spec.Wybrana = true;
+            UpdateIRZplusSummary();
+            ValidateIRZplusData();
+        }
+
+        private void BtnIRZplusDeselectAll_Click(object sender, RoutedEventArgs e)
+        {
+            if (_irzPlusSpecyfikacje == null) return;
+            foreach (var spec in _irzPlusSpecyfikacje)
+                spec.Wybrana = false;
+            UpdateIRZplusSummary();
+            ValidateIRZplusData();
+        }
+
+        private void BtnIRZplusRefresh_Click(object sender, RoutedEventArgs e)
+        {
+            LoadIRZplusDataAsync();
+        }
+
+        private void BtnIRZplusSettings_Click(object sender, RoutedEventArgs e)
+        {
+            if (_irzPlusService == null) _irzPlusService = new IRZplusService();
+
+            var settingsWindow = new IRZplusSettingsWindow(_irzPlusService);
+            settingsWindow.Owner = this;
+            if (settingsWindow.ShowDialog() == true)
+            {
+                UpdateIRZplusEnvironmentDisplay();
+            }
+        }
+
+        private async void BtnIRZplusSend_Click(object sender, RoutedEventArgs e)
+        {
+            if (_irzPlusSpecyfikacje == null || _irzPlusService == null) return;
+
+            var wybrane = _irzPlusSpecyfikacje.Where(s => s.Wybrana).ToList();
+            if (wybrane.Count == 0)
+            {
+                MessageBox.Show("Zaznacz przynajmniej jedną specyfikację do wysłania.",
+                    "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var settings = _irzPlusService.GetSettings();
+            var envText = settings.UseTestEnvironment ? "TESTOWE" : "PRODUKCYJNE";
+            var dataUboju = dpDataSpecyfikacji?.SelectedDate ?? DateTime.Today;
+
+            var result = MessageBox.Show(
+                $"Czy na pewno chcesz wysłać zgłoszenie do IRZplus?\n\n" +
+                $"Środowisko: {envText}\n" +
+                $"Data uboju: {dataUboju:dd.MM.yyyy}\n" +
+                $"Liczba dostawców: {wybrane.Count}\n" +
+                $"Suma sztuk zdatnych: {wybrane.Sum(s => s.LiczbaSztukDrobiu):N0}\n" +
+                $"Suma wagi: {wybrane.Sum(s => s.WagaNetto):N2} kg",
+                "Potwierdzenie wysyłki",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result != MessageBoxResult.Yes) return;
+
+            try
+            {
+                btnIRZplusSend.IsEnabled = false;
+                txtIRZplusStatus.Text = "Wysyłanie do IRZplus...";
+                progressBarIRZplus.Visibility = Visibility.Visible;
+                progressBarIRZplus.IsIndeterminate = true;
+
+                var specyfikacje = wybrane.Select(vm => new SpecyfikacjaDoIRZplus
+                {
+                    Id = vm.Id,
+                    Hodowca = vm.Hodowca,
+                    IdHodowcy = vm.IdHodowcy,
+                    IRZPlus = vm.IRZPlus,
+                    NumerPartii = vm.NumerPartii,
+                    LiczbaSztukDrobiu = vm.LiczbaSztukDrobiu,
+                    TypZdarzenia = vm.TypZdarzenia,
+                    DataZdarzenia = vm.DataZdarzenia,
+                    KrajWywozu = vm.KrajWywozu,
+                    SztukiWszystkie = vm.SztukiWszystkie,
+                    SztukiPadle = vm.SztukiPadle,
+                    SztukiKonfiskaty = vm.SztukiKonfiskaty,
+                    WagaNetto = vm.WagaNetto,
+                    Wybrana = true
+                }).ToList();
+
+                var zgloszenie = _irzPlusService.ConvertToZgloszenie(specyfikacje);
+                var sendResult = await _irzPlusService.SendZgloszenieAsync(zgloszenie);
+
+                if (sendResult.Success)
+                {
+                    MessageBox.Show($"Zgłoszenie zostało wysłane pomyślnie!\n\nNumer: {sendResult.NumerZgloszenia}",
+                        "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                    txtIRZplusStatus.Text = $"Wysłano: {sendResult.NumerZgloszenia}";
+                }
+                else
+                {
+                    MessageBox.Show($"Błąd wysyłania:\n{sendResult.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                    txtIRZplusStatus.Text = "Błąd wysyłania";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Wystąpił błąd:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                txtIRZplusStatus.Text = "Błąd";
+            }
+            finally
+            {
+                btnIRZplusSend.IsEnabled = true;
+                progressBarIRZplus.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void BtnIRZplusSaveLocal_Click(object sender, RoutedEventArgs e)
+        {
+            if (_irzPlusSpecyfikacje == null || _irzPlusService == null) return;
+
+            try
+            {
+                var wybrane = _irzPlusSpecyfikacje.Where(s => s.Wybrana).ToList();
+                if (wybrane.Count == 0)
+                {
+                    MessageBox.Show("Zaznacz przynajmniej jedną specyfikację.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                var specyfikacje = wybrane.Select(vm => new SpecyfikacjaDoIRZplus
+                {
+                    Id = vm.Id, Hodowca = vm.Hodowca, IRZPlus = vm.IRZPlus,
+                    LiczbaSztukDrobiu = vm.LiczbaSztukDrobiu, DataZdarzenia = vm.DataZdarzenia, WagaNetto = vm.WagaNetto, Wybrana = true
+                }).ToList();
+
+                var zgloszenie = _irzPlusService.ConvertToZgloszenie(specyfikacje);
+                var settings = _irzPlusService.GetSettings();
+                var dir = settings.LocalExportPath ?? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "IRZplus_Export");
+
+                if (!System.IO.Directory.Exists(dir))
+                    System.IO.Directory.CreateDirectory(dir);
+
+                var dataUboju = dpDataSpecyfikacji?.SelectedDate ?? DateTime.Today;
+                var fileName = $"IRZplus_{dataUboju:yyyy-MM-dd}_{DateTime.Now:HHmmss}.json";
+                var filePath = System.IO.Path.Combine(dir, fileName);
+
+                var json = System.Text.Json.JsonSerializer.Serialize(zgloszenie, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                System.IO.File.WriteAllText(filePath, json);
+
+                MessageBox.Show($"Zapisano lokalną kopię:\n{filePath}", "Zapisano", MessageBoxButton.OK, MessageBoxImage.Information);
+                txtIRZplusStatus.Text = $"Zapisano: {fileName}";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd zapisu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnIRZplusExportDialog_Click(object sender, RoutedEventArgs e)
+        {
+            if (_irzPlusSpecyfikacje == null) return;
+
+            try
+            {
+                var wybrane = _irzPlusSpecyfikacje.Where(s => s.Wybrana).ToList();
+                if (wybrane.Count == 0)
+                {
+                    MessageBox.Show("Zaznacz przynajmniej jedną specyfikację do eksportu.", "Uwaga", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                var dataUboju = dpDataSpecyfikacji?.SelectedDate ?? DateTime.Today;
+
+                var dialog = IRZplusExportDialog.UtworzZDanych(
+                    dataUboju: dataUboju,
+                    transporty: wybrane,
+                    mapujNaPozycje: (vm, lp) => new PozycjaZgloszeniaIRZ
+                    {
+                        Lp = lp,
+                        NumerPartiiDrobiu = vm.IRZPlus ?? "",
+                        TypZdarzenia = TypZdarzeniaZURD.UbojRzezniczy,
+                        LiczbaSztuk = vm.LiczbaSztukDrobiu,
+                        MasaKg = vm.WagaNetto,
+                        DataZdarzenia = vm.DataZdarzenia,
+                        PrzyjeteZDzialalnosci = vm.PrzyjetaZDzialalnosci,
+                        UbojRytualny = false,
+                        LiczbaPadlych = vm.SztukiPadle,
+                        NumerPartiiWewnetrzny = vm.NumerPartii,
+                        Uwagi = vm.Hodowca
+                    },
+                    numerRzezni: "039806095-001",
+                    numerProducenta: "039806095",
+                    gatunek: GatunekDrobiu.Kury
+                );
+
+                dialog.Owner = this;
+                if (dialog.ShowDialog() == true && dialog.Sukces)
+                {
+                    txtIRZplusStatus.Text = $"Wyeksportowano: {System.IO.Path.GetFileName(dialog.WyeksportowanyPlik)}";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd eksportu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void BtnIRZplusSaveFields_Click(object sender, RoutedEventArgs e)
+        {
+            if (_irzPlusSpecyfikacje == null || _irzPlusService == null) return;
+
+            try
+            {
+                txtIRZplusStatus.Text = "Zapisywanie danych IRZ...";
+                progressBarIRZplus.Visibility = Visibility.Visible;
+                progressBarIRZplus.IsIndeterminate = true;
+
+                int savedCount = 0;
+                foreach (var spec in _irzPlusSpecyfikacje)
+                {
+                    bool hasData = !string.IsNullOrWhiteSpace(spec.NrDokArimr) ||
+                                   !string.IsNullOrWhiteSpace(spec.Przybycie) ||
+                                   !string.IsNullOrWhiteSpace(spec.Padniecia);
+
+                    if (hasData)
+                    {
+                        var success = await _irzPlusService.SaveIRZplusFieldsAsync(connectionString, spec.Id, spec.NrDokArimr, spec.Przybycie, spec.Padniecia);
+                        if (success) savedCount++;
+                    }
+                }
+
+                if (savedCount > 0)
+                {
+                    MessageBox.Show($"Zapisano dane IRZ dla {savedCount} rekordów.", "Zapisano", MessageBoxButton.OK, MessageBoxImage.Information);
+                    txtIRZplusStatus.Text = $"Zapisano {savedCount} rekordów";
+                }
+                else
+                {
+                    MessageBox.Show("Brak danych do zapisania.", "Informacja", MessageBoxButton.OK, MessageBoxImage.Information);
+                    txtIRZplusStatus.Text = "Brak danych do zapisania";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd zapisu:\n{ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                progressBarIRZplus.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private async void BtnIRZplusKopiujPartie_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (sender is Button btn && btn.Tag is string numerPartii && !string.IsNullOrEmpty(numerPartii))
+                {
+                    System.Windows.Clipboard.SetText(numerPartii);
+                    var original = btn.Content;
+                    btn.Content = "✓";
+                    btn.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4CAF50"));
+                    await Task.Delay(800);
+                    btn.Content = original;
+                    btn.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E3F2FD"));
+                }
+            }
+            catch { }
         }
 
         #endregion
