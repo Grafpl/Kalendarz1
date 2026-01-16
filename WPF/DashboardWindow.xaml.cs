@@ -3929,7 +3929,6 @@ namespace Kalendarz1.WPF
             }
 
             int viewIndex = currentIndex;
-            DateTime jolaDate = _selectedDate; // Lokalna data dla tego panelu
 
             var dialog = new Window
             {
@@ -4036,19 +4035,37 @@ namespace Kalendarz1.WPF
                 dateGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
                 var btnDatePrev = new Button { Content = "◀", FontSize = 16, Width = 32, Height = 32, Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = System.Windows.Input.Cursors.Hand };
-                var dateTxt = new TextBlock { Text = jolaDate.ToString("dd.MM"), FontSize = 20, FontWeight = FontWeights.Bold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 8, 0) };
+                var dateTxt = new TextBlock { Text = _selectedDate.ToString("dd.MM"), FontSize = 20, FontWeight = FontWeights.Bold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 8, 0) };
                 var btnDateNext = new Button { Content = "▶", FontSize = 16, Width = 32, Height = 32, Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = System.Windows.Input.Cursors.Hand };
 
-                btnDatePrev.Click += (s, e) => { jolaDate = jolaDate.AddDays(-1); refreshContent(); };
-                btnDateNext.Click += (s, e) => { jolaDate = jolaDate.AddDays(1); refreshContent(); };
+                // Zmiana daty - przeładowanie danych
+                btnDatePrev.Click += async (s, e) => {
+                    _selectedDate = _selectedDate.AddDays(-1);
+                    await LoadDataAsync();
+                    refreshContent();
+                };
+                btnDateNext.Click += async (s, e) => {
+                    _selectedDate = _selectedDate.AddDays(1);
+                    await LoadDataAsync();
+                    refreshContent();
+                };
 
                 Grid.SetColumn(btnDatePrev, 0); Grid.SetColumn(dateTxt, 1); Grid.SetColumn(btnDateNext, 2);
                 dateGrid.Children.Add(btnDatePrev); dateGrid.Children.Add(dateTxt); dateGrid.Children.Add(btnDateNext);
                 datePanel.Children.Add(dateGrid);
 
                 // Dzień tygodnia
-                string dzienTygodnia = jolaDate.ToString("dddd", new System.Globalization.CultureInfo("pl-PL"));
+                string dzienTygodnia = _selectedDate.ToString("dddd", new System.Globalization.CultureInfo("pl-PL"));
                 datePanel.Children.Add(new TextBlock { Text = dzienTygodnia, FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 2, 0, 0) });
+
+                // Przycisk DZIŚ
+                var btnDzis = new Button { Content = "DZIŚ", FontSize = 12, FontWeight = FontWeights.Bold, Padding = new Thickness(15, 5, 15, 5), Background = new SolidColorBrush(Color.FromRgb(39, 174, 96)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Margin = new Thickness(0, 5, 0, 0), Cursor = System.Windows.Input.Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Center };
+                btnDzis.Click += async (s, e) => {
+                    _selectedDate = DateTime.Today;
+                    await LoadDataAsync();
+                    refreshContent();
+                };
+                datePanel.Children.Add(btnDzis);
 
                 leftPanel.Children.Add(datePanel);
 
@@ -4237,19 +4254,19 @@ namespace Kalendarz1.WPF
                 tableGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Suma
 
             // Nagłówek
-            var headerBorder = new Border { Background = new SolidColorBrush(Color.FromRgb(44, 62, 80)), Padding = new Thickness(5, 4, 5, 4) };
+            var headerBorder = new Border { Background = new SolidColorBrush(Color.FromRgb(44, 62, 80)), Padding = new Thickness(8, 6, 8, 6) };
             var headerGrid = new Grid();
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
-            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
 
-            headerGrid.Children.Add(new TextBlock { Text = "#", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Brushes.White, Margin = new Thickness(5, 0, 8, 0) });
-            var hdrNazwa = new TextBlock { Text = "ODBIORCA", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Brushes.White };
+            headerGrid.Children.Add(new TextBlock { Text = "#", FontSize = 15, FontWeight = FontWeights.Bold, Foreground = Brushes.White, Margin = new Thickness(5, 0, 10, 0) });
+            var hdrNazwa = new TextBlock { Text = "ODBIORCA", FontSize = 15, FontWeight = FontWeights.Bold, Foreground = Brushes.White };
             Grid.SetColumn(hdrNazwa, 1); headerGrid.Children.Add(hdrNazwa);
-            var hdrZam = new TextBlock { Text = "ZAMÓWIONE", FontSize = 11, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(46, 204, 113)), HorizontalAlignment = HorizontalAlignment.Right };
+            var hdrZam = new TextBlock { Text = "ZAMÓWIONE", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(46, 204, 113)), HorizontalAlignment = HorizontalAlignment.Right };
             Grid.SetColumn(hdrZam, 2); headerGrid.Children.Add(hdrZam);
-            var hdrWyd = new TextBlock { Text = "WYDANE", FontSize = 11, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)), HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 5, 0) };
+            var hdrWyd = new TextBlock { Text = "WYDANE", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)), HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 5, 0) };
             Grid.SetColumn(hdrWyd, 3); headerGrid.Children.Add(hdrWyd);
 
             headerBorder.Child = headerGrid;
@@ -4268,24 +4285,24 @@ namespace Kalendarz1.WPF
                     var rowBorder = new Border
                     {
                         Background = new SolidColorBrush(lp % 2 == 0 ? Color.FromRgb(38, 48, 58) : Color.FromRgb(32, 42, 52)),
-                        Padding = new Thickness(5, 4, 5, 4)
+                        Padding = new Thickness(8, 8, 8, 8)
                     };
                     var rowGrid = new Grid();
                     rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                     rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
                     rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
-                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
 
-                    var lpTxt = new TextBlock { Text = $"{lp}.", FontSize = 13, Foreground = new SolidColorBrush(Color.FromRgb(130, 140, 150)), Margin = new Thickness(5, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
+                    var lpTxt = new TextBlock { Text = $"{lp}.", FontSize = 17, Foreground = new SolidColorBrush(Color.FromRgb(130, 140, 150)), Margin = new Thickness(5, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center };
                     Grid.SetColumn(lpTxt, 0); rowGrid.Children.Add(lpTxt);
 
-                    var nazwaTxt = new TextBlock { Text = odbiorca.NazwaOdbiorcy ?? "Nieznany", FontSize = 13, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+                    var nazwaTxt = new TextBlock { Text = odbiorca.NazwaOdbiorcy ?? "Nieznany", FontSize = 17, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
                     Grid.SetColumn(nazwaTxt, 1); rowGrid.Children.Add(nazwaTxt);
 
-                    var zamTxt = new TextBlock { Text = $"{odbiorca.Zamowione:N0} kg", FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(46, 204, 113)), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
+                    var zamTxt = new TextBlock { Text = $"{odbiorca.Zamowione:N0} kg", FontSize = 17, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(46, 204, 113)), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
                     Grid.SetColumn(zamTxt, 2); rowGrid.Children.Add(zamTxt);
 
-                    var wydTxt = new TextBlock { Text = $"{odbiorca.Wydane:N0} kg", FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 5, 0) };
+                    var wydTxt = new TextBlock { Text = $"{odbiorca.Wydane:N0} kg", FontSize = 17, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 5, 0) };
                     Grid.SetColumn(wydTxt, 3); rowGrid.Children.Add(wydTxt);
 
                     rowBorder.Child = rowGrid;
@@ -4301,20 +4318,20 @@ namespace Kalendarz1.WPF
             // Suma (tylko dla pierwszej tablicy)
             if (showSuma)
             {
-                var sumaBorder = new Border { Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)), Padding = new Thickness(5, 5, 5, 5) };
+                var sumaBorder = new Border { Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)), Padding = new Thickness(8, 8, 8, 8) };
                 var sumaGrid = new Grid();
                 sumaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 sumaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                sumaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
                 sumaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
-                sumaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
 
-                var sumaTxt = new TextBlock { Text = "SUMA:", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = Brushes.White, Margin = new Thickness(5, 0, 0, 0) };
+                var sumaTxt = new TextBlock { Text = "SUMA:", FontSize = 17, FontWeight = FontWeights.Bold, Foreground = Brushes.White, Margin = new Thickness(5, 0, 0, 0) };
                 Grid.SetColumn(sumaTxt, 1); sumaGrid.Children.Add(sumaTxt);
 
-                var sumaZamTxt = new TextBlock { Text = $"{sumaZam:N0} kg", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Right };
+                var sumaZamTxt = new TextBlock { Text = $"{sumaZam:N0} kg", FontSize = 17, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Right };
                 Grid.SetColumn(sumaZamTxt, 2); sumaGrid.Children.Add(sumaZamTxt);
 
-                var sumaWydTxt = new TextBlock { Text = $"{sumaWyd:N0} kg", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 5, 0) };
+                var sumaWydTxt = new TextBlock { Text = $"{sumaWyd:N0} kg", FontSize = 17, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 5, 0) };
                 Grid.SetColumn(sumaWydTxt, 3); sumaGrid.Children.Add(sumaWydTxt);
 
                 sumaBorder.Child = sumaGrid;
