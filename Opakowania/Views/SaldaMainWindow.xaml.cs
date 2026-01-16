@@ -179,18 +179,18 @@ namespace Kalendarz1.Opakowania.Views
                     AddLog($"  Wynik: {docs.Count} dokumentów");
                     AddLog($"  Czas: {sw3.ElapsedMilliseconds} ms");
                     AddLog("");
+
+                    // Test 4: Potwierdzenia kontrahenta
+                    AddLog($"TEST 4: Potwierdzenia dla {pierwszy.Kontrahent}...");
+                    var sw4 = Stopwatch.StartNew();
+                    var potwierdzenia = await service.PobierzPotwierdzeniaKontrahentaAsync(pierwszy.Id);
+                    sw4.Stop();
+                    _operationCount++;
+
+                    AddLog($"  Wynik: {potwierdzenia.Count} potwierdzeń");
+                    AddLog($"  Czas: {sw4.ElapsedMilliseconds} ms");
+                    AddLog("");
                 }
-
-                // Test 4: Potwierdzenia
-                AddLog("TEST 4: Ładowanie potwierdzeń...");
-                var sw4 = Stopwatch.StartNew();
-                var potwierdzenia = await service.PobierzPotwierdzeniaAsync();
-                sw4.Stop();
-                _operationCount++;
-
-                AddLog($"  Wynik: {potwierdzenia.Count} potwierdzeń");
-                AddLog($"  Czas: {sw4.ElapsedMilliseconds} ms");
-                AddLog("");
 
                 // Podsumowanie
                 AddLog("=== PODSUMOWANIE ===");
