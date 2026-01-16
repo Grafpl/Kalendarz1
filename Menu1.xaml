@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="System Zarządzania Piórkowscy"
+        Title="ZPSP - Logowanie"
         Height="650" Width="1050"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize" WindowStyle="None"
@@ -80,6 +80,148 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- Style dla przycisków klawiatury dotykowej -->
+        <Style x:Key="TouchKeyButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="55"/>
+            <Setter Property="Height" Value="55"/>
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#2C3E50"/>
+            <Setter Property="Background" Value="#F5F5F5"/>
+            <Setter Property="BorderBrush" Value="#E0E0E0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <Border.RenderTransform>
+                                <ScaleTransform x:Name="borderScale" ScaleX="1" ScaleY="1"/>
+                            </Border.RenderTransform>
+                            <Border.RenderTransformOrigin>
+                                <Point X="0.5" Y="0.5"/>
+                            </Border.RenderTransformOrigin>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#E8F5E9"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#5C8A3A"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#C8E6C9"/>
+                                <Setter TargetName="borderScale" Property="ScaleX" Value="0.95"/>
+                                <Setter TargetName="borderScale" Property="ScaleY" Value="0.95"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="TouchKeyBackspaceStyle" TargetType="Button" BasedOn="{StaticResource TouchKeyButtonStyle}">
+            <Setter Property="Background" Value="#FFEBEE"/>
+            <Setter Property="Foreground" Value="#C62828"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="8">
+                            <Border.RenderTransform>
+                                <ScaleTransform x:Name="borderScale" ScaleX="1" ScaleY="1"/>
+                            </Border.RenderTransform>
+                            <Border.RenderTransformOrigin>
+                                <Point X="0.5" Y="0.5"/>
+                            </Border.RenderTransformOrigin>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#FFCDD2"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#C62828"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#EF9A9A"/>
+                                <Setter TargetName="borderScale" Property="ScaleX" Value="0.95"/>
+                                <Setter TargetName="borderScale" Property="ScaleY" Value="0.95"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="TouchKeyClearStyle" TargetType="Button" BasedOn="{StaticResource TouchKeyButtonStyle}">
+            <Setter Property="Background" Value="#FFF3E0"/>
+            <Setter Property="Foreground" Value="#E65100"/>
+            <Setter Property="Width" Value="118"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="8">
+                            <Border.RenderTransform>
+                                <ScaleTransform x:Name="borderScale" ScaleX="1" ScaleY="1"/>
+                            </Border.RenderTransform>
+                            <Border.RenderTransformOrigin>
+                                <Point X="0.5" Y="0.5"/>
+                            </Border.RenderTransformOrigin>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#FFE0B2"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#E65100"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#FFCC80"/>
+                                <Setter TargetName="borderScale" Property="ScaleX" Value="0.95"/>
+                                <Setter TargetName="borderScale" Property="ScaleY" Value="0.95"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="TouchKeyEnterStyle" TargetType="Button" BasedOn="{StaticResource TouchKeyButtonStyle}">
+            <Setter Property="Background" Value="#5C8A3A"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Width" Value="118"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                BorderBrush="#4B732F" BorderThickness="1" CornerRadius="8">
+                            <Border.RenderTransform>
+                                <ScaleTransform x:Name="borderScale" ScaleX="1" ScaleY="1"/>
+                            </Border.RenderTransform>
+                            <Border.RenderTransformOrigin>
+                                <Point X="0.5" Y="0.5"/>
+                            </Border.RenderTransformOrigin>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#4B732F"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#3A5C24"/>
+                                <Setter TargetName="borderScale" Property="ScaleX" Value="0.95"/>
+                                <Setter TargetName="borderScale" Property="ScaleY" Value="0.95"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Border CornerRadius="15" Background="#FFFFFF">
@@ -118,8 +260,10 @@
                             <LineBreak/>
                             <Run>Zrobię wszystko, co w mojej mocy, aby był dla Was realnym wsparciem.</Run>
                         </TextBlock>
-                        <TextBlock Text="Sergiusz Piórkowski" Foreground="White" FontWeight="Bold" 
-                                   TextAlignment="Center" FontSize="15" Margin="0,30,0,0" Opacity="0.8"/>
+                        <Image Source="pack://application:,,,/logo2white.png" Height="40"
+                               Margin="0,30,0,10" Opacity="0.7" RenderOptions.BitmapScalingMode="Fant"/>
+                        <TextBlock Text="Sergiusz Piórkowski" Foreground="White" FontWeight="Bold"
+                                   TextAlignment="Center" FontSize="15" Margin="0,0,0,0" Opacity="0.8"/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -156,6 +300,48 @@
                             </Style>
                         </Button.Style>
                     </Button>
+
+                    <!-- Klawiatura dotykowa -->
+                    <Border Margin="0,30,0,0" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="10" Background="#FAFAFA" Padding="15">
+                        <StackPanel>
+                            <TextBlock Text="⌨️ Klawiatura dotykowa" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="#7F8C8D" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+
+                            <!-- Rząd 1: 1 2 3 -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <Button Content="1" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
+                                <Button Content="2" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
+                                <Button Content="3" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
+                            </StackPanel>
+
+                            <!-- Rząd 2: 4 5 6 -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <Button Content="4" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
+                                <Button Content="5" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
+                                <Button Content="6" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
+                            </StackPanel>
+
+                            <!-- Rząd 3: 7 8 9 -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <Button Content="7" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
+                                <Button Content="8" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
+                                <Button Content="9" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
+                            </StackPanel>
+
+                            <!-- Rząd 4: Backspace 0 -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <Button Content="⌫" Style="{StaticResource TouchKeyBackspaceStyle}" Click="TouchKey_Backspace" ToolTip="Usuń ostatni znak"/>
+                                <Button Content="0" Style="{StaticResource TouchKeyButtonStyle}" Click="TouchKey_Click"/>
+                                <Button Content="⌫" Style="{StaticResource TouchKeyBackspaceStyle}" Click="TouchKey_Backspace" ToolTip="Usuń ostatni znak" Visibility="Hidden"/>
+                            </StackPanel>
+
+                            <!-- Rząd 5: WYCZYŚĆ OK -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
+                                <Button Content="WYCZYŚĆ" Style="{StaticResource TouchKeyClearStyle}" Click="TouchKey_Clear" ToolTip="Wyczyść całe pole"/>
+                                <Button Content="OK" Style="{StaticResource TouchKeyEnterStyle}" Click="TouchKey_Enter" ToolTip="Zaloguj"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
                 <TextBlock x:Name="FooterText" Text="© 2025 Piórkowscy - Sergiusz Piórkowski" HorizontalAlignment="Center" VerticalAlignment="Bottom" Foreground="#CFD8DC" FontSize="12" Margin="20"/>
             </Grid>

@@ -145,5 +145,43 @@ namespace Kalendarz1
                 this.DragMove();
             }
         }
+
+        #region Klawiatura dotykowa
+
+        private void TouchKey_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Button button)
+            {
+                string digit = button.Content.ToString();
+                // Dodajemy cyfrę do PasswordBox poprzez manipulację SecureString
+                // Używamy prostszego podejścia - ustawiamy nową wartość
+                string currentPassword = PasswordBox.Password;
+                PasswordBox.Password = currentPassword + digit;
+                PasswordBox.Focus();
+            }
+        }
+
+        private void TouchKey_Backspace(object sender, RoutedEventArgs e)
+        {
+            string currentPassword = PasswordBox.Password;
+            if (currentPassword.Length > 0)
+            {
+                PasswordBox.Password = currentPassword.Substring(0, currentPassword.Length - 1);
+            }
+            PasswordBox.Focus();
+        }
+
+        private void TouchKey_Enter(object sender, RoutedEventArgs e)
+        {
+            LoginButton_Click(sender, e);
+        }
+
+        private void TouchKey_Clear(object sender, RoutedEventArgs e)
+        {
+            PasswordBox.Clear();
+            PasswordBox.Focus();
+        }
+
+        #endregion
     }
 }
