@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
@@ -41,6 +42,64 @@ namespace Kalendarz1.Opakowania.Services
         public static string GetZestawieniaCacheStatus()
         {
             return $"Zestawienia cache: {_cacheZestawienia.Count} wpisów";
+        }
+
+        #endregion
+
+        #region Cache dla szczegółów kontrahenta
+
+        // Cache szczegółów kontrahenta - klucz to kontrahentId_dataOd_dataDo
+        private static readonly ConcurrentDictionary<string, (SaldoOpakowania Saldo, List<DokumentOpakowania> Dokumenty, DateTime Time)> _cacheSzczegoly = new();
+        private static readonly TimeSpan CacheSzczegolyLifetime = TimeSpan.FromHours(2); // 2 godziny
+        private const int MaxCacheSzczegolySize = 50; // Max 50 kontrahentów w cache
+
+        /// <summary>
+        /// Invaliduje cache szczegółów kontrahenta
+        /// </summary>
+        public static void InvalidateSzczegolyCache(int? kontrahentId = null)
+        {
+            if (kontrahentId.HasValue)
+            {
+                // Usuń tylko dane tego kontrahenta
+                var keysToRemove = _cacheSzczegoly.Keys.Where(k => k.StartsWith($"{kontrahentId}_")).ToList();
+                foreach (var key in keysToRemove)
+                {
+                    _cacheSzczegoly.TryRemove(key, out _);
+                }
+                Debug.WriteLine($"[CACHE] Szczegoly cache invalidated for kontrahent {kontrahentId}");
+            }
+            else
+            {
+                _cacheSzczegoly.Clear();
+                Debug.WriteLine("[CACHE] Szczegoly cache invalidated (all)");
+            }
+        }
+
+        /// <summary>
+        /// Zwraca status cache'a szczegółów
+        /// </summary>
+        public static string GetSzczegolyCacheStatus()
+        {
+            return $"Szczegoly cache: {_cacheSzczegoly.Count} kontrahentów";
+        }
+
+        // Czyszczenie starych wpisów w cache szczegółów
+        private static void CleanupSzczegolyCache()
+        {
+            if (_cacheSzczegoly.Count >= MaxCacheSzczegolySize)
+            {
+                var oldest = _cacheSzczegoly
+                    .OrderBy(x => x.Value.Time)
+                    .Take(MaxCacheSzczegolySize / 2)
+                    .Select(x => x.Key)
+                    .ToList();
+
+                foreach (var key in oldest)
+                {
+                    _cacheSzczegoly.TryRemove(key, out _);
+                }
+                Debug.WriteLine($"[CACHE] Cleaned up {oldest.Count} old szczegoly entries");
+            }
         }
 
         #endregion
@@ -329,9 +388,29 @@ OPTION (RECOMPILE)";
 
         /// <summary>
         /// Pobiera szczegółowe saldo dla konkretnego kontrahenta
+        /// ZOPTYMALIZOWANE z cache'owaniem - drugie wejście w szczegóły tego samego kontrahenta jest natychmiastowe
         /// </summary>
         public async Task<List<DokumentOpakowania>> PobierzSaldoKontrahentaAsync(int kontrahentId, DateTime dataOd, DateTime dataDo)
         {
+            // Generuj klucz cache
+            var cacheKey = $"{kontrahentId}_{dataOd:yyyyMMdd}_{dataDo:yyyyMMdd}";
+
+            // FAST PATH: Sprawdź cache
+            if (_cacheSzczegoly.TryGetValue(cacheKey, out var cached))
+            {
+                if (DateTime.Now - cached.Time <= CacheSzczegolyLifetime && cached.Dokumenty != null)
+                {
+                    Debug.WriteLine($"[CACHE HIT] Szczegoly for kontrahent {kontrahentId} ({cached.Dokumenty.Count} docs)");
+                    PerformanceProfiler.RecordCacheHit("Szczegoly");
+                    return cached.Dokumenty;
+                }
+                // Cache wygasł
+                _cacheSzczegoly.TryRemove(cacheKey, out _);
+            }
+            PerformanceProfiler.RecordCacheMiss("Szczegoly");
+
+            // SLOW PATH: Pobierz z bazy
+            var sw = Stopwatch.StartNew();
             var dokumenty = new List<DokumentOpakowania>();
 
             string saldoPoczatkoweQuery = @"
@@ -458,16 +537,51 @@ ORDER BY d.data DESC";
                 throw new Exception($"Błąd podczas pobierania salda kontrahenta: {ex.Message}", ex);
             }
 
+            // Zapisz w cache
+            sw.Stop();
+            CleanupSzczegolyCache(); // Wyczyść stare wpisy jeśli za dużo
+
+            // Zapisz dokumenty w cache (saldo będzie zapisane przez PobierzSaldaWszystkichOpakowannAsync)
+            if (_cacheSzczegoly.TryGetValue(cacheKey, out var existing))
+            {
+                _cacheSzczegoly[cacheKey] = (existing.Saldo, dokumenty, DateTime.Now);
+            }
+            else
+            {
+                _cacheSzczegoly[cacheKey] = (null, dokumenty, DateTime.Now);
+            }
+            Debug.WriteLine($"[CACHE] Szczegoly saved for kontrahent {kontrahentId} ({dokumenty.Count} docs in {sw.ElapsedMilliseconds}ms)");
+
             return dokumenty;
         }
 
         /// <summary>
         /// Pobiera salda wszystkich opakowań dla konkretnego kontrahenta
+        /// ZOPTYMALIZOWANE z cache'owaniem - drugie wejście w szczegóły jest natychmiastowe
         /// </summary>
         public async Task<SaldoOpakowania> PobierzSaldaWszystkichOpakowannAsync(int kontrahentId, DateTime dataDo)
         {
+            // Generuj klucz cache - używamy tego samego klucza co dokumenty (ale z dowolną dataOd)
+            var cacheKey = $"{kontrahentId}_saldo_{dataDo:yyyyMMdd}";
+
+            // FAST PATH: Sprawdź cache dla salda
+            if (_cacheSzczegoly.TryGetValue(cacheKey, out var cached))
+            {
+                if (DateTime.Now - cached.Time <= CacheSzczegolyLifetime && cached.Saldo != null)
+                {
+                    Debug.WriteLine($"[CACHE HIT] Saldo for kontrahent {kontrahentId}");
+                    PerformanceProfiler.RecordCacheHit("SaldoOdbiorcy");
+                    return cached.Saldo;
+                }
+            }
+            PerformanceProfiler.RecordCacheMiss("SaldoOdbiorcy");
+
+            // SLOW PATH: Pobierz z bazy
+            var sw = Stopwatch.StartNew();
+            SaldoOpakowania saldo = null;
+
             string query = @"
-SELECT 
+SELECT
     C.Shortcut AS Kontrahent,
     C.id AS KontrahentId,
     ISNULL(WYM.CDim_Handlowiec_Val, '-') AS Handlowiec,
@@ -485,7 +599,8 @@ WHERE C.id = @KontrahentId
   AND MG.anulowany = 0
   AND MG.data <= @DataDo
   AND TW.nazwa IN ('Pojemnik Drobiowy E2', 'Paleta H1', 'Paleta EURO', 'Paleta plastikowa', 'Paleta Drewniana')
-GROUP BY C.id, C.Shortcut, WYM.CDim_Handlowiec_Val";
+GROUP BY C.id, C.Shortcut, WYM.CDim_Handlowiec_Val
+OPTION (RECOMPILE)";
 
             try
             {
@@ -501,7 +616,7 @@ GROUP BY C.id, C.Shortcut, WYM.CDim_Handlowiec_Val";
                         {
                             if (await reader.ReadAsync())
                             {
-                                return new SaldoOpakowania
+                                saldo = new SaldoOpakowania
                                 {
                                     Kontrahent = reader.GetString(reader.GetOrdinal("Kontrahent")),
                                     KontrahentId = reader.GetInt32(reader.GetOrdinal("KontrahentId")),
@@ -522,7 +637,16 @@ GROUP BY C.id, C.Shortcut, WYM.CDim_Handlowiec_Val";
                 throw new Exception($"Błąd podczas pobierania salda: {ex.Message}", ex);
             }
 
-            return null;
+            // Zapisz w cache
+            sw.Stop();
+            if (saldo != null)
+            {
+                CleanupSzczegolyCache();
+                _cacheSzczegoly[cacheKey] = (saldo, null, DateTime.Now);
+                Debug.WriteLine($"[CACHE] Saldo saved for kontrahent {kontrahentId} in {sw.ElapsedMilliseconds}ms");
+            }
+
+            return saldo;
         }
 
         /// <summary>
