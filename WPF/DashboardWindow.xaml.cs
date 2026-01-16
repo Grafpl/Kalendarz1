@@ -3468,17 +3468,38 @@ namespace Kalendarz1.WPF
                 };
                 footerPanel.Children.Add(slideshowBtn);
 
-                // Przycisk reset symulacji (tylko gdy są aktywne)
+                // Panel symulacji - zawsze widoczny gdy są aktywne
                 bool anySimulations = simulatedReductions.Any();
                 if (anySimulations)
                 {
+                    // Przycisk podsumowania symulacji - DUŻY I WIDOCZNY
+                    var summaryBtn = new Button
+                    {
+                        Content = $"📊 PODSUMOWANIE SYMULACJI ({simulatedReductions.Count})",
+                        FontSize = 16,
+                        Padding = new Thickness(25, 12, 25, 12),
+                        Background = new SolidColorBrush(Color.FromRgb(155, 89, 182)),
+                        Foreground = Brushes.White,
+                        BorderThickness = new Thickness(3),
+                        BorderBrush = new SolidColorBrush(Color.FromRgb(241, 196, 15)),
+                        Margin = new Thickness(0, 0, 15, 0),
+                        FontWeight = FontWeights.Bold,
+                        Cursor = System.Windows.Input.Cursors.Hand
+                    };
+                    summaryBtn.Click += (s, e) =>
+                    {
+                        ShowSimulationSummaryDialog(simulatedReductions, _productDataList, refreshContent);
+                    };
+                    footerPanel.Children.Add(summaryBtn);
+
+                    // Przycisk reset
                     var resetSimBtn = new Button
                     {
-                        Content = "🔄 Resetuj symulacje",
+                        Content = "🔄 Resetuj wszystko",
                         FontSize = 14,
                         Padding = new Thickness(15, 8, 15, 8),
-                        Background = new SolidColorBrush(Color.FromRgb(241, 196, 15)),
-                        Foreground = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+                        Background = new SolidColorBrush(Color.FromRgb(231, 76, 60)),
+                        Foreground = Brushes.White,
                         BorderThickness = new Thickness(0),
                         Margin = new Thickness(0, 0, 15, 0),
                         FontWeight = FontWeights.SemiBold,
@@ -3497,9 +3518,9 @@ namespace Kalendarz1.WPF
                 footerPanel.Children.Add(productInfoLabel);
 
                 // Informacja o symulacjach w stopce
-                string footerText = "ESC = zamknij  |  ← → nawigacja  |  PPM = opcje";
+                string footerText = "ESC = zamknij  |  ← → nawigacja  |  PPM na odbiorcy = opcje";
                 if (anySimulations)
-                    footerText = $"📉 Symulacje aktywne ({simulatedReductions.Count})  |  " + footerText;
+                    footerText = $"📉 AKTYWNE SYMULACJE: {simulatedReductions.Count}  |  " + footerText;
                 footerPanel.Children.Add(new TextBlock { Text = footerText, FontSize = 14, Foreground = new SolidColorBrush(anySimulations ? Color.FromRgb(241, 196, 15) : Color.FromRgb(100, 100, 100)), VerticalAlignment = VerticalAlignment.Center });
                 Grid.SetRow(footerPanel, 2);
                 mainGrid.Children.Add(footerPanel);
@@ -4208,6 +4229,308 @@ namespace Kalendarz1.WPF
             mainStack.Children.Add(btnPanel);
 
             dialog.Content = mainStack;
+            dialog.ShowDialog();
+        }
+
+        /// <summary>
+        /// Wyświetla podsumowanie wszystkich aktywnych symulacji.
+        /// Pozwala edytować, usuwać pojedyncze symulacje lub resetować wszystko.
+        /// </summary>
+        private void ShowSimulationSummaryDialog(
+            Dictionary<(int ProductId, int KlientId), decimal> simulatedReductions,
+            List<ProductData> productDataList,
+            Action refreshContent)
+        {
+            var dialog = new Window
+            {
+                Title = "📊 Podsumowanie symulacji",
+                Width = 800,
+                Height = 600,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Background = new SolidColorBrush(Color.FromRgb(30, 35, 40)),
+                ResizeMode = ResizeMode.CanResize,
+                MinWidth = 600,
+                MinHeight = 400
+            };
+
+            var mainGrid = new Grid { Margin = new Thickness(25) };
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            // === NAGŁÓWEK ===
+            var headerStack = new StackPanel { Margin = new Thickness(0, 0, 0, 20) };
+            headerStack.Children.Add(new TextBlock
+            {
+                Text = "📊 Podsumowanie symulacji",
+                FontSize = 24,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White
+            });
+            headerStack.Children.Add(new TextBlock
+            {
+                Text = $"Aktywnych symulacji: {simulatedReductions.Count}",
+                FontSize = 14,
+                Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)),
+                Margin = new Thickness(0, 5, 0, 0)
+            });
+            Grid.SetRow(headerStack, 0);
+            mainGrid.Children.Add(headerStack);
+
+            // === LISTA SYMULACJI ===
+            var scrollViewer = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+            };
+            var listStack = new StackPanel();
+
+            // Grupuj symulacje według produktu
+            var groupedByProduct = simulatedReductions
+                .GroupBy(kvp => kvp.Key.ProductId)
+                .OrderBy(g => productDataList.FirstOrDefault(p => p.Id == g.Key)?.Kod ?? "");
+
+            decimal totalOriginal = 0;
+            decimal totalReduction = 0;
+
+            foreach (var productGroup in groupedByProduct)
+            {
+                var productData = productDataList.FirstOrDefault(p => p.Id == productGroup.Key);
+                string productName = productData != null ? $"[{productData.Kod}] {productData.Nazwa}" : $"Produkt #{productGroup.Key}";
+
+                // Nagłówek produktu
+                var productBorder = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(15, 10, 15, 10),
+                    Margin = new Thickness(0, 0, 0, 10)
+                };
+                var productStack = new StackPanel();
+
+                var productHeader = new TextBlock
+                {
+                    Text = productName,
+                    FontSize = 16,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = Brushes.White
+                };
+                productStack.Children.Add(productHeader);
+
+                decimal productTotalReduction = productGroup.Sum(kvp => kvp.Value);
+                var productSummary = new TextBlock
+                {
+                    Text = $"Łączna redukcja: {productTotalReduction:N0} kg",
+                    FontSize = 12,
+                    Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)),
+                    Margin = new Thickness(0, 5, 0, 10)
+                };
+                productStack.Children.Add(productSummary);
+
+                // Lista klientów z symulacjami
+                foreach (var kvp in productGroup)
+                {
+                    // Znajdź dane klienta
+                    var clientName = "Nieznany klient";
+                    decimal originalAmount = 0;
+
+                    if (productData != null)
+                    {
+                        var client = productData.Odbiorcy?.FirstOrDefault(o => o.KlientId == kvp.Key.KlientId);
+                        if (client != null)
+                        {
+                            clientName = client.NazwaOdbiorcy;
+                            originalAmount = client.Zamowione;
+                        }
+                    }
+
+                    totalOriginal += originalAmount;
+                    totalReduction += kvp.Value;
+
+                    decimal newAmount = originalAmount + kvp.Value;
+                    decimal percentChange = originalAmount > 0 ? (kvp.Value / originalAmount) * 100 : 0;
+
+                    var clientRow = new Grid { Margin = new Thickness(10, 3, 0, 3) };
+                    clientRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    clientRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+                    clientRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
+                    clientRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+                    clientRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+                    clientRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
+
+                    // Nazwa klienta
+                    var nameText = new TextBlock
+                    {
+                        Text = clientName,
+                        FontSize = 13,
+                        Foreground = Brushes.White,
+                        TextTrimming = TextTrimming.CharacterEllipsis,
+                        ToolTip = clientName
+                    };
+                    Grid.SetColumn(nameText, 0);
+                    clientRow.Children.Add(nameText);
+
+                    // Oryginalna ilość (przekreślona)
+                    var origText = new TextBlock
+                    {
+                        Text = $"{originalAmount:N0} kg",
+                        FontSize = 13,
+                        Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)),
+                        TextDecorations = TextDecorations.Strikethrough,
+                        HorizontalAlignment = HorizontalAlignment.Right
+                    };
+                    Grid.SetColumn(origText, 1);
+                    clientRow.Children.Add(origText);
+
+                    // Strzałka
+                    var arrowText = new TextBlock
+                    {
+                        Text = "→",
+                        FontSize = 13,
+                        Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)),
+                        HorizontalAlignment = HorizontalAlignment.Center
+                    };
+                    Grid.SetColumn(arrowText, 2);
+                    clientRow.Children.Add(arrowText);
+
+                    // Nowa ilość
+                    var newText = new TextBlock
+                    {
+                        Text = $"{newAmount:N0} kg",
+                        FontSize = 13,
+                        FontWeight = FontWeights.SemiBold,
+                        Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)),
+                        HorizontalAlignment = HorizontalAlignment.Left
+                    };
+                    Grid.SetColumn(newText, 3);
+                    clientRow.Children.Add(newText);
+
+                    // Zmiana procentowa
+                    var changeText = new TextBlock
+                    {
+                        Text = $"({percentChange:+0;-0;0}%)",
+                        FontSize = 11,
+                        Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60)),
+                        HorizontalAlignment = HorizontalAlignment.Right,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    Grid.SetColumn(changeText, 4);
+                    clientRow.Children.Add(changeText);
+
+                    // Przycisk usunięcia
+                    var deleteBtn = new Button
+                    {
+                        Content = "✕",
+                        FontSize = 12,
+                        Width = 28,
+                        Height = 28,
+                        Background = new SolidColorBrush(Color.FromRgb(231, 76, 60)),
+                        Foreground = Brushes.White,
+                        BorderThickness = new Thickness(0),
+                        Cursor = System.Windows.Input.Cursors.Hand,
+                        ToolTip = "Usuń tę symulację"
+                    };
+                    var capturedKey = kvp.Key;
+                    deleteBtn.Click += (s, e) =>
+                    {
+                        simulatedReductions.Remove(capturedKey);
+                        refreshContent();
+                        if (simulatedReductions.Count == 0)
+                            dialog.Close();
+                        else
+                            ShowSimulationSummaryDialog(simulatedReductions, productDataList, refreshContent);
+                        dialog.Close();
+                    };
+                    Grid.SetColumn(deleteBtn, 5);
+                    clientRow.Children.Add(deleteBtn);
+
+                    productStack.Children.Add(clientRow);
+                }
+
+                productBorder.Child = productStack;
+                listStack.Children.Add(productBorder);
+            }
+
+            scrollViewer.Content = listStack;
+            Grid.SetRow(scrollViewer, 1);
+            mainGrid.Children.Add(scrollViewer);
+
+            // === PODSUMOWANIE TOTALU ===
+            var totalBorder = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(241, 196, 15)),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(20, 15, 20, 15),
+                Margin = new Thickness(0, 15, 0, 15)
+            };
+            var totalGrid = new Grid();
+            totalGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            totalGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            totalGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var totalOrigStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+            totalOrigStack.Children.Add(new TextBlock { Text = "Suma przed", FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(80, 80, 80)), HorizontalAlignment = HorizontalAlignment.Center });
+            totalOrigStack.Children.Add(new TextBlock { Text = $"{totalOriginal:N0} kg", FontSize = 20, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(40, 40, 40)), HorizontalAlignment = HorizontalAlignment.Center });
+            Grid.SetColumn(totalOrigStack, 0);
+            totalGrid.Children.Add(totalOrigStack);
+
+            var totalChangeStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+            totalChangeStack.Children.Add(new TextBlock { Text = "Redukcja", FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(80, 80, 80)), HorizontalAlignment = HorizontalAlignment.Center });
+            totalChangeStack.Children.Add(new TextBlock { Text = $"{totalReduction:N0} kg", FontSize = 20, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(192, 57, 43)), HorizontalAlignment = HorizontalAlignment.Center });
+            Grid.SetColumn(totalChangeStack, 1);
+            totalGrid.Children.Add(totalChangeStack);
+
+            var totalNewStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+            totalNewStack.Children.Add(new TextBlock { Text = "Suma po", FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(80, 80, 80)), HorizontalAlignment = HorizontalAlignment.Center });
+            totalNewStack.Children.Add(new TextBlock { Text = $"{totalOriginal + totalReduction:N0} kg", FontSize = 20, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(39, 174, 96)), HorizontalAlignment = HorizontalAlignment.Center });
+            Grid.SetColumn(totalNewStack, 2);
+            totalGrid.Children.Add(totalNewStack);
+
+            totalBorder.Child = totalGrid;
+            Grid.SetRow(totalBorder, 2);
+            mainGrid.Children.Add(totalBorder);
+
+            // === PRZYCISKI ===
+            var btnPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+
+            var btnClose = new Button
+            {
+                Content = "✓  OK - Kontynuuj podgląd",
+                Padding = new Thickness(30, 12, 30, 12),
+                FontSize = 16,
+                Background = new SolidColorBrush(Color.FromRgb(39, 174, 96)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Margin = new Thickness(0, 0, 15, 0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                FontWeight = FontWeights.SemiBold
+            };
+            btnClose.Click += (s, e) => dialog.Close();
+            btnPanel.Children.Add(btnClose);
+
+            var btnResetAll = new Button
+            {
+                Content = "🔄  Resetuj wszystko",
+                Padding = new Thickness(25, 12, 25, 12),
+                FontSize = 16,
+                Background = new SolidColorBrush(Color.FromRgb(231, 76, 60)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            btnResetAll.Click += (s, e) =>
+            {
+                simulatedReductions.Clear();
+                refreshContent();
+                dialog.Close();
+            };
+            btnPanel.Children.Add(btnResetAll);
+
+            Grid.SetRow(btnPanel, 3);
+            mainGrid.Children.Add(btnPanel);
+
+            dialog.Content = mainGrid;
             dialog.ShowDialog();
         }
 
