@@ -4069,19 +4069,16 @@ namespace Kalendarz1.WPF
                 };
                 var odbiorcyList = new StackPanel();
 
-                // Pobierz zamówienia dla tego produktu
-                var zamowieniaProduktu = _zamowieniaCache
-                    .Where(z => z.IdProduktu == currentData.Id)
-                    .GroupBy(z => z.NazwaKontrahenta)
-                    .OrderByDescending(g => g.Sum(z => z.Ilosc))
+                // Pobierz odbiorców dla tego produktu (już są w currentData.Odbiorcy)
+                var odbiorcy = currentData.Odbiorcy
+                    .OrderByDescending(o => o.Zamowione)
                     .ToList();
 
-                if (zamowieniaProduktu.Any())
+                if (odbiorcy.Any())
                 {
                     int lp = 1;
-                    foreach (var grupa in zamowieniaProduktu)
+                    foreach (var odbiorca in odbiorcy)
                     {
-                        decimal sumaOdbiorcy = grupa.Sum(z => z.Ilosc);
                         var odbiorcaBorder = new Border
                         {
                             Background = new SolidColorBrush(Color.FromRgb(45, 55, 65)),
@@ -4110,7 +4107,7 @@ namespace Kalendarz1.WPF
                         // Nazwa kontrahenta
                         var nazwaTxt = new TextBlock
                         {
-                            Text = grupa.Key ?? "Nieznany",
+                            Text = odbiorca.NazwaOdbiorcy ?? "Nieznany",
                             FontSize = 18,
                             Foreground = Brushes.White,
                             VerticalAlignment = VerticalAlignment.Center,
@@ -4122,7 +4119,7 @@ namespace Kalendarz1.WPF
                         // Ilość
                         var iloscTxt = new TextBlock
                         {
-                            Text = $"{sumaOdbiorcy:N0} kg",
+                            Text = $"{odbiorca.Zamowione:N0} kg",
                             FontSize = 20,
                             FontWeight = FontWeights.Bold,
                             Foreground = new SolidColorBrush(Color.FromRgb(46, 204, 113)),
