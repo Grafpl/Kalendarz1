@@ -876,7 +876,19 @@ namespace Kalendarz1
         private void BtnRefreshAll_Click(object sender, RoutedEventArgs e)
         {
             LoadData(dateTimePicker1.SelectedDate ?? DateTime.Today);
-            UpdateStatus("Wszystkie dane odswiezone");
+
+            // Odśwież wszystkie karty
+            LoadRozliczeniaData();
+            LoadPlachtaData();
+            LoadPodsumowanieData();
+
+            // Odśwież IRZplus jeśli serwis jest zainicjalizowany
+            if (_irzPlusService != null && _irzPlusSpecyfikacje != null)
+            {
+                LoadIRZplusDataAsync();
+            }
+
+            UpdateStatus("Wszystkie dane odświeżone");
         }
 
         private void BtnTransportMoveUp_Click(object sender, RoutedEventArgs e)
@@ -1370,6 +1382,12 @@ namespace Kalendarz1
                 LoadRozliczeniaData();
                 LoadPlachtaData();
                 LoadPodsumowanieData(); // Auto-odświeżanie karty Podsumowanie
+
+                // Odśwież IRZplus jeśli serwis jest zainicjalizowany
+                if (_irzPlusService != null && _irzPlusSpecyfikacje != null)
+                {
+                    LoadIRZplusDataAsync();
+                }
 
                 // Odśwież mini kalendarz
                 RefreshMiniCalendar();
