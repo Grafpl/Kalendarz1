@@ -3148,43 +3148,129 @@ namespace Kalendarz1.WPF
                 controlPanel.Child = controlStack;
                 leftPanel.Children.Add(controlPanel);
 
-                // Formuła
-                var formulaBorder = new Border { Background = new SolidColorBrush(Color.FromRgb(44, 62, 80)), CornerRadius = new CornerRadius(10), Padding = new Thickness(20, 12, 20, 12), Margin = new Thickness(0, 0, 0, 20), HorizontalAlignment = HorizontalAlignment.Center };
-                var formulaPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
-                if (uzyjFakt)
+                // === BANNER SYMULACJI (gdy aktywna) ===
+                if (maSymulacje)
                 {
-                    formulaPanel.Children.Add(new TextBlock { Text = $"PLAN {currentData.Plan:N0}", FontSize = 22, Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)), TextDecorations = TextDecorations.Strikethrough, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 15, 0) });
-                    formulaPanel.Children.Add(new TextBlock { Text = $"FAKT {currentData.Fakt:N0}", FontSize = 30, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(155, 89, 182)), VerticalAlignment = VerticalAlignment.Center });
-                }
-                else
-                    formulaPanel.Children.Add(new TextBlock { Text = $"PLAN {currentData.Plan:N0}", FontSize = 30, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219)), VerticalAlignment = VerticalAlignment.Center });
-                formulaPanel.Children.Add(new TextBlock { Text = "  +  ", FontSize = 30, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
-                formulaPanel.Children.Add(new TextBlock { Text = $"STAN {currentData.Stan:N0}", FontSize = 30, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(26, 188, 156)), VerticalAlignment = VerticalAlignment.Center });
-                formulaPanel.Children.Add(new TextBlock { Text = "  −  ", FontSize = 30, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
-
-                // Zamówienia/Wydania (z symulacją)
-                if (viewUseWydania)
-                {
-                    formulaPanel.Children.Add(new TextBlock { Text = $"WYD {currentData.Wydania:N0}", FontSize = 30, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(192, 57, 43)), VerticalAlignment = VerticalAlignment.Center });
-                }
-                else if (maSymulacje)
-                {
-                    // Pokaż oryginalne zamówienia przekreślone + symulowane
-                    var zamStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-                    zamStack.Children.Add(new TextBlock { Text = $"ZAM ", FontSize = 30, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(230, 126, 34)) });
-                    zamStack.Children.Add(new TextBlock { Text = $"{currentData.Zamowienia:N0}", FontSize = 22, Foreground = new SolidColorBrush(Color.FromRgb(150, 100, 50)), TextDecorations = TextDecorations.Strikethrough, Margin = new Thickness(0, 0, 5, 0) });
-                    zamStack.Children.Add(new TextBlock { Text = $"{zamowieniaSymulowane:N0}", FontSize = 30, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)) });
-                    formulaPanel.Children.Add(zamStack);
-                }
-                else
-                {
-                    formulaPanel.Children.Add(new TextBlock { Text = $"ZAM {currentData.Zamowienia:N0}", FontSize = 30, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(230, 126, 34)), VerticalAlignment = VerticalAlignment.Center });
+                    var simBanner = new Border
+                    {
+                        Background = new SolidColorBrush(Color.FromRgb(241, 196, 15)),
+                        CornerRadius = new CornerRadius(10),
+                        Padding = new Thickness(20, 12, 20, 12),
+                        Margin = new Thickness(0, 0, 0, 15),
+                        HorizontalAlignment = HorizontalAlignment.Center
+                    };
+                    var simBannerContent = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+                    simBannerContent.Children.Add(new TextBlock
+                    {
+                        Text = "📊 TRYB SYMULACJI",
+                        FontSize = 20,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+                        VerticalAlignment = VerticalAlignment.Center
+                    });
+                    simBannerContent.Children.Add(new TextBlock
+                    {
+                        Text = $"   |   Redukcja zamówień: {totalReduction:N0} kg",
+                        FontSize = 18,
+                        Foreground = new SolidColorBrush(Color.FromRgb(60, 60, 60)),
+                        VerticalAlignment = VerticalAlignment.Center
+                    });
+                    simBanner.Child = simBannerContent;
+                    leftPanel.Children.Add(simBanner);
                 }
 
-                formulaPanel.Children.Add(new TextBlock { Text = "  =  ", FontSize = 30, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
-                formulaPanel.Children.Add(new TextBlock { Text = $"{bilans:N0}", FontSize = 36, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60)), VerticalAlignment = VerticalAlignment.Center });
-                formulaBorder.Child = formulaPanel;
-                leftPanel.Children.Add(formulaBorder);
+                // === FORMUŁA - ULEPSZONA ===
+                var formulaContainer = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(44, 62, 80)),
+                    CornerRadius = new CornerRadius(12),
+                    Padding = new Thickness(25, 15, 25, 15),
+                    Margin = new Thickness(0, 0, 0, 20),
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+
+                if (maSymulacje && !viewUseWydania)
+                {
+                    // SYMULACJA AKTYWNA - pokaż dwie linie
+                    var formulaStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+
+                    // Linia 1: Oryginalne wartości (mniejsze, szare)
+                    var origLine = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 8) };
+                    origLine.Children.Add(new TextBlock { Text = "Oryginał: ", FontSize = 14, Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)), VerticalAlignment = VerticalAlignment.Center });
+                    string celText = uzyjFakt ? $"FAKT {currentData.Fakt:N0}" : $"PLAN {currentData.Plan:N0}";
+                    origLine.Children.Add(new TextBlock { Text = celText, FontSize = 16, Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)), VerticalAlignment = VerticalAlignment.Center });
+                    origLine.Children.Add(new TextBlock { Text = $" + STAN {currentData.Stan:N0} − ZAM {currentData.Zamowienia:N0} = ", FontSize = 16, Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)), VerticalAlignment = VerticalAlignment.Center });
+                    decimal bilansOryg = cel + currentData.Stan - currentData.Zamowienia;
+                    origLine.Children.Add(new TextBlock
+                    {
+                        Text = $"{bilansOryg:N0}",
+                        FontSize = 18,
+                        FontWeight = FontWeights.SemiBold,
+                        Foreground = new SolidColorBrush(bilansOryg >= 0 ? Color.FromRgb(100, 150, 100) : Color.FromRgb(180, 80, 80)),
+                        TextDecorations = TextDecorations.Strikethrough,
+                        VerticalAlignment = VerticalAlignment.Center
+                    });
+                    formulaStack.Children.Add(origLine);
+
+                    // Linia 2: Symulowane wartości (większe, kolorowe)
+                    var simLine = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+                    simLine.Children.Add(new TextBlock { Text = "Symulacja: ", FontSize = 16, Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)), FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
+
+                    if (uzyjFakt)
+                        simLine.Children.Add(new TextBlock { Text = $"FAKT {currentData.Fakt:N0}", FontSize = 26, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(155, 89, 182)), VerticalAlignment = VerticalAlignment.Center });
+                    else
+                        simLine.Children.Add(new TextBlock { Text = $"PLAN {currentData.Plan:N0}", FontSize = 26, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219)), VerticalAlignment = VerticalAlignment.Center });
+
+                    simLine.Children.Add(new TextBlock { Text = "  +  ", FontSize = 26, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
+                    simLine.Children.Add(new TextBlock { Text = $"STAN {currentData.Stan:N0}", FontSize = 26, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(26, 188, 156)), VerticalAlignment = VerticalAlignment.Center });
+                    simLine.Children.Add(new TextBlock { Text = "  −  ", FontSize = 26, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
+                    simLine.Children.Add(new TextBlock { Text = $"ZAM {zamowieniaSymulowane:N0}", FontSize = 26, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)), VerticalAlignment = VerticalAlignment.Center });
+                    simLine.Children.Add(new TextBlock { Text = "  =  ", FontSize = 26, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
+                    simLine.Children.Add(new TextBlock { Text = $"{bilans:N0}", FontSize = 34, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60)), VerticalAlignment = VerticalAlignment.Center });
+                    formulaStack.Children.Add(simLine);
+
+                    // Linia 3: Różnica
+                    decimal roznica = bilans - bilansOryg;
+                    var diffLine = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0) };
+                    diffLine.Children.Add(new TextBlock
+                    {
+                        Text = $"Zmiana bilansu: {roznica:+#,##0;-#,##0;0} kg",
+                        FontSize = 16,
+                        FontWeight = FontWeights.SemiBold,
+                        Foreground = new SolidColorBrush(roznica >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60)),
+                        VerticalAlignment = VerticalAlignment.Center
+                    });
+                    formulaStack.Children.Add(diffLine);
+
+                    formulaContainer.Child = formulaStack;
+                }
+                else
+                {
+                    // BEZ SYMULACJI - standardowa formuła w jednej linii
+                    var formulaPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+                    if (uzyjFakt)
+                    {
+                        formulaPanel.Children.Add(new TextBlock { Text = $"PLAN {currentData.Plan:N0}", FontSize = 22, Foreground = new SolidColorBrush(Color.FromRgb(127, 140, 141)), TextDecorations = TextDecorations.Strikethrough, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 15, 0) });
+                        formulaPanel.Children.Add(new TextBlock { Text = $"FAKT {currentData.Fakt:N0}", FontSize = 30, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(155, 89, 182)), VerticalAlignment = VerticalAlignment.Center });
+                    }
+                    else
+                        formulaPanel.Children.Add(new TextBlock { Text = $"PLAN {currentData.Plan:N0}", FontSize = 30, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219)), VerticalAlignment = VerticalAlignment.Center });
+
+                    formulaPanel.Children.Add(new TextBlock { Text = "  +  ", FontSize = 30, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
+                    formulaPanel.Children.Add(new TextBlock { Text = $"STAN {currentData.Stan:N0}", FontSize = 30, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(26, 188, 156)), VerticalAlignment = VerticalAlignment.Center });
+                    formulaPanel.Children.Add(new TextBlock { Text = "  −  ", FontSize = 30, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
+
+                    if (viewUseWydania)
+                        formulaPanel.Children.Add(new TextBlock { Text = $"WYD {currentData.Wydania:N0}", FontSize = 30, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(192, 57, 43)), VerticalAlignment = VerticalAlignment.Center });
+                    else
+                        formulaPanel.Children.Add(new TextBlock { Text = $"ZAM {currentData.Zamowienia:N0}", FontSize = 30, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(230, 126, 34)), VerticalAlignment = VerticalAlignment.Center });
+
+                    formulaPanel.Children.Add(new TextBlock { Text = "  =  ", FontSize = 30, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
+                    formulaPanel.Children.Add(new TextBlock { Text = $"{bilans:N0}", FontSize = 36, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60)), VerticalAlignment = VerticalAlignment.Center });
+
+                    formulaContainer.Child = formulaPanel;
+                }
+                leftPanel.Children.Add(formulaContainer);
 
                 // Pasek postępu
                 var progressBorder = new Border { Background = new SolidColorBrush(Color.FromRgb(39, 55, 70)), CornerRadius = new CornerRadius(15), Padding = new Thickness(30), Margin = new Thickness(0, 0, 0, 25) };
