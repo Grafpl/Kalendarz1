@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Extensions.DependencyInjection;
 using ZPSP.Sales.Repositories;
 using ZPSP.Sales.Repositories.Interfaces;
@@ -77,7 +78,7 @@ namespace ZPSP.Sales.Infrastructure
         public static T GetService<T>() where T : class
         {
             if (_serviceProvider == null)
-                throw new System.InvalidOperationException("ServiceLocator nie został zainicjalizowany. Wywołaj Initialize() przed użyciem.");
+                throw new InvalidOperationException("ServiceLocator nie został zainicjalizowany. Wywołaj Initialize() przed użyciem.");
 
             return _serviceProvider.GetService<T>();
         }
@@ -89,7 +90,7 @@ namespace ZPSP.Sales.Infrastructure
         public static T GetRequiredService<T>() where T : class
         {
             if (_serviceProvider == null)
-                throw new System.InvalidOperationException("ServiceLocator nie został zainicjalizowany. Wywołaj Initialize() przed użyciem.");
+                throw new InvalidOperationException("ServiceLocator nie został zainicjalizowany. Wywołaj Initialize() przed użyciem.");
 
             return _serviceProvider.GetRequiredService<T>();
         }
@@ -100,7 +101,7 @@ namespace ZPSP.Sales.Infrastructure
         public static IServiceScope CreateScope()
         {
             if (_serviceProvider == null)
-                throw new System.InvalidOperationException("ServiceLocator nie został zainicjalizowany.");
+                throw new InvalidOperationException("ServiceLocator nie został zainicjalizowany.");
 
             return _serviceProvider.CreateScope();
         }
