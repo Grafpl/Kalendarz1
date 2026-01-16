@@ -801,5 +801,175 @@ namespace Kalendarz1.Opakowania.Services
         }
 
         #endregion
+
+        #region Eksport dla nowego Dashboard
+
+        /// <summary>
+        /// Eksportuje saldo kontrahenta do PDF - wersja dla nowego widoku
+        /// </summary>
+        public void EksportujPdf(SaldoKontrahenta kontrahent, IEnumerable<DokumentSalda> dokumenty, DateTime dataOd, DateTime dataDo)
+        {
+            try
+            {
+                string sciezka = GetSciezkaZapisu();
+                string nazwaPliku = GenerujNazwePliku(kontrahent.Kontrahent, "Saldo");
+                string pelnaSciezka = Path.Combine(sciezka, nazwaPliku.Replace(".pdf", ".html"));
+
+                string html = GenerujHTMLSaldaKontrahentaNowy(kontrahent, dokumenty, dataOd, dataDo);
+                File.WriteAllText(pelnaSciezka, html, Encoding.UTF8);
+
+                OtworzPlik(pelnaSciezka);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas eksportu PDF: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Eksportuje saldo kontrahenta do Excel - wersja dla nowego widoku
+        /// </summary>
+        public void EksportujExcel(SaldoKontrahenta kontrahent, IEnumerable<DokumentSalda> dokumenty, DateTime dataOd, DateTime dataDo)
+        {
+            try
+            {
+                string sciezka = GetSciezkaZapisu();
+                string bezpiecznaNazwa = string.Join("_", kontrahent.Kontrahent.Split(Path.GetInvalidFileNameChars()));
+                string nazwaPliku = $"Saldo_{bezpiecznaNazwa}_{DateTime.Now:yyyy-MM-dd_HH-mm}.csv";
+                string pelnaSciezka = Path.Combine(sciezka, nazwaPliku);
+
+                var sb = new StringBuilder();
+                sb.AppendLine($"Kontrahent: {kontrahent.Kontrahent} - {kontrahent.Nazwa}");
+                sb.AppendLine($"Okres: {dataOd:dd.MM.yyyy} - {dataDo:dd.MM.yyyy}");
+                sb.AppendLine();
+                sb.AppendLine("Data;Nr dokumentu;E2;H1;EURO;PCV;DREW;Opis");
+
+                foreach (var dok in dokumenty)
+                {
+                    sb.AppendLine($"{dok.DataTekst};{dok.NrDokumentu};{dok.E2};{dok.H1};{dok.EURO};{dok.PCV};{dok.DREW};{dok.Opis}");
+                }
+
+                File.WriteAllText(pelnaSciezka, sb.ToString(), new UTF8Encoding(true));
+                OtworzPlik(pelnaSciezka);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Błąd podczas eksportu Excel: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Drukuje saldo kontrahenta - wersja dla nowego widoku
+        /// </summary>
+        public void Drukuj(SaldoKontrahenta kontrahent, IEnumerable<DokumentSalda> dokumenty, DateTime dataOd, DateTime dataDo)
+        {
+            // Eksportuj do HTML i otwórz do druku
+            EksportujPdf(kontrahent, dokumenty, dataOd, dataDo);
+        }
+
+        private string GenerujHTMLSaldaKontrahentaNowy(SaldoKontrahenta kontrahent, IEnumerable<DokumentSalda> dokumenty, DateTime dataOd, DateTime dataDo)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("<!DOCTYPE html>");
+            sb.AppendLine("<html lang='pl'>");
+            sb.AppendLine("<head>");
+            sb.AppendLine("<meta charset='UTF-8'>");
+            sb.AppendLine($"<title>Saldo opakowań - {kontrahent.Kontrahent}</title>");
+            sb.AppendLine("<style>");
+            sb.AppendLine(@"
+                body { font-family: 'Segoe UI', Arial, sans-serif; margin: 20px; background: white; color: #1f2937; }
+                h1 { color: #1f2937; margin-bottom: 5px; font-size: 24px; }
+                h2 { color: #6b7280; font-weight: normal; margin-top: 0; font-size: 16px; }
+                .info { margin-bottom: 20px; color: #6b7280; font-size: 14px; }
+                .suma-container { display: flex; gap: 15px; margin-bottom: 20px; }
+                .suma-box { padding: 15px 20px; border-radius: 10px; text-align: center; min-width: 100px; }
+                .suma-e2 { background: #EBF5FF; border: 2px solid #3B82F6; }
+                .suma-h1 { background: #FFF7ED; border: 2px solid #F97316; }
+                .suma-euro { background: #ECFDF5; border: 2px solid #10B981; }
+                .suma-pcv { background: #F5F3FF; border: 2px solid #8B5CF6; }
+                .suma-drew { background: #FEF3C7; border: 2px solid #D97706; }
+                .suma-label { font-size: 12px; color: #6b7280; font-weight: bold; }
+                .suma-value { font-size: 28px; font-weight: bold; margin-top: 5px; }
+                .positive { color: #DC2626; }
+                .negative { color: #16A34A; }
+                .zero { color: #9CA3AF; }
+                table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+                th { background: #f9fafb; color: #374151; padding: 12px; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 12px; text-transform: uppercase; }
+                td { padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 13px; }
+                tr:hover { background: #f3f4f6; }
+                .saldo-row { background: #FEF3C7 !important; font-weight: bold; }
+                .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #9ca3af; font-size: 12px; }
+                @media print {
+                    body { margin: 10px; }
+                    .suma-container { flex-wrap: wrap; }
+                }
+            ");
+            sb.AppendLine("</style>");
+            sb.AppendLine("</head>");
+            sb.AppendLine("<body>");
+
+            sb.AppendLine($"<h1>{kontrahent.Kontrahent}</h1>");
+            sb.AppendLine($"<h2>{kontrahent.Nazwa}</h2>");
+            sb.AppendLine($"<p class='info'>Okres: {dataOd:dd.MM.yyyy} - {dataDo:dd.MM.yyyy} | Handlowiec: {kontrahent.Handlowiec} | Wygenerowano: {DateTime.Now:dd.MM.yyyy HH:mm}</p>");
+
+            // Podsumowanie sald
+            sb.AppendLine("<div class='suma-container'>");
+            sb.AppendLine($"<div class='suma-box suma-e2'><div class='suma-label'>E2</div><div class='suma-value {GetKlasaKoloruNowy(kontrahent.E2)}'>{kontrahent.E2}</div></div>");
+            sb.AppendLine($"<div class='suma-box suma-h1'><div class='suma-label'>H1</div><div class='suma-value {GetKlasaKoloruNowy(kontrahent.H1)}'>{kontrahent.H1}</div></div>");
+            sb.AppendLine($"<div class='suma-box suma-euro'><div class='suma-label'>EURO</div><div class='suma-value {GetKlasaKoloruNowy(kontrahent.EURO)}'>{kontrahent.EURO}</div></div>");
+            sb.AppendLine($"<div class='suma-box suma-pcv'><div class='suma-label'>PCV</div><div class='suma-value {GetKlasaKoloruNowy(kontrahent.PCV)}'>{kontrahent.PCV}</div></div>");
+            sb.AppendLine($"<div class='suma-box suma-drew'><div class='suma-label'>DREW</div><div class='suma-value {GetKlasaKoloruNowy(kontrahent.DREW)}'>{kontrahent.DREW}</div></div>");
+            sb.AppendLine("</div>");
+
+            // Tabela dokumentów
+            sb.AppendLine("<table>");
+            sb.AppendLine("<thead><tr>");
+            sb.AppendLine("<th>Data</th><th>Nr dokumentu</th><th style='text-align:right'>E2</th><th style='text-align:right'>H1</th><th style='text-align:right'>EURO</th><th style='text-align:right'>PCV</th><th style='text-align:right'>DREW</th><th>Opis</th>");
+            sb.AppendLine("</tr></thead>");
+            sb.AppendLine("<tbody>");
+
+            foreach (var dok in dokumenty)
+            {
+                string rowClass = dok.JestSaldem ? " class='saldo-row'" : "";
+                sb.AppendLine($"<tr{rowClass}>");
+                sb.AppendLine($"<td>{dok.DataTekst}</td>");
+                sb.AppendLine($"<td>{dok.NrDokumentu}</td>");
+                sb.AppendLine($"<td style='text-align:right' class='{GetKlasaKoloruNowy(dok.E2)}'>{FormatujWartosc(dok.E2)}</td>");
+                sb.AppendLine($"<td style='text-align:right' class='{GetKlasaKoloruNowy(dok.H1)}'>{FormatujWartosc(dok.H1)}</td>");
+                sb.AppendLine($"<td style='text-align:right' class='{GetKlasaKoloruNowy(dok.EURO)}'>{FormatujWartosc(dok.EURO)}</td>");
+                sb.AppendLine($"<td style='text-align:right' class='{GetKlasaKoloruNowy(dok.PCV)}'>{FormatujWartosc(dok.PCV)}</td>");
+                sb.AppendLine($"<td style='text-align:right' class='{GetKlasaKoloruNowy(dok.DREW)}'>{FormatujWartosc(dok.DREW)}</td>");
+                sb.AppendLine($"<td>{dok.Opis}</td>");
+                sb.AppendLine("</tr>");
+            }
+
+            sb.AppendLine("</tbody></table>");
+
+            // Legenda
+            sb.AppendLine("<div class='footer'>");
+            sb.AppendLine("<p><strong>Legenda:</strong></p>");
+            sb.AppendLine("<p><span class='positive'>■</span> Czerwony = kontrahent winny nam opakowania</p>");
+            sb.AppendLine("<p><span class='negative'>■</span> Zielony = my winni kontrahentowi</p>");
+            sb.AppendLine("<p>Ubojnia Drobiu \"Piórkowscy\" | tel. 46 874 71 70</p>");
+            sb.AppendLine("</div>");
+
+            sb.AppendLine("</body></html>");
+            return sb.ToString();
+        }
+
+        private string GetKlasaKoloruNowy(int wartosc)
+        {
+            if (wartosc > 0) return "positive";
+            if (wartosc < 0) return "negative";
+            return "zero";
+        }
+
+        private string FormatujWartosc(int wartosc)
+        {
+            if (wartosc == 0) return "-";
+            return wartosc.ToString();
+        }
+
+        #endregion
     }
 }

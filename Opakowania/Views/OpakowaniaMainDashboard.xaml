@@ -1,0 +1,525 @@
+<Window x:Class="Kalendarz1.Opakowania.Views.OpakowaniaMainDashboard"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:converters="clr-namespace:Kalendarz1.Opakowania.Converters"
+        Title="Opakowania Zwrotne - Dashboard"
+        Height="800" Width="1200"
+        MinHeight="600" MinWidth="900"
+        WindowStartupLocation="CenterScreen"
+        Background="#F3F4F6">
+
+    <Window.Resources>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+        <converters:SaldoToColorConverter x:Key="SaldoToColor"/>
+        <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility"/>
+
+        <!-- Styl kafelka opakowania -->
+        <Style x:Key="PackageTileStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="Margin" Value="8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="8" ShadowDepth="2" Opacity="0.1"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect BlurRadius="16" ShadowDepth="4" Opacity="0.15"/>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Styl przycisku głównego -->
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#3B82F6"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#2563EB"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#1D4ED8"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Styl DataGrid -->
+        <Style x:Key="ModernDataGridStyle" TargetType="DataGrid">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="RowHeaderWidth" Value="0"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#E5E7EB"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="CanUserDeleteRows" Value="False"/>
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <Style TargetType="DataGridRow">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Height" Value="44"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#F0F9FF"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#DBEAFE"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="DataGridCell">
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="Foreground" Value="Black"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#F9FAFB"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#374151"/>
+            <Setter Property="BorderBrush" Value="#E5E7EB"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ======================= NAGŁÓWEK ======================= -->
+        <Border Grid.Row="0" Background="White" Padding="24,20" BorderBrush="#E5E7EB" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="OPAKOWANIA ZWROTNE" FontSize="26" FontWeight="Bold" Foreground="#1F2937"/>
+                    <TextBlock Foreground="#6B7280" FontSize="14" Margin="0,4,0,0">
+                        <Run Text="Zarządzanie saldami opakowań | "/>
+                        <Run Text="{Binding NazwaHandlowca}"/>
+                    </TextBlock>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Stan na dzień:" VerticalAlignment="Center" Margin="0,0,12,0" Foreground="#6B7280" FontSize="13"/>
+                    <DatePicker SelectedDate="{Binding DataDo}" Width="140" VerticalAlignment="Center" FontSize="13"/>
+                    <Button Content="Odśwież" Command="{Binding OdswiezCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="16,0,0,0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ======================= KAFELKI PODSUMOWANIA ======================= -->
+        <Border Grid.Row="1" Background="#F9FAFB" Padding="16,20">
+            <UniformGrid Rows="1" Columns="5">
+
+                <!-- Kafelek E2 -->
+                <Border Style="{StaticResource PackageTileStyle}" MouseLeftButtonDown="TileE2_Click">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.Row="0" Background="#EBF5FF" CornerRadius="8" Padding="8,4" HorizontalAlignment="Left">
+                            <TextBlock Text="POJEMNIK E2" FontWeight="Bold" FontSize="11" Foreground="#3B82F6"/>
+                        </Border>
+
+                        <TextBlock Grid.Row="1" Text="{Binding SumaE2}" FontSize="36" FontWeight="Bold" Foreground="#DC2626" Margin="0,12,0,0"/>
+
+                        <TextBlock Grid.Row="2" Text="winnych" FontSize="12" Foreground="#6B7280" Margin="0,2,0,0"/>
+
+                        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,12,0,0">
+                            <TextBlock FontSize="12" Foreground="#9CA3AF">
+                                <Run Text="{Binding LiczbaKontrahentowE2}"/>
+                                <Run Text=" klientów"/>
+                            </TextBlock>
+                            <TextBlock Text=" ›" FontSize="14" Foreground="#9CA3AF" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Kafelek H1 -->
+                <Border Style="{StaticResource PackageTileStyle}" MouseLeftButtonDown="TileH1_Click">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.Row="0" Background="#FFF7ED" CornerRadius="8" Padding="8,4" HorizontalAlignment="Left">
+                            <TextBlock Text="PALETA H1" FontWeight="Bold" FontSize="11" Foreground="#F97316"/>
+                        </Border>
+
+                        <TextBlock Grid.Row="1" Text="{Binding SumaH1}" FontSize="36" FontWeight="Bold" Foreground="#DC2626" Margin="0,12,0,0"/>
+
+                        <TextBlock Grid.Row="2" Text="winnych" FontSize="12" Foreground="#6B7280" Margin="0,2,0,0"/>
+
+                        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,12,0,0">
+                            <TextBlock FontSize="12" Foreground="#9CA3AF">
+                                <Run Text="{Binding LiczbaKontrahentowH1}"/>
+                                <Run Text=" klientów"/>
+                            </TextBlock>
+                            <TextBlock Text=" ›" FontSize="14" Foreground="#9CA3AF" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Kafelek EURO -->
+                <Border Style="{StaticResource PackageTileStyle}" MouseLeftButtonDown="TileEURO_Click">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.Row="0" Background="#ECFDF5" CornerRadius="8" Padding="8,4" HorizontalAlignment="Left">
+                            <TextBlock Text="PALETA EURO" FontWeight="Bold" FontSize="11" Foreground="#10B981"/>
+                        </Border>
+
+                        <TextBlock Grid.Row="1" Text="{Binding SumaEURO}" FontSize="36" FontWeight="Bold" Foreground="#DC2626" Margin="0,12,0,0"/>
+
+                        <TextBlock Grid.Row="2" Text="winnych" FontSize="12" Foreground="#6B7280" Margin="0,2,0,0"/>
+
+                        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,12,0,0">
+                            <TextBlock FontSize="12" Foreground="#9CA3AF">
+                                <Run Text="{Binding LiczbaKontrahentowEURO}"/>
+                                <Run Text=" klientów"/>
+                            </TextBlock>
+                            <TextBlock Text=" ›" FontSize="14" Foreground="#9CA3AF" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Kafelek PCV -->
+                <Border Style="{StaticResource PackageTileStyle}" MouseLeftButtonDown="TilePCV_Click">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.Row="0" Background="#F5F3FF" CornerRadius="8" Padding="8,4" HorizontalAlignment="Left">
+                            <TextBlock Text="PALETA PCV" FontWeight="Bold" FontSize="11" Foreground="#8B5CF6"/>
+                        </Border>
+
+                        <TextBlock Grid.Row="1" Text="{Binding SumaPCV}" FontSize="36" FontWeight="Bold" Foreground="#DC2626" Margin="0,12,0,0"/>
+
+                        <TextBlock Grid.Row="2" Text="winnych" FontSize="12" Foreground="#6B7280" Margin="0,2,0,0"/>
+
+                        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,12,0,0">
+                            <TextBlock FontSize="12" Foreground="#9CA3AF">
+                                <Run Text="{Binding LiczbaKontrahentowPCV}"/>
+                                <Run Text=" klientów"/>
+                            </TextBlock>
+                            <TextBlock Text=" ›" FontSize="14" Foreground="#9CA3AF" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Kafelek DREW -->
+                <Border Style="{StaticResource PackageTileStyle}" MouseLeftButtonDown="TileDREW_Click">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.Row="0" Background="#FEF3C7" CornerRadius="8" Padding="8,4" HorizontalAlignment="Left">
+                            <TextBlock Text="PALETA DREW" FontWeight="Bold" FontSize="11" Foreground="#D97706"/>
+                        </Border>
+
+                        <TextBlock Grid.Row="1" Text="{Binding SumaDREW}" FontSize="36" FontWeight="Bold" Foreground="#DC2626" Margin="0,12,0,0"/>
+
+                        <TextBlock Grid.Row="2" Text="winnych" FontSize="12" Foreground="#6B7280" Margin="0,2,0,0"/>
+
+                        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,12,0,0">
+                            <TextBlock FontSize="12" Foreground="#9CA3AF">
+                                <Run Text="{Binding LiczbaKontrahentowDREW}"/>
+                                <Run Text=" klientów"/>
+                            </TextBlock>
+                            <TextBlock Text=" ›" FontSize="14" Foreground="#9CA3AF" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+            </UniformGrid>
+        </Border>
+
+        <!-- ======================= SZUKAJ KONTRAHENTA ======================= -->
+        <Border Grid.Row="2" Background="White" Padding="24,16" BorderBrush="#E5E7EB" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="400"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Pole szukania -->
+                <Border Background="#F3F4F6" CornerRadius="10" Padding="16,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Text="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="16"
+                                   Foreground="#9CA3AF" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                        <TextBox Grid.Column="1" x:Name="txtSzukaj"
+                                 Text="{Binding FiltrTekst, UpdateSourceTrigger=PropertyChanged, Delay=300}"
+                                 Background="Transparent" BorderThickness="0"
+                                 VerticalAlignment="Center" FontSize="14"
+                                 VerticalContentAlignment="Center"/>
+
+                        <!-- Placeholder -->
+                        <TextBlock Grid.Column="1" Text="Szukaj kontrahenta..."
+                                   Foreground="#9CA3AF" FontSize="14"
+                                   VerticalAlignment="Center" IsHitTestVisible="False"
+                                   Visibility="{Binding FiltrTekst, Converter={StaticResource InverseBoolToVisibility}, ConverterParameter=text}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Text, ElementName=txtSzukaj}" Value="">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+
+                        <Button Grid.Column="2" Content="&#xE711;" FontFamily="Segoe MDL2 Assets"
+                                Command="{Binding ClearFilterCommand}"
+                                Background="Transparent" BorderThickness="0" Foreground="#9CA3AF"
+                                FontSize="12" Cursor="Hand" Padding="4"
+                                Visibility="{Binding HasFilter, Converter={StaticResource BoolToVisibility}}"/>
+                    </Grid>
+                </Border>
+
+                <TextBlock Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right"
+                           Foreground="#6B7280" FontSize="13">
+                    <Run Text="Wyniki: "/>
+                    <Run Text="{Binding LiczbaWynikow}" FontWeight="SemiBold"/>
+                    <Run Text=" kontrahentów"/>
+                </TextBlock>
+            </Grid>
+        </Border>
+
+        <!-- ======================= WYNIKI SZUKANIA / LISTA KONTRAHENTÓW ======================= -->
+        <Border Grid.Row="3" Background="White" Margin="24,16" CornerRadius="12">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="8" ShadowDepth="2" Opacity="0.08"/>
+            </Border.Effect>
+
+            <Grid>
+                <!-- Nagłówek listy -->
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Background="#F9FAFB" CornerRadius="12,12,0,0" Padding="16,12">
+                    <TextBlock Text="KONTRAHENCI Z SALDAMI OPAKOWAŃ" FontWeight="Bold" FontSize="12" Foreground="#6B7280"/>
+                </Border>
+
+                <DataGrid Grid.Row="1" ItemsSource="{Binding WynikiSzukania}"
+                          SelectedItem="{Binding WybranyKontrahent}"
+                          Style="{StaticResource ModernDataGridStyle}"
+                          MouseDoubleClick="DataGrid_MouseDoubleClick">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="KONTRAHENT" Binding="{Binding Kontrahent}" Width="140" FontSize="13">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="NAZWA" Binding="{Binding Nazwa}" Width="*">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTemplateColumn Header="E2" Width="70">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding E2}"
+                                               Foreground="{Binding E2, Converter={StaticResource SaldoToColor}}"
+                                               FontWeight="Bold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="H1" Width="70">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding H1}"
+                                               Foreground="{Binding H1, Converter={StaticResource SaldoToColor}}"
+                                               FontWeight="Bold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="EURO" Width="70">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding EURO}"
+                                               Foreground="{Binding EURO, Converter={StaticResource SaldoToColor}}"
+                                               FontWeight="Bold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="PCV" Width="70">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding PCV}"
+                                               Foreground="{Binding PCV, Converter={StaticResource SaldoToColor}}"
+                                               FontWeight="Bold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn Header="DREW" Width="70">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding DREW}"
+                                               Foreground="{Binding DREW, Converter={StaticResource SaldoToColor}}"
+                                               FontWeight="Bold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTextColumn Header="HANDLOWIEC" Binding="{Binding Handlowiec}" Width="120">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="Foreground" Value="#6B7280"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="OSTATNI DOK." Binding="{Binding OstatniDokumentTekst}" Width="100">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="Foreground" Value="#9CA3AF"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTemplateColumn Header="" Width="40">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="›" FontSize="18" Foreground="#9CA3AF"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </Border>
+
+        <!-- ======================= STOPKA ======================= -->
+        <Border Grid.Row="4" Background="White" Padding="24,12" BorderBrush="#E5E7EB" BorderThickness="0,1,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Foreground="#6B7280" FontSize="13">
+                        <Run Text="Suma wszystkich sald: "/>
+                        <Run Text="{Binding SumaWszystkich}" FontWeight="Bold" Foreground="#DC2626"/>
+                        <Run Text=" szt."/>
+                    </TextBlock>
+
+                    <TextBlock Text="  |  " Foreground="#D1D5DB"/>
+
+                    <TextBlock Foreground="#6B7280" FontSize="13">
+                        <Run Text="Bez potwierdzenia: "/>
+                        <Run Text="{Binding LiczbaBezPotwierdzenia}" FontWeight="Bold" Foreground="#F97316"/>
+                    </TextBlock>
+                </StackPanel>
+
+                <TextBlock Grid.Column="1" Text="{Binding StatusMessage}" Foreground="#6B7280" FontSize="12"/>
+            </Grid>
+        </Border>
+
+        <!-- ======================= LOADING OVERLAY ======================= -->
+        <Border Grid.RowSpan="5" Background="#80FFFFFF"
+                Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Width="240" Height="4"/>
+                <TextBlock Text="{Binding StatusMessage}" Margin="0,12,0,0"
+                           HorizontalAlignment="Center" FontSize="14" Foreground="#6B7280"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

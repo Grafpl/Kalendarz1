@@ -39,6 +39,38 @@ namespace Kalendarz1.Opakowania.Views
             _viewModel.WybierzZalacznikRequested += OnWybierzZalacznik;
         }
 
+        /// <summary>
+        /// Alternatywny konstruktor dla nowego dashboardu - przyjmuje kod opakowania jako string
+        /// </summary>
+        public DodajPotwierdzenieWindow(
+            int kontrahentId,
+            string kontrahentShortcut,
+            string kontrahentNazwa,
+            string kodOpakowania,
+            int saldoSystemowe,
+            string userId)
+        {
+            InitializeComponent();
+
+            // Znajdź typ opakowania po kodzie
+            var typOpakowania = Array.Find(TypOpakowania.WszystkieTypy, t => t.Kod == kodOpakowania)
+                ?? new TypOpakowania { Kod = kodOpakowania, Nazwa = kodOpakowania, NazwaSystemowa = kodOpakowania };
+
+            _viewModel = new DodajPotwierdzenieViewModel(
+                kontrahentId,
+                kontrahentNazwa,
+                kontrahentShortcut,
+                typOpakowania,
+                saldoSystemowe,
+                userId);
+
+            DataContext = _viewModel;
+
+            // Subskrybuj event zamknięcia
+            _viewModel.RequestClose += OnRequestClose;
+            _viewModel.WybierzZalacznikRequested += OnWybierzZalacznik;
+        }
+
         private void OnRequestClose(bool? dialogResult)
         {
             DialogResult = dialogResult;

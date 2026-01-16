@@ -428,6 +428,60 @@ SELECT SCOPE_IDENTITY();";
             _ => kod
         };
 
+        /// <summary>
+        /// Pobiera potwierdzenia dla konkretnego kontrahenta
+        /// </summary>
+        public async Task<List<Potwierdzenie>> PobierzPotwierdzeniaKontrahentaAsync(int kontrahentId)
+        {
+            var wyniki = new List<Potwierdzenie>();
+
+            string query = @"
+SELECT Id, KontrahentId, TypOpakowania, KodOpakowania, DataPotwierdzenia,
+       IloscPotwierdzona, SaldoSystemowe, StatusPotwierdzenia, Uwagi,
+       UzytkownikId, UzytkownikNazwa, DataWprowadzenia
+FROM [LibraNet].[dbo].[PotwierdzeniaSaldaOpakowan]
+WHERE KontrahentId = @KontrahentId
+ORDER BY DataPotwierdzenia DESC, DataWprowadzenia DESC";
+
+            try
+            {
+                using (var connection = new SqlConnection(_connectionStringLibraNet))
+                {
+                    await connection.OpenAsync();
+                    using (var command = new SqlCommand(query, connection))
+                    {
+                        command.Parameters.AddWithValue("@KontrahentId", kontrahentId);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                wyniki.Add(new Potwierdzenie
+                                {
+                                    Id = reader.GetInt32(0),
+                                    KontrahentId = reader.GetInt32(1),
+                                    TypOpakowania = reader.IsDBNull(3) ? reader.GetString(2) : reader.GetString(3),
+                                    DataPotwierdzenia = reader.GetDateTime(4),
+                                    IloscPotwierdzona = reader.GetInt32(5),
+                                    SaldoSystemowe = reader.GetInt32(6),
+                                    Status = reader.IsDBNull(7) ? "Oczekujące" : reader.GetString(7),
+                                    Uwagi = reader.IsDBNull(8) ? null : reader.GetString(8),
+                                    Uzytkownik = reader.IsDBNull(10) ? reader.GetString(9) : reader.GetString(10),
+                                    DataWprowadzenia = reader.GetDateTime(11)
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Ignoruj - tabela może nie istnieć
+            }
+
+            return wyniki;
+        }
+
         #endregion
 
         #region Uprawnienia
