@@ -84,7 +84,7 @@ namespace Kalendarz1.Services
                         numerSiedliska,                               // Kol 1: Numer identyfikacyjny = SIEDLISKO HODOWCY
                         poz.LiczbaSztuk.ToString(),                   // Kol 2: Liczba sztuk
                         masaStr,                                      // Kol 3: Masa (liczba calkowita!)
-                        poz.TypZdarzenia ?? "UR",                     // Kol 4: Typ zdarzenia
+                        "Przybycie do rzeźni i ubój",                 // Kol 4: Typ zdarzenia (pelna nazwa!)
                         dataZdarzeniaStr,                             // Kol 5: Data zdarzenia
                         poz.KrajWwozu ?? "",                          // Kol 6: Kraj wwozu
                         dataZdarzeniaStr,                             // Kol 7: Data kupna = data zdarzenia
@@ -355,7 +355,7 @@ namespace Kalendarz1.Services
                     numerSiedliskaHodowcy,              // Kol 1: Numer identyfikacyjny = SIEDLISKO HODOWCY
                     liczbaSztuk.ToString(),             // Kol 2: Liczba sztuk
                     masaStr,                            // Kol 3: Masa (liczba calkowita!)
-                    "UR",                               // Kol 4: Typ zdarzenia
+                    "Przybycie do rzeźni i ubój",       // Kol 4: Typ zdarzenia (pelna nazwa!)
                     dataZdarzeniaStr,                   // Kol 5: Data zdarzenia
                     "",                                 // Kol 6: Kraj wwozu (pusty dla krajowych)
                     dataZdarzeniaStr,                   // Kol 7: Data kupna = data zdarzenia
@@ -678,7 +678,7 @@ namespace Kalendarz1.Services
                 // Kolejnosc: NumerSiedliska;LiczbaSztuk;Masa;TypZdarzenia;Data;KrajWwozu;DataKupna;Przyjete;Uboj
                 var dataTest = DateTime.Now.ToString("dd-MM-yyyy");
                 // Przykladowe siedlisko hodowcy: 068736945-001
-                csv.AppendLine($"068736945-001;4173;13851;UR;{dataTest};;{dataTest};068736945-001;N");
+                csv.AppendLine($"068736945-001;4173;13851;Przybycie do rzeźni i ubój;{dataTest};;{dataTest};068736945-001;N");
 
                 File.WriteAllText(filePath, csv.ToString(), new UTF8Encoding(true));
 
@@ -1213,7 +1213,7 @@ namespace Kalendarz1.Services
                     numerSiedliska,                               // Kol 1: Numer identyfikacyjny = SIEDLISKO HODOWCY
                     poz.LiczbaSztuk.ToString(),                   // Kol 2: Liczba sztuk
                     masaStr,                                      // Kol 3: Masa
-                    poz.TypZdarzenia ?? "UR",                     // Kol 4: Typ zdarzenia
+                    "Przybycie do rzeźni i ubój",                 // Kol 4: Typ zdarzenia (pelna nazwa!)
                     dataZdarzeniaStr,                             // Kol 5: Data zdarzenia
                     poz.KrajWwozu ?? "",                          // Kol 6: Kraj wwozu
                     dataZdarzeniaStr,                             // Kol 7: Data kupna
