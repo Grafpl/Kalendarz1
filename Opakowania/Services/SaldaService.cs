@@ -1,7 +1,7 @@
 using System;
-using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,14 +12,12 @@ namespace Kalendarz1.Opakowania.Services
 {
     /// <summary>
     /// Serwis do pobierania sald opakowań - ULTRA-ZOPTYMALIZOWANY
-    /// Techniki: Multi-level cache, Parallel loading, Connection pooling,
-    /// Pre-fetching, Lazy loading, Memory pooling, Async streaming
+    /// CACHE: Dane ładowane RAZ i trzymane do ręcznego odświeżenia
     /// </summary>
     public class SaldaService : IDisposable
     {
-        #region Connection Strings (z poolingiem)
+        #region Connection Strings
 
-        // Connection pooling: Min/Max Pool Size, Connection Lifetime
         private static readonly string _connectionStringHandel =
             "Server=192.168.0.112;Database=Handel;User Id=sa;Password=?cs_'Y6,n5#Xd'Yd;TrustServerCertificate=True;" +
             "Min Pool Size=2;Max Pool Size=10;Connection Lifetime=300;Pooling=true;";
@@ -30,64 +28,87 @@ namespace Kalendarz1.Opakowania.Services
 
         #endregion
 
-        #region Multi-Level Cache
+        #region AGGRESSIVE Cache - dane ładowane RAZ
 
-        // Cache Level 1: Pełne salda (główny cache)
+        // Cache sald - BARDZO DŁUGI (8 godzin lub do ręcznego odświeżenia)
         private static List<SaldoKontrahenta> _cacheSalda;
         private static DateTime _cacheSaldaTime;
         private static DateTime _cacheSaldaDataDo;
         private static string _cacheSaldaHandlowiec;
-        private static readonly TimeSpan CacheSaldaLifetime = TimeSpan.FromMinutes(10); // Wydłużony
+        private static readonly TimeSpan CacheSaldaLifetime = TimeSpan.FromHours(8); // 8 GODZIN!
 
-        // Cache Level 2: Potwierdzenia (osobny, dłuższy cache)
+        // Cache potwierdzeń - długi
         private static Dictionary<(int, string), DateTime> _cachePotwierdzenia;
         private static DateTime _cachePotwierdzeniaTime;
-        private static readonly TimeSpan CachePotwierdzeniaLifetime = TimeSpan.FromMinutes(15);
+        private static readonly TimeSpan CachePotwierdzeniaLifetime = TimeSpan.FromHours(4);
 
-        // Cache Level 3: Handlowcy użytkowników (bardzo długi cache)
+        // Cache handlowców - bardzo długi (cały dzień)
         private static readonly ConcurrentDictionary<string, string> _cacheHandlowcy = new();
         private static DateTime _cacheHandlowcyTime;
-        private static readonly TimeSpan CacheHandlowcyLifetime = TimeSpan.FromHours(1);
+        private static readonly TimeSpan CacheHandlowcyLifetime = TimeSpan.FromHours(24);
 
-        // Cache Level 4: Dokumenty kontrahentów (LRU cache)
+        // Cache dokumentów - per kontrahent (1 godzina)
         private static readonly ConcurrentDictionary<string, (List<DokumentSalda> Data, DateTime Time)> _cacheDokumenty = new();
-        private static readonly TimeSpan CacheDokumentyLifetime = TimeSpan.FromMinutes(5);
-        private const int MaxCacheDokumentySize = 50;
+        private static readonly TimeSpan CacheDokumentyLifetime = TimeSpan.FromHours(1);
+        private const int MaxCacheDokumentySize = 100;
 
-        // Lock objects dla thread-safety
+        // Lock objects
         private static readonly SemaphoreSlim _lockSalda = new(1, 1);
         private static readonly SemaphoreSlim _lockPotwierdzenia = new(1, 1);
 
         private static bool IsCacheSaldaValid(DateTime dataDo, string handlowiec)
         {
-            if (_cacheSalda == null) return false;
-            if (DateTime.Now - _cacheSaldaTime > CacheSaldaLifetime) return false;
-            if (_cacheSaldaDataDo != dataDo.Date) return false;
-            if (_cacheSaldaHandlowiec != handlowiec) return false;
+            if (_cacheSalda == null)
+            {
+                PerformanceProfiler.RecordCacheMiss("Salda");
+                return false;
+            }
+            if (DateTime.Now - _cacheSaldaTime > CacheSaldaLifetime)
+            {
+                PerformanceProfiler.RecordCacheMiss("Salda-Expired");
+                return false;
+            }
+            if (_cacheSaldaDataDo != dataDo.Date)
+            {
+                PerformanceProfiler.RecordCacheMiss("Salda-DateChanged");
+                return false;
+            }
+            if (_cacheSaldaHandlowiec != handlowiec)
+            {
+                PerformanceProfiler.RecordCacheMiss("Salda-HandlowiecChanged");
+                return false;
+            }
+            PerformanceProfiler.RecordCacheHit("Salda");
             return true;
         }
 
         private static bool IsCachePotwierdzeniaValid()
         {
-            if (_cachePotwierdzenia == null) return false;
-            return DateTime.Now - _cachePotwierdzeniaTime <= CachePotwierdzeniaLifetime;
-        }
-
-        private static bool IsCacheHandlowcyValid()
-        {
-            return DateTime.Now - _cacheHandlowcyTime <= CacheHandlowcyLifetime;
+            if (_cachePotwierdzenia == null)
+            {
+                PerformanceProfiler.RecordCacheMiss("Potwierdzenia");
+                return false;
+            }
+            if (DateTime.Now - _cachePotwierdzeniaTime > CachePotwierdzeniaLifetime)
+            {
+                PerformanceProfiler.RecordCacheMiss("Potwierdzenia-Expired");
+                return false;
+            }
+            PerformanceProfiler.RecordCacheHit("Potwierdzenia");
+            return true;
         }
 
         /// <summary>
-        /// Invaliduje cache sald (selektywnie)
+        /// Invaliduje cache sald (ręczne odświeżenie)
         /// </summary>
         public static void InvalidateCache()
         {
             _cacheSalda = null;
+            Debug.WriteLine("[CACHE] Salda cache invalidated");
         }
 
         /// <summary>
-        /// Invaliduje wszystkie cache'e
+        /// Invaliduje WSZYSTKIE cache'e
         /// </summary>
         public static void InvalidateAllCaches()
         {
@@ -95,19 +116,55 @@ namespace Kalendarz1.Opakowania.Services
             _cachePotwierdzenia = null;
             _cacheHandlowcy.Clear();
             _cacheDokumenty.Clear();
+            Debug.WriteLine("[CACHE] All caches invalidated");
         }
 
         /// <summary>
-        /// Invaliduje cache potwierdzeń (gdy dodano nowe)
+        /// Invaliduje cache potwierdzeń
         /// </summary>
         public static void InvalidatePotwierdzeniaCache()
         {
             _cachePotwierdzenia = null;
         }
 
+        /// <summary>
+        /// Zwraca informacje o stanie cache
+        /// </summary>
+        public static string GetCacheStatus()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("=== STAN CACHE ===");
+
+            if (_cacheSalda != null)
+            {
+                var age = DateTime.Now - _cacheSaldaTime;
+                var remaining = CacheSaldaLifetime - age;
+                sb.AppendLine($"Salda: {_cacheSalda.Count} rekordów, wiek: {age:hh\\:mm\\:ss}, pozostało: {remaining:hh\\:mm\\:ss}");
+            }
+            else
+            {
+                sb.AppendLine("Salda: PUSTY");
+            }
+
+            if (_cachePotwierdzenia != null)
+            {
+                var age = DateTime.Now - _cachePotwierdzeniaTime;
+                sb.AppendLine($"Potwierdzenia: {_cachePotwierdzenia.Count} rekordów, wiek: {age:hh\\:mm\\:ss}");
+            }
+            else
+            {
+                sb.AppendLine("Potwierdzenia: PUSTY");
+            }
+
+            sb.AppendLine($"Handlowcy: {_cacheHandlowcy.Count} rekordów");
+            sb.AppendLine($"Dokumenty: {_cacheDokumenty.Count} kontrahentów");
+
+            return sb.ToString();
+        }
+
         #endregion
 
-        #region Pre-compiled SQL Queries (Static)
+        #region SQL Queries
 
         private static readonly string QuerySalda = @"
 SELECT
@@ -187,74 +244,91 @@ ORDER BY MG.data DESC";
 
         #endregion
 
-        #region Pobieranie sald (z parallel loading)
+        #region Pobieranie sald
 
         /// <summary>
-        /// Pobiera salda WSZYSTKICH kontrahentów - ZOPTYMALIZOWANE
+        /// Pobiera salda - z CACHE (dane ładowane RAZ)
         /// </summary>
         public async Task<List<SaldoKontrahenta>> PobierzWszystkieSaldaAsync(DateTime dataDo, string handlowiecFilter = null)
         {
-            // Fast path: zwróć z cache jeśli valid
+            // FAST PATH: zwróć z cache
             if (IsCacheSaldaValid(dataDo, handlowiecFilter))
             {
+                Debug.WriteLine($"[CACHE HIT] Salda returned from cache ({_cacheSalda.Count} records)");
                 return _cacheSalda;
             }
 
             await _lockSalda.WaitAsync();
             try
             {
-                // Double-check po uzyskaniu locka
+                // Double-check
                 if (IsCacheSaldaValid(dataDo, handlowiecFilter))
                 {
                     return _cacheSalda;
                 }
 
-                // PARALLEL LOADING: pobierz potwierdzenia i salda równolegle
-                var taskPotwierdzenia = PobierzWszystkiePotwierdzeniaAsync();
-                var taskSalda = PobierzSaldaZBazyAsync(dataDo, handlowiecFilter);
+                Debug.WriteLine("[CACHE MISS] Loading salda from database...");
 
-                await Task.WhenAll(taskPotwierdzenia, taskSalda);
-
-                var potwierdzenia = await taskPotwierdzenia;
-                var wyniki = await taskSalda;
-
-                // Przypisz potwierdzenia (O(n) zamiast O(n*m))
-                foreach (var saldo in wyniki)
+                using (PerformanceProfiler.MeasureOperation("PobierzWszystkieSalda_TOTAL"))
                 {
-                    if (potwierdzenia.TryGetValue((saldo.Id, "E2"), out var pe2))
+                    // PARALLEL: pobierz potwierdzenia i salda równolegle
+                    Task<Dictionary<(int, string), DateTime>> taskPotwierdzenia;
+                    Task<List<SaldoKontrahenta>> taskSalda;
+
+                    using (PerformanceProfiler.MeasureOperation("StartParallelTasks"))
                     {
-                        saldo.E2Potwierdzone = true;
-                        saldo.E2DataPotwierdzenia = pe2;
+                        taskPotwierdzenia = PobierzWszystkiePotwierdzeniaAsync();
+                        taskSalda = PobierzSaldaZBazyAsync(dataDo, handlowiecFilter);
                     }
-                    if (potwierdzenia.TryGetValue((saldo.Id, "H1"), out var ph1))
+
+                    await Task.WhenAll(taskPotwierdzenia, taskSalda);
+
+                    var potwierdzenia = await taskPotwierdzenia;
+                    var wyniki = await taskSalda;
+
+                    using (PerformanceProfiler.MeasureOperation("MergePotwierdzenia"))
                     {
-                        saldo.H1Potwierdzone = true;
-                        saldo.H1DataPotwierdzenia = ph1;
+                        // Przypisz potwierdzenia O(n)
+                        foreach (var saldo in wyniki)
+                        {
+                            if (potwierdzenia.TryGetValue((saldo.Id, "E2"), out var pe2))
+                            {
+                                saldo.E2Potwierdzone = true;
+                                saldo.E2DataPotwierdzenia = pe2;
+                            }
+                            if (potwierdzenia.TryGetValue((saldo.Id, "H1"), out var ph1))
+                            {
+                                saldo.H1Potwierdzone = true;
+                                saldo.H1DataPotwierdzenia = ph1;
+                            }
+                            if (potwierdzenia.TryGetValue((saldo.Id, "EURO"), out var peuro))
+                            {
+                                saldo.EUROPotwierdzone = true;
+                                saldo.EURODataPotwierdzenia = peuro;
+                            }
+                            if (potwierdzenia.TryGetValue((saldo.Id, "PCV"), out var ppcv))
+                            {
+                                saldo.PCVPotwierdzone = true;
+                                saldo.PCVDataPotwierdzenia = ppcv;
+                            }
+                            if (potwierdzenia.TryGetValue((saldo.Id, "DREW"), out var pdrew))
+                            {
+                                saldo.DREWPotwierdzone = true;
+                                saldo.DREWDataPotwierdzenia = pdrew;
+                            }
+                        }
                     }
-                    if (potwierdzenia.TryGetValue((saldo.Id, "EURO"), out var peuro))
-                    {
-                        saldo.EUROPotwierdzone = true;
-                        saldo.EURODataPotwierdzenia = peuro;
-                    }
-                    if (potwierdzenia.TryGetValue((saldo.Id, "PCV"), out var ppcv))
-                    {
-                        saldo.PCVPotwierdzone = true;
-                        saldo.PCVDataPotwierdzenia = ppcv;
-                    }
-                    if (potwierdzenia.TryGetValue((saldo.Id, "DREW"), out var pdrew))
-                    {
-                        saldo.DREWPotwierdzone = true;
-                        saldo.DREWDataPotwierdzenia = pdrew;
-                    }
+
+                    // Zapisz w cache
+                    _cacheSalda = wyniki;
+                    _cacheSaldaTime = DateTime.Now;
+                    _cacheSaldaDataDo = dataDo.Date;
+                    _cacheSaldaHandlowiec = handlowiecFilter;
+
+                    Debug.WriteLine($"[CACHE] Saved {wyniki.Count} records, valid for {CacheSaldaLifetime.TotalHours}h");
+
+                    return wyniki;
                 }
-
-                // Zapisz w cache
-                _cacheSalda = wyniki;
-                _cacheSaldaTime = DateTime.Now;
-                _cacheSaldaDataDo = dataDo.Date;
-                _cacheSaldaHandlowiec = handlowiecFilter;
-
-                return wyniki;
             }
             finally
             {
@@ -263,60 +337,70 @@ ORDER BY MG.data DESC";
         }
 
         /// <summary>
-        /// Pobiera salda z bazy (wewnętrzna)
+        /// Pobiera salda z bazy
         /// </summary>
         private async Task<List<SaldoKontrahenta>> PobierzSaldaZBazyAsync(DateTime dataDo, string handlowiecFilter)
         {
-            // Pre-alokacja listy (szacowana wielkość)
             var wyniki = new List<SaldoKontrahenta>(500);
+            var sw = Stopwatch.StartNew();
 
             try
             {
-                using var connection = new SqlConnection(_connectionStringHandel);
-                await connection.OpenAsync().ConfigureAwait(false);
-
-                using var command = new SqlCommand(QuerySalda, connection);
-                command.CommandTimeout = 60;
-                command.Parameters.AddWithValue("@DataDo", dataDo);
-                command.Parameters.AddWithValue("@HandlowiecFilter", (object)handlowiecFilter ?? DBNull.Value);
-
-                using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-
-                while (await reader.ReadAsync().ConfigureAwait(false))
+                using (PerformanceProfiler.MeasureOperation("SQL_OpenConnection_Handel"))
                 {
-                    wyniki.Add(new SaldoKontrahenta
+                    using var connection = new SqlConnection(_connectionStringHandel);
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                    using (PerformanceProfiler.MeasureOperation("SQL_ExecuteQuery_Salda"))
                     {
-                        Id = reader.GetInt32(0),
-                        Kontrahent = reader.GetString(1),
-                        Nazwa = reader.IsDBNull(2) ? "" : reader.GetString(2),
-                        Handlowiec = reader.GetString(3),
-                        E2 = reader.GetInt32(4),
-                        H1 = reader.GetInt32(5),
-                        EURO = reader.GetInt32(6),
-                        PCV = reader.GetInt32(7),
-                        DREW = reader.GetInt32(8),
-                        OstatniDokument = reader.IsDBNull(9) ? null : reader.GetDateTime(9)
-                    });
+                        using var command = new SqlCommand(QuerySalda, connection);
+                        command.CommandTimeout = 120;
+                        command.Parameters.AddWithValue("@DataDo", dataDo);
+                        command.Parameters.AddWithValue("@HandlowiecFilter", (object)handlowiecFilter ?? DBNull.Value);
+
+                        using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+
+                        while (await reader.ReadAsync().ConfigureAwait(false))
+                        {
+                            wyniki.Add(new SaldoKontrahenta
+                            {
+                                Id = reader.GetInt32(0),
+                                Kontrahent = reader.GetString(1),
+                                Nazwa = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                                Handlowiec = reader.GetString(3),
+                                E2 = reader.GetInt32(4),
+                                H1 = reader.GetInt32(5),
+                                EURO = reader.GetInt32(6),
+                                PCV = reader.GetInt32(7),
+                                DREW = reader.GetInt32(8),
+                                OstatniDokument = reader.IsDBNull(9) ? null : reader.GetDateTime(9)
+                            });
+                        }
+                    }
                 }
             }
             catch (Exception ex)
             {
+                Debug.WriteLine($"[ERROR] PobierzSaldaZBazy: {ex.Message}");
                 throw new Exception($"Błąd podczas pobierania sald: {ex.Message}", ex);
             }
+
+            sw.Stop();
+            Debug.WriteLine($"[PERF] PobierzSaldaZBazy: {wyniki.Count} records in {sw.ElapsedMilliseconds}ms");
+            PerformanceProfiler.RecordTiming("PobierzSaldaZBazy_Records", sw.Elapsed, wyniki.Count);
 
             return wyniki;
         }
 
         #endregion
 
-        #region Dokumenty kontrahenta (z cache)
+        #region Dokumenty
 
         /// <summary>
         /// Pobiera dokumenty kontrahenta - z cache
         /// </summary>
         public async Task<List<DokumentSalda>> PobierzDokumentyAsync(int kontrahentId, DateTime dataOd, DateTime dataDo)
         {
-            // Cache key
             var cacheKey = $"{kontrahentId}_{dataOd:yyyyMMdd}_{dataDo:yyyyMMdd}";
 
             // Sprawdź cache
@@ -324,18 +408,24 @@ ORDER BY MG.data DESC";
             {
                 if (DateTime.Now - cached.Time <= CacheDokumentyLifetime)
                 {
+                    PerformanceProfiler.RecordCacheHit("Dokumenty");
+                    Debug.WriteLine($"[CACHE HIT] Dokumenty for {kontrahentId}");
                     return cached.Data;
                 }
             }
+            PerformanceProfiler.RecordCacheMiss("Dokumenty");
 
             // Pobierz z bazy
-            var dokumenty = await PobierzDokumentyZBazyAsync(kontrahentId, dataOd, dataDo);
+            List<DokumentSalda> dokumenty;
+            using (PerformanceProfiler.MeasureOperation("PobierzDokumenty"))
+            {
+                dokumenty = await PobierzDokumentyZBazyAsync(kontrahentId, dataOd, dataDo);
+            }
 
-            // Zapisz w cache (z limitem wielkości)
+            // Cache management
             if (_cacheDokumenty.Count >= MaxCacheDokumentySize)
             {
-                // Usuń najstarsze wpisy (proste LRU)
-                var oldest = _cacheDokumenty.OrderBy(x => x.Value.Time).Take(10).Select(x => x.Key).ToList();
+                var oldest = _cacheDokumenty.OrderBy(x => x.Value.Time).Take(20).Select(x => x.Key).ToList();
                 foreach (var key in oldest)
                 {
                     _cacheDokumenty.TryRemove(key, out _);
@@ -348,81 +438,76 @@ ORDER BY MG.data DESC";
         }
 
         /// <summary>
-        /// Pobiera dokumenty z bazy (wewnętrzna)
+        /// Pobiera dokumenty z bazy
         /// </summary>
         private async Task<List<DokumentSalda>> PobierzDokumentyZBazyAsync(int kontrahentId, DateTime dataOd, DateTime dataDo)
         {
             var dokumenty = new List<DokumentSalda>(50);
+            var sw = Stopwatch.StartNew();
 
             try
             {
-                using var connection = new SqlConnection(_connectionStringHandel);
-                await connection.OpenAsync().ConfigureAwait(false);
-
                 // PARALLEL: pobierz saldo początkowe i dokumenty równolegle
-                int sE2 = 0, sH1 = 0, sEURO = 0, sPCV = 0, sDREW = 0;
-                var listaDoc = new List<DokumentSalda>(30);
-
-                // Task dla salda początkowego
                 var taskSaldoPoczatkowe = Task.Run(async () =>
                 {
-                    using var conn = new SqlConnection(_connectionStringHandel);
-                    await conn.OpenAsync().ConfigureAwait(false);
-
-                    using var cmd = new SqlCommand(QuerySaldoPoczatkowe, conn);
-                    cmd.Parameters.AddWithValue("@KontrahentId", kontrahentId);
-                    cmd.Parameters.AddWithValue("@DataOd", dataOd);
-
-                    using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-                    if (await reader.ReadAsync().ConfigureAwait(false))
+                    using (PerformanceProfiler.MeasureOperation("SQL_SaldoPoczatkowe"))
                     {
-                        return (reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2), reader.GetInt32(3), reader.GetInt32(4));
+                        using var conn = new SqlConnection(_connectionStringHandel);
+                        await conn.OpenAsync().ConfigureAwait(false);
+
+                        using var cmd = new SqlCommand(QuerySaldoPoczatkowe, conn);
+                        cmd.CommandTimeout = 60;
+                        cmd.Parameters.AddWithValue("@KontrahentId", kontrahentId);
+                        cmd.Parameters.AddWithValue("@DataOd", dataOd);
+
+                        using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+                        if (await reader.ReadAsync().ConfigureAwait(false))
+                        {
+                            return (reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2), reader.GetInt32(3), reader.GetInt32(4));
+                        }
+                        return (0, 0, 0, 0, 0);
                     }
-                    return (0, 0, 0, 0, 0);
                 });
 
-                // Task dla dokumentów
                 var taskDokumenty = Task.Run(async () =>
                 {
-                    using var conn = new SqlConnection(_connectionStringHandel);
-                    await conn.OpenAsync().ConfigureAwait(false);
-
-                    using var cmd = new SqlCommand(QueryDokumenty, conn);
-                    cmd.Parameters.AddWithValue("@KontrahentId", kontrahentId);
-                    cmd.Parameters.AddWithValue("@DataOd", dataOd);
-                    cmd.Parameters.AddWithValue("@DataDo", dataDo);
-
-                    var docs = new List<DokumentSalda>(30);
-                    using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-                    while (await reader.ReadAsync().ConfigureAwait(false))
+                    using (PerformanceProfiler.MeasureOperation("SQL_ListaDokumentow"))
                     {
-                        docs.Add(new DokumentSalda
+                        using var conn = new SqlConnection(_connectionStringHandel);
+                        await conn.OpenAsync().ConfigureAwait(false);
+
+                        using var cmd = new SqlCommand(QueryDokumenty, conn);
+                        cmd.CommandTimeout = 60;
+                        cmd.Parameters.AddWithValue("@KontrahentId", kontrahentId);
+                        cmd.Parameters.AddWithValue("@DataOd", dataOd);
+                        cmd.Parameters.AddWithValue("@DataDo", dataDo);
+
+                        var docs = new List<DokumentSalda>(30);
+                        using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+                        while (await reader.ReadAsync().ConfigureAwait(false))
                         {
-                            Id = reader.GetInt32(0),
-                            NrDokumentu = reader.IsDBNull(1) ? "" : reader.GetString(1),
-                            Data = reader.GetDateTime(2),
-                            Opis = reader.IsDBNull(3) ? "" : reader.GetString(3),
-                            E2 = reader.GetInt32(4),
-                            H1 = reader.GetInt32(5),
-                            EURO = reader.GetInt32(6),
-                            PCV = reader.GetInt32(7),
-                            DREW = reader.GetInt32(8),
-                            JestSaldem = false
-                        });
+                            docs.Add(new DokumentSalda
+                            {
+                                Id = reader.GetInt32(0),
+                                NrDokumentu = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                                Data = reader.GetDateTime(2),
+                                Opis = reader.IsDBNull(3) ? "" : reader.GetString(3),
+                                E2 = reader.GetInt32(4),
+                                H1 = reader.GetInt32(5),
+                                EURO = reader.GetInt32(6),
+                                PCV = reader.GetInt32(7),
+                                DREW = reader.GetInt32(8),
+                                JestSaldem = false
+                            });
+                        }
+                        return docs;
                     }
-                    return docs;
                 });
 
                 await Task.WhenAll(taskSaldoPoczatkowe, taskDokumenty);
 
-                var saldoPoczatkowe = await taskSaldoPoczatkowe;
-                sE2 = saldoPoczatkowe.Item1;
-                sH1 = saldoPoczatkowe.Item2;
-                sEURO = saldoPoczatkowe.Item3;
-                sPCV = saldoPoczatkowe.Item4;
-                sDREW = saldoPoczatkowe.Item5;
-
-                listaDoc = await taskDokumenty;
+                var (sE2, sH1, sEURO, sPCV, sDREW) = await taskSaldoPoczatkowe;
+                var listaDoc = await taskDokumenty;
 
                 // Oblicz saldo końcowe
                 int kE2 = sE2, kH1 = sH1, kEURO = sEURO, kPCV = sPCV, kDREW = sDREW;
@@ -435,53 +520,44 @@ ORDER BY MG.data DESC";
                     kDREW += doc.DREW;
                 }
 
-                // Dodaj saldo końcowe na początek
+                // Saldo końcowe
                 dokumenty.Add(new DokumentSalda
                 {
                     NrDokumentu = $"Saldo na {dataDo:dd.MM.yyyy}",
                     Data = dataDo,
-                    E2 = kE2,
-                    H1 = kH1,
-                    EURO = kEURO,
-                    PCV = kPCV,
-                    DREW = kDREW,
+                    E2 = kE2, H1 = kH1, EURO = kEURO, PCV = kPCV, DREW = kDREW,
                     JestSaldem = true
                 });
 
-                // Dokumenty
                 dokumenty.AddRange(listaDoc);
 
-                // Saldo początkowe na koniec
+                // Saldo początkowe
                 dokumenty.Add(new DokumentSalda
                 {
                     NrDokumentu = $"Saldo na {dataOd:dd.MM.yyyy}",
                     Data = dataOd,
-                    E2 = sE2,
-                    H1 = sH1,
-                    EURO = sEURO,
-                    PCV = sPCV,
-                    DREW = sDREW,
+                    E2 = sE2, H1 = sH1, EURO = sEURO, PCV = sPCV, DREW = sDREW,
                     JestSaldem = true
                 });
             }
             catch (Exception ex)
             {
+                Debug.WriteLine($"[ERROR] PobierzDokumentyZBazy: {ex.Message}");
                 throw new Exception($"Błąd podczas pobierania dokumentów: {ex.Message}", ex);
             }
+
+            sw.Stop();
+            Debug.WriteLine($"[PERF] PobierzDokumentyZBazy: {dokumenty.Count} records in {sw.ElapsedMilliseconds}ms");
 
             return dokumenty;
         }
 
         #endregion
 
-        #region Potwierdzenia (z osobnym cache)
+        #region Potwierdzenia
 
-        /// <summary>
-        /// Pobiera wszystkie potwierdzenia - z osobnym cache
-        /// </summary>
         private async Task<Dictionary<(int KontrahentId, string Typ), DateTime>> PobierzWszystkiePotwierdzeniaAsync()
         {
-            // Fast path
             if (IsCachePotwierdzeniaValid())
             {
                 return _cachePotwierdzenia;
@@ -490,39 +566,45 @@ ORDER BY MG.data DESC";
             await _lockPotwierdzenia.WaitAsync();
             try
             {
-                // Double-check
                 if (IsCachePotwierdzeniaValid())
                 {
                     return _cachePotwierdzenia;
                 }
 
                 var wyniki = new Dictionary<(int, string), DateTime>(200);
+                var sw = Stopwatch.StartNew();
 
                 try
                 {
-                    using var connection = new SqlConnection(_connectionStringLibraNet);
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                    using var command = new SqlCommand(QueryPotwierdzenia, connection);
-                    command.CommandTimeout = 30;
-
-                    using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-                    while (await reader.ReadAsync().ConfigureAwait(false))
+                    using (PerformanceProfiler.MeasureOperation("SQL_Potwierdzenia"))
                     {
-                        var kontrahentId = reader.GetInt32(0);
-                        var kod = reader.GetString(1);
-                        var data = reader.GetDateTime(2);
-                        wyniki[(kontrahentId, kod)] = data;
+                        using var connection = new SqlConnection(_connectionStringLibraNet);
+                        await connection.OpenAsync().ConfigureAwait(false);
+
+                        using var command = new SqlCommand(QueryPotwierdzenia, connection);
+                        command.CommandTimeout = 30;
+
+                        using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+                        while (await reader.ReadAsync().ConfigureAwait(false))
+                        {
+                            var kontrahentId = reader.GetInt32(0);
+                            var kod = reader.GetString(1);
+                            var data = reader.GetDateTime(2);
+                            wyniki[(kontrahentId, kod)] = data;
+                        }
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Ignoruj - tabela może nie istnieć
+                    Debug.WriteLine($"[WARN] Potwierdzenia error (ignored): {ex.Message}");
                     return new Dictionary<(int, string), DateTime>();
                 }
 
                 _cachePotwierdzenia = wyniki;
                 _cachePotwierdzeniaTime = DateTime.Now;
+
+                sw.Stop();
+                Debug.WriteLine($"[PERF] PobierzPotwierdzenia: {wyniki.Count} records in {sw.ElapsedMilliseconds}ms");
 
                 return wyniki;
             }
@@ -568,9 +650,8 @@ SELECT SCOPE_IDENTITY();";
 
                 var result = await command.ExecuteScalarAsync().ConfigureAwait(false);
 
-                // Selektywna invalidacja cache'y
+                // Invalidate tylko potwierdzenia (nie salda!)
                 InvalidatePotwierdzeniaCache();
-                InvalidateCache();
 
                 return Convert.ToInt32(result);
             }
@@ -633,7 +714,7 @@ ORDER BY DataPotwierdzenia DESC, DataWprowadzenia DESC";
             }
             catch
             {
-                // Ignoruj - tabela może nie istnieć
+                // Ignoruj
             }
 
             return wyniki;
@@ -641,20 +722,21 @@ ORDER BY DataPotwierdzenia DESC, DataWprowadzenia DESC";
 
         #endregion
 
-        #region Uprawnienia (z długim cache)
+        #region Handlowcy
 
         /// <summary>
-        /// Pobiera filtr handlowca dla użytkownika - z długim cache
+        /// Pobiera filtr handlowca dla użytkownika
         /// </summary>
         public async Task<string> PobierzHandlowcaAsync(string userId)
         {
             if (userId == "11111") return null; // Admin
 
-            // Sprawdź cache
-            if (IsCacheHandlowcyValid() && _cacheHandlowcy.TryGetValue(userId, out var cached))
+            if (_cacheHandlowcy.TryGetValue(userId, out var cached))
             {
+                PerformanceProfiler.RecordCacheHit("Handlowcy");
                 return cached;
             }
+            PerformanceProfiler.RecordCacheMiss("Handlowcy");
 
             string query = @"
 SELECT HandlowiecNazwa
@@ -672,12 +754,6 @@ WHERE UserId = @UserId AND CzyAktywny = 1";
                 var result = await command.ExecuteScalarAsync().ConfigureAwait(false);
                 var handlowiec = result?.ToString();
 
-                // Zapisz w cache
-                if (!IsCacheHandlowcyValid())
-                {
-                    _cacheHandlowcy.Clear();
-                    _cacheHandlowcyTime = DateTime.Now;
-                }
                 _cacheHandlowcy[userId] = handlowiec;
 
                 return handlowiec;
@@ -690,14 +766,10 @@ WHERE UserId = @UserId AND CzyAktywny = 1";
 
         #endregion
 
-        #region Pre-fetching (background loading)
+        #region Pre-loading
 
-        /// <summary>
-        /// Pre-ładuje dane w tle (fire-and-forget)
-        /// </summary>
         public void PreloadDataAsync(DateTime dataDo, string handlowiecFilter = null)
         {
-            // Fire-and-forget pre-loading
             _ = Task.Run(async () =>
             {
                 try
@@ -707,40 +779,23 @@ WHERE UserId = @UserId AND CzyAktywny = 1";
                         await PobierzWszystkieSaldaAsync(dataDo, handlowiecFilter).ConfigureAwait(false);
                     }
                 }
-                catch
-                {
-                    // Ignoruj błędy pre-loadingu
-                }
+                catch { }
             });
         }
 
-        /// <summary>
-        /// Pre-ładuje dokumenty kontrahenta w tle
-        /// </summary>
         public void PreloadDokumentyAsync(int kontrahentId, DateTime dataOd, DateTime dataDo)
         {
             var cacheKey = $"{kontrahentId}_{dataOd:yyyyMMdd}_{dataDo:yyyyMMdd}";
-
-            // Sprawdź czy już w cache
-            if (_cacheDokumenty.TryGetValue(cacheKey, out var cached))
+            if (_cacheDokumenty.TryGetValue(cacheKey, out var cached) &&
+                DateTime.Now - cached.Time <= CacheDokumentyLifetime)
             {
-                if (DateTime.Now - cached.Time <= CacheDokumentyLifetime)
-                {
-                    return; // Już jest w cache
-                }
+                return;
             }
 
-            // Fire-and-forget
             _ = Task.Run(async () =>
             {
-                try
-                {
-                    await PobierzDokumentyAsync(kontrahentId, dataOd, dataDo).ConfigureAwait(false);
-                }
-                catch
-                {
-                    // Ignoruj
-                }
+                try { await PobierzDokumentyAsync(kontrahentId, dataOd, dataDo).ConfigureAwait(false); }
+                catch { }
             });
         }
 
@@ -754,8 +809,6 @@ WHERE UserId = @UserId AND CzyAktywny = 1";
         {
             if (!_disposed)
             {
-                _lockSalda?.Dispose();
-                _lockPotwierdzenia?.Dispose();
                 _disposed = true;
             }
         }

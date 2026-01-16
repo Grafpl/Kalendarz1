@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Input;
 using Kalendarz1.Opakowania.ViewModels;
 using Kalendarz1.Opakowania.Models;
+using Kalendarz1.Opakowania.Services;
 
 namespace Kalendarz1.Opakowania.Views
 {
@@ -17,6 +18,25 @@ namespace Kalendarz1.Opakowania.Views
             InitializeComponent();
             _viewModel = new DashboardViewModel(userId);
             DataContext = _viewModel;
+        }
+
+        /// <summary>
+        /// Otwiera okno diagnostyki wydajności
+        /// </summary>
+        private void BtnDiagnostyka_Click(object sender, RoutedEventArgs e)
+        {
+            var diagWindow = new DiagnostykaWindow();
+            diagWindow.Owner = this;
+            diagWindow.ShowDialog();
+        }
+
+        /// <summary>
+        /// Wymusza pełne odświeżenie danych (invaliduje cache)
+        /// </summary>
+        private void BtnForceRefresh_Click(object sender, RoutedEventArgs e)
+        {
+            SaldaService.InvalidateAllCaches();
+            _viewModel.OdswiezCommand.Execute(null);
         }
 
         /// <summary>
