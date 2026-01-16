@@ -44,22 +44,18 @@ namespace Kalendarz1
             this.WindowState = FormWindowState.Maximized;
             this.Text = "ZPSP - Menu Główne";
 
-            sidePanel = new Panel { Dock = DockStyle.Left, Width = 220, BackColor = Color.FromArgb(35, 45, 55), Visible = false };
+            // Panel boczny z informacjami o użytkowniku - zawsze widoczny
+            sidePanel = new Panel
+            {
+                Dock = DockStyle.Left,
+                Width = 240,
+                BackColor = Color.FromArgb(30, 40, 50),
+                Visible = true
+            };
 
-            var adminPanelButton = new Button { Text = "⚙ Panel Administracyjny", Font = new Font("Segoe UI", 10, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(229, 57, 53), FlatStyle = FlatStyle.Flat, Size = new Size(190, 45), Location = new Point(15, 20), Cursor = Cursors.Hand };
-            adminPanelButton.FlatAppearance.BorderSize = 0;
-            adminPanelButton.Click += AdminPanelButton_Click;
-            sidePanel.Controls.Add(adminPanelButton);
-
-            var logoutButton = new Button { Text = "🚪 Wyloguj", Font = new Font("Segoe UI", 10), ForeColor = Color.White, BackColor = Color.FromArgb(76, 88, 100), FlatStyle = FlatStyle.Flat, Size = new Size(190, 40), Location = new Point(15, 75), Cursor = Cursors.Hand };
-            logoutButton.FlatAppearance.BorderSize = 0;
-            logoutButton.Click += LogoutButton_Click;
-            sidePanel.Controls.Add(logoutButton);
-
-            // Panel z informacją o zalogowanym użytkowniku (na dole sidePanel)
-            var userInfoPanel = CreateUserInfoPanel();
-            userInfoPanel.Dock = DockStyle.Bottom;
-            sidePanel.Controls.Add(userInfoPanel);
+            // Górna sekcja z użytkownikiem
+            var userSection = CreateUserSidePanel();
+            sidePanel.Controls.Add(userSection);
 
             mainLayout = new TableLayoutPanel
             {
@@ -72,73 +68,57 @@ namespace Kalendarz1
             mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
 
-            // Panel użytkownika w prawym dolnym rogu (zawsze widoczny)
-            var userCornerPanel = CreateUserCornerPanel();
-            this.Controls.Add(userCornerPanel);
-
             this.Controls.Add(mainLayout);
             this.Controls.Add(sidePanel);
         }
 
         /// <summary>
-        /// Tworzy mały panel użytkownika w prawym dolnym rogu
+        /// Tworzy panel boczny z informacjami o użytkowniku
         /// </summary>
-        private Panel CreateUserCornerPanel()
+        private Panel CreateUserSidePanel()
         {
             string odbiorcaId = App.UserID ?? "";
             string userName = App.UserFullName ?? App.UserID ?? "Użytkownik";
-            int avatarSize = 50;
+            int avatarSize = 80;
 
             var panel = new Panel
             {
-                Size = new Size(240, 95),
-                BackColor = Color.FromArgb(45, 55, 65),
-                Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
-                Cursor = Cursors.Default
+                Dock = DockStyle.Fill,
+                BackColor = Color.Transparent,
+                Padding = new Padding(0)
             };
 
-            // Pozycja zostanie ustawiona po załadowaniu formularza
-            this.Load += (s, e) =>
+            // Górna sekcja z avatarem i nazwą
+            var headerPanel = new Panel
             {
-                panel.Location = new Point(this.ClientSize.Width - panel.Width - 15, this.ClientSize.Height - panel.Height - 15);
+                Dock = DockStyle.Top,
+                Height = 180,
+                BackColor = Color.FromArgb(25, 35, 45)
             };
 
-            this.Resize += (s, e) =>
-            {
-                panel.Location = new Point(this.ClientSize.Width - panel.Width - 15, this.ClientSize.Height - panel.Height - 15);
-            };
-
-            // Zaokrąglone rogi i cień
-            panel.Paint += (s, e) =>
+            // Gradient w tle headera
+            headerPanel.Paint += (s, e) =>
             {
                 e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-
-                // Tło z gradientem
                 using (var brush = new LinearGradientBrush(
-                    new Point(0, 0), new Point(panel.Width, 0),
-                    Color.FromArgb(50, 60, 70), Color.FromArgb(40, 50, 60)))
+                    new Point(0, 0), new Point(0, headerPanel.Height),
+                    Color.FromArgb(40, 55, 70), Color.FromArgb(25, 35, 45)))
                 {
-                    e.Graphics.FillRectangle(brush, 0, 0, panel.Width, panel.Height);
-                }
-
-                // Ramka
-                using (var pen = new Pen(Color.FromArgb(70, 80, 90), 1))
-                {
-                    e.Graphics.DrawRectangle(pen, 0, 0, panel.Width - 1, panel.Height - 1);
+                    e.Graphics.FillRectangle(brush, 0, 0, headerPanel.Width, headerPanel.Height);
                 }
 
                 // Zielony pasek akcentowy na górze
                 using (var brush = new SolidBrush(Color.FromArgb(76, 175, 80)))
                 {
-                    e.Graphics.FillRectangle(brush, 0, 0, panel.Width, 3);
+                    e.Graphics.FillRectangle(brush, 0, 0, headerPanel.Width, 4);
                 }
             };
 
-            // Avatar
+            // Avatar wycentrowany
             var avatarPanel = new Panel
             {
                 Size = new Size(avatarSize, avatarSize),
-                Location = new Point(12, 12),
+                Location = new Point((240 - avatarSize) / 2, 25),
                 BackColor = Color.Transparent
             };
 
@@ -147,15 +127,21 @@ namespace Kalendarz1
                 e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
                 e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
 
+                // Biała obwódka wokół avatara
+                using (var pen = new Pen(Color.FromArgb(100, 255, 255, 255), 3))
+                {
+                    e.Graphics.DrawEllipse(pen, 1, 1, avatarSize - 3, avatarSize - 3);
+                }
+
                 try
                 {
                     if (UserAvatarManager.HasAvatar(odbiorcaId))
                     {
-                        using (var avatar = UserAvatarManager.GetAvatarRounded(odbiorcaId, avatarSize))
+                        using (var avatar = UserAvatarManager.GetAvatarRounded(odbiorcaId, avatarSize - 6))
                         {
                             if (avatar != null)
                             {
-                                e.Graphics.DrawImage(avatar, 0, 0, avatarSize, avatarSize);
+                                e.Graphics.DrawImage(avatar, 3, 3, avatarSize - 6, avatarSize - 6);
                                 return;
                             }
                         }
@@ -163,71 +149,124 @@ namespace Kalendarz1
                 }
                 catch { }
 
-                using (var defaultAvatar = UserAvatarManager.GenerateDefaultAvatar(userName, odbiorcaId, avatarSize))
+                using (var defaultAvatar = UserAvatarManager.GenerateDefaultAvatar(userName, odbiorcaId, avatarSize - 6))
                 {
-                    e.Graphics.DrawImage(defaultAvatar, 0, 0, avatarSize, avatarSize);
+                    e.Graphics.DrawImage(defaultAvatar, 3, 3, avatarSize - 6, avatarSize - 6);
                 }
             };
-            panel.Controls.Add(avatarPanel);
+            headerPanel.Controls.Add(avatarPanel);
 
-            // Nazwa użytkownika
+            // Nazwa użytkownika - wycentrowana
             var nameLabel = new Label
             {
                 Text = userName,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new Font("Segoe UI", 12, FontStyle.Bold),
                 ForeColor = Color.White,
-                Location = new Point(70, 12),
-                AutoSize = true,
-                MaximumSize = new Size(160, 0),
+                AutoSize = false,
+                Size = new Size(220, 25),
+                Location = new Point(10, 115),
+                TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent
             };
-            panel.Controls.Add(nameLabel);
+            headerPanel.Controls.Add(nameLabel);
 
-            // Status online
+            // Status online - wycentrowany
             var statusLabel = new Label
             {
                 Text = "● Online",
-                Font = new Font("Segoe UI", 8),
+                Font = new Font("Segoe UI", 9),
                 ForeColor = Color.FromArgb(76, 175, 80),
-                Location = new Point(70, 35),
-                AutoSize = true,
+                AutoSize = false,
+                Size = new Size(220, 20),
+                Location = new Point(10, 142),
+                TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent
             };
-            panel.Controls.Add(statusLabel);
+            headerPanel.Controls.Add(statusLabel);
 
-            // Przycisk wyloguj
+            panel.Controls.Add(headerPanel);
+
+            // Separator
+            var separator = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 1,
+                BackColor = Color.FromArgb(50, 60, 70)
+            };
+            panel.Controls.Add(separator);
+
+            // Sekcja z przyciskami
+            var buttonsPanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 130,
+                BackColor = Color.FromArgb(30, 40, 50),
+                Padding = new Padding(15, 15, 15, 10)
+            };
+
+            // Przycisk Panel Administracyjny (widoczny tylko dla adminów)
+            var adminButton = new Button
+            {
+                Text = "⚙ Panel Administracyjny",
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                Size = new Size(210, 40),
+                Location = new Point(15, 15),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(229, 57, 53),
+                ForeColor = Color.White,
+                Cursor = Cursors.Hand,
+                Visible = false,
+                Tag = "adminButton"
+            };
+            adminButton.FlatAppearance.BorderSize = 0;
+            adminButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(244, 81, 77);
+            adminButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(198, 40, 40);
+            adminButton.Click += AdminPanelButton_Click;
+            buttonsPanel.Controls.Add(adminButton);
+
+            // Przycisk Wyloguj
             var logoutButton = new Button
             {
-                Text = "Wyloguj",
+                Text = "🚪 Wyloguj",
                 Font = new Font("Segoe UI", 9),
-                Size = new Size(216, 30),
-                Location = new Point(12, 58),
+                Size = new Size(210, 40),
+                Location = new Point(15, 65),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(60, 70, 80),
+                BackColor = Color.FromArgb(55, 65, 75),
                 ForeColor = Color.White,
                 Cursor = Cursors.Hand
             };
-            logoutButton.FlatAppearance.BorderColor = Color.FromArgb(80, 90, 100);
-            logoutButton.FlatAppearance.BorderSize = 1;
+            logoutButton.FlatAppearance.BorderSize = 0;
             logoutButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(180, 60, 60);
             logoutButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(200, 50, 50);
+            logoutButton.Click += LogoutButton_Click;
+            buttonsPanel.Controls.Add(logoutButton);
 
-            logoutButton.Click += (s, e) =>
+            panel.Controls.Add(buttonsPanel);
+
+            // Dolna sekcja - informacje o aplikacji
+            var footerPanel = new Panel
             {
-                var result = MessageBox.Show(
-                    "Czy na pewno chcesz się wylogować?",
-                    "Wylogowanie",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Question);
-
-                if (result == DialogResult.Yes)
-                {
-                    this.Close();
-                }
+                Dock = DockStyle.Bottom,
+                Height = 50,
+                BackColor = Color.FromArgb(20, 28, 36)
             };
-            panel.Controls.Add(logoutButton);
 
-            panel.BringToFront();
+            var versionLabel = new Label
+            {
+                Text = "ZPSP v2.0",
+                Font = new Font("Segoe UI", 8),
+                ForeColor = Color.FromArgb(100, 110, 120),
+                AutoSize = false,
+                Size = new Size(220, 20),
+                Location = new Point(10, 15),
+                TextAlign = ContentAlignment.MiddleCenter,
+                BackColor = Color.Transparent
+            };
+            footerPanel.Controls.Add(versionLabel);
+
+            panel.Controls.Add(footerPanel);
+
             return panel;
         }
 
@@ -240,7 +279,8 @@ namespace Kalendarz1
 
             if (isAdmin)
             {
-                sidePanel.Visible = true;
+                // Pokaż przycisk Panel Administracyjny dla admina
+                ShowAdminButton();
                 LoadAllPermissions(true);
             }
             else
@@ -336,6 +376,39 @@ namespace Kalendarz1
                     userPermissions[accessMap[i]] = true;
                 }
             }
+        }
+
+        /// <summary>
+        /// Pokazuje przycisk Panel Administracyjny w panelu bocznym
+        /// </summary>
+        private void ShowAdminButton()
+        {
+            var adminButton = FindControlByTag(sidePanel, "adminButton");
+            if (adminButton != null)
+            {
+                adminButton.Visible = true;
+            }
+        }
+
+        /// <summary>
+        /// Rekurencyjnie szuka kontrolki po Tag
+        /// </summary>
+        private Control FindControlByTag(Control parent, string tag)
+        {
+            foreach (Control control in parent.Controls)
+            {
+                if (control.Tag != null && control.Tag.ToString() == tag)
+                {
+                    return control;
+                }
+
+                var found = FindControlByTag(control, tag);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+            return null;
         }
 
         private void LoadAllPermissions(bool grantAll)
@@ -921,122 +994,6 @@ namespace Kalendarz1
             {
                 Application.Restart();
             }
-        }
-
-        /// <summary>
-        /// Tworzy panel z informacją o zalogowanym użytkowniku z avatarem
-        /// </summary>
-        private Panel CreateUserInfoPanel()
-        {
-            var panel = new Panel
-            {
-                Height = 80,
-                BackColor = Color.FromArgb(28, 38, 48),
-                Padding = new Padding(10)
-            };
-
-            // Separator na górze
-            var separator = new Panel
-            {
-                Dock = DockStyle.Top,
-                Height = 1,
-                BackColor = Color.FromArgb(60, 70, 80)
-            };
-            panel.Controls.Add(separator);
-
-            // Avatar
-            string odbiorcaId = App.UserID ?? "";
-            string userName = App.UserFullName ?? App.UserID ?? "Użytkownik";
-            int avatarSize = 50;
-
-            var avatarPanel = new Panel
-            {
-                Size = new Size(avatarSize, avatarSize),
-                Location = new Point(10, 18),
-                BackColor = Color.Transparent
-            };
-
-            avatarPanel.Paint += (s, e) =>
-            {
-                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-
-                try
-                {
-                    if (UserAvatarManager.HasAvatar(odbiorcaId))
-                    {
-                        using (var avatar = UserAvatarManager.GetAvatarRounded(odbiorcaId, avatarSize))
-                        {
-                            if (avatar != null)
-                            {
-                                e.Graphics.DrawImage(avatar, 0, 0, avatarSize, avatarSize);
-                                return;
-                            }
-                        }
-                    }
-                }
-                catch { }
-
-                // Domyślny avatar z inicjałami
-                using (var defaultAvatar = UserAvatarManager.GenerateDefaultAvatar(userName, odbiorcaId, avatarSize))
-                {
-                    e.Graphics.DrawImage(defaultAvatar, 0, 0, avatarSize, avatarSize);
-                }
-            };
-            panel.Controls.Add(avatarPanel);
-
-            // Nazwa użytkownika
-            var nameLabel = new Label
-            {
-                Text = userName,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                ForeColor = Color.White,
-                Location = new Point(70, 20),
-                AutoSize = true,
-                MaximumSize = new Size(130, 0),
-                AutoEllipsis = true
-            };
-            panel.Controls.Add(nameLabel);
-
-            // ID użytkownika
-            var idLabel = new Label
-            {
-                Text = $"ID: {odbiorcaId}",
-                Font = new Font("Segoe UI", 8),
-                ForeColor = Color.FromArgb(140, 150, 160),
-                Location = new Point(70, 42),
-                AutoSize = true
-            };
-            panel.Controls.Add(idLabel);
-
-            // Zielona kropka "online"
-            var statusDot = new Panel
-            {
-                Size = new Size(10, 10),
-                Location = new Point(70, 58),
-                BackColor = Color.FromArgb(76, 175, 80)
-            };
-            statusDot.Paint += (s, e) =>
-            {
-                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                using (var brush = new SolidBrush(Color.FromArgb(76, 175, 80)))
-                {
-                    e.Graphics.FillEllipse(brush, 0, 0, 9, 9);
-                }
-            };
-            panel.Controls.Add(statusDot);
-
-            var onlineLabel = new Label
-            {
-                Text = "Online",
-                Font = new Font("Segoe UI", 8),
-                ForeColor = Color.FromArgb(76, 175, 80),
-                Location = new Point(82, 55),
-                AutoSize = true
-            };
-            panel.Controls.Add(onlineLabel);
-
-            return panel;
         }
 
         private void MENU_Load(object sender, EventArgs e) { }
