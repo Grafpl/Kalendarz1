@@ -280,6 +280,53 @@
             <Setter Property="Background" Value="#607D8B"/>
         </Style>
 
+        <!-- Styl dla przycisków toolbara z animacją hover -->
+        <Style x:Key="ToolbarButton" TargetType="Button">
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                                 To="1.05" Duration="0:0:0.1"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                 To="1.05" Duration="0:0:0.1"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                    <Trigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                                 To="1" Duration="0:0:0.1"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                 To="1" Duration="0:0:0.1"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.ExitActions>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="RenderTransform">
+                        <Setter.Value>
+                            <ScaleTransform ScaleX="0.95" ScaleY="0.95"/>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- Styl pulsującej komórki dla wartości wymagających uwagi -->
         <Style x:Key="PulsingCellStyle" TargetType="Border">
             <Setter Property="Background" Value="#FFCDD2"/>
@@ -306,26 +353,14 @@
 
         <!-- Loading Skeleton styl dla animacji ładowania -->
         <Style x:Key="SkeletonStyle" TargetType="Border">
-            <Setter Property="Background">
-                <Setter.Value>
-                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                        <GradientStop Color="#EEEEEE" Offset="0"/>
-                        <GradientStop Color="#E0E0E0" Offset="0.5"/>
-                        <GradientStop Color="#EEEEEE" Offset="1"/>
-                    </LinearGradientBrush>
-                </Setter.Value>
-            </Setter>
+            <Setter Property="Background" Value="#E0E0E0"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Style.Triggers>
                 <EventTrigger RoutedEvent="Loaded">
                     <BeginStoryboard>
                         <Storyboard RepeatBehavior="Forever">
-                            <DoubleAnimation Storyboard.TargetProperty="(Border.Background).(LinearGradientBrush.GradientStops)[0].Offset"
-                                             From="-1" To="2" Duration="0:0:1.5"/>
-                            <DoubleAnimation Storyboard.TargetProperty="(Border.Background).(LinearGradientBrush.GradientStops)[1].Offset"
-                                             From="-0.5" To="2.5" Duration="0:0:1.5"/>
-                            <DoubleAnimation Storyboard.TargetProperty="(Border.Background).(LinearGradientBrush.GradientStops)[2].Offset"
-                                             From="0" To="3" Duration="0:0:1.5"/>
+                            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                             From="0.5" To="1" Duration="0:0:0.8" AutoReverse="True"/>
                         </Storyboard>
                     </BeginStoryboard>
                 </EventTrigger>
@@ -955,6 +990,15 @@
                     <Border.Effect>
                         <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="15"/>
                     </Border.Effect>
+                    <Border.Triggers>
+                        <EventTrigger RoutedEvent="Border.Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.3"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Border.Triggers>
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -979,60 +1023,51 @@
                                 <Button x:Name="btnApplyAllToSupplier" Click="ToolBar_ApplyAllToSupplier"
                                         Content="Zastosuj WSZYSTKO do dostawcy"
                                         ToolTip="Zastosuj wszystkie ustawienia cenowe do wierszy tego samego dostawcy (Ctrl+Shift+A)"
-                                        Padding="10,4" Margin="0,0,5,0" Background="#FF9800" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+                                        Style="{StaticResource ToolbarButton}" Background="#FF9800"/>
 
                                 <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
 
                                 <Button x:Name="buttonBon" Click="ButtonBon_Click"
                                         Content="AVILOG" ToolTip="Wczytaj dane z AVILOG"
-                                        Padding="10,4" Margin="5,0,2,0" Background="#3498DB" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand"/>
+                                        Style="{StaticResource ToolbarButton}" Background="#3498DB"/>
                                 <Button x:Name="btnLoadData" Click="BtnLoadData_Click"
                                         Content="LUMEL" ToolTip="Wczytaj dane z LUMEL"
-                                        Padding="10,4" Margin="2,0,5,0" Background="#9B59B6" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand"/>
+                                        Style="{StaticResource ToolbarButton}" Background="#9B59B6"/>
 
                                 <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
 
                                 <!-- Przycisk Dodaj specyfikację -->
                                 <Button x:Name="btnDodajSpecyfikacje" Click="BtnDodajSpecyfikacje_Click"
-                                        Content="➕ Dodaj specyfikację" 
+                                        Content="➕ Dodaj specyfikację"
                                         ToolTip="Otwórz kreator nowej specyfikacji&#x0a;Shift+klik = szybkie dodanie pustego wiersza"
-                                        Padding="10,4" Margin="2,0,5,0" Background="#2E7D32" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+                                        Style="{StaticResource ToolbarButton}" Background="#2E7D32"/>
 
                                 <!-- === NOWY PRZYCISK IMPORT Z EXCEL === -->
                                 <Button x:Name="btnImportExcel" Click="BtnImportExcel_Click"
                                         Content="📥 Import Excel" ToolTip="Importuj specyfikacje z pliku Excel/LibreOffice (kreator)"
-                                        Padding="10,4" Margin="2,0,5,0" Background="#FF5722" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+                                        Style="{StaticResource ToolbarButton}" Background="#FF5722"/>
 
                                 <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
 
                                 <!-- Przycisk Otwórz folder -->
                                 <Button x:Name="btnOtworzFolder" Click="BtnOtworzFolder_Click"
                                         Content="📁 Otwórz folder" ToolTip="Otwórz folder z plikami specyfikacji"
-                                        Padding="10,4" Margin="2,0,2,0" Background="#5D4037" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+                                        Style="{StaticResource ToolbarButton}" Background="#5D4037"/>
 
                                 <Border Width="1" Background="#E0E0E0" Margin="5,2"/>
 
                                 <!-- PRZYCISK PDF -->
                                 <Button x:Name="btnGenerujPdf" Click="Button1_Click"
                                         Content="📄 PDF" ToolTip="Generuj PDF dla wybranego dostawcy (prawy przycisk myszy dla więcej opcji)"
-                                        Padding="12,4" Margin="2,0,2,0" Background="#E53935" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand" FontWeight="Bold" FontSize="12"/>
+                                        Style="{StaticResource ToolbarButton}" Background="#E53935" FontSize="12"/>
                                 <Button x:Name="btnGenerujPdfAll" Click="BtnPrintAll_Click"
                                         Content="📄 Wszystkie PDF" ToolTip="Generuj PDF dla wszystkich dostawców"
-                                        Padding="10,4" Margin="2,0,2,0" Background="#C62828" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+                                        Style="{StaticResource ToolbarButton}" Background="#C62828"/>
 
                                 <!-- Przycisk Wyślij email -->
                                 <Button x:Name="btnWyslijEmail" Click="BtnWyslijEmail_Click"
                                         Content="📧 Wyślij email" ToolTip="Wyślij specyfikację emailem"
-                                        Padding="10,4" Margin="2,0,5,0" Background="#1976D2" Foreground="White"
-                                        BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
+                                        Style="{StaticResource ToolbarButton}" Background="#1976D2"/>
 
                                 <!-- Checkboxy kolumn: Opas, Kl.B, Dodatek, Pośrednik -->
                                 <Border Background="#F5F5F5" CornerRadius="4" Padding="5,2" Margin="5,0">
@@ -2039,6 +2074,15 @@
                     <Border.Effect>
                         <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="15"/>
                     </Border.Effect>
+                    <Border.Triggers>
+                        <EventTrigger RoutedEvent="Border.Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.3"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Border.Triggers>
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -2600,6 +2644,15 @@
                     <Border.Effect>
                         <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="15"/>
                     </Border.Effect>
+                    <Border.Triggers>
+                        <EventTrigger RoutedEvent="Border.Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.3"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Border.Triggers>
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -2971,6 +3024,15 @@
                     <Border.Effect>
                         <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="15"/>
                     </Border.Effect>
+                    <Border.Triggers>
+                        <EventTrigger RoutedEvent="Border.Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.3"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Border.Triggers>
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -3748,13 +3810,13 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <!-- Nagłówek IRZplus z gradientem animowanym i efektem glow -->
+                        <!-- Nagłówek IRZplus z efektem glow -->
                         <Border Grid.Row="0" CornerRadius="10,10,0,0" Padding="24,20">
                             <Border.Background>
-                                <LinearGradientBrush x:Name="headerGradient" StartPoint="0,0" EndPoint="1,1">
-                                    <GradientStop x:Name="headerGradStop1" Color="#1976D2" Offset="0"/>
-                                    <GradientStop x:Name="headerGradStop2" Color="#1565C0" Offset="0.5"/>
-                                    <GradientStop x:Name="headerGradStop3" Color="#0D47A1" Offset="1"/>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#1976D2" Offset="0"/>
+                                    <GradientStop Color="#1565C0" Offset="0.5"/>
+                                    <GradientStop Color="#0D47A1" Offset="1"/>
                                 </LinearGradientBrush>
                             </Border.Background>
                             <Border.Effect>
@@ -3764,16 +3826,9 @@
                                 <EventTrigger RoutedEvent="Border.Loaded">
                                     <BeginStoryboard>
                                         <Storyboard RepeatBehavior="Forever">
-                                            <!-- Animacja gradientu przesuwającego się powoli -->
-                                            <ColorAnimation Storyboard.TargetProperty="(Border.Background).(LinearGradientBrush.GradientStops)[0].Color"
-                                                            From="#1976D2" To="#2196F3" Duration="0:0:3" AutoReverse="True"/>
-                                            <ColorAnimation Storyboard.TargetProperty="(Border.Background).(LinearGradientBrush.GradientStops)[2].Color"
-                                                            From="#0D47A1" To="#1565C0" Duration="0:0:3" AutoReverse="True"/>
                                             <!-- Pulsujący efekt glow -->
                                             <DoubleAnimation Storyboard.TargetProperty="(Effect).(DropShadowEffect.BlurRadius)"
-                                                             From="20" To="35" Duration="0:0:2" AutoReverse="True"/>
-                                            <DoubleAnimation Storyboard.TargetProperty="(Effect).(DropShadowEffect.Opacity)"
-                                                             From="0.5" To="0.7" Duration="0:0:2" AutoReverse="True"/>
+                                                             From="20" To="30" Duration="0:0:2" AutoReverse="True"/>
                                         </Storyboard>
                                     </BeginStoryboard>
                                 </EventTrigger>
@@ -4325,6 +4380,15 @@
                     <Border.Effect>
                         <DropShadowEffect ShadowDepth="1" Color="#000000" Opacity="0.08" BlurRadius="10"/>
                     </Border.Effect>
+                    <Border.Triggers>
+                        <EventTrigger RoutedEvent="Border.Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.3"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Border.Triggers>
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
