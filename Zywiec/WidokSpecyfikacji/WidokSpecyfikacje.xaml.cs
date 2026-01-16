@@ -12122,9 +12122,7 @@ namespace Kalendarz1
             txtIRZplusSumaSztuk.Text = wybrane.Sum(s => s.LiczbaSztukDrobiu).ToString("N0");
             txtIRZplusSumaWagi.Text = wybrane.Sum(s => s.WagaNetto).ToString("N0") + " kg";
             txtIRZplusSumaPadlych.Text = wybrane.Sum(s => s.SztukiPadle).ToString("N0");
-            txtIRZplusSumaKgDoZapl.Text = wybrane.Sum(s => s.KgDoZaplaty).ToString("N0");
             txtIRZplusSumaKonfiskat.Text = wybrane.Sum(s => s.KgKonfiskat).ToString("N0");
-            txtIRZplusSumaPadlychSzt.Text = wybrane.Sum(s => s.KgPadlych).ToString("N0");
 
             btnIRZplusSend.IsEnabled = wybrane.Count > 0;
         }

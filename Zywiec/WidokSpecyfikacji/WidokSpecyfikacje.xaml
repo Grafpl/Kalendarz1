@@ -950,7 +950,7 @@
                 </Style>
             </TabControl.Resources>
 
-            <TabItem Header="📋 Specyfikacje">
+            <TabItem Header="🐔 Specyfikacje">
                 <Border Background="White" CornerRadius="0,10,10,10">
                     <Border.Effect>
                         <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="15"/>
@@ -3410,7 +3410,7 @@
             </TabItem>
 
             <!-- === KARTA IRZPLUS === -->
-            <TabItem Header="🐔 IRZplus" x:Name="tabIRZplus">
+            <TabItem Header="📋 IRZplus" x:Name="tabIRZplus">
                 <TabItem.Resources>
                     <!-- Style dla nowoczesnych przycisków -->
                     <Style x:Key="ModernButton" TargetType="Button">
@@ -3523,46 +3523,34 @@
 
                                 <!-- Statystyki -->
                                 <WrapPanel Grid.Column="0" Orientation="Horizontal">
-                                    <Border Background="#E3F2FD" CornerRadius="6" Padding="12,8" Margin="0,0,10,4">
+                                    <Border Background="#E3F2FD" CornerRadius="6" Padding="14,10" Margin="0,0,12,4">
                                         <StackPanel>
-                                            <TextBlock Text="Dostawcy" FontSize="11" Foreground="#1565C0" FontWeight="SemiBold"/>
-                                            <TextBlock x:Name="txtIRZplusLiczbaDostawcow" Text="0" FontSize="18" FontWeight="Bold" Foreground="#0D47A1"/>
+                                            <TextBlock Text="Dostawcy" FontSize="12" Foreground="#1565C0" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtIRZplusLiczbaDostawcow" Text="0" FontSize="20" FontWeight="Bold" Foreground="#0D47A1"/>
                                         </StackPanel>
                                     </Border>
-                                    <Border Background="#E8F5E9" CornerRadius="6" Padding="12,8" Margin="0,0,10,4">
+                                    <Border Background="#E8F5E9" CornerRadius="6" Padding="14,10" Margin="0,0,12,4">
                                         <StackPanel>
-                                            <TextBlock Text="Suma sztuk" FontSize="11" Foreground="#2E7D32" FontWeight="SemiBold"/>
-                                            <TextBlock x:Name="txtIRZplusSumaSztuk" Text="0" FontSize="18" FontWeight="Bold" Foreground="#1B5E20"/>
+                                            <TextBlock Text="Suma sztuk" FontSize="12" Foreground="#2E7D32" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtIRZplusSumaSztuk" Text="0" FontSize="20" FontWeight="Bold" Foreground="#1B5E20"/>
                                         </StackPanel>
                                     </Border>
-                                    <Border Background="#E3F2FD" CornerRadius="6" Padding="12,8" Margin="0,0,10,4">
+                                    <Border Background="#E3F2FD" CornerRadius="6" Padding="14,10" Margin="0,0,12,4">
                                         <StackPanel>
-                                            <TextBlock Text="Waga netto" FontSize="11" Foreground="#1565C0" FontWeight="SemiBold"/>
-                                            <TextBlock x:Name="txtIRZplusSumaWagi" Text="0 kg" FontSize="18" FontWeight="Bold" Foreground="#0D47A1"/>
+                                            <TextBlock Text="Waga netto" FontSize="12" Foreground="#1565C0" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtIRZplusSumaWagi" Text="0 kg" FontSize="20" FontWeight="Bold" Foreground="#0D47A1"/>
                                         </StackPanel>
                                     </Border>
-                                    <Border Background="#FFEBEE" CornerRadius="6" Padding="12,8" Margin="0,0,10,4">
+                                    <Border Background="#FFEBEE" CornerRadius="6" Padding="14,10" Margin="0,0,12,4">
                                         <StackPanel>
-                                            <TextBlock Text="Padłe szt" FontSize="11" Foreground="#C62828" FontWeight="SemiBold"/>
-                                            <TextBlock x:Name="txtIRZplusSumaPadlych" Text="0" FontSize="18" FontWeight="Bold" Foreground="#B71C1C"/>
+                                            <TextBlock Text="Padłe szt" FontSize="12" Foreground="#C62828" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtIRZplusSumaPadlych" Text="0" FontSize="20" FontWeight="Bold" Foreground="#B71C1C"/>
                                         </StackPanel>
                                     </Border>
-                                    <Border Background="#E3F2FD" CornerRadius="6" Padding="12,8" Margin="0,0,10,4">
+                                    <Border Background="#FFF3E0" CornerRadius="6" Padding="14,10" Margin="0,0,0,4">
                                         <StackPanel>
-                                            <TextBlock Text="KG do zapł" FontSize="11" Foreground="#1565C0" FontWeight="SemiBold"/>
-                                            <TextBlock x:Name="txtIRZplusSumaKgDoZapl" Text="0" FontSize="18" FontWeight="Bold" Foreground="#0D47A1"/>
-                                        </StackPanel>
-                                    </Border>
-                                    <Border Background="#FFF3E0" CornerRadius="6" Padding="12,8" Margin="0,0,10,4">
-                                        <StackPanel>
-                                            <TextBlock Text="Konfiskaty szt" FontSize="11" Foreground="#E65100" FontWeight="SemiBold"/>
-                                            <TextBlock x:Name="txtIRZplusSumaKonfiskat" Text="0" FontSize="18" FontWeight="Bold" Foreground="#BF360C"/>
-                                        </StackPanel>
-                                    </Border>
-                                    <Border Background="#FFEBEE" CornerRadius="6" Padding="12,8" Margin="0,0,0,4">
-                                        <StackPanel>
-                                            <TextBlock Text="Padłe szt" FontSize="11" Foreground="#C62828" FontWeight="SemiBold"/>
-                                            <TextBlock x:Name="txtIRZplusSumaPadlychSzt" Text="0" FontSize="18" FontWeight="Bold" Foreground="#B71C1C"/>
+                                            <TextBlock Text="Konfiskaty szt" FontSize="12" Foreground="#E65100" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="txtIRZplusSumaKonfiskat" Text="0" FontSize="20" FontWeight="Bold" Foreground="#BF360C"/>
                                         </StackPanel>
                                     </Border>
                                 </WrapPanel>
@@ -3633,8 +3621,8 @@
                                 </DataGrid.CellStyle>
 
                                 <DataGrid.Columns>
-                                    <DataGridCheckBoxColumn Header="✓" Binding="{Binding Wybrana, UpdateSourceTrigger=PropertyChanged}" Width="40"/>
-                                    <DataGridTextColumn Header="Nr" Binding="{Binding KolejnoscAuta}" Width="45" IsReadOnly="True">
+                                    <DataGridCheckBoxColumn Header="✓" Binding="{Binding Wybrana, UpdateSourceTrigger=PropertyChanged}" Width="45"/>
+                                    <DataGridTextColumn Header="Nr" Binding="{Binding KolejnoscAuta}" Width="50" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="FontWeight" Value="Bold"/>
@@ -3642,32 +3630,36 @@
                                                 <Setter Property="HorizontalAlignment" Value="Center"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
                                                 <Setter Property="Foreground" Value="#1565C0"/>
+                                                <Setter Property="Padding" Value="8,0"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Hodowca" Binding="{Binding Hodowca}" Width="160" IsReadOnly="True">
+                                    <DataGridTextColumn Header="Hodowca" Binding="{Binding Hodowca}" Width="180" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="FontWeight" Value="SemiBold"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Padding" Value="10,0"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Id" Binding="{Binding IdHodowcy}" Width="55" IsReadOnly="True">
+                                    <DataGridTextColumn Header="Id" Binding="{Binding IdHodowcy}" Width="60" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
                                                 <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                <Setter Property="Padding" Value="8,0"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="IRZ PLUS" Binding="{Binding IRZPlus, UpdateSourceTrigger=PropertyChanged}" Width="130">
+                                    <DataGridTextColumn Header="IRZ PLUS" Binding="{Binding IRZPlus, UpdateSourceTrigger=PropertyChanged}" Width="140">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="FontWeight" Value="Bold"/>
                                                 <Setter Property="FontSize" Value="14"/>
                                                 <Setter Property="Foreground" Value="#0D47A1"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Padding" Value="10,0"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                         <DataGridTextColumn.EditingElementStyle>
@@ -3675,11 +3667,11 @@
                                                 <Setter Property="FontWeight" Value="Bold"/>
                                                 <Setter Property="FontSize" Value="14"/>
                                                 <Setter Property="Foreground" Value="#0D47A1"/>
-                                                <Setter Property="Padding" Value="4"/>
+                                                <Setter Property="Padding" Value="6"/>
                                             </Style>
                                         </DataGridTextColumn.EditingElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTemplateColumn Header="Numer Partii" Width="170" IsReadOnly="True">
+                                    <DataGridTemplateColumn Header="Numer Partii" Width="190" IsReadOnly="True">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <Grid>
@@ -3687,7 +3679,7 @@
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="{Binding NumerPartii}" VerticalAlignment="Center" Margin="4,0" FontSize="13"/>
+                                                    <TextBlock Grid.Column="0" Text="{Binding NumerPartii}" VerticalAlignment="Center" Margin="10,0,4,0" FontSize="13"/>
                                                     <Button Grid.Column="1" Content="📋" Click="BtnIRZplusKopiujPartie_Click" Tag="{Binding NumerPartii}"
                                                             Background="#E3F2FD" Foreground="#1976D2" FontSize="14" Padding="8,4" Margin="2,0" Cursor="Hand" ToolTip="Kopiuj numer partii"
                                                             BorderThickness="1" BorderBrush="#1976D2"/>
@@ -3695,18 +3687,18 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTextColumn Header="Sztuki" Binding="{Binding LiczbaSztukDrobiu, StringFormat=N0}" Width="80" IsReadOnly="True">
+                                    <DataGridTextColumn Header="Sztuki" Binding="{Binding LiczbaSztukDrobiu, StringFormat=N0}" Width="90" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="FontWeight" Value="Bold"/>
                                                 <Setter Property="FontSize" Value="15"/>
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
-                                                <Setter Property="Margin" Value="0,0,8,0"/>
+                                                <Setter Property="Margin" Value="0,0,12,0"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="KG" Binding="{Binding KgDoZaplaty, StringFormat=N0}" Width="80" IsReadOnly="True">
+                                    <DataGridTextColumn Header="KG" Binding="{Binding KgDoZaplaty, StringFormat=N0}" Width="90" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="FontWeight" Value="Bold"/>
@@ -3714,11 +3706,11 @@
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
                                                 <Setter Property="Foreground" Value="#1565C0"/>
-                                                <Setter Property="Margin" Value="0,0,8,0"/>
+                                                <Setter Property="Margin" Value="0,0,12,0"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Konf" Binding="{Binding KgKonfiskat, StringFormat=N0}" Width="65" IsReadOnly="True">
+                                    <DataGridTextColumn Header="Konf" Binding="{Binding KgKonfiskat, StringFormat=N0}" Width="75" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -3726,11 +3718,11 @@
                                                 <Setter Property="Foreground" Value="#D32F2F"/>
                                                 <Setter Property="FontWeight" Value="Bold"/>
                                                 <Setter Property="FontSize" Value="15"/>
-                                                <Setter Property="Margin" Value="0,0,8,0"/>
+                                                <Setter Property="Margin" Value="0,0,12,0"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Padł" Binding="{Binding KgPadlych, StringFormat=N0}" Width="65" IsReadOnly="True">
+                                    <DataGridTextColumn Header="Padł" Binding="{Binding KgPadlych, StringFormat=N0}" Width="75" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -3738,48 +3730,35 @@
                                                 <Setter Property="Foreground" Value="#D32F2F"/>
                                                 <Setter Property="FontWeight" Value="Bold"/>
                                                 <Setter Property="FontSize" Value="15"/>
-                                                <Setter Property="Margin" Value="0,0,8,0"/>
+                                                <Setter Property="Margin" Value="0,0,12,0"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Typ Zdarzenia" Binding="{Binding TypZdarzenia}" Width="150" IsReadOnly="True">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Data" Binding="{Binding DataZdarzenia, StringFormat='{}{0:dd-MM-yyyy}'}" Width="100" IsReadOnly="True">
+                                    <DataGridTextColumn Header="Data" Binding="{Binding DataZdarzenia, StringFormat='{}{0:dd-MM-yyyy}'}" Width="110" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
                                                 <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                <Setter Property="Padding" Value="8,0"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Kraj" Binding="{Binding KrajWywozu}" Width="50" IsReadOnly="True">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                                <Setter Property="HorizontalAlignment" Value="Center"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Przyjęte z dział." Binding="{Binding PrzyjetaZDzialalnosci}" Width="130" IsReadOnly="True">
+                                    <DataGridTextColumn Header="Przyjęte z dział." Binding="{Binding PrzyjetaZDzialalnosci}" Width="140" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="Foreground" Value="#2E7D32"/>
                                                 <Setter Property="FontWeight" Value="SemiBold"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Padding" Value="8,0"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                     <!-- EDYTOWALNE KOLUMNY - żółte tło przy edycji -->
-                                    <DataGridTextColumn Header="nr.dok.Arimr" Binding="{Binding NrDokArimr, UpdateSourceTrigger=PropertyChanged}" Width="120">
+                                    <DataGridTextColumn Header="nr.dok.Arimr" Binding="{Binding NrDokArimr, UpdateSourceTrigger=PropertyChanged}" Width="140">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="Background" Value="#E8F5E9"/>
-                                                <Setter Property="Padding" Value="6,4"/>
+                                                <Setter Property="Padding" Value="10,4"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
                                                 <Setter Property="FontWeight" Value="SemiBold"/>
                                             </Style>
@@ -3788,16 +3767,16 @@
                                             <Style TargetType="TextBox">
                                                 <Setter Property="Background" Value="#FFF9C4"/>
                                                 <Setter Property="FontSize" Value="14"/>
-                                                <Setter Property="Padding" Value="4"/>
+                                                <Setter Property="Padding" Value="8"/>
                                                 <Setter Property="FontWeight" Value="SemiBold"/>
                                             </Style>
                                         </DataGridTextColumn.EditingElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="przybycie" Binding="{Binding Przybycie, UpdateSourceTrigger=PropertyChanged}" Width="100">
+                                    <DataGridTextColumn Header="przybycie" Binding="{Binding Przybycie, UpdateSourceTrigger=PropertyChanged}" Width="110">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="Background" Value="#E8F5E9"/>
-                                                <Setter Property="Padding" Value="6,4"/>
+                                                <Setter Property="Padding" Value="10,4"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
                                                 <Setter Property="FontWeight" Value="SemiBold"/>
                                             </Style>
@@ -3806,16 +3785,16 @@
                                             <Style TargetType="TextBox">
                                                 <Setter Property="Background" Value="#FFF9C4"/>
                                                 <Setter Property="FontSize" Value="14"/>
-                                                <Setter Property="Padding" Value="4"/>
+                                                <Setter Property="Padding" Value="8"/>
                                                 <Setter Property="FontWeight" Value="SemiBold"/>
                                             </Style>
                                         </DataGridTextColumn.EditingElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="padnięcia" Binding="{Binding Padniecia, UpdateSourceTrigger=PropertyChanged}" Width="100">
+                                    <DataGridTextColumn Header="padnięcia" Binding="{Binding Padniecia, UpdateSourceTrigger=PropertyChanged}" Width="110">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="Background" Value="#E8F5E9"/>
-                                                <Setter Property="Padding" Value="6,4"/>
+                                                <Setter Property="Padding" Value="10,4"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
                                                 <Setter Property="FontWeight" Value="SemiBold"/>
                                             </Style>
@@ -3824,7 +3803,7 @@
                                             <Style TargetType="TextBox">
                                                 <Setter Property="Background" Value="#FFF9C4"/>
                                                 <Setter Property="FontSize" Value="14"/>
-                                                <Setter Property="Padding" Value="4"/>
+                                                <Setter Property="Padding" Value="8"/>
                                                 <Setter Property="FontWeight" Value="SemiBold"/>
                                             </Style>
                                         </DataGridTextColumn.EditingElementStyle>
