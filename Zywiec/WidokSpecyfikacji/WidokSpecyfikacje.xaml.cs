@@ -12184,6 +12184,67 @@ namespace Kalendarz1
             LoadIRZplusDataAsync();
         }
 
+        /// <summary>
+        /// Auto-zapis przy zakończeniu edycji komórki (nr.dok.Arimr, przybycie, padnięcia)
+        /// </summary>
+        private async void DgIRZplus_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        {
+            if (e.EditAction == DataGridEditAction.Cancel) return;
+            if (_irzPlusService == null) return;
+
+            // Sprawdź czy to jedna z edytowalnych kolumn
+            var columnHeader = e.Column.Header?.ToString();
+            if (columnHeader != "nr.dok.Arimr" && columnHeader != "przybycie" && columnHeader != "padnięcia")
+                return;
+
+            var spec = e.Row.Item as SpecyfikacjaDoIRZplusViewModel;
+            if (spec == null) return;
+
+            // Pobierz nową wartość z TextBox
+            var textBox = e.EditingElement as TextBox;
+            if (textBox == null) return;
+
+            var newValue = textBox.Text;
+
+            // Zaktualizuj właściwość w obiekcie
+            switch (columnHeader)
+            {
+                case "nr.dok.Arimr":
+                    spec.NrDokArimr = newValue;
+                    break;
+                case "przybycie":
+                    spec.Przybycie = newValue;
+                    break;
+                case "padnięcia":
+                    spec.Padniecia = newValue;
+                    break;
+            }
+
+            // Zapisz do bazy danych asynchronicznie
+            try
+            {
+                var success = await _irzPlusService.SaveIRZplusFieldsAsync(
+                    connectionString,
+                    spec.Id,
+                    spec.NrDokArimr,
+                    spec.Przybycie,
+                    spec.Padniecia);
+
+                if (success)
+                {
+                    txtIRZplusStatus.Text = $"Zapisano: {spec.Hodowca} - {columnHeader}";
+                }
+                else
+                {
+                    txtIRZplusStatus.Text = "Błąd zapisu do bazy";
+                }
+            }
+            catch (Exception ex)
+            {
+                txtIRZplusStatus.Text = $"Błąd: {ex.Message}";
+            }
+        }
+
         private void BtnIRZplusSettings_Click(object sender, RoutedEventArgs e)
         {
             if (_irzPlusService == null) _irzPlusService = new IRZplusService();

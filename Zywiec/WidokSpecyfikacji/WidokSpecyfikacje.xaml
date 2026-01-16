@@ -3598,7 +3598,8 @@
                                       BorderThickness="0"
                                       FontSize="14"
                                       RowHeight="44"
-                                      ColumnHeaderHeight="46">
+                                      ColumnHeaderHeight="46"
+                                      CellEditEnding="DgIRZplus_CellEditEnding">
 
                                 <DataGrid.ColumnHeaderStyle>
                                     <Style TargetType="DataGridColumnHeader">
@@ -3717,24 +3718,26 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Konf" Binding="{Binding KgKonfiskat, StringFormat=N0}" Width="60" IsReadOnly="True">
+                                    <DataGridTextColumn Header="Konf" Binding="{Binding KgKonfiskat, StringFormat=N0}" Width="65" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
-                                                <Setter Property="Foreground" Value="#E65100"/>
+                                                <Setter Property="Foreground" Value="#D32F2F"/>
                                                 <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="FontSize" Value="15"/>
                                                 <Setter Property="Margin" Value="0,0,8,0"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="Padł" Binding="{Binding KgPadlych, StringFormat=N0}" Width="60" IsReadOnly="True">
+                                    <DataGridTextColumn Header="Padł" Binding="{Binding KgPadlych, StringFormat=N0}" Width="65" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="HorizontalAlignment" Value="Right"/>
                                                 <Setter Property="VerticalAlignment" Value="Center"/>
-                                                <Setter Property="Foreground" Value="#C62828"/>
+                                                <Setter Property="Foreground" Value="#D32F2F"/>
                                                 <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="FontSize" Value="15"/>
                                                 <Setter Property="Margin" Value="0,0,8,0"/>
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
@@ -3872,9 +3875,6 @@
                                 </StackPanel>
 
                                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                    <Button Content="💾 Zapisz dane IRZ" Click="BtnIRZplusSaveFields_Click"
-                                            Style="{StaticResource ModernButton}" Background="#1976D2" Foreground="White"
-                                            ToolTip="Zapisz nr.dok.Arimr, przybycie i padnięcia do bazy"/>
                                     <Button Content="📁 Zapisz kopię" Click="BtnIRZplusSaveLocal_Click"
                                             Style="{StaticResource ModernButton}" Background="#F57C00" Foreground="White"/>
                                     <Button x:Name="btnIRZplusExport" Content="📤 Eksport CSV/XML" Click="BtnIRZplusExportDialog_Click"
