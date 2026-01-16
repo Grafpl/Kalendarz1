@@ -349,10 +349,14 @@ namespace Kalendarz1.Opakowania.Views
                 App.UserID ?? "11111");
 
             szczegoly.Owner = this;
-            szczegoly.ShowDialog();
+            var result = szczegoly.ShowDialog();
 
-            // Odśwież dane po powrocie
-            _viewModel.OdswiezCommand.Execute(null);
+            // Odśwież tylko jeśli coś zmieniono (DialogResult = true)
+            // Nie odświeżaj po samym przeglądaniu szczegółów
+            if (result == true)
+            {
+                _viewModel.OdswiezCommand.Execute(null);
+            }
         }
 
         private void OnDodajPotwierdzenie(ZestawienieSalda kontrahent, TypOpakowania typOpakowania)
