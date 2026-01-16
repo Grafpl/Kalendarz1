@@ -34,15 +34,24 @@ namespace Kalendarz1
             using (SqlConnection connection = new SqlConnection(connectionPermission))
             {
                 connection.Open();
-                string query = "SELECT COUNT(*) FROM operators WHERE ID = @username";
+                string query = "SELECT Name FROM operators WHERE ID = @username";
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@username", username);
-                    int count = Convert.ToInt32(command.ExecuteScalar());
-                    if (count > 0)
+                    var result = command.ExecuteScalar();
+
+                    if (result != null)
                     {
+                        string userName = result.ToString();
+
                         // Ustawienie ID użytkownika
                         App.UserID = username;
+
+                        // Ukryj formularz logowania
+                        this.Hide();
+
+                        // Pokaż ekran powitalny z avatarem
+                        WelcomeScreen.ShowAndWait(username, userName);
 
                         // Ustaw wynik formularza na OK i zamknij formularz logowania
                         this.DialogResult = DialogResult.OK;
