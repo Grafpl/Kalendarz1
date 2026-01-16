@@ -3995,35 +3995,24 @@ namespace Kalendarz1.WPF
                     Background = new SolidColorBrush(bilans >= 0 ? Color.FromRgb(39, 174, 96) : Color.FromRgb(231, 76, 60)),
                     CornerRadius = new CornerRadius(10),
                     Padding = new Thickness(6),
-                    Margin = new Thickness(0, 0, 0, 6),
+                    Margin = new Thickness(0, 0, 0, 4),
                     HorizontalAlignment = HorizontalAlignment.Stretch
                 };
                 var bilansStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-                bilansStack.Children.Add(new TextBlock { Text = "BILANS", FontSize = 12, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center });
-                bilansStack.Children.Add(new TextBlock { Text = $"{bilans:N0} kg", FontSize = 26, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center });
+                bilansStack.Children.Add(new TextBlock { Text = "BILANS", FontSize = 11, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center });
+                bilansStack.Children.Add(new TextBlock { Text = $"{bilans:N0} kg", FontSize = 22, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center });
                 bilansBorder.Child = bilansStack;
                 leftPanel.Children.Add(bilansBorder);
 
-                // Kafelki 2x2
-                var statsGrid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
-                statsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                statsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                statsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                statsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
+                // Kafelki pionowo (jeden pod drugim)
                 var planBorder = CreateJolaStatBoxCompact(uzyjFakt ? "FAKT" : "PLAN", $"{cel:N0}", uzyjFakt ? Color.FromRgb(155, 89, 182) : Color.FromRgb(52, 152, 219));
-                Grid.SetColumn(planBorder, 0); Grid.SetRow(planBorder, 0);
-                statsGrid.Children.Add(planBorder);
+                leftPanel.Children.Add(planBorder);
 
                 var stanBorder = CreateJolaStatBoxCompact("STAN", $"{currentData.Stan:N0}", Color.FromRgb(26, 188, 156));
-                Grid.SetColumn(stanBorder, 1); Grid.SetRow(stanBorder, 0);
-                statsGrid.Children.Add(stanBorder);
+                leftPanel.Children.Add(stanBorder);
 
                 var zamBorder = CreateJolaStatBoxCompact("ZAM.", $"{currentData.Zamowienia:N0}", Color.FromRgb(230, 126, 34));
-                Grid.SetColumn(zamBorder, 0); Grid.SetColumnSpan(zamBorder, 2); Grid.SetRow(zamBorder, 1);
-                statsGrid.Children.Add(zamBorder);
-
-                leftPanel.Children.Add(statsGrid);
+                leftPanel.Children.Add(zamBorder);
 
                 // === DATEPICKER z dniem tygodnia ===
                 var datePanel = new StackPanel { Margin = new Thickness(0, 8, 0, 8) };
@@ -4116,7 +4105,7 @@ namespace Kalendarz1.WPF
                 decimal sumaWydTotal = odbiorcy.Sum(o => o.Wydane);
 
                 // Tworzenie tablic
-                var tab1 = CreateJolaTable(tablica1, 1, sumaZamTotal, sumaWydTotal, true);
+                var tab1 = CreateJolaTable(tablica1, 1, sumaZamTotal, sumaWydTotal, false);
                 Grid.SetColumn(tab1, 0);
                 tabliceGrid.Children.Add(tab1);
 
