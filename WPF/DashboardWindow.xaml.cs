@@ -3929,6 +3929,7 @@ namespace Kalendarz1.WPF
             }
 
             int viewIndex = currentIndex;
+            int expandedCamera = 0; // 0 = brak, 1 = kamera 1 powiększona, 2 = kamera 2 powiększona
 
             var dialog = new Window
             {
@@ -4120,43 +4121,96 @@ namespace Kalendarz1.WPF
                 Grid.SetRow(tabliceGrid, 0);
                 rightPanel.Children.Add(tabliceGrid);
 
-                // === 2 KAMERY ===
-                var camerasGrid = new Grid { Margin = new Thickness(0, 5, 0, 0) };
-                camerasGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                camerasGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-                var camera1Border = new Border
+                // === 2 KAMERY (lub 1 powiększona) ===
+                if (expandedCamera == 0)
                 {
-                    Background = new SolidColorBrush(Color.FromRgb(30, 35, 40)),
-                    CornerRadius = new CornerRadius(10),
-                    BorderBrush = new SolidColorBrush(Color.FromRgb(50, 55, 60)),
-                    BorderThickness = new Thickness(1),
-                    Margin = new Thickness(0, 0, 3, 0)
-                };
-                var camera1Content = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-                camera1Content.Children.Add(new TextBlock { Text = "📹", FontSize = 50, HorizontalAlignment = HorizontalAlignment.Center });
-                camera1Content.Children.Add(new TextBlock { Text = "KAMERA 1", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(70, 80, 90)), HorizontalAlignment = HorizontalAlignment.Center });
-                camera1Border.Child = camera1Content;
-                Grid.SetColumn(camera1Border, 0);
-                camerasGrid.Children.Add(camera1Border);
+                    // Normalny widok - 2 kamery obok siebie
+                    var camerasGrid = new Grid { Margin = new Thickness(0, 5, 0, 0) };
+                    camerasGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    camerasGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-                var camera2Border = new Border
+                    var camera1Border = new Border
+                    {
+                        Background = new SolidColorBrush(Color.FromRgb(30, 35, 40)),
+                        CornerRadius = new CornerRadius(10),
+                        BorderBrush = new SolidColorBrush(Color.FromRgb(50, 55, 60)),
+                        BorderThickness = new Thickness(1),
+                        Margin = new Thickness(0, 0, 3, 0),
+                        Cursor = System.Windows.Input.Cursors.Hand
+                    };
+                    var camera1Content = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                    camera1Content.Children.Add(new TextBlock { Text = "📹", FontSize = 50, HorizontalAlignment = HorizontalAlignment.Center });
+                    camera1Content.Children.Add(new TextBlock { Text = "KAMERA 1", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(70, 80, 90)), HorizontalAlignment = HorizontalAlignment.Center });
+                    camera1Content.Children.Add(new TextBlock { Text = "Kliknij aby powiększyć", FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(80, 90, 100)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 5, 0, 0) });
+                    camera1Border.Child = camera1Content;
+                    camera1Border.MouseLeftButtonDown += (s, e) => { expandedCamera = 1; refreshContent(); };
+                    Grid.SetColumn(camera1Border, 0);
+                    camerasGrid.Children.Add(camera1Border);
+
+                    var camera2Border = new Border
+                    {
+                        Background = new SolidColorBrush(Color.FromRgb(30, 35, 40)),
+                        CornerRadius = new CornerRadius(10),
+                        BorderBrush = new SolidColorBrush(Color.FromRgb(50, 55, 60)),
+                        BorderThickness = new Thickness(1),
+                        Margin = new Thickness(3, 0, 0, 0),
+                        Cursor = System.Windows.Input.Cursors.Hand
+                    };
+                    var camera2Content = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                    camera2Content.Children.Add(new TextBlock { Text = "📹", FontSize = 50, HorizontalAlignment = HorizontalAlignment.Center });
+                    camera2Content.Children.Add(new TextBlock { Text = "KAMERA 2", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(70, 80, 90)), HorizontalAlignment = HorizontalAlignment.Center });
+                    camera2Content.Children.Add(new TextBlock { Text = "Kliknij aby powiększyć", FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(80, 90, 100)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 5, 0, 0) });
+                    camera2Border.Child = camera2Content;
+                    camera2Border.MouseLeftButtonDown += (s, e) => { expandedCamera = 2; refreshContent(); };
+                    Grid.SetColumn(camera2Border, 1);
+                    camerasGrid.Children.Add(camera2Border);
+
+                    Grid.SetRow(camerasGrid, 1);
+                    rightPanel.Children.Add(camerasGrid);
+                }
+                else
                 {
-                    Background = new SolidColorBrush(Color.FromRgb(30, 35, 40)),
-                    CornerRadius = new CornerRadius(10),
-                    BorderBrush = new SolidColorBrush(Color.FromRgb(50, 55, 60)),
-                    BorderThickness = new Thickness(1),
-                    Margin = new Thickness(3, 0, 0, 0)
-                };
-                var camera2Content = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-                camera2Content.Children.Add(new TextBlock { Text = "📹", FontSize = 50, HorizontalAlignment = HorizontalAlignment.Center });
-                camera2Content.Children.Add(new TextBlock { Text = "KAMERA 2", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(70, 80, 90)), HorizontalAlignment = HorizontalAlignment.Center });
-                camera2Border.Child = camera2Content;
-                Grid.SetColumn(camera2Border, 1);
-                camerasGrid.Children.Add(camera2Border);
+                    // Powiększony widok - jedna kamera na całą dolną część
+                    var expandedCameraBorder = new Border
+                    {
+                        Background = new SolidColorBrush(Color.FromRgb(20, 25, 30)),
+                        CornerRadius = new CornerRadius(15),
+                        BorderBrush = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
+                        BorderThickness = new Thickness(3),
+                        Margin = new Thickness(0, 5, 0, 0),
+                        Cursor = System.Windows.Input.Cursors.Hand
+                    };
+                    var expandedContent = new Grid();
 
-                Grid.SetRow(camerasGrid, 1);
-                rightPanel.Children.Add(camerasGrid);
+                    // Główna zawartość kamery
+                    var cameraStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                    cameraStack.Children.Add(new TextBlock { Text = "📹", FontSize = 120, HorizontalAlignment = HorizontalAlignment.Center });
+                    cameraStack.Children.Add(new TextBlock { Text = $"KAMERA {expandedCamera}", FontSize = 36, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219)), HorizontalAlignment = HorizontalAlignment.Center });
+                    cameraStack.Children.Add(new TextBlock { Text = "TRYB PEŁNOEKRANOWY", FontSize = 16, Foreground = new SolidColorBrush(Color.FromRgb(100, 110, 120)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 10, 0, 0) });
+                    expandedContent.Children.Add(cameraStack);
+
+                    // Przycisk powrotu w górnym rogu
+                    var backButton = new Border
+                    {
+                        Background = new SolidColorBrush(Color.FromRgb(231, 76, 60)),
+                        CornerRadius = new CornerRadius(8),
+                        Padding = new Thickness(15, 8, 15, 8),
+                        HorizontalAlignment = HorizontalAlignment.Right,
+                        VerticalAlignment = VerticalAlignment.Top,
+                        Margin = new Thickness(0, 10, 10, 0),
+                        Cursor = System.Windows.Input.Cursors.Hand
+                    };
+                    backButton.Child = new TextBlock { Text = "✕ POWRÓT", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = Brushes.White };
+                    backButton.MouseLeftButtonDown += (s, e) => { expandedCamera = 0; refreshContent(); e.Handled = true; };
+                    expandedContent.Children.Add(backButton);
+
+                    // Kliknięcie w dowolne miejsce kamery też zamyka
+                    expandedCameraBorder.Child = expandedContent;
+                    expandedCameraBorder.MouseLeftButtonDown += (s, e) => { expandedCamera = 0; refreshContent(); };
+
+                    Grid.SetRow(expandedCameraBorder, 1);
+                    rightPanel.Children.Add(expandedCameraBorder);
+                }
 
                 Grid.SetColumn(rightPanel, 1);
                 mainGrid.Children.Add(rightPanel);
