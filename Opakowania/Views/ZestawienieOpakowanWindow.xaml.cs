@@ -249,11 +249,89 @@ namespace Kalendarz1.Opakowania.Views
             if (result == MessageBoxResult.Yes)
             {
                 PerformanceProfiler.Reset();
+                ExtendedDiagnostics.Reset();
                 _logBuilder.Clear();
                 _operationCount = 0;
                 _lastLoadTimeMs = 0;
                 AddLog("Statystyki zresetowane");
                 RefreshDiagnostics();
+            }
+        }
+
+        private async void BtnFullDiag_Click(object sender, RoutedEventArgs e)
+        {
+            btnFullDiag.IsEnabled = false;
+            btnFullDiag.Content = "⏳ Generowanie...";
+            _logBuilder.Clear();
+            AddLog("Generowanie pełnej diagnostyki...");
+            AddLog("To może potrwać 10-30 sekund...");
+
+            try
+            {
+                var report = await ExtendedDiagnostics.GenerateFullReportAsync();
+
+                Clipboard.SetText(report);
+                AddLog("GOTOWE!");
+                AddLog("Raport skopiowany do schowka.");
+                AddLog("Wklej go do rozmowy.");
+
+                MessageBox.Show(
+                    "Pełny raport diagnostyczny został skopiowany do schowka!\n\n" +
+                    "Wklej go teraz do rozmowy (Ctrl+V).",
+                    "Diagnostyka gotowa",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                AddLog($"BŁĄD: {ex.Message}");
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                btnFullDiag.IsEnabled = true;
+                btnFullDiag.Content = "🔬 PEŁNA DIAGNOSTYKA";
+            }
+        }
+
+        private async void BtnFullTest_Click(object sender, RoutedEventArgs e)
+        {
+            btnFullTest.IsEnabled = false;
+            btnFullTest.Content = "⏳ Testowanie...";
+            _logBuilder.Clear();
+            AddLog("Uruchamianie pełnego testu wydajności...");
+            AddLog("To może potrwać 30-60 sekund...");
+
+            try
+            {
+                var report = await ExtendedDiagnostics.RunFullPerformanceTestAsync();
+
+                // Dodaj też pełną diagnostykę
+                var fullDiag = await ExtendedDiagnostics.GenerateFullReportAsync();
+
+                var combined = report + "\n\n" + fullDiag;
+
+                Clipboard.SetText(combined);
+                AddLog("GOTOWE!");
+                AddLog("Pełny raport skopiowany.");
+
+                MessageBox.Show(
+                    "Pełny test wydajności zakończony!\n\n" +
+                    "Raport został skopiowany do schowka.\n" +
+                    "Wklej go teraz do rozmowy (Ctrl+V).",
+                    "Test zakończony",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                AddLog($"BŁĄD: {ex.Message}");
+                MessageBox.Show($"Błąd: {ex.Message}", "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                btnFullTest.IsEnabled = true;
+                btnFullTest.Content = "🧪 PEŁNY TEST";
             }
         }
 
