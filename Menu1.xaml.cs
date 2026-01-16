@@ -55,17 +55,17 @@ namespace Kalendarz1
                 {
                     this.Hide();
 
-                    // Pokaż ekran powitalny z avatarem (2 sekundy)
+                    MENU menuWindow = new MENU();
+
+                    // Pokaż ekran powitalny z avatarem (nieblokujący, na dole ekranu)
                     try
                     {
-                        WelcomeScreen.ShowAndWait(username, App.UserFullName);
+                        WelcomeScreen.Show(username, App.UserFullName);
                     }
                     catch (Exception ex)
                     {
                         System.Diagnostics.Debug.WriteLine($"WelcomeScreen error: {ex.Message}");
                     }
-
-                    MENU menuWindow = new MENU();
                     menuWindow.FormClosed += (s, args) =>
                     {
                         App.StopNotyfikacjeService(); // Zatrzymaj serwis przy zamknięciu

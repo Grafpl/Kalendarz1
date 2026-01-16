@@ -16,7 +16,7 @@ namespace Kalendarz1
         private float currentOpacity = 0;
         private string userName;
         private string odbiorcaId;
-        private int avatarSize = 120;
+        private int avatarSize = 80;
         private Image cachedAvatar = null;
 
         public WelcomeScreen(string odbiorcaId, string userName)
@@ -32,13 +32,20 @@ namespace Kalendarz1
         private void InitializeForm()
         {
             this.FormBorderStyle = FormBorderStyle.None;
-            this.StartPosition = FormStartPosition.CenterScreen;
-            this.Size = new Size(400, 280);
+            this.StartPosition = FormStartPosition.Manual;
+            this.Size = new Size(350, 120);
             this.BackColor = Color.FromArgb(45, 57, 69);
             this.ShowInTaskbar = false;
             this.TopMost = true;
             this.Opacity = 0;
             this.DoubleBuffered = true;
+
+            // Pozycja na dole ekranu, wycentrowane
+            var screen = Screen.PrimaryScreen.WorkingArea;
+            this.Location = new Point(
+                (screen.Width - this.Width) / 2,
+                screen.Bottom - this.Height - 20
+            );
 
             this.Paint += WelcomeScreen_Paint;
         }
@@ -121,36 +128,40 @@ namespace Kalendarz1
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
             g.InterpolationMode = InterpolationMode.HighQualityBicubic;
 
-            int centerX = this.Width / 2;
-
             // Gradient tła
             using (var bgBrush = new LinearGradientBrush(
-                new Point(0, 0), new Point(0, this.Height),
-                Color.FromArgb(55, 67, 79), Color.FromArgb(35, 47, 59)))
+                new Point(0, 0), new Point(this.Width, 0),
+                Color.FromArgb(55, 67, 79), Color.FromArgb(45, 57, 69)))
             {
                 g.FillRectangle(bgBrush, this.ClientRectangle);
             }
 
-            // Ramka
-            using (var borderPen = new Pen(Color.FromArgb(80, 255, 255, 255), 2))
+            // Ramka z zaokrąglonymi rogami (efekt)
+            using (var borderPen = new Pen(Color.FromArgb(100, 255, 255, 255), 2))
             {
                 g.DrawRectangle(borderPen, 1, 1, this.Width - 3, this.Height - 3);
             }
 
-            // Avatar
-            int avatarY = 30;
-            int avatarX = centerX - avatarSize / 2;
+            // Zielony pasek akcentowy z lewej
+            using (var accentBrush = new SolidBrush(Color.FromArgb(76, 175, 80)))
+            {
+                g.FillRectangle(accentBrush, 0, 0, 5, this.Height);
+            }
+
+            // Avatar - z lewej strony
+            int avatarX = 20;
+            int avatarY = (this.Height - avatarSize) / 2;
 
             // Cień pod avatarem
-            using (var shadowBrush = new SolidBrush(Color.FromArgb(50, 0, 0, 0)))
+            using (var shadowBrush = new SolidBrush(Color.FromArgb(40, 0, 0, 0)))
             {
-                g.FillEllipse(shadowBrush, avatarX + 4, avatarY + 4, avatarSize, avatarSize);
+                g.FillEllipse(shadowBrush, avatarX + 3, avatarY + 3, avatarSize, avatarSize);
             }
 
             // Ramka avatara
-            using (var borderPen = new Pen(Color.FromArgb(120, 255, 255, 255), 3))
+            using (var borderPen = new Pen(Color.FromArgb(120, 255, 255, 255), 2))
             {
-                g.DrawEllipse(borderPen, avatarX - 2, avatarY - 2, avatarSize + 3, avatarSize + 3);
+                g.DrawEllipse(borderPen, avatarX - 1, avatarY - 1, avatarSize + 1, avatarSize + 1);
             }
 
             // Avatar
@@ -159,36 +170,36 @@ namespace Kalendarz1
                 g.DrawImage(cachedAvatar, avatarX, avatarY, avatarSize, avatarSize);
             }
 
-            // Tekst "Witaj"
-            using (var font = new Font("Segoe UI", 14, FontStyle.Regular))
+            // Tekst - z prawej strony avatara
+            int textX = avatarX + avatarSize + 20;
+            int textY = avatarY + 5;
+
+            // "Witaj"
+            using (var font = new Font("Segoe UI", 12, FontStyle.Regular))
             using (var brush = new SolidBrush(Color.FromArgb(180, 200, 220)))
             {
-                string welcomeText = "Witaj";
-                var size = g.MeasureString(welcomeText, font);
-                g.DrawString(welcomeText, font, brush, centerX - size.Width / 2, avatarY + avatarSize + 15);
+                g.DrawString("Witaj", font, brush, textX, textY);
             }
 
             // Pełne imię użytkownika
-            using (var font = new Font("Segoe UI", 18, FontStyle.Bold))
+            using (var font = new Font("Segoe UI", 16, FontStyle.Bold))
             using (var brush = new SolidBrush(Color.White))
             {
                 string displayName = userName ?? "Użytkowniku";
-                var size = g.MeasureString(displayName, font);
 
                 // Cień tekstu
-                using (var shadowBrush = new SolidBrush(Color.FromArgb(60, 0, 0, 0)))
+                using (var shadowBrush = new SolidBrush(Color.FromArgb(50, 0, 0, 0)))
                 {
-                    g.DrawString(displayName, font, shadowBrush, centerX - size.Width / 2 + 2, avatarY + avatarSize + 42);
+                    g.DrawString(displayName, font, shadowBrush, textX + 1, textY + 26);
                 }
-                g.DrawString(displayName, font, brush, centerX - size.Width / 2, avatarY + avatarSize + 40);
+                g.DrawString(displayName, font, brush, textX, textY + 25);
             }
 
-            // Zielona linia akcentowa
-            int lineWidth = 80;
-            int lineY = avatarY + avatarSize + 80;
-            using (var lineBrush = new SolidBrush(Color.FromArgb(76, 175, 80)))
+            // Podpis "Zalogowano pomyślnie"
+            using (var font = new Font("Segoe UI", 9, FontStyle.Italic))
+            using (var brush = new SolidBrush(Color.FromArgb(120, 150, 120)))
             {
-                g.FillRectangle(lineBrush, centerX - lineWidth / 2, lineY, lineWidth, 3);
+                g.DrawString("Zalogowano pomyślnie ✓", font, brush, textX, textY + 55);
             }
         }
 
