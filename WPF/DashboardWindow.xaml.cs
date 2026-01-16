@@ -3952,99 +3952,97 @@ namespace Kalendarz1.WPF
             var dialog = new Window
             {
                 Title = "Symulacja - ustaw docelową ilość",
-                Width = 900,
-                Height = 750,
+                Width = 800,
+                Height = 650,
                 WindowStartupLocation = WindowStartupLocation.CenterScreen,
                 Background = new SolidColorBrush(Color.FromRgb(30, 35, 40)),
                 ResizeMode = ResizeMode.NoResize
             };
 
-            var mainStack = new StackPanel { Margin = new Thickness(40) };
+            // Używamy Grid zamiast StackPanel aby przyciski były zawsze widoczne na dole
+            var mainGrid = new Grid { Margin = new Thickness(25) };
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 0: Nagłówek
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 1: Info
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 2: Tryb
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 3: Input
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 4: Preview
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // 5: Spacer
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 6: Przyciski
 
             // Nagłówek
-            mainStack.Children.Add(new TextBlock
+            var header = new TextBlock
             {
                 Text = "📊 USTAW DOCELOWĄ ILOŚĆ",
-                FontSize = 32,
+                FontSize = 26,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White,
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 25)
-            });
+                Margin = new Thickness(0, 0, 0, 15)
+            };
+            Grid.SetRow(header, 0);
+            mainGrid.Children.Add(header);
 
-            // Informacja o odbiorcy
+            // Informacja o odbiorcy - kompaktowa
             var infoBorder = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(52, 73, 94)),
-                CornerRadius = new CornerRadius(15),
-                Padding = new Thickness(30, 20, 30, 20),
-                Margin = new Thickness(0, 0, 0, 30)
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(20, 12, 20, 12),
+                Margin = new Thickness(0, 0, 0, 12)
             };
-            var infoStack = new StackPanel();
-            infoStack.Children.Add(new TextBlock
+            var infoInner = new StackPanel();
+            infoInner.Children.Add(new TextBlock
             {
                 Text = odbiorcaNazwa,
-                FontSize = 26,
+                FontSize = 20,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White,
                 TextWrapping = TextWrapping.Wrap,
                 HorizontalAlignment = HorizontalAlignment.Center
             });
 
-            var infoGrid = new Grid { Margin = new Thickness(0, 15, 0, 0) };
-            infoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            infoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-            var origStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-            origStack.Children.Add(new TextBlock { Text = "Oryginalne zamówienie:", FontSize = 16, Foreground = new SolidColorBrush(Color.FromRgb(149, 165, 166)), HorizontalAlignment = HorizontalAlignment.Center });
-            origStack.Children.Add(new TextBlock { Text = $"{aktualnIlosc:N0} kg", FontSize = 28, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center });
-            Grid.SetColumn(origStack, 0);
-            infoGrid.Children.Add(origStack);
-
+            var infoRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0) };
+            infoRow.Children.Add(new TextBlock { Text = $"Oryginalne: {aktualnIlosc:N0} kg", FontSize = 16, Foreground = Brushes.White, Margin = new Thickness(0, 0, 30, 0) });
             if (obecnaRedukcja != 0)
-            {
-                var simStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-                simStack.Children.Add(new TextBlock { Text = "Obecna symulacja:", FontSize = 16, Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)), HorizontalAlignment = HorizontalAlignment.Center });
-                simStack.Children.Add(new TextBlock { Text = $"{aktualnaWartosc:N0} kg", FontSize = 28, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)), HorizontalAlignment = HorizontalAlignment.Center });
-                Grid.SetColumn(simStack, 1);
-                infoGrid.Children.Add(simStack);
-            }
-            infoStack.Children.Add(infoGrid);
-            infoBorder.Child = infoStack;
-            mainStack.Children.Add(infoBorder);
+                infoRow.Children.Add(new TextBlock { Text = $"Symulacja: {aktualnaWartosc:N0} kg", FontSize = 16, Foreground = new SolidColorBrush(Color.FromRgb(241, 196, 15)) });
+            infoInner.Children.Add(infoRow);
+            infoBorder.Child = infoInner;
+            Grid.SetRow(infoBorder, 1);
+            mainGrid.Children.Add(infoBorder);
 
-            // Wybór trybu: kg lub procent - DUŻE PRZYCISKI
-            var modePanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 25) };
-
+            // Wybór trybu - przyciski
             var radioKg = new RadioButton { IsChecked = true };
             var radioPercent = new RadioButton();
 
+            var modePanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 12) };
             var btnModeKg = new Button
             {
-                Content = "📦  KILOGRAMY (kg)",
-                FontSize = 22,
+                Content = "📦  KILOGRAMY",
+                FontSize = 18,
                 FontWeight = FontWeights.Bold,
-                Padding = new Thickness(40, 20, 40, 20),
+                Padding = new Thickness(30, 12, 30, 12),
                 Background = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
                 Foreground = Brushes.White,
-                BorderThickness = new Thickness(4),
+                BorderThickness = new Thickness(3),
                 BorderBrush = new SolidColorBrush(Color.FromRgb(41, 128, 185)),
-                Margin = new Thickness(0, 0, 20, 0),
+                Margin = new Thickness(0, 0, 10, 0),
                 Cursor = System.Windows.Input.Cursors.Hand
             };
-
             var btnModePercent = new Button
             {
-                Content = "📊  PROCENT (%)",
-                FontSize = 22,
+                Content = "📊  PROCENT",
+                FontSize = 18,
                 FontWeight = FontWeights.Bold,
-                Padding = new Thickness(40, 20, 40, 20),
+                Padding = new Thickness(30, 12, 30, 12),
                 Background = new SolidColorBrush(Color.FromRgb(99, 110, 114)),
                 Foreground = Brushes.White,
-                BorderThickness = new Thickness(4),
+                BorderThickness = new Thickness(3),
                 BorderBrush = new SolidColorBrush(Color.FromRgb(70, 80, 84)),
                 Cursor = System.Windows.Input.Cursors.Hand
             };
+
+            TextBlock lblUnit = null!;
+            TextBox txtValue = null!;
 
             btnModeKg.Click += (s, e) =>
             {
@@ -4054,7 +4052,6 @@ namespace Kalendarz1.WPF
                 btnModePercent.Background = new SolidColorBrush(Color.FromRgb(99, 110, 114));
                 btnModePercent.BorderBrush = new SolidColorBrush(Color.FromRgb(70, 80, 84));
             };
-
             btnModePercent.Click += (s, e) =>
             {
                 radioPercent.IsChecked = true;
@@ -4066,44 +4063,44 @@ namespace Kalendarz1.WPF
 
             modePanel.Children.Add(btnModeKg);
             modePanel.Children.Add(btnModePercent);
-            mainStack.Children.Add(modePanel);
+            Grid.SetRow(modePanel, 2);
+            mainGrid.Children.Add(modePanel);
 
-            // DUŻE pole wprowadzania wartości
-            var inputPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 20) };
-            var txtValue = new TextBox
+            // DUŻE pole wprowadzania
+            var inputPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 12) };
+            txtValue = new TextBox
             {
-                Width = 300,
-                FontSize = 48,
+                Width = 260,
+                FontSize = 42,
                 FontWeight = FontWeights.Bold,
-                Padding = new Thickness(20, 15, 20, 15),
+                Padding = new Thickness(15, 10, 15, 10),
                 Text = obecnaRedukcja != 0 ? $"{aktualnaWartosc:N0}" : $"{aktualnIlosc:N0}",
                 Background = new SolidColorBrush(Color.FromRgb(60, 70, 80)),
                 Foreground = Brushes.White,
                 BorderThickness = new Thickness(4),
                 BorderBrush = new SolidColorBrush(Color.FromRgb(52, 152, 219)),
-                HorizontalContentAlignment = HorizontalAlignment.Center,
-                VerticalContentAlignment = VerticalAlignment.Center
+                HorizontalContentAlignment = HorizontalAlignment.Center
             };
-            var lblUnit = new TextBlock
+            lblUnit = new TextBlock
             {
                 Text = "kg",
-                FontSize = 48,
+                FontSize = 42,
                 FontWeight = FontWeights.Bold,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(20, 0, 0, 0),
+                Margin = new Thickness(15, 0, 0, 0),
                 Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219))
             };
             inputPanel.Children.Add(txtValue);
             inputPanel.Children.Add(lblUnit);
-            mainStack.Children.Add(inputPanel);
+            Grid.SetRow(inputPanel, 3);
+            mainGrid.Children.Add(inputPanel);
 
-            // Aktualizuj jednostkę i wartość przy zmianie trybu
+            // Aktualizuj przy zmianie trybu
             radioKg.Checked += (s, e) =>
             {
                 lblUnit.Text = "kg";
                 lblUnit.Foreground = new SolidColorBrush(Color.FromRgb(52, 152, 219));
                 txtValue.BorderBrush = new SolidColorBrush(Color.FromRgb(52, 152, 219));
-                // Konwertuj z procentu na kg
                 if (decimal.TryParse(txtValue.Text.Replace(",", ".").Replace(" ", ""), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal percent))
                 {
                     decimal kgValue = Math.Round(aktualnIlosc * percent / 100, 0);
@@ -4115,7 +4112,6 @@ namespace Kalendarz1.WPF
                 lblUnit.Text = "%";
                 lblUnit.Foreground = new SolidColorBrush(Color.FromRgb(155, 89, 182));
                 txtValue.BorderBrush = new SolidColorBrush(Color.FromRgb(155, 89, 182));
-                // Konwertuj z kg na procent
                 if (decimal.TryParse(txtValue.Text.Replace(",", ".").Replace(" ", ""), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal kg) && aktualnIlosc > 0)
                 {
                     decimal percent = Math.Round(kg / aktualnIlosc * 100, 0);
@@ -4123,23 +4119,22 @@ namespace Kalendarz1.WPF
                 }
             };
 
-            // DUŻY podgląd wyniku
+            // Podgląd wyniku
             var previewBorder = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(39, 174, 96)),
-                CornerRadius = new CornerRadius(15),
-                Padding = new Thickness(30, 20, 30, 20),
-                Margin = new Thickness(0, 10, 0, 30)
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(20, 12, 20, 12),
+                Margin = new Thickness(0, 0, 0, 0)
             };
             var previewStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-            var previewLabel = new TextBlock { Text = "PODGLĄD:", FontSize = 16, Foreground = new SolidColorBrush(Color.FromRgb(200, 230, 200)), HorizontalAlignment = HorizontalAlignment.Center };
-            var previewText = new TextBlock { FontSize = 32, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center };
-            var previewDiff = new TextBlock { FontSize = 20, Foreground = new SolidColorBrush(Color.FromRgb(200, 230, 200)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0) };
-            previewStack.Children.Add(previewLabel);
+            var previewText = new TextBlock { FontSize = 28, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center };
+            var previewDiff = new TextBlock { FontSize = 16, Foreground = new SolidColorBrush(Color.FromRgb(200, 230, 200)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 5, 0, 0) };
             previewStack.Children.Add(previewText);
             previewStack.Children.Add(previewDiff);
             previewBorder.Child = previewStack;
-            mainStack.Children.Add(previewBorder);
+            Grid.SetRow(previewBorder, 4);
+            mainGrid.Children.Add(previewBorder);
 
             // Aktualizuj podgląd
             Action updatePreview = () =>
@@ -4147,23 +4142,15 @@ namespace Kalendarz1.WPF
                 string cleanText = txtValue.Text.Replace(",", ".").Replace(" ", "");
                 if (decimal.TryParse(cleanText, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal value) && value >= 0)
                 {
-                    decimal targetKg;
-                    if (radioKg.IsChecked == true)
-                        targetKg = value;
-                    else
-                        targetKg = Math.Round(aktualnIlosc * value / 100, 0);
-
-                    // Ogranicz do oryginalnej wartości (nie można zwiększać)
+                    decimal targetKg = radioKg.IsChecked == true ? value : Math.Round(aktualnIlosc * value / 100, 0);
                     targetKg = Math.Min(targetKg, aktualnIlosc);
                     targetKg = Math.Max(targetKg, 0);
-
                     decimal reduction = targetKg - aktualnIlosc;
 
                     previewText.Text = $"➔  {targetKg:N0} kg";
-
                     if (reduction == 0)
                     {
-                        previewDiff.Text = "Bez zmian (oryginalna ilość)";
+                        previewDiff.Text = "Bez zmian";
                         previewBorder.Background = new SolidColorBrush(Color.FromRgb(52, 152, 219));
                     }
                     else
@@ -4185,40 +4172,40 @@ namespace Kalendarz1.WPF
             radioKg.Checked += (s, e) => updatePreview();
             updatePreview();
 
-            // DUŻE przyciski
-            var btnPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+            // PRZYCISKI - ZAWSZE NA DOLE
+            var btnPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Bottom };
 
             var btnApply = new Button
             {
                 Content = "✓  ZASTOSUJ",
-                Padding = new Thickness(50, 20, 50, 20),
-                FontSize = 24,
+                Padding = new Thickness(40, 16, 40, 16),
+                FontSize = 22,
                 FontWeight = FontWeights.Bold,
                 Background = new SolidColorBrush(Color.FromRgb(39, 174, 96)),
                 Foreground = Brushes.White,
                 BorderThickness = new Thickness(0),
-                Margin = new Thickness(0, 0, 15, 0),
+                Margin = new Thickness(0, 0, 10, 0),
                 Cursor = System.Windows.Input.Cursors.Hand
             };
 
             var btnReset = new Button
             {
                 Content = "↺  ORYGINAŁ",
-                Padding = new Thickness(40, 20, 40, 20),
-                FontSize = 24,
+                Padding = new Thickness(30, 16, 30, 16),
+                FontSize = 22,
                 FontWeight = FontWeights.Bold,
                 Background = new SolidColorBrush(Color.FromRgb(230, 126, 34)),
                 Foreground = Brushes.White,
                 BorderThickness = new Thickness(0),
-                Margin = new Thickness(0, 0, 15, 0),
+                Margin = new Thickness(0, 0, 10, 0),
                 Cursor = System.Windows.Input.Cursors.Hand
             };
 
             var btnCancel = new Button
             {
                 Content = "✕  ANULUJ",
-                Padding = new Thickness(40, 20, 40, 20),
-                FontSize = 24,
+                Padding = new Thickness(30, 16, 30, 16),
+                FontSize = 22,
                 FontWeight = FontWeights.Bold,
                 Background = new SolidColorBrush(Color.FromRgb(231, 76, 60)),
                 Foreground = Brushes.White,
@@ -4231,18 +4218,10 @@ namespace Kalendarz1.WPF
                 string cleanText = txtValue.Text.Replace(",", ".").Replace(" ", "");
                 if (decimal.TryParse(cleanText, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal value) && value >= 0)
                 {
-                    decimal targetKg;
-                    if (radioKg.IsChecked == true)
-                        targetKg = value;
-                    else
-                        targetKg = Math.Round(aktualnIlosc * value / 100, 0);
-
-                    // Ogranicz do oryginalnej wartości
+                    decimal targetKg = radioKg.IsChecked == true ? value : Math.Round(aktualnIlosc * value / 100, 0);
                     targetKg = Math.Min(targetKg, aktualnIlosc);
                     targetKg = Math.Max(targetKg, 0);
-
-                    decimal reduction = targetKg - aktualnIlosc;
-                    onApply(reduction);
+                    onApply(targetKg - aktualnIlosc);
                     dialog.Close();
                 }
             };
@@ -4258,9 +4237,10 @@ namespace Kalendarz1.WPF
             btnPanel.Children.Add(btnApply);
             btnPanel.Children.Add(btnReset);
             btnPanel.Children.Add(btnCancel);
-            mainStack.Children.Add(btnPanel);
+            Grid.SetRow(btnPanel, 6);
+            mainGrid.Children.Add(btnPanel);
 
-            dialog.Content = mainStack;
+            dialog.Content = mainGrid;
             dialog.ShowDialog();
         }
 
