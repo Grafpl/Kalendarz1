@@ -56,6 +56,11 @@ namespace Kalendarz1
             logoutButton.Click += LogoutButton_Click;
             sidePanel.Controls.Add(logoutButton);
 
+            // Panel z informacją o zalogowanym użytkowniku (na dole sidePanel)
+            var userInfoPanel = CreateUserInfoPanel();
+            userInfoPanel.Dock = DockStyle.Bottom;
+            sidePanel.Controls.Add(userInfoPanel);
+
             mainLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -67,8 +72,131 @@ namespace Kalendarz1
             mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
 
+            // Panel użytkownika w prawym dolnym rogu (zawsze widoczny)
+            var userCornerPanel = CreateUserCornerPanel();
+            this.Controls.Add(userCornerPanel);
+
             this.Controls.Add(mainLayout);
             this.Controls.Add(sidePanel);
+        }
+
+        /// <summary>
+        /// Tworzy mały panel użytkownika w prawym dolnym rogu
+        /// </summary>
+        private Panel CreateUserCornerPanel()
+        {
+            string odbiorcaId = App.UserID ?? "";
+            string userName = App.UserFullName ?? App.UserID ?? "Użytkownik";
+            int avatarSize = 40;
+
+            var panel = new Panel
+            {
+                Size = new Size(220, 55),
+                BackColor = Color.FromArgb(45, 55, 65),
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
+                Cursor = Cursors.Default
+            };
+
+            // Pozycja zostanie ustawiona po załadowaniu formularza
+            this.Load += (s, e) =>
+            {
+                panel.Location = new Point(this.ClientSize.Width - panel.Width - 15, this.ClientSize.Height - panel.Height - 15);
+            };
+
+            this.Resize += (s, e) =>
+            {
+                panel.Location = new Point(this.ClientSize.Width - panel.Width - 15, this.ClientSize.Height - panel.Height - 15);
+            };
+
+            // Zaokrąglone rogi i cień
+            panel.Paint += (s, e) =>
+            {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+                // Tło z gradientem
+                using (var brush = new LinearGradientBrush(
+                    new Point(0, 0), new Point(panel.Width, 0),
+                    Color.FromArgb(50, 60, 70), Color.FromArgb(40, 50, 60)))
+                {
+                    e.Graphics.FillRectangle(brush, 0, 0, panel.Width, panel.Height);
+                }
+
+                // Ramka
+                using (var pen = new Pen(Color.FromArgb(70, 80, 90), 1))
+                {
+                    e.Graphics.DrawRectangle(pen, 0, 0, panel.Width - 1, panel.Height - 1);
+                }
+
+                // Zielony pasek akcentowy na górze
+                using (var brush = new SolidBrush(Color.FromArgb(76, 175, 80)))
+                {
+                    e.Graphics.FillRectangle(brush, 0, 0, panel.Width, 3);
+                }
+            };
+
+            // Avatar
+            var avatarPanel = new Panel
+            {
+                Size = new Size(avatarSize, avatarSize),
+                Location = new Point(8, 8),
+                BackColor = Color.Transparent
+            };
+
+            avatarPanel.Paint += (s, e) =>
+            {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+
+                try
+                {
+                    if (UserAvatarManager.HasAvatar(odbiorcaId))
+                    {
+                        using (var avatar = UserAvatarManager.GetAvatarRounded(odbiorcaId, avatarSize))
+                        {
+                            if (avatar != null)
+                            {
+                                e.Graphics.DrawImage(avatar, 0, 0, avatarSize, avatarSize);
+                                return;
+                            }
+                        }
+                    }
+                }
+                catch { }
+
+                using (var defaultAvatar = UserAvatarManager.GenerateDefaultAvatar(userName, odbiorcaId, avatarSize))
+                {
+                    e.Graphics.DrawImage(defaultAvatar, 0, 0, avatarSize, avatarSize);
+                }
+            };
+            panel.Controls.Add(avatarPanel);
+
+            // Nazwa użytkownika
+            var nameLabel = new Label
+            {
+                Text = userName,
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                ForeColor = Color.White,
+                Location = new Point(55, 10),
+                AutoSize = true,
+                MaximumSize = new Size(150, 0),
+                BackColor = Color.Transparent
+            };
+            panel.Controls.Add(nameLabel);
+
+            // Status online
+            var statusLabel = new Label
+            {
+                Text = "● Online",
+                Font = new Font("Segoe UI", 8),
+                ForeColor = Color.FromArgb(76, 175, 80),
+                Location = new Point(55, 30),
+                AutoSize = true,
+                BackColor = Color.Transparent
+            };
+            panel.Controls.Add(statusLabel);
+
+            panel.BringToFront();
+            return panel;
         }
 
         private void LoadUserPermissions()
@@ -761,6 +889,122 @@ namespace Kalendarz1
             {
                 Application.Restart();
             }
+        }
+
+        /// <summary>
+        /// Tworzy panel z informacją o zalogowanym użytkowniku z avatarem
+        /// </summary>
+        private Panel CreateUserInfoPanel()
+        {
+            var panel = new Panel
+            {
+                Height = 80,
+                BackColor = Color.FromArgb(28, 38, 48),
+                Padding = new Padding(10)
+            };
+
+            // Separator na górze
+            var separator = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 1,
+                BackColor = Color.FromArgb(60, 70, 80)
+            };
+            panel.Controls.Add(separator);
+
+            // Avatar
+            string odbiorcaId = App.UserID ?? "";
+            string userName = App.UserFullName ?? App.UserID ?? "Użytkownik";
+            int avatarSize = 50;
+
+            var avatarPanel = new Panel
+            {
+                Size = new Size(avatarSize, avatarSize),
+                Location = new Point(10, 18),
+                BackColor = Color.Transparent
+            };
+
+            avatarPanel.Paint += (s, e) =>
+            {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+
+                try
+                {
+                    if (UserAvatarManager.HasAvatar(odbiorcaId))
+                    {
+                        using (var avatar = UserAvatarManager.GetAvatarRounded(odbiorcaId, avatarSize))
+                        {
+                            if (avatar != null)
+                            {
+                                e.Graphics.DrawImage(avatar, 0, 0, avatarSize, avatarSize);
+                                return;
+                            }
+                        }
+                    }
+                }
+                catch { }
+
+                // Domyślny avatar z inicjałami
+                using (var defaultAvatar = UserAvatarManager.GenerateDefaultAvatar(userName, odbiorcaId, avatarSize))
+                {
+                    e.Graphics.DrawImage(defaultAvatar, 0, 0, avatarSize, avatarSize);
+                }
+            };
+            panel.Controls.Add(avatarPanel);
+
+            // Nazwa użytkownika
+            var nameLabel = new Label
+            {
+                Text = userName,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.White,
+                Location = new Point(70, 20),
+                AutoSize = true,
+                MaximumSize = new Size(130, 0),
+                AutoEllipsis = true
+            };
+            panel.Controls.Add(nameLabel);
+
+            // ID użytkownika
+            var idLabel = new Label
+            {
+                Text = $"ID: {odbiorcaId}",
+                Font = new Font("Segoe UI", 8),
+                ForeColor = Color.FromArgb(140, 150, 160),
+                Location = new Point(70, 42),
+                AutoSize = true
+            };
+            panel.Controls.Add(idLabel);
+
+            // Zielona kropka "online"
+            var statusDot = new Panel
+            {
+                Size = new Size(10, 10),
+                Location = new Point(70, 58),
+                BackColor = Color.FromArgb(76, 175, 80)
+            };
+            statusDot.Paint += (s, e) =>
+            {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                using (var brush = new SolidBrush(Color.FromArgb(76, 175, 80)))
+                {
+                    e.Graphics.FillEllipse(brush, 0, 0, 9, 9);
+                }
+            };
+            panel.Controls.Add(statusDot);
+
+            var onlineLabel = new Label
+            {
+                Text = "Online",
+                Font = new Font("Segoe UI", 8),
+                ForeColor = Color.FromArgb(76, 175, 80),
+                Location = new Point(82, 55),
+                AutoSize = true
+            };
+            panel.Controls.Add(onlineLabel);
+
+            return panel;
         }
 
         private void MENU_Load(object sender, EventArgs e) { }
