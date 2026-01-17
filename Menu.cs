@@ -6,6 +6,7 @@ using Kalendarz1.Reklamacje;
 using Kalendarz1.KontrolaGodzin;
 using Kalendarz1.Zywiec.RaportyStatystyki;
 using Kalendarz1.Spotkania.Views;
+using Kalendarz1.Zadania;
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
@@ -623,8 +624,10 @@ namespace Kalendarz1
                 ForeColor = tasksColor,
                 Size = new Size(contentWidth, 14),
                 Location = new Point(10, y),
-                TextAlign = ContentAlignment.MiddleCenter
+                TextAlign = ContentAlignment.MiddleCenter,
+                Cursor = Cursors.Hand
             };
+            tasksHeader.Click += (s, e) => OpenZadaniaPanel();
             infoPanel.Controls.Add(tasksHeader);
             y += 16;
 
@@ -669,8 +672,10 @@ namespace Kalendarz1
                     ForeColor = Color.FromArgb(100, 110, 120),
                     Size = new Size(contentWidth, 14),
                     Location = new Point(10, y),
-                    TextAlign = ContentAlignment.MiddleCenter
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    Cursor = Cursors.Hand
                 };
+                noTasksLabel.Click += (s, e) => OpenZadaniaPanel();
                 infoPanel.Controls.Add(noTasksLabel);
                 y += 14;
             }
@@ -1750,6 +1755,12 @@ namespace Kalendarz1
             {
                 return null;
             }
+        }
+
+        private void OpenZadaniaPanel()
+        {
+            var zadaniaWindow = new ZadaniaWindow();
+            zadaniaWindow.Show();
         }
 
         private void ShowNotepadDialog()
