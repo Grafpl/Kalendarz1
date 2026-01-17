@@ -1411,26 +1411,26 @@ namespace Kalendarz1.Zywiec.Kalendarz
 
         // Główna kolumna - dla nagłówka pokazuje datę, dla danych pokazuje dostawcę
         public string DostawcaDisplay => IsHeaderRow && !IsSeparator
-            ? $"📅  {DataOdbioru:dd.MM.yyyy} - {DataOdbioru:dddd}"
+            ? $"{DataOdbioru:dd.MM.yyyy} {DataOdbioru:dddd}"
             : (IsSeparator ? "" : Dostawca);
 
         public string SztukiDekDisplay => IsHeaderRow
-            ? (SumaSztuki > 0 ? $"{SumaSztuki:#,0}" : "")
-            : (SztukiDek > 0 ? $"{SztukiDek:#,0}" : "");
+            ? (SumaSztuki > 0 ? $"{SumaSztuki:#,0} szt" : "")
+            : (SztukiDek > 0 ? $"{SztukiDek:#,0} szt" : "");
         public string WagaDekDisplay => IsHeaderRow
-            ? (SredniaWaga > 0 ? $"Ø {SredniaWaga:0.00}" : "")
-            : (WagaDek > 0 ? $"{WagaDek:0.00}" : "");
+            ? (SredniaWaga > 0 ? $"{SredniaWaga:0.00} kg" : "")
+            : (WagaDek > 0 ? $"{WagaDek:0.00} kg" : "");
         public string CenaDisplay => IsHeaderRow
-            ? (SredniaCena > 0 ? $"Ø {SredniaCena:0.00}" : "")
-            : (Cena > 0 ? $"{Cena:0.00}" : "");
+            ? (SredniaCena > 0 ? $"{SredniaCena:0.00} zł" : "")
+            : (Cena > 0 ? $"{Cena:0.00} zł" : "");
         public string KmDisplay => IsHeaderRow
-            ? (SredniaKM > 0 ? $"Ø {SredniaKM:0}" : "")
-            : (Distance > 0 ? $"{Distance}" : "");
+            ? (SredniaKM > 0 ? $"{SredniaKM:0} km" : "")
+            : (Distance > 0 ? $"{Distance} km" : "");
         public string RoznicaDniDisplay => IsHeaderRow
             ? ""
-            : (RoznicaDni.HasValue ? $"{RoznicaDni}" : "");
+            : (RoznicaDni.HasValue ? $"{RoznicaDni} dni" : "");
         public string AutaDisplay => IsHeaderRow
-            ? (SumaAuta > 0 ? $"Σ {SumaAuta:0}" : "")
+            ? (SumaAuta > 0 ? $"{SumaAuta:0}" : "")
             : (Auta > 0 ? Auta.ToString() : "");
         public string TypCenyDisplay => IsHeaderRow ? "" : TypCeny;
         public string UwagiDisplay => IsHeaderRow
