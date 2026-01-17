@@ -22,6 +22,33 @@
             <Setter Property="ColumnHeaderHeight" Value="32"/>
         </Style>
 
+        <!-- Style dla wiersza DataGrid - lepsze zaznaczenie -->
+        <Style TargetType="DataGridRow">
+            <Setter Property="Background" Value="Transparent"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#FFF3E0"/>
+                    <Setter Property="BorderBrush" Value="#FF9800"/>
+                    <Setter Property="BorderThickness" Value="0,1,0,1"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#FFFDE7"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Style dla komórki DataGrid -->
+        <Style TargetType="DataGridCell">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="Foreground" Value="Black"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- Style dla nagłówków kolumn -->
         <Style TargetType="DataGridColumnHeader">
             <Setter Property="Background" Value="#455A64"/>
@@ -215,28 +242,30 @@
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
-                    <DataGridTextColumn Header="Stara wartość" Binding="{Binding StaraWartosc}" Width="120">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="Padding" Value="5,0"/>
-                                <Setter Property="Foreground" Value="#D32F2F"/>
-                                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-                                <Setter Property="ToolTip" Value="{Binding StaraWartosc}"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-                    <DataGridTextColumn Header="Nowa wartość" Binding="{Binding NowaWartosc}" Width="120">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="Padding" Value="5,0"/>
-                                <Setter Property="Foreground" Value="#388E3C"/>
-                                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-                                <Setter Property="ToolTip" Value="{Binding NowaWartosc}"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
+                    <DataGridTemplateColumn Header="Stara wartość" Width="120">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Border Background="#FFEBEE" CornerRadius="3" Margin="2" Padding="4,2"
+                                        ToolTip="{Binding StaraWartosc}">
+                                    <TextBlock Text="{Binding StaraWartosc}"
+                                               Foreground="#C62828" FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                </Border>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Nowa wartość" Width="120">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Border Background="#E8F5E9" CornerRadius="3" Margin="2" Padding="4,2"
+                                        ToolTip="{Binding NowaWartosc}">
+                                    <TextBlock Text="{Binding NowaWartosc}"
+                                               Foreground="#2E7D32" FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                </Border>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                     <DataGridTextColumn Header="Opis" Binding="{Binding OpisZmiany}" Width="*">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
