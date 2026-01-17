@@ -309,7 +309,12 @@
                     </Border>
 
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="40">
-                        <Image Source="pack://application:,,,/logo2white.png" Height="100" Margin="0,0,0,30" RenderOptions.BitmapScalingMode="Fant"/>
+                        <!-- Logo firmy - duże -->
+                        <Border x:Name="LeftLogoPanel" Margin="0,0,0,25" HorizontalAlignment="Center"
+                                MouseRightButtonUp="LogoBorder_MouseRightButtonUp" Cursor="Arrow">
+                            <Image x:Name="LeftCompanyLogo" Height="120" RenderOptions.BitmapScalingMode="Fant"/>
+                        </Border>
+
                         <TextBlock TextWrapping="Wrap" TextAlignment="Center" Foreground="White" FontSize="18" Margin="0,15,0,10">
                             <Run FontWeight="SemiBold">Szanowni Pracownicy,</Run>
                         </TextBlock>

@@ -32,16 +32,24 @@ namespace Kalendarz1
                     {
                         if (logo != null)
                         {
-                            CompanyLogoImage.Source = ConvertToBitmapImage(logo as System.Drawing.Bitmap);
+                            var bitmapImage = ConvertToBitmapImage(logo as System.Drawing.Bitmap);
+                            CompanyLogoImage.Source = bitmapImage;
+                            LeftCompanyLogo.Source = bitmapImage;
                             return;
                         }
                     }
                 }
 
-                // Domyślne logo
+                // Domyślne logo dla prawego panelu (małe)
                 using (var defaultLogo = CompanyLogoManager.GenerateDefaultLogo(200, 60))
                 {
                     CompanyLogoImage.Source = ConvertToBitmapImage(defaultLogo);
+                }
+
+                // Domyślne logo dla lewego panelu (duże)
+                using (var defaultLogoLarge = CompanyLogoManager.GenerateDefaultLogo(300, 120))
+                {
+                    LeftCompanyLogo.Source = ConvertToBitmapImage(defaultLogoLarge);
                 }
             }
             catch (Exception ex)
