@@ -376,12 +376,12 @@ namespace Kalendarz1
 
             panel.Controls.Add(footerPanel);
 
-            // Panel z informacjami - wypełnia środkową część
+            // Panel z informacjami - wypełnia środkową część (używamy AutoScroll dla pewności)
             var infoPanel = new Panel
             {
                 Dock = DockStyle.Fill,
                 BackColor = Color.FromArgb(25, 35, 45),
-                Padding = new Padding(5, 10, 5, 10)
+                AutoScroll = false
             };
 
             var culture = new System.Globalization.CultureInfo("pl-PL");
@@ -389,189 +389,185 @@ namespace Kalendarz1
             string dayOfWeek = culture.DateTimeFormat.GetDayName(now.DayOfWeek);
             dayOfWeek = char.ToUpper(dayOfWeek[0]) + dayOfWeek.Substring(1);
             int weekNumber = culture.Calendar.GetWeekOfYear(now, System.Globalization.CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
+            var weather = WeatherManager.GetWeather();
+            var lastLogin = LoginHistoryManager.GetLastLogin(App.UserID);
+            var quote = QuotesManager.GetRandomQuote();
 
-            // ========== SEKCJA 1: Data i godzina (85px) ==========
-            var dateTimePanel = new Panel
-            {
-                Dock = DockStyle.Top,
-                Height = 85,
-                BackColor = Color.Transparent
-            };
+            int y = 5; // Początkowa pozycja Y
+            int contentWidth = panelWidth - 20;
 
+            // ========== GODZINA ==========
             var timeLabel = new Label
             {
                 Text = now.ToString("HH:mm"),
-                Font = new Font("Segoe UI Light", 28),
+                Font = new Font("Segoe UI Light", 26),
                 ForeColor = Color.White,
-                AutoSize = false,
-                Size = new Size(panelWidth - 20, 40),
-                Location = new Point(0, 0),
-                TextAlign = ContentAlignment.MiddleCenter,
-                BackColor = Color.Transparent
+                Size = new Size(contentWidth, 38),
+                Location = new Point(10, y),
+                TextAlign = ContentAlignment.MiddleCenter
             };
-            dateTimePanel.Controls.Add(timeLabel);
+            infoPanel.Controls.Add(timeLabel);
+            y += 40;
 
+            // ========== DZIEŃ I DATA ==========
             var dayLabel = new Label
             {
                 Text = $"{dayOfWeek}, {now.ToString("d MMM", culture)}",
-                Font = new Font("Segoe UI", 10),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
                 ForeColor = Color.FromArgb(76, 175, 80),
-                AutoSize = false,
-                Size = new Size(panelWidth - 20, 22),
-                Location = new Point(0, 42),
-                TextAlign = ContentAlignment.MiddleCenter,
-                BackColor = Color.Transparent
+                Size = new Size(contentWidth, 18),
+                Location = new Point(10, y),
+                TextAlign = ContentAlignment.MiddleCenter
             };
-            dateTimePanel.Controls.Add(dayLabel);
+            infoPanel.Controls.Add(dayLabel);
+            y += 20;
 
+            // ========== TYDZIEŃ ==========
             var weekLabel = new Label
             {
-                Text = $"Tydzień {weekNumber} • {now.Year}",
+                Text = $"Tydzień {weekNumber}",
                 Font = new Font("Segoe UI", 8),
-                ForeColor = Color.FromArgb(130, 140, 150),
-                AutoSize = false,
-                Size = new Size(panelWidth - 20, 18),
-                Location = new Point(0, 65),
-                TextAlign = ContentAlignment.MiddleCenter,
-                BackColor = Color.Transparent
+                ForeColor = Color.FromArgb(120, 130, 140),
+                Size = new Size(contentWidth, 16),
+                Location = new Point(10, y),
+                TextAlign = ContentAlignment.MiddleCenter
             };
-            dateTimePanel.Controls.Add(weekLabel);
+            infoPanel.Controls.Add(weekLabel);
+            y += 22;
 
-            // ========== SEPARATOR 1 ==========
-            var sep1 = new Panel { Dock = DockStyle.Top, Height = 1, BackColor = Color.FromArgb(50, 60, 70) };
-
-            // ========== SEKCJA 2: Pogoda aktualna (50px) ==========
-            var weather = WeatherManager.GetWeather();
-            var weatherPanel = new Panel
+            // ========== SEPARATOR ==========
+            var sep1 = new Panel
             {
-                Dock = DockStyle.Top,
-                Height = 50,
-                BackColor = Color.Transparent
+                Size = new Size(contentWidth - 20, 1),
+                Location = new Point(20, y),
+                BackColor = Color.FromArgb(50, 60, 70)
             };
+            infoPanel.Controls.Add(sep1);
+            y += 8;
 
+            // ========== POGODA ==========
             var weatherMainLabel = new Label
             {
                 Text = $"{weather.Icon} {weather.Temperature}°C",
-                Font = new Font("Segoe UI", 16),
+                Font = new Font("Segoe UI", 14),
                 ForeColor = Color.White,
-                AutoSize = false,
-                Size = new Size(panelWidth - 20, 30),
-                Location = new Point(0, 5),
-                TextAlign = ContentAlignment.MiddleCenter,
-                BackColor = Color.Transparent
+                Size = new Size(contentWidth, 28),
+                Location = new Point(10, y),
+                TextAlign = ContentAlignment.MiddleCenter
             };
-            weatherPanel.Controls.Add(weatherMainLabel);
+            infoPanel.Controls.Add(weatherMainLabel);
+            y += 26;
 
             var weatherDescLabel = new Label
             {
                 Text = weather.Description,
                 Font = new Font("Segoe UI", 8),
-                ForeColor = Color.FromArgb(150, 160, 170),
-                AutoSize = false,
-                Size = new Size(panelWidth - 20, 16),
-                Location = new Point(0, 33),
-                TextAlign = ContentAlignment.MiddleCenter,
-                BackColor = Color.Transparent
+                ForeColor = Color.FromArgb(140, 150, 160),
+                Size = new Size(contentWidth, 16),
+                Location = new Point(10, y),
+                TextAlign = ContentAlignment.MiddleCenter
             };
-            weatherPanel.Controls.Add(weatherDescLabel);
+            infoPanel.Controls.Add(weatherDescLabel);
+            y += 22;
 
-            // ========== SEPARATOR 2 ==========
-            var sep2 = new Panel { Dock = DockStyle.Top, Height = 1, BackColor = Color.FromArgb(50, 60, 70) };
-
-            // ========== SEKCJA 3: Prognoza (55px) ==========
-            var forecastPanel = new Panel
+            // ========== SEPARATOR ==========
+            var sep2 = new Panel
             {
-                Dock = DockStyle.Top,
-                Height = 55,
-                BackColor = Color.Transparent
+                Size = new Size(contentWidth - 20, 1),
+                Location = new Point(20, y),
+                BackColor = Color.FromArgb(50, 60, 70)
             };
+            infoPanel.Controls.Add(sep2);
+            y += 6;
 
+            // ========== PROGNOZA ==========
             int forecastDays = Math.Min(5, weather.Forecast.Count);
             if (forecastDays > 0)
             {
-                int dayWidth = (panelWidth - 20) / forecastDays;
+                int dayWidth = contentWidth / forecastDays;
                 for (int i = 0; i < forecastDays; i++)
                 {
                     var day = weather.Forecast[i];
+
                     var dayNameLbl = new Label
                     {
                         Text = day.DayName,
                         Font = new Font("Segoe UI", 7),
-                        ForeColor = Color.FromArgb(130, 140, 150),
+                        ForeColor = Color.FromArgb(120, 130, 140),
                         Size = new Size(dayWidth, 14),
-                        Location = new Point(i * dayWidth, 3),
+                        Location = new Point(10 + i * dayWidth, y),
                         TextAlign = ContentAlignment.MiddleCenter
                     };
-                    forecastPanel.Controls.Add(dayNameLbl);
+                    infoPanel.Controls.Add(dayNameLbl);
 
                     var dayIconLbl = new Label
                     {
                         Text = day.Icon,
-                        Font = new Font("Segoe UI", 12),
-                        Size = new Size(dayWidth, 20),
-                        Location = new Point(i * dayWidth, 16),
+                        Font = new Font("Segoe UI", 11),
+                        Size = new Size(dayWidth, 18),
+                        Location = new Point(10 + i * dayWidth, y + 14),
                         TextAlign = ContentAlignment.MiddleCenter
                     };
-                    forecastPanel.Controls.Add(dayIconLbl);
+                    infoPanel.Controls.Add(dayIconLbl);
 
                     var dayTempLbl = new Label
                     {
                         Text = $"{day.TempMax}°",
-                        Font = new Font("Segoe UI", 8),
-                        ForeColor = Color.FromArgb(180, 190, 200),
+                        Font = new Font("Segoe UI", 7),
+                        ForeColor = Color.FromArgb(170, 180, 190),
                         Size = new Size(dayWidth, 14),
-                        Location = new Point(i * dayWidth, 37),
+                        Location = new Point(10 + i * dayWidth, y + 32),
                         TextAlign = ContentAlignment.MiddleCenter
                     };
-                    forecastPanel.Controls.Add(dayTempLbl);
+                    infoPanel.Controls.Add(dayTempLbl);
                 }
+                y += 50;
             }
 
-            // ========== SEPARATOR 3 ==========
-            var sep3 = new Panel { Dock = DockStyle.Top, Height = 1, BackColor = Color.FromArgb(50, 60, 70) };
+            // ========== SEPARATOR ==========
+            var sep3 = new Panel
+            {
+                Size = new Size(contentWidth - 20, 1),
+                Location = new Point(20, y),
+                BackColor = Color.FromArgb(50, 60, 70)
+            };
+            infoPanel.Controls.Add(sep3);
+            y += 6;
 
-            // ========== SEKCJA 4: Ostatnie logowanie (25px) ==========
-            var lastLogin = LoginHistoryManager.GetLastLogin(App.UserID);
+            // ========== OSTATNIE LOGOWANIE ==========
             string lastLoginText = lastLogin != null
                 ? $"Ostatnie logowanie: {lastLogin.LoginTime:dd.MM HH:mm}"
                 : "Pierwsze logowanie";
 
-            var lastLoginPanel = new Panel
-            {
-                Dock = DockStyle.Top,
-                Height = 25,
-                BackColor = Color.Transparent
-            };
-
             var lastLoginLabel = new Label
             {
                 Text = lastLoginText,
-                Font = new Font("Segoe UI", 8),
-                ForeColor = Color.FromArgb(120, 130, 140),
-                AutoSize = false,
-                Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleCenter,
-                BackColor = Color.Transparent
+                Font = new Font("Segoe UI", 7),
+                ForeColor = Color.FromArgb(110, 120, 130),
+                Size = new Size(contentWidth, 16),
+                Location = new Point(10, y),
+                TextAlign = ContentAlignment.MiddleCenter
             };
-            lastLoginPanel.Controls.Add(lastLoginLabel);
+            infoPanel.Controls.Add(lastLoginLabel);
+            y += 22;
 
-            // ========== SEPARATOR 4 ==========
-            var sep4 = new Panel { Dock = DockStyle.Top, Height = 1, BackColor = Color.FromArgb(50, 60, 70) };
-
-            // ========== SEKCJA 5: Notatnik (38px) ==========
-            var notepadPanel = new Panel
+            // ========== SEPARATOR ==========
+            var sep4 = new Panel
             {
-                Dock = DockStyle.Top,
-                Height = 38,
-                BackColor = Color.Transparent,
-                Padding = new Padding(10, 5, 10, 5)
+                Size = new Size(contentWidth - 20, 1),
+                Location = new Point(20, y),
+                BackColor = Color.FromArgb(50, 60, 70)
             };
+            infoPanel.Controls.Add(sep4);
+            y += 8;
 
+            // ========== NOTATNIK ==========
             var notepadButton = new Button
             {
-                Text = "📝 Mój notatnik",
-                Font = new Font("Segoe UI", 9),
-                Dock = DockStyle.Fill,
+                Text = "📝 Notatnik",
+                Font = new Font("Segoe UI", 8),
+                Size = new Size(contentWidth - 20, 28),
+                Location = new Point(20, y),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.FromArgb(45, 55, 65),
                 ForeColor = Color.White,
@@ -580,13 +576,20 @@ namespace Kalendarz1
             notepadButton.FlatAppearance.BorderColor = Color.FromArgb(60, 70, 80);
             notepadButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(55, 65, 75);
             notepadButton.Click += (s, e) => ShowNotepadDialog();
-            notepadPanel.Controls.Add(notepadButton);
+            infoPanel.Controls.Add(notepadButton);
+            y += 34;
 
-            // ========== SEPARATOR 5 ==========
-            var sep5 = new Panel { Dock = DockStyle.Top, Height = 1, BackColor = Color.FromArgb(50, 60, 70) };
+            // ========== SEPARATOR ==========
+            var sep5 = new Panel
+            {
+                Size = new Size(contentWidth - 20, 1),
+                Location = new Point(20, y),
+                BackColor = Color.FromArgb(50, 60, 70)
+            };
+            infoPanel.Controls.Add(sep5);
+            y += 8;
 
-            // ========== SEKCJA 6: Cytat (Fill) ==========
-            var quote = QuotesManager.GetRandomQuote();
+            // ========== CYTAT ==========
             var quoteText = "\"" + quote.Text + "\"";
             if (!string.IsNullOrEmpty(quote.Author))
             {
@@ -596,26 +599,12 @@ namespace Kalendarz1
             {
                 Text = quoteText,
                 Font = new Font("Segoe UI", 8, FontStyle.Italic),
-                ForeColor = Color.FromArgb(130, 140, 150),
-                AutoSize = false,
-                Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleCenter,
-                BackColor = Color.Transparent,
-                Padding = new Padding(5)
+                ForeColor = Color.FromArgb(120, 130, 140),
+                Size = new Size(contentWidth, 80),
+                Location = new Point(10, y),
+                TextAlign = ContentAlignment.TopCenter
             };
-
-            // Dodaj w odwrotnej kolejności (WinForms Dock)
-            infoPanel.Controls.Add(quoteLabel);      // Fill
-            infoPanel.Controls.Add(sep5);
-            infoPanel.Controls.Add(notepadPanel);
-            infoPanel.Controls.Add(sep4);
-            infoPanel.Controls.Add(lastLoginPanel);
-            infoPanel.Controls.Add(sep3);
-            infoPanel.Controls.Add(forecastPanel);
-            infoPanel.Controls.Add(sep2);
-            infoPanel.Controls.Add(weatherPanel);
-            infoPanel.Controls.Add(sep1);
-            infoPanel.Controls.Add(dateTimePanel);
+            infoPanel.Controls.Add(quoteLabel);
 
             panel.Controls.Add(infoPanel);
 
@@ -632,7 +621,7 @@ namespace Kalendarz1
                     newDayOfWeek = char.ToUpper(newDayOfWeek[0]) + newDayOfWeek.Substring(1);
                     dayLabel.Text = $"{newDayOfWeek}, {currentTime.ToString("d MMM", culture)}";
                     int newWeekNumber = culture.Calendar.GetWeekOfYear(currentTime, System.Globalization.CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
-                    weekLabel.Text = $"Tydzień {newWeekNumber} • {currentTime.Year}";
+                    weekLabel.Text = $"Tydzień {newWeekNumber}";
                 }
             };
             clockTimer.Start();
